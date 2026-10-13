@@ -39,9 +39,7 @@ export const DEFAULT_UNDO_MS = 6000
 
 export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
   const step: Ref<InlineFlowStep> = ref('idle')
-  const canUndo: ComputedRef<boolean> = computed(
-    () => step.value === 'done' && toValue(options.revert) !== undefined,
-  )
+  const canUndo = computed(() => step.value === 'done' && toValue(options.revert) !== undefined)
 
   const undoWindow = useTimeoutFn(
     () => {
@@ -53,19 +51,23 @@ export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
 
   async function perform(): Promise<void> {
     step.value = 'pending'
+
     try {
       await toValue(options.action)?.()
     } catch {
       step.value = 'failed'
+
       return
     }
+
     step.value = 'done'
     if (toValue(options.revert) !== undefined) undoWindow.start()
   }
 
   function start(): void {
     if (step.value !== 'idle') return
-    const kind: InlineFlowKind = toValue(options.kind)
+    const kind = toValue(options.kind)
+
     if (kind === 'note') step.value = 'done'
     else if (kind === 'confirm') step.value = 'ask'
     else void perform()
@@ -76,16 +78,20 @@ export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
   }
 
   async function undo(): Promise<void> {
-    const revert: Work | undefined = toValue(options.revert)
+    const revert = toValue(options.revert)
+
     if (!canUndo.value || revert === undefined) return
     undoWindow.stop()
     step.value = 'pending'
+
     try {
       await revert()
     } catch {
       step.value = 'failed'
+
       return
     }
+
     step.value = 'idle'
   }
 

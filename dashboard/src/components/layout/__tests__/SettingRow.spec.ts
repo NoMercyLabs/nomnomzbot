@@ -22,7 +22,7 @@ function row(modelValue: boolean, disabled: boolean = false): VueWrapper {
 
 describe('a setting row', () => {
   it('turns the setting on when the text of the row is pressed', async () => {
-    const wrapper: VueWrapper = row(false)
+    const wrapper = row(false)
 
     await wrapper.find('.text-muted-foreground').trigger('click')
 
@@ -30,7 +30,7 @@ describe('a setting row', () => {
   })
 
   it('turns the setting off when the switch itself is pressed, once', async () => {
-    const wrapper: VueWrapper = row(true)
+    const wrapper = row(true)
 
     await wrapper.find('[role="switch"]').trigger('click')
 
@@ -38,7 +38,7 @@ describe('a setting row', () => {
   })
 
   it('names the switch by the title, so a reader announces what it sets', () => {
-    const wrapper: VueWrapper = row(false)
+    const wrapper = row(false)
     const labelledBy: string = wrapper.find('[role="switch"]').attributes('aria-labelledby')!
 
     expect(document.getElementById(labelledBy)?.textContent).toBe('Speak with TTS')

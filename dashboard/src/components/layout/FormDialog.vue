@@ -53,7 +53,8 @@ function submit(): void {
 }
 
 function submitFromField(event: KeyboardEvent): void {
-  const target: EventTarget | null = event.target
+  const target = event.target
+
   if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return
   event.preventDefault()
   submit()
@@ -66,7 +67,9 @@ function keepOpenWhilePending(event: Event): void {
 function focusFirstField(event: Event): void {
   event.preventDefault()
   void nextTick(() => {
-    body.value?.querySelector<HTMLElement>('input, select, textarea, [tabindex]:not([tabindex="-1"])')?.focus()
+    body.value
+      ?.querySelector<HTMLElement>('input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ?.focus()
   })
 }
 </script>
@@ -81,7 +84,12 @@ function focusFirstField(event: Event): void {
       @pointer-down-outside="keepOpenWhilePending"
       @interact-outside="keepOpenWhilePending"
     >
-      <form class="flex min-h-0 flex-1 flex-col" novalidate @submit.prevent="submit" @keydown.enter="submitFromField">
+      <form
+        class="flex min-h-0 flex-1 flex-col"
+        novalidate
+        @submit.prevent="submit"
+        @keydown.enter="submitFromField"
+      >
         <div class="grid flex-none gap-1.5 px-6 pt-6 pb-4">
           <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
           <DialogDescription v-if="description" class="text-sm text-muted-foreground">
@@ -91,11 +99,22 @@ function focusFirstField(event: Event): void {
         <div ref="body" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-4">
           <slot />
         </div>
-        <div v-if="error" data-form-error role="alert" class="flex-none px-6 pb-4 text-sm text-destructive">
+        <div
+          v-if="error"
+          data-form-error
+          role="alert"
+          class="flex-none px-6 pb-4 text-sm text-destructive"
+        >
           {{ error }}
         </div>
         <DialogFooter class="flex-none border-t border-border px-6 py-4">
-          <Button data-form-cancel type="button" variant="outline" :disabled="pending" @click="setOpen(false)">
+          <Button
+            data-form-cancel
+            type="button"
+            variant="outline"
+            :disabled="pending"
+            @click="setOpen(false)"
+          >
             {{ $t('common.cancel') }}
           </Button>
           <Button data-form-action type="submit" :disabled="pending">

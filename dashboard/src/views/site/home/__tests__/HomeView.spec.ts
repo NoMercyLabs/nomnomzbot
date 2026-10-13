@@ -21,9 +21,12 @@ const Shell = defineComponent({ components: { RouterView }, template: '<RouterVi
 
 async function openRoot(): Promise<{ wrapper: VueWrapper; router: Router }> {
   const router: Router = createRouter({ history: createMemoryHistory(), routes: [siteRoutes] })
+
   await router.push('/')
   const wrapper: VueWrapper = mount(Shell, { global: { plugins: [router, i18n] } })
+
   await flushPromises()
+
   return { wrapper, router }
 }
 
@@ -60,28 +63,43 @@ describe('the site root', () => {
     await flushPromises()
 
     const panel: HTMLElement | null = document.querySelector('[role="dialog"]')
+
     expect(panel).not.toBeNull()
-    const links: string[] = [...panel!.querySelectorAll('a')].map((link: HTMLAnchorElement) => link.textContent!.trim())
-    expect(links).toEqual(['Features', 'Self-host vs hosted', 'Integrations', 'GitHub', 'Connect your channel'])
+    const links: string[] = [...panel!.querySelectorAll('a')].map((link: HTMLAnchorElement) =>
+      link.textContent!.trim(),
+    )
+
+    expect(links).toEqual([
+      'Features',
+      'Self-host vs hosted',
+      'Integrations',
+      'GitHub',
+      'Connect your channel',
+    ])
     expect(panel!.querySelector('[data-slot="select-trigger"]')).not.toBeNull()
   })
 
   it('keeps the license restriction next to the hosting choice', async () => {
     const { wrapper } = await openRoot()
 
-    expect(wrapper.text()).toContain('Only NoMercy Labs may operate NomNomzBot as a paid service for other streamers')
+    expect(wrapper.text()).toContain(
+      'Only NoMercy Labs may operate NomNomzBot as a paid service for other streamers',
+    )
     expect(wrapper.text()).toContain('Running your own bot stays free and unrestricted, forever')
   })
 
   it('switches the demo panel when another tab is chosen', async () => {
     const { wrapper } = await openRoot()
-    const tabs: ReturnType<VueWrapper['findAll']> = wrapper.findAll('[role="tablist"]')[0]!.findAll('[role="tab"]')
+    const tabs: ReturnType<VueWrapper['findAll']> = wrapper
+      .findAll('[role="tablist"]')[0]!
+      .findAll('[role="tab"]')
     const shown = (): string => wrapper.find('[role="tabpanel"][data-state="active"]').text()
 
     expect(tabs[0]!.attributes('aria-selected')).toBe('true')
     expect(shown()).toContain('Chatters today')
 
-    const moderation: ReturnType<VueWrapper['findAll']>[number] = tabs.find((tab) => tab.text() === 'Queue')!
+    const moderation = tabs.find((tab) => tab.text() === 'Queue')!
+
     await moderation.trigger('mousedown')
     await flushPromises()
 

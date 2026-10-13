@@ -15,7 +15,10 @@ import { communityListKey, viewerProfileKey } from '@/api/people'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({ HubConnectionBuilder: FakeHubConnectionBuilder, HubConnection: FakeHubConnection }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 beforeEach(() => {
   vi.resetModules()
@@ -25,15 +28,24 @@ beforeEach(() => {
 describe('ModAction', () => {
   it('marks every people list and every viewer profile of the joined channel stale, and no other channel', async () => {
     const hub = await import('../dashboardHub')
-    const queries: QueryClient = new QueryClient()
+    const queries = new QueryClient()
+
     await hub.startDashboardHub(queries)
-    const connection: FakeHubConnection = FakeHubConnection.at(FakeHubConnection.instances.length - 1)
+    const connection = FakeHubConnection.at(FakeHubConnection.instances.length - 1)
+
     await hub.watchChannel('c1')
     queries.setQueryData(communityListKey('c1', 'moderator', ''), { pages: [], pageParams: [] })
     queries.setQueryData(viewerProfileKey('c1', 'g1'), {})
     queries.setQueryData(communityListKey('c2', 'all', ''), { pages: [], pageParams: [] })
 
-    connection.receive('ModAction', { action: 'timeout', moderatorId: 'm', targetUserId: 't1', reason: null, durationSeconds: 60, broadcasterId: 'b' })
+    connection.receive('ModAction', {
+      action: 'timeout',
+      moderatorId: 'm',
+      targetUserId: 't1',
+      reason: null,
+      durationSeconds: 60,
+      broadcasterId: 'b',
+    })
 
     expect(queries.getQueryState(communityListKey('c1', 'moderator', ''))?.isInvalidated).toBe(true)
     expect(queries.getQueryState(viewerProfileKey('c1', 'g1'))?.isInvalidated).toBe(true)

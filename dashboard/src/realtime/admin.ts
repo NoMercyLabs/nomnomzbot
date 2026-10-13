@@ -23,8 +23,10 @@ import type { AdminChannelRegistryPayload, AdminSystemStatusPayload } from './pa
 // What a registry push says about one row. Absent fields stay as they are.
 function patchOf(update: AdminChannelRegistryPayload): Partial<AdminTenant> {
   const patch: Partial<AdminTenant> = {}
+
   if (update.isLive !== undefined) patch.isLive = update.isLive
   if (update.status !== undefined) patch.status = update.status
+
   return patch
 }
 
@@ -32,8 +34,9 @@ function applyRegistryUpdate(
   { queries }: HubEventContext,
   update: AdminChannelRegistryPayload,
 ): void {
-  const patch: Partial<AdminTenant> = patchOf(update)
+  const patch = patchOf(update)
   let found = false
+
   for (const [key, page] of queries.getQueriesData<AdminTenantsPage>({
     queryKey: adminTenantsPrefix,
   })) {
@@ -46,12 +49,14 @@ function applyRegistryUpdate(
       ),
     })
   }
+
   if (update.status !== undefined) {
     queries.setQueryData<AdminTenantDetail | null>(
       adminTenantKey(update.broadcasterId),
       (detail) => (detail ? { ...detail, status: update.status! } : detail),
     )
   }
+
   // A channel that is on no cached page cannot be patched, and it may belong on one: refetch the lists.
   if (!found) void queries.invalidateQueries({ queryKey: adminTenantsPrefix })
 }

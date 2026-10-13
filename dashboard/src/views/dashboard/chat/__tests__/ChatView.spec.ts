@@ -71,16 +71,20 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path, body: undefined, messageId: '' })
+
       return { data: { data: history }, response: { status: 200, ok: true } }
     },
     POST: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'POST', path, body: options?.body, messageId: '' })
-      const ok: boolean = !path.endsWith('/chat/messages') || sendOk
+      const ok = !path.endsWith('/chat/messages') || sendOk
+
       return { data: { data: null }, response: { status: ok ? 200 : 500, ok } }
     },
     DELETE: async (path: string, options?: Options): Promise<Answer> => {
-      const messageId: string = String(options?.params?.path?.messageId)
+      const messageId = String(options?.params?.path?.messageId)
+
       calls.push({ method: 'DELETE', path, body: undefined, messageId })
+
       return { data: { data: null }, response: { status: 200, ok: true } }
     },
   },
@@ -116,6 +120,7 @@ function stubLayout(): void {
   )
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -189,6 +194,7 @@ async function open(): Promise<void> {
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   // The page runs inside the frame's tooltip provider and toast host, so the test gives it the same.
   const framed = defineComponent(() => () => h(TooltipProvider, () => [h(ChatView), h(Toaster)]))
+
   mounted = mount(framed, {
     attachTo: document.body,
     global: { plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: queries }]] },
@@ -202,10 +208,12 @@ const rowOf = (id: string): HTMLElement =>
   rows().find((row) => row.dataset.lineId === id) as HTMLElement
 const action = (id: string, name: string): HTMLButtonElement =>
   rowOf(id).querySelector(`[data-line-action="${name}"]`) as HTMLButtonElement
+
 // jsdom has no pointer capture, so the menu is opened the keyboard way (Enter on the trigger).
 const openMenu = (trigger: HTMLElement): void => {
   trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
 }
+
 const input = (): HTMLInputElement =>
   document.body.querySelector('input[data-composer]') as HTMLInputElement
 const writes = (): Call[] => calls.filter((call) => call.method !== 'GET')
@@ -258,16 +266,19 @@ describe('ChatView', () => {
 
   it('shows four tray buttons in order: timeout, delete, ban, profile', async () => {
     await open()
-    const names: (string | undefined)[] = [
-      ...rowOf('m2').querySelectorAll<HTMLElement>('[data-line-action]'),
-    ].map((button) => button.dataset.lineAction)
+    const names = [...rowOf('m2').querySelectorAll<HTMLElement>('[data-line-action]')].map(
+      (button) => button.dataset.lineAction,
+    )
+
     expect(names).toEqual(['timeout', 'delete', 'ban', 'profile'])
   })
 
   it('keeps every tray button a plain ghost icon with a 20px icon, harm only in the ban confirm', async () => {
     await open()
+
     for (const name of ['timeout', 'delete', 'ban', 'profile']) {
-      const button: HTMLButtonElement = action('m2', name)
+      const button = action('m2', name)
+
       expect(button.dataset.variant).toBe('ghost')
       expect(button.dataset.size).toBe('icon')
       expect(button.querySelector('svg')!.classList.contains('size-5')).toBe(true)
@@ -277,6 +288,7 @@ describe('ChatView', () => {
   it('opens the profile of the line person from the profile button', async () => {
     await open()
     const store = useProfileDialogStore(pinia)
+
     action('m2', 'profile').click()
     await settle()
     expect(store.userId).toBe('u2')
@@ -286,9 +298,10 @@ describe('ChatView', () => {
     await open()
     openMenu(action('m2', 'timeout'))
     await settle()
-    const items: string[] = [
-      ...document.body.querySelectorAll<HTMLElement>('[data-timeout-length]'),
-    ].map((item) => item.dataset.timeoutLength ?? '')
+    const items = [...document.body.querySelectorAll<HTMLElement>('[data-timeout-length]')].map(
+      (item) => item.dataset.timeoutLength ?? '',
+    )
+
     expect(items).toEqual(['60', '600', '3600', '86400'])
     expect(writes()).toEqual([])
   })
@@ -329,9 +342,8 @@ describe('ChatView', () => {
     action('m2', 'ban').click()
     await settle()
     expect(writes()).toEqual([])
-    const confirm: HTMLButtonElement = document.body.querySelector(
-      '[data-confirm-action]',
-    ) as HTMLButtonElement
+    const confirm = document.body.querySelector('[data-confirm-action]') as HTMLButtonElement
+
     confirm.click()
     await settle()
     expect(writes()).toHaveLength(1)
@@ -404,6 +416,7 @@ describe('ChatView', () => {
   it('opens the profile of the person on the line', async () => {
     await open()
     const store = useProfileDialogStore(pinia)
+
     rowOf('m2').querySelector<HTMLElement>('[data-slot="user-name"]')!.click()
     await settle()
     expect(store.userId).toBe('u2')

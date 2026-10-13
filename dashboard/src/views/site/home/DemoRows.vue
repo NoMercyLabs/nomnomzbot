@@ -25,9 +25,11 @@ const { t } = useI18n()
 function line(user: string, text: string): Row {
   return { title: t(`site.home.chatLines.${user}`), detail: t(`site.home.chatLines.${text}`) }
 }
+
 function bot(reply: string): Row {
   return { title: t('site.home.chatLines.botName'), detail: t(`site.home.chatLines.${reply}`) }
 }
+
 function queued(n: 1 | 2 | 3): Row {
   return {
     title: t(`site.home.queue.who${n}`),
@@ -36,14 +38,22 @@ function queued(n: 1 | 2 | 3): Row {
     harm: n === 1,
   }
 }
+
 function alert(which: 'raid' | 'sub'): Row {
-  return { title: t(`site.home.alerts.${which}Title`), detail: t(`site.home.alerts.${which}Detail`) }
+  return {
+    title: t(`site.home.alerts.${which}Title`),
+    detail: t(`site.home.alerts.${which}Detail`),
+  }
 }
 
 const rows: ComputedRef<Row[]> = computed(() => {
   switch (props.kind) {
     case 'requests':
-      return [line('songrequestUser', 'songrequestText'), bot('songrequestReply'), line('raidUser', 'raidText')]
+      return [
+        line('songrequestUser', 'songrequestText'),
+        bot('songrequestReply'),
+        line('raidUser', 'raidText'),
+      ]
     case 'commands':
       return [
         line('socialsUser', 'socialsText'),
@@ -63,9 +73,17 @@ const rows: ComputedRef<Row[]> = computed(() => {
 
 <template>
   <RowGroup>
-    <SummaryRow v-for="row in rows" :key="row.title + row.detail" :title="row.title" :detail="row.detail">
+    <SummaryRow
+      v-for="row in rows"
+      :key="row.title + row.detail"
+      :title="row.title"
+      :detail="row.detail"
+    >
       <template v-if="row.action" #end>
-        <span class="text-xs font-medium" :class="row.harm ? 'text-destructive' : 'text-muted-foreground'">
+        <span
+          class="text-xs font-medium"
+          :class="row.harm ? 'text-destructive' : 'text-muted-foreground'"
+        >
           {{ row.action }}
         </span>
       </template>

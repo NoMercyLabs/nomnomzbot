@@ -80,7 +80,8 @@ const densities: ComputedRef<Choice<Readability['density']>[]> = computed<
 ])
 
 function setSize(next: number[] | undefined): void {
-  const size: number | undefined = next?.[0]
+  const size = next?.[0]
+
   if (size !== undefined) settings.value = { ...settings.value, size }
 }
 </script>

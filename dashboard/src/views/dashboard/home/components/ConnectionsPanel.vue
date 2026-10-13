@@ -8,11 +8,10 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useBotStatus, useConnections, type IntegrationStatus } from '@/api/home'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
@@ -26,15 +25,17 @@ const platformName = useProviderName()
 
 const connectionsQuery = useConnections(channelId)
 const botQuery = useBotStatus(channelId)
-const connectionsState: ComputedRef<PanelState> = usePanelState(connectionsQuery)
+const connectionsState = usePanelState(connectionsQuery)
 
 function connectionTone(connection: IntegrationStatus): 'ok' | 'bad' | 'off' {
   if (!connection.connected) return 'off'
+
   return connection.needsReauth ? 'bad' : 'ok'
 }
 
 function connectionLabel(connection: IntegrationStatus): string {
   if (!connection.connected) return t('dashboard.home.connections.notConnected')
+
   return connection.needsReauth
     ? t('dashboard.home.connections.reauth')
     : t('dashboard.home.connections.connected')

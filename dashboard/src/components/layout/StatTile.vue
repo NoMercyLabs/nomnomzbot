@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // One stat: label on top, the value, then one line of context. No icons.
 // The value takes colour only when it is a warning (warn). A number is grouped in the reader's language.
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(
@@ -19,7 +19,7 @@ const props = withDefaults(
 )
 
 const { n } = useI18n()
-const shown: ComputedRef<string> = computed<string>(() =>
+const shown = computed<string>(() =>
   typeof props.value === 'number' ? n(props.value) : props.value,
 )
 </script>
@@ -27,7 +27,9 @@ const shown: ComputedRef<string> = computed<string>(() =>
 <template>
   <div data-slot="stat-tile" class="grid min-w-0 gap-1 rounded-lg border border-border bg-card p-4">
     <span class="text-sm text-muted-foreground">{{ label }}</span>
-    <b class="text-2xl font-semibold tabular-nums" :class="warn ? 'text-destructive' : ''">{{ shown }}</b>
+    <b class="text-2xl font-semibold tabular-nums" :class="warn ? 'text-destructive' : ''">{{
+      shown
+    }}</b>
     <span v-if="context" class="text-sm text-muted-foreground">{{ context }}</span>
   </div>
 </template>

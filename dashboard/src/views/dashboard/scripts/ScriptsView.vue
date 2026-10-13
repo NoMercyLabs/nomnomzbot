@@ -13,7 +13,7 @@
 // A refusal of the list (custom code switched off, no right) shows the bot's own reason, not the empty text.
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Add from '~icons/nnz/add'
 
 import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts'
@@ -38,14 +38,14 @@ import type { SessionRun } from './components/sessionRun'
 const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'failed']
 
 const { t } = useI18n()
-const route: RouteLocationNormalizedLoaded = useRoute()
-const router: Router = useRouter()
+const route = useRoute()
+const router = useRouter()
 
 const scripts = useCodeScripts()
 const view = usePageView(TAB_VALUES)
-const search: Ref<string> = ref('')
+const search = ref('')
 
-const loaded: ComputedRef<CodeScriptSummary[] | undefined> = computed(() => scripts.data.value)
+const loaded = computed(() => scripts.data.value)
 
 const FILTERS: Readonly<Record<string, (script: CodeScriptSummary) => boolean>> = {
   all: () => true,
@@ -58,7 +58,7 @@ function countOf(tab: string): number | undefined {
   return loaded.value?.filter(FILTERS[tab]!).length
 }
 
-const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() =>
+const tabs = computed<PageTab[]>(() =>
   TAB_VALUES.map((value: string): PageTab => ({
     value,
     label: t(`dashboard.scripts.tabs.${value}`),
@@ -67,7 +67,8 @@ const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() =>
 )
 
 const visible: ComputedRef<CodeScriptSummary[] | undefined> = computed(() => {
-  const typed: string = search.value.trim().toLowerCase()
+  const typed = search.value.trim().toLowerCase()
+
   return loaded.value
     ?.filter(FILTERS[view.value] ?? FILTERS.all!)
     .filter(
@@ -81,12 +82,14 @@ const visible: ComputedRef<CodeScriptSummary[] | undefined> = computed(() => {
 const listState = usePanelState(scripts, () => false)
 const panelState = computed(() => {
   if (listState.value !== 'ready') return listState.value
+
   return visible.value?.length === 0 ? 'empty' : 'ready'
 })
 
 const emptyText: ComputedRef<string> = computed<string>(() => {
   if (search.value.trim() !== '')
     return t('dashboard.scripts.noMatch', { query: search.value.trim() })
+
   return t(
     loaded.value?.length === 0 ? 'dashboard.scripts.list.empty' : 'dashboard.scripts.list.emptyTab',
   )
@@ -95,17 +98,17 @@ const errorText: ComputedRef<string> = computed<string>(
   () => scripts.error.value?.message || t('dashboard.scripts.list.error'),
 )
 
-const hint: ComputedRef<string> = computed<string>(() => t(`dashboard.scripts.hints.${view.value}`))
+const hint = computed<string>(() => t(`dashboard.scripts.hints.${view.value}`))
 const count: ComputedRef<string | undefined> = computed(() =>
   panelState.value === 'ready'
     ? t('dashboard.scripts.count', { count: visible.value?.length ?? 0 })
     : undefined,
 )
 
-const asked: ComputedRef<string> = computed<string>(() =>
+const asked = computed<string>(() =>
   typeof route.query.script === 'string' ? route.query.script : '',
 )
-const selectedId: ComputedRef<string> = asked
+const selectedId = asked
 
 function pick(script: CodeScriptSummary): void {
   void router.push({ query: { ...route.query, script: script.id } })
@@ -113,20 +116,22 @@ function pick(script: CodeScriptSummary): void {
 
 function back(): void {
   const { script, ...rest } = route.query
+
   void script
   void router.push({ query: rest })
 }
 
-const newOpen: Ref<boolean> = ref(false)
+const newOpen = ref(false)
 
 // The test runs of this visit, newest first. A failed run opens its dialog at once.
 const runs: Ref<SessionRun[]> = ref([])
 const failedRun: Ref<SessionRun | null> = ref(null)
-const runsOpen: Ref<boolean> = ref(false)
+const runsOpen = ref(false)
 let nextRunId: number = 1
 
 function ran(run: Omit<SessionRun, 'id'>): void {
   const entry: SessionRun = { ...run, id: nextRunId++ }
+
   runs.value = [entry, ...runs.value]
   if (!entry.result.success) failedRun.value = entry
 }

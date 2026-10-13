@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter, type Router } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import { useCurrentUser } from '@/api/auth'
 import { useHomeStats, type HomeStats } from '@/api/home'
@@ -30,7 +30,7 @@ import QuickActionsPanel from './components/QuickActionsPanel.vue'
 import ReviewQueuePanel from './components/ReviewQueuePanel.vue'
 
 const { t } = useI18n()
-const router: Router = useRouter()
+const router = useRouter()
 const { channelId } = useCurrentChannel()
 const { data: user } = useCurrentUser()
 const platformName = useProviderName()
@@ -38,7 +38,7 @@ const platformName = useProviderName()
 const statsQuery = useHomeStats(channelId)
 
 const stats: ComputedRef<HomeStats | null> = computed(() => statsQuery.data.value ?? null)
-const live: ComputedRef<boolean> = computed(() => stats.value?.isLive === true)
+const live = computed(() => stats.value?.isLive === true)
 
 const title: ComputedRef<string> = computed(() =>
   user.value
@@ -55,7 +55,8 @@ const statusLabel: ComputedRef<string> = computed(() =>
 )
 
 const statsLine: ComputedRef<string> = computed(() => {
-  const current: HomeStats | null = stats.value
+  const current = stats.value
+
   if (current === null) return ''
   if (current.isLive)
     return t('dashboard.home.liveLine', {
@@ -63,6 +64,7 @@ const statsLine: ComputedRef<string> = computed(() => {
       viewers: current.viewerCount,
       followers: current.followerCount,
     })
+
   return t('dashboard.home.offlineLine', {
     followers: current.followerCount,
     subscribers: current.subscriberCount,
@@ -74,6 +76,7 @@ const primaryRoute: ComputedRef<{ name: string; label: string } | null> = comput
   const next: { name: string; label: string } = live.value
     ? { name: 'dashboard-chat', label: t('dashboard.home.openChat') }
     : { name: 'dashboard-stream', label: t('dashboard.home.editStream') }
+
   return router.hasRoute(next.name) ? next : null
 })
 </script>

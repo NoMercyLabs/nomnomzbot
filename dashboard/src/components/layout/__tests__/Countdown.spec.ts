@@ -50,7 +50,8 @@ describe('formatCountdown', () => {
 
 describe('the countdown', () => {
   it('counts down one second at a time', async () => {
-    const wrapper: VueWrapper = countdown(303)
+    const wrapper = countdown(303)
+
     expect(shown(wrapper)).toBe('5:03')
 
     vi.advanceTimersByTime(1000)
@@ -63,7 +64,7 @@ describe('the countdown', () => {
   })
 
   it('emits zero exactly once when the time runs out and stays at 0:00', async () => {
-    const wrapper: VueWrapper = countdown(3)
+    const wrapper = countdown(3)
 
     vi.advanceTimersByTime(2000)
     await wrapper.vm.$nextTick()
@@ -81,7 +82,8 @@ describe('the countdown', () => {
   })
 
   it('shows 0:00 and emits zero at once for a target in the past', async () => {
-    const wrapper: VueWrapper = countdown(-90)
+    const wrapper = countdown(-90)
+
     await wrapper.vm.$nextTick()
 
     expect(shown(wrapper)).toBe('0:00')
@@ -89,7 +91,8 @@ describe('the countdown', () => {
   })
 
   it('restarts when the target changes, and emits zero again for the new target', async () => {
-    const wrapper: VueWrapper = countdown(2)
+    const wrapper = countdown(2)
+
     vi.advanceTimersByTime(2000)
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('zero')).toHaveLength(1)
@@ -105,9 +108,10 @@ describe('the countdown', () => {
   })
 
   it('keeps the seconds out of the screen reader text, which changes only once a minute', async () => {
-    const wrapper: VueWrapper = countdown(190)
+    const wrapper = countdown(190)
     const spoken = (): string => wrapper.find('.sr-only').text()
-    const first: string = spoken()
+    const first = spoken()
+
     expect(first).toContain('Next ad')
     expect(first).toContain('4')
     expect(wrapper.find('[data-slot="countdown-time"]').attributes('aria-hidden')).toBe('true')
@@ -123,7 +127,8 @@ describe('the countdown', () => {
   })
 
   it('marks the last minute and uses the shared words at zero', async () => {
-    const wrapper: VueWrapper = countdown(61)
+    const wrapper = countdown(61)
+
     expect(wrapper.attributes('data-soon')).toBeUndefined()
 
     vi.advanceTimersByTime(2000)

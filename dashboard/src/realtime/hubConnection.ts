@@ -23,6 +23,7 @@ export function buildHub(path: string, status: Ref<HubStatus>): HubConnection {
     .withUrl(new URL(path, activeBot.value).toString(), { accessTokenFactory: getAccessToken })
     .withAutomaticReconnect()
     .build()
+
   connection.onreconnecting(() => {
     status.value = 'reconnecting'
   })
@@ -32,6 +33,7 @@ export function buildHub(path: string, status: Ref<HubStatus>): HubConnection {
   connection.onclose(() => {
     status.value = 'offline'
   })
+
   return connection
 }
 

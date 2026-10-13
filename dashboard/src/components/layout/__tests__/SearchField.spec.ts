@@ -21,33 +21,44 @@ afterEach(() => {
 })
 
 function field(): HTMLInputElement {
-  mounted = mount(SearchField, { attachTo: document.body, props: { placeholder: 'Search commands', modelValue: '' } })
+  mounted = mount(SearchField, {
+    attachTo: document.body,
+    props: { placeholder: 'Search commands', modelValue: '' },
+  })
+
   return mounted.find('input').element
 }
 
 function press(key: string, target: EventTarget = document.body): KeyboardEvent {
-  const event: KeyboardEvent = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+  const event: KeyboardEvent = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  })
+
   target.dispatchEvent(event)
+
   return event
 }
 
 describe('the search field', () => {
   it('focuses on the key "/" and keeps the slash out of the box', () => {
-    const input: HTMLInputElement = field()
+    const input = field()
 
-    const event: KeyboardEvent = press('/')
+    const event = press('/')
 
     expect(document.activeElement).toBe(input)
     expect(event.defaultPrevented).toBe(true)
   })
 
   it('leaves "/" alone while a person types in another field', () => {
-    const input: HTMLInputElement = field()
+    const input = field()
     const other: HTMLInputElement = document.createElement('input')
+
     document.body.appendChild(other)
     other.focus()
 
-    const event: KeyboardEvent = press('/', other)
+    const event = press('/', other)
 
     expect(document.activeElement).toBe(other)
     expect(document.activeElement).not.toBe(input)
@@ -69,7 +80,8 @@ describe('the search field', () => {
   })
 
   it('stops listening once removed', () => {
-    const input: HTMLInputElement = field()
+    const input = field()
+
     mounted!.unmount()
     mounted = undefined
 

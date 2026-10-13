@@ -26,5 +26,6 @@ export type RunFilter = 'all' | 'failed' | 'tests'
 export function matchesRunFilter(run: SessionRun, filter: RunFilter): boolean {
   if (filter === 'failed') return !run.result.success
   if (filter === 'tests') return run.trigger !== null
+
   return true
 }

@@ -14,7 +14,7 @@
 // with no data says so.
 import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter, type Router } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import {
   usePolls,
@@ -41,7 +41,7 @@ import Timer24 from '~icons/nnz/timer'
 type Running = { title: string; kind: 'poll' | 'prediction'; target: number | null }
 
 const { t } = useI18n()
-const router: Router = useRouter()
+const router = useRouter()
 const { channelId } = useCurrentChannel()
 
 const adQuery = useAdSchedule(channelId)
@@ -56,12 +56,11 @@ const MS: number = 1000
 // An ad break the server did not schedule has no time; zero means none.
 const ad: ComputedRef<AdSchedule | null> = computed(() => {
   const schedule: AdSchedule | null = adQuery.data.value ?? null
+
   return schedule !== null && Number(schedule.nextAdAt) > 0 ? schedule : null
 })
-const snoozesLeft: ComputedRef<number> = computed(() => Number(ad.value?.snoozeCount ?? 0))
-const adMinutes: ComputedRef<number> = computed(() =>
-  Math.round(Number(ad.value?.duration ?? 0) / 60),
-)
+const snoozesLeft = computed(() => Number(ad.value?.snoozeCount ?? 0))
+const adMinutes = computed(() => Math.round(Number(ad.value?.duration ?? 0) / 60))
 const adDetail: ComputedRef<string> = computed(() =>
   [
     t('dashboard.home.quick.adLength', { minutes: adMinutes.value }),
@@ -79,9 +78,10 @@ const senders: ComputedRef<string[]> = computed(() => [
 ])
 const queueDetail: ComputedRef<string> = computed(() => {
   const waiting: string = t('dashboard.home.quick.waiting', { count: queue.value.length })
-  const everyoneNamed: boolean =
+  const everyoneNamed =
     senders.value.length === 1 &&
     queue.value.every((item: QueueItem) => item.requestedBy === senders.value[0])
+
   return everyoneNamed
     ? `${waiting} · ${t('dashboard.home.quick.allSentBy', { name: senders.value[0] })}`
     : waiting
@@ -94,6 +94,7 @@ function dueAt(timer: Timer): number {
     Number(timer.intervalMinutes) * 60 * MS
   )
 }
+
 const enabledTimers: ComputedRef<Timer[]> = computed(() =>
   (timersQuery.data.value ?? []).filter((timer: Timer) => timer.isEnabled),
 )
@@ -105,6 +106,7 @@ const running: ComputedRef<Running | null> = computed(() => {
   const poll: Poll | undefined = (pollsQuery.data.value ?? []).find(
     (p: Poll) => p.status.toUpperCase() === 'ACTIVE',
   )
+
   if (poll !== undefined) {
     return {
       title: poll.title,
@@ -112,11 +114,14 @@ const running: ComputedRef<Running | null> = computed(() => {
       target: new Date(poll.startedAt).getTime() + Number(poll.duration) * MS,
     }
   }
+
   const prediction: Prediction | undefined = (predictionsQuery.data.value ?? []).find(
     (p: Prediction) => ['ACTIVE', 'LOCKED'].includes(p.status.toUpperCase()),
   )
+
   if (prediction === undefined) return null
-  const open: boolean = prediction.status.toUpperCase() === 'ACTIVE'
+  const open = prediction.status.toUpperCase() === 'ACTIVE'
+
   return {
     title: prediction.title,
     kind: 'prediction',
@@ -125,12 +130,8 @@ const running: ComputedRef<Running | null> = computed(() => {
       : null,
   }
 })
-const pollsPending: ComputedRef<boolean> = computed(
-  () => pollsQuery.isPending.value || predictionsQuery.isPending.value,
-)
-const pollsFailed: ComputedRef<boolean> = computed(
-  () => pollsQuery.isError.value || predictionsQuery.isError.value,
-)
+const pollsPending = computed(() => pollsQuery.isPending.value || predictionsQuery.isPending.value)
+const pollsFailed = computed(() => pollsQuery.isError.value || predictionsQuery.isError.value)
 
 const musicLinked: ComputedRef<boolean> = computed(() => router.hasRoute('dashboard-music'))
 </script>

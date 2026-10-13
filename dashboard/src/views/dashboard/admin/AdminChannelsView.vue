@@ -11,9 +11,9 @@
 // The platform admin's channel registry: a searchable, filterable, paged table. The bot pages and sorts
 // (newest first); a filter or a search always goes back to page 1. The channel in view is ?channel=.
 import { refDebounced, useLocalStorage, type RemovableRef } from '@vueuse/core'
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, watch, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import ChevronLeft from '~icons/nnz/chevron-left'
 import ChevronRight from '~icons/nnz/chevron-right'
 
@@ -31,14 +31,14 @@ const PAGE_SIZE: number = 25
 const SEARCH_PAUSE_MS: number = 300
 
 const { t } = useI18n()
-const route: RouteLocationNormalizedLoaded = useRoute()
-const router: Router = useRouter()
+const route = useRoute()
+const router = useRouter()
 
-const search: Ref<string> = ref('')
-const typed: Ref<string> = refDebounced(search, SEARCH_PAUSE_MS)
+const search = ref('')
+const typed = refDebounced(search, SEARCH_PAUSE_MS)
 const status: RemovableRef<string> = useLocalStorage('nnz.admin.status', 'all')
 const live: RemovableRef<string> = useLocalStorage('nnz.admin.live', 'all')
-const page: Ref<number> = ref(1)
+const page = ref(1)
 
 watch([typed, status, live], () => {
   page.value = 1
@@ -55,16 +55,16 @@ const params: ComputedRef<AdminTenantsParams> = computed<AdminTenantsParams>(() 
 const tenants = useAdminTenants(params)
 
 const rows: ComputedRef<AdminTenant[]> = computed(() => tenants.data.value?.data ?? [])
-const total: ComputedRef<number> = computed(() => Number(tenants.data.value?.total ?? 0))
-const pages: ComputedRef<number> = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+const total = computed(() => Number(tenants.data.value?.total ?? 0))
+const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
-const statusOptions: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() =>
+const statusOptions = computed<FilterOption[]>(() =>
   ['all', 'active', 'suspended', 'platform_banned'].map((value: string): FilterOption => ({
     value,
     label: t(`dashboard.admin.filters.status.${value}`),
   })),
 )
-const liveOptions: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() =>
+const liveOptions = computed<FilterOption[]>(() =>
   ['all', 'live', 'offline'].map((value: string): FilterOption => ({
     value,
     label: t(`dashboard.admin.filters.live.${value}`),
@@ -78,7 +78,7 @@ const errorText: ComputedRef<string> = computed<string>(() =>
     : t('dashboard.admin.list.error'),
 )
 
-const selectedId: ComputedRef<string> = computed<string>(() =>
+const selectedId = computed<string>(() =>
   typeof route.query.channel === 'string' ? route.query.channel : '',
 )
 

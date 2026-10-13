@@ -36,6 +36,7 @@ async function dialog(extra: Record<string, unknown> = {}): Promise<VueWrapper> 
     global: { plugins: [i18n] },
   })
   await flushPromises()
+
   return mounted
 }
 
@@ -59,7 +60,7 @@ describe('the form dialog', () => {
   })
 
   it('submits once when Enter is pressed in a field', async () => {
-    const wrapper: VueWrapper = await dialog()
+    const wrapper = await dialog()
 
     press(field('name'), 'Enter')
     await flushPromises()
@@ -68,7 +69,7 @@ describe('the form dialog', () => {
   })
 
   it('submits once when the primary button is pressed', async () => {
-    const wrapper: VueWrapper = await dialog()
+    const wrapper = await dialog()
 
     primary().click()
     await flushPromises()
@@ -82,7 +83,11 @@ describe('the form dialog', () => {
     const buttons: HTMLButtonElement[] = Array.from(
       document.body.querySelectorAll('[data-slot="dialog-footer"] button'),
     )
-    expect(buttons.map((b: HTMLButtonElement) => b.textContent?.trim())).toEqual(['Cancel', 'Create command'])
+
+    expect(buttons.map((b: HTMLButtonElement) => b.textContent?.trim())).toEqual([
+      'Cancel',
+      'Create command',
+    ])
   })
 
   it('blocks a second submit while pending, from Enter and from the button', async () => {
@@ -101,7 +106,8 @@ describe('the form dialog', () => {
     const wrapper: VueWrapper = await dialog({ pending: true })
 
     press(document.body.querySelector('[role="dialog"]') as Element, 'Escape')
-    const cancel: HTMLButtonElement = document.body.querySelector('[data-form-cancel]') as HTMLButtonElement
+    const cancel = document.body.querySelector('[data-form-cancel]') as HTMLButtonElement
+
     expect(cancel.disabled).toBe(true)
     cancel.click()
     await flushPromises()
@@ -110,7 +116,7 @@ describe('the form dialog', () => {
   })
 
   it('closes on Escape and on Cancel when not pending, without submitting', async () => {
-    const wrapper: VueWrapper = await dialog()
+    const wrapper = await dialog()
 
     press(document.body.querySelector('[role="dialog"]') as Element, 'Escape')
     await flushPromises()
@@ -123,16 +129,19 @@ describe('the form dialog', () => {
   })
 
   it('shows a server error above the footer and keeps the typed values', async () => {
-    const wrapper: VueWrapper = await dialog()
+    const wrapper = await dialog()
+
     field('name').value = 'so'
     field('response').value = 'Go follow them'
 
     await wrapper.setProps({ error: 'That name is already taken.' })
     await flushPromises()
 
-    const alert: Element = document.body.querySelector('[data-form-error]') as Element
+    const alert = document.body.querySelector('[data-form-error]') as Element
+
     expect(alert.textContent).toContain('That name is already taken.')
-    const footer: Element = document.body.querySelector('[data-slot="dialog-footer"]') as Element
+    const footer = document.body.querySelector('[data-slot="dialog-footer"]') as Element
+
     expect(alert.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(field('name').value).toBe('so')
     expect(field('response').value).toBe('Go follow them')

@@ -102,11 +102,15 @@ vi.mock('@/api/client', () => ({
         return lookupAnswer(String(options?.params?.query?.login ?? ''))
       if (path.endsWith('/community'))
         return listAnswer(options?.params?.query?.role as string | undefined)
+
       if (path.endsWith('/community/{userId}')) {
         await memberGate
+
         return ok(person('dave', { id: 't-dave', messageCount: 321, internalUserId: 'u-dave' }))
       }
+
       if (path.endsWith('/profile')) return ok(summary)
+
       return ok(null)
     },
   },
@@ -125,11 +129,14 @@ let router: Router
 
 beforeEach(() => {
   calls.length = 0
+
   listAnswer = (role) => {
     if (role === 'moderator') return page([everyone[1]!], 1)
     if (role === 'vip') return page([everyone[2]!], 1)
+
     return page(everyone)
   }
+
   searchAnswer = () => ok([])
   lookupAnswer = () => ok(null)
   memberGate = Promise.resolve()
@@ -147,6 +154,7 @@ beforeEach(() => {
   )
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -190,6 +198,7 @@ const settle = async (): Promise<void> => {
 
 async function open(url: string = '/app/people'): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/people', name: 'dashboard-people', component: blank }],
@@ -222,22 +231,24 @@ const tab = (label: string): HTMLElement =>
   ) as HTMLElement
 const profileCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/profile'))
 const DEBOUNCE_WAIT = 400
+
 const typeSearch = async (value: string): Promise<void> => {
-  const input: HTMLInputElement = document.body.querySelector(
-    'input[type="search"]',
-  ) as HTMLInputElement
+  const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
+
   input.value = value
   input.dispatchEvent(new Event('input', { bubbles: true }))
   await new Promise((done) => setTimeout(done, DEBOUNCE_WAIT))
   await settle()
 }
+
 const memberCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/community/{userId}'))
+
 const enter = (): void => {
-  const input: HTMLInputElement = document.body.querySelector(
-    'input[type="search"]',
-  ) as HTMLInputElement
+  const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
+
   input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
 }
+
 const searchCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/community/search'))
 const lookupCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/community/lookup'))
 const results = (): HTMLElement[] => [
@@ -319,6 +330,7 @@ describe('PeopleView', () => {
     const headings: string[] = Array.from(document.body.querySelectorAll('h2')).map(
       (h) => h.textContent?.trim() ?? '',
     )
+
     expect(headings.filter((heading) => heading === 'People')).toHaveLength(1)
     expect(headings).toContain('Profile')
   })
@@ -411,6 +423,7 @@ describe('PeopleView', () => {
 
   it('on Enter shows the seeded name at once and fills in the rest as each part arrives', async () => {
     let release: () => void = () => undefined
+
     memberGate = new Promise<void>((done) => {
       release = done
     })
@@ -422,7 +435,8 @@ describe('PeopleView', () => {
 
     expect(router.currentRoute.value.query.u).toBe('dave')
     expect(memberCalls()).toHaveLength(1)
-    const detail: HTMLElement = document.body.querySelector('[data-person-detail]') as HTMLElement
+    const detail = document.body.querySelector('[data-person-detail]') as HTMLElement
+
     expect(detail.textContent).toContain('DAVE')
     expect(detail.textContent).toContain('@dave')
     expect(detail.textContent).not.toContain('321')

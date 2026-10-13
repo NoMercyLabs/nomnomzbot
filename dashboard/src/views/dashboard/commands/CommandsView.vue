@@ -9,9 +9,9 @@
 -->
 <script setup lang="ts">
 import Plus from '~icons/nnz/add'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { useCommands, useDeleteCommand, type CommandListItem } from '@/api/commands'
 import ListDetail from '@/components/layout/ListDetail.vue'
@@ -28,8 +28,8 @@ import CommandList from './components/CommandList.vue'
 import NewCommandDialog from './components/NewCommandDialog.vue'
 
 const { t } = useI18n()
-const route: RouteLocationNormalizedLoaded = useRoute()
-const router: Router = useRouter()
+const route = useRoute()
+const router = useRouter()
 const { channelId } = useCurrentChannel()
 const commands = useCommands(channelId)
 const remove = useDeleteCommand(channelId)
@@ -59,7 +59,7 @@ function removeCommand(name: string): void {
   remove.mutate({ commandName: name })
 }
 
-const creating: Ref<boolean> = ref(false)
+const creating = ref(false)
 </script>
 
 <template>

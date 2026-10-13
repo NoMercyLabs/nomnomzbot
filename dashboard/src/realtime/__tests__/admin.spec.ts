@@ -29,6 +29,7 @@ const second: AdminTenantsParams = { page: 2, take: 25 }
 
 function push(queries: QueryClient, payload: AdminChannelRegistryPayload): void {
   const handler = adminHandlers.find((h) => h.event === 'ReceiveChannelRegistryUpdate')
+
   expect(handler).toBeDefined()
   ;(handler as { handle: (c: unknown, p: AdminChannelRegistryPayload) => void }).handle(
     { queries, channelId: null },
@@ -37,7 +38,8 @@ function push(queries: QueryClient, payload: AdminChannelRegistryPayload): void 
 }
 
 function seed(): QueryClient {
-  const queries: QueryClient = new QueryClient()
+  const queries = new QueryClient()
+
   queries.setQueryData<Page>(adminTenantsKey(first), {
     data: [row('a', 'active', false), row('b', 'active', false)],
     total: 3,
@@ -46,12 +48,14 @@ function seed(): QueryClient {
     data: [row('c', 'active', false)],
     total: 3,
   })
+
   return queries
 }
 
 describe('ReceiveChannelRegistryUpdate', () => {
   it('flips isLive on that row in a cached page and leaves the other rows and pages alone', () => {
-    const queries: QueryClient = seed()
+    const queries = seed()
+
     push(queries, {
       broadcasterId: 'c',
       channelName: 'c',
@@ -59,16 +63,19 @@ describe('ReceiveChannelRegistryUpdate', () => {
       streamTitle: 't',
       gameName: 'g',
     })
-    const page2: Page = queries.getQueryData<Page>(adminTenantsKey(second))!
+    const page2 = queries.getQueryData<Page>(adminTenantsKey(second))!
+
     expect(page2.data[0]).toMatchObject({ id: 'c', isLive: true, status: 'active' })
     expect(page2.total).toBe(3)
-    const page1: Page = queries.getQueryData<Page>(adminTenantsKey(first))!
+    const page1 = queries.getQueryData<Page>(adminTenantsKey(first))!
+
     expect(page1.data.map((r) => r.isLive)).toEqual([false, false])
     expect(queries.getQueryState(adminTenantsKey(second))?.isInvalidated).toBe(false)
   })
 
   it('takes a channel offline', () => {
-    const queries: QueryClient = seed()
+    const queries = seed()
+
     push(queries, { broadcasterId: 'a', channelName: 'a', isLive: true })
     push(queries, { broadcasterId: 'a', channelName: 'a', isLive: false })
     expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[0]).toMatchObject({
@@ -78,7 +85,8 @@ describe('ReceiveChannelRegistryUpdate', () => {
   })
 
   it('changes the status shown in the list and in the cached detail, and leaves isLive alone', () => {
-    const queries: QueryClient = seed()
+    const queries = seed()
+
     queries.setQueryData(adminTenantKey('a'), { id: 'a', status: 'active', suspendedReason: null })
     push(queries, { broadcasterId: 'a', status: 'Suspended' })
     expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[0]).toMatchObject({
@@ -97,7 +105,8 @@ describe('ReceiveChannelRegistryUpdate', () => {
   })
 
   it('does not throw for an unknown id and marks the lists stale', () => {
-    const queries: QueryClient = seed()
+    const queries = seed()
+
     expect(() =>
       push(queries, { broadcasterId: 'zzz', channelName: 'z', isLive: true }),
     ).not.toThrow()

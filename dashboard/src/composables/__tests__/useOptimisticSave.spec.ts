@@ -18,10 +18,14 @@ import { useSaveErrorsStore } from '@/stores/saveErrors'
 import { useOptimisticSave } from '../useOptimisticSave'
 
 type Settings = { greeting: string }
-type Deferred = { promise: Promise<Settings>; resolve: (value: Settings) => void; reject: (error: Error) => void }
+type Deferred = {
+  promise: Promise<Settings>
+  resolve: (value: Settings) => void
+  reject: (error: Error) => void
+}
 
 const key: string[] = ['channels', 'c1', 'settings']
-const before: Settings = { greeting: 'before' }
+const before = { greeting: 'before' } as const satisfies Settings
 
 function deferred(): Deferred {
   let resolve: (value: Settings) => void = () => {}
@@ -30,13 +34,19 @@ function deferred(): Deferred {
     resolve = done
     reject = fail
   })
+
   return { promise, resolve, reject }
 }
 
-function setup(send: (greeting: string) => Promise<Settings>, queryKey: QueryKey | ((greeting: string) => QueryKey) = key) {
-  const queries: QueryClient = new QueryClient()
+function setup(
+  send: (greeting: string) => Promise<Settings>,
+  queryKey: QueryKey | ((greeting: string) => QueryKey) = key,
+) {
+  const queries = new QueryClient()
+
   queries.setQueryData(key, before)
   const pinia = createPinia()
+
   setActivePinia(pinia)
   let save!: ReturnType<typeof useOptimisticSave<Settings, string>>
   const app: App = createApp({
@@ -46,12 +56,15 @@ function setup(send: (greeting: string) => Promise<Settings>, queryKey: QueryKey
         mutationFn: send,
         apply: (_current, greeting) => ({ greeting }),
       })
+
       return () => null
     },
   })
+
   app.use(pinia)
   app.use(VueQueryPlugin, { queryClient: queries })
   app.mount(document.createElement('div'))
+
   return { queries, save, inbox: useSaveErrorsStore() }
 }
 
@@ -60,7 +73,7 @@ const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
 
 describe('useOptimisticSave', () => {
   it('changes the cached value before the server answers', async () => {
-    const pending: Deferred = deferred()
+    const pending = deferred()
     const { queries, save } = setup(() => pending.promise)
 
     void save.mutateAsync('after')
@@ -71,10 +84,11 @@ describe('useOptimisticSave', () => {
   })
 
   it('restores the exact earlier value and reports to the error inbox when the server fails', async () => {
-    const pending: Deferred = deferred()
+    const pending = deferred()
     const { queries, save, inbox } = setup(() => pending.promise)
 
     const result: Promise<unknown> = save.mutateAsync('after').catch((error: Error) => error)
+
     await settle()
     pending.reject(new Error('503'))
     await result
@@ -88,7 +102,9 @@ describe('useOptimisticSave', () => {
   })
 
   it('keeps the value the server returned on success', async () => {
-    const { queries, save, inbox } = setup(async (greeting) => ({ greeting: `${greeting} (server)` }))
+    const { queries, save, inbox } = setup(async (greeting) => ({
+      greeting: `${greeting} (server)`,
+    }))
 
     await save.mutateAsync('after')
 
@@ -97,14 +113,16 @@ describe('useOptimisticSave', () => {
   })
 
   it('ends on the last of two fast saves, whatever order the server answers in', async () => {
-    const first: Deferred = deferred()
-    const second: Deferred = deferred()
+    const first = deferred()
+    const second = deferred()
     const answers: Deferred[] = [first, second]
     const { queries, save } = setup(() => (answers.shift() as Deferred).promise)
 
-    const one: Promise<Settings> = save.mutateAsync('one')
+    const one = save.mutateAsync('one')
+
     await settle()
-    const two: Promise<Settings> = save.mutateAsync('two')
+    const two = save.mutateAsync('two')
+
     await settle()
     expect(cached(queries)).toEqual({ greeting: 'two' })
 
@@ -117,14 +135,16 @@ describe('useOptimisticSave', () => {
   })
 
   it('does not roll the screen back past a later save when an earlier save fails', async () => {
-    const first: Deferred = deferred()
-    const second: Deferred = deferred()
+    const first = deferred()
+    const second = deferred()
     const answers: Deferred[] = [first, second]
     const { queries, save } = setup(() => (answers.shift() as Deferred).promise)
 
     const one: Promise<unknown> = save.mutateAsync('one').catch((error: Error) => error)
+
     await settle()
-    const two: Promise<Settings> = save.mutateAsync('two')
+    const two = save.mutateAsync('two')
+
     await settle()
 
     first.reject(new Error('500'))
@@ -138,18 +158,21 @@ describe('useOptimisticSave', () => {
 
   it('saves each change into the cache entry its own key names, and rolls back only that entry', async () => {
     const other: string[] = ['channels', 'c1', 'other']
-    const first: Deferred = deferred()
-    const second: Deferred = deferred()
+    const first = deferred()
+    const second = deferred()
     const answers: Deferred[] = [first, second]
     const { queries, save } = setup(
       () => (answers.shift() as Deferred).promise,
       (greeting: string) => (greeting.startsWith('other') ? other : key),
     )
+
     queries.setQueryData(other, { greeting: 'other before' })
 
     const one: Promise<unknown> = save.mutateAsync('mine').catch((error: Error) => error)
+
     await settle()
-    const two: Promise<Settings> = save.mutateAsync('other after')
+    const two = save.mutateAsync('other after')
+
     await settle()
     expect(cached(queries)).toEqual({ greeting: 'mine' })
     expect(queries.getQueryData(other)).toEqual({ greeting: 'other after' })

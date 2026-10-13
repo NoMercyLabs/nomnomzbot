@@ -45,7 +45,8 @@ export const widgetSchemaKey = (channelId: string | null, widgetId: string | nul
 
 function numberOrNull(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined) return null
-  const parsed: number = Number(value)
+  const parsed = Number(value)
+
   return Number.isFinite(parsed) ? parsed : null
 }
 
@@ -53,6 +54,7 @@ function numberOrNull(value: number | string | null | undefined): number | null 
 async function readWidgets(channelId: string): Promise<Widget[]> {
   const widgets: Widget[] = []
   let page: number | null = firstPage
+
   while (page !== null) {
     const current: number = page
     const { data, error, response } = await client.GET(
@@ -61,10 +63,12 @@ async function readWidgets(channelId: string): Promise<Widget[]> {
         params: { path: { version, channelId }, query: { Page: current, PageSize: pageSize } },
       },
     )
+
     if (error !== undefined) throw failed('widgets', response.status)
     widgets.push(...(data?.data ?? []))
     page = data?.hasMore ? (numberOrNull(data.nextPage) ?? current + 1) : null
   }
+
   return widgets
 }
 
@@ -94,7 +98,9 @@ export function useWidgetSchema(
           },
         },
       )
+
       if (error !== undefined) throw failed('widget settings', response.status)
+
       return data?.data ?? null
     },
     enabled: computed(() => toValue(channelId) !== null && toValue(widgetId) !== null),
@@ -122,7 +128,9 @@ async function putWidget(
       body,
     },
   )
+
   if (error !== undefined) throw failed(what, response.status)
+
   return readWidgets(channelId)
 }
 
@@ -178,7 +186,9 @@ export function useTestWidgetEvent(
           body: { eventType } as components['schemas']['WidgetTestEventRequest'],
         },
       )
+
       if (error !== undefined) throw refusal('widget test', error, response.status)
+
       return data?.data ?? ''
     },
   })

@@ -28,19 +28,18 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
-import { clampNumber, humanize, useSettingText, type SettingText } from './settingField'
+import { clampNumber, humanize, useSettingText } from './settingField'
 
 const props = defineProps<{ field: WidgetSettingsField; value: unknown; changed: boolean }>()
 const emit = defineEmits<{ update: [value: unknown]; reset: [] }>()
 
-const text: SettingText = useSettingText()
-const titleId: string = useId()
+const text = useSettingText()
+const titleId = useId()
 
-const label: ComputedRef<string> = computed<string>(() =>
-  text(props.field.label, humanize(props.field.key)),
-)
+const label = computed<string>(() => text(props.field.label, humanize(props.field.key)))
 const meta: ComputedRef<string> = computed<string>(() => {
   const help: string | null = props.field.help ? text(props.field.help, '') : null
+
   return [props.field.key, props.field.type, help].filter(Boolean).join(' · ')
 })
 
@@ -54,7 +53,7 @@ const choices: ComputedRef<Choice[]> = computed<Choice[]>(() =>
     label: text(option.label, humanize(option.value)),
   })),
 )
-const chosenLabel: ComputedRef<string> = computed<string>(
+const chosenLabel = computed<string>(
   () =>
     choices.value.find((choice: Choice) => choice.value === props.value)?.label ??
     String(props.value ?? ''),
@@ -62,17 +61,18 @@ const chosenLabel: ComputedRef<string> = computed<string>(
 const picked: ComputedRef<string[]> = computed<string[]>(() =>
   Array.isArray(props.value) ? props.value.map(String) : [],
 )
-const shown: ComputedRef<string> = computed<string>(() =>
+const shown = computed<string>(() =>
   props.value === null || props.value === undefined ? '' : String(props.value),
 )
-const known: ComputedRef<boolean> = computed<boolean>(() =>
+const known = computed<boolean>(() =>
   ['bool', 'number', 'text', 'color', 'select', 'multiselect'].includes(props.field.type),
 )
 
 // The number is held inside min and max on change; the box shows the held value even when it did not move.
 function onNumber(event: Event): void {
-  const box: HTMLInputElement = event.target as HTMLInputElement
+  const box = event.target as HTMLInputElement
   const next: unknown = clampNumber(box.value, props.field, props.value)
+
   box.value = String(next)
   emit('update', next)
 }

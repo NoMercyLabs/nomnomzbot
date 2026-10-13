@@ -14,12 +14,13 @@ import { describe, expect, it } from 'vitest'
 
 import * as utils from '../lib/utils'
 
-const src: string = join(__dirname, '..')
-const dumpingGround: RegExp = /^(utils?|helpers?|misc|common)(\.\w+)?$/i
+const src = join(__dirname, '..')
+const dumpingGround = /^(utils?|helpers?|misc|common)(\.\w+)?$/i
 
 function allPaths(folder: string): string[] {
   return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
-    const path: string = join(folder, entry.name)
+    const path = join(folder, entry.name)
+
     return entry.isDirectory() ? [path, ...allPaths(path)] : [path]
   })
 }
@@ -63,8 +64,7 @@ describe('folder layout', () => {
 
   // Stoney 2026-10-13 (translated from Dutch): "the point is that we do not use Google with the privacy-invading junk".
   it('calls no Google font or tracking host from any source file or the page shell', () => {
-    const google: RegExp =
-      /googleapis\.com|gstatic\.com|google-analytics\.com|googletagmanager\.com/
+    const google = /googleapis\.com|gstatic\.com|google-analytics\.com|googletagmanager\.com/
     const offenders: string[] = [...allPaths(src), join(src, '..', 'index.html')]
       .filter((path) => /\.(vue|ts|css|html|json)$/.test(path) && !path.endsWith('schema.d.ts'))
       .filter((path) => google.test(readFileSync(path, 'utf8')))
@@ -78,7 +78,7 @@ describe('folder layout', () => {
   // translated button instead of SidebarTrigger or BreadcrumbEllipsis. DialogScrollContent cannot
   // hide its close label, so it is not used.
   it('shows no untranslated shadcn label on any page', () => {
-    const ownFiles: string[] = allPaths(src).filter(
+    const ownFiles = allPaths(src).filter(
       (path) =>
         path.endsWith('.vue') &&
         !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
@@ -87,6 +87,7 @@ describe('folder layout', () => {
       .filter((path) => {
         const text: string = readFileSync(path, 'utf8')
         const closable: string[] = text.match(/<(SheetContent|DialogContent)\b[^>]*>/g) ?? []
+
         return (
           closable.some((tag) => !tag.includes(':show-close-button="false"')) ||
           /<(SidebarTrigger|BreadcrumbEllipsis|DialogScrollContent)\b/.test(text) ||
@@ -138,7 +139,7 @@ describe('folder layout', () => {
   it('paints the theme background in the page shell before any stylesheet loads', () => {
     const shell: string = readFileSync(join(src, '..', 'index.html'), 'utf8')
     const tokens: string = readFileSync(join(src, 'styles', 'tokens.css'), 'utf8')
-    const dark: string = /:root\s*\{[^}]*--background:\s*([^;]+);/.exec(tokens)?.[1] ?? 'missing'
+    const dark = /:root\s*\{[^}]*--background:\s*([^;]+);/.exec(tokens)?.[1] ?? 'missing'
     const head: string = shell.slice(0, shell.indexOf('</head>'))
 
     expect(head).toMatch(/<meta name="color-scheme" content="dark"\s*\/?>/)
@@ -177,7 +178,7 @@ describe('folder layout', () => {
   // A toast or tooltip works on every page only when the frame mounts its host once; a page that mounts its
   // own stacks a second host, and a page without one shows nothing.
   it('mounts the toast host and the tooltip provider once, in the dashboard frame', () => {
-    const own: string[] = allPaths(src)
+    const own = allPaths(src)
       .map((path) => relative(src, path).replace(/\\/g, '/'))
       .filter((path) => path.endsWith('.vue') && !path.startsWith('components/ui/'))
     const hosts: string[] = own.filter((path) =>
@@ -205,15 +206,16 @@ describe('folder layout', () => {
   // logos from simple-icons, drawn by PlatformLogo from the library's own path. Lucide stays only inside
   // the shadcn-vue CLI output. A hand-drawn svg is a guess.
   it('takes every icon from the designer pack: no Lucide import and no hand-drawn svg', () => {
-    const own: string[] = allPaths(src)
+    const own = allPaths(src)
       .map((path) => relative(src, path).replace(/\\/g, '/'))
       .filter((path) => /\.(vue|ts)$/.test(path) && !path.startsWith('components/ui/'))
     const offenders: string[] = own.filter((path) => {
       const text: string = readFileSync(join(src, path), 'utf8')
-      const drawn: boolean =
+      const drawn =
         path !== 'components/layout/PlatformLogo.vue' &&
         path.endsWith('.vue') &&
         /<svg\b/.test(text)
+
       return drawn || /from ['"](@lucide\/vue|lucide-vue-next)['"]/.test(text)
     })
 
@@ -239,9 +241,10 @@ describe('folder layout', () => {
         const words: Record<string, Record<string, unknown>> = JSON.parse(
           readFileSync(join(src, path), 'utf8'),
         )
-        const keys: string[] = Object.entries(words).flatMap(([top, pages]) =>
+        const keys = Object.entries(words).flatMap(([top, pages]) =>
           Object.keys(pages).map((page) => `${top}.${page}`),
         )
+
         return keys.filter((key) => key !== `${area}.${slug}`).map((key) => `${path}: ${key}`)
       })
 

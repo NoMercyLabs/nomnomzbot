@@ -29,11 +29,11 @@ const { now, resume } = useNow({
   scheduler: (tick: () => void) => useIntervalFn(tick, 1000),
 })
 
-const targetMs: ComputedRef<number> = computed<number>(() => new Date(props.target).getTime())
-const remaining: ComputedRef<number> = computed<number>(() =>
+const targetMs = computed<number>(() => new Date(props.target).getTime())
+const remaining = computed<number>(() =>
   Math.max(0, Math.ceil((targetMs.value - now.value.getTime()) / 1000)),
 )
-const minutesLeft: ComputedRef<number> = computed<number>(() => Math.ceil(remaining.value / 60))
+const minutesLeft = computed<number>(() => Math.ceil(remaining.value / 60))
 const spoken: ComputedRef<string> = computed<string>(() =>
   remaining.value === 0
     ? t('common.countdown.now', { label: props.label })
@@ -51,6 +51,7 @@ watch(
 )
 
 let firedFor: number | null = null
+
 watch(
   [targetMs, remaining],
   () => {
@@ -63,13 +64,19 @@ watch(
 </script>
 
 <template>
-  <span data-slot="countdown" :data-soon="remaining > 0 && remaining < 60 ? 'true' : undefined" role="timer" class="inline-block">
+  <span
+    data-slot="countdown"
+    :data-soon="remaining > 0 && remaining < 60 ? 'true' : undefined"
+    role="timer"
+    class="inline-block"
+  >
     <span
       data-slot="countdown-time"
       aria-hidden="true"
       class="tabular-nums"
       :class="remaining > 0 && remaining < 60 ? 'text-destructive' : ''"
-    >{{ formatCountdown(remaining) }}</span>
+      >{{ formatCountdown(remaining) }}</span
+    >
     <span class="sr-only">{{ spoken }}</span>
   </span>
 </template>

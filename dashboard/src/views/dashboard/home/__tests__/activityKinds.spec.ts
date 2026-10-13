@@ -56,6 +56,7 @@ describe('tierOf', () => {
 describe('describeActivity', () => {
   it('describes a sub that ended: gift or not, with its tier', () => {
     const gift = describeActivity(event('channel.subscription.end', { tier: '1000', isGift: true }))
+
     expect(detailOf(gift)).toEqual({
       key: 'dashboard.home.activity.detail.giftSubEnded',
       params: { tier: '1' },
@@ -63,11 +64,13 @@ describe('describeActivity', () => {
     const plain = describeActivity(
       event('channel.subscription.end', { userDisplayName: 'night', tier: '2000' }),
     )
+
     expect(detailOf(plain).key).toBe('dashboard.home.activity.detail.subEnded')
   })
 
   it('names the raid target as the title and the party size as the detail on an outgoing raid', () => {
     const row = describeActivity(event('channel.raid.out', { user: 'JeroenLabs', viewers: '16' }))
+
     expect(row.title).toEqual({
       key: 'dashboard.home.activity.detail.raidedTarget',
       params: { name: 'JeroenLabs' },
@@ -83,6 +86,7 @@ describe('describeActivity', () => {
       event('channel.raid', { fromDisplayName: 'CptTree', viewerCount: 6 }),
     )
     const handler = describeActivity(event('channel.raid', { user: 'CptTree', viewers: '6' }))
+
     expect(detailOf(projection).params).toEqual({ count: 6 })
     expect(detailOf(handler).params).toEqual({ count: 6 })
   })
@@ -109,6 +113,7 @@ describe('describeActivity', () => {
 
   it('falls back to the plain label when the data lacks the detail', () => {
     const row = describeActivity(event('channel.cheer', null))
+
     expect(row.detail).toEqual({ key: 'dashboard.home.activity.type.channel_cheer' })
   })
 
@@ -147,15 +152,19 @@ describe('describeActivity', () => {
       'bot.shoutout.native-attempt',
       'bot.shoutout.sent',
     ]
+
     for (const type of known) {
       const row: ActivityRowView = describeActivity(event(type, null))
+
       expect({ type, hasIcon: Boolean(row.icon), key: row.detail.key }).toEqual({
         type,
         hasIcon: true,
         key: `dashboard.home.activity.type.${type.replace(/[.-]/g, '_').replace('channel_channel_points_custom_reward_redemption_add', 'channel_redemption')}`,
       })
     }
+
     const unknown = describeActivity(event('channel.something.new', null))
+
     expect(unknown.icon).toBeTruthy()
     expect(unknown.detail).toEqual({ key: 'dashboard.home.activity.type.other' })
   })

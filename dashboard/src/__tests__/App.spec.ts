@@ -23,6 +23,7 @@ function stubFetch(refreshStatus: number): void {
     vi.fn(async (request: Request) => {
       if (request.url.endsWith('/auth/refresh') && refreshStatus === 200)
         return new Response(JSON.stringify(refreshOk), { status: 200 })
+
       return new Response('{}', { status: refreshStatus })
     }),
   )
@@ -30,7 +31,8 @@ function stubFetch(refreshStatus: number): void {
 
 async function freshRouter(): Promise<Router> {
   vi.resetModules()
-  const router: Router = (await import('../router')).default
+  const router = (await import('../router')).default
+
   return router
 }
 
@@ -47,19 +49,20 @@ afterEach(() => {
 describe('sign-in guard', () => {
   it('sends a signed-out visitor to the login page and remembers where they were going', async () => {
     stubFetch(401)
-    const router: Router = await freshRouter()
+    const router = await freshRouter()
 
     await router.push('/app')
 
     expect(router.currentRoute.value.name).toBe(loginRoute.name)
     expect(router.currentRoute.value.query.return_to).toBe('/app')
     const { i18n } = await import('../i18n')
+
     expect(i18n.global.t('site.login.title')).toBe('Welcome')
   })
 
   it('lets a visitor with a refresh cookie into the dashboard', async () => {
     stubFetch(200)
-    const router: Router = await freshRouter()
+    const router = await freshRouter()
 
     await router.push('/app')
 
@@ -69,16 +72,18 @@ describe('sign-in guard', () => {
   it('takes the token from the OAuth fragment, strips it from the address and never stores it', async () => {
     stubFetch(401)
     history.replaceState(null, '', '/app#access_token=from-fragment&expires_in=3600')
-    const router: Router = await freshRouter()
+    const router = await freshRouter()
 
     // The first navigation carries the whole address the browser opened, fragment included.
     await router.push(window.location.pathname + window.location.hash)
 
-    const auth: typeof import('../api/auth') = await import('../api/auth')
+    const auth = await import('../api/auth')
+
     expect(router.currentRoute.value.name).toBe(dashboardHomeRoute.name)
     expect(auth.isSignedIn()).toBe(true)
     expect(window.location.hash).toBe('')
-    const stored: string = JSON.stringify({ ...localStorage, ...sessionStorage })
+    const stored = JSON.stringify({ ...localStorage, ...sessionStorage })
+
     expect(stored).not.toContain('from-fragment')
   })
 })

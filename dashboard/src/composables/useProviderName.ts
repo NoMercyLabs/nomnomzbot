@@ -14,5 +14,6 @@ import { useI18n } from 'vue-i18n'
 // A provider this client has no name for yet shows its id as the server sent it.
 export function useProviderName(): (id: string) => string {
   const { t, te } = useI18n()
+
   return (id: string): string => (te(`common.provider.${id}`) ? t(`common.provider.${id}`) : id)
 }

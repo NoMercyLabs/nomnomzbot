@@ -27,9 +27,9 @@ import { useConnectionsStore } from '@/stores/connections'
 const emit = defineEmits<{ back: [] }>()
 
 const connections = useConnectionsStore()
-const chosen: Ref<string> = ref(activeBot.value)
-const typed: Ref<string> = ref('')
-const checking: Ref<boolean> = ref(false)
+const chosen = ref(activeBot.value)
+const typed = ref('')
+const checking = ref(false)
 const checked: Ref<{ origin: string; probe: BotProbe } | 'invalid' | null> = ref(null)
 
 function host(origin: string): string {
@@ -38,6 +38,7 @@ function host(origin: string): string {
 
 function detail(origin: string): string {
   if (origin === servedOrigin) return 'site.login.bots.thisPage'
+
   return origin === officialOrigin ? 'site.login.bots.official' : 'site.login.bots.used'
 }
 
@@ -54,13 +55,17 @@ function useChosen(): void {
 }
 
 async function check(): Promise<void> {
-  const origin: string | null = toBotOrigin(typed.value)
+  const origin = toBotOrigin(typed.value)
+
   if (!origin) {
     checked.value = 'invalid'
+
     return
   }
+
   checking.value = true
-  const probe: BotProbe = await probeBot(origin)
+  const probe = await probeBot(origin)
+
   checking.value = false
   checked.value = { origin, probe }
   if (probe.state === 'unreachable' || probe.state === 'mixedContent') return

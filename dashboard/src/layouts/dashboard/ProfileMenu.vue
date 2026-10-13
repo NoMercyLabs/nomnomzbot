@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter, type RouteLocationRaw, type Router } from 'vue-router'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down'
 import BookOpen from '~icons/nnz/book-open'
 import DoorOut from '~icons/nnz/door-out'
@@ -29,7 +29,7 @@ import { loginRoute } from '@/views/site/login/route'
 defineProps<{ icon?: boolean }>()
 
 const { t } = useI18n()
-const router: Router = useRouter()
+const router = useRouter()
 const { data: user } = useCurrentUser()
 const { current } = useCurrentChannel()
 const open = ref(false)

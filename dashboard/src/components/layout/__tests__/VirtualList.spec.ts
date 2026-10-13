@@ -35,21 +35,45 @@ beforeEach(() => {
   )
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
-  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
-  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
   // The scrollable height is the height the list sets on its inner column.
-  vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
-    return parseInt((this.querySelector('[role="list"]') as HTMLElement | null)?.style.height ?? '0', 10)
+  vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return parseInt(
+      (this.querySelector('[role="list"]') as HTMLElement | null)?.style.height ?? '0',
+      10,
+    )
   })
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    return { width: 300, height: sizeOf(this), top: 0, left: 0, right: 300, bottom: sizeOf(this), x: 0, y: 0 } as DOMRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return {
+      width: 300,
+      height: sizeOf(this),
+      top: 0,
+      left: 0,
+      right: 300,
+      bottom: sizeOf(this),
+      x: 0,
+      y: 0,
+    } as DOMRect
   })
-  HTMLElement.prototype.scrollTo = function (this: HTMLElement, options?: ScrollToOptions | number): void {
+  HTMLElement.prototype.scrollTo = function (
+    this: HTMLElement,
+    options?: ScrollToOptions | number,
+  ): void {
     this.scrollTop = typeof options === 'object' ? (options.top ?? 0) : 0
     this.dispatchEvent(new Event('scroll'))
   } as typeof HTMLElement.prototype.scrollTo
@@ -66,8 +90,16 @@ function rows(count: number): Row[] {
 
 function list(items: Row[], extra: Record<string, unknown> = {}): VueWrapper {
   return mount(VirtualList, {
-    props: { items, itemKey: (row: unknown) => (row as Row).id, estimateSize: ROW_HEIGHT, label: 'Rows', ...extra },
-    slots: { default: '<template #default="{ item, index }">row-{{ item.id }}-at-{{ index }}</template>' },
+    props: {
+      items,
+      itemKey: (row: unknown) => (row as Row).id,
+      estimateSize: ROW_HEIGHT,
+      label: 'Rows',
+      ...extra,
+    },
+    slots: {
+      default: '<template #default="{ item, index }">row-{{ item.id }}-at-{{ index }}</template>',
+    },
     attachTo: document.body,
     global: { plugins: [i18n] },
   })
@@ -78,7 +110,8 @@ function scroller(wrapper: VueWrapper): HTMLElement {
 }
 
 async function scrollTo(wrapper: VueWrapper, top: number): Promise<void> {
-  const element: HTMLElement = scroller(wrapper)
+  const element = scroller(wrapper)
+
   element.scrollTop = top
   element.dispatchEvent(new Event('scroll'))
   await nextTick()
@@ -88,10 +121,12 @@ const BOTTOM_OF = (count: number): number => count * ROW_HEIGHT - VIEWPORT_HEIGH
 
 describe('the virtual list window', () => {
   it('keeps only a window of 5,000 rows in the DOM, each with its item and index', async () => {
-    const wrapper: VueWrapper = list(rows(5000))
+    const wrapper = list(rows(5000))
+
     await nextTick()
 
     const shown: number = wrapper.findAll('[role="listitem"]').length
+
     expect(shown).toBeGreaterThan(0)
     expect(shown).toBeLessThan(60)
     expect(wrapper.text()).toContain('row-0-at-0')
@@ -102,7 +137,8 @@ describe('the virtual list window', () => {
   })
 
   it('renders the rows that scrolling brings in, keyed by the item and not by position', async () => {
-    const wrapper: VueWrapper = list(rows(5000))
+    const wrapper = list(rows(5000))
+
     await nextTick()
     await scrollTo(wrapper, 2000)
 
@@ -114,7 +150,8 @@ describe('the virtual list window', () => {
   })
 
   it('keeps a row element when an item is added before it', async () => {
-    const wrapper: VueWrapper = list(rows(10))
+    const wrapper = list(rows(10))
+
     await nextTick()
     const before: Element = wrapper.find('[data-key="3"]').element
 
@@ -129,9 +166,11 @@ describe('the virtual list window', () => {
 
 describe('the keyboard', () => {
   it('scrolls by a row with the arrows and by a page with the page keys', async () => {
-    const wrapper: VueWrapper = list(rows(500))
+    const wrapper = list(rows(500))
+
     await nextTick()
-    const area: HTMLElement = scroller(wrapper)
+    const area = scroller(wrapper)
+
     expect(area.getAttribute('tabindex')).toBe('0')
 
     await wrapper.find('[data-virtual-scroll]').trigger('keydown', { key: 'ArrowDown' })
@@ -149,6 +188,7 @@ describe('the keyboard', () => {
 describe('the stick-to-bottom mode', () => {
   it('starts at the bottom and stays there when a row arrives', async () => {
     const wrapper: VueWrapper = list(rows(50), { stick: true })
+
     await nextTick()
     await nextTick()
     expect(scroller(wrapper).scrollTop).toBe(BOTTOM_OF(50))
@@ -165,6 +205,7 @@ describe('the stick-to-bottom mode', () => {
 
   it('keeps the place of a reader who scrolled up, counts the new rows and jumps back on request', async () => {
     const wrapper: VueWrapper = list(rows(50), { stick: true })
+
     await nextTick()
     await nextTick()
     await scrollTo(wrapper, 400)
@@ -175,6 +216,7 @@ describe('the stick-to-bottom mode', () => {
 
     expect(scroller(wrapper).scrollTop).toBe(400)
     const jump = wrapper.find('[data-new-below]')
+
     expect(jump.text()).toBe('2 new messages below')
 
     await wrapper.setProps({ items: rows(53) })
@@ -192,6 +234,7 @@ describe('the stick-to-bottom mode', () => {
 
   it('clears the count when the reader scrolls to the bottom by hand', async () => {
     const wrapper: VueWrapper = list(rows(50), { stick: true })
+
     await nextTick()
     await nextTick()
     await scrollTo(wrapper, 400)
@@ -206,7 +249,8 @@ describe('the stick-to-bottom mode', () => {
   })
 
   it('does not count or move when the list is not in stick mode', async () => {
-    const wrapper: VueWrapper = list(rows(50))
+    const wrapper = list(rows(50))
+
     await nextTick()
     await scrollTo(wrapper, 400)
 

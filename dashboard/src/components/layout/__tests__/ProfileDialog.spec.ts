@@ -67,7 +67,15 @@ const freshPeople = (): Record<string, Record<string, unknown>> => ({
     firstSeen: '2026-02-02T10:00:00Z',
     lastSeen: '2026-09-01T10:00:00Z',
     recentActivity: [],
-    banHistory: [{ id: 'b1', bannedBy: 'Stoney_Eagle', reason: 'spam links', bannedAt: '2026-09-01T10:00:00Z', unbannedAt: null }],
+    banHistory: [
+      {
+        id: 'b1',
+        bannedBy: 'Stoney_Eagle',
+        reason: 'spam links',
+        bannedAt: '2026-09-01T10:00:00Z',
+        unbannedAt: null,
+      },
+    ],
   },
 })
 
@@ -85,20 +93,24 @@ vi.mock('@/api/client', () => ({
   client: {
     GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options)
+
       return { data: { data: { ...people[userIdOf(options)] } } }
     }),
     POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options)
+
       if (path.endsWith('/vip')) {
         if (vipWrite) await vipWrite
         if (vipWriteFails) return { error: { status: 'error' }, response: { ok: false } }
         people[userIdOf(options)]!.isVip = true
       }
+
       return { response: { ok: true } }
     }),
     DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options)
       people[userIdOf(options)]!.isVip = false
+
       return { response: { ok: true } }
     }),
   },
@@ -125,16 +137,33 @@ beforeEach(() => {
       disconnect(): void {}
     },
   )
-  const sizeOf = (element: Element): number => (element.hasAttribute('data-virtual-scroll') ? 300 : 40)
-  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+  const sizeOf = (element: Element): number =>
+    element.hasAttribute('data-virtual-scroll') ? 300 : 40
+
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
-  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    return { width: 300, height: sizeOf(this), top: 0, left: 0, right: 300, bottom: sizeOf(this), x: 0, y: 0 } as DOMRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return {
+      width: 300,
+      height: sizeOf(this),
+      top: 0,
+      left: 0,
+      right: 300,
+      bottom: sizeOf(this),
+      x: 0,
+      y: 0,
+    } as DOMRect
   })
   pinia = createPinia()
   setActivePinia(pinia)
@@ -156,14 +185,26 @@ const Page = defineComponent({
 async function openPage(): Promise<void> {
   mounted = mount(Page, {
     attachTo: document.body,
-    global: { plugins: [i18n, pinia, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] },
+    global: {
+      plugins: [
+        i18n,
+        pinia,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
+    },
   })
   await flushPromises()
 }
 
-const name = (id: string): HTMLButtonElement => document.body.querySelector(`[data-user="${id}"]`) as HTMLButtonElement
+const name = (id: string): HTMLButtonElement =>
+  document.body.querySelector(`[data-user="${id}"]`) as HTMLButtonElement
 const dialogs = (): NodeListOf<Element> => document.body.querySelectorAll('[role="dialog"]')
-const button = (selector: string): HTMLButtonElement => document.body.querySelector(selector) as HTMLButtonElement
+const button = (selector: string): HTMLButtonElement =>
+  document.body.querySelector(selector) as HTMLButtonElement
+
 const settle = async (): Promise<void> => {
   await flushPromises()
   await new Promise((done) => setTimeout(done, 0))
@@ -184,10 +225,12 @@ describe('the profile dialog', () => {
     await openUser('u1')
 
     expect(dialogs().length).toBe(1)
-    const text: string = dialogs()[0]!.textContent ?? ''
+    const text = dialogs()[0]!.textContent ?? ''
+
     expect(text).toContain('Ada')
     expect(text).toContain('@ada')
-    const detail: Call | undefined = calls.find((c: Call) => c.path.endsWith('/community/{userId}'))
+    const detail = calls.find((c: Call) => c.path.endsWith('/community/{userId}'))
+
     expect(detail?.params).toEqual({ path: { version: '1', channelId: 'c1', userId: 'u1' } })
   })
 
@@ -199,7 +242,8 @@ describe('the profile dialog', () => {
     await settle()
 
     expect(dialogs().length).toBe(1)
-    const text: string = dialogs()[0]!.textContent ?? ''
+    const text = dialogs()[0]!.textContent ?? ''
+
     expect(text).toContain('Bo')
     expect(text).not.toContain('@ada')
   })
@@ -210,7 +254,13 @@ describe('the profile dialog', () => {
     expect(dialogs()[0]!.textContent).not.toContain('hello from ada')
 
     const tabs: HTMLElement[] = Array.from(document.body.querySelectorAll('[role="tab"]'))
-    expect(tabs.map((t: HTMLElement) => t.textContent?.trim())).toEqual(['Overview', 'Chat', 'Activity', 'Moderation'])
+
+    expect(tabs.map((t: HTMLElement) => t.textContent?.trim())).toEqual([
+      'Overview',
+      'Chat',
+      'Activity',
+      'Moderation',
+    ])
 
     tabs[1]!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))
     await settle()
@@ -218,7 +268,8 @@ describe('the profile dialog', () => {
 
     tabs[2]!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))
     await settle()
-    const stats: string = dialogs()[0]!.textContent ?? ''
+    const stats = dialogs()[0]!.textContent ?? ''
+
     expect(stats).toContain('1,234')
     expect(stats).toContain('12.5')
     expect(stats).not.toContain('hello from ada')
@@ -229,6 +280,7 @@ describe('the profile dialog', () => {
     await openUser('u2')
 
     const tabs: HTMLElement[] = Array.from(document.body.querySelectorAll('[role="tab"]'))
+
     tabs[3]!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))
     await settle()
 
@@ -248,7 +300,8 @@ describe('the profile dialog', () => {
     button('[data-confirm-action]').click()
     await settle()
 
-    const bans: Call[] = calls.filter((c: Call) => c.path.endsWith('/ban'))
+    const bans = calls.filter((c: Call) => c.path.endsWith('/ban'))
+
     expect(bans.length).toBe(1)
     expect(bans[0]!.params).toEqual({ path: { version: '1', channelId: 'c1', userId: 'u1' } })
     expect(typeof (bans[0]!.body as { reason: string }).reason).toBe('string')
@@ -261,9 +314,10 @@ describe('the profile dialog', () => {
 
     button('[data-profile-ban]').click()
     await settle()
-    const cancel: HTMLButtonElement = Array.from(document.body.querySelectorAll('[role="alertdialog"] button')).find(
+    const cancel = Array.from(document.body.querySelectorAll('[role="alertdialog"] button')).find(
       (b: Element) => b.textContent?.trim() === 'Cancel',
     ) as HTMLButtonElement
+
     cancel.click()
     await settle()
 
@@ -276,6 +330,7 @@ describe('the profile dialog', () => {
     expect(button('[data-profile-vip]').textContent).toContain('Make VIP')
 
     let release: () => void = () => {}
+
     vipWrite = new Promise<void>((done) => {
       release = done
     })

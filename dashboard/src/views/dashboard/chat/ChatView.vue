@@ -17,7 +17,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useBanUser, useChatHistory, type ChatLine as ChatLineData } from '@/api/chat'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
 import VirtualList from '@/components/layout/VirtualList.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
@@ -37,20 +37,20 @@ const banner = useBanUser(channelId)
 
 const hideCommands: RemovableRef<boolean> = useLocalStorage('nnz.chat.hideCommands', false)
 const banTarget: Ref<ChatLineData | null> = ref(null)
-const banFailed: Ref<boolean> = ref(false)
+const banFailed = ref(false)
 
 const lines: ComputedRef<ChatLineData[]> = computed(() => history.data.value ?? [])
-const visible: ComputedRef<ChatLineData[]> = computed(() =>
+const visible = computed(() =>
   hideCommands.value ? lines.value.filter((line: ChatLineData) => !line.isCommand) : lines.value,
 )
 
-const panelState: ComputedRef<PanelState> = usePanelState(history, () => visible.value.length === 0)
+const panelState = usePanelState(history, () => visible.value.length === 0)
 const emptyText: ComputedRef<string> = computed(() =>
   lines.value.length > 0 ? t('dashboard.chat.feed.emptyCommands') : t('dashboard.chat.feed.empty'),
 )
-const live: ComputedRef<boolean> = computed(() => current.value?.isLive === true)
+const live = computed(() => current.value?.isLive === true)
 
-const banOpen: ComputedRef<boolean> = computed(() => banTarget.value !== null)
+const banOpen = computed(() => banTarget.value !== null)
 
 function askBan(line: ChatLineData): void {
   banFailed.value = false
@@ -62,8 +62,10 @@ function closeBan(open: boolean): void {
 }
 
 async function confirmBan(): Promise<void> {
-  const target: ChatLineData | null = banTarget.value
+  const target = banTarget.value
+
   if (!target) return
+
   try {
     await banner.mutateAsync({ targetUserId: target.userId, scope: 'this_channel' })
     banTarget.value = null

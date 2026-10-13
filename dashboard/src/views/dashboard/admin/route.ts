@@ -10,13 +10,14 @@
 
 import type { RouteLocationRaw, RouteRecordRaw } from 'vue-router'
 
-import { currentUserQuery, type CurrentUser } from '@/api/auth'
+import { currentUserQuery } from '@/api/auth'
 import { queryClient } from '@/api/queryClient'
 import { loadPage } from '@/i18n'
 
 // Only a platform admin opens the page; anyone else goes to the home page.
 async function adminOnly(): Promise<true | RouteLocationRaw> {
-  const user: CurrentUser | null = await queryClient.ensureQueryData(currentUserQuery)
+  const user = await queryClient.ensureQueryData(currentUserQuery)
+
   return user?.isAdmin === true ? true : { name: 'dashboard-home' }
 }
 

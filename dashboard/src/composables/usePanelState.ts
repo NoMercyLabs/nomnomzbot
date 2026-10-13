@@ -15,10 +15,14 @@ import type { PanelState } from '@/components/layout/PanelCard.vue'
 type PanelQuery<T> = { data: Ref<T | undefined>; isPending: Ref<boolean>; isError: Ref<boolean> }
 
 // One query feeds one panel: an error wins, then loading, then the empty check on the loaded data.
-export function usePanelState<T>(query: PanelQuery<T>, isEmpty: (data: T) => boolean = () => false): ComputedRef<PanelState> {
+export function usePanelState<T>(
+  query: PanelQuery<T>,
+  isEmpty: (data: T) => boolean = () => false,
+): ComputedRef<PanelState> {
   return computed<PanelState>(() => {
     if (query.isError.value) return 'error'
     if (query.isPending.value || query.data.value === undefined) return 'loading'
+
     return isEmpty(query.data.value) ? 'empty' : 'ready'
   })
 }

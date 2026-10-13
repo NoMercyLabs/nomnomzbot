@@ -17,7 +17,10 @@ const props = defineProps<{ userId: string; name: string }>()
 const profile = useProfileDialogStore()
 
 function open(event: MouseEvent): void {
-  profile.open(props.userId, event.currentTarget instanceof HTMLElement ? event.currentTarget : null)
+  profile.open(
+    props.userId,
+    event.currentTarget instanceof HTMLElement ? event.currentTarget : null,
+  )
 }
 </script>
 

@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/button'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 
 import OverlaySettingField from './OverlaySettingField.vue'
-import { humanize, sameValue, useSettingText, type SettingText } from './settingField'
+import { humanize, sameValue, useSettingText } from './settingField'
 
 type Values = Record<string, unknown>
 type SaveResult = 'none' | 'saved' | 'failed'
@@ -38,7 +38,7 @@ type SaveResult = 'none' | 'saved' | 'failed'
 const props = defineProps<{ widget: Widget }>()
 
 const { t } = useI18n()
-const text: SettingText = useSettingText()
+const text = useSettingText()
 const { channelId } = useCurrentChannel()
 const schema = useWidgetSchema(channelId, () => props.widget.id)
 const save = useSaveWidgetSettings(channelId)
@@ -58,6 +58,7 @@ const result: Ref<SaveResult> = ref('none')
 function takeSaved(): void {
   draft.value = Object.fromEntries(fields.value.map((field) => [field.key, savedValue(field)]))
 }
+
 watch([() => props.widget.id, fields], takeSaved, { immediate: true })
 watch(
   () => props.widget.id,
@@ -66,10 +67,10 @@ watch(
   },
 )
 
-const edited: ComputedRef<WidgetSettingsField[]> = computed<WidgetSettingsField[]>(() =>
+const edited = computed<WidgetSettingsField[]>(() =>
   fields.value.filter((field) => !sameValue(draft.value[field.key], savedValue(field))),
 )
-const dirty: ComputedRef<boolean> = computed<boolean>(() => edited.value.length > 0)
+const dirty = computed<boolean>(() => edited.value.length > 0)
 
 function isChanged(field: WidgetSettingsField): boolean {
   return !sameValue(draft.value[field.key], field.default)
@@ -85,31 +86,37 @@ interface Group {
   fields: WidgetSettingsField[]
 }
 const groups: ComputedRef<Group[]> = computed<Group[]>(() => {
-  const byName: Map<string, WidgetSettingsField[]> = new Map()
+  const byName = new Map()
+
   for (const field of fields.value) {
     const name: string = text(field.group, humanize(field.group.key.split('.').pop() ?? ''))
+
     byName.set(name, [...(byName.get(name) ?? []), field])
   }
+
   return [...byName].map(([name, list]): Group => ({ name, fields: list }))
 })
 
-const rawKeys: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() =>
+const rawKeys = computed<KeyValueItem[]>(() =>
   Object.entries(saved.value).map(([key, value]): KeyValueItem => ({
     label: key,
     value: JSON.stringify(value),
   })),
 )
 
-const state: ComputedRef<PanelState> = computed<PanelState>(() => {
+const state = computed<PanelState>(() => {
   if (schema.isPending.value) return 'loading'
   if (schema.isError.value) return 'error'
+
   return fields.value.length === 0 && rawKeys.value.length === 0 ? 'empty' : 'ready'
 })
 
-const hint: ComputedRef<string> = computed<string>(() => {
+const hint = computed<string>(() => {
   const base: string = 'dashboard.overlays.detail.settings'
+
   if (result.value === 'failed') return t(`${base}.failed`)
   if (dirty.value) return t(`${base}.unsaved`)
+
   return t(result.value === 'saved' ? `${base}.saved` : `${base}.allSaved`)
 })
 
@@ -118,6 +125,7 @@ function submit(): void {
   const changes: Values = Object.fromEntries(
     edited.value.map((field) => [field.key, draft.value[field.key]]),
   )
+
   save.mutate(
     { widgetId: props.widget.id, settings: { ...saved.value, ...changes } },
     {

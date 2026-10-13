@@ -52,7 +52,8 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string) => {
       calls.push(path)
-      const match: string | undefined = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+      const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+
       return match ? answers[match]!() : ok(null)
     },
   },
@@ -88,6 +89,7 @@ async function open(query: string = ''): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/tts', name: 'dashboard-tts', component: blank }],
   })
+
   await router.push(`/app/tts${query}`)
   mounted = mount(TtsView, {
     attachTo: document.body,
@@ -127,6 +129,7 @@ describe('TtsView overview', () => {
     const tabs: string[] = [...document.body.querySelectorAll('[role="tab"]')].map(
       (tab) => tab.textContent?.trim() ?? '',
     )
+
     expect(tabs).toEqual(['Overview', 'Voices', 'Rules'])
     expect(panel('Spoken history')).toBeDefined()
   })

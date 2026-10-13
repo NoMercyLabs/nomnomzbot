@@ -12,21 +12,41 @@
 // itself a port of Tokens.withAccent()). Blends happen in gamma sRGB, as Compose Color does.
 
 type Rgb = [number, number, number]
+
 export type Theme = 'dark' | 'light'
 
 // The colour the mockups were approved with; it stands in until a channel is chosen.
 export const defaultAccent: string = '#FF014F'
 
-const schemes: Record<Theme, Record<'background' | 'foreground' | 'muted' | 'sidebar' | 'hint' | 'link', string>> = {
-  dark: { background: '#111111', foreground: '#eeeeee', muted: '#222222', sidebar: '#0f0f0f', hint: '#b0b0b0', link: '#60a5fa' },
-  light: { background: '#ffffff', foreground: '#0a0a0a', muted: '#f5f5f5', sidebar: '#f2f2f2', hint: '#636363', link: '#1d4ed8' },
-}
+const schemes = {
+  dark: {
+    background: '#111111',
+    foreground: '#eeeeee',
+    muted: '#222222',
+    sidebar: '#0f0f0f',
+    hint: '#b0b0b0',
+    link: '#60a5fa',
+  },
+  light: {
+    background: '#ffffff',
+    foreground: '#0a0a0a',
+    muted: '#f5f5f5',
+    sidebar: '#f2f2f2',
+    hint: '#636363',
+    link: '#1d4ed8',
+  },
+} as const satisfies Record<
+  Theme,
+  Record<'background' | 'foreground' | 'muted' | 'sidebar' | 'hint' | 'link', string>
+>
 const nearWhite: Rgb = [250 / 255, 250 / 255, 250 / 255]
 const nearBlack: Rgb = [23 / 255, 23 / 255, 23 / 255]
 
 function parse(hex: string): Rgb | null {
-  const digits: string = hex.trim().replace(/^#/, '')
+  const digits = hex.trim().replace(/^#/, '')
+
   if (!/^[0-9a-fA-F]{6}$/.test(digits)) return null
+
   return [0, 2, 4].map((i) => parseInt(digits.slice(i, i + 2), 16) / 255) as Rgb
 }
 
@@ -39,13 +59,16 @@ function css(colour: Rgb): string {
 }
 
 function luminance(colour: Rgb): number {
-  const linear = (v: number): number => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))
+  const linear = (v: number): number =>
+    v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+
   return 0.2126 * linear(colour[0]) + 0.7152 * linear(colour[1]) + 0.0722 * linear(colour[2])
 }
 
 function contrast(a: Rgb, b: Rgb): number {
-  const x: number = luminance(a)
-  const y: number = luminance(b)
+  const x = luminance(a)
+  const y = luminance(b)
+
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
 }
 
@@ -61,19 +84,23 @@ function ink(colour: Rgb): Rgb {
 // Moves the colour toward `toward` until it reads at `min` on the background and with its own ink.
 function readableOn(colour: Rgb, background: Rgb, toward: Rgb, min: number): Rgb {
   let c: Rgb = colour
+
   for (let i = 0; i < 20; i++) {
     if (contrast(c, background) >= min && contrast(c, ink(c)) >= min) return c
     c = blend(c, toward, 0.08)
   }
+
   return c
 }
 
 function readableWith(colour: Rgb, other: Rgb, toward: Rgb, min: number): Rgb {
   let c: Rgb = colour
+
   for (let i = 0; i < 30; i++) {
     if (contrast(c, other) >= min) return c
     c = blend(c, toward, 0.08)
   }
+
   return c
 }
 
@@ -81,20 +108,27 @@ function readableWith(colour: Rgb, other: Rgb, toward: Rgb, min: number): Rgb {
 function tint(base: Rgb, accent: Rgb, start: number, theme: Theme): Rgb {
   let f: number = start
   let c: Rgb = blend(base, accent, f)
-  while (f > 0.02 && (contrast(c, rgb(schemes[theme].hint)) < 4.5 || contrast(c, rgb(schemes[theme].link)) < 4.5)) {
+
+  while (
+    f > 0.02 &&
+    (contrast(c, rgb(schemes[theme].hint)) < 4.5 || contrast(c, rgb(schemes[theme].link)) < 4.5)
+  ) {
     f -= 0.02
     c = blend(base, accent, f)
   }
+
   return c
 }
 
 export function accentTokens(hex: string, theme: Theme): Record<string, string> {
-  const raw: Rgb | null = parse(hex)
+  const raw = parse(hex)
+
   if (!raw) return {}
   const scheme = schemes[theme]
-  const background: Rgb = rgb(scheme.background)
-  const foreground: Rgb = rgb(scheme.foreground)
-  const accent: Rgb = readableOn(raw, background, foreground, 4.5)
+  const background = rgb(scheme.background)
+  const foreground = rgb(scheme.foreground)
+  const accent = readableOn(raw, background, foreground, 4.5)
+
   return {
     primary: css(accent),
     'primary-foreground': css(ink(accent)),
@@ -112,7 +146,9 @@ export function accentTokens(hex: string, theme: Theme): Record<string, string> 
 }
 
 export function applyAccent(hex: string): void {
-  const root: HTMLElement = document.documentElement
+  const root = document.documentElement
   const theme: Theme = root.classList.contains('light') ? 'light' : 'dark'
-  for (const [name, value] of Object.entries(accentTokens(hex, theme))) root.style.setProperty(`--${name}`, value)
+
+  for (const [name, value] of Object.entries(accentTokens(hex, theme)))
+    root.style.setProperty(`--${name}`, value)
 }

@@ -21,14 +21,25 @@ const version = '1'
 // Twitch allows at most 50 custom rewards per channel, so one page holds them all.
 const pageSize = 100
 
-export const rewardsKey = (channelId: string | null): unknown[] => ['channels', channelId, 'rewards']
+export const rewardsKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'rewards',
+]
 
-export function useRewards(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<Reward[], Error> {
+export function useRewards(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<Reward[], Error> {
   return channelQuery(channelId, rewardsKey, async (id: string): Promise<Reward[]> => {
-    const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/rewards', {
-      params: { path: { version, channelId: id }, query: { PageSize: pageSize } },
-    })
+    const { data, error, response } = await client.GET(
+      '/api/v{version}/channels/{channelId}/rewards',
+      {
+        params: { path: { version, channelId: id }, query: { PageSize: pageSize } },
+      },
+    )
+
     if (error !== undefined) throw failed('rewards', response.status)
+
     return [...(data?.data ?? [])]
   })
 }

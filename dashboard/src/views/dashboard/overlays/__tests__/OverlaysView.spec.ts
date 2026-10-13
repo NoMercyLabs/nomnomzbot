@@ -79,6 +79,7 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path, body: undefined })
       if (listFails) return { error: { status: 'error' }, response: { status: 500, ok: false } }
+
       return {
         data: { data: widgets, hasMore: false, nextPage: null },
         response: { status: 200, ok: true },
@@ -86,9 +87,11 @@ vi.mock('@/api/client', () => ({
     },
     PUT: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'PUT', path, body: options?.body })
-      const id: string = String(options?.params?.path?.widgetId)
-      const body: Record<string, unknown> = options?.body as Record<string, unknown>
+      const id = String(options?.params?.path?.widgetId)
+      const body = options?.body as Record<string, unknown>
+
       widgets = widgets.map((row) => (row.id === id ? { ...row, ...body } : row))
+
       return { data: { data: null }, response: { status: 200, ok: true } }
     },
   },
@@ -136,6 +139,7 @@ const settle = async (): Promise<void> => {
 
 async function open(url: string = '/app/overlays'): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/overlays', name: 'dashboard-overlays', component: blank }],
@@ -177,10 +181,10 @@ const button = (label: string): HTMLButtonElement =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
     b.textContent?.includes(label),
   ) as HTMLButtonElement
+
 const typeSearch = async (value: string): Promise<void> => {
-  const input: HTMLInputElement = document.body.querySelector(
-    'input[type="search"]',
-  ) as HTMLInputElement
+  const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
+
   input.value = value
   input.dispatchEvent(new Event('input', { bubbles: true }))
   await settle()
@@ -222,6 +226,7 @@ describe('OverlaysView', () => {
     const rows: HTMLElement[] = [
       ...document.body.querySelectorAll<HTMLElement>('[data-overlay-row]'),
     ]
+
     expect(rows[0]!.textContent).toContain('A browser source is open')
     expect(rows[1]!.textContent).toContain('Fails')
     expect(rows[2]!.textContent).toContain('Off')
@@ -231,7 +236,8 @@ describe('OverlaysView', () => {
   it('shows the overlay named in the address, with its kind, origin, events and description', async () => {
     await open('/app/overlays?id=w1')
 
-    const head: string = detail().textContent ?? ''
+    const head = detail().textContent ?? ''
+
     expect(detail().querySelector('h2')?.textContent).toBe('Spotify NowPlaying')
     expect(head).toContain('Built in')
     expect(head).toContain('vue')
@@ -252,6 +258,7 @@ describe('OverlaysView', () => {
         .replace(/\s+/g, ' ')
         .trim(),
     )
+
     expect(rows).toContain('follow')
     expect(rows).toContain('track changedspotify.track_changed')
   })
@@ -269,15 +276,15 @@ describe('OverlaysView', () => {
 
   it('switches an overlay off with a PUT of isEnabled only and moves it from the On tab to the Off tab', async () => {
     await open('/app/overlays?id=w1&view=on')
-    const toggle: HTMLButtonElement = detail().querySelector(
-      'button[role="switch"]',
-    ) as HTMLButtonElement
+    const toggle = detail().querySelector('button[role="switch"]') as HTMLButtonElement
+
     expect(toggle.getAttribute('aria-checked')).toBe('true')
 
     toggle.click()
     await settle()
 
-    const puts: Call[] = calls.filter((call) => call.method === 'PUT')
+    const puts = calls.filter((call) => call.method === 'PUT')
+
     expect(puts).toHaveLength(1)
     expect(puts[0]!.path).toContain('/widgets/{widgetId}')
     expect(puts[0]!.body).toEqual({ isEnabled: false })
@@ -301,7 +308,8 @@ describe('OverlaysView', () => {
   it('disables the copy button with a reason when the overlay has no address', async () => {
     await open('/app/overlays?id=w4')
 
-    const copy: HTMLButtonElement = button('Copy browser source address')
+    const copy = button('Copy browser source address')
+
     expect(copy.disabled).toBe(true)
     expect(detail().textContent).toContain('This overlay has no address yet.')
     expect(detail().textContent).toContain('Edited')
@@ -310,9 +318,8 @@ describe('OverlaysView', () => {
   it('shows the failure text in Health and a Fails badge on the row', async () => {
     await open('/app/overlays?id=w2')
 
-    const health: HTMLElement = detail().querySelector(
-      '[data-slot="overlay-health"]',
-    ) as HTMLElement
+    const health = detail().querySelector('[data-slot="overlay-health"]') as HTMLElement
+
     expect(health.textContent).toContain('TypeError: feather is undefined')
     expect(health.textContent).toContain('Failed')
     expect(rowNames()).toContain('Feather Alert')

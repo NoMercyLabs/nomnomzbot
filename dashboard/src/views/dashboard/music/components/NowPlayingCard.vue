@@ -13,7 +13,7 @@ import Music from '~icons/nnz/note-eighth-pair'
 import Pause from '~icons/nnz/pause'
 import Play from '~icons/nnz/play'
 import SkipForward from '~icons/nnz/next'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import type { NowPlaying } from '@/api/music'
 import { Button } from '@/components/ui/button'
@@ -29,18 +29,20 @@ const props = defineProps<{
 
 defineEmits<{ pause: []; resume: []; skip: [] }>()
 
-const now: Ref<number> = ref(Date.now())
+const now = ref(Date.now())
+
 useIntervalFn(() => {
   now.value = Date.now()
 }, 1000)
 
-const durationMs: ComputedRef<number> = computed<number>(() => Number(props.track.durationMs))
-const positionMs: ComputedRef<number> = computed<number>(() => {
-  const reported: number = Number(props.track.progressMs)
-  const elapsed: number = props.track.isPlaying ? Math.max(0, now.value - props.observedAt) : 0
+const durationMs = computed<number>(() => Number(props.track.durationMs))
+const positionMs = computed<number>(() => {
+  const reported = Number(props.track.progressMs)
+  const elapsed = props.track.isPlaying ? Math.max(0, now.value - props.observedAt) : 0
+
   return Math.min(durationMs.value, reported + elapsed)
 })
-const percent: ComputedRef<number> = computed<number>(() =>
+const percent = computed<number>(() =>
   durationMs.value > 0 ? (positionMs.value / durationMs.value) * 100 : 0,
 )
 </script>

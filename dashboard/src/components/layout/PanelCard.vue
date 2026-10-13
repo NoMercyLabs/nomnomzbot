@@ -13,7 +13,7 @@
 // state (C7): the panel keeps its size in every state. A skeleton shows only after 150 ms,
 // so a fast answer never flashes one. The default slot shows only in the ready state.
 import { useTimeoutFn } from '@vueuse/core'
-import { ref, watch, type Ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,12 +30,19 @@ const props = withDefaults(
     emptyText?: string
     errorText?: string
   }>(),
-  { description: undefined, tier: 'default', pad: false, state: 'ready', emptyText: undefined, errorText: undefined },
+  {
+    description: undefined,
+    tier: 'default',
+    pad: false,
+    state: 'ready',
+    emptyText: undefined,
+    errorText: undefined,
+  },
 )
 
 defineEmits<{ retry: [] }>()
 
-const skeletonShown: Ref<boolean> = ref(false)
+const skeletonShown = ref(false)
 const { start, stop } = useTimeoutFn(
   () => {
     skeletonShown.value = true
@@ -63,7 +70,10 @@ watch(
   >
     <header class="flex min-h-13 flex-none items-center gap-2 border-b border-border px-4 py-2">
       <div class="min-w-0 flex-1">
-        <h2 class="text-base" :class="tier === 'quiet' ? 'font-medium text-muted-foreground' : 'font-semibold'">
+        <h2
+          class="text-base"
+          :class="tier === 'quiet' ? 'font-medium text-muted-foreground' : 'font-semibold'"
+        >
           {{ title }}
         </h2>
         <p v-if="description" class="text-sm text-muted-foreground">{{ description }}</p>
@@ -72,7 +82,12 @@ watch(
     </header>
     <div class="min-h-0 flex-1 overflow-y-auto" :class="pad ? 'p-4' : 'p-2'">
       <slot v-if="state === 'ready'" />
-      <div v-else-if="state === 'loading'" data-slot="panel-loading" class="grid gap-2" :aria-busy="true">
+      <div
+        v-else-if="state === 'loading'"
+        data-slot="panel-loading"
+        class="grid gap-2"
+        :aria-busy="true"
+      >
         <template v-if="skeletonShown">
           <Skeleton v-for="line in 3" :key="line" class="h-11 rounded-[12px]" />
         </template>
@@ -91,10 +106,15 @@ watch(
         class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm"
       >
         <span class="text-destructive">{{ errorText ?? $t('common.panel.error') }}</span>
-        <Button variant="outline" size="sm" @click="$emit('retry')">{{ $t('common.panel.retry') }}</Button>
+        <Button variant="outline" size="sm" @click="$emit('retry')">{{
+          $t('common.panel.retry')
+        }}</Button>
       </div>
     </div>
-    <footer v-if="$slots.footer" class="flex flex-none items-center gap-2 border-t border-border px-4 py-3">
+    <footer
+      v-if="$slots.footer"
+      class="flex flex-none items-center gap-2 border-t border-border px-4 py-3"
+    >
       <slot name="footer" />
     </footer>
   </section>

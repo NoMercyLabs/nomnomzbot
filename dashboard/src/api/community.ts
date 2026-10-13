@@ -12,7 +12,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query'
@@ -48,6 +47,7 @@ async function fetchMember(channelId: string, userId: string): Promise<Community
   const { data } = await client.GET('/api/v{version}/channels/{channelId}/community/{userId}', {
     params: { path: { version, channelId, userId } },
   })
+
   return data?.data ?? null
 }
 
@@ -75,8 +75,10 @@ export function useCommunityFirstPage(
           params: { path: { version, channelId: toValue(channelId)! }, query: { PageSize: 5 } },
         },
       )
+
       // A refusal is an error state, not an empty community.
       if (error !== undefined) throw new Error(`community ${response.status}`)
+
       return data?.data ?? []
     },
     enabled: computed(() => toValue(channelId) !== null),
@@ -96,7 +98,9 @@ export function useVipChange(
       const { error } = vip
         ? await client.POST('/api/v{version}/channels/{channelId}/community/{userId}/vip', params)
         : await client.DELETE('/api/v{version}/channels/{channelId}/community/{userId}/vip', params)
+
       if (error) throw new Error('vip change failed')
+
       return fetchMember(channelId, userId)
     },
     apply: (
@@ -111,7 +115,8 @@ export type BanInput = { userId: string; reason: string }
 export function useBanMember(
   channelId: string,
 ): UseMutationReturnType<void, Error, BanInput, unknown> {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useMutation({
     mutationFn: async ({ userId, reason }: BanInput): Promise<void> => {
       const { error } = await client.POST(
@@ -121,6 +126,7 @@ export function useBanMember(
           body: { reason },
         },
       )
+
       if (error) throw new Error('ban failed')
     },
     onSuccess: (_data: void, { userId }: BanInput) =>
@@ -154,7 +160,9 @@ export function useViewerSearch(
           },
         },
       )
+
       if (error !== undefined) throw new Error(`viewer search ${response.status}`)
+
       return data?.data ?? []
     },
     enabled: computed(() => toValue(channelId) !== null && toValue(q).trim() !== ''),
@@ -175,8 +183,10 @@ export function useTwitchLookup(
           params: { path: { version, channelId: toValue(channelId)! }, query: { login } },
         },
       )
+
       if (response.status === 404) throw new TwitchUserNotFoundError('twitch user not found')
       if (error !== undefined || !data?.data) throw new Error(`twitch lookup ${response.status}`)
+
       return data.data
     },
   })

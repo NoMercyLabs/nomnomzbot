@@ -13,11 +13,13 @@ import { defineStore } from 'pinia'
 import { computed, type ComputedRef } from 'vue'
 
 import { officialOrigin, servedOrigin } from '@/lib/botAddress'
+
 const alwaysListed: readonly string[] = [servedOrigin, officialOrigin]
 
 function readOrigins(raw: string): string[] {
   try {
     const parsed: unknown = JSON.parse(raw)
+
     return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : []
   } catch {
     return []
@@ -30,7 +32,9 @@ export const useConnectionsStore = defineStore('connections', () => {
     serializer: { read: readOrigins, write: (origins) => JSON.stringify(origins) },
   })
 
-  const bots: ComputedRef<string[]> = computed(() => [...new Set([...alwaysListed, ...saved.value])])
+  const bots: ComputedRef<string[]> = computed(() => [
+    ...new Set([...alwaysListed, ...saved.value]),
+  ])
 
   function isAlwaysListed(origin: string): boolean {
     return alwaysListed.includes(origin)

@@ -21,15 +21,15 @@ const MAX_TAGS: number = 10
 
 const { t } = useI18n()
 const tags = defineModel<string[]>({ required: true })
-const entry: Ref<string> = ref('')
+const entry = ref('')
 const removed: Ref<{ tag: string; index: number } | null> = ref(null)
 
 function add(): void {
-  const tag: string = entry.value.trim()
+  const tag = entry.value.trim()
+
   entry.value = ''
-  const known: boolean = tags.value.some(
-    (existing: string) => existing.toLowerCase() === tag.toLowerCase(),
-  )
+  const known = tags.value.some((existing: string) => existing.toLowerCase() === tag.toLowerCase())
+
   if (tag === '' || known || tags.value.length >= MAX_TAGS) return
   tags.value = [...tags.value, tag]
   removed.value = null
@@ -43,6 +43,7 @@ function remove(index: number): void {
 function undo(): void {
   if (removed.value === null) return
   const next: string[] = [...tags.value]
+
   next.splice(Math.min(removed.value.index, next.length), 0, removed.value.tag)
   tags.value = next
   removed.value = null

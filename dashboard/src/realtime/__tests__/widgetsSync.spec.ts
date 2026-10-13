@@ -21,13 +21,13 @@ vi.mock('@microsoft/signalr', () => ({
   HubConnection: FakeHubConnection,
 }))
 
-type Hub = typeof import('../dashboardHub')
-
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
-  const hub: Hub = await import('../dashboardHub')
-  const queries: QueryClient = new QueryClient()
+  const hub = await import('../dashboardHub')
+  const queries = new QueryClient()
+
   await hub.startDashboardHub(queries)
   await hub.watchChannel('c1')
+
   return [queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
 }
 
@@ -41,6 +41,7 @@ describe('overlay widgets live sync', () => {
     'a widgets %s change marks the joined channel widget list stale',
     async (action: string) => {
       const [queries, connection] = await started()
+
       queries.setQueryData(widgetsKey('c1'), [])
       queries.setQueryData(widgetsKey('other'), [])
 
@@ -58,6 +59,7 @@ describe('overlay widgets live sync', () => {
 
   it('a notifications change still marks only the action-required inbox stale', async () => {
     const [queries, connection] = await started()
+
     queries.setQueryData(widgetsKey('c1'), [])
     queries.setQueryData(actionRequiredKey('c1'), [])
 

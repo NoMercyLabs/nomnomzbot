@@ -20,7 +20,11 @@ const placement: ComputedRef<Record<string, string>> = computed<Record<string, s
 </script>
 
 <template>
-  <div data-slot="board-cell" class="flex min-h-0 min-w-0 flex-col *:min-h-0 *:flex-1" :style="placement">
+  <div
+    data-slot="board-cell"
+    class="flex min-h-0 min-w-0 flex-col *:min-h-0 *:flex-1"
+    :style="placement"
+  >
     <slot />
   </div>
 </template>

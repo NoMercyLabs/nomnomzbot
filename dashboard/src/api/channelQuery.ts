@@ -17,7 +17,8 @@ export function failed(what: string, status: number): Error {
 
 // A refusal carries the bot's own reason in `message`; without one, the status stands in.
 export function refusal(what: string, error: unknown, status: number): Error {
-  const reason: string | null | undefined = (error as { message?: string | null } | undefined)?.message
+  const reason = (error as { message?: string | null } | undefined)?.message
+
   return reason ? new Error(reason) : failed(what, status)
 }
 

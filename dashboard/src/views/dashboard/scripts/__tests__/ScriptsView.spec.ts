@@ -99,7 +99,8 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string, options?: Options): Promise<Answer> => {
-      const id: string = String(options?.params?.path?.id ?? '')
+      const id = String(options?.params?.path?.id ?? '')
+
       calls.push({ method: 'GET', path, body: undefined, id })
       if (refused)
         return {
@@ -122,39 +123,51 @@ vi.mock('@/api/client', () => ({
         }
       if (path.endsWith('/blast-radius'))
         return { data: { data: blast }, response: { status: 200, ok: true } }
+
       if (path.endsWith('/code-scripts/{id}')) {
-        const row: Record<string, unknown> | undefined = scripts.find((one) => one.id === id)
+        const row = scripts.find((one) => one.id === id)
+
         return { data: { data: { ...row, ...detailExtra } }, response: { status: 200, ok: true } }
       }
+
       return { data: { data: scripts }, response: { status: 200, ok: true } }
     },
     POST: async (path: string, options?: Options): Promise<Answer> => {
-      const id: string = String(options?.params?.path?.id ?? '')
+      const id = String(options?.params?.path?.id ?? '')
+
       calls.push({ method: 'POST', path, body: options?.body, id })
+
       if (path.endsWith('/test-run')) {
         if (testLimited)
           return {
             error: { message: 'Too many tests' },
             response: { status: 429, ok: false, headers: new Headers({ 'Retry-After': '30' }) },
           }
+
         return {
           data: { data: testResult },
           response: { status: 200, ok: true, headers: new Headers() },
         }
       }
+
       return { data: { data: { id: 'new1' } }, response: { status: 200, ok: true } }
     },
     DELETE: async (path: string, options?: Options): Promise<Answer> => {
-      const id: string = String(options?.params?.path?.id)
+      const id = String(options?.params?.path?.id)
+
       calls.push({ method: 'DELETE', path, body: undefined, id })
       scripts = scripts.filter((row) => row.id !== id)
+
       return { data: { data: null }, response: { status: 200, ok: true } }
     },
     PATCH: async (path: string, options?: Options): Promise<Answer> => {
-      const id: string = String(options?.params?.path?.id)
+      const id = String(options?.params?.path?.id)
+
       calls.push({ method: 'PATCH', path, body: options?.body, id })
-      const body: Record<string, unknown> = options?.body as Record<string, unknown>
+      const body = options?.body as Record<string, unknown>
+
       scripts = scripts.map((row) => (row.id === id ? { ...row, ...body } : row))
+
       return { data: { data: null }, response: { status: 200, ok: true } }
     },
   },
@@ -211,6 +224,7 @@ const settle = async (): Promise<void> => {
 
 async function open(url: string = '/app/scripts'): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/scripts', name: 'dashboard-scripts', component: blank }],
@@ -251,10 +265,10 @@ const byText = (selector: string, label: string): HTMLElement | undefined =>
   [...document.body.querySelectorAll<HTMLElement>(selector)].find(
     (node) => node.textContent?.trim() === label,
   )
+
 const typeSearch = async (value: string): Promise<void> => {
-  const input: HTMLInputElement = document.body.querySelector(
-    'input[type="search"]',
-  ) as HTMLInputElement
+  const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
+
   input.value = value
   input.dispatchEvent(new Event('input', { bubbles: true }))
   await settle()
@@ -295,15 +309,15 @@ describe('ScriptsView', () => {
 
   it('switches a script off with a PATCH of isEnabled only and moves the tab counts', async () => {
     await open('/app/scripts?view=on')
-    const toggle: HTMLButtonElement = rows()[0]!.querySelector(
-      'button[role="switch"]',
-    ) as HTMLButtonElement
+    const toggle = rows()[0]!.querySelector('button[role="switch"]') as HTMLButtonElement
+
     expect(toggle.getAttribute('aria-checked')).toBe('true')
 
     toggle.click()
     await settle()
 
-    const patches: Call[] = calls.filter((call) => call.method === 'PATCH')
+    const patches = calls.filter((call) => call.method === 'PATCH')
+
     expect(patches).toHaveLength(1)
     expect(patches[0]!.path).toContain('/code-scripts/{id}/enabled')
     expect(patches[0]!.id).toBe('s1')
@@ -339,6 +353,7 @@ describe('ScriptsView', () => {
     await settle()
 
     const dialog: string = document.body.querySelector('[role="alertdialog"]')?.textContent ?? ''
+
     expect(dialog).toContain('2 pipelines')
     expect(dialog).toContain('1 timers')
     expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0)
@@ -346,7 +361,8 @@ describe('ScriptsView', () => {
     ;(document.body.querySelector('[data-confirm-action]') as HTMLElement).click()
     await settle()
 
-    const deletes: Call[] = calls.filter((call) => call.method === 'DELETE')
+    const deletes = calls.filter((call) => call.method === 'DELETE')
+
     expect(deletes).toHaveLength(1)
     expect(deletes[0]!.id).toBe('s1')
     expect(rowNames()).not.toContain('Hype Train Banner')
@@ -360,6 +376,7 @@ describe('ScriptsView', () => {
     await settle()
 
     const dialog: string = document.body.querySelector('[role="alertdialog"]')?.textContent ?? ''
+
     expect(dialog).toContain('At least 2 pipelines')
     expect(dialog).toContain('At least 1 timers')
   })
@@ -369,18 +386,19 @@ describe('ScriptsView', () => {
 
     byText('button', 'New script')!.click()
     await settle()
-    const input: HTMLInputElement = document.body.querySelector(
-      '[role="dialog"] input',
-    ) as HTMLInputElement
+    const input = document.body.querySelector('[role="dialog"] input') as HTMLInputElement
+
     input.value = 'Dice'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await settle()
     byText('button', 'Create script')!.click()
     await settle()
 
-    const posts: Call[] = calls.filter((call) => call.method === 'POST')
+    const posts = calls.filter((call) => call.method === 'POST')
+
     expect(posts).toHaveLength(1)
-    const body: Record<string, unknown> = posts[0]!.body as Record<string, unknown>
+    const body = posts[0]!.body as Record<string, unknown>
+
     expect(body.name).toBe('Dice')
     expect(body.description).toBe('')
     expect(String(body.sourceCode)).toContain('nnz.random.int')
@@ -390,9 +408,8 @@ describe('ScriptsView', () => {
   it('lists the declared powers as plain text with no control', async () => {
     await open('/app/scripts?script=s1')
 
-    const powers: HTMLElement = document.body.querySelector(
-      '[data-slot="script-powers"]',
-    ) as HTMLElement
+    const powers = document.body.querySelector('[data-slot="script-powers"]') as HTMLElement
+
     expect(powers.textContent).toContain('chat.send')
     expect(powers.textContent).toContain('variables.write')
     expect(powers.querySelectorAll('button, input, [role="switch"]')).toHaveLength(0)
@@ -406,13 +423,15 @@ describe('ScriptsView', () => {
     byText('button', 'Run test')!.click()
     await settle()
 
-    const posts: Call[] = calls.filter((call) => call.method === 'POST')
+    const posts = calls.filter((call) => call.method === 'POST')
+
     expect(posts).toHaveLength(1)
     expect(posts[0]!.path).toBe('/api/v{version}/code-scripts/{id}/test-run')
     expect(posts[0]!.id).toBe('s1')
     expect(posts[0]!.body).toEqual({ variables: {}, args: [], trigger: null })
     const result: string =
       document.body.querySelector('[data-slot="script-test-result"]')?.textContent ?? ''
+
     expect(result).toContain('Worked')
     expect(result).toContain('42 ms')
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
@@ -424,7 +443,8 @@ describe('ScriptsView', () => {
     byText('button', 'Test')!.click()
     await settle()
 
-    const posts: Call[] = calls.filter((call) => call.method === 'POST')
+    const posts = calls.filter((call) => call.method === 'POST')
+
     expect(posts).toHaveLength(1)
     expect(posts[0]!.body).toEqual({
       variables: { user: 'sample_viewer' },
@@ -441,6 +461,7 @@ describe('ScriptsView', () => {
     await settle()
 
     const dialog: string = document.body.querySelector('[role="dialog"]')?.textContent ?? ''
+
     expect(dialog).toContain('The run failed')
     expect(dialog).toContain('ReferenceError: raider is not defined')
     expect(dialog).toContain('index.ts line 4, column 42')
@@ -465,6 +486,7 @@ describe('ScriptsView', () => {
       [...document.body.querySelectorAll<HTMLElement>('[data-run-row] [data-run-name]')].map(
         (node) => node.textContent?.trim() ?? '',
       )
+
     expect(runNames()).toEqual(['Raid Welcome', 'Hype Train Banner'])
 
     byText('[data-slot="toggle-group-item"]', 'Failed')!.click()
@@ -493,14 +515,16 @@ describe('ScriptsView', () => {
         global: { plugins: [i18n] },
       })
 
-    const first: VueWrapper = panel()
+    const first = panel()
+
     byText('[data-slot="toggle-group-item"]', 'Failed')!.click()
     await settle()
     expect(names()).toEqual(['Hype Train Banner'])
     first.unmount()
     document.body.innerHTML = ''
 
-    const second: VueWrapper = panel()
+    const second = panel()
+
     await settle()
     expect(names()).toEqual(['Hype Train Banner'])
     second.unmount()

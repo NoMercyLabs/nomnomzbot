@@ -32,6 +32,7 @@ vi.mock('@/api/client', () => ({
       await new Promise<void>((resolve) => {
         releaseSample = resolve
       })
+
       return {
         data: { data: { voiceId: 'v1', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' } },
         response: { status: 200, ok: true },

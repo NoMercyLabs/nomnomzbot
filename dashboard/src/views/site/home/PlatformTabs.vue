@@ -22,7 +22,10 @@ const { t } = useI18n()
 
 <template>
   <Tabs default-value="twitch" class="gap-2">
-    <TabsList :aria-label="t('site.home.outcomes.platforms.label')" class="w-full justify-start overflow-x-auto">
+    <TabsList
+      :aria-label="t('site.home.outcomes.platforms.label')"
+      class="w-full justify-start overflow-x-auto"
+    >
       <TabsTrigger v-for="platform in platforms" :key="platform" :value="platform">
         <PlatformLogo :platform="platform" />
         {{ t(`site.home.outcomes.platforms.${platform}`) }}
@@ -32,7 +35,11 @@ const { t } = useI18n()
       <RowGroup>
         <SummaryRow
           :title="t(`site.home.outcomes.platforms.${platform}`)"
-          :detail="t('site.home.outcomes.platforms.answered', { platform: t(`site.home.outcomes.platforms.${platform}`) })"
+          :detail="
+            t('site.home.outcomes.platforms.answered', {
+              platform: t(`site.home.outcomes.platforms.${platform}`),
+            })
+          "
         />
       </RowGroup>
     </TabsContent>

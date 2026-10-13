@@ -18,7 +18,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import DemoRows from './DemoRows.vue'
 
-type Tab = { id: 'dashboard' | 'chat' | 'mod' | 'rules' | 'alerts'; group: 'home' | 'chat' | 'moderation' | 'stream' }
+type Tab = {
+  id: 'dashboard' | 'chat' | 'mod' | 'rules' | 'alerts'
+  group: 'home' | 'chat' | 'moderation' | 'stream'
+}
 
 const tabs: Tab[] = [
   { id: 'dashboard', group: 'home' },
@@ -39,21 +42,40 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <PanelCard :title="t('site.home.demo.channel')" :description="t('site.home.demo.role')" pad class="w-full text-left">
+  <PanelCard
+    :title="t('site.home.demo.channel')"
+    :description="t('site.home.demo.role')"
+    pad
+    class="w-full text-left"
+  >
     <Tabs default-value="dashboard" class="gap-3">
       <!-- A narrow screen scrolls the row sideways; wrapping drops one tab onto a line of its own. -->
-      <TabsList :aria-label="t('site.home.demo.label')" class="w-full justify-start overflow-x-auto">
-        <TabsTrigger v-for="tab in tabs" :key="tab.id" :value="tab.id">{{ t(`site.home.demo.tabs.${tab.id}`) }}</TabsTrigger>
+      <TabsList
+        :aria-label="t('site.home.demo.label')"
+        class="w-full justify-start overflow-x-auto"
+      >
+        <TabsTrigger v-for="tab in tabs" :key="tab.id" :value="tab.id">{{
+          t(`site.home.demo.tabs.${tab.id}`)
+        }}</TabsTrigger>
       </TabsList>
 
       <TabsContent v-for="tab in tabs" :key="tab.id" :value="tab.id" class="flex flex-col gap-2">
-        <p class="text-xs font-medium text-muted-foreground">{{ t(`site.home.demo.groups.${tab.group}`) }}</p>
+        <p class="text-xs font-medium text-muted-foreground">
+          {{ t(`site.home.demo.groups.${tab.group}`) }}
+        </p>
         <h3 class="text-sm font-semibold">{{ t(`site.home.demo.${tab.id}.title`) }}</h3>
 
-        <div v-if="tab.id === 'dashboard'" class="grid grid-cols-2 gap-1 rounded-[12px] border border-border bg-muted p-1 sm:grid-cols-4">
+        <div
+          v-if="tab.id === 'dashboard'"
+          class="grid grid-cols-2 gap-1 rounded-[12px] border border-border bg-muted p-1 sm:grid-cols-4"
+        >
           <div v-for="stat in stats" :key="stat" class="rounded-[8px] px-3 py-2">
-            <div class="text-lg font-semibold">{{ t(`site.home.demo.dashboard.${stat}Value`) }}</div>
-            <div class="text-sm text-muted-foreground">{{ t(`site.home.demo.dashboard.${stat}`) }}</div>
+            <div class="text-lg font-semibold">
+              {{ t(`site.home.demo.dashboard.${stat}Value`) }}
+            </div>
+            <div class="text-sm text-muted-foreground">
+              {{ t(`site.home.demo.dashboard.${stat}`) }}
+            </div>
           </div>
         </div>
         <DemoRows v-else-if="tab.id === 'chat'" kind="requests" />
@@ -69,15 +91,25 @@ const { t } = useI18n()
             >
               <template #end>
                 <span class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                  <span class="size-2 rounded-full" :class="filter.on ? 'bg-success' : 'bg-muted-foreground'" aria-hidden="true" />
+                  <span
+                    class="size-2 rounded-full"
+                    :class="filter.on ? 'bg-success' : 'bg-muted-foreground'"
+                    aria-hidden="true"
+                  />
                   {{ t(filter.on ? 'site.home.demo.rules.on' : 'site.home.demo.rules.off') }}
                 </span>
               </template>
             </SummaryRow>
           </RowGroup>
-          <p class="text-xs font-medium text-muted-foreground">{{ t('site.home.demo.rules.blockedTitle') }}</p>
+          <p class="text-xs font-medium text-muted-foreground">
+            {{ t('site.home.demo.rules.blockedTitle') }}
+          </p>
           <ul class="flex flex-wrap gap-1">
-            <li v-for="term in blocked" :key="term" class="rounded-[8px] border border-border bg-muted px-2 py-1 text-sm">
+            <li
+              v-for="term in blocked"
+              :key="term"
+              class="rounded-[8px] border border-border bg-muted px-2 py-1 text-sm"
+            >
               {{ t(`site.home.demo.rules.${term}`) }}
             </li>
           </ul>

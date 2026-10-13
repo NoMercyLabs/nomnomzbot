@@ -20,7 +20,7 @@ withDefaults(defineProps<{ title: string; description?: string; disabled?: boole
 })
 
 const checked = defineModel<boolean>({ default: false })
-const titleId: string = useId()
+const titleId = useId()
 </script>
 
 <template>

@@ -37,10 +37,10 @@ const { channelId } = useCurrentChannel()
 const create = useCreateCommand(channelId)
 const pipelines = usePipelines(channelId)
 
-const name: Ref<string> = ref('')
+const name = ref('')
 const kind: Ref<Kind> = ref<Kind>('template')
-const reply: Ref<string> = ref('')
-const pipelineId: Ref<string> = ref('')
+const reply = ref('')
+const pipelineId = ref('')
 const error: Ref<string | undefined> = ref(undefined)
 
 watch(open, (isOpen: boolean): void => {
@@ -63,18 +63,24 @@ function bodyOf(clean: string): NewCommand {
 }
 
 async function submit(): Promise<void> {
-  const clean: string = cleaned(name.value)
+  const clean = cleaned(name.value)
+
   if (clean === '') {
     error.value = t('dashboard.commands.dialog.nameRequired')
+
     return
   }
+
   error.value = undefined
+
   try {
     await create.mutateAsync(bodyOf(clean))
   } catch (failure) {
     error.value = failure instanceof Error ? failure.message : String(failure)
+
     return
   }
+
   open.value = false
   emit('created', clean)
 }

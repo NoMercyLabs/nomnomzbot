@@ -54,10 +54,13 @@ const detail = (name: string, params?: Record<string, string | number>): Activit
 })
 
 function subscribed(data: ActivityData): ReturnType<Describe> {
-  const tier: string | null = tierOf(data.tier)
+  const tier = tierOf(data.tier)
+
   if (tier === null) return null
-  const months: number | null = pickCount(data, 'cumulativeMonths', 'months')
+  const months = pickCount(data, 'cumulativeMonths', 'months')
+
   if (months !== null && months > 1) return { detail: detail('subscribedMonths', { tier, months }) }
+
   return { detail: detail('subscribed', { tier }) }
 }
 
@@ -73,9 +76,11 @@ const KINDS: Record<string, ActivityKind> = {
     icon: GiftCard,
     label: 'channel_subscription_gift',
     describe: (data: ActivityData) => {
-      const tier: string | null = tierOf(data.tier)
-      const count: number | null = pickCount(data, 'giftCount', 'count')
+      const tier = tierOf(data.tier)
+      const count = pickCount(data, 'giftCount', 'count')
+
       if (tier === null || count === null) return null
+
       return { detail: detail('gifted', { count, tier }) }
     },
   },
@@ -87,8 +92,10 @@ const KINDS: Record<string, ActivityKind> = {
     icon: HeartBroken,
     label: 'channel_subscription_end',
     describe: (data: ActivityData) => {
-      const tier: string | null = tierOf(data.tier)
+      const tier = tierOf(data.tier)
+
       if (tier === null) return null
+
       return { detail: detail(data.isGift === true ? 'giftSubEnded' : 'subEnded', { tier }) }
     },
   },
@@ -96,7 +103,8 @@ const KINDS: Record<string, ActivityKind> = {
     icon: Diamond,
     label: 'channel_cheer',
     describe: (data: ActivityData) => {
-      const count: number | null = pickCount(data, 'bits')
+      const count = pickCount(data, 'bits')
+
       return count === null ? null : { detail: detail('cheered', { count }) }
     },
   },
@@ -104,7 +112,8 @@ const KINDS: Record<string, ActivityKind> = {
     icon: SwordsCrossing,
     label: 'channel_raid',
     describe: (data: ActivityData) => {
-      const count: number | null = pickCount(data, 'viewerCount', 'viewers')
+      const count = pickCount(data, 'viewerCount', 'viewers')
+
       return count === null ? null : { detail: detail('raidedWith', { count }) }
     },
   },
@@ -112,9 +121,11 @@ const KINDS: Record<string, ActivityKind> = {
     icon: PaperPlaneSend,
     label: 'channel_raid_out',
     describe: (data: ActivityData) => {
-      const name: string | null = pickText(data, 'user', 'targetDisplayName', 'toDisplayName')
-      const count: number | null = pickCount(data, 'viewerCount', 'viewers')
+      const name = pickText(data, 'user', 'targetDisplayName', 'toDisplayName')
+      const count = pickCount(data, 'viewerCount', 'viewers')
+
       if (name === null || count === null) return null
+
       return { title: detail('raidedTarget', { name }), detail: detail('wentAlong', { count }) }
     },
   },
@@ -123,7 +134,8 @@ const KINDS: Record<string, ActivityKind> = {
     icon: Ticket,
     label: 'channel_redemption',
     describe: (data: ActivityData) => {
-      const reward: string | null = pickText(data, 'rewardTitle', 'reward')
+      const reward = pickText(data, 'rewardTitle', 'reward')
+
       return reward === null ? null : { detail: detail('redeemed', { reward }) }
     },
   },
@@ -133,7 +145,8 @@ const KINDS: Record<string, ActivityKind> = {
     icon: Timer,
     label: 'channel_timeout',
     describe: (data: ActivityData) => {
-      const seconds: number | null = pickCount(data, 'durationSeconds')
+      const seconds = pickCount(data, 'durationSeconds')
+
       return seconds === null
         ? null
         : { detail: detail('timedOut', { minutes: Math.max(1, Math.round(seconds / 60)) }) }
@@ -162,8 +175,9 @@ const KINDS: Record<string, ActivityKind> = {
 const OTHER: ActivityKind = { icon: Megaphone, label: 'other' }
 
 export function describeActivity(event: ActivityEvent): ActivityRowView {
-  const kind: ActivityKind = KINDS[event.type] ?? OTHER
+  const kind = KINDS[event.type] ?? OTHER
   const described: ReturnType<Describe> = kind.describe?.(parseActivityData(event.data)) ?? null
+
   return {
     icon: kind.icon,
     title: described?.title ?? null,

@@ -78,9 +78,10 @@ const catalogue: Record<string, unknown>[] = [
 
 function record(method: string, path: string, init: Call['init']): Answer | undefined {
   calls.push({ method, path, init })
-  const match: string | undefined = Object.keys(answers).find(
+  const match = Object.keys(answers).find(
     (key) => key.startsWith(`${method} `) && path.endsWith(key.slice(method.length + 1)),
   )
+
   return match ? answers[match]!() : undefined
 }
 
@@ -137,6 +138,7 @@ beforeEach(() => {
   )
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -245,17 +247,17 @@ describe('VoicesTab', () => {
     await open()
     answers['GET /tts/voices'] = () => ok([catalogue[1]], { hasMore: false, nextPage: null })
 
-    const input: HTMLInputElement = document.body.querySelector(
-      'input[type="search"]',
-    ) as HTMLInputElement
+    const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
+
     input.value = 'colette'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await new Promise((done) => setTimeout(done, 350))
     await settle()
 
-    const search: Call | undefined = calls
+    const search = calls
       .filter((call) => call.method === 'GET' && call.path.endsWith('/tts/voices'))
       .at(-1)
+
     expect(search?.init.params?.query).toEqual({ q: 'colette', page: 1, pageSize: 200 })
     expect(ids()).toEqual(['nl-NL-ColetteNeural'])
     expect(count()).toBe('1 of 1 voices')
@@ -272,9 +274,10 @@ describe('VoicesTab', () => {
     document.body.querySelector<HTMLElement>('[data-voice-more]')!.click()
     await settle()
 
-    const next: Call | undefined = calls
+    const next = calls
       .filter((call) => call.method === 'GET' && call.path.endsWith('/tts/voices'))
       .at(-1)
+
     expect(next?.init.params?.query).toEqual({ page: 2, pageSize: 200 })
     expect(ids()).toContain('de-DE-KatjaNeural')
     expect(count()).toBe('5 of 5 voices')
@@ -286,6 +289,7 @@ describe('VoicesTab', () => {
     await open()
 
     const facts: string = document.body.querySelector('[data-slot="panel-card"]')?.textContent ?? ''
+
     expect(facts).toContain('Microsoft Edge')
     expect(facts).not.toMatch(/\bedge\b/)
   })
@@ -419,10 +423,12 @@ describe('VoicesTab', () => {
       ok({ voiceId: 'en-US-AriaNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' })
     await open()
 
-    const card: HTMLElement = document.body.querySelector('[data-current-voice]') as HTMLElement
+    const card = document.body.querySelector('[data-current-voice]') as HTMLElement
+
     expect(card.textContent).toContain('English (United States)')
     expect(card.textContent).toContain('Female')
-    const play: HTMLElement = card.querySelector<HTMLElement>('[data-voice-play]') as HTMLElement
+    const play = card.querySelector<HTMLElement>('[data-voice-play]') as HTMLElement
+
     expect(play.textContent).toContain('Play sample')
     play.click()
     await settle()
@@ -444,6 +450,7 @@ describe('VoicesTab', () => {
     const card: HTMLElement | undefined = [
       ...document.body.querySelectorAll<HTMLElement>('[data-slot="panel-card"]'),
     ].find((panel) => panel.querySelector('h2')?.textContent?.includes('Voices'))
+
     expect(card?.getAttribute('data-state')).toBe('error')
     expect(rows()).toHaveLength(0)
   })

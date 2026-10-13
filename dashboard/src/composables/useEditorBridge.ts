@@ -18,9 +18,20 @@ export type EditorFiles = Record<string, string>
 export type EditorVariables = Record<string, string>
 type JsonObject = Record<string, unknown>
 
-export type BuildError = { code?: string; message: string; file?: string; line?: number; column?: number }
+export type BuildError = {
+  code?: string
+  message: string
+  file?: string
+  line?: number
+  column?: number
+}
 export type CompileFeedback = { ok: boolean; message: string; errors?: BuildError[] }
-export type VersionSummary = { id: string; version: number; validationStatus: string; isCurrent: boolean }
+export type VersionSummary = {
+  id: string
+  version: number
+  validationStatus: string
+  isCurrent: boolean
+}
 export type VersionsPage = { versions: VersionSummary[]; hasMore: boolean }
 export type EditorOutcome<T> = { ok: true; value: T } | { ok: false; message: string }
 
@@ -118,7 +129,9 @@ function isObject(value: unknown): value is JsonObject {
 function stringMap(value: unknown): Record<string, string> {
   if (!isObject(value)) return {}
   const out: Record<string, string> = {}
+
   for (const [key, entry] of Object.entries(value)) if (typeof entry === 'string') out[key] = entry
+
   return out
 }
 
@@ -133,6 +146,7 @@ function optionalText(value: unknown): string | null {
 // One page message, or null for anything else: malformed data, a host-to-page type echoed back, other traffic.
 export function decodePageMessage(data: unknown): PageMessage | null {
   if (!isObject(data) || typeof data.type !== 'string' || !data.type.startsWith(PREFIX)) return null
+
   switch (data.type.slice(PREFIX.length)) {
     case 'ready':
       return { type: 'ready' }
@@ -151,7 +165,9 @@ export function decodePageMessage(data: unknown): PageMessage | null {
         type: 'testRun',
         files: stringMap(data.files),
         variables: stringMap(data.variables),
-        args: Array.isArray(data.args) ? data.args.filter((arg): arg is string => typeof arg === 'string') : [],
+        args: Array.isArray(data.args)
+          ? data.args.filter((arg): arg is string => typeof arg === 'string')
+          : [],
         trigger: optionalText(data.trigger),
         role: optionalText(data.role),
       }
@@ -178,7 +194,8 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
   }
 
   function open(): void {
-    const payload: EditorOpenPayload = options.payload()
+    const payload = options.payload()
+
     post('open', {
       payload: {
         fireSamples: {},
@@ -192,21 +209,31 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
 
   async function save(files: EditorFiles): Promise<void> {
     try {
-      const feedback: CompileFeedback = await options.onSave(files)
+      const feedback = await options.onSave(files)
       const errors: BuildError[] = feedback.errors ?? []
-      post('compiled', { ok: feedback.ok, message: feedback.message, ...(errors.length > 0 ? { errors } : {}) })
+
+      post('compiled', {
+        ok: feedback.ok,
+        message: feedback.message,
+        ...(errors.length > 0 ? { errors } : {}),
+      })
     } catch (error) {
       post('compiled', { ok: false, message: reason(error) })
     }
   }
 
-  async function history(run: ((runner: EditorHistoryRunner) => Promise<EditorOutcome<VersionsPage>>)): Promise<void> {
+  async function history(
+    run: (runner: EditorHistoryRunner) => Promise<EditorOutcome<VersionsPage>>,
+  ): Promise<void> {
     if (!options.history) {
       post('historyError', { message: 'History is not available for this project.' })
+
       return
     }
+
     try {
-      const outcome: EditorOutcome<VersionsPage> = await run(options.history)
+      const outcome = await run(options.history)
+
       if (outcome.ok) post('historyPage', { payload: outcome.value })
       else post('historyError', { message: outcome.message })
     } catch (error) {
@@ -217,10 +244,13 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
   async function testRun(request: TestRunRequest): Promise<void> {
     if (!options.testRun) {
       post('testRunResult', { ok: false, message: 'Test run is not available for this project.' })
+
       return
     }
+
     try {
-      const outcome: EditorOutcome<TestRunResult> = await options.testRun(request)
+      const outcome = await options.testRun(request)
+
       if (outcome.ok) post('testRunResult', { ok: true, ...outcome.value })
       else post('testRunResult', { ok: false, message: outcome.message })
     } catch (error) {
@@ -237,21 +267,31 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
       errorCode: 'PREVIEW_ACTION_UNAVAILABLE',
       variables: {},
     }
+
     if (options.previewAction) {
       try {
         result = await options.previewAction(request)
       } catch (error) {
-        result = { success: false, output: null, error: reason(error), errorCode: 'PREVIEW_ACTION_FAILED', variables: {} }
+        result = {
+          success: false,
+          output: null,
+          error: reason(error),
+          errorCode: 'PREVIEW_ACTION_FAILED',
+          variables: {},
+        }
       }
     }
+
     post('previewActionResult', { requestId: request.requestId, ...result })
   }
 
   async function handle(event: MessageEvent): Promise<void> {
     // Same origin is not enough: any frame of this origin could post, so only the editor's own window counts.
     if (event.origin !== options.origin || event.source !== options.target()) return
-    const message: PageMessage | null = decodePageMessage(event.data)
+    const message = decodePageMessage(event.data)
+
     if (!message) return
+
     switch (message.type) {
       case 'ready':
         return open()
@@ -277,9 +317,11 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
 
 // Listens on the window for as long as the calling component lives.
 export function useEditorBridge(options: EditorBridgeOptions): EditorBridge {
-  const bridge: EditorBridge = createEditorBridge(options)
+  const bridge = createEditorBridge(options)
+
   useEventListener(window, 'message', (event: MessageEvent) => {
     void bridge.handle(event)
   })
+
   return bridge
 }

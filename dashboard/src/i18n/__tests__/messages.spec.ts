@@ -12,15 +12,20 @@ import { baseCompile } from '@intlify/message-compiler'
 import { describe, expect, it } from 'vitest'
 
 // Every words file: the shared ones and each page's own.
-const files: Record<string, unknown> = import.meta.glob(['/src/i18n/locales/*.json', '/src/**/i18n/*.json'], {
-  eager: true,
-  import: 'default',
-})
+const files: Record<string, unknown> = import.meta.glob(
+  ['/src/i18n/locales/*.json', '/src/**/i18n/*.json'],
+  {
+    eager: true,
+    import: 'default',
+  },
+)
 
 function messages(node: unknown, path: string, out: [string, string][]): [string, string][] {
   if (typeof node === 'string') out.push([path, node])
   else if (node && typeof node === 'object')
-    for (const [key, value] of Object.entries(node)) messages(value, path ? `${path}.${key}` : key, out)
+    for (const [key, value] of Object.entries(node))
+      messages(value, path ? `${path}.${key}` : key, out)
+
   return out
 }
 
@@ -34,12 +39,15 @@ describe('words files', () => {
 
   it('holds only messages that vue-i18n can compile', () => {
     const broken: string[] = []
+
     for (const [file, words] of Object.entries(files))
       for (const [key, text] of messages(words, '', [])) {
         const errors: string[] = []
+
         baseCompile(text, { onError: (error: Error) => errors.push(error.message) })
         if (errors.length > 0) broken.push(`${file} ${key}: ${errors[0]}`)
       }
+
     expect(broken).toEqual([])
   })
 })

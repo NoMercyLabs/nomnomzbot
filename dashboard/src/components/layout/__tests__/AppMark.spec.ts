@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
 import AppMark from '@/components/layout/AppMark.vue'
@@ -16,10 +16,11 @@ import botIcon from '@/assets/icons/line/chat-bot.svg?raw'
 
 describe('the app mark', () => {
   it('draws the designer chat-bot glyph in the text color, not the color baked into the file', () => {
-    const mark: VueWrapper = mount(AppMark)
-    const html: string = mark.html()
+    const mark = mount(AppMark)
+    const html = mark.html()
 
-    const firstPath: string = /<path d="([^"]+)"/.exec(botIcon)?.[1] ?? ''
+    const firstPath = /<path d="([^"]+)"/.exec(botIcon)?.[1] ?? ''
+
     expect(firstPath).not.toBe('')
     expect(html).toContain(firstPath)
     expect(html).toContain('stroke="currentColor"')

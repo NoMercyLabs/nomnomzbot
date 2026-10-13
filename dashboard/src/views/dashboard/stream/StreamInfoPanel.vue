@@ -13,8 +13,15 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useSaveStreamInfo, useStreamHistory, useStreamInfo, type PastStream, type StreamInfo, type StreamInfoDraft } from '@/api/stream'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import {
+  useSaveStreamInfo,
+  useStreamHistory,
+  useStreamInfo,
+  type PastStream,
+  type StreamInfo,
+  type StreamInfoDraft,
+} from '@/api/stream'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import SettingRow from '@/components/layout/SettingRow.vue'
 import { Button } from '@/components/ui/button'
@@ -28,7 +35,15 @@ import TagInput from './TagInput.vue'
 // Twitch cuts a title at 140 characters.
 const TITLE_MAX: number = 140
 const RECENT_TITLES: number = 5
-const CONTENT_LABELS: readonly string[] = ['mature', 'language', 'violence', 'gambling', 'drugs', 'sexual', 'promotion']
+const CONTENT_LABELS: readonly string[] = [
+  'mature',
+  'language',
+  'violence',
+  'gambling',
+  'drugs',
+  'sexual',
+  'promotion',
+]
 
 const { t, locale } = useI18n()
 const { channelId } = useCurrentChannel()
@@ -38,7 +53,7 @@ const save = useSaveStreamInfo(channelId)
 
 const draft: Ref<Partial<StreamInfoDraft>> = ref({})
 const info: ComputedRef<StreamInfo | null> = computed(() => infoQuery.data.value ?? null)
-const state: ComputedRef<PanelState> = usePanelState(infoQuery, (data: StreamInfo | null) => data === null)
+const state = usePanelState(infoQuery, (data: StreamInfo | null) => data === null)
 
 const form: ComputedRef<StreamInfoDraft> = computed(() => ({
   title: draft.value.title ?? info.value?.title ?? '',
@@ -56,19 +71,25 @@ const dirty: ComputedRef<boolean> = computed(
 const history: ComputedRef<PastStream[]> = computed(() => historyQuery.data.value ?? [])
 
 const recentTitles: ComputedRef<string[]> = computed(() => {
-  const current: string = info.value?.title ?? ''
-  const past: string[] = history.value
+  const current = info.value?.title ?? ''
+  const past = history.value
     .map((stream: PastStream) => stream.title ?? '')
     .filter((title: string) => title !== '' && title !== current)
+
   return [...new Set(past)].slice(0, RECENT_TITLES)
 })
 
 const recentCategories: ComputedRef<string[]> = computed(() => [
-  ...new Set(history.value.map((stream: PastStream) => stream.gameName ?? '').filter((name: string) => name !== '')),
+  ...new Set(
+    history.value
+      .map((stream: PastStream) => stream.gameName ?? '')
+      .filter((name: string) => name !== ''),
+  ),
 ])
 
 const language: ComputedRef<string> = computed(() => {
-  const code: string = info.value?.language ?? ''
+  const code = info.value?.language ?? ''
+
   return new Intl.DisplayNames([locale.value], { type: 'language' }).of(code) ?? code
 })
 
@@ -106,14 +127,24 @@ function submit(): void {
     <div class="flex flex-col gap-6">
       <div class="flex flex-col gap-2">
         <div class="flex items-baseline justify-between">
-          <label for="stream-title" class="text-sm font-medium">{{ t('dashboard.stream.info.titleLabel') }}</label>
+          <label for="stream-title" class="text-sm font-medium">{{
+            t('dashboard.stream.info.titleLabel')
+          }}</label>
           <span class="text-sm text-muted-foreground tabular-nums">
             {{ t('dashboard.stream.info.titleCount', { count: form.title.length }) }}
           </span>
         </div>
-        <Textarea id="stream-title" :maxlength="TITLE_MAX" rows="2" :model-value="form.title" @update:model-value="setTitle" />
+        <Textarea
+          id="stream-title"
+          :maxlength="TITLE_MAX"
+          rows="2"
+          :model-value="form.title"
+          @update:model-value="setTitle"
+        />
         <div v-if="info?.title || recentTitles.length > 0" class="flex flex-col gap-1">
-          <span class="text-sm text-muted-foreground">{{ t('dashboard.stream.info.recentTitles') }}</span>
+          <span class="text-sm text-muted-foreground">{{
+            t('dashboard.stream.info.recentTitles')
+          }}</span>
           <RowGroup>
             <button
               v-if="info?.title"
@@ -123,7 +154,9 @@ function submit(): void {
               @click="setTitle(info.title)"
             >
               {{ info.title }}
-              <span class="text-xs text-muted-foreground">{{ t('dashboard.stream.info.currentTitle') }}</span>
+              <span class="text-xs text-muted-foreground">{{
+                t('dashboard.stream.info.currentTitle')
+              }}</span>
             </button>
             <button
               v-for="title in recentTitles"
@@ -141,7 +174,12 @@ function submit(): void {
 
       <div class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t('dashboard.stream.info.category') }}</span>
-        <CategoryPicker :model-value="form.gameName" :channel-id="channelId" :recent="recentCategories" @update:model-value="setGame" />
+        <CategoryPicker
+          :model-value="form.gameName"
+          :channel-id="channelId"
+          :recent="recentCategories"
+          @update:model-value="setGame"
+        />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -152,20 +190,31 @@ function submit(): void {
       <div class="flex flex-col gap-1">
         <span class="text-sm font-medium">{{ t('dashboard.stream.info.language') }}</span>
         <span class="text-sm">{{ language }}</span>
-        <span class="text-sm text-muted-foreground">{{ t('dashboard.stream.info.languageHint') }}</span>
+        <span class="text-sm text-muted-foreground">{{
+          t('dashboard.stream.info.languageHint')
+        }}</span>
       </div>
 
       <div class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t('dashboard.stream.info.labels') }}</span>
         <p class="text-sm text-muted-foreground">{{ t('dashboard.stream.info.labelsHint') }}</p>
         <RowGroup>
-          <SettingRow v-for="label in CONTENT_LABELS" :key="label" :title="t(`dashboard.stream.info.label.${label}`)" disabled />
+          <SettingRow
+            v-for="label in CONTENT_LABELS"
+            :key="label"
+            :title="t(`dashboard.stream.info.label.${label}`)"
+            disabled
+          />
         </RowGroup>
       </div>
 
       <div class="flex items-center justify-end gap-2">
-        <Button variant="ghost" :disabled="!dirty" @click="draft = {}">{{ t('dashboard.stream.info.discard') }}</Button>
-        <Button :disabled="!dirty || save.isPending.value" @click="submit">{{ t('dashboard.stream.info.save') }}</Button>
+        <Button variant="ghost" :disabled="!dirty" @click="draft = {}">{{
+          t('dashboard.stream.info.discard')
+        }}</Button>
+        <Button :disabled="!dirty || save.isPending.value" @click="submit">{{
+          t('dashboard.stream.info.save')
+        }}</Button>
       </div>
     </div>
   </PanelCard>

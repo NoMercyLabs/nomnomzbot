@@ -44,7 +44,8 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 // A window of the given width: matchMedia answers min-width queries against it.
 function setWidth(width: number): void {
   window.matchMedia = ((query: string): MediaQueryList => {
-    const min: RegExpMatchArray | null = query.match(/min-width:\s*(\d+)px/)
+    const min = query.match(/min-width:\s*(\d+)px/)
+
     return {
       matches: min ? width >= Number(min[1]) : false,
       media: query,
@@ -62,6 +63,7 @@ const stub = (slot: string) => defineComponent({ render: () => h('div', { 'data-
 
 function mountLayout(width: number): VueWrapper {
   setWidth(width)
+
   return mount(DashboardLayout, {
     global: {
       plugins: [i18n],
@@ -90,27 +92,31 @@ afterEach(() => {
 
 describe('the dashboard frame by window width', () => {
   it('shows the sidebar from 840 px and no rail or bottom bar', () => {
-    const shown: string[] = frames(mountLayout(1000))
+    const shown = frames(mountLayout(1000))
+
     expect(shown).toContain('sidebar')
     expect(shown).not.toContain('rail')
     expect(shown).not.toContain('bottom')
   })
 
   it('puts no bar above the page on a wide screen, so the page header is the only header', () => {
-    const wrapper: VueWrapper = mountLayout(1000)
+    const wrapper = mountLayout(1000)
+
     expect(wrapper.find('[data-slot="frame-header"]').exists()).toBe(false)
     expect(frames(wrapper)).not.toContain('shield')
   })
 
   it('shows the icon rail between 600 and 839 px', () => {
-    const shown: string[] = frames(mountLayout(700))
+    const shown = frames(mountLayout(700))
+
     expect(shown).toContain('rail')
     expect(shown).not.toContain('sidebar')
     expect(shown).not.toContain('bottom')
   })
 
   it('shows the bottom bar under 600 px, with the channel switch in the header', () => {
-    const shown: string[] = frames(mountLayout(400))
+    const shown = frames(mountLayout(400))
+
     expect(shown).toContain('bottom')
     expect(shown).toContain('switch')
     expect(shown).not.toContain('sidebar')
@@ -135,8 +141,10 @@ describe('the profile menu', () => {
       attachTo: document.body,
       global: { plugins: [i18n, router] },
     })
+
     await wrapper.find('[data-slot="profile-menu"]').trigger('click')
     await flushPromises()
+
     return document.body.textContent ?? ''
   }
 
@@ -145,7 +153,8 @@ describe('the profile menu', () => {
   })
 
   it('does not offer Platform admin to anyone else', async () => {
-    const text: string = await openMenu(false)
+    const text = await openMenu(false)
+
     expect(text).toContain('Sign out')
     expect(text).not.toContain('Platform admin')
   })

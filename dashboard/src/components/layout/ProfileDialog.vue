@@ -11,7 +11,7 @@
 // The one profile dialog of the frame (spec row ProfileDialog + UserName). A UserName opens it through
 // the profileDialog store; a second name swaps the person. It shows only what the bot stores:
 // a tab with nothing to show says so. The tabs are local state, not the route: the page behind keeps its own ?view=.
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, watch, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Cross from '~icons/nnz/cross'
 
@@ -54,9 +54,9 @@ const profile = useProfileDialogStore()
 const errors = useSaveErrorsStore()
 const { channelId } = useCurrentChannel()
 
-const isOpen: ComputedRef<boolean> = computed(() => profile.userId !== null)
-const tab: Ref<string> = ref('overview')
-const confirmBan: Ref<boolean> = ref(false)
+const isOpen = computed(() => profile.userId !== null)
+const tab = ref('overview')
+const confirmBan = ref(false)
 
 const member = useCommunityMember(channelId, () => profile.userId)
 const person: ComputedRef<CommunityMember | null> = computed(() => member.data.value ?? null)
@@ -69,6 +69,7 @@ const ban = useBanMember(channelId.value ?? '')
 const isVip: ComputedRef<boolean | null> = computed(() => person.value?.isVip ?? null)
 const vipLabel: ComputedRef<string> = computed(() => {
   if (isVip.value === null) return t('profile.vip.unknown')
+
   return isVip.value ? t('profile.vip.remove') : t('profile.vip.make')
 })
 const title: ComputedRef<string> = computed(() => person.value?.displayName ?? t('profile.title'))
@@ -95,8 +96,10 @@ function trustLabel(level: string): string {
 }
 
 const facts: ComputedRef<KeyValueItem[]> = computed(() => {
-  const who: CommunityMember | null = person.value
+  const who = person.value
+
   if (!who) return []
+
   return [
     { label: t('profile.facts.username'), value: `@${who.username}` },
     { label: t('profile.facts.trust'), value: trustLabel(who.trustLevel) },
@@ -121,11 +124,13 @@ function toggleVip(): void {
 
 async function banNow(): Promise<void> {
   if (!profile.userId) return
+
   try {
     await ban.mutateAsync({ userId: profile.userId, reason: t('profile.ban.reason') })
   } catch {
     errors.report(SAVE_FAILED_TITLE, SAVE_FAILED_MESSAGE)
   }
+
   confirmBan.value = false
 }
 </script>

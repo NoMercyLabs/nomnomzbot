@@ -54,11 +54,11 @@ const update = useUpdateCommand(channelId)
 const toggle = useToggleCommand(channelId)
 const pipelines = usePipelines(channelId)
 
-const draft: Ref<CommandDraft> = ref<CommandDraft>(draftOf(props.row))
+const draft = ref<CommandDraft>(draftOf(props.row))
 // What the form was last loaded or saved with. A row that changes under an edited form never overwrites the edits.
-const baseline: Ref<CommandDraft> = ref<CommandDraft>(draftOf(props.row))
+const baseline = ref<CommandDraft>(draftOf(props.row))
 const failure: Ref<string | null> = ref(null)
-const confirmOpen: Ref<boolean> = ref(false)
+const confirmOpen = ref(false)
 
 watch(
   () => props.row,
@@ -69,16 +69,14 @@ watch(
   },
 )
 
-const change: ComputedRef<CommandChange> = computed<CommandChange>(() =>
-  changeOf(draft.value, props.row),
-)
-const dirtyCount: ComputedRef<number> = computed<number>(() => Object.keys(change.value).length)
+const change = computed<CommandChange>(() => changeOf(draft.value, props.row))
+const dirtyCount = computed<number>(() => Object.keys(change.value).length)
 const unsaved: ComputedRef<string> = computed<string>(() =>
   dirtyCount.value === 0
     ? ''
     : t('dashboard.commands.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
 )
-const random: ComputedRef<boolean> = computed<boolean>(() => draft.value.replies.length > 0)
+const random = computed<boolean>(() => draft.value.replies.length > 0)
 
 function setRandom(on: boolean): void {
   draft.value.replies = on ? [''] : []
@@ -91,6 +89,7 @@ function setNumber(key: 'cooldownSeconds' | 'userCooldownSeconds', value: string
 async function save(): Promise<void> {
   if (dirtyCount.value === 0) return
   failure.value = null
+
   try {
     await update.mutateAsync({ commandName: props.row.name, change: change.value })
     baseline.value = { ...draft.value, replies: [...draft.value.replies] }

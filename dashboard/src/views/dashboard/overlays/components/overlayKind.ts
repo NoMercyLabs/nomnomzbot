@@ -55,7 +55,8 @@ export function plainEvent(key: string): string {
 // The address with its query cut off: the token travels in the query and must never be shown.
 export function maskedAddress(url: string): string {
   try {
-    const parsed: URL = new URL(url)
+    const parsed = new URL(url)
+
     return `${parsed.origin}${parsed.pathname}`
   } catch {
     return url.split('?')[0] ?? ''

@@ -20,13 +20,15 @@ import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { overlayKind, type OverlayKind } from './overlayKind'
 
 const props = defineProps<{ widget: Widget; selected: boolean }>()
+
 defineEmits<{ pick: [] }>()
 
 const { t } = useI18n()
 
-const kind: ComputedRef<OverlayKind> = computed<OverlayKind>(() => overlayKind(props.widget.name))
+const kind = computed<OverlayKind>(() => overlayKind(props.widget.name))
 const detail: ComputedRef<string> = computed<string>(() => {
   if (!props.widget.isEnabled) return t('dashboard.overlays.list.off')
+
   return t(
     props.widget.isAttached
       ? 'dashboard.overlays.list.attached'

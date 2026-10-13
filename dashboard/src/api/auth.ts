@@ -23,7 +23,7 @@ const version = { path: { version: '1' } }
 // The access token lives in this module only. The refresh token is the server's httpOnly cookie.
 let accessToken: string | null = null
 // Follows the sign-in for the live connection; a token swapped by the 401 retry does not move it.
-const signedIn: Ref<boolean> = ref(false)
+const signedIn = ref(false)
 let restoring: Promise<boolean> | null = null
 
 // A copy of each request, kept until its response, so a 401 can be sent again with a new token.
@@ -36,12 +36,15 @@ const rateLimitTries: number = 2
 
 async function afterRateLimit(first: Response, original: Request): Promise<Response> {
   let response: Response = first
+
   for (let tries: number = 0; response.status === 429 && tries < rateLimitTries; tries++) {
     const seconds: number = Number(response.headers.get('Retry-After') ?? '1')
+
     if (!Number.isFinite(seconds) || seconds > longestRateLimitWait) return response
     await new Promise<void>((resolve) => setTimeout(resolve, Math.max(seconds, 0) * 1000))
     response = await fetch(original.clone())
   }
+
   return response
 }
 
@@ -49,16 +52,21 @@ client.use({
   onRequest({ request, id }) {
     if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`)
     pending.set(id, request.clone())
+
     return request
   },
   async onResponse({ request, response: first, id }) {
-    const original: Request | undefined = pending.get(id)
+    const original = pending.get(id)
+
     pending.delete(id)
-    const response: Response = original ? await afterRateLimit(first, original) : first
-    if (response.status !== 401 || !original || request.url.endsWith('/auth/refresh')) return response
+    const response = original ? await afterRateLimit(first, original) : first
+
+    if (response.status !== 401 || !original || request.url.endsWith('/auth/refresh'))
+      return response
     accessToken = null
     if (!(await restoreSession())) return response
     original.headers.set('Authorization', `Bearer ${accessToken}`)
+
     return fetch(original)
   },
   onError({ id }) {
@@ -89,10 +97,12 @@ export function acceptAccessToken(token: string): void {
 function consumeFragment(): boolean {
   const fragment = new URLSearchParams(window.location.hash.slice(1))
   const token = fragment.get('access_token')
+
   if (!token) return false
   accessToken = token
   signedIn.value = true
   history.replaceState(history.state, '', window.location.pathname + window.location.search)
+
   return true
 }
 
@@ -104,11 +114,14 @@ async function refresh(): Promise<boolean> {
   const { response } = result
   // The OpenAPI document declares no 200 body for refresh yet, so the envelope is checked here.
   const payload: unknown = (result.data as { data?: unknown } | undefined)?.data
+
   if (!response.ok || typeof payload !== 'object' || payload === null) return false
   const token: unknown = (payload as { accessToken?: unknown }).accessToken
+
   if (typeof token !== 'string') return false
   accessToken = token
   signedIn.value = true
+
   return true
 }
 
@@ -118,15 +131,20 @@ export function restoreSession(): Promise<boolean> {
   restoring ??= refresh().finally(() => {
     restoring = null
   })
+
   return restoring
 }
 
 async function fetchCurrentUser(): Promise<CurrentUser | null> {
   const { data } = await client.GET('/api/v{version}/auth/me', { params: version })
+
   return data?.data ?? null
 }
 
-export const currentUserQuery = queryOptions({ queryKey: ['auth', 'me'], queryFn: fetchCurrentUser })
+export const currentUserQuery = queryOptions({
+  queryKey: ['auth', 'me'],
+  queryFn: fetchCurrentUser,
+})
 
 export function useCurrentUser(): UseQueryReturnType<CurrentUser | null, Error> {
   return useQuery(currentUserQuery)

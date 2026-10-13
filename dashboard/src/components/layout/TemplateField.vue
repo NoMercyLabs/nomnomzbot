@@ -52,7 +52,7 @@ const props = withDefaults(
 const text = defineModel<string>({ default: '' })
 const { t } = useI18n()
 const { describe } = useHelperText()
-const id: string = useId()
+const id = useId()
 
 const area = useTemplateRef<ComponentPublicInstance>('area')
 const helpers = useTemplateHelpers(
@@ -66,7 +66,7 @@ const caret: Ref<{ start: number; end: number }> = ref({
   end: text.value.length,
 })
 const open: Ref<OpenPlaceholder | null> = ref(null)
-const active: Ref<number> = ref(0)
+const active = ref(0)
 
 const matches = computed<TemplateHelper[]>(() =>
   open.value ? filterHelpers(known.value, open.value.query) : [],
@@ -81,13 +81,15 @@ function element(): HTMLTextAreaElement | null {
 }
 
 function remember(): void {
-  const el: HTMLTextAreaElement | null = element()
+  const el = element()
+
   if (el) caret.value = { start: el.selectionStart, end: el.selectionEnd }
 }
 
 // Suggestions follow typing and clicks, not arrow keys: Esc must stay closed until the person types again.
 function suggest(): void {
-  const el: HTMLTextAreaElement | null = element()
+  const el = element()
+
   if (!el) return
   remember()
   open.value =
@@ -96,10 +98,12 @@ function suggest(): void {
 }
 
 async function replace(from: number, to: number, insertion: string): Promise<void> {
-  const el: HTMLTextAreaElement | null = element()
-  const current: string = text.value
+  const el = element()
+  const current = text.value
+
   text.value = current.slice(0, from) + insertion + current.slice(to)
-  const end: number = from + insertion.length
+  const end = from + insertion.length
+
   caret.value = { start: end, end }
   open.value = null
   await nextTick()
@@ -119,7 +123,8 @@ function choose(helper: TemplateHelper | undefined): void {
 
 function onKeydown(event: KeyboardEvent): void {
   if (!showing.value) return
-  const last: number = matches.value.length - 1
+  const last = matches.value.length - 1
+
   if (event.key === 'ArrowDown') active.value = active.value >= last ? 0 : active.value + 1
   else if (event.key === 'ArrowUp') active.value = active.value <= 0 ? last : active.value - 1
   else if (event.key === 'Enter' || event.key === 'Tab') choose(matches.value[active.value])

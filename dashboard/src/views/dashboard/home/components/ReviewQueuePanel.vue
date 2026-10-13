@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { useResolveQueueItem, useReviewQueue, type ReviewQueueItem } from '@/api/home'
 import { useShieldMode } from '@/api/shield'
 import InlineFlow from '@/components/layout/InlineFlow.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
@@ -33,10 +33,7 @@ const { data: shieldOn } = useShieldMode(channelId)
 const resolve = useResolveQueueItem(channelId)
 
 const queue: ComputedRef<ReviewQueueItem[]> = computed(() => queueQuery.data.value ?? [])
-const queueState: ComputedRef<PanelState> = usePanelState(
-  queueQuery,
-  (items: ReviewQueueItem[]) => items.length === 0,
-)
+const queueState = usePanelState(queueQuery, (items: ReviewQueueItem[]) => items.length === 0)
 
 function sender(item: ReviewQueueItem): string {
   return item.targetUsernameSnapshot ?? t('dashboard.home.queue.unknownSender')
@@ -47,7 +44,7 @@ function allow(item: ReviewQueueItem): void {
 }
 
 // A deny waits out the undo time before it reaches Twitch, so Undo only has to cancel the timer.
-const pendingDenies: Map<string, ReturnType<typeof setTimeout>> = new Map()
+const pendingDenies = new Map()
 
 function sendDeny(queueItemId: string): void {
   pendingDenies.delete(queueItemId)

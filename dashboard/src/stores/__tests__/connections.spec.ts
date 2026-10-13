@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useConnectionsStore } from '../connections'
 
-const served: string = window.location.origin
+const served = window.location.origin
 const official: string = 'https://nomnomz.bot'
 
 beforeEach(() => {
@@ -29,6 +29,7 @@ describe('saved bots', () => {
 
   it('lists the official bot once, even when the visitor saved it too', () => {
     const connections = useConnectionsStore()
+
     connections.remember(official)
 
     expect(connections.bots).toEqual([served, official])
@@ -36,6 +37,7 @@ describe('saved bots', () => {
 
   it('remembers a bot once, newest first, and keeps it after a reload', async () => {
     const connections = useConnectionsStore()
+
     connections.remember('https://a.example.com')
     connections.remember('http://192.168.1.20:5080')
     connections.remember('https://a.example.com')
@@ -43,11 +45,17 @@ describe('saved bots', () => {
 
     setActivePinia(createPinia())
 
-    expect(useConnectionsStore().bots).toEqual([served, official, 'https://a.example.com', 'http://192.168.1.20:5080'])
+    expect(useConnectionsStore().bots).toEqual([
+      served,
+      official,
+      'https://a.example.com',
+      'http://192.168.1.20:5080',
+    ])
   })
 
   it('forgets a saved bot but never the serving or the official one', async () => {
     const connections = useConnectionsStore()
+
     connections.remember('https://a.example.com')
     connections.forget('https://a.example.com')
     connections.forget(served)

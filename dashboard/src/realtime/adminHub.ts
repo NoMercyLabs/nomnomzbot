@@ -23,9 +23,11 @@ let connection: HubConnection | null = null
 // A caller without the operator right is refused at the handshake; the hub then stays offline.
 export async function startAdminHub(queries: QueryClient): Promise<void> {
   if (connection) return
-  const hub: HubConnection = buildHub(hubPath, adminHubStatus)
+  const hub = buildHub(hubPath, adminHubStatus)
+
   attachHandlers(hub, adminHandlers, () => ({ queries, channelId: null }))
   connection = hub
+
   try {
     await hub.start()
     adminHubStatus.value = 'connected'
@@ -36,7 +38,8 @@ export async function startAdminHub(queries: QueryClient): Promise<void> {
 }
 
 export async function stopAdminHub(): Promise<void> {
-  const closing: HubConnection | null = connection
+  const closing = connection
+
   connection = null
   await closing?.stop()
   adminHubStatus.value = 'offline'

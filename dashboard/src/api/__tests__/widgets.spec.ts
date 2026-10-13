@@ -36,7 +36,7 @@ const http = vi.hoisted(() => ({
 
 vi.mock('../client', () => ({ client: http }))
 
-const ok: Answer['response'] = { ok: true, status: 200 }
+const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'
 
 function widget(id: string, extra: Partial<Widget> = {}): Widget {
@@ -76,17 +76,21 @@ function mount<T>(use: () => T): {
 } {
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const pinia = createPinia()
+
   setActivePinia(pinia)
   let hook!: T
   const app: App = createApp({
     setup() {
       hook = use()
+
       return () => null
     },
   })
+
   app.use(pinia)
   app.use(VueQueryPlugin, { queryClient: queries })
   app.mount(document.createElement('div'))
+
   return { queries, hook, inbox: useSaveErrorsStore() }
 }
 
@@ -99,9 +103,8 @@ beforeEach(() => {
 describe('useWidgets', () => {
   it('asks for the next page while the bot says there are more and merges the pages in order', async () => {
     http.GET.mockImplementation((_path: string, init: unknown): Promise<Answer> => {
-      const page: number = Number(
-        (init as { params: { query: { Page: number } } }).params.query.Page,
-      )
+      const page = Number((init as { params: { query: { Page: number } } }).params.query.Page)
+
       return Promise.resolve(
         page === 1
           ? { data: { data: [widget('a'), widget('b')], hasMore: true, nextPage: 2 }, response: ok }
@@ -114,9 +117,10 @@ describe('useWidgets', () => {
 
     expect(hook.data.value?.map((row: Widget) => row.id)).toEqual(['a', 'b', 'c'])
     expect(http.GET).toHaveBeenCalledTimes(2)
-    const pages: number[] = http.GET.mock.calls.map(([, init]) =>
+    const pages = http.GET.mock.calls.map(([, init]) =>
       Number((init as { params: { query: { Page: number } } }).params.query.Page),
     )
+
     expect(pages).toEqual([1, 2])
   })
 
@@ -134,6 +138,7 @@ describe('useWidgets', () => {
 describe('useWidgetSchema', () => {
   it('reads the schema of one widget and caches it under the schema key', async () => {
     const schema = { widgetKey: 'k', name: 'N', fields: [], eventSubscriptions: ['chat.message'] }
+
     http.GET.mockResolvedValue({ data: { data: schema }, response: ok })
     const { queries, hook } = mount(() => useWidgetSchema(channel, 'w1'))
 
@@ -143,6 +148,7 @@ describe('useWidgetSchema', () => {
       string,
       { params: { path: Record<string, unknown> } },
     ]
+
     expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}/settings-schema')
     expect(init.params.path).toEqual({ version: '1', channelId: channel, widgetId: 'w1' })
     expect(queries.getQueryData(widgetSchemaKey(channel, 'w1'))).toEqual(schema)
@@ -152,23 +158,28 @@ describe('useWidgetSchema', () => {
 describe('useSetWidgetEnabled', () => {
   it('flips the row at once and sends only isEnabled in the PUT body', async () => {
     let finish: (answer: Answer) => void = () => {}
+
     http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
     http.GET.mockResolvedValue({
       data: { data: [widget('a', { isEnabled: false }), widget('b')], hasMore: false },
       response: ok,
     })
     const { queries, hook } = mount(() => useSetWidgetEnabled(channel))
+
     queries.setQueryData(widgetsKey(channel), [widget('a'), widget('b')])
 
     const sent: Promise<unknown> = hook.mutateAsync({ widgetId: 'a', isEnabled: false })
+
     await settle()
 
-    const during: Widget[] | undefined = queries.getQueryData<Widget[]>(widgetsKey(channel))
+    const during = queries.getQueryData<Widget[]>(widgetsKey(channel))
+
     expect(during?.map((row: Widget) => [row.id, row.isEnabled])).toEqual([
       ['a', false],
       ['b', true],
     ])
     const [path, init] = http.PUT.mock.calls[0] as [string, unknown]
+
     expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}')
     expect(init).toEqual({
       params: { path: { version: '1', channelId: channel, widgetId: 'a' } },
@@ -186,6 +197,7 @@ describe('useSetWidgetEnabled', () => {
     })
     const before: Widget[] = [widget('a'), widget('b')]
     const { queries, hook, inbox } = mount(() => useSetWidgetEnabled(channel))
+
     queries.setQueryData(widgetsKey(channel), before)
 
     await hook.mutateAsync({ widgetId: 'a', isEnabled: false }).catch(() => undefined)
@@ -199,15 +211,18 @@ describe('useSetWidgetEnabled', () => {
 describe('useSaveWidgetSettings', () => {
   it('sends the full settings map as the only PUT field and shows it in the row at once', async () => {
     let finish: (answer: Answer) => void = () => {}
+
     http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
     http.GET.mockResolvedValue({ data: { data: [], hasMore: false }, response: ok })
     const { queries, hook } = mount(() => useSaveWidgetSettings(channel))
+
     queries.setQueryData(widgetsKey(channel), [widget('a', { settings: { size: 1 } })])
 
     const sent: Promise<unknown> = hook.mutateAsync({
       widgetId: 'a',
       settings: { size: 2, color: '#fff' },
     })
+
     await settle()
 
     expect(queries.getQueryData<Widget[]>(widgetsKey(channel))?.[0]?.settings).toEqual({
@@ -215,6 +230,7 @@ describe('useSaveWidgetSettings', () => {
       color: '#fff',
     })
     const [, init] = http.PUT.mock.calls[0] as [string, unknown]
+
     expect(init).toEqual({
       params: { path: { version: '1', channelId: channel, widgetId: 'a' } },
       body: { settings: { size: 2, color: '#fff' } },
@@ -228,6 +244,7 @@ describe('useSaveWidgetSettings', () => {
     http.PUT.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 500 } })
     const before: Widget[] = [widget('a', { settings: { size: 1 } })]
     const { queries, hook, inbox } = mount(() => useSaveWidgetSettings(channel))
+
     queries.setQueryData(widgetsKey(channel), before)
 
     await hook.mutateAsync({ widgetId: 'a', settings: { size: 9 } }).catch(() => undefined)
@@ -247,6 +264,7 @@ describe('useTestWidgetEvent', () => {
 
     expect(result).toBe('Sent to 1 overlay')
     const [path, init] = http.POST.mock.calls[0] as [string, { body: Record<string, unknown> }]
+
     expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/test-event')
     expect(init.body).toEqual({ eventType: 'channel.follow' })
     expect('data' in init.body).toBe(false)

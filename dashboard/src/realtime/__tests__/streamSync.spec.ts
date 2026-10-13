@@ -15,15 +15,18 @@ import { streamHistoryKey, streamInfoKey, type StreamInfo } from '@/api/stream'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({ HubConnectionBuilder: FakeHubConnectionBuilder, HubConnection: FakeHubConnection }))
-
-type Hub = typeof import('../dashboardHub')
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
-  const hub: Hub = await import('../dashboardHub')
-  const queries: QueryClient = new QueryClient()
+  const hub = await import('../dashboardHub')
+  const queries = new QueryClient()
+
   await hub.startDashboardHub(queries)
   await hub.watchChannel('c1')
+
   return [queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
 }
 
@@ -45,6 +48,7 @@ beforeEach(() => {
 describe('stream live sync', () => {
   it('going live writes the live state into the stream info and marks the history stale', async () => {
     const [queries, connection] = await started()
+
     queries.setQueryData(streamInfoKey('c1'), info)
     queries.setQueryData(streamHistoryKey('c1'), [])
 
@@ -68,15 +72,31 @@ describe('stream live sync', () => {
 
   it('going offline keeps the title when the payload carries none', async () => {
     const [queries, connection] = await started()
-    queries.setQueryData(streamInfoKey('c1'), { ...info, isLive: true, startedAt: '2026-10-13T10:00:00Z' })
 
-    connection.receive('StreamStatusChanged', { isLive: false, streamId: null, title: null, gameName: null, startedAt: null })
+    queries.setQueryData(streamInfoKey('c1'), {
+      ...info,
+      isLive: true,
+      startedAt: '2026-10-13T10:00:00Z',
+    })
 
-    expect(queries.getQueryData<StreamInfo>(streamInfoKey('c1'))).toMatchObject({ isLive: false, title: 'Old title', gameName: 'Old game' })
+    connection.receive('StreamStatusChanged', {
+      isLive: false,
+      streamId: null,
+      title: null,
+      gameName: null,
+      startedAt: null,
+    })
+
+    expect(queries.getQueryData<StreamInfo>(streamInfoKey('c1'))).toMatchObject({
+      isLive: false,
+      title: 'Old title',
+      gameName: 'Old game',
+    })
   })
 
   it('a title change from Twitch updates the title and category only', async () => {
     const [queries, connection] = await started()
+
     queries.setQueryData(streamInfoKey('c1'), info)
 
     connection.receive('StreamInfoChanged', {

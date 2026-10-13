@@ -57,6 +57,7 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ path, query: { ...options?.params?.query } })
       if (refused) return { error: { message: 'no' }, response: { status: 403, ok: false } }
+
       return {
         data: { data: rowsOnPage, total, hasMore: total > 25, nextPage: 2 },
         response: { status: 200, ok: true },
@@ -99,6 +100,7 @@ const settle = async (): Promise<void> => {
 
 async function open(): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/admin/channels', name: 'dashboard-admin-channels', component: blank }],
@@ -154,13 +156,13 @@ describe('AdminChannelsView', () => {
     await settle()
     expect(lastQuery().Page).toBe(2)
 
-    const input: HTMLInputElement = document.body.querySelector(
-      'input[type="search"]',
-    ) as HTMLInputElement
+    const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
+
     input.value = 'stoney'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await settle()
-    const before: number = calls.length
+    const before = calls.length
+
     expect(calls.some((call) => call.query.search === 'stoney')).toBe(false)
 
     await new Promise((done) => setTimeout(done, 450))
@@ -225,7 +227,8 @@ describe('AdminChannelsView', () => {
 
     expect(rows()).toHaveLength(0)
     expect(text()).toContain('You may not see the channel list.')
-    const before: number = calls.length
+    const before = calls.length
+
     refused = false
     byText('button', 'Try again')!.click()
     await settle()
@@ -248,7 +251,8 @@ describe('admin channels route', () => {
 
   it('sends a non-admin to the home page', async () => {
     queryClient.setQueryData(['auth', 'me'], { id: 'u1', isAdmin: false })
-    const guarded: Router = testRouter()
+    const guarded = testRouter()
+
     await guarded.push('/app/admin/channels')
 
     expect(guarded.currentRoute.value.name).toBe('dashboard-home')
@@ -256,7 +260,8 @@ describe('admin channels route', () => {
 
   it('lets an admin in', async () => {
     queryClient.setQueryData(['auth', 'me'], { id: 'u1', isAdmin: true })
-    const guarded: Router = testRouter()
+    const guarded = testRouter()
+
     await guarded.push('/app/admin/channels')
 
     expect(guarded.currentRoute.value.name).toBe('dashboard-admin-channels')

@@ -22,6 +22,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const props = defineProps<{ person: CommunityRow; selected: boolean }>()
+
 defineEmits<{ pick: [] }>()
 
 const { t, locale } = useI18n()

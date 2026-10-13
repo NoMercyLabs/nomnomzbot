@@ -41,10 +41,13 @@ const row = (id: string, isLive: boolean): ChannelSummary => ({
 })
 
 async function started(): Promise<[Hub, QueryClient, FakeHubConnection]> {
-  const hub: Hub = await import('../dashboardHub')
+  const hub = await import('../dashboardHub')
+
   dashboardHubStatus = (await import('../hubStatus')).dashboardHubStatus
-  const queries: QueryClient = new QueryClient()
+  const queries = new QueryClient()
+
   await hub.startDashboardHub(queries)
+
   return [hub, queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
 }
 
@@ -56,6 +59,7 @@ beforeEach(() => {
 describe('dashboard hub events', () => {
   it('a stream status push sets isLive on the joined channel row only', async () => {
     const [hub, queries, connection] = await started()
+
     queries.setQueryData(myChannelsQuery.queryKey, [row('c1', false), row('c2', false)])
     await hub.watchChannel('c1')
 
@@ -68,6 +72,7 @@ describe('dashboard hub events', () => {
     })
 
     const rows: ChannelSummary[] | undefined = queries.getQueryData(myChannelsQuery.queryKey)
+
     expect(rows?.map((r) => [r.id, r.isLive])).toEqual([
       ['c1', true],
       ['c2', false],
@@ -76,6 +81,7 @@ describe('dashboard hub events', () => {
 
   it('shield mode begin and end write the boolean the shield query reads', async () => {
     const [hub, queries, connection] = await started()
+
     await hub.watchChannel('c1')
 
     connection.receive('ChannelEvent', {
@@ -100,6 +106,7 @@ describe('dashboard hub events', () => {
 
   it('a notifications config change marks the action-required inbox stale', async () => {
     const [hub, queries, connection] = await started()
+
     await hub.watchChannel('c1')
     queries.setQueryData(actionRequiredKey('c1'), [])
 
@@ -117,6 +124,7 @@ describe('dashboard hub events', () => {
 describe('dashboard hub channel groups', () => {
   it('a channel change leaves the old group and joins the new one', async () => {
     const [hub, , connection] = await started()
+
     await hub.watchChannel('c1')
     await hub.watchChannel('c2')
 
@@ -129,6 +137,7 @@ describe('dashboard hub channel groups', () => {
 
   it('joins the channel again after the connection reconnects', async () => {
     const [hub, , connection] = await started()
+
     await hub.watchChannel('c1')
     connection.lifecycle.reconnecting()
     expect(dashboardHubStatus.value).toBe('reconnecting')
@@ -140,6 +149,7 @@ describe('dashboard hub channel groups', () => {
 
   it('joins every watched channel with its classes again after a reconnect', async () => {
     const [hub, , connection] = await started()
+
     await hub.watchChannels([
       { id: 'c1', classes: ['chat', 'moderation'] },
       { id: 'c2', classes: ['chat'] },
@@ -155,6 +165,7 @@ describe('dashboard hub channel groups', () => {
 
   it('dropping one channel from the watched set leaves only that channel', async () => {
     const [hub, , connection] = await started()
+
     await hub.watchChannels([
       { id: 'c1', classes: ['chat'] },
       { id: 'c2', classes: ['chat'] },
@@ -167,6 +178,7 @@ describe('dashboard hub channel groups', () => {
 
   it('dropping a watched channel that the frame also watches does not leave it', async () => {
     const [hub, , connection] = await started()
+
     await hub.watchChannel('c1')
     await hub.watchChannels([{ id: 'c1', classes: ['chat'] }])
     connection.invocations.length = 0
@@ -178,6 +190,7 @@ describe('dashboard hub channel groups', () => {
   it('reports a refused join with the server message and clears it when the channel is left', async () => {
     const [hub, , connection] = await started()
     const { dashboardJoinErrors } = await import('../hubStatus')
+
     connection.answer = (method, args) =>
       method === 'JoinChannelClasses' && args[0] === 'c2'
         ? { success: false, error: 'Access denied' }
@@ -195,6 +208,7 @@ describe('dashboard hub channel groups', () => {
 
   it('stopping closes the connection and reports offline', async () => {
     const [hub, , connection] = await started()
+
     expect(dashboardHubStatus.value).toBe('connected')
     await hub.stopDashboardHub()
 

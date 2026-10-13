@@ -16,15 +16,20 @@ import { builtinsKey, commandsKey, type CommandListItem } from '@/api/commands'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({ HubConnectionBuilder: FakeHubConnectionBuilder, HubConnection: FakeHubConnection }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 type Hub = typeof import('../dashboardHub')
 
 async function started(): Promise<[Hub, QueryClient, FakeHubConnection]> {
-  const hub: Hub = await import('../dashboardHub')
-  const queries: QueryClient = new QueryClient()
+  const hub = await import('../dashboardHub')
+  const queries = new QueryClient()
+
   await hub.startDashboardHub(queries)
   await hub.watchChannel('c1')
+
   return [hub, queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
 }
 
@@ -39,11 +44,17 @@ beforeEach(() => {
 describe('commands live sync', () => {
   it('a commands config change marks the command list stale and leaves the other lists alone', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData(commandsKey('c1'), [row('!a', 1)])
     queries.setQueryData(builtinsKey('c1'), [])
     queries.setQueryData(actionRequiredKey('c1'), [])
 
-    connection.receive('ConfigChanged', { broadcasterId: 'x', domain: 'commands', entityId: 'id', action: 'updated' })
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'x',
+      domain: 'commands',
+      entityId: 'id',
+      action: 'updated',
+    })
 
     expect(queries.getQueryState(commandsKey('c1'))?.isInvalidated).toBe(true)
     expect(queries.getQueryState(builtinsKey('c1'))?.isInvalidated).toBe(false)
@@ -52,10 +63,16 @@ describe('commands live sync', () => {
 
   it('a builtins config change marks the built-in list stale only', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData(commandsKey('c1'), [row('!a', 1)])
     queries.setQueryData(builtinsKey('c1'), [])
 
-    connection.receive('ConfigChanged', { broadcasterId: 'x', domain: 'builtins', entityId: 'sr', action: 'updated' })
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'x',
+      domain: 'builtins',
+      entityId: 'sr',
+      action: 'updated',
+    })
 
     expect(queries.getQueryState(builtinsKey('c1'))?.isInvalidated).toBe(true)
     expect(queries.getQueryState(commandsKey('c1'))?.isInvalidated).toBe(false)
@@ -63,10 +80,16 @@ describe('commands live sync', () => {
 
   it('a notifications change still marks the action-required inbox stale', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData(actionRequiredKey('c1'), [])
     queries.setQueryData(commandsKey('c1'), [])
 
-    connection.receive('ConfigChanged', { broadcasterId: 'x', domain: 'notifications', entityId: null, action: 'updated' })
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'x',
+      domain: 'notifications',
+      entityId: null,
+      action: 'updated',
+    })
 
     expect(queries.getQueryState(actionRequiredKey('c1'))?.isInvalidated).toBe(true)
     expect(queries.getQueryState(commandsKey('c1'))?.isInvalidated).toBe(false)
@@ -74,20 +97,44 @@ describe('commands live sync', () => {
 
   it('a run of a command adds one use to that row only, with or without the leading !', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData(commandsKey('c1'), [row('!hello', 4), row('!other', 9)])
 
-    connection.receive('CommandExecuted', { broadcasterId: 'x', commandName: 'hello', triggeredByUserId: 'u', succeeded: true, timestamp: '' })
-    connection.receive('CommandExecuted', { broadcasterId: 'x', commandName: '!hello', triggeredByUserId: 'u', succeeded: true, timestamp: '' })
+    connection.receive('CommandExecuted', {
+      broadcasterId: 'x',
+      commandName: 'hello',
+      triggeredByUserId: 'u',
+      succeeded: true,
+      timestamp: '',
+    })
+    connection.receive('CommandExecuted', {
+      broadcasterId: 'x',
+      commandName: '!hello',
+      triggeredByUserId: 'u',
+      succeeded: true,
+      timestamp: '',
+    })
 
     const rows: CommandListItem[] | undefined = queries.getQueryData(commandsKey('c1'))
-    expect(rows?.map((r: CommandListItem) => [r.name, Number(r.useCount)])).toEqual([['!hello', 6], ['!other', 9]])
+
+    expect(rows?.map((r: CommandListItem) => [r.name, Number(r.useCount)])).toEqual([
+      ['!hello', 6],
+      ['!other', 9],
+    ])
   })
 
   it('a failed run adds no use', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData(commandsKey('c1'), [row('!hello', 4)])
 
-    connection.receive('CommandExecuted', { broadcasterId: 'x', commandName: '!hello', triggeredByUserId: 'u', succeeded: false, timestamp: '' })
+    connection.receive('CommandExecuted', {
+      broadcasterId: 'x',
+      commandName: '!hello',
+      triggeredByUserId: 'u',
+      succeeded: false,
+      timestamp: '',
+    })
 
     expect(queries.getQueryData<CommandListItem[]>(commandsKey('c1'))?.[0]?.useCount).toBe(4)
   })
@@ -95,7 +142,13 @@ describe('commands live sync', () => {
   it('a run before the list has loaded creates nothing', async () => {
     const [, queries, connection] = await started()
 
-    connection.receive('CommandExecuted', { broadcasterId: 'x', commandName: '!hello', triggeredByUserId: 'u', succeeded: true, timestamp: '' })
+    connection.receive('CommandExecuted', {
+      broadcasterId: 'x',
+      commandName: '!hello',
+      triggeredByUserId: 'u',
+      succeeded: true,
+      timestamp: '',
+    })
 
     expect(queries.getQueryData(commandsKey('c1'))).toBeUndefined()
   })

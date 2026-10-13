@@ -62,9 +62,11 @@ function listQuery({
   take,
 }: AdminTenantsParams): Record<string, string | boolean | number> {
   const query: Record<string, string | boolean | number> = { Page: page, Take: take }
+
   if (search) query.search = search
   if (status) query.status = status
   if (isLive !== undefined) query.isLive = isLive
+
   return query
 }
 
@@ -77,8 +79,10 @@ export function useAdminTenants(
       const { data, error, response } = await client.GET('/api/v{version}/admin/tenants', {
         params: { path: { version }, query: listQuery(toValue(params)) },
       })
+
       // A refusal is an error state, not an empty registry.
       if (error !== undefined) throw new Error(`admin tenants ${response.status}`)
+
       return data ?? {}
     },
     placeholderData: keepPreviousData,
@@ -97,7 +101,9 @@ export function useAdminTenant(
           params: { path: { version, broadcasterId: toValue(id)! } },
         },
       )
+
       if (error !== undefined) throw new Error(`admin tenant ${response.status}`)
+
       return data?.data ?? null
     },
     enabled: computed(() => toValue(id) !== null),
@@ -115,13 +121,15 @@ function refreshTenant(queries: QueryClient, broadcasterId: string): Promise<unk
 export type SuspendInput = { broadcasterId: string; newStatus: string; reason: string }
 
 export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInput, unknown> {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useMutation({
     mutationFn: async ({ broadcasterId, newStatus, reason }: SuspendInput): Promise<void> => {
       const { error } = await client.POST('/api/v{version}/admin/tenants/{broadcasterId}/suspend', {
         params: { path: { version, broadcasterId } },
         body: { newStatus, reason },
       })
+
       if (error !== undefined) throw new Error('suspend failed')
     },
     onSuccess: (_data: void, { broadcasterId }: SuspendInput) =>
@@ -132,7 +140,8 @@ export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInp
 export type ReinstateInput = { broadcasterId: string; justification: string }
 
 export function useAdminReinstate(): UseMutationReturnType<void, Error, ReinstateInput, unknown> {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useMutation({
     mutationFn: async ({ broadcasterId, justification }: ReinstateInput): Promise<void> => {
       const { error } = await client.POST(
@@ -142,6 +151,7 @@ export function useAdminReinstate(): UseMutationReturnType<void, Error, Reinstat
           body: { justification },
         },
       )
+
       if (error !== undefined) throw new Error('reinstate failed')
     },
     onSuccess: (_data: void, { broadcasterId }: ReinstateInput) =>
@@ -176,7 +186,9 @@ export function useAdminBeginAccess(): UseMutationReturnType<
           body: { justification, breakGlass, expiresAt },
         },
       )
+
       if (error !== undefined || !data?.data) throw new Error('begin access failed')
+
       return data.data
     },
   })
@@ -203,7 +215,9 @@ export function useAdminImpersonate(): UseMutationReturnType<
           body: { accessGrantId, justification },
         },
       )
+
       if (error !== undefined || !data?.data) throw new Error('impersonate failed')
+
       return data.data
     },
   })

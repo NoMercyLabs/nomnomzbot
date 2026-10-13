@@ -28,7 +28,7 @@ import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Button } from '@/components/ui/button'
@@ -55,18 +55,17 @@ const rows: ComputedRef<QueueItem[]> = computed<QueueItem[]>(
   () => queueQuery.data.value?.queue ?? [],
 )
 
-const nowState: ComputedRef<PanelState> = usePanelState(
-  queueQuery,
-  (queue: MusicQueue): boolean => !queue.nowPlaying,
-)
-const queueState: ComputedRef<PanelState> = usePanelState(
+const nowState = usePanelState(queueQuery, (queue: MusicQueue): boolean => !queue.nowPlaying)
+const queueState = usePanelState(
   queueQuery,
   (queue: MusicQueue): boolean => queue.queue.length === 0,
 )
 
 const spotify: ComputedRef<{ tone: StatusTone; key: string }> = computed(() => {
   const status = connections.data.value?.find((item) => item.provider === 'spotify')
+
   if (!status?.connected) return { tone: 'off', key: 'off' }
+
   return status.needsReauth ? { tone: 'bad', key: 'reauth' } : { tone: 'ok', key: 'connected' }
 })
 

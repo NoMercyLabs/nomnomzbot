@@ -20,6 +20,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Switch } from '@/components/ui/switch'
 
 const props = defineProps<{ script: CodeScriptSummary; selected: boolean }>()
+
 defineEmits<{ pick: [] }>()
 
 const { t, locale } = useI18n()

@@ -16,6 +16,7 @@ import PlatformLogo from '@/components/layout/PlatformLogo.vue'
 
 function fillOf(platform: string): string | undefined {
   const wrapper: VueWrapper = mount(PlatformLogo, { props: { platform } })
+
   return wrapper.find('svg').attributes('fill')
 }
 
@@ -34,11 +35,13 @@ describe('the platform logo', () => {
 
   it('takes the text colour on a filled button', () => {
     const wrapper: VueWrapper = mount(PlatformLogo, { props: { platform: 'twitch', mono: true } })
+
     expect(wrapper.find('svg').attributes('fill')).toBe('currentColor')
   })
 
   it('draws nothing for a platform it has no logo for', () => {
     const wrapper: VueWrapper = mount(PlatformLogo, { props: { platform: 'myspace' } })
+
     expect(wrapper.find('svg').exists()).toBe(false)
   })
 })

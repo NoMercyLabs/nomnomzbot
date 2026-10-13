@@ -21,6 +21,7 @@ const pageWords: Record<string, { page: { title: string } }> = {
 
 async function freshI18n(): Promise<typeof import('@/i18n')> {
   vi.resetModules()
+
   return import('@/i18n')
 }
 
@@ -33,6 +34,7 @@ beforeEach(() => {
 describe('switching the language', () => {
   it('reloads the words of a page that is already open, and the shared words', async () => {
     const { i18n, loadPage, setLocale } = await freshI18n()
+
     await loadPage(
       async () => page,
       async (locale: string) => ({ default: pageWords[locale]! }),
@@ -48,9 +50,11 @@ describe('switching the language', () => {
 
   it('keeps the choice for the next visit', async () => {
     const first = await freshI18n()
+
     await first.setLocale('nl')
 
     const next = await freshI18n()
+
     await next.startLocale()
 
     expect(next.i18n.global.locale.value).toBe('nl')
@@ -61,7 +65,8 @@ describe('switching the language', () => {
     localStorage.setItem('nnz.locale', 'nl')
     const { i18n, loadPage, startLocale } = await freshI18n()
 
-    const starting: Promise<void> = startLocale()
+    const starting = startLocale()
+
     await loadPage(
       async () => page,
       async (locale: string) => ({ default: pageWords[locale]! }),
@@ -73,11 +78,13 @@ describe('switching the language', () => {
 
   it('shows English words for a page that has no words in the chosen language yet', async () => {
     const { i18n, loadPage, setLocale } = await freshI18n()
+
     await setLocale('nl')
     await loadPage(
       async () => page,
       async (locale: string) => {
         if (locale !== 'en') throw new Error(`no ${locale} file`)
+
         return { default: pageWords.en! }
       },
     )

@@ -21,11 +21,11 @@ const props = defineProps<{ channelId: string | null; recent: string[] }>()
 const { t } = useI18n()
 const game = defineModel<string>({ required: true })
 
-const search: Ref<string> = ref('')
+const search = ref('')
 const asked: Readonly<Ref<string>> = refDebounced(search, 250)
 const results = useCategorySearch(() => props.channelId, asked)
 const found: ComputedRef<Category[]> = computed(() => results.data.value ?? [])
-const searching: ComputedRef<boolean> = computed(() => asked.value.trim() !== '' && results.isPending.value)
+const searching = computed(() => asked.value.trim() !== '' && results.isPending.value)
 
 function pick(name: string): void {
   game.value = name
@@ -36,9 +36,18 @@ function pick(name: string): void {
 <template>
   <div class="flex flex-col gap-2">
     <p class="text-sm font-medium">{{ game }}</p>
-    <Input v-model="search" data-field="category-search" :placeholder="t('dashboard.stream.info.categorySearch')" />
-    <div v-if="asked.trim() !== ''" class="flex flex-col rounded-[12px] border border-border bg-muted p-1">
-      <p v-if="searching" class="px-3 py-2 text-sm text-muted-foreground">{{ t('dashboard.stream.info.categorySearching') }}</p>
+    <Input
+      v-model="search"
+      data-field="category-search"
+      :placeholder="t('dashboard.stream.info.categorySearch')"
+    />
+    <div
+      v-if="asked.trim() !== ''"
+      class="flex flex-col rounded-[12px] border border-border bg-muted p-1"
+    >
+      <p v-if="searching" class="px-3 py-2 text-sm text-muted-foreground">
+        {{ t('dashboard.stream.info.categorySearching') }}
+      </p>
       <p v-else-if="found.length === 0" class="px-3 py-2 text-sm text-muted-foreground">
         {{ t('dashboard.stream.info.categoryNone') }}
       </p>
@@ -54,8 +63,17 @@ function pick(name: string): void {
       </button>
     </div>
     <div v-if="recent.length > 0" class="flex flex-wrap items-center gap-1.5">
-      <span class="text-sm text-muted-foreground">{{ t('dashboard.stream.info.recentCategories') }}</span>
-      <Button v-for="name in recent" :key="name" variant="outline" size="sm" data-recent-category @click="pick(name)">
+      <span class="text-sm text-muted-foreground">{{
+        t('dashboard.stream.info.recentCategories')
+      }}</span>
+      <Button
+        v-for="name in recent"
+        :key="name"
+        variant="outline"
+        size="sm"
+        data-recent-category
+        @click="pick(name)"
+      >
         {{ name }}
       </Button>
     </div>

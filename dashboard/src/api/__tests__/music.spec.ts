@@ -37,15 +37,39 @@ const http = vi.hoisted(() => ({
 
 vi.mock('../client', () => ({ client: http }))
 
-const ok: Answer['response'] = { ok: true, status: 200 }
+const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'
 
 const queue: MusicQueue = {
   nowPlaying: null,
   queue: [
-    { position: 1, trackName: 'One', artist: 'A', imageUrl: null, durationMs: 1000, requestedBy: 'x', cost: 0 },
-    { position: 2, trackName: 'Two', artist: 'B', imageUrl: null, durationMs: 1000, requestedBy: 'y', cost: 0 },
-    { position: 3, trackName: 'Three', artist: 'C', imageUrl: null, durationMs: 1000, requestedBy: 'z', cost: 0 },
+    {
+      position: 1,
+      trackName: 'One',
+      artist: 'A',
+      imageUrl: null,
+      durationMs: 1000,
+      requestedBy: 'x',
+      cost: 0,
+    },
+    {
+      position: 2,
+      trackName: 'Two',
+      artist: 'B',
+      imageUrl: null,
+      durationMs: 1000,
+      requestedBy: 'y',
+      cost: 0,
+    },
+    {
+      position: 3,
+      trackName: 'Three',
+      artist: 'C',
+      imageUrl: null,
+      durationMs: 1000,
+      requestedBy: 'z',
+      cost: 0,
+    },
   ],
 }
 
@@ -62,20 +86,28 @@ const config: MusicConfig = {
 
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
 
-function mount<T>(use: () => T): { queries: QueryClient; hook: T; inbox: ReturnType<typeof useSaveErrorsStore> } {
+function mount<T>(use: () => T): {
+  queries: QueryClient
+  hook: T
+  inbox: ReturnType<typeof useSaveErrorsStore>
+} {
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const pinia = createPinia()
+
   setActivePinia(pinia)
   let hook!: T
   const app: App = createApp({
     setup() {
       hook = use()
+
       return () => null
     },
   })
+
   app.use(pinia)
   app.use(VueQueryPlugin, { queryClient: queries })
   app.mount(document.createElement('div'))
+
   return { queries, hook, inbox: useSaveErrorsStore() }
 }
 
@@ -89,20 +121,33 @@ beforeEach(() => {
 describe('useRemoveQueueItem', () => {
   it('drops the row at once, renumbers the rest, and sends DELETE with the row position', async () => {
     let finish: (answer: Answer) => void = () => {}
+
     http.DELETE.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
-    http.GET.mockResolvedValue({ data: { data: { nowPlaying: null, queue: [queue.queue[0], { ...queue.queue[2], position: 2 }] } }, response: ok })
+    http.GET.mockResolvedValue({
+      data: {
+        data: { nowPlaying: null, queue: [queue.queue[0], { ...queue.queue[2], position: 2 }] },
+      },
+      response: ok,
+    })
     const { queries, hook } = mount(() => useRemoveQueueItem(channel))
+
     queries.setQueryData(musicQueueKey(channel), queue)
 
     const sent: Promise<unknown> = hook.mutateAsync({ position: 2 })
+
     await settle()
 
-    const during: MusicQueue | undefined = queries.getQueryData<MusicQueue>(musicQueueKey(channel))
+    const during = queries.getQueryData<MusicQueue>(musicQueueKey(channel))
+
     expect(during?.queue.map((item) => [item.position, item.trackName])).toEqual([
       [1, 'One'],
       [2, 'Three'],
     ])
-    const [path, init] = http.DELETE.mock.calls[0] as [string, { params: { path: Record<string, unknown> } }]
+    const [path, init] = http.DELETE.mock.calls[0] as [
+      string,
+      { params: { path: Record<string, unknown> } },
+    ]
+
     expect(path).toBe('/api/v{version}/channels/{channelId}/music/queue/{position}')
     expect(init.params.path).toEqual({ version: '1', channelId: channel, position: 2 })
 
@@ -111,8 +156,12 @@ describe('useRemoveQueueItem', () => {
   })
 
   it('puts the exact earlier queue back and reports to the inbox when the bot refuses', async () => {
-    http.DELETE.mockResolvedValue({ error: { status: 'error', message: 'no' }, response: { ok: false, status: 403 } })
+    http.DELETE.mockResolvedValue({
+      error: { status: 'error', message: 'no' },
+      response: { ok: false, status: 403 },
+    })
     const { queries, hook, inbox } = mount(() => useRemoveQueueItem(channel))
+
     queries.setQueryData(musicQueueKey(channel), queue)
 
     await hook.mutateAsync({ position: 2 }).catch(() => undefined)
@@ -126,14 +175,17 @@ describe('useRemoveQueueItem', () => {
 describe('useSaveMusicConfig', () => {
   it('sends only the changed fields in the PUT body and caches the config the bot returns', async () => {
     const saved: MusicConfig = { ...config, maxRequestsPerUser: 1 }
+
     http.PUT.mockResolvedValue({ data: { data: saved }, response: ok })
     const { queries, hook } = mount(() => useSaveMusicConfig(channel))
+
     queries.setQueryData(musicConfigKey(channel), config)
 
     await hook.mutateAsync({ maxRequestsPerUser: 1 })
 
     expect(http.PUT).toHaveBeenCalledTimes(1)
     const [path, init] = http.PUT.mock.calls[0] as [string, unknown]
+
     expect(path).toBe('/api/v{version}/channels/{channelId}/music/config')
     expect(init).toEqual({
       params: { path: { version: '1', channelId: channel } },
@@ -145,6 +197,7 @@ describe('useSaveMusicConfig', () => {
   it('restores the earlier config when the PUT is refused', async () => {
     http.PUT.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 400 } })
     const { queries, hook } = mount(() => useSaveMusicConfig(channel))
+
     queries.setQueryData(musicConfigKey(channel), config)
 
     await hook.mutateAsync({ isEnabled: false }).catch(() => undefined)

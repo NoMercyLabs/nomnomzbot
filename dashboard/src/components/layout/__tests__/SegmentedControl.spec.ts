@@ -25,7 +25,7 @@ function control(modelValue: string): VueWrapper {
 
 describe('the segmented control', () => {
   it('names the group and raises only the chosen option', () => {
-    const wrapper: VueWrapper = control('wide')
+    const wrapper = control('wide')
     const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]')
 
     expect(wrapper.find('[data-slot="toggle-group"]').attributes('aria-label')).toBe('Line spacing')
@@ -35,7 +35,7 @@ describe('the segmented control', () => {
   })
 
   it('emits the option a person presses and keeps one chosen when the open one is pressed again', async () => {
-    const wrapper: VueWrapper = control('wide')
+    const wrapper = control('wide')
     const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]')
 
     await items[1]!.trigger('click')

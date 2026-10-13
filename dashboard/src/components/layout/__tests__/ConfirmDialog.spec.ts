@@ -36,6 +36,7 @@ async function dialog(extra: Record<string, unknown> = {}): Promise<VueWrapper> 
     global: { plugins: [i18n] },
   })
   await flushPromises()
+
   return mounted
 }
 
@@ -47,13 +48,18 @@ describe('the confirm dialog', () => {
   it('shows the title, the description and every consequence in the blast box', async () => {
     await dialog()
 
-    expect(document.body.querySelector('[role="alertdialog"]')?.textContent).toContain('Delete !so?')
-    expect(document.body.textContent).toContain('This command ran 333 times.')
-    const items: string[] = Array.from(document.body.querySelectorAll('[data-slot="blast-list"] li')).map(
-      (li: Element) => li.textContent ?? '',
+    expect(document.body.querySelector('[role="alertdialog"]')?.textContent).toContain(
+      'Delete !so?',
     )
+    expect(document.body.textContent).toContain('This command ran 333 times.')
+    const items: string[] = Array.from(
+      document.body.querySelectorAll('[data-slot="blast-list"] li'),
+    ).map((li: Element) => li.textContent ?? '')
+
     expect(items).toEqual(['Chat stops answering !so.', 'The history stays.'])
-    expect(document.body.querySelector('[data-slot="blast-list"]')?.textContent).toContain('What happens')
+    expect(document.body.querySelector('[data-slot="blast-list"]')?.textContent).toContain(
+      'What happens',
+    )
   })
 
   it('leaves the blast box out when there are no consequences', async () => {
@@ -70,11 +76,15 @@ describe('the confirm dialog', () => {
     const buttons: HTMLButtonElement[] = Array.from(
       document.body.querySelectorAll('[data-slot="alert-dialog-footer"] button'),
     )
-    expect(buttons.map((b: HTMLButtonElement) => b.textContent?.trim())).toEqual(['Cancel', 'Delete command'])
+
+    expect(buttons.map((b: HTMLButtonElement) => b.textContent?.trim())).toEqual([
+      'Cancel',
+      'Delete command',
+    ])
   })
 
   it('emits confirm once when the action is pressed', async () => {
-    const wrapper: VueWrapper = await dialog()
+    const wrapper = await dialog()
 
     actionButton().click()
     await flushPromises()
@@ -83,11 +93,12 @@ describe('the confirm dialog', () => {
   })
 
   it('closes without confirm on Cancel', async () => {
-    const wrapper: VueWrapper = await dialog()
+    const wrapper = await dialog()
 
-    const cancel: HTMLButtonElement = document.body.querySelector(
+    const cancel = document.body.querySelector(
       '[data-slot="alert-dialog-cancel"]',
     ) as HTMLButtonElement
+
     cancel.click()
     await flushPromises()
 
@@ -96,7 +107,7 @@ describe('the confirm dialog', () => {
   })
 
   it('closes without confirm on Escape', async () => {
-    const wrapper: VueWrapper = await dialog()
+    const wrapper = await dialog()
 
     document.body
       .querySelector('[role="alertdialog"]')

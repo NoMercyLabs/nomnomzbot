@@ -12,11 +12,14 @@
 // pick: the whole row is the control (a button; pass role="radio" for a single choice).
 // Rows that carry their own button stay plain and do not hover.
 defineOptions({ inheritAttrs: false })
-withDefaults(defineProps<{ title: string; detail?: string; pick?: boolean; selected?: boolean }>(), {
-  detail: undefined,
-  pick: false,
-  selected: false,
-})
+withDefaults(
+  defineProps<{ title: string; detail?: string; pick?: boolean; selected?: boolean }>(),
+  {
+    detail: undefined,
+    pick: false,
+    selected: false,
+  },
+)
 </script>
 
 <template>
@@ -25,7 +28,13 @@ withDefaults(defineProps<{ title: string; detail?: string; pick?: boolean; selec
       :is="pick ? 'button' : 'div'"
       :type="pick ? 'button' : undefined"
       class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[8px] px-3 py-2 text-left"
-      :class="[selected ? 'bg-accent text-accent-foreground' : pick ? 'cursor-pointer hover:bg-foreground/5' : '']"
+      :class="[
+        selected
+          ? 'bg-accent text-accent-foreground'
+          : pick
+            ? 'cursor-pointer hover:bg-foreground/5'
+            : '',
+      ]"
       v-bind="$attrs"
     >
       <slot name="leading" />

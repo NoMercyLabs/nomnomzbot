@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import InlineFlow from '@/components/layout/InlineFlow.vue'
 import type { InlineFlowKind } from '@/composables/useInlineFlow'
@@ -31,11 +31,13 @@ function flow(props: Record<string, unknown>): VueWrapper {
     attachTo: document.body,
     global: { plugins: [i18n] },
   })
+
   return mounted
 }
 
 function step(): string | undefined {
   const root: HTMLElement | null = document.body.querySelector('[data-slot="inline-flow"]')
+
   return root?.dataset.step
 }
 
@@ -71,7 +73,8 @@ describe('the inline flow', () => {
   })
 
   it('confirm asks first and runs the action only on the second press', async () => {
-    const action: Mock = vi.fn<() => void>()
+    const action = vi.fn<() => void>()
+
     flow({
       kind: 'confirm',
       ask: 'Clear 12 songs?',
@@ -96,7 +99,8 @@ describe('the inline flow', () => {
   })
 
   it('Esc backs out of a confirm without running the action and gives back the opener', async () => {
-    const action: Mock = vi.fn<() => void>()
+    const action = vi.fn<() => void>()
+
     flow({ kind: 'confirm', ask: 'Clear 12 songs?', result: 'Queue cleared.', action })
     opener().click()
     await flushPromises()
@@ -111,7 +115,8 @@ describe('the inline flow', () => {
   })
 
   it('Cancel backs out of a confirm without running the action', async () => {
-    const action: Mock = vi.fn<() => void>()
+    const action = vi.fn<() => void>()
+
     flow({ kind: 'confirm', ask: 'Clear 12 songs?', action })
     opener().click()
     await flushPromises()
@@ -125,12 +130,13 @@ describe('the inline flow', () => {
 
   it('run shows pending while the action works, then the result', async () => {
     let finish: () => void = () => {}
-    const action: Mock = vi.fn<() => Promise<void>>(
+    const action = vi.fn<() => Promise<void>>(
       () =>
         new Promise<void>((resolve: () => void) => {
           finish = resolve
         }),
     )
+
     flow({ kind: 'run', text: 'Playing the sound', result: 'Sound played.', action })
 
     opener().click()
@@ -149,7 +155,8 @@ describe('the inline flow', () => {
   })
 
   it('apply runs at once with no question', async () => {
-    const action: Mock = vi.fn<() => void>()
+    const action = vi.fn<() => void>()
+
     flow({ kind: 'apply', result: 'Saved.', action })
 
     opener().click()
@@ -160,8 +167,9 @@ describe('the inline flow', () => {
   })
 
   it('Undo calls the undo handler and restores the start state', async () => {
-    const action: Mock = vi.fn<() => void>()
-    const revert: Mock = vi.fn<() => void>()
+    const action = vi.fn<() => void>()
+    const revert = vi.fn<() => void>()
+
     flow({ kind: 'apply', result: 'Saved.', action, revert })
     opener().click()
     await flushPromises()
@@ -178,7 +186,8 @@ describe('the inline flow', () => {
 
   it('the Undo window ends: after undoMs the result and Undo are gone and the handler can no longer run', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const revert: Mock = vi.fn<() => void>()
+    const revert = vi.fn<() => void>()
+
     flow({ kind: 'apply', result: 'Saved.', action: vi.fn<() => void>(), revert, undoMs: 5000 })
     opener().click()
     await flushPromises()

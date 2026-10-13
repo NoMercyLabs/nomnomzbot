@@ -20,6 +20,7 @@ describe('the detail pane', () => {
     })
 
     const body: Element = pane.get('[data-slot="detail-pane-body"]').element
+
     expect(body.className).toContain('overflow-y-auto')
     expect(body.contains(pane.get('#body').element)).toBe(true)
     expect(body.contains(pane.get('#title').element)).toBe(false)

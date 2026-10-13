@@ -29,11 +29,11 @@ export interface ScriptTester {
 
 // A dry run of one script: nothing it does reaches chat. A refusal shows its reason; a 429 starts a wait.
 export function useScriptTester(scriptId: () => string): ScriptTester {
-  const running: Ref<boolean> = ref(false)
-  const limited: Ref<boolean> = ref(false)
+  const running = ref(false)
+  const limited = ref(false)
   const last: Ref<TestRunResult | null> = ref(null)
   const failure: Ref<string | undefined> = ref(undefined)
-  const waitMs: Ref<number> = ref(FALLBACK_WAIT_SECONDS * 1000)
+  const waitMs = ref(FALLBACK_WAIT_SECONDS * 1000)
   const wait = useTimeoutFn(
     () => {
       limited.value = false
@@ -47,22 +47,28 @@ export function useScriptTester(scriptId: () => string): ScriptTester {
   ): Promise<{ result: TestRunResult; trigger: string | null } | null> {
     running.value = true
     failure.value = undefined
+
     try {
       const outcome: TestRunOutcome = await runScriptTest(scriptId(), {
         variables: trigger?.variables ?? {},
         args: [],
         trigger: trigger?.id ?? null,
       })
+
       if (outcome.kind === 'rateLimited') {
         waitMs.value = (outcome.retryAfterSeconds ?? FALLBACK_WAIT_SECONDS) * 1000
         limited.value = true
         wait.start()
+
         return null
       }
+
       last.value = outcome.result
+
       return { result: outcome.result, trigger: trigger?.label ?? null }
     } catch (error) {
       failure.value = (error as Error).message
+
       return null
     } finally {
       running.value = false

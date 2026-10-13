@@ -50,9 +50,11 @@ const line = (id: string, channelId: string, userId: string = 'u1'): ChatMessage
 })
 
 async function started(): Promise<[Hub, QueryClient, FakeHubConnection]> {
-  const hub: Hub = await import('../dashboardHub')
-  const queries: QueryClient = new QueryClient()
+  const hub = await import('../dashboardHub')
+  const queries = new QueryClient()
+
   await hub.startDashboardHub(queries)
+
   return [hub, queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
 }
 
@@ -67,6 +69,7 @@ beforeEach(() => {
 describe('ChatMessage', () => {
   it('lands in the cache of the channel named in the line, not the channel the hub watches', async () => {
     const [hub, queries, connection] = await started()
+
     await hub.watchChannel('A')
     queries.setQueryData<ChatLine[]>(chatKey('A'), [])
     queries.setQueryData<ChatLine[]>(chatKey('B'), [])
@@ -79,6 +82,7 @@ describe('ChatMessage', () => {
 
   it('ignores a line whose id is already in the feed', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A')])
 
     connection.receive('ChatMessage', { ...line('m1', 'A'), message: 'sent again' })
@@ -95,11 +99,13 @@ describe('ChatMessage', () => {
     const full: ChatLine[] = Array.from({ length: chatLineLimit }, (_, index) =>
       line(`m${index}`, 'A'),
     )
+
     queries.setQueryData<ChatLine[]>(chatKey('A'), full)
 
     connection.receive('ChatMessage', line('newest', 'A'))
 
-    const feed: ChatLine[] | undefined = lines(queries, 'A')
+    const feed = lines(queries, 'A')
+
     expect(feed).toHaveLength(chatLineLimit)
     expect(feed?.[0]?.id).toBe('m1')
     expect(feed?.at(-1)?.id).toBe('newest')
@@ -118,6 +124,7 @@ const channelEvent = (type: string, broadcasterId: string, data: unknown): unkno
 describe('chat moderation events', () => {
   it('message_deleted marks exactly the line with that id and leaves the others', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData<ChatLine[]>(chatKey('A'), [
       line('m1', 'A'),
       line('m2', 'A'),
@@ -145,6 +152,7 @@ describe('chat moderation events', () => {
 
   it('chat_cleared marks every line of that channel and no line of another channel', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A'), line('m2', 'A', 'u2')])
     queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B')])
 
@@ -159,6 +167,7 @@ describe('chat moderation events', () => {
 
   it('user_messages_cleared marks the lines of that person in that channel only', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1'), line('m2', 'A', 'u2')])
     queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B', 'u1')])
 
@@ -182,6 +191,7 @@ describe('chat moderation events', () => {
     'a %s mod action marks that person lines in that channel only',
     async (action: string) => {
       const [, queries, connection] = await started()
+
       queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1'), line('m2', 'A', 'u2')])
       queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B', 'u1')])
 
@@ -204,6 +214,7 @@ describe('chat moderation events', () => {
 
   it('an unban mod action leaves the feed alone', async () => {
     const [, queries, connection] = await started()
+
     queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1')])
 
     connection.receive('ModAction', {

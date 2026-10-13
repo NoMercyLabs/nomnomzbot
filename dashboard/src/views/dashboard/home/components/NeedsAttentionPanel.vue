@@ -8,11 +8,10 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useActionRequired, type ActionRequiredItem } from '@/api/actionRequired'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Button } from '@/components/ui/button'
@@ -23,7 +22,7 @@ const { t, te } = useI18n()
 const { channelId } = useCurrentChannel()
 
 const attentionQuery = useActionRequired(channelId)
-const attentionState: ComputedRef<PanelState> = usePanelState(
+const attentionState = usePanelState(
   attentionQuery,
   (items: ActionRequiredItem[]) => items.length === 0,
 )

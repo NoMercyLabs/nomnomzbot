@@ -33,7 +33,12 @@ let nowPlaying: Record<string, unknown> | null = null
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } })
 const refused = (): Answer => ({ error: { status: 'error' }, response: { status: 403, ok: false } })
 
-const track = (position: number, trackName: string, artist: string, requestedBy: string): Record<string, unknown> => ({
+const track = (
+  position: number,
+  trackName: string,
+  artist: string,
+  requestedBy: string,
+): Record<string, unknown> => ({
   position,
   trackName,
   artist,
@@ -70,18 +75,31 @@ function freshAnswers(): Record<string, () => Answer> {
   return {
     '/music/queue': () => ok({ nowPlaying, queue: queue.map((item) => ({ ...item })) }),
     '/integrations/status': () =>
-      ok([{ provider: 'spotify', connected: true, accountName: 'stoney', needsReauth: false, grantedScopeSets: [], capabilities: {}, loginOnly: false }]),
+      ok([
+        {
+          provider: 'spotify',
+          connected: true,
+          accountName: 'stoney',
+          needsReauth: false,
+          grantedScopeSets: [],
+          capabilities: {},
+          loginOnly: false,
+        },
+      ]),
   }
 }
 
 function read(path: string): Answer {
-  const match: string | undefined = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+
   return match ? answers[match]!() : ok(null)
 }
 
 function write(method: string, path: string, options?: Options): Answer {
   calls.push({ method, path, position: options?.params?.path?.position })
-  if (method === 'DELETE') queue = queue.filter((item) => item.position !== options?.params?.path?.position)
+  if (method === 'DELETE')
+    queue = queue.filter((item) => item.position !== options?.params?.path?.position)
+
   return { response: { status: 200, ok: true } }
 }
 
@@ -103,7 +121,10 @@ let pinia: Pinia
 
 beforeEach(() => {
   calls.length = 0
-  queue = [track(1, 'Strobe', 'deadmau5', 'sample_viewer'), track(2, 'Opus', 'Eric Prydz', 'DukaSoft')]
+  queue = [
+    track(1, 'Strobe', 'deadmau5', 'sample_viewer'),
+    track(2, 'Opus', 'Eric Prydz', 'DukaSoft'),
+  ]
   nowPlaying = playing()
   answers = freshAnswers()
   pinia = createPinia()
@@ -126,11 +147,20 @@ async function open(): Promise<void> {
       { path: '/app/rewards', name: 'dashboard-rewards', component: blank },
     ],
   })
+
   await router.push('/app/music')
   mounted = mount(MusicView, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await settle()
@@ -156,11 +186,13 @@ describe('MusicView', () => {
   it('shows the playing track and the queue rows from the queue answer', async () => {
     await open()
 
-    const now: string = panel('Now playing').textContent ?? ''
+    const now = panel('Now playing').textContent ?? ''
+
     expect(now).toContain('Midnight City')
     expect(now).toContain('M83')
     expect(now).toContain('DukaSoft')
-    const rows: string = panel('Request queue').textContent ?? ''
+    const rows = panel('Request queue').textContent ?? ''
+
     expect(rows).toContain('Strobe')
     expect(rows).toContain('deadmau5')
     expect(rows).toContain('sample_viewer')
@@ -245,16 +277,22 @@ describe('MusicView', () => {
     answers['/music/queue'] = refused
     await open()
 
-    expect(panel('Request queue').querySelector('[data-slot="panel-error"]')?.textContent).toContain(
-      'The queue could not load.',
-    )
+    expect(
+      panel('Request queue').querySelector('[data-slot="panel-error"]')?.textContent,
+    ).toContain('The queue could not load.')
   })
 
   it('says why history and thanks are empty instead of showing made-up rows', async () => {
     await open()
 
-    expect(panel('History').querySelector('[data-slot="panel-empty"]')?.textContent).toContain('Not recorded yet')
-    expect(panel('Thanks for the music').querySelector('[data-slot="panel-empty"]')?.textContent).toContain('Not recorded yet')
-    expect(panel('Request rules').querySelector('[data-slot="panel-empty"]')?.textContent).toContain('Not available yet')
+    expect(panel('History').querySelector('[data-slot="panel-empty"]')?.textContent).toContain(
+      'Not recorded yet',
+    )
+    expect(
+      panel('Thanks for the music').querySelector('[data-slot="panel-empty"]')?.textContent,
+    ).toContain('Not recorded yet')
+    expect(
+      panel('Request rules').querySelector('[data-slot="panel-empty"]')?.textContent,
+    ).toContain('Not available yet')
   })
 })

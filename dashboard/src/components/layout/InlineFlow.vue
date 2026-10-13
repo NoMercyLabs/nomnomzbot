@@ -73,12 +73,16 @@ onKeyStroke('Escape', back, { target: root })
 // Focus follows the step: the safe button first, and the opener again when the step ends.
 watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
   await nextTick()
+
   if (now === 'idle') {
     if (before !== 'idle')
       opener.value?.querySelector<HTMLElement>('button, [href], [tabindex]')?.focus()
+
     return
   }
+
   const target: string = now === 'ask' ? 'back' : canUndo.value ? 'undo' : 'back'
+
   box.value?.querySelector<HTMLElement>(`[data-flow-act="${target}"]`)?.focus()
 })
 </script>

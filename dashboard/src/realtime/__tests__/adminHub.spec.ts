@@ -13,7 +13,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({ HubConnectionBuilder: FakeHubConnectionBuilder, HubConnection: FakeHubConnection }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 beforeEach(() => {
   vi.resetModules()
@@ -24,10 +27,12 @@ describe('admin hub events', () => {
   it('a system status push replaces the cached snapshot', async () => {
     const { startAdminHub } = await import('../adminHub')
     const { adminSystemStatusKey } = await import('@/api/admin')
-    const queries: QueryClient = new QueryClient()
+    const queries = new QueryClient()
+
     await startAdminHub(queries)
 
     const snapshot = { system: { uptime: 5 }, stats: { channels: 2 } }
+
     FakeHubConnection.at(0).receive('ReceiveSystemStatus', snapshot)
 
     expect(queries.getQueryData(adminSystemStatusKey)).toEqual(snapshot)

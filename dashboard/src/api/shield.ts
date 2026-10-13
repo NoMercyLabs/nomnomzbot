@@ -8,7 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useMutation, useQuery, useQueryClient, type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationReturnType,
+  type UseQueryReturnType,
+} from '@tanstack/vue-query'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
 import { client } from './client'
@@ -21,10 +27,17 @@ async function fetchShield(channelId: string): Promise<boolean> {
     params: { path: { version: '1', channelId } },
   })
   const answer: unknown = data?.data
-  return typeof answer === 'object' && answer !== null && (answer as { enabled?: unknown }).enabled === true
+
+  return (
+    typeof answer === 'object' &&
+    answer !== null &&
+    (answer as { enabled?: unknown }).enabled === true
+  )
 }
 
-export function useShieldMode(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<boolean, Error> {
+export function useShieldMode(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<boolean, Error> {
   return useQuery({
     queryKey: computed(() => shieldKey(toValue(channelId))),
     queryFn: () => fetchShield(toValue(channelId) as string),
@@ -32,14 +45,21 @@ export function useShieldMode(channelId: MaybeRefOrGetter<string | null>): UseQu
   })
 }
 
-export function useSetShieldMode(channelId: MaybeRefOrGetter<string | null>): UseMutationReturnType<void, Error, boolean, unknown> {
+export function useSetShieldMode(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, boolean, unknown> {
   const queries = useQueryClient()
+
   return useMutation({
     mutationFn: async (enabled: boolean): Promise<void> => {
-      const { response } = await client.PATCH('/api/v{version}/channels/{channelId}/moderation/shield', {
-        params: { path: { version: '1', channelId: toValue(channelId) as string } },
-        body: { enabled },
-      })
+      const { response } = await client.PATCH(
+        '/api/v{version}/channels/{channelId}/moderation/shield',
+        {
+          params: { path: { version: '1', channelId: toValue(channelId) as string } },
+          body: { enabled },
+        },
+      )
+
       if (!response.ok) throw new Error(`shield ${response.status}`)
     },
     onSuccess: () => queries.invalidateQueries({ queryKey: shieldKey(toValue(channelId)) }),

@@ -10,10 +10,10 @@
 <script setup lang="ts">
 import { computed, type Component, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter, type Router } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
 import { useActivity, type ActivityEvent } from '@/api/home'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ import { usePanelState } from '@/composables/usePanelState'
 
 import ArrowRight from '~icons/nnz/arrow-right'
 
-import { describeActivity, type ActivityRowText, type ActivityRowView } from './activityKinds'
+import { describeActivity, type ActivityRowText } from './activityKinds'
 
 defineProps<{ live: boolean }>()
 
@@ -30,12 +30,9 @@ const { t, locale } = useI18n()
 const { channelId } = useCurrentChannel()
 
 const activityQuery = useActivity(channelId)
-const activityState: ComputedRef<PanelState> = usePanelState(
-  activityQuery,
-  (items: ActivityEvent[]) => items.length === 0,
-)
+const activityState = usePanelState(activityQuery, (items: ActivityEvent[]) => items.length === 0)
 
-const router: Router = useRouter()
+const router = useRouter()
 // "All events" shows only when an events page exists: a link that lands elsewhere breaks its promise.
 const allEventsRoute: ComputedRef<string | null> = computed(() =>
   router.hasRoute('dashboard-events') ? 'dashboard-events' : null,
@@ -45,6 +42,7 @@ type Row = { id: string; icon: Component; title: string; detail: string | undefi
 
 function say(text: ActivityRowText): string {
   const count: unknown = text.params?.count
+
   return t(text.key, text.params ?? {}, typeof count === 'number' ? count : 1)
 }
 
@@ -59,9 +57,10 @@ function eventTime(event: ActivityEvent): string {
 
 const rows: ComputedRef<Row[]> = computed(() =>
   (activityQuery.data.value ?? []).map((event: ActivityEvent): Row => {
-    const view: ActivityRowView = describeActivity(event)
-    const detail: string = say(view.detail)
-    const title: string | undefined = view.title ? say(view.title) : (event.username ?? undefined)
+    const view = describeActivity(event)
+    const detail = say(view.detail)
+    const title = view.title ? say(view.title) : (event.username ?? undefined)
+
     return {
       id: event.id,
       icon: view.icon,

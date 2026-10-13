@@ -29,7 +29,9 @@ const { t } = useI18n()
       <!-- min-w-0: a grid column grows to its widest child by default, which pushed the page past a phone screen. -->
       <div class="min-w-0" :class="index % 2 === 1 ? 'md:order-2' : ''">
         <h2 class="text-2xl font-semibold">{{ t(`site.home.outcomes.${block}.title`) }}</h2>
-        <p class="mt-2 text-base text-muted-foreground">{{ t(`site.home.outcomes.${block}.body`) }}</p>
+        <p class="mt-2 text-base text-muted-foreground">
+          {{ t(`site.home.outcomes.${block}.body`) }}
+        </p>
       </div>
       <!-- Panel radius 20, 8px padding, so the group inside is 20 - 8 = 12. -->
       <div class="min-w-0 rounded-lg border border-border bg-card p-2">

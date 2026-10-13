@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The one tab row of a page (C2). The open tab is the route query ?view= (usePageView);
 // the page reads the same composable to choose what to show under the header.
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue'
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePageView } from '@/composables/usePageView'
@@ -23,7 +23,7 @@ export interface PageTab {
 
 const props = defineProps<{ tabs: readonly PageTab[] }>()
 
-const values: ComputedRef<string[]> = computed<string[]>(() => props.tabs.map((tab: PageTab) => tab.value))
+const values = computed<string[]>(() => props.tabs.map((tab: PageTab) => tab.value))
 const view = usePageView(values)
 </script>
 
@@ -32,7 +32,9 @@ const view = usePageView(values)
     <TabsList>
       <TabsTrigger v-for="tab in tabs" :key="tab.value" :value="tab.value">
         {{ tab.label }}
-        <span v-if="tab.count !== undefined" class="text-xs text-muted-foreground tabular-nums">{{ tab.count }}</span>
+        <span v-if="tab.count !== undefined" class="text-xs text-muted-foreground tabular-nums">{{
+          tab.count
+        }}</span>
       </TabsTrigger>
     </TabsList>
   </Tabs>

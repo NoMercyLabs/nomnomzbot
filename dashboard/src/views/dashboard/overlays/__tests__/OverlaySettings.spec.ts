@@ -125,8 +125,10 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'GET', path, body: undefined })
+
       if (path.endsWith('/settings-schema')) {
-        const id: string = String(options?.params?.path?.widgetId)
+        const id = String(options?.params?.path?.widgetId)
+
         return {
           data: {
             data: { widgetKey: id, name: id, fields: schemas[id] ?? [], eventSubscriptions: [] },
@@ -134,6 +136,7 @@ vi.mock('@/api/client', () => ({
           response: { status: 200, ok: true },
         }
       }
+
       return {
         data: { data: widgets, hasMore: false, nextPage: null },
         response: { status: 200, ok: true },
@@ -143,15 +146,18 @@ vi.mock('@/api/client', () => ({
       calls.push({ method: 'PUT', path, body: options?.body })
       if (putRefusal !== null)
         return { error: { message: putRefusal }, response: { status: 400, ok: false } }
-      const id: string = String(options?.params?.path?.widgetId)
-      const body: Record<string, unknown> = options?.body as Record<string, unknown>
+      const id = String(options?.params?.path?.widgetId)
+      const body = options?.body as Record<string, unknown>
+
       widgets = widgets.map((row) => (row.id === id ? { ...row, ...body } : row))
+
       return { data: { data: null }, response: { status: 200, ok: true } }
     },
     POST: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'POST', path, body: options?.body })
       if (testRefusal !== null)
         return { error: { message: testRefusal }, response: { status: 400, ok: false } }
+
       return { data: { data: 'Sent to 1 browser source.' }, response: { status: 200, ok: true } }
     },
   },
@@ -198,6 +204,7 @@ const settle = async (): Promise<void> => {
 
 async function open(url: string = '/app/overlays?id=w1'): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/overlays', name: 'dashboard-overlays', component: blank }],
@@ -231,7 +238,8 @@ const changed = (key: string): boolean => row(key).dataset.changed === 'true'
 const puts = (): Call[] => calls.filter((call) => call.method === 'PUT')
 
 async function type(key: string, value: string): Promise<void> {
-  const field: HTMLInputElement = input(key)
+  const field = input(key)
+
   field.value = value
   field.dispatchEvent(new Event('input', { bubbles: true }))
   field.dispatchEvent(new Event('change', { bubbles: true }))
@@ -243,7 +251,8 @@ describe('the overlay settings form', () => {
     await open()
 
     expect(row('showArt').querySelector('[role="switch"]')).not.toBeNull()
-    const size: HTMLInputElement = input('size')
+    const size = input('size')
+
     expect(size.type).toBe('number')
     expect([size.min, size.max, size.step]).toEqual(['10', '72', '2'])
     expect(size.value).toBe('30')
@@ -255,11 +264,13 @@ describe('the overlay settings form', () => {
     const parts: HTMLButtonElement[] = [
       ...row('parts').querySelectorAll<HTMLButtonElement>('button'),
     ]
+
     expect(parts.map((b) => [b.textContent?.trim(), b.dataset.state])).toEqual([
       ['Song title', 'on'],
       ['Artist', 'off'],
     ])
-    const json: HTMLTextAreaElement = row('colors').querySelector('textarea') as HTMLTextAreaElement
+    const json = row('colors').querySelector('textarea') as HTMLTextAreaElement
+
     expect(json.readOnly).toBe(true)
     expect(JSON.parse(json.value)).toEqual({})
     expect(settings().textContent).toContain('Appearance')
@@ -374,9 +385,8 @@ describe('the preview', () => {
   it('says why there is no preview and shows the size the overlay is set to', async () => {
     await open('/app/overlays?id=w4')
 
-    const preview: HTMLElement = document.body.querySelector(
-      '[data-slot="overlay-preview"]',
-    ) as HTMLElement
+    const preview = document.body.querySelector('[data-slot="overlay-preview"]') as HTMLElement
+
     expect(preview.textContent).toContain(en.dashboard.overlays.detail.preview.unavailable)
     expect(preview.textContent).toContain('1920 × 1080')
   })

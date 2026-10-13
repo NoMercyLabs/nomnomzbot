@@ -36,7 +36,9 @@ const frameActions: Component | null = inject(frameActionsKey, null)
       <h1 class="min-w-0 truncate text-xl font-semibold tracking-tight">{{ title }}</h1>
       <slot name="status" />
       <div class="ml-auto flex shrink-0 items-center gap-3">
-        <span v-if="$slots.meta" class="hidden text-muted-foreground @4xl:inline"><slot name="meta" /></span>
+        <span v-if="$slots.meta" class="hidden text-muted-foreground @4xl:inline"
+          ><slot name="meta"
+        /></span>
         <slot name="actions" />
         <component :is="frameActions" v-if="frameActions" />
       </div>

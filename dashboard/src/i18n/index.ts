@@ -30,6 +30,7 @@ function browserLocale(): Locale {
   const match: string | undefined = navigator.languages
     .map((tag) => tag.split('-')[0]!)
     .find((tag) => isLocale(tag))
+
   return match && isLocale(match) ? match : 'en'
 }
 
@@ -76,8 +77,12 @@ export function startLocale(): Promise<void> {
 }
 
 // A route's lazy component: the page code and the page's words for the current language, in parallel.
-export async function loadPage(view: () => Promise<PageModule>, messages: WordsLoader): Promise<PageModule> {
+export async function loadPage(
+  view: () => Promise<PageModule>,
+  messages: WordsLoader,
+): Promise<PageModule> {
   openedPages.add(messages)
   const [page] = await Promise.all([view(), loadWords(messages, targetLocale)])
+
   return page
 }

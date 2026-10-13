@@ -64,7 +64,7 @@ const props = withDefaults(
 const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
-const frame: Readonly<Ref<HTMLIFrameElement | null>> = useTemplateRef<HTMLIFrameElement>('frame')
+const frame = useTemplateRef<HTMLIFrameElement>('frame')
 const labels = useEditorLabels(() => props.testRun !== undefined)
 
 const payload = computed<EditorOpenPayload>(() => ({
@@ -91,6 +91,7 @@ useEditorBridge({
 })
 
 const opener: Ref<HTMLElement | null> = ref(null)
+
 onMounted(() => {
   opener.value = document.activeElement instanceof HTMLElement ? document.activeElement : null
   frame.value?.focus()

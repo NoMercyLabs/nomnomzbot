@@ -10,11 +10,11 @@
 <script setup lang="ts">
 // The board layout (C1): a fixed 12-column grid whose rows split the height. The page never grows;
 // each BoardCell holds a panel and the panel body scrolls.
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{ rows?: number }>(), { rows: 2 })
 
-const rowTemplate: ComputedRef<string> = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr))`)
+const rowTemplate = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr))`)
 </script>
 
 <template>

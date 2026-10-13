@@ -33,7 +33,7 @@ describe('the board', () => {
   })
 
   it('gives a cell the full width and one row by default', () => {
-    const cell: VueWrapper = mount(BoardCell)
+    const cell = mount(BoardCell)
 
     expect(cell.attributes('style')).toContain('grid-column: span 12')
     expect(cell.attributes('style')).toContain('grid-row: span 1')
@@ -54,11 +54,15 @@ describe('the list and detail layout', () => {
     const wrapper: VueWrapper = mount(ListDetail, { props: { showDetail: true }, slots })
 
     expect(wrapper.find('[data-slot="list-detail-list"]').classes()).toContain('max-md:hidden')
-    expect(wrapper.find('[data-slot="list-detail-detail"]').classes()).not.toContain('max-md:hidden')
+    expect(wrapper.find('[data-slot="list-detail-detail"]').classes()).not.toContain(
+      'max-md:hidden',
+    )
   })
 
   it('adds the aside column only when an aside is given', () => {
-    expect(mount(ListDetail, { slots }).find('[data-slot="list-detail-aside"]').exists()).toBe(false)
+    expect(mount(ListDetail, { slots }).find('[data-slot="list-detail-aside"]').exists()).toBe(
+      false,
+    )
     const withAside: VueWrapper = mount(ListDetail, { slots: { ...slots, aside: '<p>aside</p>' } })
 
     expect(withAside.find('[data-slot="list-detail-aside"]').text()).toBe('aside')
@@ -70,7 +74,12 @@ describe('the page header', () => {
     const plain: VueWrapper = mount(PageHeader, { props: { title: 'Stream' } })
     const full: VueWrapper = mount(PageHeader, {
       props: { title: 'Stream', crumb: 'Channel' },
-      slots: { status: '<i>live</i>', actions: '<b>Go</b>', meta: 'Updated now', tabs: '<u>tabs</u>' },
+      slots: {
+        status: '<i>live</i>',
+        actions: '<b>Go</b>',
+        meta: 'Updated now',
+        tabs: '<u>tabs</u>',
+      },
     })
 
     expect(plain.find('h1').text()).toBe('Stream')
@@ -89,7 +98,10 @@ describe('the page header', () => {
       global: { provide: { [frameActionsKey as symbol]: frameControls } },
     })
 
-    const row: string[] = wrapper.find('h1').element.parentElement!.textContent!.split(/(?=Open chat|Shield mode)/)
+    const row: string[] = wrapper
+      .find('h1')
+      .element.parentElement!.textContent!.split(/(?=Open chat|Shield mode)/)
+
     expect(row.slice(-2)).toEqual(['Open chat', 'Shield mode'])
   })
 })
@@ -141,7 +153,12 @@ describe('the stat tile', () => {
 describe('the key value list', () => {
   it('pairs each label with its value', () => {
     const wrapper: VueWrapper = mount(KeyValueList, {
-      props: { items: [{ label: 'Region', value: 'EU' }, { label: 'Slots', value: 0 }] },
+      props: {
+        items: [
+          { label: 'Region', value: 'EU' },
+          { label: 'Slots', value: 0 },
+        ],
+      },
     })
 
     expect(wrapper.findAll('dt').map((node) => node.text())).toEqual(['Region', 'Slots'])

@@ -14,16 +14,20 @@ export type StatusTone = 'ok' | 'bad' | 'live' | 'off'
 
 defineProps<{ tone: StatusTone; label: string }>()
 
-const dotClass: Record<StatusTone, string> = {
+const dotClass = {
   ok: 'bg-success',
   bad: 'bg-destructive',
   live: 'bg-destructive',
   off: 'bg-muted-foreground',
-}
+} as const satisfies Record<StatusTone, string>
 </script>
 
 <template>
-  <span data-slot="status-badge" :data-tone="tone" class="inline-flex items-center gap-2 text-sm whitespace-nowrap">
+  <span
+    data-slot="status-badge"
+    :data-tone="tone"
+    class="inline-flex items-center gap-2 text-sm whitespace-nowrap"
+  >
     <span aria-hidden="true" class="size-2 flex-none rounded-full" :class="dotClass[tone]" />
     {{ label }}
   </span>

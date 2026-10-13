@@ -63,13 +63,15 @@ const script = computed(() => detail.data.value)
 // The detail answer carries no run facts; the list row of the same script does.
 const ago = useTimeAgoIntl(() => props.summary?.lastRanAt ?? new Date(0), { locale: locale.value })
 
-const runTone: ComputedRef<StatusTone> = computed<StatusTone>(() => {
+const runTone = computed<StatusTone>(() => {
   if (props.summary?.lastRuntimeError) return 'bad'
+
   return props.summary?.lastRanAt ? 'ok' : 'off'
 })
 const runTitle: ComputedRef<string> = computed<string>(() => {
   if (props.summary?.lastRuntimeError) return t('dashboard.scripts.detail.runFailed')
   if (!props.summary?.lastRanAt) return t('dashboard.scripts.list.neverRun')
+
   return t('dashboard.scripts.detail.runWorked', { when: ago.value })
 })
 
@@ -87,6 +89,7 @@ function toggle(isEnabled: boolean): void {
 
 async function test(trigger: TestTrigger | null): Promise<void> {
   const done = await tester.run(trigger)
+
   if (!done) return
   emit('ran', {
     scriptId: props.scriptId,
@@ -97,7 +100,7 @@ async function test(trigger: TestTrigger | null): Promise<void> {
   })
 }
 
-const confirmOpen: Ref<boolean> = ref(false)
+const confirmOpen = ref(false)
 const consequences: Ref<string[]> = ref([])
 const deleteError: Ref<string | undefined> = ref(undefined)
 
@@ -119,11 +122,13 @@ function blastLines(blast: BlastRadius): string[] {
         },
       ),
     )
+
   return lines.length > 0 ? lines : [t('dashboard.scripts.delete.nothing')]
 }
 
 async function askDelete(): Promise<void> {
   deleteError.value = undefined
+
   try {
     consequences.value = blastLines(await fetchBlastRadius(props.scriptId))
     confirmOpen.value = true

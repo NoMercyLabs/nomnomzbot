@@ -51,20 +51,30 @@ const blockedRow = (id: string, title: string): Record<string, unknown> => ({
 })
 
 function write(method: string, path: string, options?: Options): Answer {
-  calls.push({ method, path, blockedTrackId: options?.params?.path?.blockedTrackId, body: options?.body })
+  calls.push({
+    method,
+    path,
+    blockedTrackId: options?.params?.path?.blockedTrackId,
+    body: options?.body,
+  })
   if (method === 'PUT') config = { ...config, ...(options?.body as Record<string, unknown>) }
-  if (method === 'DELETE') blocked = blocked.filter((row) => row.id !== options?.params?.path?.blockedTrackId)
+  if (method === 'DELETE')
+    blocked = blocked.filter((row) => row.id !== options?.params?.path?.blockedTrackId)
+
   if (method === 'POST') {
     const body = options?.body as Record<string, unknown>
+
     blocked = [...blocked, { ...blockedRow(String(body.trackUri), String(body.title)), ...body }]
   }
+
   return method === 'PUT' ? ok(config) : { response: { status: 200, ok: true } }
 }
 
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string) => (path.endsWith('/music/config') ? ok(config) : ok(blocked.map((row) => ({ ...row })))),
+    GET: async (path: string) =>
+      path.endsWith('/music/config') ? ok(config) : ok(blocked.map((row) => ({ ...row }))),
     PUT: async (path: string, options?: Options) => write('PUT', path, options),
     POST: async (path: string, options?: Options) => write('POST', path, options),
     DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
@@ -77,6 +87,7 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
+
 beforeEach(() => {
   calls.length = 0
   config = baseConfig()
@@ -102,7 +113,14 @@ async function open(): Promise<void> {
   mounted = mount(RulesPanel, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await settle()
@@ -113,9 +131,13 @@ const buttonIn = (label: string): HTMLButtonElement =>
     (b) => b.textContent?.trim() === label || b.getAttribute('aria-label') === label,
   ) as HTMLButtonElement
 const radio = (value: string): HTMLButtonElement =>
-  document.body.querySelector<HTMLButtonElement>(`[data-slot="radio-group-item"][value="${value}"]`) as HTMLButtonElement
+  document.body.querySelector<HTMLButtonElement>(
+    `[data-slot="radio-group-item"][value="${value}"]`,
+  ) as HTMLButtonElement
 const perPerson = (): HTMLInputElement =>
-  document.body.querySelector<HTMLInputElement>('input[name="songs-per-person"]') as HTMLInputElement
+  document.body.querySelector<HTMLInputElement>(
+    'input[name="songs-per-person"]',
+  ) as HTMLInputElement
 const puts = (): Call[] => calls.filter((call) => call.method === 'PUT')
 
 describe('RulesPanel', () => {
@@ -125,7 +147,8 @@ describe('RulesPanel', () => {
     expect(radio('moderators').getAttribute('aria-checked')).toBe('true')
     expect(radio('everyone').getAttribute('aria-checked')).toBe('false')
     expect(perPerson().value).toBe('1')
-    const text: string = document.body.textContent ?? ''
+    const text = document.body.textContent ?? ''
+
     expect(text).toContain('Never Gonna Give You Up')
     expect(text).toContain('Baby Shark')
     expect(text).toContain('Not available yet')
@@ -193,14 +216,20 @@ describe('RulesPanel', () => {
     expect(calls[0]!.path.endsWith('/music/blocked-tracks/{blockedTrackId}')).toBe(true)
     expect(calls[0]!.blockedTrackId).toBe('b2')
     expect(document.body.querySelectorAll('[data-blocked-item]')).toHaveLength(1)
-    expect(document.body.querySelector('[data-blocked-item]')?.textContent).toContain('Never Gonna Give You Up')
+    expect(document.body.querySelector('[data-blocked-item]')?.textContent).toContain(
+      'Never Gonna Give You Up',
+    )
 
     buttonIn('Undo').click()
     await settle()
 
     expect(calls[1]!.method).toBe('POST')
     expect(calls[1]!.path.endsWith('/music/blocked-tracks')).toBe(true)
-    expect(calls[1]!.body).toEqual({ provider: 'spotify', trackUri: 'spotify:track:b2', title: 'Baby Shark' })
+    expect(calls[1]!.body).toEqual({
+      provider: 'spotify',
+      trackUri: 'spotify:track:b2',
+      title: 'Baby Shark',
+    })
     expect(document.body.querySelectorAll('[data-blocked-item]')).toHaveLength(2)
   })
 
@@ -215,6 +244,8 @@ describe('RulesPanel', () => {
     config = null
     await open()
 
-    expect(document.body.querySelector('[data-slot="panel-empty"]')?.textContent).toContain('Not available yet')
+    expect(document.body.querySelector('[data-slot="panel-empty"]')?.textContent).toContain(
+      'Not available yet',
+    )
   })
 })

@@ -39,8 +39,14 @@ import { usePanelState } from '@/composables/usePanelState'
 type Draft = { minTrustLevel: string; perPerson: number }
 
 // The values the bot accepts for minTrustLevel (MusicService.ParseMinTrustLevel); anything else means everyone.
-const trustLevels: readonly string[] = ['everyone', 'subscribers', 'vip', 'moderators', 'broadcaster']
-const perPersonId: string = useId()
+const trustLevels: readonly string[] = [
+  'everyone',
+  'subscribers',
+  'vip',
+  'moderators',
+  'broadcaster',
+]
+const perPersonId = useId()
 
 const { t } = useI18n()
 const { channelId } = useCurrentChannel()
@@ -57,6 +63,7 @@ function draftOf(config: MusicConfig): Draft {
 }
 
 const draft: Ref<Draft | null> = ref<Draft | null>(null)
+
 watch(
   () => configQuery.data.value,
   (config: MusicConfig | null | undefined) => {
@@ -66,29 +73,36 @@ watch(
 )
 
 const change: ComputedRef<MusicConfigChange> = computed<MusicConfigChange>(() => {
-  const config: MusicConfig | null | undefined = configQuery.data.value
-  const edits: Draft | null = draft.value
+  const config = configQuery.data.value
+  const edits = draft.value
+
   if (!config || !edits) return {}
   const result: MusicConfigChange = {}
+
   if (edits.minTrustLevel !== config.minTrustLevel) result.minTrustLevel = edits.minTrustLevel
   if (edits.perPerson !== draftOf(config).perPerson) result.maxRequestsPerUser = edits.perPerson
+
   return result
 })
-const valid: ComputedRef<boolean> = computed<boolean>(
-  () => draft.value === null || (Number.isInteger(draft.value.perPerson) && draft.value.perPerson >= 1),
+const valid = computed<boolean>(
+  () =>
+    draft.value === null || (Number.isInteger(draft.value.perPerson) && draft.value.perPerson >= 1),
 )
-const dirty: ComputedRef<boolean> = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0)
+const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0)
 
 function saveRules(): void {
   if (dirty.value) save.mutate(change.value)
 }
 
 function discard(): void {
-  const config: MusicConfig | null | undefined = configQuery.data.value
+  const config = configQuery.data.value
+
   draft.value = config ? draftOf(config) : null
 }
 
-const blocked: ComputedRef<BlockedTrack[]> = computed<BlockedTrack[]>(() => blockedQuery.data.value ?? [])
+const blocked: ComputedRef<BlockedTrack[]> = computed<BlockedTrack[]>(
+  () => blockedQuery.data.value ?? [],
+)
 
 // Allow takes the row out at once; the notice below keeps the song for a short window so Undo can block it again.
 const allowed: Ref<BlockedTrack | null> = ref<BlockedTrack | null>(null)
@@ -107,20 +121,27 @@ function allow(track: BlockedTrack): void {
 }
 
 function undoAllow(): void {
-  const track: BlockedTrack | null = allowed.value
+  const track = allowed.value
+
   if (track === null) return
   undoWindow.stop()
   allowed.value = null
-  const body: BlockTrack = { provider: track.provider, trackUri: track.trackUri, title: track.title }
+  const body: BlockTrack = {
+    provider: track.provider,
+    trackUri: track.trackUri,
+    title: track.title,
+  }
+
   if (track.reason) body.reason = track.reason
   if (track.blockedByUserId) body.blockedByUserId = track.blockedByUserId
   block.mutate(body)
 }
 
-const missing: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() =>
-  ['cost', 'length', 'words'].map(
-    (key: string): KeyValueItem => ({ label: t(`dashboard.music.rules.missing.${key}`), reason: t('dashboard.music.rules.notYet') }),
-  ),
+const missing = computed<KeyValueItem[]>(() =>
+  ['cost', 'length', 'words'].map((key: string): KeyValueItem => ({
+    label: t(`dashboard.music.rules.missing.${key}`),
+    reason: t('dashboard.music.rules.notYet'),
+  })),
 )
 </script>
 
@@ -146,8 +167,12 @@ const missing: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() =>
       </section>
       <div class="flex items-center gap-3">
         <span class="min-w-0 flex-1">
-          <label :for="perPersonId" class="block text-sm font-medium">{{ $t('dashboard.music.rules.perPerson') }}</label>
-          <span class="block text-sm text-muted-foreground">{{ $t('dashboard.music.rules.perPersonHelp') }}</span>
+          <label :for="perPersonId" class="block text-sm font-medium">{{
+            $t('dashboard.music.rules.perPerson')
+          }}</label>
+          <span class="block text-sm text-muted-foreground">{{
+            $t('dashboard.music.rules.perPersonHelp')
+          }}</span>
         </span>
         <Input
           :id="perPersonId"
@@ -165,11 +190,20 @@ const missing: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() =>
         <p v-if="blockedQuery.isError.value" role="alert" class="text-sm text-destructive">
           {{ $t('dashboard.music.rules.blockedError') }}
         </p>
-        <p v-else-if="!blockedQuery.isPending.value && blocked.length === 0" class="text-sm text-muted-foreground">
+        <p
+          v-else-if="!blockedQuery.isPending.value && blocked.length === 0"
+          class="text-sm text-muted-foreground"
+        >
           {{ $t('dashboard.music.rules.blockedEmpty') }}
         </p>
         <RowGroup v-if="blocked.length > 0">
-          <SummaryRow v-for="track in blocked" :key="track.id" :title="track.title" :detail="track.reason ?? undefined" data-blocked-item>
+          <SummaryRow
+            v-for="track in blocked"
+            :key="track.id"
+            :title="track.title"
+            :detail="track.reason ?? undefined"
+            data-blocked-item
+          >
             <template #trailing>
               <Button
                 variant="outline"
@@ -183,15 +217,23 @@ const missing: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() =>
           </SummaryRow>
         </RowGroup>
         <p v-if="allowed" role="status" class="flex items-center gap-2 text-sm">
-          <span class="min-w-0 flex-1">{{ $t('dashboard.music.rules.allowed', { title: allowed.title }) }}</span>
-          <Button variant="outline" size="sm" @click="undoAllow">{{ $t('common.flow.undo') }}</Button>
+          <span class="min-w-0 flex-1">{{
+            $t('dashboard.music.rules.allowed', { title: allowed.title })
+          }}</span>
+          <Button variant="outline" size="sm" @click="undoAllow">{{
+            $t('common.flow.undo')
+          }}</Button>
         </p>
       </section>
       <KeyValueList :items="missing" />
     </div>
     <template v-if="state === 'ready'" #footer>
-      <Button variant="outline" size="sm" :disabled="!dirty" @click="discard">{{ $t('dashboard.music.rules.discard') }}</Button>
-      <Button size="sm" :disabled="!dirty" @click="saveRules">{{ $t('dashboard.music.rules.save') }}</Button>
+      <Button variant="outline" size="sm" :disabled="!dirty" @click="discard">{{
+        $t('dashboard.music.rules.discard')
+      }}</Button>
+      <Button size="sm" :disabled="!dirty" @click="saveRules">{{
+        $t('dashboard.music.rules.save')
+      }}</Button>
     </template>
   </PanelCard>
 </template>

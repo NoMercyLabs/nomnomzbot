@@ -23,7 +23,9 @@ Two isolation choices:
 
 1. **The exact slice** — start and finish, the files it owns, and nothing else.
 2. **Explicit types, never `var`.** `.editorconfig` flags IDE0008 as an **error**. This has been
-   silently violated before; it goes in every C#-writing brief, verbatim.
+   silently violated before; it goes in every C#-writing brief, verbatim. **C# only:** a dashboard
+   (TypeScript/Vue) brief says the opposite: no annotation the value already has, constant tables
+   as `as const satisfies`, and `eslint --fix` before the gate.
 3. **The license header** for every new source file (AGPL-3.0, NoMercy Labs).
 4. **For any brief that writes UI: "load the `sleak` skill before writing the screen", verbatim.**
    Then name the three rules the agent will be judged against, because an agent that only reads

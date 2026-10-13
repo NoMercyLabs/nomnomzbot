@@ -41,7 +41,7 @@ const http = vi.hoisted(() => ({
 
 vi.mock('../client', () => ({ client: http }))
 
-const ok: Answer['response'] = { ok: true, status: 200 }
+const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
 
 const tenant = (id: string, status: string): Record<string, unknown> => ({
@@ -63,11 +63,14 @@ function mount<T>(
   const app: App = createApp({
     setup() {
       hook = use()
+
       return () => null
     },
   })
+
   app.use(VueQueryPlugin, { queryClient: queries })
   app.mount(document.createElement('div'))
+
   return { queries, hook }
 }
 
@@ -90,8 +93,10 @@ describe('useAdminTenants', () => {
       take: 50,
     }
     const { hook, queries } = mount(() => useAdminTenants(params))
+
     await settle()
-    const call: Call = http.GET.mock.calls[0] as Call
+    const call = http.GET.mock.calls[0] as Call
+
     expect(call[0]).toBe('/api/v{version}/admin/tenants')
     expect(call[1].params?.query).toEqual({
       search: 'ste',
@@ -116,6 +121,7 @@ describe('useAdminTenants', () => {
     http.GET.mockResolvedValueOnce({ data: { data: [tenant('b', 'active')] }, response: ok })
     const params = ref<AdminTenantsParams>({ page: 1, take: 25 })
     const { hook } = mount(() => useAdminTenants(params))
+
     await settle()
     params.value = { page: 2, take: 25 }
     await Promise.resolve()
@@ -128,6 +134,7 @@ describe('useAdminTenants', () => {
   it('turns a refusal into an error state, not an empty list', async () => {
     http.GET.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 403 } })
     const { hook } = mount(() => useAdminTenants({ page: 1, take: 25 }))
+
     await settle()
     expect(hook.isError.value).toBe(true)
     expect(hook.error.value?.message).toBe('admin tenants 403')
@@ -139,8 +146,10 @@ describe('useAdminTenant', () => {
   it('reads the detail by id and caches it under the detail key', async () => {
     http.GET.mockResolvedValue({ data: { data: { id: 'a', status: 'active' } }, response: ok })
     const { hook, queries } = mount(() => useAdminTenant('a'))
+
     await settle()
-    const call: Call = http.GET.mock.calls[0] as Call
+    const call = http.GET.mock.calls[0] as Call
+
     expect(call[0]).toBe('/api/v{version}/admin/tenants/{broadcasterId}')
     expect(call[1].params?.path).toEqual({ version: '1', broadcasterId: 'a' })
     expect(hook.data.value).toEqual({ id: 'a', status: 'active' })
@@ -157,14 +166,17 @@ describe('useAdminTenant', () => {
 describe('useAdminSuspend', () => {
   it('posts newStatus and reason, then marks the detail and every list page stale', async () => {
     http.POST.mockResolvedValue({ data: { status: 'success' }, response: ok })
-    const queries: QueryClient = new QueryClient()
+    const queries = new QueryClient()
     const page: AdminTenantsParams = { page: 1, take: 25 }
+
     queries.setQueryData(adminTenantKey('a'), { id: 'a' })
     queries.setQueryData(adminTenantsKey(page), { data: [] })
     queries.setQueryData(adminTenantKey('b'), { id: 'b' })
     const { hook } = mount(() => useAdminSuspend(), queries)
+
     await hook.mutateAsync({ broadcasterId: 'a', newStatus: 'Suspended', reason: 'abuse' })
-    const call: Call = http.POST.mock.calls[0] as Call
+    const call = http.POST.mock.calls[0] as Call
+
     expect(call[0]).toBe('/api/v{version}/admin/tenants/{broadcasterId}/suspend')
     expect(call[1].params?.path).toEqual({ version: '1', broadcasterId: 'a' })
     expect(call[1].body).toEqual({ newStatus: 'Suspended', reason: 'abuse' })
@@ -178,11 +190,13 @@ describe('useAdminSuspend', () => {
       error: { status: 'error' },
       response: { ok: false, status: 409 },
     })
-    const queries: QueryClient = new QueryClient()
+    const queries = new QueryClient()
     const page: AdminTenantsParams = { page: 1, take: 25 }
+
     queries.setQueryData(adminTenantKey('a'), { id: 'a' })
     queries.setQueryData(adminTenantsKey(page), { data: [] })
     const { hook } = mount(() => useAdminSuspend(), queries)
+
     await expect(
       hook.mutateAsync({ broadcasterId: 'a', newStatus: 'Suspended', reason: 'abuse' }),
     ).rejects.toThrow('suspend failed')
@@ -194,13 +208,16 @@ describe('useAdminSuspend', () => {
 describe('useAdminReinstate', () => {
   it('posts only the justification, then marks the detail and the lists stale', async () => {
     http.POST.mockResolvedValue({ data: { status: 'success' }, response: ok })
-    const queries: QueryClient = new QueryClient()
+    const queries = new QueryClient()
     const page: AdminTenantsParams = { page: 1, take: 25 }
+
     queries.setQueryData(adminTenantKey('a'), { id: 'a' })
     queries.setQueryData(adminTenantsKey(page), { data: [] })
     const { hook } = mount(() => useAdminReinstate(), queries)
+
     await hook.mutateAsync({ broadcasterId: 'a', justification: 'appeal won' })
-    const call: Call = http.POST.mock.calls[0] as Call
+    const call = http.POST.mock.calls[0] as Call
+
     expect(call[0]).toBe('/api/v{version}/admin/tenants/{broadcasterId}/reinstate')
     expect(call[1].body).toEqual({ justification: 'appeal won' })
     expect(queries.getQueryState(adminTenantKey('a'))?.isInvalidated).toBe(true)
@@ -212,9 +229,11 @@ describe('useAdminReinstate', () => {
       error: { status: 'error' },
       response: { ok: false, status: 500 },
     })
-    const queries: QueryClient = new QueryClient()
+    const queries = new QueryClient()
+
     queries.setQueryData(adminTenantKey('a'), { id: 'a' })
     const { hook } = mount(() => useAdminReinstate(), queries)
+
     await expect(hook.mutateAsync({ broadcasterId: 'a', justification: 'x' })).rejects.toThrow(
       'reinstate failed',
     )
@@ -235,7 +254,8 @@ describe('useAdminBeginAccess', () => {
       breakGlass: false,
       expiresAt: null,
     })
-    const call: Call = http.POST.mock.calls[0] as Call
+    const call = http.POST.mock.calls[0] as Call
+
     expect(call[0]).toBe('/api/v{version}/admin/tenants/{broadcasterId}/access')
     expect(call[1].body).toEqual({ justification: 'ticket 4', breakGlass: false, expiresAt: null })
     expect(grant).toEqual({ id: 'g1', targetBroadcasterId: 'a' })
@@ -254,7 +274,8 @@ describe('useAdminImpersonate', () => {
       accessGrantId: 'g1',
       justification: 'repro',
     })
-    const call: Call = http.POST.mock.calls[0] as Call
+    const call = http.POST.mock.calls[0] as Call
+
     expect(call[0]).toBe('/api/v{version}/admin/users/{userId}/impersonate')
     expect(call[1].params?.path).toEqual({ version: '1', userId: 'u1' })
     expect(call[1].body).toEqual({ accessGrantId: 'g1', justification: 'repro' })
@@ -267,6 +288,7 @@ describe('useAdminImpersonate', () => {
       response: { ok: false, status: 403 },
     })
     const { hook } = mount(() => useAdminImpersonate())
+
     await expect(
       hook.mutateAsync({ userId: 'u1', accessGrantId: 'g1', justification: 'repro' }),
     ).rejects.toThrow('impersonate failed')

@@ -18,21 +18,27 @@ const status = { onboardingComplete: true, checks: {} }
 type Answer = 'json' | 'cors' | 'down' | 'silent'
 
 // "cors": the bot answers, but the browser hides the answer because the bot does not allow this page.
-function stubBot(answer: Answer): Array<{ url: string; mode: string; authorization: string | null }> {
+function stubBot(
+  answer: Answer,
+): Array<{ url: string; mode: string; authorization: string | null }> {
   const seen: Array<{ url: string; mode: string; authorization: string | null }> = []
+
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: Request | string, init?: RequestInit) => {
-      const request: Request = typeof input === 'string' ? new Request(input, init) : input
+      const request = typeof input === 'string' ? new Request(input, init) : input
       const mode: string = init?.mode ?? 'cors'
+
       seen.push({ url: request.url, mode, authorization: request.headers.get('Authorization') })
       if (answer === 'down') throw new TypeError('Failed to fetch')
       if (answer === 'silent') throw new DOMException('The operation timed out.', 'TimeoutError')
       if (answer === 'cors' && mode !== 'no-cors') throw new TypeError('Failed to fetch')
       if (mode === 'no-cors') return new Response(null, { status: 200 })
+
       return new Response(JSON.stringify({ data: status }), { status: 200 })
     }),
   )
+
   return seen
 }
 
@@ -44,8 +50,13 @@ describe('probeBot', () => {
   it('reads the status of a bot that allows this page, without sending a token', async () => {
     const seen = stubBot('json')
 
-    expect(await probeBot(bot, 'http://localhost:5090')).toEqual({ state: 'ready', onboardingComplete: true })
-    expect(seen).toEqual([{ url: `${bot}/api/v1/system/status`, mode: 'cors', authorization: null }])
+    expect(await probeBot(bot, 'http://localhost:5090')).toEqual({
+      state: 'ready',
+      onboardingComplete: true,
+    })
+    expect(seen).toEqual([
+      { url: `${bot}/api/v1/system/status`, mode: 'cors', authorization: null },
+    ])
   })
 
   it('reports a bot that answers but does not allow this page', async () => {

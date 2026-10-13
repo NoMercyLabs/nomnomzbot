@@ -21,21 +21,33 @@ const version = '1'
 const pageSize = 100
 const maxPages = 100
 
-export const pipelinesKey = (channelId: string | null): unknown[] => ['channels', channelId, 'pipelines']
+export const pipelinesKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'pipelines',
+]
 
 async function readPipelines(channelId: string): Promise<PipelineListItem[]> {
   const rows: PipelineListItem[] = []
+
   for (let page = 1; page <= maxPages; page += 1) {
-    const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/pipelines', {
-      params: { path: { version, channelId }, query: { Page: page, PageSize: pageSize } },
-    })
+    const { data, error, response } = await client.GET(
+      '/api/v{version}/channels/{channelId}/pipelines',
+      {
+        params: { path: { version, channelId }, query: { Page: page, PageSize: pageSize } },
+      },
+    )
+
     if (error !== undefined) throw failed('pipelines', response.status)
     rows.push(...(data?.data ?? []))
     if (data?.hasMore !== true) break
   }
+
   return rows
 }
 
-export function usePipelines(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<PipelineListItem[], Error> {
+export function usePipelines(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PipelineListItem[], Error> {
   return channelQuery(channelId, pipelinesKey, readPipelines)
 }

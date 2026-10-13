@@ -48,7 +48,7 @@ const http = vi.hoisted(() => ({
 
 vi.mock('../client', () => ({ client: http }))
 
-const ok: Answer['response'] = { ok: true, status: 200, headers: new Headers() }
+const ok = { ok: true, status: 200, headers: new Headers() } as const satisfies Answer['response']
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
 
 function row(id: string, isEnabled: boolean): CodeScriptSummary {
@@ -73,17 +73,21 @@ function mount<T>(use: () => T): {
 } {
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const pinia = createPinia()
+
   setActivePinia(pinia)
   let hook!: T
   const app: App = createApp({
     setup() {
       hook = use()
+
       return () => null
     },
   })
+
   app.use(pinia)
   app.use(VueQueryPlugin, { queryClient: queries })
   app.mount(document.createElement('div'))
+
   return { queries, hook, inbox: useSaveErrorsStore() }
 }
 
@@ -121,16 +125,19 @@ describe('fetchCodeScripts', () => {
 describe('useSetScriptEnabled', () => {
   it('flips the row at once and sends PATCH with the id and the new state', async () => {
     let finish: (answer: Answer) => void = () => {}
+
     http.PATCH.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
     http.GET.mockResolvedValue({ data: { data: [row('a', false), row('b', true)] }, response: ok })
     const { queries, hook } = mount(() => useSetScriptEnabled())
+
     queries.setQueryData(codeScriptsKey, [row('a', false), row('b', false)])
 
     const flip: Promise<unknown> = hook.mutateAsync({ id: 'b', isEnabled: true })
+
     await settle()
 
-    const during: CodeScriptSummary[] | undefined =
-      queries.getQueryData<CodeScriptSummary[]>(codeScriptsKey)
+    const during = queries.getQueryData<CodeScriptSummary[]>(codeScriptsKey)
+
     expect(during?.map((script: CodeScriptSummary) => [script.id, script.isEnabled])).toEqual([
       ['a', false],
       ['b', true],
@@ -139,6 +146,7 @@ describe('useSetScriptEnabled', () => {
       string,
       { params: { path: Record<string, unknown> }; body: unknown },
     ]
+
     expect(path).toBe('/api/v{version}/code-scripts/{id}/enabled')
     expect(init.params.path).toEqual({ version: '1', id: 'b' })
     expect(init.body).toEqual({ isEnabled: true })
@@ -153,6 +161,7 @@ describe('useSetScriptEnabled', () => {
       response: { ok: false, status: 403, headers: new Headers() },
     })
     const { queries, hook, inbox } = mount(() => useSetScriptEnabled())
+
     queries.setQueryData(codeScriptsKey, [row('a', false)])
 
     await expect(hook.mutateAsync({ id: 'a', isEnabled: true })).rejects.toThrow('no')
@@ -165,6 +174,7 @@ describe('useSetScriptEnabled', () => {
     http.PATCH.mockResolvedValue({ response: ok })
     http.GET.mockResolvedValue({ data: { data: [row('a', true)] }, response: ok })
     const { queries, hook } = mount(() => useSetScriptEnabled())
+
     queries.setQueryData(codeScriptsKey, [row('a', false)])
     queries.setQueryData(codeScriptKey('a'), { id: 'a', isEnabled: false })
 
@@ -178,6 +188,7 @@ describe('useCreateCodeScript', () => {
   it('sends name, description and source, returns the new id and invalidates the list', async () => {
     http.POST.mockResolvedValue({ data: { data: { id: 'new1' } }, response: ok })
     const { queries, hook } = mount(() => useCreateCodeScript())
+
     queries.setQueryData(codeScriptsKey, [row('a', true)])
 
     const id: string | null = await hook.mutateAsync({
@@ -191,6 +202,7 @@ describe('useCreateCodeScript', () => {
       string,
       { params: { path: Record<string, unknown> }; body: unknown },
     ]
+
     expect(path).toBe('/api/v{version}/code-scripts')
     expect(init.body).toEqual({
       name: 'Greeter',
@@ -206,6 +218,7 @@ describe('useCreateCodeScript', () => {
       response: { ok: false, status: 400, headers: new Headers() },
     })
     const { queries, hook } = mount(() => useCreateCodeScript())
+
     queries.setQueryData(codeScriptsKey, [row('a', true)])
 
     await expect(
@@ -231,21 +244,26 @@ describe('blast radius and delete', () => {
       string,
       { params: { path: Record<string, unknown> } },
     ]
+
     expect(path).toBe('/api/v{version}/code-scripts/{id}/blast-radius')
     expect(init.params.path).toEqual({ version: '1', id: 'a' })
   })
 
   it('asks for the blast radius before it deletes, then drops the list entry', async () => {
     const order: string[] = []
+
     http.GET.mockImplementation(async () => {
       order.push('blast')
+
       return { data: { data: radius }, response: ok }
     })
     http.DELETE.mockImplementation(async () => {
       order.push('delete')
+
       return { response: ok }
     })
     const { queries, hook } = mount(() => useDeleteCodeScript())
+
     queries.setQueryData(codeScriptsKey, [row('a', true)])
 
     await hook.mutateAsync('a')
@@ -255,6 +273,7 @@ describe('blast radius and delete', () => {
       string,
       { params: { path: Record<string, unknown> } },
     ]
+
     expect(path).toBe('/api/v{version}/code-scripts/{id}')
     expect(init.params.path).toEqual({ version: '1', id: 'a' })
     expect(queries.getQueryState(codeScriptsKey)?.isInvalidated).toBe(true)
@@ -266,6 +285,7 @@ describe('blast radius and delete', () => {
       response: { ok: false, status: 404, headers: new Headers() },
     })
     const { queries, hook } = mount(() => useDeleteCodeScript())
+
     queries.setQueryData(codeScriptsKey, [row('a', true)])
 
     await expect(hook.mutateAsync('a')).rejects.toThrow('Not found')
@@ -305,6 +325,7 @@ describe('runScriptTest', () => {
       { params: { path: Record<string, unknown> }; body: Record<string, unknown> },
     ]
     const [, unsaved] = http.POST.mock.calls[1] as [string, { body: Record<string, unknown> }]
+
     expect(path).toBe('/api/v{version}/code-scripts/{id}/test-run')
     expect(saved.params.path).toEqual({ version: '1', id: 'a' })
     expect(saved.body).toEqual({ variables: {}, args: [], trigger: 't1' })
@@ -415,6 +436,7 @@ describe('versions', () => {
       string,
       { params: { path: Record<string, unknown>; query: Record<string, unknown> } },
     ]
+
     expect(init.params.path).toEqual({ version: '1', id: 'a' })
     expect(init.params.query).toMatchObject({ Page: 1 })
   })
@@ -428,6 +450,7 @@ describe('versions', () => {
       string,
       { params: { path: Record<string, unknown> } },
     ]
+
     expect(path).toBe('/api/v{version}/code-scripts/{id}/versions/{versionId}/publish')
     expect(init.params.path).toEqual({ version: '1', id: 'a', versionId: 'v1' })
   })
@@ -439,6 +462,7 @@ describe('versions', () => {
       string,
       { params: { path: Record<string, unknown> } },
     ]
+
     expect(path).toBe('/api/v{version}/code-scripts/{id}/versions/{versionId}')
     expect(init.params.path).toEqual({ version: '1', id: 'a', versionId: 'v1' })
 

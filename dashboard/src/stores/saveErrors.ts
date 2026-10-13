@@ -23,7 +23,12 @@ export const useSaveErrorsStore = defineStore('saveErrors', () => {
   const items: Ref<SaveError[]> = ref([])
 
   function report(titleKey: string, messageKey: string): void {
-    items.value.push({ id: crypto.randomUUID(), titleKey, messageKey, detectedAt: new Date().toISOString() })
+    items.value.push({
+      id: crypto.randomUUID(),
+      titleKey,
+      messageKey,
+      detectedAt: new Date().toISOString(),
+    })
   }
 
   function dismiss(id: string): void {

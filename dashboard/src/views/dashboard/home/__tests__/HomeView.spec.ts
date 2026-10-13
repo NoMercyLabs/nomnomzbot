@@ -128,7 +128,8 @@ function freshAnswers(): Record<string, () => Answer> {
 
 function answer(method: string, path: string, options: Options | undefined): Answer {
   calls.push({ method, path, body: options?.body })
-  const match: string | undefined = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+
   return match ? answers[match]!() : ok(null)
 }
 
@@ -140,7 +141,9 @@ vi.mock('@/api/client', () => ({
       calls.push({ method: 'POST', path, body: options?.body })
       if (resolveFails) return refused()
       const itemId: unknown = options?.params?.path?.queueItemId
+
       queue = queue.filter((item) => item.id !== itemId)
+
       return { response: { status: 200, ok: true } }
     },
   },
@@ -175,6 +178,7 @@ afterEach(() => {
 
 function makeRouter(): Router {
   const blank = { template: '<div />' }
+
   return createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -186,7 +190,8 @@ function makeRouter(): Router {
 }
 
 async function open(): Promise<void> {
-  const router: Router = makeRouter()
+  const router = makeRouter()
+
   await router.push('/app')
   mounted = mount(HomeView, {
     attachTo: document.body,
@@ -251,6 +256,7 @@ describe('HomeView', () => {
       data: JSON.stringify(data),
       timestamp: '2026-10-10T21:15:00',
     })
+
     answers['/activity'] = () =>
       ok([
         at('channel.subscription.end', 'night_light90', { tier: '1000', isGift: true }),
@@ -264,7 +270,8 @@ describe('HomeView', () => {
     const rows: HTMLElement[] = [
       ...panel('Happening now').querySelectorAll<HTMLElement>('[data-activity-row]'),
     ]
-    const lines: string[] = rows.map((row) => row.textContent ?? '')
+    const lines = rows.map((row) => row.textContent ?? '')
+
     expect(lines[0]).toContain('night_light90')
     expect(lines[0]).toContain('Gift sub ended · tier 1')
     expect(lines[0]).toMatch(/Sat,? 21:15/)
@@ -360,7 +367,7 @@ describe('HomeView', () => {
 
   it('shows each connection as it is: connected, not connected, or needing a new sign-in', async () => {
     await open()
-    const connections: string = panel('Connections').textContent ?? ''
+    const connections = panel('Connections').textContent ?? ''
 
     expect(connections).toContain('Stoney_Eagle')
     expect(connections).toContain('Not connected')

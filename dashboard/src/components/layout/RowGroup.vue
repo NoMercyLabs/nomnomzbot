@@ -13,7 +13,9 @@
 </script>
 
 <template>
-  <div class="rounded-[12px] border border-border bg-muted p-1 [&>*+*]:border-t [&>*+*]:border-foreground/10">
+  <div
+    class="rounded-[12px] border border-border bg-muted p-1 [&>*+*]:border-t [&>*+*]:border-foreground/10"
+  >
     <slot />
   </div>
 </template>

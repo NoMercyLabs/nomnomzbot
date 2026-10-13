@@ -16,6 +16,10 @@ import pluginVitest from '@vitest/eslint-plugin'
 import pluginOxlint from 'eslint-plugin-oxlint'
 import pluginVueI18n from '@intlify/eslint-plugin-vue-i18n'
 import skipFormatting from 'eslint-config-prettier/flat'
+import pluginUnusedImports from 'eslint-plugin-unused-imports'
+import pluginStylistic from '@stylistic/eslint-plugin'
+
+import { noRedundantTypeAnnotation } from './eslint-rules/no-redundant-type-annotation'
 
 // To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
 // import { configureVueProject } from '@vue/eslint-config-typescript'
@@ -98,7 +102,58 @@ export default defineConfigWithVueTs(
     },
   },
 
+  {
+    // An unused import is deleted by `eslint --fix`, never by hand (owner 2026-10-13).
+    name: 'app/unused-imports',
+    files: ['src/**/*.{vue,ts}', 'e2e/**/*.ts', 'eslint-rules/**/*.ts'],
+    ignores: ['src/components/ui/**'],
+    plugins: { 'unused-imports': pluginUnusedImports },
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      'unused-imports/no-unused-imports': 'error',
+      'unused-imports/no-unused-vars': [
+        'error',
+        { vars: 'all', args: 'after-used', argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
+  },
+
+  {
+    // A local whose annotation repeats its value's type drops it (owner 2026-10-13).
+    name: 'app/no-redundant-type-annotation',
+    files: ['src/**/*.{vue,ts}'],
+    ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
+    languageOptions: {
+      parserOptions: { projectService: true, extraFileExtensions: ['.vue'] },
+    },
+    plugins: { app: { rules: { 'no-redundant-type-annotation': noRedundantTypeAnnotation } } },
+    rules: { 'app/no-redundant-type-annotation': 'error' },
+  },
+
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
   skipFormatting,
+
+  {
+    // A blank line sets apart each group of statements (owner 2026-10-13: "add some new lines
+    // in between things"). `eslint --fix` adds them; Prettier keeps them.
+    name: 'app/blank-lines',
+    files: ['src/**/*.{vue,ts}', 'e2e/**/*.ts', 'eslint-rules/**/*.ts'],
+    ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
+    plugins: { '@stylistic': pluginStylistic },
+    rules: {
+      '@stylistic/padding-line-between-statements': [
+        'error',
+        { blankLine: 'always', prev: '*', next: 'return' },
+        { blankLine: 'always', prev: ['const', 'let'], next: '*' },
+        { blankLine: 'any', prev: ['const', 'let'], next: ['const', 'let'] },
+        { blankLine: 'always', prev: 'multiline-block-like', next: '*' },
+        { blankLine: 'always', prev: '*', next: 'multiline-block-like' },
+        { blankLine: 'always', prev: 'import', next: '*' },
+        { blankLine: 'any', prev: 'import', next: 'import' },
+        { blankLine: 'always', prev: '*', next: ['function', 'class', 'export'] },
+        { blankLine: 'any', prev: 'export', next: 'export' },
+      ],
+    },
+  },
 )

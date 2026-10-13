@@ -17,10 +17,14 @@ import { client } from './client'
 export type TemplateHelper = components['schemas']['TemplateHelperDto']
 export type TemplateContext = 'command' | 'eventResponse' | 'timer'
 
-async function fetchHelpers(context: TemplateContext, eventType: string | undefined): Promise<TemplateHelper[]> {
+async function fetchHelpers(
+  context: TemplateContext,
+  eventType: string | undefined,
+): Promise<TemplateHelper[]> {
   const { data } = await client.GET('/api/v{version}/templates/helpers', {
     params: { path: { version: '1' }, query: { context, eventType } },
   })
+
   return [...(data?.data ?? [])]
 }
 
@@ -31,6 +35,7 @@ export function useTemplateHelpers(
 ): UseQueryReturnType<TemplateHelper[], Error> {
   const place = computed(() => toValue(context))
   const event = computed(() => toValue(eventType) ?? null)
+
   return useQuery({
     queryKey: ['templates', 'helpers', place, event],
     queryFn: () => fetchHelpers(place.value, event.value ?? undefined),

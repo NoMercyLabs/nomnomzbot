@@ -26,8 +26,9 @@ function pageLabelIds(): string[] {
     resolve(__dirname, '../../../../server/src/NomNomzBot.Api/Assets/editor/editor.js'),
     'utf8',
   )
-  const start: number = script.indexOf('const DEFAULT_LABELS = Object.freeze({')
-  const body: string = script.slice(start, script.indexOf('});', start))
+  const start = script.indexOf('const DEFAULT_LABELS = Object.freeze({')
+  const body = script.slice(start, script.indexOf('});', start))
+
   return [...body.matchAll(/^ {4}(\w+):/gm)].map((match) => match[1]!)
 }
 
@@ -37,25 +38,32 @@ function labelsFor(locale: 'en' | 'nl', withTestRun: boolean): Record<string, un
   const Probe = defineComponent({
     setup() {
       labels = useEditorLabels(() => withTestRun)
+
       return () => h('div')
     },
   })
+
   createApp(Probe).use(i18n).mount(document.createElement('div'))
+
   return labels!.value
 }
 
 describe('useEditorLabels', () => {
   it('has a non-empty word in English and Dutch for every label the page declares', () => {
-    const ids: string[] = pageLabelIds()
+    const ids = pageLabelIds()
+
     expect(ids.length).toBeGreaterThan(50)
+
     for (const locale of ['en', 'nl'] as const) {
-      const labels: Record<string, unknown> = labelsFor(locale, false)
+      const labels = labelsFor(locale, false)
+
       expect(ids.filter((id) => typeof labels[id] !== 'string' || labels[id] === '')).toEqual([])
     }
   })
 
   it('hands the placeholders back to the page untouched', () => {
     const labels: Record<string, unknown> = labelsFor('nl', false)
+
     expect(labels.fileExists).toBe('{path} bestaat al.')
     expect(labels.cursorPosition).toBe('Rg {line}, Kol {column}')
   })
@@ -63,6 +71,7 @@ describe('useEditorLabels', () => {
   it('adds the test run words only when a test run is wired', () => {
     expect(labelsFor('en', false).roles).toBeUndefined()
     const labels: Record<string, unknown> = labelsFor('en', true)
+
     expect(labels.manual).toBe('Manual')
     expect(labels.roles).toMatchObject({ broadcaster: 'Broadcaster', viewer: 'Viewer' })
   })

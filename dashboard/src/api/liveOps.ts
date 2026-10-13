@@ -46,7 +46,9 @@ export function usePolls(
         params: { path: { version, channelId: id } },
       },
     )
+
     if (error !== undefined) throw failed('polls', response.status)
+
     return [...(data?.data ?? [])]
   })
 }
@@ -62,7 +64,9 @@ export function usePredictions(
         params: { path: { version, channelId: id } },
       },
     )
+
     if (error !== undefined) throw failed('predictions', response.status)
+
     return [...(data?.data ?? [])]
   })
 }
@@ -78,7 +82,9 @@ export function useTimers(
         params: { path: { version, channelId: id }, query: { PageSize: timerPageSize } },
       },
     )
+
     if (error !== undefined) throw failed('timers', response.status)
+
     return [...(data?.data ?? [])]
   })
 }

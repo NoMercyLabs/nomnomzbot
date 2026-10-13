@@ -105,17 +105,17 @@ const monthSeries: ChartSeries[] = [
   { key: 'fresh', labelKey: 'dashboard.catalogue.chart.series.fresh', color: 'chart-3' },
 ]
 
-const ttsOn: Ref<boolean> = ref(true)
-const modsOn: Ref<boolean> = ref(false)
+const ttsOn = ref(true)
+const modsOn = ref(false)
 const stateFilter: RemovableRef<string> = useLocalStorage('nnz.catalogue.state', 'all')
 const sinceFilter: RemovableRef<string> = useLocalStorage('nnz.catalogue.since', 'week')
-const query: Ref<string> = ref('')
-const retries: Ref<number> = ref(0)
-const detailOpen: Ref<boolean> = ref(false)
-const confirmOpen: Ref<boolean> = ref(false)
-const confirmPending: Ref<boolean> = ref(false)
-const confirmed: Ref<number> = ref(0)
-const consequences: string[] = ['chat', 'pipeline', 'history'].map((key: string) =>
+const query = ref('')
+const retries = ref(0)
+const detailOpen = ref(false)
+const confirmOpen = ref(false)
+const confirmPending = ref(false)
+const confirmed = ref(0)
+const consequences = ['chat', 'pipeline', 'history'].map((key: string) =>
   t(`dashboard.catalogue.confirm.${key}`),
 )
 
@@ -124,19 +124,21 @@ const { channelId } = useCurrentChannel()
 const community = useCommunityFirstPage(channelId)
 const people: ComputedRef<CommunityRow[]> = computed(() => community.data.value ?? [])
 
-const formOpen: Ref<boolean> = ref(false)
+const formOpen = ref(false)
 
 // The code editor opens on the channel's first real script. Reading only: nothing saves until someone presses Save in it.
 type EditorSession = { id: string; name: string; project: ScriptProject; sdkTypes: string | null }
 const scripts = useCodeScripts()
 const editorSession: Ref<EditorSession | null> = ref(null)
-const editorMissing: Ref<boolean> = ref(false)
+const editorMissing = ref(false)
 
 async function openEditor(): Promise<void> {
   const first = scripts.data.value?.[0]
+
   editorMissing.value = first === undefined
   if (!first) return
-  const project: ScriptProject | null = await fetchScriptProject(first.id)
+  const project = await fetchScriptProject(first.id)
+
   if (!project) return
   editorSession.value = {
     id: first.id,
@@ -147,12 +149,15 @@ async function openEditor(): Promise<void> {
 }
 
 async function saveEditor(files: EditorFiles): Promise<CompileFeedback> {
-  const session: EditorSession | null = editorSession.value
+  const session = editorSession.value
+
   if (!session) return { ok: false, message: '' }
+
   return saveScriptProject(session.id, { ...session.project, files })
 }
-const formPending: Ref<boolean> = ref(false)
-const formName: Ref<string> = ref('')
+
+const formPending = ref(false)
+const formName = ref('')
 const formNameError: Ref<string | undefined> = ref(undefined)
 const formServerError: Ref<string | undefined> = ref(undefined)
 const formCreated: Ref<string[]> = ref([])
@@ -165,21 +170,24 @@ function submitForm(): void {
   formPending.value = true
   setTimeout(() => {
     formPending.value = false
+
     if (formName.value.trim() === 'so') {
       formServerError.value = t('dashboard.catalogue.form.nameTaken')
+
       return
     }
+
     formCreated.value.push(formName.value.trim())
     formName.value = ''
     formOpen.value = false
   }, 800)
 }
 
-const templateText: Ref<string> = ref('')
+const templateText = ref('')
 const templateField: Ref<InstanceType<typeof TemplateField> | null> = ref(null)
 
-const countdownTarget: Ref<number> = ref(Date.now() + 15_000)
-const countdownZeros: Ref<number> = ref(0)
+const countdownTarget = ref(Date.now() + 15_000)
+const countdownZeros = ref(0)
 
 function restartCountdown(): void {
   countdownTarget.value = Date.now() + 15_000
@@ -200,7 +208,8 @@ const demoRows: Ref<DemoRow[]> = ref(
 )
 
 function addDemoRow(): void {
-  const id: number = demoRows.value.length
+  const id = demoRows.value.length
+
   demoRows.value = [
     ...demoRows.value,
     { id, text: t('dashboard.catalogue.virtual.row', { number: id + 1 }) },

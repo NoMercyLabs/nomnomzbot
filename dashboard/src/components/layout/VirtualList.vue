@@ -35,8 +35,8 @@ const AT_BOTTOM_SLACK = 8
 const OVERSCAN = 8
 
 const scrollArea: Ref<HTMLElement | null> = ref(null)
-const atBottom: Ref<boolean> = ref(true)
-const newBelow: Ref<number> = ref(0)
+const atBottom = ref(true)
+const newBelow = ref(0)
 
 type Options = PartialKeys<
   VirtualizerOptions<HTMLElement, Element>,
@@ -65,7 +65,8 @@ function maxOffset(element: HTMLElement): number {
 }
 
 function onScroll(): void {
-  const element: HTMLElement | null = scrollArea.value
+  const element = scrollArea.value
+
   if (!element) return
   atBottom.value = maxOffset(element) - element.scrollTop <= AT_BOTTOM_SLACK
   if (atBottom.value) newBelow.value = 0
@@ -82,15 +83,19 @@ function jumpToBottom(): void {
 }
 
 function scrollBy(delta: number): void {
-  const element: HTMLElement | null = scrollArea.value
+  const element = scrollArea.value
+
   if (!element) return
-  virtualizer.value.scrollToOffset(Math.min(maxOffset(element), Math.max(0, element.scrollTop + delta)))
+  virtualizer.value.scrollToOffset(
+    Math.min(maxOffset(element), Math.max(0, element.scrollTop + delta)),
+  )
 }
 
 function onKey(event: KeyboardEvent): void {
-  const element: HTMLElement | null = scrollArea.value
+  const element = scrollArea.value
+
   if (!element || event.target !== element) return
-  const page: number = viewportHeight(element)
+  const page = viewportHeight(element)
   const moves: Record<string, () => void> = {
     ArrowDown: () => scrollBy(props.estimateSize),
     ArrowUp: () => scrollBy(-props.estimateSize),
@@ -99,7 +104,8 @@ function onKey(event: KeyboardEvent): void {
     Home: () => scrollBy(-element.scrollTop),
     End: () => scrollBy(maxOffset(element) - element.scrollTop),
   }
-  const move: (() => void) | undefined = moves[event.key]
+  const move = moves[event.key]
+
   if (!move) return
   event.preventDefault()
   move()
@@ -109,10 +115,13 @@ watch(
   () => props.items.length,
   async (count: number, before: number) => {
     if (!props.stick) return
+
     if (count <= before) {
       newBelow.value = 0
+
       return
     }
+
     if (atBottom.value) {
       await nextTick()
       scrollToBottom()
@@ -141,7 +150,11 @@ onMounted(async () => {
       @scroll.passive="onScroll"
       @keydown="onKey"
     >
-      <div role="list" class="relative w-full" :style="{ height: `${virtualizer.getTotalSize()}px` }">
+      <div
+        role="list"
+        class="relative w-full"
+        :style="{ height: `${virtualizer.getTotalSize()}px` }"
+      >
         <div
           v-for="row in virtualizer.getVirtualItems()"
           :key="String(row.key)"

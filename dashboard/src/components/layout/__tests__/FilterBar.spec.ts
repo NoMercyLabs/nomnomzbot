@@ -27,7 +27,8 @@ function bar(count: number, modelValue: string = 'v0'): VueWrapper {
 describe('the filter bar', () => {
   it('shows 2 to 4 options as a segmented control', () => {
     ;[2, 3, 4].forEach((count: number) => {
-      const wrapper: VueWrapper = bar(count)
+      const wrapper = bar(count)
+
       expect(wrapper.find('[data-slot="toggle-group"]').exists()).toBe(true)
       expect(wrapper.findAll('[data-slot="toggle-group-item"]')).toHaveLength(count)
       expect(wrapper.find('[data-slot="select-trigger"]').exists()).toBe(false)
@@ -35,7 +36,7 @@ describe('the filter bar', () => {
   })
 
   it('shows 5 or more options as a select that carries its label', () => {
-    const wrapper: VueWrapper = bar(5)
+    const wrapper = bar(5)
 
     expect(wrapper.find('[data-slot="toggle-group"]').exists()).toBe(false)
     expect(wrapper.find('[data-slot="select-trigger"]').text()).toContain('Status')

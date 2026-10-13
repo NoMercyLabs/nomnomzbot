@@ -77,11 +77,14 @@ function mount<T>(use: () => T): { queries: QueryClient; hook: T } {
   const app: App = createApp({
     setup() {
       hook = use()
+
       return () => null
     },
   })
+
   app.use(VueQueryPlugin, { queryClient: queries })
   app.mount(document.createElement('div'))
+
   return { queries, hook }
 }
 
@@ -111,14 +114,18 @@ describe('useTtsVoices', () => {
     })
 
     const { queries, hook } = mount(() => useTtsVoices('c1', { q: 'colette' }))
+
     await flushPromises()
 
     expect(http.GET).toHaveBeenCalledWith('/api/v{version}/channels/{channelId}/tts/voices', {
-      params: { path: { version: '1', channelId: 'c1' }, query: { q: 'colette', page: 1, pageSize: 200 } },
+      params: {
+        path: { version: '1', channelId: 'c1' },
+        query: { q: 'colette', page: 1, pageSize: 200 },
+      },
     })
-    expect(hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id))).toEqual([
-      'nl-NL-ColetteNeural',
-    ])
+    expect(
+      hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id)),
+    ).toEqual(['nl-NL-ColetteNeural'])
     expect(hook.hasNextPage.value).toBe(false)
     expect(queries.getQueryData(ttsVoicesKey('c1', { q: 'colette' }))).toEqual(hook.data.value)
   })
@@ -134,6 +141,7 @@ describe('useTtsVoices', () => {
     })
 
     const { hook } = mount(() => useTtsVoices('c1', { q: '' }))
+
     await flushPromises()
     expect(hook.hasNextPage.value).toBe(true)
 
@@ -143,10 +151,9 @@ describe('useTtsVoices', () => {
     expect(http.GET).toHaveBeenLastCalledWith('/api/v{version}/channels/{channelId}/tts/voices', {
       params: { path: { version: '1', channelId: 'c1' }, query: { page: 2, pageSize: 200 } },
     })
-    expect(hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id))).toEqual([
-      'en-US-AriaNeural',
-      'en-GB-SoniaNeural',
-    ])
+    expect(
+      hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id)),
+    ).toEqual(['en-US-AriaNeural', 'en-GB-SoniaNeural'])
     expect(hook.hasNextPage.value).toBe(false)
   })
 
@@ -154,6 +161,7 @@ describe('useTtsVoices', () => {
     http.GET.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 500 } })
 
     const { hook } = mount(() => useTtsVoices('c1', { q: '' }))
+
     await flushPromises()
 
     expect(hook.error.value?.message).toBe('tts voices 500')
@@ -163,10 +171,15 @@ describe('useTtsVoices', () => {
 describe('useSetTtsVoice', () => {
   it('sends the voice and its provider, drops the platform follow, and shows the pick at once', async () => {
     let release!: (answer: Answer) => void
+
     http.GET.mockResolvedValue({ data: { data: config }, response: { ok: true, status: 200 } })
     http.PUT.mockReturnValue(new Promise<Answer>((done) => (release = done)))
 
-    const { queries, hook } = mount(() => ({ config: useTtsConfig('c1'), save: useSetTtsVoice('c1') }))
+    const { queries, hook } = mount(() => ({
+      config: useTtsConfig('c1'),
+      save: useSetTtsVoice('c1'),
+    }))
+
     await flushPromises()
 
     hook.save.mutate({ voiceId: 'nl-NL-ColetteNeural', provider: 'edge' })
@@ -174,20 +187,38 @@ describe('useSetTtsVoice', () => {
 
     expect(http.PUT).toHaveBeenCalledWith('/api/v{version}/channels/{channelId}/tts/config', {
       params: { path: { version: '1', channelId: 'c1' } },
-      body: { defaultVoiceId: 'nl-NL-ColetteNeural', defaultProvider: 'edge', followPlatformDefaultVoice: false },
+      body: {
+        defaultVoiceId: 'nl-NL-ColetteNeural',
+        defaultProvider: 'edge',
+        followPlatformDefaultVoice: false,
+      },
     })
-    expect(queries.getQueryData<TtsConfig>(ttsConfigKey('c1'))?.defaultVoiceId).toBe('nl-NL-ColetteNeural')
+    expect(queries.getQueryData<TtsConfig>(ttsConfigKey('c1'))?.defaultVoiceId).toBe(
+      'nl-NL-ColetteNeural',
+    )
 
-    release({ data: { data: { ...config, defaultVoiceId: 'nl-NL-ColetteNeural' } }, response: { ok: true, status: 200 } })
+    release({
+      data: { data: { ...config, defaultVoiceId: 'nl-NL-ColetteNeural' } },
+      response: { ok: true, status: 200 },
+    })
     await flushPromises()
-    expect(queries.getQueryData<TtsConfig>(ttsConfigKey('c1'))?.defaultVoiceId).toBe('nl-NL-ColetteNeural')
+    expect(queries.getQueryData<TtsConfig>(ttsConfigKey('c1'))?.defaultVoiceId).toBe(
+      'nl-NL-ColetteNeural',
+    )
   })
 
   it('rolls the pick back to the old voice when the bot refuses the save', async () => {
     http.GET.mockResolvedValue({ data: { data: config }, response: { ok: true, status: 200 } })
-    http.PUT.mockResolvedValue({ error: { message: 'No such voice' }, response: { ok: false, status: 400 } })
+    http.PUT.mockResolvedValue({
+      error: { message: 'No such voice' },
+      response: { ok: false, status: 400 },
+    })
 
-    const { queries, hook } = mount(() => ({ config: useTtsConfig('c1'), save: useSetTtsVoice('c1') }))
+    const { queries, hook } = mount(() => ({
+      config: useTtsConfig('c1'),
+      save: useSetTtsVoice('c1'),
+    }))
+
     await flushPromises()
 
     hook.save.mutate({ voiceId: 'nl-NL-ColetteNeural', provider: 'edge' })
@@ -201,7 +232,14 @@ describe('useSetTtsVoice', () => {
 describe('useTtsSample', () => {
   it('asks the bot to speak a sample line in the chosen voice and returns the audio', async () => {
     http.POST.mockResolvedValue({
-      data: { data: { voiceId: 'nl-NL-ColetteNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' } },
+      data: {
+        data: {
+          voiceId: 'nl-NL-ColetteNeural',
+          provider: 'edge',
+          durationMs: 900,
+          audioBase64: 'QUJD',
+        },
+      },
       response: { ok: true, status: 200 },
     })
 
@@ -216,9 +254,15 @@ describe('useTtsSample', () => {
   })
 
   it('reports the bot reason when the sample is refused', async () => {
-    http.POST.mockResolvedValue({ error: { message: 'Provider not configured' }, response: { ok: false, status: 422 } })
+    http.POST.mockResolvedValue({
+      error: { message: 'Provider not configured' },
+      response: { ok: false, status: 422 },
+    })
 
     const { hook } = mount(() => useTtsSample('c1'))
-    await expect(hook.mutateAsync({ voiceId: 'x', text: 'Hi' })).rejects.toThrow('Provider not configured')
+
+    await expect(hook.mutateAsync({ voiceId: 'x', text: 'Hi' })).rejects.toThrow(
+      'Provider not configured',
+    )
   })
 })

@@ -12,7 +12,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query'
@@ -39,10 +38,22 @@ const historySize = 20
 // Twitch moves the next ad by this much per snooze.
 export const SNOOZE_SECONDS: number = 300
 
-export const streamInfoKey = (channelId: string | null): unknown[] => ['channels', channelId, 'stream']
-export const adScheduleKey = (channelId: string | null): unknown[] => ['channels', channelId, 'ad-schedule']
+export const streamInfoKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'stream',
+]
+export const adScheduleKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'ad-schedule',
+]
 
-export const streamHistoryKey = (channelId: string | null): unknown[] => ['channels', channelId, 'stream-history']
+export const streamHistoryKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'stream-history',
+]
 export const categorySearchKey = (channelId: string | null, query: string): unknown[] => [
   'channels',
   channelId,
@@ -50,25 +61,39 @@ export const categorySearchKey = (channelId: string | null, query: string): unkn
   query,
 ]
 
-export function useStreamInfo(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<StreamInfo | null, Error> {
+export function useStreamInfo(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<StreamInfo | null, Error> {
   return channelQuery(channelId, streamInfoKey, async (id: string): Promise<StreamInfo | null> => {
-    const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/stream', {
-      params: { path: { version, channelId: id } },
-    })
+    const { data, error, response } = await client.GET(
+      '/api/v{version}/channels/{channelId}/stream',
+      {
+        params: { path: { version, channelId: id } },
+      },
+    )
+
     if (error !== undefined) throw failed('stream', response.status)
+
     return data?.data ?? null
   })
 }
 
 async function readAdSchedule(channelId: string): Promise<AdSchedule | null> {
-  const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/live-ops/ads/schedule', {
-    params: { path: { version, channelId } },
-  })
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/live-ops/ads/schedule',
+    {
+      params: { path: { version, channelId } },
+    },
+  )
+
   if (error !== undefined) throw failed('ad schedule', response.status)
+
   return data?.data ?? null
 }
 
-export function useAdSchedule(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<AdSchedule | null, Error> {
+export function useAdSchedule(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<AdSchedule | null, Error> {
   return channelQuery(channelId, adScheduleKey, readAdSchedule)
 }
 
@@ -79,11 +104,16 @@ export function useSnoozeAd(
   return useOptimisticSave<AdSchedule | null, void>({
     queryKey: () => adScheduleKey(toValue(channelId)),
     mutationFn: async (): Promise<AdSchedule | null> => {
-      const id: string = toValue(channelId) as string
-      const { error, response } = await client.POST('/api/v{version}/channels/{channelId}/live-ops/ads/snooze', {
-        params: { path: { version, channelId: id } },
-      })
+      const id = toValue(channelId) as string
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/live-ops/ads/snooze',
+        {
+          params: { path: { version, channelId: id } },
+        },
+      )
+
       if (error !== undefined) throw failed('snooze', response.status)
+
       return readAdSchedule(id)
     },
     apply: (current: AdSchedule | null | undefined): AdSchedule | null =>
@@ -98,12 +128,19 @@ export function useSnoozeAd(
 }
 
 // The newest streams first; the form takes its recent titles and categories from here.
-export function useStreamHistory(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<PastStream[], Error> {
+export function useStreamHistory(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PastStream[], Error> {
   return channelQuery(channelId, streamHistoryKey, async (id: string): Promise<PastStream[]> => {
-    const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/analytics/streams', {
-      params: { path: { version, channelId: id }, query: { PageSize: historySize } },
-    })
+    const { data, error, response } = await client.GET(
+      '/api/v{version}/channels/{channelId}/analytics/streams',
+      {
+        params: { path: { version, channelId: id }, query: { PageSize: historySize } },
+      },
+    )
+
     if (error !== undefined) throw failed('stream history', response.status)
+
     return [...(data?.data ?? [])]
   })
 }
@@ -116,10 +153,18 @@ export function useCategorySearch(
   return useQuery({
     queryKey: computed(() => categorySearchKey(toValue(channelId), toValue(search))),
     queryFn: async (): Promise<Category[]> => {
-      const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/stream/categories', {
-        params: { path: { version, channelId: toValue(channelId) as string }, query: { query: toValue(search) } },
-      })
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/stream/categories',
+        {
+          params: {
+            path: { version, channelId: toValue(channelId) as string },
+            query: { query: toValue(search) },
+          },
+        },
+      )
+
       if (error !== undefined) throw failed('categories', response.status)
+
       return [...(data?.data ?? [])]
     },
     enabled: computed(() => toValue(channelId) !== null && toValue(search).trim() !== ''),
@@ -130,16 +175,22 @@ export function useCategorySearch(
 export function useSaveStreamInfo(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<StreamInfo | null, Error, StreamInfoDraft, number> {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useOptimisticSave<StreamInfo | null, StreamInfoDraft>({
     queryKey: () => streamInfoKey(toValue(channelId)),
     mutationFn: async (draft: StreamInfoDraft): Promise<StreamInfo | null> => {
-      const id: string = toValue(channelId) as string
-      const { data, error, response } = await client.PUT('/api/v{version}/channels/{channelId}/stream', {
-        params: { path: { version, channelId: id } },
-        body: draft,
-      })
+      const id = toValue(channelId) as string
+      const { data, error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/stream',
+        {
+          params: { path: { version, channelId: id } },
+          body: draft,
+        },
+      )
+
       if (error !== undefined) throw failed('stream info', response.status)
+
       return data?.data ?? queries.getQueryData<StreamInfo | null>(streamInfoKey(id)) ?? null
     },
     apply: (current: StreamInfo | null | undefined, draft: StreamInfoDraft): StreamInfo | null =>
@@ -153,13 +204,25 @@ export function useConnectIntegration(
 ): UseMutationReturnType<string, Error, { provider: string; scopeSetKey: string }, unknown> {
   return useMutation({
     mutationFn: async (variables: { provider: string; scopeSetKey: string }): Promise<string> => {
-      const { data, error, response } = await client.POST('/api/v{version}/channels/{channelId}/integrations/{provider}/connect', {
-        params: { path: { version, channelId: toValue(channelId) as string, provider: variables.provider } },
-        body: { scopeSetKey: variables.scopeSetKey, returnUrl: window.location.href },
-      })
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/integrations/{provider}/connect',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              provider: variables.provider,
+            },
+          },
+          body: { scopeSetKey: variables.scopeSetKey, returnUrl: window.location.href },
+        },
+      )
+
       if (error !== undefined) throw failed('connect', response.status)
-      const url: string | undefined = data?.data?.authorizeUrl
+      const url = data?.data?.authorizeUrl
+
       if (!url) throw failed('connect', response.status)
+
       return url
     },
   })

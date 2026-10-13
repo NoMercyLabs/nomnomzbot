@@ -13,8 +13,10 @@ export class FakeHubConnection {
   static instances: FakeHubConnection[] = []
 
   static at(index: number): FakeHubConnection {
-    const found: FakeHubConnection | undefined = FakeHubConnection.instances[index]
+    const found = FakeHubConnection.instances[index]
+
     if (!found) throw new Error(`no connection ${index} was opened`)
+
     return found
   }
 
@@ -56,6 +58,7 @@ export class FakeHubConnection {
   stop(): Promise<void> {
     this.stopped = true
     this.lifecycle.close()
+
     return Promise.resolve()
   }
   // What the server answers to a call; a test replaces it to make a join fail.
@@ -64,6 +67,7 @@ export class FakeHubConnection {
   })
   invoke(method: string, ...args: unknown[]): Promise<{ success: boolean; error?: string }> {
     this.invocations.push([method, ...args])
+
     return Promise.resolve(this.answer(method, args))
   }
   receive(event: string, payload: unknown): void {
@@ -75,14 +79,17 @@ export class FakeHubConnectionBuilder {
   private url = ''
   withUrl(url: string): this {
     this.url = url
+
     return this
   }
   withAutomaticReconnect(): this {
     return this
   }
   build(): FakeHubConnection {
-    const connection: FakeHubConnection = new FakeHubConnection()
+    const connection = new FakeHubConnection()
+
     connection.url = this.url
+
     return connection
   }
 }

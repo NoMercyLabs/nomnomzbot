@@ -10,7 +10,7 @@
 
 import { useStorage, type RemovableRef } from '@vueuse/core'
 import { computed, watch, type ComputedRef } from 'vue'
-import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { dashboardNav, type NavEntry, type NavGroup } from './navigation'
 
@@ -37,8 +37,8 @@ const folds: RemovableRef<Record<string, boolean>> = useStorage<Record<string, b
 )
 
 export function useNavigation(): Navigation {
-  const router: Router = useRouter()
-  const route: RouteLocationNormalizedLoaded = useRoute()
+  const router = useRouter()
+  const route = useRoute()
 
   // A page that is not built yet has no route, so it has no entry (pages appear as they land).
   function isCurrent(entry: NavEntry): boolean {
@@ -51,8 +51,9 @@ export function useNavigation(): Navigation {
   const groups = computed<VisibleGroup[]>(() =>
     dashboardNav
       .map((group: NavGroup): VisibleGroup => {
-        const entries: NavEntry[] = group.entries.filter((entry) => router.hasRoute(entry.route))
-        const holdsOpenPage: boolean = entries.some(isCurrent)
+        const entries = group.entries.filter((entry) => router.hasRoute(entry.route))
+        const holdsOpenPage = entries.some(isCurrent)
+
         return {
           key: group.key,
           entries,

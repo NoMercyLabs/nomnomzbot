@@ -31,32 +31,40 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const providers = useQuery(providersQuery)
 const mode: Ref<'options' | 'device' | 'bots'> = ref('options')
-const botHost: ComputedRef<string> = computed(() => new URL(activeBot.value).host)
+const botHost = computed(() => new URL(activeBot.value).host)
 const botDetail: ComputedRef<string> = computed(() => {
   if (activeBot.value === officialOrigin) return 'site.login.official'
+
   return activeBot.value === servedOrigin ? 'site.login.thisBot' : 'site.login.used'
 })
 // A browser sign-in comes back to the bot's own site, so for another bot this page uses a code.
 // Platforms return only to https or localhost (a secure context), so a plain http network address uses one too.
-const otherBot: ComputedRef<boolean> = computed(() => activeBot.value !== servedOrigin)
-const codeOnly: ComputedRef<boolean> = computed(() => otherBot.value || !window.isSecureContext)
+const otherBot = computed(() => activeBot.value !== servedOrigin)
+const codeOnly = computed(() => otherBot.value || !window.isSecureContext)
 
-const returnTo: ComputedRef<string> = computed(() => {
+const returnTo = computed(() => {
   const asked: unknown = route.query.return_to
-  return typeof asked === 'string' && asked.startsWith('/') && !asked.startsWith('//') ? asked : '/app'
+
+  return typeof asked === 'string' && asked.startsWith('/') && !asked.startsWith('//')
+    ? asked
+    : '/app'
 })
-const enabled: ComputedRef<LoginProvider[]> = computed(() => (providers.data.value ?? []).filter((p) => p.enabled))
+const enabled: ComputedRef<LoginProvider[]> = computed(() =>
+  (providers.data.value ?? []).filter((p) => p.enabled),
+)
 const switchedOff: ComputedRef<string[]> = computed(() =>
   (providers.data.value ?? []).filter((p) => !p.enabled).map((p) => p.displayName),
 )
 const switchedOffLine: ComputedRef<string> = computed(() =>
-  t('site.login.switchedOff', { providers: new Intl.ListFormat(locale.value).format(switchedOff.value) }, switchedOff.value.length),
+  t(
+    'site.login.switchedOff',
+    { providers: new Intl.ListFormat(locale.value).format(switchedOff.value) },
+    switchedOff.value.length,
+  ),
 )
 // A code is a second way to sign in, not a second provider: one link for all of them, and the
 // provider question comes only when more than one offers a code.
-const codeProviders: ComputedRef<LoginProvider[]> = computed(() =>
-  enabled.value.filter((p) => p.flows.includes('device_code')),
-)
+const codeProviders = computed(() => enabled.value.filter((p) => p.flows.includes('device_code')))
 const deviceProvider: Ref<LoginProvider | null> = ref(null)
 
 function useCode(): void {
@@ -64,13 +72,15 @@ function useCode(): void {
   mode.value = 'device'
 }
 
-const shown: ComputedRef<LoginProvider[]> = computed(() => (codeOnly.value ? codeProviders.value : enabled.value))
+const shown = computed(() => (codeOnly.value ? codeProviders.value : enabled.value))
 
 function signIn(provider: LoginProvider): void {
   if (!codeOnly.value) {
     window.location.assign(signInUrl(provider.key, returnTo.value))
+
     return
   }
+
   deviceProvider.value = provider
   mode.value = 'device'
 }
@@ -122,18 +132,36 @@ function signIn(provider: LoginProvider): void {
             <PlatformLogo :platform="provider.key" />
             {{ $t('site.login.codeWith', { provider: provider.displayName }) }}
           </Button>
-          <Button variant="ghost" class="w-full" @click="mode = 'options'">{{ $t('site.login.device.back') }}</Button>
+          <Button variant="ghost" class="w-full" @click="mode = 'options'">{{
+            $t('site.login.device.back')
+          }}</Button>
         </div>
-        <p v-else-if="providers.isPending.value" class="text-sm text-muted-foreground" role="status">
+        <p
+          v-else-if="providers.isPending.value"
+          class="text-sm text-muted-foreground"
+          role="status"
+        >
           {{ $t('site.login.loading') }}
         </p>
-        <div v-else-if="providers.isError.value || shown.length === 0" class="flex flex-col gap-3" role="alert">
-          <p class="text-sm">{{ $t(providers.isError.value ? 'site.login.unreachable' : 'site.login.noProviders') }}</p>
-          <Button variant="outline" class="w-full" @click="providers.refetch()">{{ $t('site.login.retry') }}</Button>
+        <div
+          v-else-if="providers.isError.value || shown.length === 0"
+          class="flex flex-col gap-3"
+          role="alert"
+        >
+          <p class="text-sm">
+            {{ $t(providers.isError.value ? 'site.login.unreachable' : 'site.login.noProviders') }}
+          </p>
+          <Button variant="outline" class="w-full" @click="providers.refetch()">{{
+            $t('site.login.retry')
+          }}</Button>
         </div>
         <div v-else class="flex flex-col gap-2">
           <p v-if="codeOnly" class="text-sm text-muted-foreground">
-            {{ otherBot ? $t('site.login.codeOnly', { host: botHost }) : $t('site.login.codeInsecure') }}
+            {{
+              otherBot
+                ? $t('site.login.codeOnly', { host: botHost })
+                : $t('site.login.codeInsecure')
+            }}
           </p>
           <Button
             v-for="provider in shown"
@@ -145,7 +173,12 @@ function signIn(provider: LoginProvider): void {
             <PlatformLogo :platform="provider.key" :mono="shown.length === 1" />
             {{ $t('site.login.with', { provider: provider.displayName }) }}
           </Button>
-          <Button v-if="!codeOnly && codeProviders.length > 0" variant="ghost" class="w-full" @click="useCode">
+          <Button
+            v-if="!codeOnly && codeProviders.length > 0"
+            variant="ghost"
+            class="w-full"
+            @click="useCode"
+          >
             {{ $t('site.login.useCode') }}
           </Button>
         </div>
@@ -154,6 +187,8 @@ function signIn(provider: LoginProvider): void {
         <p class="text-sm text-muted-foreground">{{ switchedOffLine }}</p>
       </template>
     </PanelCard>
-    <p class="max-w-100 text-center text-xs text-balance text-muted-foreground">{{ $t('site.login.terms') }}</p>
+    <p class="max-w-100 text-center text-xs text-balance text-muted-foreground">
+      {{ $t('site.login.terms') }}
+    </p>
   </main>
 </template>

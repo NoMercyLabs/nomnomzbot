@@ -24,7 +24,7 @@ const hubPath = '/hubs/dashboard'
 let connection: HubConnection | null = null
 let joinedChannel: string | null = null
 // The channels watched with their own event classes (the chat page). Separate from joinedChannel, which the other pages use.
-const watched: Map<string, string[]> = new Map()
+const watched = new Map()
 
 export type ChannelWatch = { id: string; classes: string[] }
 
@@ -40,11 +40,12 @@ function recordJoinError(channelId: string, message: string): void {
 }
 
 async function joinWithClasses(channelId: string, classes: string[]): Promise<void> {
-  const result: JoinChannelResult | undefined = await connection?.invoke<JoinChannelResult>(
+  const result = await connection?.invoke<JoinChannelResult>(
     'JoinChannelClasses',
     channelId,
     classes,
   )
+
   dashboardJoinErrors.value = dashboardJoinErrors.value.filter(
     (error) => error.channelId !== channelId,
   )
@@ -58,7 +59,8 @@ async function joinWatched(): Promise<void> {
 // Groups belong to a connection id, so a new connection after a drop joins the channel again.
 export async function startDashboardHub(queries: QueryClient): Promise<void> {
   if (connection) return
-  const hub: HubConnection = buildHub(hubPath, dashboardHubStatus)
+  const hub = buildHub(hubPath, dashboardHubStatus)
+
   attachHandlers(hub, [...channelHandlers, ...communityHandlers, ...chatHandlers], () => ({
     queries,
     channelId: joinedChannel,
@@ -80,25 +82,29 @@ export async function watchChannels(channels: ChannelWatch[]): Promise<void> {
   const next: Map<string, string[]> = new Map(
     channels.map((channel) => [channel.id, channel.classes]),
   )
-  const removed: string[] = [...watched.keys()].filter((id) => !next.has(id))
+  const removed = [...watched.keys()].filter((id) => !next.has(id))
   const changed: ChannelWatch[] = channels.filter(
     (channel) => watched.get(channel.id)?.join(',') !== channel.classes.join(','),
   )
+
   watched.clear()
   for (const [id, classes] of next) watched.set(id, classes)
   if (!connection) return
+
   for (const id of removed) {
     // The frame's own join of this channel stays; the page only drops its class set.
     if (id === joinedChannel) continue
     await connection.invoke('LeaveChannel', id)
     dashboardJoinErrors.value = dashboardJoinErrors.value.filter((error) => error.channelId !== id)
   }
+
   for (const channel of changed) await joinWithClasses(channel.id, channel.classes)
 }
 
 export async function watchChannel(channelId: string | null): Promise<void> {
   if (channelId === joinedChannel) return
-  const previous: string | null = joinedChannel
+  const previous = joinedChannel
+
   joinedChannel = channelId
   if (!connection) return
   if (previous) await connection.invoke('LeaveChannel', previous)
@@ -106,7 +112,8 @@ export async function watchChannel(channelId: string | null): Promise<void> {
 }
 
 export async function stopDashboardHub(): Promise<void> {
-  const closing: HubConnection | null = connection
+  const closing = connection
+
   connection = null
   joinedChannel = null
   watched.clear()

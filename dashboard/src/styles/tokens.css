@@ -31,7 +31,9 @@
   --destructive: oklch(0.710627 0.166148 22.216);
   --destructive-foreground: oklch(0 0 0);
   --border: oklch(0.239292 0 0);
-  --input: oklch(0.55 0 0); /* control edge: 3:1 or more on background, card and muted (WCAG 1.4.11) */
+  --input: oklch(
+    0.55 0 0
+  ); /* control edge: 3:1 or more on background, card and muted (WCAG 1.4.11) */
   --ring: oklch(0.692953 0.114282 309.045);
   --success: oklch(0.795095 0.234563 145.534);
   --sidebar: oklch(0.168416 0 0);
@@ -55,34 +57,76 @@
   --radius-xl: 24px;
 
   /* Space.* (4dp scale) */
-  --s0_5: 2px; --s1: 4px; --s1_5: 6px; --s2: 8px; --s3: 12px; --s4: 16px;
-  --s6: 24px; --s8: 32px; --s12: 48px;
+  --s0_5: 2px;
+  --s1: 4px;
+  --s1_5: 6px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
 
   /* Typography scale: size / line height */
-  --text-xs: 12px; --lh-xs: 16px;
-  --text-sm: 14px; --lh-sm: 20px;
-  --text-base: 16px; --lh-base: 24px;
-  --text-lg: 18px; --lh-lg: 28px;
-  --text-xl: 20px; --lh-xl: 28px;
-  --text-2xl: 24px; --lh-2xl: 32px;  --font: 'Inter Variable', 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+  --text-xs: 12px;
+  --lh-xs: 16px;
+  --text-sm: 14px;
+  --lh-sm: 20px;
+  --text-base: 16px;
+  --lh-base: 24px;
+  --text-lg: 18px;
+  --lh-lg: 28px;
+  --text-xl: 20px;
+  --lh-xl: 28px;
+  --text-2xl: 24px;
+  --lh-2xl: 32px;
+  --font: 'Inter Variable', 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
 
   /* Density (compact is the default and the desktop look). shell.js sets html[data-density] from localStorage mock.density.
      --hit and --hit-icon are the invisible minimum hit areas: frame.css grows a ::before, never the visible control. */
-  --hit: 24px; --hit-icon: 32px;
-  --btn-h: 36px; --btn-h-sm: 32px; --input-h: 36px; --sb-item-h: 32px; --tab-h: 30px; --seg-h: 28px;
-  --row-h: 44px; --row-pad-y: 8px; --td-h: 48px; --th-h: 40px; --pop-row-h: 40px;
+  --hit: 24px;
+  --hit-icon: 32px;
+  --btn-h: 36px;
+  --btn-h-sm: 32px;
+  --input-h: 36px;
+  --sb-item-h: 32px;
+  --tab-h: 30px;
+  --seg-h: 28px;
+  --row-h: 44px;
+  --row-pad-y: 8px;
+  --td-h: 48px;
+  --th-h: 40px;
+  --pop-row-h: 40px;
 }
-html[data-density=comfortable] {
-  --sb-item-h: 36px; --tab-h: 32px; --seg-h: 32px; --row-pad-y: 10px; --td-h: 52px;
-  --btn-h-sm: 34px; --pop-row-h: 42px;
+html[data-density='comfortable'] {
+  --sb-item-h: 36px;
+  --tab-h: 32px;
+  --seg-h: 32px;
+  --row-pad-y: 10px;
+  --td-h: 52px;
+  --btn-h-sm: 34px;
+  --pop-row-h: 42px;
 }
-html[data-density=touch] {
-  --hit: 44px; --hit-icon: 44px;
-  --btn-h: 44px; --btn-h-sm: 44px; --input-h: 44px; --sb-item-h: 44px; --tab-h: 38px; --seg-h: 40px;
-  --row-h: 52px; --row-pad-y: 12px; --td-h: 56px; --th-h: 44px; --pop-row-h: 44px;
+html[data-density='touch'] {
+  --hit: 44px;
+  --hit-icon: 44px;
+  --btn-h: 44px;
+  --btn-h-sm: 44px;
+  --input-h: 44px;
+  --sb-item-h: 44px;
+  --tab-h: 38px;
+  --seg-h: 40px;
+  --row-h: 52px;
+  --row-pad-y: 12px;
+  --td-h: 56px;
+  --th-h: 44px;
+  --pop-row-h: 44px;
 }
 @media (pointer: coarse) {
-  :root { --hit: 44px; --hit-icon: 44px; }
+  :root {
+    --hit: 44px;
+    --hit-icon: 44px;
+  }
 }
 
 :root.light {
@@ -121,7 +165,20 @@ html[data-density=touch] {
 }
 
 /* One scrollbar for every scroll area, so no OS default ever shows (owner 2026-10-12). hover-check.py gates it. */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background-color: var(--muted-foreground); }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}

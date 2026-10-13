@@ -32,22 +32,22 @@ import { usePanelState } from '@/composables/usePanelState'
 const props = withDefaults(defineProps<{ person: CommunityRow; detailState?: PanelState }>(), {
   detailState: 'ready',
 })
+
 defineEmits<{ back: []; retry: [] }>()
 
 const { t, n, locale } = useI18n()
 const { channelId } = useCurrentChannel()
 
 const profile = useViewerProfile(channelId, () => props.person.internalUserId)
-const hasProfile: ComputedRef<boolean> = computed<boolean>(
-  () => props.person.internalUserId !== null,
-)
+const hasProfile = computed<boolean>(() => props.person.internalUserId !== null)
 const profileState = usePanelState(profile, (data: PersonProfile | null) => data === null)
 
-const moderationState: ComputedRef<PanelState> = computed<PanelState>(() => {
+const moderationState = computed<PanelState>(() => {
   if (props.detailState !== 'ready') return props.detailState
   if (!hasProfile.value) return 'empty'
   if (profileState.value === 'ready' && profile.data.value?.moderationHistory == null)
     return 'empty'
+
   return profileState.value
 })
 const moderationEmpty: ComputedRef<string> = computed<string>(() =>
@@ -62,12 +62,15 @@ const moderationEmpty: ComputedRef<string> = computed<string>(() =>
 function tierName(code: string | null): string | null {
   if (code === null) return null
   const level: RegExpMatchArray | null = /^([123])000$/.exec(code)
+
   if (level) return t('dashboard.people.detail.overview.tierLevel', { level: level[1] })
+
   return code.toLowerCase() === 'prime' ? t('dashboard.people.detail.overview.tierPrime') : code
 }
 
 function shortDate(value: string | null | undefined): string | null {
   if (!value) return null
+
   return new Date(value).toLocaleDateString(locale.value, {
     year: 'numeric',
     month: 'short',
@@ -75,7 +78,7 @@ function shortDate(value: string | null | undefined): string | null {
   })
 }
 
-const handle: ComputedRef<string> = computed<string>(() => `@${props.person.username}`)
+const handle = computed<string>(() => `@${props.person.username}`)
 const watchHours: ComputedRef<string> = computed<string>(() =>
   n(Number(props.person.watchHours), { maximumFractionDigits: 1 }),
 )
@@ -93,8 +96,10 @@ const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
       value: shortDate(props.person.lastSeen),
     },
   ]
-  const data: PersonProfile | null | undefined = profile.data.value
+  const data = profile.data.value
+
   if (!data) return items
+
   return [
     ...items.slice(0, 2),
     {
@@ -123,9 +128,10 @@ const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
 })
 
 const moderation: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
-  const history: PersonProfile['moderationHistory'] | undefined =
-    profile.data.value?.moderationHistory
+  const history = profile.data.value?.moderationHistory
+
   if (!history) return []
+
   return [
     {
       label: t('dashboard.people.detail.moderation.timeouts'),
@@ -149,9 +155,7 @@ const moderation: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
   ]
 })
 
-const streak: ComputedRef<PersonProfile['streak'] | undefined> = computed(
-  () => profile.data.value?.streak,
-)
+const streak = computed(() => profile.data.value?.streak)
 </script>
 
 <template>

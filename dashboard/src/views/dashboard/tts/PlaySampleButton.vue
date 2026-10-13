@@ -30,7 +30,7 @@ const { t } = useI18n()
 const { channelId } = useCurrentChannel()
 const sample = useTtsSample(channelId)
 const audio: Ref<HTMLAudioElement | null> = ref(null)
-const playing: Ref<boolean> = ref(false)
+const playing = ref(false)
 
 const state: ComputedRef<SampleState> = computed<SampleState>(() =>
   playing.value ? 'playing' : sample.isPending.value ? 'loading' : 'idle',
@@ -44,12 +44,14 @@ function stop(): void {
 
 async function toggle(): Promise<void> {
   if (playing.value) return stop()
+
   try {
     const result = await sample.mutateAsync({
       voiceId: props.voiceId,
       text: t('dashboard.tts.voices.sampleText'),
     })
-    const player: HTMLAudioElement = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`)
+    const player = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`)
+
     player.addEventListener('ended', stop)
     audio.value = player
     playing.value = true

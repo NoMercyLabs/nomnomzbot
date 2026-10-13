@@ -14,13 +14,20 @@ const saas: string = 'https://nomnomz.bot'
 
 function stubServer(): { url: string; body: string; bearer: string | null }[] {
   const seen: { url: string; body: string; bearer: string | null }[] = []
+
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {
-      seen.push({ url: request.url, body: await request.text(), bearer: request.headers.get('Authorization') })
+      seen.push({
+        url: request.url,
+        body: await request.text(),
+        bearer: request.headers.get('Authorization'),
+      })
+
       return new Response(JSON.stringify({ data: { status: 'pending' } }), { status: 200 })
     }),
   )
+
   return seen
 }
 
@@ -67,6 +74,7 @@ describe('the chosen bot', () => {
     const auth = await import('../auth')
     const { queryClient } = await import('../queryClient')
     const { client } = await import('../client')
+
     auth.acceptAccessToken('token-of-the-old-bot')
     queryClient.setQueryData(['auth', 'me'], { id: 'u1' })
 
@@ -80,6 +88,7 @@ describe('the chosen bot', () => {
 
   it('is still chosen after a reload', async () => {
     const { switchBot } = await import('../auth')
+
     switchBot(saas)
 
     vi.resetModules()
@@ -102,6 +111,8 @@ describe('the chosen bot', () => {
 
     switchBot(saas)
 
-    expect(signInUrl('twitch', '/app')).toBe(`${saas}/api/v1/auth/twitch?client=web&return_to=%2Fapp`)
+    expect(signInUrl('twitch', '/app')).toBe(
+      `${saas}/api/v1/auth/twitch?client=web&return_to=%2Fapp`,
+    )
   })
 })

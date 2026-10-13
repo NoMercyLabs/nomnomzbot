@@ -43,6 +43,7 @@ const version = '1'
 const voicePageSize = 200
 const firstVoicePage = 1
 const languageFamilies: readonly string[] = ['en', 'nl', 'de', 'fr', 'es']
+
 // The order the voice list and its chips show the language families in.
 export const voiceFamilyOrder: readonly string[] = [...languageFamilies, 'other']
 
@@ -66,7 +67,8 @@ export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters)
 
 // The language part of a locale such as en-US or nl_BE; a language the page has no chip for is "other".
 export function voiceFamily(locale: string): string {
-  const language: string = locale.split(/[-_]/)[0]?.toLowerCase() ?? ''
+  const language = locale.split(/[-_]/)[0]?.toLowerCase() ?? ''
+
   return languageFamilies.includes(language) ? language : 'other'
 }
 
@@ -80,7 +82,9 @@ export function useTtsConfig(
         params: { path: { version, channelId: id } },
       },
     )
+
     if (error !== undefined) throw failed('tts config', response.status)
+
     return data?.data ?? null
   })
 }
@@ -95,7 +99,9 @@ export function useTtsOverlay(
         params: { path: { version, channelId: id } },
       },
     )
+
     if (error !== undefined) throw failed('tts overlay', response.status)
+
     return data?.data ?? null
   })
 }
@@ -110,9 +116,11 @@ async function readVoicePage(channelId: string, q: string, page: number): Promis
       },
     },
   )
+
   if (error !== undefined) throw failed('tts voices', response.status)
-  const nextPage: number = Number(data?.nextPage)
-  const total: number = Number(data?.total ?? Number.NaN)
+  const nextPage = Number(data?.nextPage)
+  const total = Number(data?.total ?? Number.NaN)
+
   return {
     voices: data?.data ?? [],
     hasMore: data?.hasMore ?? false,
@@ -155,7 +163,9 @@ export function useSetTtsVoice(
           },
         },
       )
+
       if (error !== undefined) throw refusal('tts config', error, response.status)
+
       return data?.data ?? null
     },
     apply: (
@@ -185,7 +195,9 @@ export function useTtsSample(
           body: { text, voiceId },
         },
       )
+
       if (error !== undefined || !data?.data) throw refusal('tts sample', error, response.status)
+
       return data.data
     },
   })

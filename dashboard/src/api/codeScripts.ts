@@ -12,7 +12,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query'
@@ -49,10 +48,13 @@ export async function fetchCodeScripts(): Promise<CodeScriptSummary[]> {
   const { data, error, response } = await client.GET('/api/v{version}/code-scripts', {
     params: { path: { version: '1' }, query: { PageSize: 100 } },
   })
+
   if (error !== undefined) {
-    const reason: string | null | undefined = (error as { message?: string | null }).message
+    const reason = (error as { message?: string | null }).message
+
     throw new Error(reason ?? `code scripts ${response.status}`)
   }
+
   return [...(data?.data ?? [])]
 }
 
@@ -64,7 +66,9 @@ async function readScript(id: string): Promise<CodeScriptDetail> {
   const { data, error, response } = await client.GET('/api/v{version}/code-scripts/{id}', {
     params: { path: { version, id } },
   })
+
   if (error !== undefined || !data?.data) throw refusal('code script', error, response.status)
+
   return data.data
 }
 
@@ -83,7 +87,8 @@ export function useSetScriptEnabled(): UseMutationReturnType<
   EnabledChange,
   number
 > {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useOptimisticSave<CodeScriptSummary[], EnabledChange>({
     queryKey: codeScriptsKey,
     mutationFn: async ({ id, isEnabled }: EnabledChange): Promise<CodeScriptSummary[]> => {
@@ -91,8 +96,10 @@ export function useSetScriptEnabled(): UseMutationReturnType<
         params: { path: { version, id } },
         body: { isEnabled },
       })
+
       if (error !== undefined) throw refusal('code script switch', error, response.status)
       await queries.invalidateQueries({ queryKey: codeScriptKey(id) })
+
       return fetchCodeScripts()
     },
     apply: (
@@ -112,16 +119,19 @@ export function useCreateCodeScript(): UseMutationReturnType<
   NewCodeScript,
   unknown
 > {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useMutation<string | null, Error, NewCodeScript>({
     mutationFn: async (script: NewCodeScript): Promise<string | null> => {
       const { data, error, response } = await client.POST('/api/v{version}/code-scripts', {
         params: { path: { version } },
         body: script,
       })
+
       if (error !== undefined) throw refusal('create code script', error, response.status)
       const created: unknown = (data as { data?: unknown } | undefined)?.data
       const id: unknown = (created as { id?: unknown } | null | undefined)?.id
+
       return typeof id === 'string' ? id : null
     },
     onSuccess: (): Promise<void> => queries.invalidateQueries({ queryKey: codeScriptsKey }),
@@ -135,19 +145,23 @@ export async function fetchBlastRadius(id: string): Promise<BlastRadius> {
       params: { path: { version, id } },
     },
   )
+
   if (error !== undefined || !data?.data) throw refusal('blast radius', error, response.status)
+
   return data.data
 }
 
 // The blast radius is read again right before the delete: a script whose impact cannot be read is not deleted.
 export function useDeleteCodeScript(): UseMutationReturnType<void, Error, string, unknown> {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useMutation<void, Error, string>({
     mutationFn: async (id: string): Promise<void> => {
       await fetchBlastRadius(id)
       const { error, response } = await client.DELETE('/api/v{version}/code-scripts/{id}', {
         params: { path: { version, id } },
       })
+
       if (error !== undefined) throw refusal('delete code script', error, response.status)
     },
     onSuccess: async (_none: void, id: string): Promise<void> => {
@@ -162,15 +176,16 @@ export type TestRunOutcome =
   | { kind: 'rateLimited'; message: string; retryAfterSeconds: number | null }
 
 function retryWindow(response: Response): number | null {
-  const seconds: number = Number(response.headers.get('Retry-After'))
+  const seconds = Number(response.headers.get('Retry-After'))
+
   return Number.isFinite(seconds) && seconds > 0 ? seconds : null
 }
 
 // The dry-run result in the shape the editor and the runs panel read.
 export function toTestRunResult(dto: components['schemas']['TestRunResultDto']): TestRunResult {
-  const position: components['schemas']['ScriptSourcePosition'] | null | undefined =
-    dto.errorPosition
-  const message: string = dto.error ?? ''
+  const position = dto.errorPosition
+  const message = dto.error ?? ''
+
   return {
     success: dto.success,
     durationMs: Number(dto.durationMs),
@@ -214,16 +229,19 @@ export async function runScriptTest(
       body: request,
     },
   )
+
   if (response.status === 429) {
-    const reason: string | null | undefined = (error as { message?: string | null } | undefined)
-      ?.message
+    const reason = (error as { message?: string | null } | undefined)?.message
+
     return {
       kind: 'rateLimited',
       message: reason ?? `test run ${response.status}`,
       retryAfterSeconds: retryWindow(response),
     }
   }
+
   if (error !== undefined || !data?.data) throw refusal('test run', error, response.status)
+
   return { kind: 'ok', result: toTestRunResult(data.data) }
 }
 
@@ -237,7 +255,9 @@ export async function fetchTestTriggers(): Promise<TestTrigger[]> {
   const { data, error, response } = await client.GET('/api/v{version}/code-scripts/test-triggers', {
     params: { path: { version } },
   })
+
   if (error !== undefined) throw refusal('test triggers', error, response.status)
+
   return (data?.data ?? []).map((sample: components['schemas']['TestTriggerDto']): TestTrigger => ({
     id: sample.id,
     label: sample.userDisplayName
@@ -256,7 +276,9 @@ export async function fetchScriptVersions(
   const { data, error, response } = await client.GET('/api/v{version}/code-scripts/{id}/versions', {
     params: { path: { version, id }, query: { Page: page, PageSize: versionsPageSize } },
   })
+
   if (error !== undefined) throw refusal('script versions', error, response.status)
+
   return {
     versions: (data?.data ?? []).map((entry: components['schemas']['CodeScriptVersionDto']) => ({
       id: entry.id,
@@ -275,6 +297,7 @@ export async function publishScriptVersion(id: string, versionId: string): Promi
       params: { path: { version, id, versionId } },
     },
   )
+
   if (error !== undefined) throw refusal('publish version', error, response.status)
 }
 
@@ -286,6 +309,7 @@ export async function deleteScriptVersion(id: string, versionId: string): Promis
       params: { path: { version, id, versionId } },
     },
   )
+
   if (error !== undefined) throw refusal('delete version', error, response.status)
 }
 
@@ -293,6 +317,7 @@ export async function fetchScriptProject(id: string): Promise<ScriptProject | nu
   const { data } = await client.GET('/api/v{version}/code-scripts/{id}/project', {
     params: { path: { version: '1', id } },
   })
+
   return data?.data ?? null
 }
 
@@ -305,8 +330,8 @@ export async function saveScriptProject(
     params: { path: { version: '1', id } },
     body: project,
   })
-  const reason: string | null | undefined = (error as { message?: string | null } | undefined)
-    ?.message
+  const reason = (error as { message?: string | null } | undefined)?.message
+
   return { ok: response.ok, message: reason ?? response.statusText }
 }
 
@@ -316,5 +341,6 @@ export async function fetchScriptSdkTypes(id: string): Promise<string | null> {
     params: { path: { version: '1' }, query: { context: 'script', script: id } },
     parseAs: 'text',
   })
+
   return response.ok && typeof data === 'string' ? data : null
 }

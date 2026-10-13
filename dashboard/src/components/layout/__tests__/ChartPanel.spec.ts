@@ -12,7 +12,11 @@ import { VisArea, VisGroupedBar, VisLine, VisStackedBar } from '@unovis/vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
-import ChartPanel, { type ChartKind, type ChartRow, type ChartSeries } from '@/components/layout/ChartPanel.vue'
+import ChartPanel, {
+  type ChartKind,
+  type ChartRow,
+  type ChartSeries,
+} from '@/components/layout/ChartPanel.vue'
 import { i18n } from '@/i18n'
 import nl from '@/i18n/locales/nl.json'
 
@@ -20,7 +24,10 @@ beforeAll(() => {
   i18n.global.mergeLocaleMessage('en', { test: { seen: 'Seen', fresh: 'New' } })
   i18n.global.mergeLocaleMessage('nl', { ...nl, test: { seen: 'Gezien', fresh: 'Nieuw' } })
   // jsdom has no text layout; Unovis measures axis labels with this.
-  Object.defineProperty(SVGElement.prototype, 'getComputedTextLength', { value: () => 40, configurable: true })
+  Object.defineProperty(SVGElement.prototype, 'getComputedTextLength', {
+    value: () => 40,
+    configurable: true,
+  })
   Object.defineProperty(SVGElement.prototype, 'getBBox', {
     value: () => ({ x: 0, y: 0, width: 40, height: 12 }),
     configurable: true,
@@ -58,10 +65,12 @@ function chart(kind: ChartKind, extra: Record<string, unknown> = {}): VueWrapper
 
 describe('the chart panel', () => {
   it('puts the takeaway above the chart', () => {
-    const html: string = chart('line').html()
+    const html = chart('line').html()
 
     expect(html).toContain('You gained 3 follows this week.')
-    expect(html.indexOf('You gained 3 follows this week.')).toBeLessThan(html.indexOf('data-slot="chart"'))
+    expect(html.indexOf('You gained 3 follows this week.')).toBeLessThan(
+      html.indexOf('data-slot="chart"'),
+    )
   })
 
   it.each([
@@ -69,15 +78,19 @@ describe('the chart panel', () => {
     ['area', VisArea],
     ['bar', VisStackedBar],
     ['groupedBar', VisGroupedBar],
-  ] as const)('draws the %s kind with one Unovis component that holds every series', (kind, component) => {
-    const wrapper: VueWrapper = chart(kind)
-    const drawn = wrapper.findAllComponents(component)
+  ] as const)(
+    'draws the %s kind with one Unovis component that holds every series',
+    (kind, component) => {
+      const wrapper = chart(kind)
+      const drawn = wrapper.findAllComponents(component)
 
-    expect(drawn).toHaveLength(1)
-    const given: Record<string, unknown> = drawn[0]!.props()
-    expect(given.y).toHaveLength(2)
-    expect(given.color).toEqual(['var(--color-seen)', 'var(--color-fresh)'])
-  })
+      expect(drawn).toHaveLength(1)
+      const given: Record<string, unknown> = drawn[0]!.props()
+
+      expect(given.y).toHaveLength(2)
+      expect(given.color).toEqual(['var(--color-seen)', 'var(--color-fresh)'])
+    },
+  )
 
   it('hides the drawing from screen readers', () => {
     expect(chart('line').find('[data-slot="chart"]').attributes('aria-hidden')).toBe('true')
@@ -98,7 +111,7 @@ describe('the chart panel', () => {
 
   it('formats the table for the Dutch locale and translates the series names', () => {
     i18n.global.locale.value = 'nl'
-    const wrapper: VueWrapper = chart('groupedBar')
+    const wrapper = chart('groupedBar')
 
     expect(wrapper.findAll('table.sr-only th[scope="col"]').map((cell) => cell.text())).toEqual([
       'Periode',

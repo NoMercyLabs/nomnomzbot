@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 import { siKick, siTwitch, siX, siYoutube, type SimpleIcon } from 'simple-icons'
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue'
 
 // mono: on a filled button the brand colour fights the button colour, so the logo takes the text colour.
 const props = defineProps<{ platform: string; mono?: boolean }>()
@@ -22,11 +22,12 @@ const logos: Readonly<Record<string, SimpleIcon>> = {
   twitter: siX,
   x: siX,
 }
-const logo: ComputedRef<SimpleIcon | undefined> = computed(() => logos[props.platform])
+const logo = computed(() => logos[props.platform])
 
 // A black or white brand would vanish on one of the themes, so it takes the text colour.
-const fill: ComputedRef<string> = computed(() => {
-  const hex: string = logo.value?.hex ?? '000000'
+const fill = computed(() => {
+  const hex = logo.value?.hex ?? '000000'
+
   return props.mono || hex === '000000' || hex === 'FFFFFF' ? 'currentColor' : `#${hex}`
 })
 </script>

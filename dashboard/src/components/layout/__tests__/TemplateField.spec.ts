@@ -31,10 +31,13 @@ const bot: { seen: string[] } = vi.hoisted(() => {
     { key: 'channel', descriptionKey: 'template.helper.channel', sample: 'stoney_eagle' },
     { key: 'args.<n>', descriptionKey: 'template.helper.args', sample: 'hello' },
   ]
+
   globalThis.fetch = (async (request: Request) => {
     state.seen.push(new URL(request.url).pathname + new URL(request.url).search)
+
     return new Response(JSON.stringify({ data }), { status: 200 })
   }) as typeof fetch
+
   return state
 })
 
@@ -48,7 +51,10 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-async function host(initial: string = '', withPanel: boolean = false): Promise<HTMLTextAreaElement> {
+async function host(
+  initial: string = '',
+  withPanel: boolean = false,
+): Promise<HTMLTextAreaElement> {
   text = ref(initial)
   const fieldRef: Ref<InstanceType<typeof TemplateField> | null> = ref(null)
   const Host = defineComponent({
@@ -64,15 +70,29 @@ async function host(initial: string = '', withPanel: boolean = false): Promise<H
         withPanel ? h(HelperPanel, { target: fieldRef.value, context: 'command' }) : null,
       ]),
   })
+
   mounted = mount(Host, {
     attachTo: document.body,
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] },
+    global: {
+      plugins: [
+        i18n,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
+    },
   })
   await flushPromises()
+
   return document.body.querySelector('textarea') as HTMLTextAreaElement
 }
 
-async function type(area: HTMLTextAreaElement, value: string, caret: number = value.length): Promise<void> {
+async function type(
+  area: HTMLTextAreaElement,
+  value: string,
+  caret: number = value.length,
+): Promise<void> {
   area.focus()
   area.value = value
   area.setSelectionRange(caret, caret)
@@ -86,7 +106,9 @@ async function press(area: HTMLTextAreaElement, key: string): Promise<void> {
 }
 
 function options(): string[] {
-  return [...document.body.querySelectorAll('[role="option"]')].map((option: Element) => option.getAttribute('data-helper') ?? '')
+  return [...document.body.querySelectorAll('[role="option"]')].map(
+    (option: Element) => option.getAttribute('data-helper') ?? '',
+  )
 }
 
 describe('the template field', () => {
@@ -97,7 +119,8 @@ describe('the template field', () => {
   })
 
   it('opens the helper suggestions when a brace is typed', async () => {
-    const area: HTMLTextAreaElement = await host()
+    const area = await host()
+
     expect(options()).toEqual([])
 
     await type(area, 'Hi {')
@@ -107,7 +130,7 @@ describe('the template field', () => {
   })
 
   it('narrows the suggestions as the person keeps typing', async () => {
-    const area: HTMLTextAreaElement = await host()
+    const area = await host()
 
     await type(area, 'Hi {us')
 
@@ -115,7 +138,8 @@ describe('the template field', () => {
   })
 
   it('inserts the chosen helper in braces and puts the caret after it', async () => {
-    const area: HTMLTextAreaElement = await host()
+    const area = await host()
+
     await type(area, 'Hi {us there', 6)
 
     await press(area, 'ArrowDown')
@@ -130,19 +154,26 @@ describe('the template field', () => {
   })
 
   it('inserts with Tab as well, and leaves the text alone for a plain Enter when nothing is open', async () => {
-    const area: HTMLTextAreaElement = await host()
+    const area = await host()
+
     await type(area, '{ch')
     await press(area, 'Tab')
     expect(text.value).toBe('{channel}')
 
     await type(area, 'done')
-    const enter: KeyboardEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    const enter: KeyboardEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    })
+
     area.dispatchEvent(enter)
     expect(enter.defaultPrevented).toBe(false)
   })
 
   it('closes the suggestions on Escape and keeps the text', async () => {
-    const area: HTMLTextAreaElement = await host()
+    const area = await host()
+
     await type(area, 'Hi {us')
 
     await press(area, 'Escape')
@@ -154,17 +185,18 @@ describe('the template field', () => {
   })
 
   it('warns quietly about a placeholder the bot does not know', async () => {
-    const area: HTMLTextAreaElement = await host()
+    const area = await host()
 
     await type(area, 'Hi {user} {nope} {args.2}')
 
-    const warning: HTMLElement = document.body.querySelector('[data-template-warning]') as HTMLElement
+    const warning = document.body.querySelector('[data-template-warning]') as HTMLElement
+
     expect(warning.textContent).toBe(i18n.global.t('template.field.unknown', { names: '{nope}' }))
     expect(area.getAttribute('aria-invalid')).not.toBe('true')
   })
 
   it('shows no warning when every placeholder is known', async () => {
-    const area: HTMLTextAreaElement = await host()
+    const area = await host()
 
     await type(area, 'Hi {user} {args.2}')
 
@@ -176,7 +208,8 @@ describe('the helper panel', () => {
   it('lists every helper with its description and sample', async () => {
     await host('', true)
 
-    const row: HTMLElement = document.body.querySelector('[data-helper-row="user.name"]') as HTMLElement
+    const row = document.body.querySelector('[data-helper-row="user.name"]') as HTMLElement
+
     expect(row.textContent).toContain('{user.name}')
     expect(row.textContent).toContain(i18n.global.t('template.helper.user_name'))
     expect(row.textContent).toContain('DukaSoft')
@@ -184,6 +217,7 @@ describe('the helper panel', () => {
 
   it('inserts at the caret the field remembered, even after focus moved away', async () => {
     const area: HTMLTextAreaElement = await host('ab cd', true)
+
     await type(area, 'ab cd', 2)
     area.blur()
 
@@ -197,6 +231,7 @@ describe('the helper panel', () => {
 
   it('replaces the selected text when something is selected', async () => {
     const area: HTMLTextAreaElement = await host('ab cd', true)
+
     await type(area, 'ab cd', 0)
     area.setSelectionRange(0, 2)
     area.dispatchEvent(new Event('select', { bubbles: true }))

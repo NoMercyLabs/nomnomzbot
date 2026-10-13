@@ -9,13 +9,13 @@
 -->
 <script setup lang="ts">
 // Where the stream info goes: Twitch is always there, Kick and YouTube connect from here, X Live is not built yet.
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useConnections, type IntegrationStatus } from '@/api/home'
 import { useConnectIntegration } from '@/api/stream'
 import InlineFlow from '@/components/layout/InlineFlow.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
@@ -33,20 +33,23 @@ const { t } = useI18n()
 const { channelId, current } = useCurrentChannel()
 const connectionsQuery = useConnections(channelId)
 const connect = useConnectIntegration(channelId)
-const state: ComputedRef<PanelState> = usePanelState(connectionsQuery)
+const state = usePanelState(connectionsQuery)
 
 function connectionOf(provider: string): IntegrationStatus | undefined {
-  return (connectionsQuery.data.value ?? []).find((connection: IntegrationStatus) => connection.provider === provider)
+  return (connectionsQuery.data.value ?? []).find(
+    (connection: IntegrationStatus) => connection.provider === provider,
+  )
 }
 
 function platformName(provider: string): string {
   return t(`common.provider.${provider}`)
 }
 
-const twitchAccount: ComputedRef<string | undefined> = computed(() => current.value?.displayName)
+const twitchAccount = computed(() => current.value?.displayName)
 
 async function open(provider: string, scopeSetKey: string): Promise<void> {
   const url: string = await connect.mutateAsync({ provider, scopeSetKey })
+
   window.location.assign(url)
 }
 </script>
@@ -67,7 +70,10 @@ async function open(provider: string, scopeSetKey: string): Promise<void> {
         </template>
       </SummaryRow>
       <div v-for="target in CONNECTABLE" :key="target.provider" :data-platform="target.provider">
-        <SummaryRow :title="platformName(target.provider)" :detail="connectionOf(target.provider)?.accountName ?? undefined">
+        <SummaryRow
+          :title="platformName(target.provider)"
+          :detail="connectionOf(target.provider)?.accountName ?? undefined"
+        >
           <template #trailing>
             <StatusBadge
               v-if="connectionOf(target.provider)?.connected"
@@ -75,24 +81,38 @@ async function open(provider: string, scopeSetKey: string): Promise<void> {
               :label="t('dashboard.stream.platforms.connected')"
             />
             <div v-else class="flex items-center gap-3">
-            <StatusBadge tone="off" :label="t('dashboard.stream.platforms.notConnected')" />
-            <InlineFlow
-              kind="confirm"
-              right
-              :label="t('dashboard.stream.platforms.connectLabel', { platform: platformName(target.provider) })"
-              :ask="t('dashboard.stream.platforms.connectAsk', { platform: platformName(target.provider) })"
-              :yes="t('dashboard.stream.platforms.connect')"
-              :action="() => open(target.provider, target.scopeSetKey)"
-            >
-              <Button variant="outline" size="sm">{{ t('dashboard.stream.platforms.connect') }}</Button>
-            </InlineFlow>
+              <StatusBadge tone="off" :label="t('dashboard.stream.platforms.notConnected')" />
+              <InlineFlow
+                kind="confirm"
+                right
+                :label="
+                  t('dashboard.stream.platforms.connectLabel', {
+                    platform: platformName(target.provider),
+                  })
+                "
+                :ask="
+                  t('dashboard.stream.platforms.connectAsk', {
+                    platform: platformName(target.provider),
+                  })
+                "
+                :yes="t('dashboard.stream.platforms.connect')"
+                :action="() => open(target.provider, target.scopeSetKey)"
+              >
+                <Button variant="outline" size="sm">{{
+                  t('dashboard.stream.platforms.connect')
+                }}</Button>
+              </InlineFlow>
             </div>
           </template>
         </SummaryRow>
       </div>
       <SummaryRow
         :title="t('dashboard.stream.platforms.xlive')"
-        :detail="t('dashboard.stream.platforms.unavailableWhy', { platform: t('dashboard.stream.platforms.xlive') })"
+        :detail="
+          t('dashboard.stream.platforms.unavailableWhy', {
+            platform: t('dashboard.stream.platforms.xlive'),
+          })
+        "
         data-platform="xlive"
       >
         <template #trailing>

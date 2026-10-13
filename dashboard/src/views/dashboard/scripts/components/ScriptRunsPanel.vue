@@ -21,18 +21,19 @@ import StatusBadge from '@/components/layout/StatusBadge.vue'
 import { matchesRunFilter, type RunFilter, type SessionRun } from './sessionRun'
 
 const props = defineProps<{ runs: SessionRun[] }>()
+
 defineEmits<{ open: [run: SessionRun] }>()
 
 const { t } = useI18n()
 const filter: RemovableRef<RunFilter> = useLocalStorage<RunFilter>('nnz.scripts.runFilter', 'all')
 
-const options: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() =>
+const options = computed<FilterOption[]>(() =>
   (['all', 'failed', 'tests'] as const).map((value: RunFilter): FilterOption => ({
     value,
     label: t(`dashboard.scripts.runs.filter.${value}`),
   })),
 )
-const shown: ComputedRef<SessionRun[]> = computed<SessionRun[]>(() =>
+const shown = computed<SessionRun[]>(() =>
   props.runs.filter((run: SessionRun) => matchesRunFilter(run, filter.value)),
 )
 const state: ComputedRef<'ready' | 'empty'> = computed(() =>

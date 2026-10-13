@@ -39,7 +39,7 @@ describe('the panel card states', () => {
   })
 
   it('shows no skeleton before 150 ms and a skeleton after', async () => {
-    const wrapper: VueWrapper = panel('loading')
+    const wrapper = panel('loading')
 
     vi.advanceTimersByTime(149)
     await wrapper.vm.$nextTick()
@@ -51,7 +51,7 @@ describe('the panel card states', () => {
   })
 
   it('never shows a skeleton when the data arrives inside 150 ms', async () => {
-    const wrapper: VueWrapper = panel('loading')
+    const wrapper = panel('loading')
 
     vi.advanceTimersByTime(100)
     await wrapper.setProps({ state: 'ready' })
@@ -68,7 +68,7 @@ describe('the panel card states', () => {
   })
 
   it('shows the error with a retry that emits retry', async () => {
-    const wrapper: VueWrapper = panel('error')
+    const wrapper = panel('error')
 
     expect(wrapper.find('[role="alert"]').text()).toContain('This panel could not load.')
     await wrapper.find('button').trigger('click')
@@ -78,8 +78,10 @@ describe('the panel card states', () => {
 
   it('keeps the same head and body frame in every state', () => {
     const states: PanelState[] = ['ready', 'loading', 'empty', 'error']
+
     states.forEach((state: PanelState) => {
-      const wrapper: VueWrapper = panel(state)
+      const wrapper = panel(state)
+
       expect(wrapper.find('h2').text()).toBe('Chat')
       expect(wrapper.find('.flex-1.overflow-y-auto').exists()).toBe(true)
     })

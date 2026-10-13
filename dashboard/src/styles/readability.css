@@ -14,7 +14,8 @@
 @import '@fontsource-variable/atkinson-hyperlegible-next';
 
 html[data-rd-font='hyperlegible'] {
-  --font: 'Atkinson Hyperlegible Next Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font:
+    'Atkinson Hyperlegible Next Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 }
 html[data-rd-font='lexend'] {
   --font: 'Lexend Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;

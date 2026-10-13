@@ -25,14 +25,20 @@ async function open(path: string): Promise<{ router: Router; wrapper: VueWrapper
     history: createMemoryHistory(),
     routes: [{ path: '/', component: { render: () => null } }],
   })
+
   await router.push(path)
   const wrapper: VueWrapper = mount(PageTabs, { props: { tabs }, global: { plugins: [router] } })
+
   await flushPromises()
+
   return { router, wrapper }
 }
 
 function selectedLabel(wrapper: VueWrapper): string | undefined {
-  return wrapper.findAll('[role="tab"]').find((tab) => tab.attributes('aria-selected') === 'true')?.text()
+  return wrapper
+    .findAll('[role="tab"]')
+    .find((tab) => tab.attributes('aria-selected') === 'true')
+    ?.text()
 }
 
 describe('the page tabs', () => {

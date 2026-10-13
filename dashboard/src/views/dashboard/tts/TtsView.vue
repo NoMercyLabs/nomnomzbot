@@ -11,12 +11,12 @@
 import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useTtsConfig, useTtsOverlay, type TtsConfig, type TtsOverlay } from '@/api/tts'
+import { useTtsConfig, useTtsOverlay, type TtsConfig } from '@/api/tts'
 import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
@@ -44,17 +44,20 @@ const settings: ComputedRef<TtsConfig | null> = computed<TtsConfig | null>(
   () => config.data.value ?? null,
 )
 
-const settingsState: ComputedRef<PanelState> = usePanelState<TtsConfig | null>(
+const settingsState = usePanelState<TtsConfig | null>(
   config,
   (data: TtsConfig | null) => data === null,
 )
 
 const voiceDetail: ComputedRef<string> = computed<string>(() => {
-  const current: TtsConfig | null = settings.value
+  const current = settings.value
+
   if (current === null) return ''
-  const provider: string = providerName(current.defaultProvider)
+  const provider = providerName(current.defaultProvider)
+
   if (current.defaultVoiceId)
     return t('dashboard.tts.settings.voice.detail', { voice: current.defaultVoiceId, provider })
+
   return t(
     current.followsPlatformDefaultVoice
       ? 'dashboard.tts.settings.voice.platform'
@@ -64,14 +67,16 @@ const voiceDetail: ComputedRef<string> = computed<string>(() => {
 })
 
 const limitsDetail: ComputedRef<string> = computed<string>(() => {
-  const current: TtsConfig | null = settings.value
+  const current = settings.value
+
   if (current === null) return ''
-  const count: string = String(current.maxCharacters)
+  const count = String(current.maxCharacters)
   const bots: string = t(
     current.skipBotMessages
       ? 'dashboard.tts.settings.limits.skipBots'
       : 'dashboard.tts.settings.limits.readBots',
   )
+
   return `${t('dashboard.tts.settings.limits.detail', { count })} · ${bots}`
 })
 
@@ -85,9 +90,11 @@ const wordsDetail: ComputedRef<string> = computed<string>(() =>
 
 const overlayDetail: ComputedRef<string> = computed<string>(() => {
   if (overlay.isError.value) return t('dashboard.tts.settings.overlay.error')
-  const ranAt: TtsOverlay['lastRanAt'] | undefined = overlay.data.value?.lastRanAt
+  const ranAt = overlay.data.value?.lastRanAt
+
   if (overlay.data.value === undefined || overlay.data.value === null) return ''
   if (!ranAt) return t('dashboard.tts.settings.overlay.never')
+
   return t('dashboard.tts.settings.overlay.lastUsed', {
     time: new Date(ranAt).toLocaleString(locale.value),
   })

@@ -58,6 +58,7 @@ afterEach(() => {
 
 async function open(): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/catalogue', name: 'dashboard-catalogue', component: blank }],
@@ -100,6 +101,7 @@ describe('CatalogueView', () => {
 
     const chosen = (label: string): unknown =>
       (bar(label).props() as { modelValue: unknown }).modelValue
+
     expect(chosen(en.dashboard.catalogue.filter.state)).toBe('on')
     expect(chosen(en.dashboard.catalogue.filter.since)).toBe('month')
   })

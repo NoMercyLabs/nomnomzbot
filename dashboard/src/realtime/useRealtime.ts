@@ -28,8 +28,10 @@ export function useRealtime(): void {
     (on: boolean) => {
       if (!on) {
         void stopDashboardHub()
+
         return
       }
+
       void watchChannel(channelId.value)
       void startDashboardHub(queryClient)
     },

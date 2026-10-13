@@ -10,7 +10,7 @@
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { effectScope, nextTick, type EffectScope } from 'vue'
+import { effectScope, nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import { i18n } from '@/i18n'
@@ -31,10 +31,12 @@ let router: Router
 beforeEach(() => {
   localStorage.clear()
   document.documentElement.removeAttribute('style')
+
   for (const name of document.documentElement.getAttributeNames()) {
     if (name.startsWith('data-rd-') || name === 'data-density')
       document.documentElement.removeAttribute(name)
   }
+
   i18n.global.mergeLocaleMessage('en', en)
   vi.stubGlobal(
     'ResizeObserver',
@@ -54,6 +56,7 @@ afterEach(() => {
 
 async function open(query: string = ''): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/settings', name: 'dashboard-settings', component: blank }],
@@ -72,10 +75,12 @@ const button = (label: string): HTMLButtonElement =>
   ) as HTMLButtonElement
 const group = (label: string): HTMLElement =>
   document.body.querySelector<HTMLElement>(`[aria-label="${label}"]`) as HTMLElement
+
 const choose = async (groupLabel: string, optionLabel: string): Promise<void> => {
-  const option: HTMLButtonElement = [
-    ...group(groupLabel).querySelectorAll<HTMLButtonElement>('button'),
-  ].find((item: HTMLButtonElement) => item.textContent?.trim() === optionLabel) as HTMLButtonElement
+  const option = [...group(groupLabel).querySelectorAll<HTMLButtonElement>('button')].find(
+    (item: HTMLButtonElement) => item.textContent?.trim() === optionLabel,
+  ) as HTMLButtonElement
+
   option.click()
   await flushPromises()
 }
@@ -130,9 +135,10 @@ describe('Readability options', () => {
     await open()
     await choose('Line spacing', 'Wider')
 
-    const states: (string | undefined)[] = [
-      ...group('Line spacing').querySelectorAll<HTMLElement>('button'),
-    ].map((item: HTMLElement) => item.dataset.state)
+    const states = [...group('Line spacing').querySelectorAll<HTMLElement>('button')].map(
+      (item: HTMLElement) => item.dataset.state,
+    )
+
     expect(states).toEqual(['off', 'off', 'on'])
   })
 
@@ -150,8 +156,9 @@ describe('Readability options', () => {
   })
 
   it('a text size scales every text token', async () => {
-    const scope: EffectScope = effectScope()
+    const scope = effectScope()
     const reading = scope.run(() => useReadability())!
+
     reading.settings.value = { ...reading.settings.value, size: 18 }
     await nextTick()
 
@@ -165,7 +172,7 @@ describe('Readability options', () => {
       readabilityStorageKey,
       JSON.stringify({ ...readabilityDefaults, font: 'lexend', size: 17, contrast: true }),
     )
-    const scope: EffectScope = effectScope()
+    const scope = effectScope()
     const reading = scope.run(() => useReadability())!
 
     expect(reading.settings.value.font).toBe('lexend')

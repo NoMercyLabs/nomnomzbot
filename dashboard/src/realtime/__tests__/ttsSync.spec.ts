@@ -16,15 +16,18 @@ import { ttsConfigKey } from '@/api/tts'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({ HubConnectionBuilder: FakeHubConnectionBuilder, HubConnection: FakeHubConnection }))
-
-type Hub = typeof import('../dashboardHub')
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
-  const hub: Hub = await import('../dashboardHub')
-  const queries: QueryClient = new QueryClient()
+  const hub = await import('../dashboardHub')
+  const queries = new QueryClient()
+
   await hub.startDashboardHub(queries)
   await hub.watchChannel('c1')
+
   return [queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
 }
 
@@ -36,10 +39,16 @@ beforeEach(() => {
 describe('text to speech live sync', () => {
   it('a tts-config change marks the tts config stale and leaves the command list alone', async () => {
     const [queries, connection] = await started()
+
     queries.setQueryData(ttsConfigKey('c1'), { defaultVoiceId: 'a' })
     queries.setQueryData(commandsKey('c1'), [])
 
-    connection.receive('ConfigChanged', { broadcasterId: 'x', domain: 'tts-config', entityId: null, action: 'updated' })
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'x',
+      domain: 'tts-config',
+      entityId: null,
+      action: 'updated',
+    })
 
     expect(queries.getQueryState(ttsConfigKey('c1'))?.isInvalidated).toBe(true)
     expect(queries.getQueryState(commandsKey('c1'))?.isInvalidated).toBe(false)
@@ -47,9 +56,15 @@ describe('text to speech live sync', () => {
 
   it('a change in another domain leaves the tts config alone', async () => {
     const [queries, connection] = await started()
+
     queries.setQueryData(ttsConfigKey('c1'), { defaultVoiceId: 'a' })
 
-    connection.receive('ConfigChanged', { broadcasterId: 'x', domain: 'commands', entityId: null, action: 'updated' })
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'x',
+      domain: 'commands',
+      entityId: null,
+      action: 'updated',
+    })
 
     expect(queries.getQueryState(ttsConfigKey('c1'))?.isInvalidated).toBe(false)
   })

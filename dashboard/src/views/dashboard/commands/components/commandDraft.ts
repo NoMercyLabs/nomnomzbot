@@ -52,8 +52,9 @@ function sameReplies(left: readonly string[], right: readonly string[]): boolean
 
 // Only the fields that differ from the row travel to the bot.
 export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChange {
-  const saved: CommandDraft = draftOf(row)
+  const saved = draftOf(row)
   const change: CommandChange = {}
+
   if (row.tier === 'template' && draft.templateResponse !== saved.templateResponse)
     change.templateResponse = draft.templateResponse
   if (row.tier === 'template' && !sameReplies(draft.replies, saved.replies))
@@ -67,6 +68,7 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
     change.cooldownSeconds = draft.cooldownSeconds
   if (draft.userCooldownSeconds !== saved.userCooldownSeconds)
     change.userCooldownSeconds = draft.userCooldownSeconds
+
   return change
 }
 

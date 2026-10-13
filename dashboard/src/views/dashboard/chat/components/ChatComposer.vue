@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The send box under the feed. Send is the one primary action of the page. A message over the
 // limit never leaves the browser; a failed send keeps the text so nothing is lost.
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { chatMessageMaxLength, useSendChat } from '@/api/chat'
@@ -25,22 +25,24 @@ const props = defineProps<{ channelId: string | null }>()
 const { t } = useI18n()
 const sender = useSendChat(() => props.channelId)
 
-const text: Ref<string> = ref('')
-const failed: Ref<boolean> = ref(false)
+const text = ref('')
+const failed = ref(false)
 
-const tooLong: ComputedRef<boolean> = computed(() => text.value.length > chatMessageMaxLength)
-const showCount: ComputedRef<boolean> = computed(() => text.value.length > COUNT_FROM)
-const canSend: ComputedRef<boolean> = computed(
+const tooLong = computed(() => text.value.length > chatMessageMaxLength)
+const showCount = computed(() => text.value.length > COUNT_FROM)
+const canSend = computed(
   () => text.value.trim() !== '' && !tooLong.value && !sender.isPending.value,
 )
 const problem: ComputedRef<string> = computed(() => {
   if (tooLong.value) return t('dashboard.chat.composer.tooLong', { max: chatMessageMaxLength })
+
   return failed.value ? t('dashboard.chat.composer.failed') : ''
 })
 
 async function submit(): Promise<void> {
   if (!canSend.value) return
   failed.value = false
+
   try {
     await sender.mutateAsync({ message: text.value, senderIdentity: 'you' })
     text.value = ''

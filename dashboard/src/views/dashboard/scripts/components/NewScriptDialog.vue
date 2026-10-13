@@ -22,7 +22,7 @@ const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [open: boolean]; created: [id: string | null] }>()
 
 const create = useCreateCodeScript()
-const name: Ref<string> = ref('')
+const name = ref('')
 const error: Ref<string | undefined> = ref(undefined)
 
 // A reopened dialog starts clean.
@@ -36,15 +36,18 @@ watch(
 )
 
 async function submit(): Promise<void> {
-  const trimmed: string = name.value.trim()
+  const trimmed = name.value.trim()
+
   if (trimmed === '') return
   error.value = undefined
+
   try {
     const id: string | null = await create.mutateAsync({
       name: trimmed,
       description: '',
       sourceCode: STARTER_SOURCE,
     })
+
     emit('update:open', false)
     emit('created', id)
   } catch (failure) {

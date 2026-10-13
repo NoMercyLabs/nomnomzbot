@@ -21,7 +21,10 @@ import { useSaveErrorsStore } from '@/stores/saveErrors'
 import en from '../i18n/en.json'
 import StreamView from '../StreamView.vue'
 
-type Options = { params?: { path?: Record<string, unknown>; query?: Record<string, unknown> }; body?: unknown }
+type Options = {
+  params?: { path?: Record<string, unknown>; query?: Record<string, unknown> }
+  body?: unknown
+}
 type Call = { method: string; path: string; body: unknown; query: unknown; pathParams: unknown }
 type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
 
@@ -57,14 +60,43 @@ function freshAnswers(): Record<string, () => Answer> {
   return {
     '/stream': () => ok({ ...streamInfo }),
     '/analytics/streams': () =>
-      ok([pastStream('s1', 'Fixing the queue', 'Just Chatting'), pastStream('s2', 'Building the bot', 'Software and Game Development')]),
-    '/stream/categories': () => ok([{ id: '1', name: 'Software and Game Development', boxArtUrl: '' }, { id: '2', name: 'Just Chatting', boxArtUrl: '' }]),
+      ok([
+        pastStream('s1', 'Fixing the queue', 'Just Chatting'),
+        pastStream('s2', 'Building the bot', 'Software and Game Development'),
+      ]),
+    '/stream/categories': () =>
+      ok([
+        { id: '1', name: 'Software and Game Development', boxArtUrl: '' },
+        { id: '2', name: 'Just Chatting', boxArtUrl: '' },
+      ]),
     '/integrations/status': () =>
       ok([
-        { provider: 'twitch', connected: true, accountName: 'Stoney_Eagle', needsReauth: false, grantedScopeSets: [], capabilities: {}, loginOnly: false },
-        { provider: 'kick', connected: false, accountName: null, needsReauth: false, grantedScopeSets: [], capabilities: {}, loginOnly: false },
+        {
+          provider: 'twitch',
+          connected: true,
+          accountName: 'Stoney_Eagle',
+          needsReauth: false,
+          grantedScopeSets: [],
+          capabilities: {},
+          loginOnly: false,
+        },
+        {
+          provider: 'kick',
+          connected: false,
+          accountName: null,
+          needsReauth: false,
+          grantedScopeSets: [],
+          capabilities: {},
+          loginOnly: false,
+        },
       ]),
-    '/bot/status': () => ok({ connected: true, login: 'nomercybot_', displayName: 'NoMercyBot_', profileImageUrl: null }),
+    '/bot/status': () =>
+      ok({
+        connected: true,
+        login: 'nomercybot_',
+        displayName: 'NoMercyBot_',
+        profileImageUrl: null,
+      }),
     '/rewards': () =>
       ok([
         { id: 'r1', title: 'Hydrate', isEnabled: true, isPaused: false },
@@ -72,15 +104,23 @@ function freshAnswers(): Record<string, () => Answer> {
         { id: 'r3', title: 'Pick a game', isEnabled: true, isPaused: true },
       ]),
     '/moderation/shield': () => ok({ enabled: false }),
-    '/integrations/{provider}/connect': () => ok({ authorizeUrl: 'https://id.kick.com/oauth?x=1', state: 's' }),
+    '/integrations/{provider}/connect': () =>
+      ok({ authorizeUrl: 'https://id.kick.com/oauth?x=1', state: 's' }),
   }
 }
 
 function answer(method: string, path: string, options: Options | undefined): Answer {
-  calls.push({ method, path, body: options?.body, query: options?.params?.query, pathParams: options?.params?.path })
-  const match: string | undefined = Object.keys(answers)
+  calls.push({
+    method,
+    path,
+    body: options?.body,
+    query: options?.params?.query,
+    pathParams: options?.params?.path,
+  })
+  const match = Object.keys(answers)
     .sort((a, b) => b.length - a.length)
     .find((suffix) => path.endsWith(suffix))
+
   return match ? answers[match]!() : ok(null)
 }
 
@@ -90,8 +130,20 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string, options?: Options) => answer('GET', path, options),
     POST: async (path: string, options?: Options) => answer('POST', path, options),
     PUT: async (path: string, options?: Options) => {
-      calls.push({ method: 'PUT', path, body: options?.body, query: undefined, pathParams: options?.params?.path })
-      return saveRefused ? refused() : { data: { data: { ...streamInfo, ...(options?.body as object) } }, response: { status: 200, ok: true } }
+      calls.push({
+        method: 'PUT',
+        path,
+        body: options?.body,
+        query: undefined,
+        pathParams: options?.params?.path,
+      })
+
+      return saveRefused
+        ? refused()
+        : {
+            data: { data: { ...streamInfo, ...(options?.body as object) } },
+            response: { status: 200, ok: true },
+          }
     },
   },
 }))
@@ -132,11 +184,20 @@ async function open(): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/stream', name: 'dashboard-stream', component: blank }],
   })
+
   await router.push('/app/stream')
   mounted = mount(StreamView, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await settle()
@@ -149,12 +210,18 @@ const settle = async (): Promise<void> => {
 }
 
 const text = (): string => document.body.textContent ?? ''
-const titleBox = (): HTMLTextAreaElement => document.body.querySelector<HTMLTextAreaElement>('#stream-title') as HTMLTextAreaElement
+const titleBox = (): HTMLTextAreaElement =>
+  document.body.querySelector<HTMLTextAreaElement>('#stream-title') as HTMLTextAreaElement
 const categoryBox = (): HTMLInputElement =>
-  document.body.querySelector<HTMLInputElement>('[data-field="category-search"]') as HTMLInputElement
-const tagBox = (): HTMLInputElement => document.body.querySelector<HTMLInputElement>('[data-field="tag-input"]') as HTMLInputElement
+  document.body.querySelector<HTMLInputElement>(
+    '[data-field="category-search"]',
+  ) as HTMLInputElement
+const tagBox = (): HTMLInputElement =>
+  document.body.querySelector<HTMLInputElement>('[data-field="tag-input"]') as HTMLInputElement
 const button = (label: string): HTMLButtonElement | undefined =>
-  [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label)
+  [...document.body.querySelectorAll<HTMLButtonElement>('button')].find(
+    (b) => b.textContent?.trim() === label,
+  )
 const puts = (): Call[] => calls.filter((call) => call.method === 'PUT')
 
 async function type(box: HTMLInputElement | HTMLTextAreaElement, value: string): Promise<void> {
@@ -236,9 +303,10 @@ describe('the stream info form', () => {
   it('fills the title from a recent title', async () => {
     await open()
 
-    const row: HTMLElement | undefined = [...document.body.querySelectorAll<HTMLElement>('[data-recent-title]')].find((el) =>
+    const row = [...document.body.querySelectorAll<HTMLElement>('[data-recent-title]')].find((el) =>
       el.textContent?.includes('Fixing the queue'),
     )
+
     row?.click()
     await settle()
 
@@ -251,18 +319,24 @@ describe('the stream info form', () => {
     await type(categoryBox(), 'just')
     await new Promise((done) => setTimeout(done, 400))
     await settle()
-    const search: Call | undefined = calls.find((call) => call.path.endsWith('/stream/categories'))
+    const search = calls.find((call) => call.path.endsWith('/stream/categories'))
+
     expect(search?.query).toEqual({ query: 'just' })
 
-    const result: HTMLElement | undefined = [...document.body.querySelectorAll<HTMLElement>('[data-category-result]')].find(
+    const result = [...document.body.querySelectorAll<HTMLElement>('[data-category-result]')].find(
       (el) => el.textContent?.includes('Just Chatting'),
     )
+
     result?.click()
     await settle()
     button('Save changes')?.click()
     await settle()
 
-    expect(puts()[0]!.body).toEqual({ title: 'Building the bot', gameName: 'Just Chatting', tags: ['coding', 'English'] })
+    expect(puts()[0]!.body).toEqual({
+      title: 'Building the bot',
+      gameName: 'Just Chatting',
+      tags: ['coding', 'English'],
+    })
   })
 
   it('adds a tag with Enter, removes one, and brings it back with Undo', async () => {
@@ -287,7 +361,8 @@ describe('the stream info form', () => {
   })
 
   it('stops at 10 tags', async () => {
-    answers['/stream'] = () => ok({ ...streamInfo, tags: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'] })
+    answers['/stream'] = () =>
+      ok({ ...streamInfo, tags: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'] })
     await open()
 
     await type(tagBox(), 'extra')
@@ -300,9 +375,17 @@ describe('the stream info form', () => {
   it('shows the content labels as switches that cannot be changed yet', async () => {
     await open()
 
-    const labels: HTMLElement[] = [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')]
+    const labels: HTMLElement[] = [
+      ...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]'),
+    ]
+
     expect(labels).toHaveLength(7)
-    expect(labels.every((row) => row.querySelector('[role="switch"][disabled], [role="switch"][data-disabled]') !== null)).toBe(true)
+    expect(
+      labels.every(
+        (row) =>
+          row.querySelector('[role="switch"][disabled], [role="switch"][data-disabled]') !== null,
+      ),
+    ).toBe(true)
   })
 })
 
@@ -344,7 +427,10 @@ describe('where it goes', () => {
     document.body.querySelector<HTMLButtonElement>('[data-flow-act="ok"]')?.click()
     await settle()
 
-    const connect: Call | undefined = calls.find((call) => call.method === 'POST' && call.path.endsWith('/integrations/{provider}/connect'))
+    const connect = calls.find(
+      (call) => call.method === 'POST' && call.path.endsWith('/integrations/{provider}/connect'),
+    )
+
     expect(connect?.pathParams).toMatchObject({ channelId: 'c1', provider: 'kick' })
     expect(connect?.body).toMatchObject({ scopeSetKey: 'kick.chat' })
     expect(assign).toHaveBeenCalledWith('https://id.kick.com/oauth?x=1')
@@ -365,7 +451,10 @@ describe('before you go live', () => {
   it('names each reward that is off, with the on count, and never marks it as an error', async () => {
     await open()
 
-    const offRows: HTMLElement[] = [...document.body.querySelectorAll<HTMLElement>('[data-check^="reward-"]')]
+    const offRows: HTMLElement[] = [
+      ...document.body.querySelectorAll<HTMLElement>('[data-check^="reward-"]'),
+    ]
+
     expect(offRows.map((row) => row.textContent?.trim())).toEqual([
       'Song request is off. 1 of 3 rewards are on.',
       'Pick a game is off. 1 of 3 rewards are on.',
@@ -374,7 +463,8 @@ describe('before you go live', () => {
   })
 
   it('says all rewards are on when none is off', async () => {
-    answers['/rewards'] = () => ok([{ id: 'r1', title: 'Hydrate', isEnabled: true, isPaused: false }])
+    answers['/rewards'] = () =>
+      ok([{ id: 'r1', title: 'Hydrate', isEnabled: true, isPaused: false }])
     await open()
 
     expect(text()).toContain('All 1 rewards are on')

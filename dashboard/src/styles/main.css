@@ -9,9 +9,9 @@
    ----------------------------------------------------------------------------- */
 
 @import './tokens.css';
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn-vue/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn-vue/tailwind.css';
 @import './frame.css';
 @import './readability.css';
 

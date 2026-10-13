@@ -10,7 +10,8 @@
 
 // A stream length for a header: "2h 30m", or "45m" under an hour.
 export function formatDuration(totalSeconds: number): string {
-  const minutes: number = Math.max(0, Math.floor(totalSeconds / 60))
-  const hours: number = Math.floor(minutes / 60)
+  const minutes = Math.max(0, Math.floor(totalSeconds / 60))
+  const hours = Math.floor(minutes / 60)
+
   return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`
 }

@@ -19,34 +19,45 @@ const user = { id: 'u1', displayName: 'Stoney_Eagle' }
 // `limited` names paths whose first call is refused with 429 and the given Retry-After seconds.
 function stubServer(refreshStatus: number, limited: Record<string, string> = {}): string[] {
   const seen: string[] = []
+
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {
-      const bearer: string = request.headers.get('Authorization') ?? 'none'
-      const path: string = new URL(request.url).pathname
+      const bearer = request.headers.get('Authorization') ?? 'none'
+      const path = new URL(request.url).pathname
+
       seen.push(`${path} ${bearer}`)
-      const wait: string | undefined = limited[path]
+      const wait = limited[path]
+
       if (wait !== undefined) {
         delete limited[path]
+
         return new Response('{}', { status: 429, headers: { 'Retry-After': wait } })
       }
+
       if (request.url.endsWith('/auth/refresh'))
         return refreshStatus === 200
-          ? new Response(JSON.stringify({ data: { accessToken: 'fresh', expiresIn: 3600 } }), { status: 200 })
+          ? new Response(JSON.stringify({ data: { accessToken: 'fresh', expiresIn: 3600 } }), {
+              status: 200,
+            })
           : new Response('{}', { status: refreshStatus })
       if (bearer !== 'Bearer fresh') return new Response('{}', { status: 401 })
+
       return new Response(JSON.stringify({ data: user }), { status: 200 })
     }),
   )
+
   return seen
 }
 
 async function signedInWithExpiredToken(): Promise<[Auth, QueryClientModule]> {
   vi.resetModules()
   history.replaceState(null, '', '/app#access_token=expired')
-  const auth: Auth = await import('../auth')
-  const queries: QueryClientModule = await import('../queryClient')
+  const auth = await import('../auth')
+  const queries = await import('../queryClient')
+
   await auth.restoreSession()
+
   return [auth, queries]
 }
 
@@ -60,7 +71,7 @@ afterEach(() => {
 
 describe('expired access token', () => {
   it('refreshes once and repeats the call with the new token', async () => {
-    const seen: string[] = stubServer(200)
+    const seen = stubServer(200)
     const [auth, { queryClient }] = await signedInWithExpiredToken()
 
     const result = await queryClient.fetchQuery(auth.currentUserQuery)
@@ -75,7 +86,7 @@ describe('expired access token', () => {
   })
 
   it('signs the visitor out when the refresh cookie is gone too', async () => {
-    const seen: string[] = stubServer(401)
+    const seen = stubServer(401)
     const [auth, { queryClient }] = await signedInWithExpiredToken()
 
     const result = await queryClient.fetchQuery(auth.currentUserQuery)
@@ -105,10 +116,12 @@ describe('rate limited by the server', () => {
 
   it('asks for the current user again with the same token after a 429', async () => {
     const seen: string[] = stubServer(200, { '/api/v1/auth/me': '0' })
+
     vi.resetModules()
     history.replaceState(null, '', '/app#access_token=fresh')
-    const auth: Auth = await import('../auth')
+    const auth = await import('../auth')
     const { queryClient }: QueryClientModule = await import('../queryClient')
+
     await auth.restoreSession()
 
     const result = await queryClient.fetchQuery(auth.currentUserQuery)
@@ -119,10 +132,12 @@ describe('rate limited by the server', () => {
 
   it('gives up instead of hanging when the server asks for a long wait', async () => {
     const seen: string[] = stubServer(200, { '/api/v1/auth/me': '120' })
+
     vi.resetModules()
     history.replaceState(null, '', '/app#access_token=fresh')
-    const auth: Auth = await import('../auth')
+    const auth = await import('../auth')
     const { queryClient }: QueryClientModule = await import('../queryClient')
+
     await auth.restoreSession()
 
     const result = await queryClient.fetchQuery(auth.currentUserQuery)

@@ -12,7 +12,13 @@ import { useMutation, useQuery } from '@tanstack/vue-query'
 import { computed, onMounted, watch, type ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { deviceApprovalQuery, startDeviceSignIn, type DeviceCode, type DeviceOutcome, type LoginProvider } from '@/api/signIn'
+import {
+  deviceApprovalQuery,
+  startDeviceSignIn,
+  type DeviceCode,
+  type DeviceOutcome,
+  type LoginProvider,
+} from '@/api/signIn'
 import { Button } from '@/components/ui/button'
 
 const props = defineProps<{ provider: LoginProvider; returnTo: string }>()
@@ -21,7 +27,7 @@ const emit = defineEmits<{ cancel: [] }>()
 const router = useRouter()
 const start = useMutation({ mutationFn: () => startDeviceSignIn(props.provider.key) })
 const code: ComputedRef<DeviceCode | null> = computed(() => start.data.value ?? null)
-const site: ComputedRef<string> = computed(() => (code.value ? new URL(code.value.verificationUri).host : ''))
+const site = computed(() => (code.value ? new URL(code.value.verificationUri).host : ''))
 
 const approval = useQuery(computed(() => deviceApprovalQuery(props.provider.key, code.value)))
 
@@ -29,7 +35,13 @@ const outcome: ComputedRef<DeviceOutcome | 'failed' | null> = computed(() => {
   if (start.isError.value || (start.isSuccess.value && !code.value)) return 'failed'
   if (approval.isError.value) return 'error'
   const status: string | undefined = approval.data.value?.status
-  return status === 'authorized' || status === 'expired' || status === 'denied' || status === 'error' ? status : null
+
+  return status === 'authorized' ||
+    status === 'expired' ||
+    status === 'denied' ||
+    status === 'error'
+    ? status
+    : null
 })
 
 watch(outcome, async (now) => {
@@ -42,7 +54,9 @@ onMounted(() => start.mutate())
 <template>
   <div class="flex flex-col gap-3">
     <template v-if="outcome === null || outcome === 'authorized'">
-      <p v-if="!code" class="text-sm text-muted-foreground" role="status">{{ $t('site.login.device.starting') }}</p>
+      <p v-if="!code" class="text-sm text-muted-foreground" role="status">
+        {{ $t('site.login.device.starting') }}
+      </p>
       <template v-else>
         <p class="text-sm">{{ $t('site.login.device.instruction', { site }) }}</p>
         <p
@@ -54,13 +68,21 @@ onMounted(() => start.mutate())
         <Button as="a" :href="code.verificationUri" target="_blank" rel="noopener" class="w-full">
           {{ $t('site.login.device.open', { site }) }}
         </Button>
-        <p class="text-sm text-muted-foreground" role="status">{{ $t('site.login.device.waiting') }}</p>
+        <p class="text-sm text-muted-foreground" role="status">
+          {{ $t('site.login.device.waiting') }}
+        </p>
       </template>
     </template>
     <template v-else>
-      <p class="text-sm" role="alert">{{ $t(`site.login.device.${outcome}`, { provider: provider.displayName }) }}</p>
-      <Button variant="outline" class="w-full" @click="start.mutate()">{{ $t('site.login.device.again') }}</Button>
+      <p class="text-sm" role="alert">
+        {{ $t(`site.login.device.${outcome}`, { provider: provider.displayName }) }}
+      </p>
+      <Button variant="outline" class="w-full" @click="start.mutate()">{{
+        $t('site.login.device.again')
+      }}</Button>
     </template>
-    <Button variant="ghost" class="w-full" @click="emit('cancel')">{{ $t('site.login.device.back') }}</Button>
+    <Button variant="ghost" class="w-full" @click="emit('cancel')">{{
+      $t('site.login.device.back')
+    }}</Button>
   </div>
 </template>

@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // One filter for the page header bar. A short choice (2 to 4 options) is a segmented control;
 // a longer one is a select with its label inside. The default slot holds a SearchField beside it.
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue'
 
 import SegmentedControl from '@/components/layout/SegmentedControl.vue'
 import {
@@ -30,7 +30,7 @@ const props = defineProps<{ label: string; options: readonly FilterOption[] }>()
 
 const selected = defineModel<string>({ required: true })
 
-const segmented: ComputedRef<boolean> = computed<boolean>(() => props.options.length <= 4)
+const segmented = computed<boolean>(() => props.options.length <= 4)
 
 // The select can send an empty value; a filter always keeps one.
 function choose(value: unknown): void {

@@ -63,12 +63,15 @@ export function useCurrentChannel(): CurrentChannel {
         channelId: null,
         twitchId: row.id,
       }))
+
     return [...own, ...notSetUp]
   })
 
   const current = computed<ChannelChoice | null>(
     () =>
-      channels.value.find((row) => row.channelId !== null && row.channelId === chosenChannelId.value) ??
+      channels.value.find(
+        (row) => row.channelId !== null && row.channelId === chosenChannelId.value,
+      ) ??
       channels.value.find((row) => row.kind === 'own') ??
       channels.value.find((row) => row.channelId !== null) ??
       null,
@@ -77,10 +80,13 @@ export function useCurrentChannel(): CurrentChannel {
   async function choose(choice: ChannelChoice): Promise<void> {
     if (choice.channelId) {
       chosenChannelId.value = choice.channelId
+
       return
     }
+
     if (!choice.twitchId) return
     const entered = await enter.mutateAsync(choice.twitchId)
+
     if (entered) chosenChannelId.value = entered.id
   }
 

@@ -22,6 +22,7 @@ declare module 'vue-router' {
 export async function signInGuard(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
   if (await restoreSession()) return withoutToken(to)
+
   return { name: loginRoute.name, query: { return_to: to.fullPath } }
 }
 
@@ -29,5 +30,6 @@ export async function signInGuard(to: RouteLocationNormalized): Promise<true | R
 // put the access token back in the address bar after restoreSession stripped it.
 function withoutToken(to: RouteLocationNormalized): true | RouteLocationRaw {
   if (!to.hash.includes('access_token=')) return true
+
   return { path: to.path, query: to.query, hash: '', replace: true }
 }

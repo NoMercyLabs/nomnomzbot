@@ -17,7 +17,7 @@
 import { refDebounced } from '@vueuse/core'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   TwitchUserNotFoundError,
@@ -52,8 +52,8 @@ const TAB_VALUES: readonly string[] = ['all', 'moderator', 'vip', 'subscriber', 
 const UNLISTED: readonly string[] = ['subscriber', 'regular']
 
 const { t } = useI18n()
-const route: RouteLocationNormalizedLoaded = useRoute()
-const router: Router = useRouter()
+const route = useRoute()
+const router = useRouter()
 const { channelId } = useCurrentChannel()
 
 const everyone = useCommunityList(channelId, 'all', '')
@@ -61,14 +61,14 @@ const moderators = useCommunityList(channelId, 'moderator', '')
 const vips = useCommunityList(channelId, 'vip', '')
 
 const view = usePageView(TAB_VALUES)
-const search: Ref<string> = ref('')
-const pausedSearch: Ref<string> = refDebounced(search, SEARCH_PAUSE_MS)
-const typed: ComputedRef<string> = computed<string>(() => search.value.trim())
-const searching: ComputedRef<boolean> = computed<boolean>(() => typed.value !== '')
+const search = ref('')
+const pausedSearch = refDebounced(search, SEARCH_PAUSE_MS)
+const typed = computed<string>(() => search.value.trim())
+const searching = computed<boolean>(() => typed.value !== '')
 const found = useViewerSearch(channelId, () => pausedSearch.value.trim())
 const lookup = useTwitchLookup(channelId)
 const seed: Ref<Seed | null> = ref(null)
-const lookupMissing: Ref<string> = ref('')
+const lookupMissing = ref('')
 
 function rowsOf(query: typeof everyone): CommunityRow[] | undefined {
   return query.data.value?.pages.flatMap((page: CommunityPage) => page.rows)
@@ -91,6 +91,7 @@ const activeQuery: ComputedRef<typeof everyone | null> = computed(() => {
   if (UNLISTED.includes(view.value)) return null
   if (view.value === 'moderator') return moderators
   if (view.value === 'vip') return vips
+
   return everyone
 })
 
@@ -100,14 +101,15 @@ function isNew(row: CommunityRow): boolean {
 
 const tabRows: ComputedRef<CommunityRow[] | undefined> = computed(() => {
   if (activeQuery.value === null) return []
-  const rows: CommunityRow[] | undefined = rowsOf(activeQuery.value)
+  const rows = rowsOf(activeQuery.value)
+
   return view.value === 'new' ? rows?.filter(isNew) : rows
 })
 
-const visible: ComputedRef<CommunityRow[] | undefined> = computed(() => tabRows.value)
+const visible = computed(() => tabRows.value)
 
 // Hits of an older keystroke never show under newer text.
-const hits: ComputedRef<ViewerOption[] | undefined> = computed(() =>
+const hits = computed(() =>
   pausedSearch.value.trim() === typed.value ? found.data.value : undefined,
 )
 
@@ -123,34 +125,34 @@ const searchState = usePanelState(
   { data: hits, isPending: found.isPending, isError: found.isError },
   (options: ViewerOption[]) => options.length === 0,
 )
-const listState: ComputedRef<PanelState> = computed<PanelState>(() =>
-  searching.value ? searchState.value : tabState.value,
-)
+const listState = computed<PanelState>(() => (searching.value ? searchState.value : tabState.value))
 
 const emptyText: ComputedRef<string> = computed<string>(() => {
   if (view.value === 'subscriber') return t('dashboard.people.list.noSubscribers')
   if (view.value === 'regular') return t('dashboard.people.list.noRegulars')
   if (searching.value) return t('dashboard.people.noMatch', { query: typed.value })
+
   return t('dashboard.people.list.empty')
 })
 
-const hint: ComputedRef<string> = computed<string>(() => t(`dashboard.people.hints.${view.value}`))
+const hint = computed<string>(() => t(`dashboard.people.hints.${view.value}`))
 const count: ComputedRef<string | undefined> = computed(() => {
   if (listState.value !== 'ready') return undefined
-  const total: number = (searching.value ? hits.value : visible.value)?.length ?? 0
+  const total = (searching.value ? hits.value : visible.value)?.length ?? 0
+
   return t('dashboard.people.count', { count: total }, total)
 })
 
 // The person in ?u= can sit in any loaded list (a moderator is also in All), so look in all three.
-const asked: ComputedRef<string> = computed<string>(() =>
-  typeof route.query.u === 'string' ? route.query.u : '',
-)
+const asked = computed<string>(() => (typeof route.query.u === 'string' ? route.query.u : ''))
 const loadedRow: ComputedRef<CommunityRow | null> = computed(() => {
-  const login: string = asked.value.toLowerCase()
+  const login = asked.value.toLowerCase()
+
   if (login === '') return null
   const loaded: CommunityRow[] = [everyone, moderators, vips].flatMap(
     (query: typeof everyone) => rowsOf(query) ?? [],
   )
+
   return loaded.find((row: CommunityRow) => row.username.toLowerCase() === login) ?? null
 })
 
@@ -182,12 +184,14 @@ function lightRow(from: Seed): CommunityRow {
 const selected: ComputedRef<CommunityRow | null> = computed(() => {
   if (loadedRow.value) return loadedRow.value
   if (seedInView.value === null) return null
+
   return member.data.value ?? lightRow(seedInView.value)
 })
 
-const detailState: ComputedRef<PanelState> = computed<PanelState>(() => {
+const detailState = computed<PanelState>(() => {
   if (seedInView.value === null) return 'ready'
   if (member.isError.value) return 'error'
+
   return member.data.value ? 'ready' : 'loading'
 })
 
@@ -210,15 +214,19 @@ function openOption(option: ViewerOption): void {
 }
 
 function openFirstHit(): void {
-  const first: ViewerOption | undefined = hits.value?.[0]
+  const first = hits.value?.[0]
+
   if (first) openOption(first)
 }
 
 async function lookUp(): Promise<void> {
-  const login: string = typed.value.replace(/^@/, '')
+  const login = typed.value.replace(/^@/, '')
+
   lookupMissing.value = ''
+
   try {
     const person = await lookup.mutateAsync(login)
+
     open({
       id: person.id,
       login: person.login,
@@ -232,6 +240,7 @@ async function lookUp(): Promise<void> {
 
 function back(): void {
   const { u, ...rest } = route.query
+
   void u
   void router.push({ query: rest })
 }

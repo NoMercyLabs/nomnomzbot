@@ -274,6 +274,20 @@
    ]
   },
   {
+   "id": "ts-no-redundant-annotation",
+   "paths": [
+    "**/dashboard/**/*.ts",
+    "**/dashboard/**/*.vue"
+   ],
+   "brief": [
+    "dashboard",
+    "explicit type"
+   ],
+   "text": "Dashboard TypeScript: no annotation when the value already has the type (`const queries = useQueryClient()`, `computed(...)` without ComputedRef). Widen or narrow only through the generic (`ref<T | null>(null)`). A constant table is `{ ... } as const satisfies Record<K, V>`; a table read by a computed string key, an exported string-keyed table, or a list keeps its widening annotation. The lint rule app/no-redundant-type-annotation enforces it, and unused-imports/no-unused-imports deletes unused imports: run `eslint --fix`, never sweep by hand. Never write \"explicit types on locals\" in a dashboard brief.",
+   "source": "Stoney 2026-10-13: \"don't type variables if the return type of the value matches and does not change for things like this: const queries: QueryClient = useQueryClient()\"; \"use a linter, don't do them by hand\"; \"use as const satisfies type\"; \"also add a linter that removes unused imports\"; memory feedback-ts-no-redundant-annotations.md",
+   "covers": []
+  },
+  {
    "id": "license-header-required",
    "paths": [
     "**/server/**/*.cs",

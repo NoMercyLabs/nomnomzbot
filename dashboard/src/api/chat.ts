@@ -12,7 +12,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query'
@@ -53,20 +52,23 @@ function ensureOk(response: Response, what: string): void {
 function mergeHistory(history: ChatLine[], live: ChatLine[] | undefined): ChatLine[] {
   const known: Set<string> = new Set(history.map((line) => line.id))
   const fresh: ChatLine[] = (live ?? []).filter((line) => !known.has(line.id))
+
   return [...history, ...fresh].slice(-chatLineLimit)
 }
 
 export function useChatHistory(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ChatLine[], Error> {
-  const queries: QueryClient = useQueryClient()
+  const queries = useQueryClient()
+
   return useQuery({
     queryKey: computed(() => chatKey(toValue(channelId))),
     queryFn: async (): Promise<ChatLine[]> => {
-      const id: string = toValue(channelId) as string
+      const id = toValue(channelId) as string
       const { data } = await client.GET('/api/v{version}/channels/{channelId}/chat/messages', {
         params: { path: { version: '1', channelId: id }, query: { limit: chatLineLimit } },
       })
+
       return mergeHistory(data?.data ?? [], queries.getQueryData<ChatLine[]>(chatKey(id)))
     },
     enabled: computed(() => toValue(channelId) !== null),
@@ -88,6 +90,7 @@ export function useSendChat(
           replyToMessageId: input.replyToMessageId ?? null,
         },
       })
+
       ensureOk(response, 'send')
     },
   })
@@ -104,6 +107,7 @@ export function useDeleteChatMessage(
           params: { path: { version: '1', channelId: toValue(channelId) as string, messageId } },
         },
       )
+
       ensureOk(response, 'delete')
     },
   })
@@ -126,6 +130,7 @@ export function useTimeoutUser(
           },
         },
       )
+
       ensureOk(response, 'timeout')
     },
   })
@@ -147,6 +152,7 @@ export function useBanUser(
           },
         },
       )
+
       ensureOk(response, 'ban')
     },
   })
@@ -164,6 +170,7 @@ export function useUnbanUser(
           body: { targetTwitchUserId: input.targetUserId, scope: input.scope },
         },
       )
+
       ensureOk(response, 'unban')
     },
   })

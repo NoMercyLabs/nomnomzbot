@@ -14,20 +14,25 @@ import { computed, effectScope, nextTick, ref, type EffectScope, type Ref } from
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({ HubConnectionBuilder: FakeHubConnectionBuilder, HubConnection: FakeHubConnection }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
-const signedIn: Ref<boolean> = ref(false)
+const signedIn = ref(false)
 const channel: Ref<string | null> = ref('c1')
-const admin: Ref<boolean> = ref(false)
+const admin = ref(false)
 
 vi.mock('@/api/auth', () => ({
   useSignedIn: () => signedIn,
   getAccessToken: () => 'token',
   useCurrentUser: () => ({ data: computed(() => ({ isAdmin: admin.value })) }),
 }))
-vi.mock('@/composables/useCurrentChannel', () => ({ useCurrentChannel: () => ({ channelId: computed(() => channel.value) }) }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: computed(() => channel.value) }),
+}))
 
-type Status = typeof import('../hubStatus')['dashboardHubStatus']
+type Status = (typeof import('../hubStatus'))['dashboardHubStatus']
 
 // Modules are loaded again for each test, so the status ref comes from the same load as the hooks.
 let dashboardHubStatus: Status
@@ -36,6 +41,7 @@ let scope: EffectScope | null = null
 async function mounted(): Promise<void> {
   vi.resetModules()
   const { useRealtime } = await import('../useRealtime')
+
   dashboardHubStatus = (await import('../hubStatus')).dashboardHubStatus
   scope = effectScope()
   scope.run(() => useRealtime())
@@ -64,7 +70,9 @@ describe('useRealtime', () => {
     signedIn.value = true
     await flushPromises()
 
-    expect(FakeHubConnection.instances.map((c) => new URL(c.url).pathname)).toEqual(['/hubs/dashboard'])
+    expect(FakeHubConnection.instances.map((c) => new URL(c.url).pathname)).toEqual([
+      '/hubs/dashboard',
+    ])
     expect(FakeHubConnection.at(0).invocations).toEqual([['JoinChannel', 'c1']])
     expect(dashboardHubStatus.value).toBe('connected')
   })
@@ -101,6 +109,9 @@ describe('useRealtime', () => {
     admin.value = true
     await flushPromises()
 
-    expect(FakeHubConnection.instances.map((c) => new URL(c.url).pathname).sort()).toEqual(['/hubs/admin', '/hubs/dashboard'])
+    expect(FakeHubConnection.instances.map((c) => new URL(c.url).pathname).sort()).toEqual([
+      '/hubs/admin',
+      '/hubs/dashboard',
+    ])
   })
 })

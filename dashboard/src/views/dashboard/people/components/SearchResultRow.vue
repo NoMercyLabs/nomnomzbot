@@ -19,6 +19,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const props = defineProps<{ option: ViewerOption; selected: boolean }>()
+
 defineEmits<{ pick: [] }>()
 
 const { t } = useI18n()

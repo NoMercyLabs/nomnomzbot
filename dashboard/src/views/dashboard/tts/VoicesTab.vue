@@ -11,7 +11,7 @@
 import { refDebounced, useLocalStorage, type RemovableRef } from '@vueuse/core'
 import Check from '~icons/nnz/check'
 import WaveForm from '~icons/nnz/wave-form'
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, watch, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -47,9 +47,9 @@ const { t, te, locale } = useI18n()
 const providerName = useProviderName()
 const { channelId } = useCurrentChannel()
 const config = useTtsConfig(channelId)
-const search: Ref<string> = ref('')
+const search = ref('')
 const family: RemovableRef<string> = useLocalStorage('nnz.tts.voiceFamily', ALL)
-const asked: Readonly<Ref<string>> = refDebounced(search, SEARCH_DELAY)
+const asked = refDebounced(search, SEARCH_DELAY)
 const catalogue = useTtsVoices(channelId, () => ({ q: asked.value }))
 const pick = useSetTtsVoice(channelId)
 
@@ -58,19 +58,17 @@ const loaded: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
 )
 
 // The language chips filter the loaded pages; the server has no language-family filter.
-const visible: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
+const visible = computed<TtsVoice[]>(() =>
   family.value === ALL
     ? loaded.value
     : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === family.value),
 )
 
-const items: ComputedRef<VoiceListItem[]> = computed<VoiceListItem[]>(() =>
-  groupVoices(visible.value, locale.value),
-)
+const items = computed<VoiceListItem[]>(() => groupVoices(visible.value, locale.value))
 
 type Chip = { value: string; label: string; count: number }
 
-const chips: ComputedRef<Chip[]> = computed<Chip[]>(() =>
+const chips = computed<Chip[]>(() =>
   [ALL, ...voiceFamilyOrder].map((value: string): Chip => ({
     value,
     label: t(`dashboard.tts.voices.family.${value}`),
@@ -82,7 +80,8 @@ const chips: ComputedRef<Chip[]> = computed<Chip[]>(() =>
 )
 
 // The search box and the chips live inside the panel, so a new search must not swap the panel for a skeleton.
-const settled: Ref<boolean> = ref(false)
+const settled = ref(false)
+
 watch(
   () => catalogue.data.value,
   (data: unknown) => {
@@ -90,20 +89,21 @@ watch(
   },
   { immediate: true },
 )
-const panelState: ComputedRef<PanelState> = computed<PanelState>(() =>
+const panelState = computed<PanelState>(() =>
   catalogue.isError.value ? 'error' : settled.value ? 'ready' : 'loading',
 )
 
 const chosen: ComputedRef<string | null> = computed<string | null>(
   () => config.data.value?.defaultVoiceId ?? null,
 )
-const current: ComputedRef<TtsVoice | undefined> = computed<TtsVoice | undefined>(() =>
+const current = computed<TtsVoice | undefined>(() =>
   loaded.value.find((voice: TtsVoice) => voice.id === chosen.value),
 )
 
 // Only a total the bot returned is shown; the loaded pages never stand in for it.
 const subtitle: ComputedRef<string | undefined> = computed<string | undefined>(() => {
-  const total: number | null | undefined = catalogue.data.value?.pages[0]?.total
+  const total = catalogue.data.value?.pages[0]?.total
+
   return total === null || total === undefined
     ? undefined
     : t('dashboard.tts.voices.subtitle', { total })
@@ -122,6 +122,7 @@ const count: ComputedRef<string> = computed<string>(() =>
 
 function genderLabel(gender: string): string {
   const key = `dashboard.tts.voices.gender.${gender.toLowerCase()}`
+
   return te(key) ? t(key) : gender
 }
 
@@ -135,11 +136,9 @@ function detail(voice: TtsVoice): string {
     .join(SEPARATOR)
 }
 
-const currentName: ComputedRef<string | null> = computed<string | null>(
-  () => current.value?.displayName ?? chosen.value,
-)
+const currentName = computed<string | null>(() => current.value?.displayName ?? chosen.value)
 
-const currentDetail: ComputedRef<string> = computed<string>(() =>
+const currentDetail = computed<string>(() =>
   [
     current.value
       ? `${localeLabel(current.value.locale, locale.value)}${SEPARATOR}${genderLabel(current.value.gender)}`

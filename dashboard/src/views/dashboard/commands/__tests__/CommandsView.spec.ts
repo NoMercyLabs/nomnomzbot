@@ -89,7 +89,8 @@ function freshAnswers(): Record<string, () => Answer> {
 }
 
 function read(path: string): Answer {
-  const match: string | undefined = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+
   return match ? answers[match]!() : ok(null)
 }
 
@@ -102,13 +103,17 @@ function write(method: string, path: string, options?: Options): Answer {
   })
   if (method === 'PUT' && refusePut) return refused(refusePut)
   if (method === 'POST' && refusePost) return refused(refusePost, 409)
+
   if (method === 'PUT') {
-    const index: number = rows.findIndex((row) => row.name === options?.params?.path?.commandName)
+    const index = rows.findIndex((row) => row.name === options?.params?.path?.commandName)
+
     rows[index] = { ...rows[index], ...options?.body }
   }
+
   if (method === 'DELETE')
     rows = rows.filter((row) => row.name !== options?.params?.path?.commandName)
   if (method === 'POST') rows.push(command(String(options?.body?.name), options?.body))
+
   return { response: { status: 200, ok: true } }
 }
 
@@ -161,6 +166,7 @@ const settle = async (): Promise<void> => {
 
 async function open(url: string = '/app/commands'): Promise<void> {
   const blank = { template: '<div />' }
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/app/commands', name: 'dashboard-commands', component: blank }],
@@ -226,24 +232,24 @@ describe('CommandsView list', () => {
     await open()
 
     expect(rowNames().sort()).toEqual(['dice', 'hello', 'socials'])
-    const hello: string =
-      rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent ?? ''
+    const hello = rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent ?? ''
+
     expect(hello).toContain('!hello')
     expect(hello).toContain('Text reply · 12 uses')
     expect(hello).not.toContain('Hello there')
-    const dice: string =
-      rowEls().find((row) => row.dataset.commandName === 'dice')!.textContent ?? ''
+    const dice = rowEls().find((row) => row.dataset.commandName === 'dice')!.textContent ?? ''
+
     expect(dice).toContain('Random reply · 3 uses')
     expect(dice).not.toContain('One')
-    const socials: string =
-      rowEls().find((row) => row.dataset.commandName === 'socials')!.textContent ?? ''
+    const socials = rowEls().find((row) => row.dataset.commandName === 'socials')!.textContent ?? ''
+
     expect(socials).toContain('Off')
     expect(hello).not.toContain('Off')
   })
 
   it('filters by name and by alias, and says so when nothing matches', async () => {
     await open()
-    const search: HTMLInputElement = document.body.querySelector<HTMLInputElement>(
+    const search = document.body.querySelector<HTMLInputElement>(
       '[data-slot="search-field"] input',
     )!
 
@@ -412,6 +418,7 @@ describe('CommandsView editor', () => {
     const inputs = (): HTMLTextAreaElement[] => [
       ...editor()!.querySelectorAll<HTMLTextAreaElement>('[data-random-reply] textarea'),
     ]
+
     expect(inputs()).toHaveLength(1)
     await type(inputs()[0]!, 'One')
     buttonByText('Add a reply').click()

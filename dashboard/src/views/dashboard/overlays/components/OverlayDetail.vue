@@ -39,17 +39,18 @@ import { numberOrNull } from './settingField'
 const COPIED_MS = 2000
 
 const props = defineProps<{ widget: Widget }>()
+
 defineEmits<{ back: [] }>()
 
 const { t, locale } = useI18n()
 const { channelId } = useCurrentChannel()
 const setEnabled = useSetWidgetEnabled(channelId)
 
-const kind: ComputedRef<OverlayKind> = computed<OverlayKind>(() => overlayKind(props.widget.name))
-const builtIn: ComputedRef<boolean> = computed<boolean>(() => props.widget.source === 'first_party')
+const kind = computed<OverlayKind>(() => overlayKind(props.widget.name))
+const builtIn = computed<boolean>(() => props.widget.source === 'first_party')
 const ago = useTimeAgoIntl(() => props.widget.lastRanAt ?? new Date(0), { locale: locale.value })
 
-const copied: Ref<boolean> = ref(false)
+const copied = ref(false)
 const { start: resetCopied } = useTimeoutFn(
   () => {
     copied.value = false
@@ -69,9 +70,7 @@ function toggle(isEnabled: boolean): void {
   setEnabled.mutate({ widgetId: props.widget.id, isEnabled })
 }
 
-const runTone: ComputedRef<StatusTone> = computed<StatusTone>(() =>
-  props.widget.lastRuntimeError ? 'bad' : 'ok',
-)
+const runTone = computed<StatusTone>(() => (props.widget.lastRuntimeError ? 'bad' : 'ok'))
 const runTitle: ComputedRef<string> = computed<string>(() =>
   t(
     props.widget.lastRuntimeError
@@ -82,6 +81,7 @@ const runTitle: ComputedRef<string> = computed<string>(() =>
 const runNote: ComputedRef<string> = computed<string>(() => {
   if (props.widget.lastRuntimeError) return props.widget.lastRuntimeError
   if (!props.widget.lastRanAt) return t('dashboard.overlays.detail.health.neverRan')
+
   return t('dashboard.overlays.detail.health.worksRan', { ago: ago.value })
 })
 
@@ -92,14 +92,16 @@ interface HealthLine {
 }
 const attachLine: ComputedRef<HealthLine> = computed<HealthLine>(() => {
   const base: string = 'dashboard.overlays.detail.health'
+
   if (!props.widget.isEnabled)
     return { tone: 'off', title: t(`${base}.switchedOff`), note: t(`${base}.switchedOffNote`) }
   if (props.widget.isAttached)
     return { tone: 'ok', title: t(`${base}.attached`), note: t(`${base}.attachedNote`) }
+
   return { tone: 'off', title: t(`${base}.detached`), note: t(`${base}.detachedNote`) }
 })
 
-const events: ComputedRef<string[]> = computed<string[]>(() => props.widget.eventSubscriptions)
+const events = computed<string[]>(() => props.widget.eventSubscriptions)
 
 // Test sends the event type alone, so the bot fills in its own sample; each row shows what the bot said.
 const testEvent = useTestWidgetEvent(channelId)
@@ -109,6 +111,7 @@ const testFailures: Ref<Record<string, string>> = ref({})
 async function sendTest(eventType: string): Promise<void> {
   try {
     const answer: string = await testEvent.mutateAsync({ eventType })
+
     testResults.value = { ...testResults.value, [eventType]: answer }
   } catch (error) {
     testFailures.value = { ...testFailures.value, [eventType]: (error as Error).message }
@@ -118,12 +121,9 @@ async function sendTest(eventType: string): Promise<void> {
 
 // The preview cannot render the overlay yet; it names the size the overlay is set to when it has one.
 const size: ComputedRef<string | null> = computed<string | null>(() => {
-  const width: number | null = numberOrNull(
-    props.widget.settings?.width as number | string | undefined,
-  )
-  const height: number | null = numberOrNull(
-    props.widget.settings?.height as number | string | undefined,
-  )
+  const width = numberOrNull(props.widget.settings?.width as number | string | undefined)
+  const height = numberOrNull(props.widget.settings?.height as number | string | undefined)
+
   return width === null || height === null ? null : `${width} × ${height}`
 })
 
@@ -132,6 +132,7 @@ const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
   const address: string | null = props.widget.overlayUrl
     ? maskedAddress(props.widget.overlayUrl)
     : null
+
   return [
     { label: t(`${base}.what`), value: props.widget.description || t(`${base}.noDescription`) },
     { label: t(`${base}.framework`), value: props.widget.framework },

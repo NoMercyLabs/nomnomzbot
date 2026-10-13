@@ -31,11 +31,14 @@ async function open(router: Router, path: string): Promise<Navigation> {
   const host = defineComponent({
     setup() {
       navigation = useNavigation()
+
       return () => h('div')
     },
   })
+
   mount(host, { global: { plugins: [router] } })
   await flushPromises()
+
   return navigation as Navigation
 }
 
@@ -58,36 +61,41 @@ afterEach(() => localStorage.clear())
 
 describe('the dashboard navigation', () => {
   it('hides an entry whose page has no route and drops a group left empty', async () => {
-    const navigation: Navigation = await open(makeRouter(built), '/dashboard-home')
+    const navigation = await open(makeRouter(built), '/dashboard-home')
 
-    const labels: string[] = navigation.entries.value.map((entry) => entry.label)
+    const labels = navigation.entries.value.map((entry) => entry.label)
+
     expect(labels).toEqual(['home', 'chat', 'stream', 'commands', 'triggersTimers'])
     expect(navigation.groups.value.map((group) => group.key)).toEqual(['home', 'live', 'build'])
   })
 
   it('opens the group of the open page and folds the others', async () => {
-    const navigation: Navigation = await open(makeRouter(built), '/dashboard-chat')
+    const navigation = await open(makeRouter(built), '/dashboard-chat')
 
     const live = navigation.groups.value.find((group) => group.key === 'live')
     const build = navigation.groups.value.find((group) => group.key === 'build')
+
     expect(live).toMatchObject({ open: true, holdsOpenPage: true })
     expect(build).toMatchObject({ open: false, holdsOpenPage: false, foldable: true })
   })
 
   it('keeps a group the person opened open after the frame mounts again, and a folded one folded', async () => {
-    const router: Router = makeRouter(built)
-    const first: Navigation = await open(router, '/dashboard-chat')
+    const router = makeRouter(built)
+    const first = await open(router, '/dashboard-chat')
     const build = first.groups.value.find((group) => group.key === 'build')!
+
     first.toggle(build)
     await flushPromises()
     expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toMatchObject({ build: true })
 
-    const second: Navigation = await open(router, '/dashboard-chat')
+    const second = await open(router, '/dashboard-chat')
+
     expect(second.groups.value.find((group) => group.key === 'build')?.open).toBe(true)
 
     second.toggle(second.groups.value.find((group) => group.key === 'build')!)
     await flushPromises()
-    const third: Navigation = await open(router, '/dashboard-chat')
+    const third = await open(router, '/dashboard-chat')
+
     expect(third.groups.value.find((group) => group.key === 'build')?.open).toBe(false)
     expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toMatchObject({
       build: false,
@@ -95,22 +103,23 @@ describe('the dashboard navigation', () => {
   })
 
   it('keeps a group open after moving to a page in another group, also after a reload', async () => {
-    const router: Router = makeRouter(built)
-    const navigation: Navigation = await open(router, '/dashboard-chat')
+    const router = makeRouter(built)
+    const navigation = await open(router, '/dashboard-chat')
 
     await router.push('/dashboard-commands')
     await flushPromises()
 
     expect(navigation.groups.value.find((group) => group.key === 'live')?.open).toBe(true)
     expect(navigation.groups.value.find((group) => group.key === 'build')?.open).toBe(true)
-    const reloaded: Navigation = await open(router, '/dashboard-home')
+    const reloaded = await open(router, '/dashboard-home')
+
     expect(
       reloaded.groups.value.filter((group) => group.foldable).map((group) => group.open),
     ).toEqual([true, true])
   })
 
   it('never folds the group that holds the open page', async () => {
-    const navigation: Navigation = await open(makeRouter(built), '/dashboard-chat')
+    const navigation = await open(makeRouter(built), '/dashboard-chat')
 
     navigation.toggle(navigation.groups.value.find((group) => group.key === 'live')!)
     await flushPromises()

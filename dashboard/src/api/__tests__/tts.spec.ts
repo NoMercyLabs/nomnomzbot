@@ -13,7 +13,14 @@ import { flushPromises } from '@vue/test-utils'
 import { createApp, type App } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ttsConfigKey, ttsOverlayKey, useTtsConfig, useTtsOverlay, type TtsConfig, type TtsOverlay } from '../tts'
+import {
+  ttsConfigKey,
+  ttsOverlayKey,
+  useTtsConfig,
+  useTtsOverlay,
+  type TtsConfig,
+  type TtsOverlay,
+} from '../tts'
 
 type Answer = { data?: unknown; error?: unknown; response: { ok: boolean; status: number } }
 
@@ -42,17 +49,23 @@ const config: TtsConfig = {
   followsPlatformDefaultVoice: false,
 }
 
-function mount<T>(channelId: string | null, use: (id: string | null) => T): { queries: QueryClient; hook: T } {
+function mount<T>(
+  channelId: string | null,
+  use: (id: string | null) => T,
+): { queries: QueryClient; hook: T } {
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   let hook!: T
   const app: App = createApp({
     setup() {
       hook = use(channelId)
+
       return () => null
     },
   })
+
   app.use(VueQueryPlugin, { queryClient: queries })
   app.mount(document.createElement('div'))
+
   return { queries, hook }
 }
 
@@ -65,6 +78,7 @@ describe('useTtsConfig', () => {
     http.GET.mockResolvedValue({ data: { data: config }, response: { ok: true, status: 200 } })
 
     const { queries, hook } = mount('c1', useTtsConfig)
+
     await flushPromises()
 
     expect(http.GET).toHaveBeenCalledWith('/api/v{version}/channels/{channelId}/tts/config', {
@@ -78,6 +92,7 @@ describe('useTtsConfig', () => {
     http.GET.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 403 } })
 
     const { hook } = mount('c1', useTtsConfig)
+
     await flushPromises()
 
     expect(hook.isError.value).toBe(true)
@@ -86,6 +101,7 @@ describe('useTtsConfig', () => {
 
   it('waits for a channel before it asks the server', async () => {
     const { hook } = mount(null, useTtsConfig)
+
     await flushPromises()
 
     expect(http.GET).not.toHaveBeenCalled()
@@ -95,10 +111,15 @@ describe('useTtsConfig', () => {
 
 describe('useTtsOverlay', () => {
   it('keeps the last run time null when the overlay never ran', async () => {
-    const overlay: TtsOverlay = { overlayUrl: 'https://bot.test/overlay/tts/abc', lastRanAt: null }
+    const overlay = {
+      overlayUrl: 'https://bot.test/overlay/tts/abc',
+      lastRanAt: null,
+    } as const satisfies TtsOverlay
+
     http.GET.mockResolvedValue({ data: { data: overlay }, response: { ok: true, status: 200 } })
 
     const { queries, hook } = mount('c1', useTtsOverlay)
+
     await flushPromises()
 
     expect(http.GET).toHaveBeenCalledWith('/api/v{version}/channels/{channelId}/tts/overlay', {
