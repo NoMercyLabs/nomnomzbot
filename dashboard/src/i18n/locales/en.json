@@ -1,6 +1,11 @@
 {
   "common": {
     "signOut": "Sign out",
-    "language": "Language"
+    "language": "Language",
+    "panel": {
+      "empty": "Nothing here yet.",
+      "error": "This panel could not load.",
+      "retry": "Try again"
+    }
   }
 }

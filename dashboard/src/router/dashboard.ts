@@ -10,11 +10,12 @@
 
 import type { RouteRecordRaw } from 'vue-router'
 
+import { dashboardCatalogueRoute } from '@/views/dashboard/catalogue/route'
 import { dashboardHomeRoute } from '@/views/dashboard/home/route'
 
 export const dashboardRoutes: RouteRecordRaw = {
   path: '/app',
   component: () => import('@/layouts/DashboardLayout.vue'),
   meta: { requiresAuth: true },
-  children: [dashboardHomeRoute],
+  children: import.meta.env.DEV ? [dashboardHomeRoute, dashboardCatalogueRoute] : [dashboardHomeRoute],
 }

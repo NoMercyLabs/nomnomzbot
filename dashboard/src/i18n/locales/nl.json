@@ -1,6 +1,11 @@
 {
   "common": {
     "signOut": "Afmelden",
-    "language": "Taal"
+    "language": "Taal",
+    "panel": {
+      "empty": "Hier is nog niets.",
+      "error": "Dit paneel kon niet laden.",
+      "retry": "Probeer opnieuw"
+    }
   }
 }

@@ -1,0 +1,76 @@
+{
+  "dashboard": {
+    "catalogue": {
+      "title": "Catalogue",
+      "crumb": "Development",
+      "meta": "Every building block in its states",
+      "tabs": {
+        "blocks": "Blocks",
+        "states": "Panel states",
+        "layouts": "Layouts"
+      },
+      "primary": "Save changes",
+      "outline": "Discard",
+      "status": {
+        "ok": "Connected",
+        "warn": "Slow",
+        "bad": "Failed",
+        "live": "Live",
+        "off": "Off"
+      },
+      "stats": {
+        "messages": "Messages, all time",
+        "messagesContext": "this channel",
+        "channels": "Channels",
+        "channelsContext": "8 set up",
+        "hidden": "Hidden by chat clears",
+        "hiddenContext": "fix in progress"
+      },
+      "kv": {
+        "region": "Region",
+        "regionValue": "Europe",
+        "uptime": "Uptime",
+        "uptimeReason": "Not recorded yet"
+      },
+      "settings": {
+        "tts": "Speak with TTS",
+        "ttsHelp": "The reply is also read aloud on stream.",
+        "mods": "Exclude moderators",
+        "modsHelp": "Moderators cannot win."
+      },
+      "filter": {
+        "state": "State",
+        "all": "All",
+        "on": "On",
+        "off": "Off",
+        "since": "Since",
+        "day": "24 hours",
+        "week": "7 days",
+        "month": "30 days",
+        "quarter": "90 days",
+        "year": "One year"
+      },
+      "search": "Search commands",
+      "panel": {
+        "ready": "Ready",
+        "readyRow": "A row of content",
+        "readyDetail": "The panel holds its rows here.",
+        "loading": "Loading",
+        "empty": "Empty",
+        "emptyText": "No commands yet.",
+        "error": "Error",
+        "retried": "Retry pressed {count} times",
+        "lead": "Lead panel",
+        "quiet": "Quiet panel"
+      },
+      "layout": {
+        "board": "Board",
+        "cell": "Cell",
+        "list": "List",
+        "detail": "Detail",
+        "aside": "Aside"
+      },
+      "view": "Open tab: {view}"
+    }
+  }
+}
