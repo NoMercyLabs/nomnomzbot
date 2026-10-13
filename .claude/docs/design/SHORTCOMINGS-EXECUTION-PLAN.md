@@ -30,7 +30,6 @@ Stoney, verbatim:
 > the dashboard is not getting its live updates or does not reflect them and requires a navigation to make the change showing.
 > i would like my chat settings and user active sidepannel to be made now.
 
-- **S-VUE-DISMISS-ERROR** — every error the dashboard shows can be dismissed. Done when a test dismisses each error surface and it stays gone.
 - **S-VUE-LIVE-UPDATES** — server pushes update the open page without a navigation. Done when a test pushes an event and the panel changes without a route change.
 - **S-VUE-CHAT-SETTINGS** — the chat settings page from the mockup, on the shared foundation.
 - **S-VUE-ACTIVE-USERS-PANEL** — the active users side panel from the mockup.
