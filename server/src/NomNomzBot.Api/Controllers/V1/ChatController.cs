@@ -104,7 +104,15 @@ public class ChatController : BaseController
         IReadOnlyDictionary<string, string> Urls,
         bool Animated,
         bool ZeroWidth,
-        string? SetId
+        string? SetId,
+        string? Id = null,
+        string? Type = null,
+        int? Tier = null,
+        string? Origin = null,
+        string? OwnerId = null,
+        string? OwnerLogin = null,
+        string? OwnerName = null,
+        string? OwnerAvatarUrl = null
     );
 
     // Mirrors Twitch's real Helix chat-settings surface (twitch-helix.md §3.2 / ITwitchChatApi) — every
@@ -494,7 +502,15 @@ public class ChatController : BaseController
                 e.Urls,
                 e.Animated,
                 e.ZeroWidth,
-                e.SetId
+                e.SetId,
+                e.Id,
+                e.Type,
+                e.Tier,
+                e.Origin?.ToString().ToLowerInvariant(),
+                e.OwnerChannel?.Id,
+                e.OwnerChannel?.Login,
+                e.OwnerChannel?.DisplayName,
+                e.OwnerChannel?.AvatarUrl
             )),
         ];
         return Ok(new StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>> { Data = emotes });

@@ -128,7 +128,8 @@ public sealed class ChatTwitchEmoteCacheWarmer
             user.Id,
             user.Login,
             user.DisplayName,
-            $"https://www.twitch.tv/{user.Login}"
+            $"https://www.twitch.tv/{user.Login}",
+            string.IsNullOrEmpty(user.ProfileImageUrl) ? null : user.ProfileImageUrl
         );
         await _cache.SetAsync(key, owner, OwnerTtl, ct);
         return owner;

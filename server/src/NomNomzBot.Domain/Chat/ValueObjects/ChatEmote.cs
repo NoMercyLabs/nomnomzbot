@@ -36,6 +36,14 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// <param name="Tier">The subscription tier 1, 2 or 3 of a Twitch subscription emote. Null for every other emote.</param>
 /// <param name="Owner">The owning channel (Twitch) or the uploader (7TV, BTTV, FFZ). Null when the cache does not know it.</param>
 /// <param name="Artist">The artist when the provider names one apart from the owner (FFZ). Null otherwise.</param>
+/// <param name="Origin">
+/// Whose emote this is for the operator who asked for the catalogue. Set by the catalogue per request; null on a
+/// cached emote and on the live feed.
+/// </param>
+/// <param name="OwnerChannel">
+/// The channel the picker groups this emote under: the owning channel of a Twitch emote, or the viewed channel for a
+/// 7TV, BTTV or FFZ channel set. Null for a global emote. Set by the catalogue per request.
+/// </param>
 public sealed record ChatEmote(
     EmoteProvider Provider,
     string Id,
@@ -49,5 +57,7 @@ public sealed record ChatEmote(
     string? Type = null,
     int? Tier = null,
     ChatEmoteOwner? Owner = null,
-    ChatEmoteOwner? Artist = null
+    ChatEmoteOwner? Artist = null,
+    ChatEmoteOrigin? Origin = null,
+    ChatEmoteOwner? OwnerChannel = null
 );
