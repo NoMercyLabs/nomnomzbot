@@ -401,20 +401,22 @@ async function banNow(): Promise<void> {
         >
           {{ vipLabel }}
         </Button>
-        <Button
-          v-if="sanctionable"
-          data-profile-warn
-          type="button"
-          variant="ghost"
-          :disabled="!canWarn || person.isBanned"
-          :title="lockedTip(canWarn)"
-          @click="warnOpen = true"
-        >
-          {{ $t('profile.warn.button') }}
-        </Button>
         <ProfileWarn v-model:open="warnOpen" :user-id="userId" :name="title" />
 
+        <!-- The mod actions stay together, one look each, with Ban the one strong button (owner 2026-10-15:
+             "ban timeout and warn are mod actions so why is one of them a link button?"). -->
         <div class="ml-auto flex items-center gap-2">
+          <Button
+            v-if="sanctionable && !person.isBanned"
+            data-profile-warn
+            type="button"
+            variant="outline"
+            :disabled="!canWarn"
+            :title="lockedTip(canWarn)"
+            @click="warnOpen = true"
+          >
+            {{ $t('profile.warn.button') }}
+          </Button>
           <Button
             v-if="person.isBanned"
             data-profile-unban

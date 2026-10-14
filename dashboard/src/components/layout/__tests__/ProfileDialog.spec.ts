@@ -1178,10 +1178,23 @@ describe('the profile dialog', () => {
     expect(warn.getAttribute('title')).toBe(i18n.global.t('common.readOnly'));
   });
 
+  // Owner 2026-10-15: "ban timeout and warn are mod actions so why is one of them a link button?"
+  it('keeps Warn with Timeout and Ban, in the same look as Timeout', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const warn = document.body.querySelector<HTMLElement>('[data-profile-warn]')!;
+    const timeout = document.body.querySelector<HTMLElement>('[data-profile-timeout]')!;
+
+    expect(warn.parentElement).toBe(timeout.parentElement);
+    expect(warn.dataset.variant).toBe(timeout.dataset.variant);
+  });
+
   it('offers Unban instead of Ban and Timeout for a banned person, and lifts the ban', async () => {
     await openPage();
     await openUser('u2');
 
+    expect(document.body.querySelector('[data-profile-warn]')).toBeNull();
     expect(document.body.querySelector('[data-profile-ban]')).toBeNull();
     expect(document.body.querySelector('[data-profile-timeout]')).toBeNull();
 
