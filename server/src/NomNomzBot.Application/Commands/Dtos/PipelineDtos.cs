@@ -98,6 +98,7 @@ public sealed record PipelineActionFieldDto(
     bool Repeatable,
     IReadOnlyList<string>? Options,
     LocalizedText? Description,
+    bool Templated = false,
     bool DeclaresVariable = false,
     string? DeclaredVariableDefault = null
 );

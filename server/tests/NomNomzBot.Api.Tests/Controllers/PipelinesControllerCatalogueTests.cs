@@ -141,6 +141,46 @@ public sealed class PipelinesControllerCatalogueTests
     }
 
     [Fact]
+    public void Catalogue_carries_Templated_so_the_builder_knows_which_fields_take_placeholders()
+    {
+        ICommandAction[] actions =
+        [
+            new FakeAction(
+                "send_message",
+                "chat",
+                [
+                    new("message", PipelineActionFieldKind.Text, Required: true, Templated: true),
+                    new("delay", PipelineActionFieldKind.Number),
+                    new("announce", PipelineActionFieldKind.Boolean),
+                ]
+            ),
+        ];
+        PipelinesController controller = new(
+            Substitute.For<IPipelineService>(),
+            Substitute.For<IPipelineTestRunService>(),
+            Substitute.For<ICommandConfigValidator>(),
+            actions,
+            [],
+            Substitute.For<IPlatformDefaultRestoreService>()
+        );
+
+        OkObjectResult ok = controller
+            .ListActionCatalogue("chan")
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Subject;
+        PipelineCatalogueDto data = ok
+            .Value.Should()
+            .BeOfType<StatusResponseDto<PipelineCatalogueDto>>()
+            .Subject.Data!;
+
+        IReadOnlyList<PipelineActionFieldDto> fields = data.Actions.Single().Fields;
+        fields.Single(f => f.Name == "message").Templated.Should().BeTrue();
+        fields.Single(f => f.Name == "delay").Templated.Should().BeFalse();
+        fields.Single(f => f.Name == "announce").Templated.Should().BeFalse();
+    }
+
+    [Fact]
     public void Catalogue_carries_DeclaresVariable_and_default_for_fields_that_name_a_variable()
     {
         ICommandAction[] actions =
