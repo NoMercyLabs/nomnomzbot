@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Identity.Jobs;
 
 namespace NomNomzBot.Infrastructure.Identity.EventHandlers;
 
@@ -74,34 +75,8 @@ public sealed class OwnerProfileSeedOnOnboardingHandler(
             if (owner is null)
                 return;
 
-            bool changed = false;
-
-            if (
-                !string.IsNullOrEmpty(twitchUser.BroadcasterType)
-                && owner.BroadcasterType != twitchUser.BroadcasterType
-            )
-            {
-                owner.BroadcasterType = twitchUser.BroadcasterType;
-                changed = true;
-            }
-
-            if (
-                !string.IsNullOrEmpty(twitchUser.Description)
-                && owner.Description != twitchUser.Description
-            )
-            {
-                owner.Description = twitchUser.Description;
-                changed = true;
-            }
-
-            if (
-                !string.IsNullOrEmpty(twitchUser.ProfileImageUrl)
-                && owner.ProfileImageUrl != twitchUser.ProfileImageUrl
-            )
-            {
-                owner.ProfileImageUrl = twitchUser.ProfileImageUrl;
-                changed = true;
-            }
+            // The same rules as the hydration worker: a lost affiliate status clears to "".
+            bool changed = UserProfileHydrationService.ApplyProfile(owner, twitchUser);
 
             if (changed)
                 await db.SaveChangesAsync(ct);

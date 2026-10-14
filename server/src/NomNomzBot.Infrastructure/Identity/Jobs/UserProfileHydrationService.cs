@@ -181,10 +181,10 @@ public sealed class UserProfileHydrationService : BackgroundService
     }
 
     /// <summary>
-    /// Writes a Helix <see cref="TwitchUser"/> onto its <see cref="User"/> row, filling only fields Twitch actually
-    /// returned (Twitch sends an empty string for an ordinary user's broadcaster/staff type, which must not clobber
-    /// the entity default). <see cref="User.AccountCreatedAt"/> is set once (immutable). Returns true when any
-    /// field changed, so the caller saves only rows that moved.
+    /// Writes a Helix <see cref="TwitchUser"/> onto its <see cref="User"/> row. Names, images and the bio fill only
+    /// when Twitch returned them; broadcaster and staff type always follow Twitch, so "" clears a lost status.
+    /// <see cref="User.AccountCreatedAt"/> is set once (immutable). Returns true when any field changed, so the
+    /// caller saves only rows that moved.
     /// </summary>
     internal static bool ApplyProfile(User user, TwitchUser twitchUser)
     {
@@ -227,16 +227,14 @@ public sealed class UserProfileHydrationService : BackgroundService
             changed = true;
         }
 
-        if (
-            !string.IsNullOrEmpty(twitchUser.BroadcasterType)
-            && user.BroadcasterType != twitchUser.BroadcasterType
-        )
+        // Helix always sends both: "" is a regular channel and a regular account, so a lost status clears.
+        if (user.BroadcasterType != twitchUser.BroadcasterType)
         {
             user.BroadcasterType = twitchUser.BroadcasterType;
             changed = true;
         }
 
-        if (!string.IsNullOrEmpty(twitchUser.Type) && user.Type != twitchUser.Type)
+        if (user.Type != twitchUser.Type)
         {
             user.Type = twitchUser.Type;
             changed = true;

@@ -90,6 +90,23 @@ public sealed class UserProfileHydrationServiceTests
     }
 
     [Fact]
+    public void A_channel_that_lost_its_status_reads_regular_again()
+    {
+        User user = BareChatter();
+        UserProfileHydrationService.ApplyProfile(user, Profile(type: "staff"));
+
+        // Helix always sends both fields; "" means a regular channel and a regular account.
+        bool changed = UserProfileHydrationService.ApplyProfile(
+            user,
+            Profile(broadcasterType: "", type: "")
+        );
+
+        changed.Should().BeTrue();
+        user.BroadcasterType.Should().Be("");
+        user.Type.Should().Be("");
+    }
+
+    [Fact]
     public void An_already_hydrated_user_with_identical_values_reports_no_change()
     {
         User user = BareChatter();

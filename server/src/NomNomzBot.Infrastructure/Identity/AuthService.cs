@@ -291,6 +291,7 @@ public sealed class AuthService : IAuthService
             user.DisplayName = twitchUser.DisplayName;
             user.ProfileImageUrl = twitchUser.ProfileImageUrl;
             user.Type = twitchUser.Type; // revocable — re-read live each login
+            user.BroadcasterType = twitchUser.BroadcasterType; // "" again when affiliate is lost
             if (twitchUser.AccountCreatedAt is not null)
                 user.AccountCreatedAt = twitchUser.AccountCreatedAt; // immutable Twitch fact
         }
