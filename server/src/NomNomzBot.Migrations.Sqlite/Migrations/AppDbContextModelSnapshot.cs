@@ -1224,6 +1224,50 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChatterAssignedColors");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Chat.Entities.FavoriteEmote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EmoteId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Provider", "EmoteId")
+                        .IsUnique();
+
+                    b.ToTable("FavoriteEmotes");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -12524,6 +12568,15 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("Stream");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Chat.Entities.FavoriteEmote", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand", b =>
