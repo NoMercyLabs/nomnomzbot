@@ -435,7 +435,9 @@
     "chat": {
       "title": "Latest in chat",
       "all": "All chat",
-      "empty": "No chat lines stored yet."
+      "empty": "No chat lines stored yet.",
+      "more": "Load older",
+      "error": "Could not load the chat history."
     },
     "moderation": {
       "title": "Ban history",

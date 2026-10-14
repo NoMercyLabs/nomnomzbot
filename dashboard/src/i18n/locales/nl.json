@@ -435,7 +435,9 @@
     "chat": {
       "title": "Laatst in de chat",
       "all": "Alle chat",
-      "empty": "Nog geen chatregels bewaard."
+      "empty": "Nog geen chatregels bewaard.",
+      "more": "Oudere laden",
+      "error": "De chatgeschiedenis kon niet worden geladen."
     },
     "moderation": {
       "title": "Banhistorie",

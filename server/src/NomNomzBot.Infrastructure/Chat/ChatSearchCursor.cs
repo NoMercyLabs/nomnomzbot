@@ -18,7 +18,7 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// The keyset position of the last chat row a search scanned: <c>(CreatedAt, Id)</c>, encoded as an opaque
 /// base64url string so the client treats it as a token, not a format.
 /// </summary>
-internal readonly record struct ChatSearchCursor(DateTime CreatedAt, string Id)
+public readonly record struct ChatSearchCursor(DateTime CreatedAt, string Id)
 {
     public string Encode() =>
         Base64Url.EncodeToString(

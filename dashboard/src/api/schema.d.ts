@@ -19411,6 +19411,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/chat/users/{userId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One person's full stored chat history in this channel, newest first, paged by an opaque keyset cursor. */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number | string;
+                    before?: string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    userId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfChatSearchResultDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/chat/emotes": {
         parameters: {
             query?: never;

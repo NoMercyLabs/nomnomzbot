@@ -156,6 +156,37 @@ const history: Record<string, Record<string, unknown>[][]> = {
   ],
 };
 
+// A person's whole chat by internal id, newest page first. The cursor is the index of the next page.
+let chatPages: Record<string, Record<string, unknown>[][]> = {};
+
+function chatLine(id: string, message: string, timestamp: string): Record<string, unknown> {
+  return {
+    id,
+    message,
+    timestamp,
+  };
+}
+
+function chatPage(options: Options | undefined): unknown {
+  const pages = chatPages[userIdOf(options)] ?? [[]];
+  const before = (options?.params?.query as Record<string, unknown> | undefined)?.before;
+  const index = before === undefined
+    ? 0
+    : Number(before);
+
+  return {
+    data: {
+      data: {
+        messages: onTheWire(pages[index] ?? []),
+        nextCursor: index + 1 < pages.length
+          ? String(index + 1)
+          : null,
+      },
+    },
+    response: { ok: true, status: 200 },
+  };
+}
+
 function historyPage(options: Options | undefined): unknown {
   const pages = history[userIdOf(options)] ?? [[]];
   const page = Number((options?.params?.query as Record<string, unknown> | undefined)?.Page ?? 1);
@@ -450,6 +481,9 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/history/{userId}'))
         return { data: historyPage(options), response: { ok: true } };
 
+      if (path.endsWith('/chat/users/{userId}/messages'))
+        return chatPage(options);
+
       if (path.endsWith('/tts/users/{userId}/voice'))
         return personVoice(options);
 
@@ -603,6 +637,7 @@ beforeEach(async () => {
   profiles = freshProfiles();
   notes = freshNotes();
   standings = {};
+  chatPages = { g1: [[chatLine('c1', 'hello from ada', '2026-10-01T10:00:00Z')]] };
   personVoices = {};
   held = [...MODERATOR_KEYS];
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -994,6 +1029,7 @@ describe('the profile dialog', () => {
       '/auth/me',
       '/history/{userId}',
       '/context',
+      '/chat/users/{userId}/messages',
     ];
     const writes = calls.filter((c: Call) =>
       !reads.some((end: string) =>
@@ -1706,11 +1742,7 @@ describe('the Overview tab', () => {
   });
 
   it('keeps the chat lines in the Chat tab only, never in the Overview', async () => {
-    people.u1!.recentActivity = [{
-      type: 'chat',
-      content: 'line one',
-      timestamp: '2026-10-01T10:00:00Z',
-    }];
+    chatPages.g1 = [[chatLine('c1', 'line one', '2026-10-01T10:00:00Z')]];
 
     await openPage();
     await openUser('u1');
@@ -1719,12 +1751,47 @@ describe('the Overview tab', () => {
     expect(document.body.querySelector('[data-profile-chat-lines]')!.textContent).toContain('line one');
   });
 
+  it('pages through the whole chat grouped by day, appending older lines until none are left', async () => {
+    chatPages.g1 = [
+      [
+        chatLine('c3', 'newest', '2026-10-01T10:05:00Z'),
+        chatLine('c2', 'same day', '2026-10-01T10:00:00Z'),
+      ],
+      [
+        chatLine('c1', 'older same day', '2026-10-01T09:00:00Z'),
+        chatLine('c0', 'first ever', '2026-09-15T09:00:00Z'),
+      ],
+    ];
+
+    await openPage();
+    await openUser('u1');
+
+    const days = (): string[] =>
+      Array.from(document.body.querySelectorAll('[data-profile-chat-day]')).map((day: Element) =>
+        day.textContent ?? '');
+
+    expect(days()).toHaveLength(1);
+    expect(days()[0]).toContain('newest');
+    expect(days()[0]).toContain('same day');
+    expect(days()[0]).not.toContain('older same day');
+
+    button('[data-profile-chat-more]').click();
+    await settle();
+
+    // The older line of the same day joins its group; the earlier day gets its own heading.
+    expect(days()).toHaveLength(2);
+    expect(days()[0]).toContain('older same day');
+    expect(days()[1]).toContain('first ever');
+    expect(document.body.querySelectorAll('[data-profile-chat-day-heading]')).toHaveLength(2);
+    expect(document.body.querySelector('[data-profile-chat-more]')).toBeNull();
+
+    const asked = calls.filter((c: Call) => c.path.endsWith('/chat/users/{userId}/messages'));
+
+    expect(asked.map((c: Call) => userIdOf(c))).toEqual(['g1', 'g1']);
+  });
+
   it('shows a known emote code in a chat line as the emote, and keeps other words as text', async () => {
-    people.u1!.recentActivity = [{
-      type: 'chat',
-      content: 'nice raid stoney90Hmmm stoney90Unknown',
-      timestamp: '2026-10-01T10:00:00Z',
-    }];
+    chatPages.g1 = [[chatLine('c1', 'nice raid stoney90Hmmm stoney90Unknown', '2026-10-01T10:00:00Z')]];
 
     await openPage();
     await openUser('u1');

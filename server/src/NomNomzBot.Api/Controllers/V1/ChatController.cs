@@ -30,6 +30,7 @@ using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Infrastructure.Chat;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -283,6 +284,84 @@ public class ChatController : BaseController
             }
         );
     }
+
+    // ── GET users/{userId}/messages ───────────────────────────────────────────
+
+    /// <summary>
+    /// One person's full stored chat history in this channel, newest first, paged by an opaque keyset cursor
+    /// (<c>before</c>; <c>nextCursor</c> is null at the first line). <c>userId</c> is the platform user id that
+    /// <c>ChatMessage.UserId</c> stores (the Twitch id), or the internal User.Id the profile carries
+    /// (<c>internalUserId</c>), which is resolved to the platform id first.
+    /// </summary>
+    [RequireAction("chat:read")]
+    [HttpGet("users/{userId}/messages")]
+    [ProducesResponseType<StatusResponseDto<ChatSearchResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserMessages(
+        string channelId,
+        string userId,
+        [FromQuery] int limit = 50,
+        [FromQuery] string? before = null,
+        CancellationToken ct = default
+    )
+    {
+        limit = Math.Clamp(limit, 1, 200);
+
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        ChatSearchCursor? position = null;
+        if (before is not null)
+        {
+            if (!ChatSearchCursor.TryDecode(before, out ChatSearchCursor decoded))
+                return BadRequestResponse("Invalid cursor.", "invalid_cursor");
+
+            position = decoded;
+        }
+
+        string? platformUserId = await ResolvePlatformUserIdAsync(userId, ct);
+        if (platformUserId is null)
+            return NotFoundResponse("User not found.");
+
+        IQueryable<ChatMessage> rows = _db.ChatMessages.Where(m =>
+            m.BroadcasterId == broadcasterId && m.UserId == platformUserId && m.DeletedAt == null
+        );
+
+        if (position is { } at)
+            rows = rows.Where(m =>
+                m.CreatedAt < at.CreatedAt
+                || (m.CreatedAt == at.CreatedAt && m.Id.CompareTo(at.Id) < 0)
+            );
+
+        // One extra row tells whether an older page exists without a count query.
+        List<ChatMessage> fetched = await rows.OrderByDescending(m => m.CreatedAt)
+            .ThenByDescending(m => m.Id)
+            .Take(limit + 1)
+            .ToListAsync(ct);
+
+        bool hasMore = fetched.Count > limit;
+        List<ChatMessage> page = fetched.Take(limit).ToList();
+        string? nextCursor = hasMore
+            ? new ChatSearchCursor(page[^1].CreatedAt, page[^1].Id).Encode()
+            : null;
+
+        List<DashboardChatMessageDto> messages = await MapToDtosAsync(
+            broadcasterId,
+            channelId,
+            page,
+            ct
+        );
+
+        return Ok(new StatusResponseDto<ChatSearchResultDto> { Data = new(messages, nextCursor) });
+    }
+
+    // A Guid is the internal User.Id (resolved to its Twitch id); anything else is already a platform id.
+    private async Task<string?> ResolvePlatformUserIdAsync(string userId, CancellationToken ct) =>
+        Guid.TryParse(userId, out Guid internalId)
+            ? await _db
+                .Users.Where(u => u.Id == internalId)
+                .Select(u => u.TwitchUserId)
+                .FirstOrDefaultAsync(ct)
+            : userId;
 
     // Maps persisted rows (in the order given) to the SAME DashboardChatMessageDto the live hub emits. Shared by
     // chat history (GET messages) and chat search so both return one shape.

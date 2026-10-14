@@ -27,12 +27,11 @@ import {
 } from '@/api/community';
 import { useShoutout, useTimeout, useUnban, useViewerProfile } from '@/api/people';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import EmoteText from '@/components/layout/EmoteText.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import ProfileHeader, { type ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
 import ProfileData from '@/components/layout/profile/ProfileData.vue';
 import ProfileEmotes from '@/components/layout/profile/ProfileEmotes.vue';
+import ProfileChat from '@/components/layout/profile/ProfileChat.vue';
 import ProfileHistory from '@/components/layout/profile/ProfileHistory.vue';
 import ProfileNotes from '@/components/layout/profile/ProfileNotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
@@ -62,8 +61,6 @@ import { SAVE_FAILED_MESSAGE, SAVE_FAILED_TITLE } from '@/composables/useOptimis
 import { merge } from '@/lib/array';
 import { formatLength, shortDate, TIMEOUT_LENGTHS } from '@/lib/time';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
-
-type ActivityLine = CommunityMember['recentActivity'][number];
 
 // preview: the name, login and avatar a list row or search hit already has, shown while the person loads.
 const props = defineProps<{ userId: string; preview?: ProfilePreview | null }>();
@@ -160,7 +157,6 @@ const tab = inDialog
   ? dialogTab
   : pageTab;
 const title = computed<string>(() => person.value?.displayName ?? t('profile.title'));
-const lines = computed<ActivityLine[]>(() => person.value?.recentActivity ?? []);
 
 // What the bot counted of the moderation on this person, beside the bans it stored one by one.
 const actions = computed<KeyValueItem[]>(() => {
@@ -304,24 +300,7 @@ async function banNow(): Promise<void> {
           </TabsContent>
 
           <TabsContent value="chat" force-mount :class="PANEL_CLASS">
-            <!-- The bot sends at most 10 lines, so they list in full: no box scrolls inside the profile. -->
-            <PanelCard
-              bare
-              :title="$t('profile.chat.title')"
-              :state="lines.length > 0 ? 'ready' : 'empty'"
-              :empty-text="$t('profile.chat.empty')"
-            >
-              <ul data-profile-chat-lines :aria-label="$t('profile.chat.title')" class="grid gap-3">
-                <li
-                  v-for="line in lines"
-                  :key="`${line.timestamp}-${line.content}`"
-                  class="grid gap-0.5 text-sm"
-                >
-                  <span class="text-xs text-muted-foreground">{{ dateText(line.timestamp) }}</span>
-                  <EmoteText class="wrap-anywhere" :text="line.content" />
-                </li>
-              </ul>
-            </PanelCard>
+            <ProfileChat :internal-user-id="person?.internalUserId ?? null" />
           </TabsContent>
 
           <TabsContent value="emotes" force-mount :class="PANEL_CLASS">

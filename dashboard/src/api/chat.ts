@@ -179,6 +179,53 @@ export function useChatSearch(
   });
 }
 
+const userChatKey = (channelId: string | null, userId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'chat',
+  'users',
+  userId,
+];
+
+async function readUserChatPage(
+  channelId: string,
+  userId: string,
+  before: string | undefined,
+): Promise<ChatSearchPage> {
+  const { data, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/chat/users/{userId}/messages',
+    { params: { path: {
+      version: '1',
+      channelId,
+      userId,
+    }, query: { before } } },
+  );
+
+  ensureOk(response, 'user chat');
+
+  return {
+    messages: (data?.data?.messages ?? []) as ChatLine[],
+    nextCursor: data?.data?.nextCursor ?? null,
+  };
+}
+
+// One person's whole stored chat in this channel, newest first. The id is the internal one
+// (CommunityRow.internalUserId); a null id reads nothing.
+export function useUserChat(
+  channelId: MaybeRefOrGetter<string | null>,
+  userId: MaybeRefOrGetter<string | null>,
+): UseInfiniteQueryReturnType<InfiniteData<ChatSearchPage>, Error> {
+  return useInfiniteQuery({
+    queryKey: computed(() => userChatKey(toValue(channelId), toValue(userId))),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }): Promise<ChatSearchPage> =>
+      readUserChatPage(toValue(channelId) as string, toValue(userId) as string, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: ChatSearchPage): string | undefined =>
+      last.nextCursor ?? undefined,
+    enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
+  });
+}
+
 export function useSendChat(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<void, Error, SendChatInput, unknown> {
