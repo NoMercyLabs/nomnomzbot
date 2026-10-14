@@ -153,31 +153,3 @@ export function chatterSuggestions(names: readonly string[], query: string): Sug
       provider: null,
     }));
 }
-
-// The pick replaces the typed word and gets a space after it; the caret lands after that space.
-export function applySuggestion(
-  text: string,
-  token: SuggestToken,
-  caret: number,
-  insert: string,
-): { text: string; caret: number } {
-  const before = `${text.slice(0, token.start)}${insert} `;
-
-  return { text: before + text.slice(caret).trimStart(), caret: before.length };
-}
-
-// A picker pick goes in at the caret as its own word: a space before it when it would touch the word in front,
-// and a space after it, where the caret lands.
-export function insertAt(
-  text: string,
-  caret: number,
-  insert: string,
-): { text: string; caret: number } {
-  const head = text.slice(0, caret);
-  const gap = head === '' || /\s$/u.test(head)
-    ? ''
-    : ' ';
-  const before = `${head}${gap}${insert} `;
-
-  return { text: before + text.slice(caret).trimStart(), caret: before.length };
-}

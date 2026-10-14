@@ -12,18 +12,27 @@
 // limit never leaves the browser; a failed send keeps the text so nothing is lost. A reply names
 // the line it answers above the box until it is sent or canceled with the button or Escape.
 // As in KMP and Twitch, ":" + 2 letters offers emotes and emoji and "@" offers the chatters here;
-// the picker beside the box offers all of them to browse.
-import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue';
+// the picker beside the box offers all of them to browse. An emote shows as its image in the box, as on
+// Twitch and 7TV; the message that leaves is plain text with the emote codes.
+import Document from '@tiptap/extension-document';
+import Paragraph from '@tiptap/extension-paragraph';
+import Text from '@tiptap/extension-text';
+import { UndoRedo } from '@tiptap/extensions';
+import type { Editor, JSONContent } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { EditorContent, useEditor } from '@tiptap/vue-3';
+import { computed, nextTick, ref, useId, watch, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Cross from '~icons/nnz/cross';
 import EmailReply from '~icons/nnz/email-reply';
 
 import { chatMessageMaxLength, useChatEmotes, useSendChat, type ChatLine } from '@/api/chat';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import { merge } from '@/lib/array';
 
-import { insertAt, type Suggestion } from '../composerSuggest';
+import { ChatInput, EmoteNode, type EmoteImage } from '../chatEditor';
+import { emoteSuggestion, type Suggestion } from '../composerSuggest';
 import { useComposerSuggestions } from '../useComposerSuggestions';
 import ComposerSuggestions from './ComposerSuggestions.vue';
 import EmotePicker from './EmotePicker.vue';
@@ -35,7 +44,6 @@ const replyTo = defineModel<ChatLine | null>('replyTo', { default: null });
 
 const { t } = useI18n();
 const sender = useSendChat(() => props.channelId);
-const box = useTemplateRef<{ $el: HTMLInputElement }>('box');
 const listId = useId();
 
 const text = ref('');
@@ -46,44 +54,104 @@ const emotes = useChatEmotes(() => props.channelId);
 const list = useComposerSuggestions(text, caret, () => emotes.data.value ?? [], () =>
   props.chatters);
 const listOpen = computed(() => list.suggestions.value.length > 0);
-const activeOption = computed<string | undefined>(() =>
-  listOpen.value
-    ? `${listId}-${list.active.value}`
-    : undefined);
+
+// Every emote this sender can use, by code, with the image the box shows for it.
+const images = computed(() =>
+  new Map((emotes.data.value ?? []).flatMap((emote) => {
+    const src = emoteSuggestion(emote).image;
+
+    return src
+      ? [[emote.code, { code: emote.code, src }] as const]
+      : [];
+  })));
+
+function lookup(word: string): EmoteImage | undefined {
+  return images.value.get(word);
+}
+
+// An emote counts as its code: that is what the message carries.
+function leafText(node: ProseMirrorNode): string {
+  return String(node.attrs.code ?? '');
+}
+
+function textUpTo(editor: Editor, position: number): string {
+  return editor.state.doc.textBetween(0, position, '', leafText);
+}
+
+function sync({ editor }: { editor: Editor }): void {
+  text.value = textUpTo(editor, editor.state.doc.content.size);
+  caret.value = textUpTo(editor, editor.state.selection.from).length;
+}
+
+const editor = useEditor({
+  extensions: [
+    Document.extend({ content: 'paragraph' }),
+    Paragraph,
+    Text,
+    EmoteNode,
+    UndoRedo,
+    ChatInput.configure({
+      lookup,
+      onKey: (event) =>
+        onKey(event),
+    }),
+  ],
+  onUpdate: sync,
+  onSelectionUpdate: sync,
+});
+
+// A word as it goes into the box at a position: an emote as its image, anything else as text, with a space
+// after it unless one follows already.
+function piece(box: Editor, at: number, insert: string): JSONContent[] {
+  const emote = lookup(insert);
+  const word = emote
+    ? { type: 'emote', attrs: emote }
+    : { type: 'text', text: insert };
+  const tail = box.state.doc.textBetween(at, box.state.doc.content.size, '', leafText);
+
+  return /^\s/u.test(tail)
+    ? [word]
+    : [word, { type: 'text', text: ' ' }];
+}
+
+// The pick replaces the typed ":" or "@" word.
+function choose(suggestion: Suggestion): void {
+  const found = list.token.value;
+  const box = editor.value;
+
+  if (!found || !box) return;
+
+  const to = box.state.selection.from;
+  const typed = { from: to - found.query.length - 1, to };
+
+  const word = piece(box, to, suggestion.insert);
+
+  box.chain().focus().deleteRange(typed).insertContent(word).run();
+}
+
+// The picker stays open after a pick, so the box takes the word without taking the focus. The pick is its own
+// word: a space goes before it when it would touch the word in front.
+function pickFromPicker(insert: string): void {
+  const box = editor.value;
+
+  if (!box) return;
+
+  const at = box.state.selection.from;
+  const head = textUpTo(box, at);
+  const gap: JSONContent[] = head === '' || /\s$/u.test(head)
+    ? []
+    : [{ type: 'text', text: ' ' }];
+  const word = piece(box, at, insert);
+
+  box.commands.insertContentAt(at, merge(gap, word));
+}
 
 watch(replyTo, async (line) => {
   if (!line) return;
 
   await nextTick();
-  box.value?.$el.focus();
+  editor.value?.commands.focus('end');
 });
-
-function trackCaret(event: Event): void {
-  const field = event.target as HTMLInputElement;
-
-  caret.value = field.selectionStart ?? field.value.length;
-}
-
-async function place(next: { text: string; caret: number }): Promise<void> {
-  text.value = next.text;
-  caret.value = next.caret;
-  await nextTick();
-  box.value?.$el.setSelectionRange(next.caret, next.caret);
-}
-
-async function choose(suggestion: Suggestion): Promise<void> {
-  const next = list.apply(suggestion);
-
-  if (!next) return;
-
-  await place(next);
-  box.value?.$el.focus();
-}
-
-// The picker stays open after a pick, so the box takes the word without taking the focus.
-function pickFromPicker(insert: string): void {
-  void place(insertAt(text.value, caret.value, insert));
-}
 
 const listKeys = {
   ArrowDown: () =>
@@ -91,32 +159,41 @@ const listKeys = {
   ArrowUp: () =>
     list.move(-1),
   Tab: () =>
-    void choose(list.suggestions.value[list.active.value]!),
+    choose(list.suggestions.value[list.active.value]!),
   Enter: () =>
-    void choose(list.suggestions.value[list.active.value]!),
+    choose(list.suggestions.value[list.active.value]!),
   Escape: () =>
     list.dismiss(),
 } as const satisfies Record<string, () => void>;
 
-// An open list takes the arrows, Tab, Enter and Escape; else Escape ends a reply. Either way the key stops
-// here, so the page keeps its own Escape for the chatter focus.
-function onKey(event: KeyboardEvent): void {
+// An open list takes the arrows, Tab, Enter and Escape; else Enter sends and Escape ends a reply. Either way the
+// key stops here, so the page keeps its own Escape for the chatter focus.
+function onKey(event: KeyboardEvent): boolean {
   const listKey = listOpen.value
     ? listKeys[event.key as keyof typeof listKeys]
     : undefined;
 
   if (listKey) {
-    event.preventDefault();
     event.stopPropagation();
     listKey();
 
-    return;
+    return true;
+  }
+
+  if (event.key === 'Enter') {
+    void submit();
+
+    return true;
   }
 
   if (event.key === 'Escape' && replyTo.value) {
     event.stopPropagation();
     replyTo.value = null;
+
+    return true;
   }
+
+  return false;
 }
 
 const tooLong = computed(() => text.value.length > chatMessageMaxLength);
@@ -133,6 +210,40 @@ const problem = computed<string>(() => {
     : '';
 });
 
+// The editable box carries the combobox role and looks exactly like the shadcn Input; it grows with the text.
+const boxClass = [
+  'dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50',
+  'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
+  'dark:aria-invalid:border-destructive/50 aria-invalid:ring-3 focus-visible:ring-3',
+  'max-h-32 min-h-9 w-full min-w-0 overflow-y-auto rounded-md border bg-transparent py-1 ps-2.5 pe-10 text-base',
+  'leading-7 break-words whitespace-pre-wrap shadow-xs transition-[color,box-shadow] outline-none md:text-sm',
+].join(' ');
+
+const boxAttributes = computed<Record<string, string>>(() => {
+  const always = {
+    'data-composer': '',
+    role: 'combobox',
+    'aria-autocomplete': 'list',
+    'aria-expanded': String(listOpen.value),
+    'aria-label': t('dashboard.chat.composer.label'),
+    'aria-placeholder': t('dashboard.chat.composer.placeholder'),
+    'aria-invalid': String(tooLong.value),
+    class: boxClass,
+  };
+
+  return listOpen.value
+    ? {
+        ...always,
+        'aria-controls': listId,
+        'aria-activedescendant': `${listId}-${list.active.value}`,
+      }
+    : always;
+});
+
+watchEffect(() => {
+  editor.value?.setOptions({ editorProps: { attributes: boxAttributes.value } });
+});
+
 async function submit(): Promise<void> {
   if (!canSend.value) return;
 
@@ -145,7 +256,7 @@ async function submit(): Promise<void> {
       replyToMessageId: replyTo.value?.id ?? null,
     });
 
-    text.value = '';
+    editor.value?.commands.clearContent(true);
     replyTo.value = null;
   } catch {
     failed.value = true;
@@ -184,24 +295,20 @@ async function submit(): Promise<void> {
         :active="list.active.value"
         @pick="choose"
       />
-      <Input
-        ref="box"
-        v-model="text"
-        data-composer
-        role="combobox"
-        autocomplete="off"
-        aria-autocomplete="list"
-        :aria-expanded="listOpen"
-        :aria-controls="listOpen ? listId : undefined"
-        :aria-activedescendant="activeOption"
-        :aria-label="$t('dashboard.chat.composer.label')"
-        :aria-invalid="tooLong"
-        :placeholder="$t('dashboard.chat.composer.placeholder')"
-        @input="trackCaret"
-        @click="trackCaret"
-        @keyup="trackCaret"
-        @keydown="onKey"
-      />
+      <div data-composer-box class="relative min-w-0 flex-1">
+        <EditorContent :editor="editor" />
+        <span
+          v-if="text === ''"
+          aria-hidden="true"
+          class="pointer-events-none absolute inset-y-0 inset-s-[calc(--spacing(2.5)+1px)] flex items-center text-base
+            text-muted-foreground md:text-sm"
+        >
+          {{ $t('dashboard.chat.composer.placeholder') }}
+        </span>
+        <div class="absolute end-0.5 bottom-0.5">
+          <EmotePicker :emotes="emotes.data.value ?? []" @pick="pickFromPicker" />
+        </div>
+      </div>
       <span
         v-if="showCount"
         data-composer-count
@@ -210,7 +317,6 @@ async function submit(): Promise<void> {
       >
         {{ $t('dashboard.chat.composer.count', { count: text.length, max: chatMessageMaxLength }) }}
       </span>
-      <EmotePicker :emotes="emotes.data.value ?? []" @pick="pickFromPicker" />
       <Button type="submit" :disabled="!canSend">
         <Spinner v-if="sender.isPending.value" />
         {{ $t('dashboard.chat.composer.send') }}

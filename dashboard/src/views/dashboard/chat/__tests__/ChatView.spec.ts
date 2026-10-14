@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import type { Editor } from '@tiptap/core';
+import type { Transaction } from '@tiptap/pm/state';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,6 +39,13 @@ type Call = {
 };
 type Answer = { data?: unknown; response: { status: number; ok: boolean } };
 type SearchPage = { messages: ChatLine[]; nextCursor: string | null };
+
+// jsdom lays nothing out; the send box editor asks where the caret is when it takes the focus.
+Range.prototype.getClientRects = () =>
+  [] as unknown as DOMRectList;
+
+Range.prototype.getBoundingClientRect = () =>
+  new DOMRect();
 
 const calls: Call[] = [];
 let history: ChatLine[] = [];
@@ -302,13 +311,32 @@ const openMenu = (trigger: HTMLElement): void => {
   trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 };
 
-const input = (): HTMLInputElement =>
-  document.body.querySelector('input[data-composer]') as HTMLInputElement;
+// The send box is a TipTap editor; TipTap puts the editor on its element.
+const input = (): HTMLElement & { editor: Editor } =>
+  document.body.querySelector('[data-composer]') as HTMLElement & { editor: Editor };
+// The text the box would send: an emote image counts as its code.
+const typed = (): string =>
+  input().editor.getText();
 const writes = (): Call[] => calls.filter((call) => call.method !== 'GET');
 
+// Types into an emptied box one key at a time, the way a browser hands keys to the editor.
 async function type(value: string): Promise<void> {
-  input().value = value;
-  input().dispatchEvent(new Event('input', { bubbles: true }));
+  const { view } = input().editor;
+
+  input().editor.commands.clearContent(true);
+
+  for (const key of value) {
+    const { from, to } = view.state.selection;
+    const insert = (): Transaction =>
+      view.state.tr.insertText(key, from, to);
+    const handled = view.someProp('handleTextInput', (handler) =>
+      handler(view, from, to, key, insert));
+
+    if (!handled) {
+      view.dispatch(insert());
+    }
+  }
+
   await settle();
 }
 
@@ -546,7 +574,7 @@ describe('ChatView', () => {
       replyToMessageId: null,
     });
 
-    expect(input().value).toBe('');
+    expect(typed()).toBe('');
   });
 
   it('blocks a message over 500 characters and says why', async () => {
@@ -616,7 +644,7 @@ describe('ChatView', () => {
       expect(searches()).toHaveLength(1);
       expect(searches()[0]!.query?.q).toBe('hello');
       expect(rowIds()).toEqual(['s9', 's8']);
-      expect(document.body.querySelector('input[data-composer]')).toBeNull();
+      expect(document.body.querySelector('[data-composer]')).toBeNull();
     });
 
     it('goes further back with the cursor until the first message, then says so', async () => {
@@ -653,7 +681,7 @@ describe('ChatView', () => {
       await search('');
 
       expect(rowIds()).toEqual(['m1', 'm2', 'm3']);
-      expect(document.body.querySelector('input[data-composer]')).not.toBeNull();
+      expect(document.body.querySelector('[data-composer]')).not.toBeNull();
     });
   });
 
@@ -688,7 +716,7 @@ describe('ChatView', () => {
       en.dashboard.chat.composer.failed,
     );
 
-    expect(input().value).toBe('will not go');
+    expect(typed()).toBe('will not go');
   });
 
   it('opens the profile of the person on the line', async () => {
@@ -1238,7 +1266,11 @@ describe('ChatView reply', () => {
 
     expect(banner()!.textContent).toContain('Bob');
     expect(banner()!.textContent).toContain('second words');
-    expect(document.activeElement).toBe(input());
+
+    // TipTap moves the focus one animation frame later.
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(input());
+    });
   });
 
   it('sends the reply with the answered message id, then drops the banner', async () => {
@@ -1339,6 +1371,57 @@ describe('ChatView composer suggestions', () => {
     expect(options()[0]!.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/catJAM-2.webp');
   });
 
+  // Stoney 2026-10-14: "make sure inline also shows the emote".
+  it('shows a known emote as its image once a space follows, and sends its code', async () => {
+    await open();
+    await type('hi Kappa Kappax ');
+
+    const images = [...input().querySelectorAll<HTMLImageElement>('img[data-emote]')];
+
+    expect(images.map((image) =>
+      [image.dataset.emote, image.getAttribute('src')])).toEqual([['Kappa', 'https://cdn.test/Kappa-2.webp']]);
+
+    expect(typed()).toBe('hi Kappa Kappax ');
+
+    await key('Enter');
+    expect(writes()).toHaveLength(1);
+    expect((writes()[0]!.body as { message: string }).message).toBe('hi Kappa Kappax ');
+    expect(typed()).toBe('');
+  });
+
+  it('pastes as plain text, with only known emote codes as images', async () => {
+    await open();
+
+    const paste = new Event('paste', { bubbles: true, cancelable: true }) as Event & {
+      clipboardData: { getData: (kind: string) => string };
+    };
+
+    paste.clipboardData = {
+      getData: (kind) =>
+        kind === 'text/plain'
+          ? 'one\ncatJAM <b>two</b>'
+          : '<img src="https://evil.test/x.png" onerror="alert(1)"><b>two</b>',
+    };
+
+    input().dispatchEvent(paste);
+    await settle();
+
+    expect(typed()).toBe('one catJAM <b>two</b>');
+
+    expect([...input().querySelectorAll('img')].map((image) =>
+      image.getAttribute('src'))).toEqual(['https://cdn.test/catJAM-2.webp']);
+
+    expect(input().querySelector('b')).toBeNull();
+  });
+
+  it('keeps the picker button inside the send box', async () => {
+    await open();
+    const box = document.body.querySelector('[data-composer-box]')!;
+
+    expect(box.contains(input())).toBe(true);
+    expect(box.querySelector('[data-emote-picker]')).not.toBeNull();
+  });
+
   it('offers nothing after a colon and only one letter', async () => {
     await open();
     await type('hi :c');
@@ -1352,7 +1435,7 @@ describe('ChatView composer suggestions', () => {
     expect(options()[1]!.getAttribute('aria-selected')).toBe('true');
 
     await key('Tab');
-    expect(input().value).toBe('hi catKISS ');
+    expect(typed()).toBe('hi catKISS ');
     expect(options()).toEqual([]);
     expect(writes()).toEqual([]);
   });
@@ -1361,7 +1444,7 @@ describe('ChatView composer suggestions', () => {
     await open();
     await type(':kap');
     await key('Enter');
-    expect(input().value).toBe('Kappa ');
+    expect(typed()).toBe('Kappa ');
     expect(writes()).toEqual([]);
   });
 
@@ -1372,7 +1455,7 @@ describe('ChatView composer suggestions', () => {
 
     options().find((option) => option.dataset.suggestion === '😄')!.click();
     await settle();
-    expect(input().value).toBe('😄 ');
+    expect(typed()).toBe('😄 ');
   });
 
   it('offers the chatters in this chat after an at sign and puts the name in', async () => {
@@ -1381,7 +1464,7 @@ describe('ChatView composer suggestions', () => {
     expect(offered()).toEqual(['@Alice']);
 
     await key('Tab');
-    expect(input().value).toBe('thanks @Alice ');
+    expect(typed()).toBe('thanks @Alice ');
   });
 
   it('closes the list on Escape and keeps the reply that is open', async () => {
@@ -1487,17 +1570,16 @@ describe('ChatView emote picker', () => {
   it('puts a pick in at the cursor as its own word, stays open, and sends nothing', async () => {
     await open();
     await type('hi there');
-    input().setSelectionRange(2, 2);
-    input().dispatchEvent(new Event('click', { bubbles: true }));
+    input().editor.commands.setTextSelection(3);
     await openPicker();
     item('catJAM').click();
     await settle();
-    expect(input().value).toBe('hi catJAM there');
+    expect(typed()).toBe('hi catJAM there');
     expect(picker()).not.toBeNull();
 
     item('Kappa').click();
     await settle();
-    expect(input().value).toBe('hi catJAM Kappa there');
+    expect(typed()).toBe('hi catJAM Kappa there');
     expect(writes()).toEqual([]);
   });
 

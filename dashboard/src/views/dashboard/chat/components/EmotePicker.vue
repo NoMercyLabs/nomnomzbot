@@ -125,7 +125,8 @@ function pick(item: Suggestion): void {
         data-emote-picker
         type="button"
         variant="ghost"
-        size="icon"
+        size="icon-sm"
+        class="rounded-[calc(var(--radius-md)-2px)]"
         :aria-label="$t('dashboard.chat.picker.open')"
       >
         <Smile class="size-5" aria-hidden="true" />

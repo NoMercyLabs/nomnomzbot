@@ -14,7 +14,6 @@ import type { ChatEmoteEntry } from '@/api/chat';
 import { merge } from '@/lib/array';
 
 import {
-  applySuggestion,
   chatterSuggestions,
   emojiSuggestions,
   emoteSuggestions,
@@ -78,20 +77,11 @@ export function useComposerSuggestions(
     dismissed.value = true;
   }
 
-  // The text and caret after the pick, or null when no word is being completed.
-  function apply(suggestion: Suggestion): { text: string; caret: number } | null {
-    const found = token.value;
-
-    return found
-      ? applySuggestion(text.value, found, caret.value, suggestion.insert)
-      : null;
-  }
-
   return {
+    token,
     suggestions,
     active,
     move,
     dismiss,
-    apply,
   };
 }
