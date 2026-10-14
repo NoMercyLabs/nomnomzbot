@@ -47,7 +47,9 @@ public sealed class PipelineOptionsController : BaseController
     /// <summary>
     /// The option list for one resource-picker kind (<c>reward</c>, <c>widget</c>, <c>voice</c>,
     /// <c>sound_clip</c>, <c>discord_channel</c>, <c>discord_role</c>, <c>twitch_user</c>, <c>asset</c>), paged
-    /// and optionally search-filtered. A source that is not connected or could not be read comes back with
+    /// and optionally search-filtered. With <c>value</c> set, only the option whose stored value equals it
+    /// exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the
+    /// first page. A source that is not connected or could not be read comes back with
     /// <c>sourceAvailable: false</c> and a <c>unavailableReason</c> — never collapsed into an empty list.
     /// </summary>
     [HttpGet("{kind}")]
@@ -57,6 +59,7 @@ public sealed class PipelineOptionsController : BaseController
     public async Task<IActionResult> GetOptions(
         string kind,
         [FromQuery] PageRequestDto request,
+        [FromQuery] string? value,
         CancellationToken ct
     )
     {
@@ -70,8 +73,7 @@ public sealed class PipelineOptionsController : BaseController
         Result<PipelineOptionListResult> result = await _registry.GetOptionsAsync(
             parsedKind,
             broadcasterId,
-            request.Search,
-            pagination,
+            new PipelineOptionQuery(request.Search, value, pagination),
             ct
         );
 

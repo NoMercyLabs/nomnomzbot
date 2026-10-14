@@ -37,15 +37,16 @@ internal sealed class VoiceOptionProvider : IPipelineOptionProvider
 
     public async Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     )
     {
         IQueryable<TtsVoice> query = _db.TtsVoices;
-        if (!string.IsNullOrWhiteSpace(search))
+        if (request.IsValueLookup)
+            query = query.Where(v => v.Id == request.Value);
+        else if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            string term = search.ToLowerInvariant();
+            string term = request.Search.ToLowerInvariant();
             query = query.Where(v =>
                 v.DisplayName.ToLower().Contains(term) || v.Name.ToLower().Contains(term)
             );
@@ -54,8 +55,8 @@ internal sealed class VoiceOptionProvider : IPipelineOptionProvider
         int total = await query.CountAsync(ct);
         List<TtsVoice> page = await query
             .OrderBy(v => v.DisplayName)
-            .Skip((pagination.Page - 1) * pagination.PageSize)
-            .Take(pagination.PageSize)
+            .Skip((request.Pagination.Page - 1) * request.Pagination.PageSize)
+            .Take(request.Pagination.PageSize)
             .ToListAsync(ct);
 
         List<PipelineOption> options = [.. page.Select(ToOption)];

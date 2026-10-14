@@ -45,8 +45,7 @@ public sealed class PipelineOptionRegistry : IPipelineOptionRegistry
     public async Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         PipelineActionFieldKind kind,
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     )
     {
@@ -56,6 +55,6 @@ public sealed class PipelineOptionRegistry : IPipelineOptionRegistry
                 "UNSUPPORTED_KIND"
             );
 
-        return await provider.GetOptionsAsync(broadcasterId, search, pagination, ct);
+        return await provider.GetOptionsAsync(broadcasterId, request, ct);
     }
 }

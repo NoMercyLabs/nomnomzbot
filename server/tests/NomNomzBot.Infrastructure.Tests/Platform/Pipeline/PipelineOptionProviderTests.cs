@@ -62,8 +62,7 @@ public sealed class PipelineOptionProviderTests
         RewardOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         Assert.True(result.IsSuccess);
@@ -93,8 +92,7 @@ public sealed class PipelineOptionProviderTests
         RewardOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
@@ -119,8 +117,7 @@ public sealed class PipelineOptionProviderTests
         RewardOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         Assert.True(result.Value.SourceAvailable);
@@ -150,8 +147,7 @@ public sealed class PipelineOptionProviderTests
         VoiceOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
@@ -186,8 +182,7 @@ public sealed class PipelineOptionProviderTests
         SoundClipOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
@@ -217,8 +212,7 @@ public sealed class PipelineOptionProviderTests
         WidgetOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
@@ -251,8 +245,7 @@ public sealed class PipelineOptionProviderTests
         AssetOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
@@ -295,8 +288,7 @@ public sealed class PipelineOptionProviderTests
         TwitchUserOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
@@ -326,8 +318,7 @@ public sealed class PipelineOptionProviderTests
         TwitchUserOptionProvider provider = new(db);
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         Assert.Empty(result.Value.Items);
@@ -343,8 +334,7 @@ public sealed class PipelineOptionProviderTests
 
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         Assert.True(result.IsSuccess);
@@ -376,8 +366,7 @@ public sealed class PipelineOptionProviderTests
 
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         Assert.True(result.IsSuccess);
@@ -415,8 +404,7 @@ public sealed class PipelineOptionProviderTests
 
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption channelOption = Assert.Single(result.Value.Items, o => o.Value == "chan-1");
@@ -457,8 +445,7 @@ public sealed class PipelineOptionProviderTests
 
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
@@ -490,13 +477,383 @@ public sealed class PipelineOptionProviderTests
 
         Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
             Broadcaster,
-            search: null,
-            DefaultPage
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
         );
 
         PipelineOption option = Assert.Single(result.Value.Items);
         Assert.Equal(PipelineOptionState.Unavailable, option.State);
         Assert.NotNull(option.Reason);
+    }
+
+    // ── value lookup: the one option a saved value points at ─────────────────────
+    // PageSize 1 and a Search that matches nothing prove the lookup ignores both: the wanted option is
+    // the second row by sort order, so it would be missing from the first page.
+
+    private static readonly PaginationParams OneRowPage = new(Page: 1, PageSize: 1);
+
+    private static PipelineOptionQuery Lookup(string value) =>
+        new(Search: "no-label-contains-this", Value: value, OneRowPage);
+
+    [Fact]
+    public async Task Reward_value_lookup_returns_exactly_the_matching_option()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        Reward first = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            Title = "Alpha",
+        };
+        Reward wanted = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            Title = "Zulu Reward",
+            Cost = 100,
+            IsEnabled = true,
+        };
+        db.Rewards.AddRange(first, wanted);
+        await db.SaveChangesAsync();
+        RewardOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(wanted.Id.ToString())
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(Guid.NewGuid().ToString())
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal(wanted.Id.ToString(), option.Value);
+        Assert.Equal("Zulu Reward", option.Label);
+        Assert.Equal(1, found.Value.TotalCount);
+        Assert.Empty(unknown.Value.Items);
+        Assert.True(unknown.Value.SourceAvailable);
+    }
+
+    [Fact]
+    public async Task Reward_value_lookup_does_not_cross_tenants_or_accept_non_guid_text()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        Reward other = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = OtherBroadcaster,
+            Title = "Not yours",
+        };
+        db.Rewards.Add(other);
+        await db.SaveChangesAsync();
+        RewardOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> otherTenant = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(other.Id.ToString())
+        );
+        Result<PipelineOptionListResult> garbage = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("not-a-guid")
+        );
+
+        Assert.Empty(otherTenant.Value.Items);
+        Assert.Empty(garbage.Value.Items);
+    }
+
+    [Fact]
+    public async Task Voice_value_lookup_returns_exactly_the_matching_option()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        db.TtsVoices.AddRange(
+            new TtsVoice
+            {
+                Id = "de-DE-KatjaNeural",
+                Name = "Katja",
+                DisplayName = "Aaa Katja",
+                Locale = "de-DE",
+                Gender = "Female",
+                Provider = "azure",
+            },
+            new TtsVoice
+            {
+                Id = "en-US-GuyNeural",
+                Name = "Guy",
+                DisplayName = "Guy (US)",
+                Locale = "en-US",
+                Gender = "Male",
+                Provider = "azure",
+            }
+        );
+        await db.SaveChangesAsync();
+        VoiceOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("en-US-GuyNeural")
+        );
+        Result<PipelineOptionListResult> wrongCase = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("EN-US-GUYNEURAL")
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("xx-XX-Nobody")
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal("en-US-GuyNeural", option.Value);
+        Assert.Equal("Guy (US)", option.Label);
+        Assert.Equal("en-US · Male · azure", option.SecondaryText);
+        Assert.Empty(wrongCase.Value.Items);
+        Assert.Empty(unknown.Value.Items);
+    }
+
+    [Fact]
+    public async Task SoundClip_value_lookup_returns_exactly_the_matching_option()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        SoundClip first = NewClip("Alpha Clip");
+        SoundClip wanted = NewClip("Zulu Clip");
+        db.SoundClips.AddRange(first, wanted);
+        await db.SaveChangesAsync();
+        SoundClipOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(wanted.Id.ToString())
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(Guid.NewGuid().ToString())
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal(wanted.Id.ToString(), option.Value);
+        Assert.Equal("Zulu Clip", option.Label);
+        Assert.Empty(unknown.Value.Items);
+    }
+
+    private static SoundClip NewClip(string displayName) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            Name = displayName.ToLowerInvariant().Replace(' ', '-'),
+            DisplayName = displayName,
+            StorageKey = "clips/x.mp3",
+            MimeType = "audio/mpeg",
+            DurationMs = 1000,
+            SizeBytes = 1,
+            IsEnabled = true,
+            CreatedByUserId = Guid.NewGuid(),
+        };
+
+    [Fact]
+    public async Task Widget_value_lookup_returns_exactly_the_matching_option()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        Widget first = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            Name = "Alpha Widget",
+            Framework = "vue",
+            Source = "custom",
+        };
+        Widget wanted = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            Name = "Zulu Widget",
+            Framework = "react",
+            Source = "first_party",
+            IsEnabled = true,
+        };
+        db.Widgets.AddRange(first, wanted);
+        await db.SaveChangesAsync();
+        WidgetOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(wanted.Id.ToString())
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(Guid.NewGuid().ToString())
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal(wanted.Id.ToString(), option.Value);
+        Assert.Equal("Zulu Widget", option.Label);
+        Assert.Equal("react · first_party", option.SecondaryText);
+        Assert.Empty(unknown.Value.Items);
+    }
+
+    [Fact]
+    public async Task Asset_value_lookup_returns_exactly_the_matching_option()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        ChannelAsset first = NewAsset("Alpha Asset");
+        ChannelAsset wanted = NewAsset("Zulu Asset");
+        db.ChannelAssets.AddRange(first, wanted);
+        await db.SaveChangesAsync();
+        AssetOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(wanted.Id.ToString())
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup(Guid.NewGuid().ToString())
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal(wanted.Id.ToString(), option.Value);
+        Assert.Equal("Zulu Asset", option.Label);
+        Assert.Equal("audio · 2.0 KB", option.SecondaryText);
+        Assert.Empty(unknown.Value.Items);
+    }
+
+    private static ChannelAsset NewAsset(string displayName) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            Name = displayName.ToLowerInvariant().Replace(' ', '-'),
+            DisplayName = displayName,
+            Kind = "audio",
+            MimeType = "audio/wav",
+            StorageKey = "assets/x.wav",
+            SizeBytes = 2048,
+            CreatedByUserId = Guid.NewGuid(),
+        };
+
+    [Fact]
+    public async Task TwitchUser_value_lookup_returns_exactly_the_matching_viewer_by_user_id()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        db.ViewerProfiles.AddRange(
+            NewProfile("111", "recent_viewer", "RecentViewer", DateTime.UtcNow),
+            NewProfile("222", "old_viewer", "OldViewer", DateTime.UtcNow.AddDays(-30))
+        );
+        await db.SaveChangesAsync();
+        TwitchUserOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("222")
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("333")
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal("222", option.Value);
+        Assert.Equal("OldViewer", option.Label);
+        Assert.Equal("@old_viewer", option.SecondaryText);
+        Assert.Empty(unknown.Value.Items);
+    }
+
+    private static ViewerProfile NewProfile(
+        string twitchUserId,
+        string login,
+        string displayName,
+        DateTime lastSeenAt
+    ) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            ViewerUserId = Guid.NewGuid(),
+            ViewerTwitchUserId = twitchUserId,
+            UsernameSnapshot = login,
+            DisplayNameSnapshot = displayName,
+            LastSeenAt = lastSeenAt,
+        };
+
+    [Fact]
+    public async Task DiscordChannel_value_lookup_returns_exactly_the_matching_option()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        await AddActiveGuildAsync(db);
+        FakeDirectory directory = new(
+            channels:
+            [
+                new DiscordGuildChannelDto("chan-1", "general", 0, null, 0),
+                new DiscordGuildChannelDto("chan-2", "go-live", 0, null, 1),
+            ]
+        );
+        DiscordChannelOptionProvider provider = new(db, directory);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("chan-2")
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("chan-9")
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal("chan-2", option.Value);
+        Assert.Equal("go-live", option.Label);
+        Assert.Equal(1, found.Value.TotalCount);
+        Assert.Empty(unknown.Value.Items);
+        Assert.True(unknown.Value.SourceAvailable);
+    }
+
+    [Fact]
+    public async Task DiscordRole_value_lookup_returns_exactly_the_matching_option()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        await AddActiveGuildAsync(db);
+        FakeDirectory directory = new(
+            roles:
+            [
+                new DiscordGuildRoleDto("role-1", "Moderator", 0x00FF00, 5, Managed: false),
+                new DiscordGuildRoleDto(
+                    "role-2",
+                    "VIP",
+                    0xFF00FF,
+                    1,
+                    Managed: false,
+                    Mentionable: true
+                ),
+            ]
+        );
+        DiscordRoleOptionProvider provider = new(db, directory);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("role-2")
+        );
+        Result<PipelineOptionListResult> unknown = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("role-9")
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal("role-2", option.Value);
+        Assert.Equal("VIP", option.Label);
+        Assert.Equal("#FF00FF · mentionable", option.SecondaryText);
+        Assert.Empty(unknown.Value.Items);
+    }
+
+    private static async Task AddActiveGuildAsync(PipelineOptionsTestDbContext db)
+    {
+        db.DiscordGuildConnections.Add(
+            new DiscordGuildConnection
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = Broadcaster,
+                GuildId = "guild-1",
+                ServerConsentStatus = "approved",
+                StreamerEnabled = true,
+            }
+        );
+        await db.SaveChangesAsync();
     }
 
     // ── fakes ─────────────────────────────────────────────────────────────────

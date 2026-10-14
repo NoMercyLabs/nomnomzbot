@@ -38,17 +38,18 @@ internal sealed class TwitchUserOptionProvider : IPipelineOptionProvider
 
     public async Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     )
     {
         IQueryable<ViewerProfile> query = _db.ViewerProfiles.Where(p =>
             p.BroadcasterId == broadcasterId
         );
-        if (!string.IsNullOrWhiteSpace(search))
+        if (request.IsValueLookup)
+            query = query.Where(p => p.ViewerTwitchUserId == request.Value);
+        else if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            string term = search.ToLowerInvariant();
+            string term = request.Search.ToLowerInvariant();
             query = query.Where(p =>
                 (p.DisplayNameSnapshot != null && p.DisplayNameSnapshot.ToLower().Contains(term))
                 || (p.UsernameSnapshot != null && p.UsernameSnapshot.ToLower().Contains(term))
@@ -58,8 +59,8 @@ internal sealed class TwitchUserOptionProvider : IPipelineOptionProvider
         int total = await query.CountAsync(ct);
         List<ViewerProfile> page = await query
             .OrderByDescending(p => p.LastSeenAt)
-            .Skip((pagination.Page - 1) * pagination.PageSize)
-            .Take(pagination.PageSize)
+            .Skip((request.Pagination.Page - 1) * request.Pagination.PageSize)
+            .Take(request.Pagination.PageSize)
             .ToListAsync(ct);
 
         Dictionary<Guid, string?> avatarsByUserId = await _db

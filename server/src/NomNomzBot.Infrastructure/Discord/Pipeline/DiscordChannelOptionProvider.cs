@@ -41,8 +41,7 @@ internal sealed class DiscordChannelOptionProvider
 
     public async Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     )
     {
@@ -67,9 +66,14 @@ internal sealed class DiscordChannelOptionProvider
         Dictionary<string, string?> namesById = channels.Value.ToDictionary(c => c.Id, c => c.Name);
 
         IEnumerable<DiscordGuildChannelDto> filtered = channels.Value;
-        if (!string.IsNullOrWhiteSpace(search))
+        if (request.IsValueLookup)
             filtered = filtered.Where(c =>
-                c.Name is not null && c.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                string.Equals(c.Id, request.Value, StringComparison.Ordinal)
+            );
+        else if (!string.IsNullOrWhiteSpace(request.Search))
+            filtered = filtered.Where(c =>
+                c.Name is not null
+                && c.Name.Contains(request.Search, StringComparison.OrdinalIgnoreCase)
             );
 
         List<DiscordGuildChannelDto> ordered = [.. filtered.OrderBy(c => c.Position)];
@@ -77,8 +81,8 @@ internal sealed class DiscordChannelOptionProvider
         List<PipelineOption> page =
         [
             .. ordered
-                .Skip((pagination.Page - 1) * pagination.PageSize)
-                .Take(pagination.PageSize)
+                .Skip((request.Pagination.Page - 1) * request.Pagination.PageSize)
+                .Take(request.Pagination.PageSize)
                 .Select(c => ToOption(c, namesById)),
         ];
 

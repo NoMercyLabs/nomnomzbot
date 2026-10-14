@@ -35,15 +35,19 @@ internal sealed class SoundClipOptionProvider : IPipelineOptionProvider
 
     public async Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     )
     {
         IQueryable<SoundClip> query = _db.SoundClips.Where(c => c.BroadcasterId == broadcasterId);
-        if (!string.IsNullOrWhiteSpace(search))
+        if (request.IsValueLookup)
         {
-            string term = search.ToLowerInvariant();
+            Guid valueId = request.ValueAsGuid ?? Guid.Empty;
+            query = query.Where(c => c.Id == valueId);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            string term = request.Search.ToLowerInvariant();
             query = query.Where(c =>
                 c.DisplayName.ToLower().Contains(term) || c.Name.ToLower().Contains(term)
             );
@@ -52,8 +56,8 @@ internal sealed class SoundClipOptionProvider : IPipelineOptionProvider
         int total = await query.CountAsync(ct);
         List<SoundClip> page = await query
             .OrderBy(c => c.DisplayName)
-            .Skip((pagination.Page - 1) * pagination.PageSize)
-            .Take(pagination.PageSize)
+            .Skip((request.Pagination.Page - 1) * request.Pagination.PageSize)
+            .Take(request.Pagination.PageSize)
             .ToListAsync(ct);
 
         List<PipelineOption> options = [.. page.Select(ToOption)];
