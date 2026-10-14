@@ -31,6 +31,9 @@ const props = withDefaults(
 
 defineSlots<{ default(props: { item: T; index: number }): unknown }>();
 
+// The last row came into view: the owner may load the next page. Asked once per list length.
+const emit = defineEmits<{ end: [] }>();
+
 const AT_BOTTOM_SLACK = 8;
 const OVERSCAN = 8;
 
@@ -51,6 +54,17 @@ const options = computed<Options>(() => ({
   overscan: OVERSCAN,
 }));
 const virtualizer = useVirtualizer(options);
+
+const lastShown = computed(() =>
+  virtualizer.value.getVirtualItems().at(-1)?.index ?? -1);
+let askedAt = 0;
+
+watch([lastShown, () => props.items.length], ([last, count]: [number, number]) => {
+  if (count === 0 || count === askedAt || last < count - 1) return;
+
+  askedAt = count;
+  emit('end');
+});
 
 function measure(element: unknown): void {
   if (element instanceof Element) {

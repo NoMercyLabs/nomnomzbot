@@ -119,6 +119,15 @@ const activeQuery = computed<typeof everyone | null>(() => {
   return everyone;
 });
 
+// The list reached its end: fetch the next page, so everyone known to the channel is a scroll away.
+function loadMore(): void {
+  const query = activeQuery.value;
+
+  if (query?.hasNextPage.value && !query.isFetchingNextPage.value) {
+    void query.fetchNextPage();
+  }
+}
+
 // Someone the bot never observed has no first-seen moment, so they are not new.
 function isNew(row: CommunityRow): boolean {
   if (!row.firstSeen)
@@ -342,6 +351,7 @@ function back(): void {
           :item-key="(row: CommunityRow) => row.id"
           :estimate-size="ROW_HEIGHT"
           :label="$t('dashboard.people.list.label')"
+          @end="loadMore"
         >
           <template #default="{ item }">
             <PersonRow
@@ -361,16 +371,6 @@ function back(): void {
           <p v-else-if="lookup.isError.value" role="alert" class="text-sm text-destructive">
             {{ $t('dashboard.people.lookup.error') }}
           </p>
-        </template>
-        <template v-else-if="activeQuery?.hasNextPage.value" #footer>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="activeQuery.isFetchingNextPage.value"
-            @click="activeQuery.fetchNextPage()"
-          >
-            {{ $t('dashboard.people.list.more') }}
-          </Button>
         </template>
       </PanelCard>
     </template>

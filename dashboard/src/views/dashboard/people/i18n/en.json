@@ -33,7 +33,6 @@
         "title": "People",
         "empty": "The bot has not seen anyone in this list yet.",
         "error": "The people list could not load.",
-        "more": "Load more people",
         "lastSeen": "Last seen {ago}",
         "neverSeen": "Not seen yet",
         "notInChannel": "Not in this channel",

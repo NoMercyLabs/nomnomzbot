@@ -196,6 +196,41 @@ describe('the keyboard', () => {
   });
 });
 
+// Stoney 2026-10-14: "lazy load all users known to my channel, so i never have to search for someone already
+// known to me". The list asks for the next page when its last rows come into view.
+describe('the end of the list', () => {
+  it('asks for more once the last rows come into view, and again only after more arrive', async () => {
+    const wrapper = list(rows(200));
+
+    await nextTick();
+    expect(wrapper.emitted('end')).toBeUndefined();
+
+    await scrollTo(wrapper, BOTTOM_OF(200));
+    expect(wrapper.emitted('end')).toHaveLength(1);
+
+    await scrollTo(wrapper, BOTTOM_OF(200) - ROW_HEIGHT);
+    expect(wrapper.emitted('end')).toHaveLength(1);
+
+    await wrapper.setProps({ items: rows(300) });
+    await nextTick();
+    expect(wrapper.emitted('end')).toHaveLength(1);
+
+    await scrollTo(wrapper, BOTTOM_OF(300));
+    expect(wrapper.emitted('end')).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  it('asks for more at once when the first page does not fill the view', async () => {
+    const wrapper = list(rows(3));
+
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.emitted('end')).toHaveLength(1);
+    wrapper.unmount();
+  });
+});
+
 describe('the stick-to-bottom mode', () => {
   it('starts at the bottom and stays there when a row arrives', async () => {
     const wrapper: VueWrapper = list(rows(50), { stick: true });

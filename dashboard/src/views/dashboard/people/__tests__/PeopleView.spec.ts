@@ -37,7 +37,7 @@ type Answer = {
 };
 
 const calls: Call[] = [];
-let listAnswer: (role: string | undefined) => Answer = () => page([]);
+let listAnswer: (role: string | undefined, pageNumber: number) => Answer = () => page([]);
 let searchAnswer: (q: string) => Answer = () => ok([]);
 let lookupAnswer: (login: string) => Answer = () => ok(null);
 let memberGate: Promise<void> = Promise.resolve();
@@ -175,7 +175,10 @@ vi.mock('@/api/client', () => ({
         return lookupAnswer(String(options?.params?.query?.login ?? ''));
 
       if (path.endsWith('/community'))
-        return listAnswer(options?.params?.query?.role as string | undefined);
+        return listAnswer(
+          options?.params?.query?.role as string | undefined,
+          Number(options?.params?.query?.Page ?? 1),
+        );
 
       if (path.endsWith('/community/{userId}')) {
         await memberGate;
@@ -387,6 +390,35 @@ describe('PeopleView', () => {
     expect(rows()[2]!.querySelector('[aria-label="VIP"]')).not.toBeNull();
     expect(rows()[0]!.querySelector('[aria-label="Moderator"]')).toBeNull();
     expect(text()).toContain('3 people');
+  });
+
+  // Stoney 2026-10-14: "lazy load all users known to my channel, so i never have to search for someone
+  // already known to me".
+  it('loads the next page when the list reaches its end, with no button to press', async () => {
+    listAnswer = (_role, pageNumber) =>
+      pageNumber === 1
+        ? { ...page(everyone, 4), data: {
+            data: everyone,
+            hasMore: true,
+            nextPage: 2,
+            total: 4,
+          } }
+        : page([person('dana')], 4);
+
+    await open();
+
+    expect(text()).not.toContain('Load more people');
+
+    mounted!.findComponent({ name: 'VirtualList' }).vm.$emit('end');
+    await settle();
+
+    // The everyone list only; the moderator and VIP lists ask for their totals beside it.
+    const pages = calls.filter((call) =>
+      call.path.endsWith('/community') && !call.query.role).map((call) =>
+      call.query.Page);
+
+    expect(pages).toEqual([1, 2]);
+    expect(rows().at(-1)!.textContent).toContain('DANA');
   });
 
   it('puts the total of each list on its tab', async () => {
