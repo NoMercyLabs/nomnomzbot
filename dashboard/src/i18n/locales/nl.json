@@ -293,9 +293,10 @@
     },
     "lastSeen": "Laatst gezien {ago}",
     "age": {
-      "account": "Twitch-account gemaakt {ago}",
-      "followed": "Volgt sinds {ago}",
-      "firstSeen": "Hier voor het eerst gezien {ago}"
+      "lastSeen": "Laatst gezien",
+      "account": "Twitch-account gemaakt",
+      "followed": "Gevolgd",
+      "firstSeen": "Hier voor het eerst gezien"
     },
     "streakDays": "{n} stream | {n} streams op rij",
     "yesNo": {

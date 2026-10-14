@@ -1427,7 +1427,9 @@ describe('the profile header', () => {
     expect(text).toContain('Moderator');
     expect(text).toContain('VIP');
     expect(text).toContain('Subscriber');
-    expect(text).toContain('Last seen 3 days ago');
+
+    expect(header().querySelector('[data-profile-age="lastSeen"] dd')?.textContent?.trim())
+      .toBe('3 days ago');
   });
 
   // Mockup profile.css .who-badges: a role is a quiet muted badge with its icon, never an accent tint.
@@ -1504,16 +1506,24 @@ describe('the profile header', () => {
     expect(header().querySelector('[data-profile-standing]')).toBeNull();
   });
 
-  it('marks the subscriber role with the Twitch logo alone', async () => {
+  // Owner 2026-10-14: the sword for mods and the diamond for VIPs in Twitch's colors, the subscriber in Twitch
+  // purple, and the account status first in the row.
+  it('leads with the account status and colors each role as Twitch does', async () => {
+    people.u1!.isVip = true;
     await openPage();
     await openUser('u1');
 
-    const subscriber = Array.from(header().querySelectorAll('[data-profile-role]')).find(
-      (badge: Element) => badge.textContent?.trim() === 'Subscriber',
-    )!;
+    const row = header().querySelector('[data-profile-standing]')!.parentElement!;
+    const badge = (name: string): Element =>
+      [...row.querySelectorAll('[data-profile-role]')].find((b: Element) =>
+        b.textContent?.trim() === name)!;
 
-    expect(subscriber.querySelectorAll('svg')).toHaveLength(1);
-    expect(subscriber.querySelector('[data-profile-platform]')).not.toBeNull();
+    expect(row.firstElementChild?.hasAttribute('data-profile-standing')).toBe(true);
+    expect(badge('Moderator').querySelector('svg')?.classList).toContain('text-role-moderator');
+    expect(badge('VIP').querySelector('svg')?.classList).toContain('text-role-vip');
+
+    expect(badge('Subscriber').querySelector('[data-profile-platform]')?.getAttribute('fill'))
+      .toBe('#9146FF');
   });
 
   // Mockup profile.js .stats: the number on top and its label under it, so a label that wraps never pushes
@@ -1595,12 +1605,13 @@ describe('the Overview tab', () => {
     await openUser('u1');
 
     const ages = [...document.body.querySelectorAll('[data-profile-age]')].map((age: Element) =>
-      age.textContent?.trim());
+      [age.querySelector('dt')?.textContent?.trim(), age.querySelector('dd')?.textContent?.trim()]);
 
     expect(ages).toEqual([
-      'Twitch account made 11 years ago',
-      'Followed 2 years ago',
-      'First seen here 9 months ago',
+      ['Last seen', '3 days ago'],
+      ['Twitch account made', '11 years ago'],
+      ['Followed', '2 years ago'],
+      ['First seen here', '9 months ago'],
     ]);
   });
 

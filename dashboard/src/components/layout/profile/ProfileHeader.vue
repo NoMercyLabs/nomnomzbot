@@ -18,11 +18,7 @@ import { useI18n } from 'vue-i18n';
 import type { CommunityMember } from '@/api/community';
 import type { PersonProfile } from '@/api/people';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
-import {
-  roleIcons,
-  type RoleKey,
-  twitchStanding,
-} from '@/components/layout/profile/profileRoles';
+import { roleIcons, type RoleKey, twitchStanding } from '@/components/layout/profile/profileRoles';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -55,14 +51,13 @@ const title = computed<string>(() => who.value?.displayName ?? t('profile.title'
 const pronouns = computed<string | null>(() => props.profile?.identity.pronoun ?? null);
 const standing = computed(() =>
   twitchStanding(props.profile));
-const lastSeen = computed<string>(() =>
-  agoText(props.person?.lastSeen ?? undefined, new Date(), locale.value));
 
 // How long this person has been around, at a glance: their Twitch account, their follow, their first sighting here.
 const ages = computed<Stat[]>(() => {
   const identity = props.profile?.identity;
   const now = new Date();
   const moments = [
+    { key: 'lastSeen', at: props.person?.lastSeen },
     { key: 'account', at: identity?.accountCreatedAtUtc },
     { key: 'followed', at: identity?.followedAtUtc },
     { key: 'firstSeen', at: identity?.firstSeenUtc ?? props.person?.firstSeen },
@@ -78,7 +73,7 @@ const ages = computed<Stat[]>(() => {
     .filter((age: Stat) =>
       age.value !== '')
     .map((age: Stat) =>
-      ({ ...age, label: t(`profile.age.${age.key}`, { ago: age.value }) }));
+      ({ ...age, label: t(`profile.age.${age.key}`) }));
 });
 
 const stats = computed<Stat[]>(() => {
@@ -139,15 +134,37 @@ const stats = computed<Stat[]>(() => {
         <AvatarFallback>{{ title.slice(0, 2).toUpperCase() }}</AvatarFallback>
       </Avatar>
       <div class="grid min-w-0 gap-1">
-        <template v-if="inDialog">
-          <DialogTitle class="truncate text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription class="sr-only">{{
-            who ? `@${who.username}` : $t('profile.description')
-          }}</DialogDescription>
-        </template>
-        <h2 v-else class="truncate text-lg font-semibold">{{ title }}</h2>
-        <div class="flex flex-wrap items-center gap-2">
-          <Badge v-if="pronouns" variant="outline">{{ pronouns }}</Badge>
+        <!-- Who first, then when, as a quiet list under the avatar (owner 2026-10-14: "pretty stuffed").
+             Pronouns sit by the name: they belong to the person, not a platform. -->
+        <div class="flex min-w-0 items-baseline gap-2">
+          <template v-if="inDialog">
+            <DialogTitle class="truncate text-lg font-semibold">{{ title }}</DialogTitle>
+            <DialogDescription class="sr-only">{{
+              who ? `@${who.username}` : $t('profile.description')
+            }}</DialogDescription>
+          </template>
+          <h2 v-else class="truncate text-lg font-semibold">{{ title }}</h2>
+          <span
+            v-if="pronouns"
+            data-profile-pronouns
+            class="flex-none text-sm text-muted-foreground"
+          >{{ pronouns }}</span>
+        </div>
+        <div
+          v-if="roles.length > 0 || standing"
+          class="flex flex-wrap items-center gap-1.5"
+        >
+          <!-- The account status leads, then the roles (owner 2026-10-14). The Twitch logo and each role's own
+               Twitch badge keep their colors, so where a badge comes from reads first. -->
+          <Badge
+            v-if="standing"
+            data-profile-standing
+            variant="secondary"
+            class="bg-muted text-muted-foreground"
+          >
+            <PlatformLogo data-profile-platform platform="twitch" />
+            {{ $t(`profile.twitchStanding.${standing}`) }}
+          </Badge>
           <Badge
             v-for="role in roles"
             :key="role"
@@ -156,40 +173,36 @@ const stats = computed<Stat[]>(() => {
             class="bg-muted text-muted-foreground"
           >
             <!-- The stored subscription is Twitch's (Helix seed and reconcile); a YouTube member is not the same. -->
-            <PlatformLogo v-if="role === 'subscriber'" data-profile-platform platform="twitch" mono />
-            <component :is="roleIcons[role]" v-else aria-hidden="true" />
+            <PlatformLogo v-if="role === 'subscriber'" data-profile-platform platform="twitch" />
+            <component
+              :is="roleIcons[role].icon"
+              v-else
+              :class="roleIcons[role].color"
+              aria-hidden="true"
+            />
             {{ $t(role === 'subscriber'
               ? 'profile.roles.subscriberBadge'
               : `profile.roles.${role}`) }}
           </Badge>
-          <Badge
-            v-if="standing"
-            data-profile-standing
-            variant="secondary"
-            class="bg-muted text-muted-foreground"
-          >
-            <PlatformLogo data-profile-platform platform="twitch" mono />
-            {{ $t(`profile.twitchStanding.${standing}`) }}
-          </Badge>
-          <span v-if="lastSeen" class="text-xs text-muted-foreground">{{
-            $t('profile.lastSeen', { ago: lastSeen })
-          }}</span>
-          <span v-else-if="who" class="text-xs text-muted-foreground">{{
-            $t('profile.handle', { name: who.username })
-          }}</span>
-        </div>
-        <div
-          v-if="ages.length > 0"
-          data-profile-ages
-          class="flex flex-wrap gap-x-3 text-xs text-muted-foreground"
-        >
-          <span v-for="age in ages" :key="age.key" :data-profile-age="age.key">{{
-            age.label
-          }}</span>
         </div>
       </div>
       <StatusBadge v-if="person?.isBanned" class="ml-auto" tone="bad" :label="$t('profile.banned')" />
     </div>
+
+    <!-- A short label over each moment, two per row (owner 2026-10-14: "the 4 rows is not good enough"). -->
+    <dl
+      v-if="ages.length > 0"
+      data-profile-ages
+      class="grid grid-cols-2 gap-x-4 gap-y-2"
+    >
+      <div v-for="age in ages" :key="age.key" :data-profile-age="age.key" class="grid min-w-0">
+        <dt class="truncate text-xs text-muted-foreground">{{ age.label }}</dt>
+        <dd class="truncate text-sm">{{ age.value }}</dd>
+      </div>
+    </dl>
+    <p v-else-if="who" class="text-xs text-muted-foreground">
+      {{ $t('profile.handle', { name: who.username }) }}
+    </p>
 
     <div
       v-if="stats.length > 0"

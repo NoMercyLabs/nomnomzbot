@@ -10,22 +10,20 @@
 
 import type { Component } from 'vue';
 import Crown from '~icons/nnz/crown';
-import Gem from '~icons/nnz/gem';
-import Shield from '~icons/nnz/shield';
-import Star from '~icons/nnz/star';
+import Diamond from '~icons/nnz/diamond';
+import Sword from '~icons/nnz/sword';
 
 import type { CommunityMember } from '@/api/community';
 import type { PersonProfile } from '@/api/people';
 
 export type RoleKey = 'broadcaster' | 'moderator' | 'vip' | 'subscriber';
 
-// The icon beside each role badge, as in the mockup (profile.js roles()).
+// Twitch's own badge per role in its own color (owner 2026-10-14); a subscriber carries the Twitch logo.
 export const roleIcons = {
-  broadcaster: Crown,
-  moderator: Shield,
-  vip: Gem,
-  subscriber: Star,
-} as const satisfies Record<RoleKey, Component>;
+  broadcaster: { icon: Crown, color: 'text-role-broadcaster' },
+  moderator: { icon: Sword, color: 'text-role-moderator' },
+  vip: { icon: Diamond, color: 'text-role-vip' },
+} as const satisfies Record<Exclude<RoleKey, 'subscriber'>, { icon: Component; color: string }>;
 
 // Twitch sends a subscription tier as its code ("1000"); a person reads it as its number.
 const tierNumbers = {

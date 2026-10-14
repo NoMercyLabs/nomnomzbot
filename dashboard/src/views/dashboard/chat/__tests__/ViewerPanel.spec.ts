@@ -223,8 +223,8 @@ describe('ViewerPanel', () => {
 
     expect(header?.querySelector('h2')?.textContent?.trim()).toBe('DukaSoft');
 
-    expect(header?.querySelector('[data-profile-age="account"]')?.textContent)
-      .toMatch(/^Twitch account made .+ ago$/);
+    expect(header?.querySelector('[data-profile-age="account"] dd')?.textContent?.trim())
+      .toMatch(/^.+ ago$/);
 
     expect(document.body.querySelector('[data-viewer-profile]')).not.toBeNull();
     expect(stats).toEqual(['2,811', '42', '9']);

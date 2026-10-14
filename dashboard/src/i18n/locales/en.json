@@ -293,9 +293,10 @@
     },
     "lastSeen": "Last seen {ago}",
     "age": {
-      "account": "Twitch account made {ago}",
-      "followed": "Followed {ago}",
-      "firstSeen": "First seen here {ago}"
+      "lastSeen": "Last seen",
+      "account": "Twitch account made",
+      "followed": "Followed",
+      "firstSeen": "First seen here"
     },
     "streakDays": "{n} stream | {n} streams in a row",
     "yesNo": {
