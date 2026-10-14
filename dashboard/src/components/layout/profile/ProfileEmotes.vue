@@ -18,7 +18,12 @@ import AssetCardPopover from '@/components/layout/AssetCard.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
-import { catalogEmoteCard, type AssetCard } from '@/lib/assetCards';
+import {
+  catalogEmoteCard,
+  emoteFrames,
+  smallestUrl,
+  type AssetCard,
+} from '@/lib/assetCards';
 
 const props = defineProps<{ userId: string }>();
 
@@ -49,7 +54,7 @@ function shown(provider: string): ShownEmote[] {
       emote.provider === provider)
     .flatMap((emote: PersonEmote) => {
       const card = catalogEmoteCard(emote, t);
-      const src = emote.urls['1'] ?? card?.image;
+      const src = smallestUrl(emoteFrames(emote)) ?? card?.image;
 
       if (!card || !src)
         return [];

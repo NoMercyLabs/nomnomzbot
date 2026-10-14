@@ -102779,6 +102779,15 @@
               "null",
               "string"
             ]
+          },
+          "staticUrls": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -102858,9 +102867,18 @@
                 "$ref": "#/components/schemas/ChatEmoteOwnerDto"
               }
             ]
+          },
+          "staticUrls": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
-        "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
+        "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network.\r\n`StaticUrls` holds the still image per scale for reduced motion; a non-animated emote repeats `Urls`."
       },
       "ChatEmoteOwnerDto": {
         "type": "object",

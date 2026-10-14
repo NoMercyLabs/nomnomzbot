@@ -38,7 +38,14 @@ import { formatLength, TIMEOUT_LENGTHS } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
 import AssetCardPopover from '@/components/layout/AssetCard.vue';
-import { badgeCard as cardOfBadge, emoteCard, type AssetCard } from '@/lib/assetCards';
+import {
+  badgeCard as cardOfBadge,
+  emoteCard,
+  emoteFrames,
+  smallestUrl,
+  type AssetCard,
+  type EmoteImages,
+} from '@/lib/assetCards';
 import { emoteHeights, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
 
 const props = defineProps<{
@@ -134,14 +141,10 @@ function parts(text: string): ReturnType<typeof splitMentions> {
   return splitMentions(text, me);
 }
 
-function badgeUrl(urls: Record<string, string>): string | undefined {
-  return urls['1'] ?? Object.values(urls)[0];
-}
-
 // A badge the server could not resolve has no image, so it is left out rather than shown broken.
 const badges = computed(() =>
   props.line.badges.flatMap((badge) => {
-    const src = badgeUrl(badge.urls);
+    const src = smallestUrl(badge.urls);
     const card = cardOfBadge(badge, t);
 
     return src && card
@@ -230,8 +233,8 @@ function openProfile(event: MouseEvent): void {
   );
 }
 
-function emoteUrl(urls: Record<string, string>): string | undefined {
-  return urls['1'] ?? Object.values(urls)[0];
+function emoteUrl(emote: EmoteImages): string | undefined {
+  return smallestUrl(emoteFrames(emote));
 }
 
 // A click on the line itself picks its chatter; a click on a name or an action does its own job.
@@ -316,7 +319,7 @@ function pick(event: MouseEvent): void {
         </span>
         <template v-for="(fragment, at) in line.fragments" :key="at">
           <AssetCardPopover
-            v-if="fragment.emote && emoteUrl(fragment.emote.urls) && emoteCards[at]"
+            v-if="fragment.emote && emoteUrl(fragment.emote) && emoteCards[at]"
             :label="$t('asset.emoteLabel', { name: fragment.text })"
             :title="emoteCards[at]!.title"
             :image="emoteCards[at]!.image"
@@ -326,7 +329,7 @@ function pick(event: MouseEvent): void {
           >
             <img
               data-emote
-              :src="emoteUrl(fragment.emote.urls)"
+              :src="emoteUrl(fragment.emote)"
               :alt="fragment.text"
               class="inline-block h-(--emote-h)"
             />

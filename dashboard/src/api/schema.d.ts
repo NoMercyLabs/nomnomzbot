@@ -84740,10 +84740,14 @@ export interface components {
             ownerLogin?: null | string;
             ownerName?: null | string;
             ownerAvatarUrl?: null | string;
+            staticUrls?: null | {
+                [key: string]: string;
+            };
         };
         /**
          * @description Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes
          *     (chat-decoration spec §4). `Urls` is scale-keyed ("1"/"2"/"3"); `Provider` is the source network.
+         *     `StaticUrls` holds the still image per scale for reduced motion; a non-animated emote repeats `Urls`.
          */
         ChatEmoteDto: {
             id: string;
@@ -84762,6 +84766,9 @@ export interface components {
             tier?: null | number | string;
             owner?: null | components["schemas"]["ChatEmoteOwnerDto"];
             artist?: null | components["schemas"]["ChatEmoteOwnerDto"];
+            staticUrls?: null | {
+                [key: string]: string;
+            };
         };
         /**
          * @description Who owns an emote: the channel for a Twitch emote, the uploader for a 7TV, BTTV or FFZ emote. A field the

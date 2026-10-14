@@ -29,6 +29,7 @@ import UserName from '@/components/layout/UserName.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { readableNameColor } from '@/lib/accent';
+import { emoteFrames, smallestUrl, type EmoteImages } from '@/lib/assetCards';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
 type Step = 'idle' | 'pick' | 'ban' | 'done';
@@ -118,8 +119,8 @@ function timeOf(line: ChatLine): string {
   });
 }
 
-function emoteUrl(urls: Record<string, string>): string | undefined {
-  return urls['1'] ?? Object.values(urls)[0];
+function emoteUrl(emote: EmoteImages): string | undefined {
+  return smallestUrl(emoteFrames(emote));
 }
 
 function go(next: Step): void {
@@ -260,8 +261,8 @@ async function undo(): Promise<void> {
             <span data-viewer-text class="min-w-0 flex-1 wrap-anywhere">
               <template v-for="(fragment, at) in line.fragments" :key="at">
                 <img
-                  v-if="fragment.emote && emoteUrl(fragment.emote.urls)"
-                  :src="emoteUrl(fragment.emote.urls)"
+                  v-if="fragment.emote && emoteUrl(fragment.emote)"
+                  :src="emoteUrl(fragment.emote)"
                   :alt="fragment.text"
                   class="mx-0.5 inline-block h-[1.5em] align-middle"
                 />

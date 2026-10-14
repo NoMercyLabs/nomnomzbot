@@ -11,6 +11,7 @@
 import type { ChatEmoteEntry, ChatLine } from '@/api/chat';
 import type { KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import { tierNumber } from '@/components/layout/profile/profileRoles';
+import { useReducedMotion } from '@/composables/useReducedMotion';
 
 type Fragment = ChatLine['fragments'][number];
 type Badge = ChatLine['badges'][number];
@@ -39,6 +40,23 @@ const emotePages = {
   Ffz: 'https://www.frankerfacez.com/emoticon/',
 } as const satisfies Record<string, string>;
 
+export type EmoteImages = {
+  urls: Record<string, string>;
+  staticUrls?: null | Record<string, string>;
+};
+
+// The still frames when the reader asked for less motion; a still emote has the same frames either way.
+export function emoteFrames(emote: EmoteImages): Record<string, string> {
+  return useReducedMotion().value && emote.staticUrls
+    ? emote.staticUrls
+    : emote.urls;
+}
+
+// The image at the smallest scale, the size a chat line shows.
+export function smallestUrl(urls: Record<string, string>): string | undefined {
+  return urls['1'] ?? Object.values(urls)[0];
+}
+
 // The image at the largest scale the server sent; the keys are the scales "1" to "4".
 export function largestUrl(urls: Record<string, string>): string | undefined {
   const scales = Object.keys(urls).sort((a, b) =>
@@ -60,7 +78,7 @@ function emotePage(emote: EmoteFacts): string | null {
 export function emoteCard(fragment: Fragment, t: Translate): AssetCard | null {
   const emote = fragment.emote;
   const image = emote
-    ? largestUrl(emote.urls)
+    ? largestUrl(emoteFrames(emote))
     : undefined;
 
   if (!emote || !image)
@@ -71,7 +89,7 @@ export function emoteCard(fragment: Fragment, t: Translate): AssetCard | null {
 
 // The card for an emote from the catalog, such as the ones a person's own channel offers.
 export function catalogEmoteCard(emote: ChatEmoteEntry, t: Translate): AssetCard | null {
-  const image = largestUrl(emote.urls);
+  const image = largestUrl(emoteFrames(emote));
 
   if (!image)
     return null;

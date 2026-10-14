@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { ChatEmoteEntry } from '@/api/chat';
+import { emoteFrames, smallestUrl } from '@/lib/assetCards';
 
 import type { EmojiEntry } from './emojiCatalog';
 
@@ -66,11 +67,13 @@ function holds(word: string, query: string): boolean {
 }
 
 export function emoteSuggestion(emote: ChatEmoteEntry): Suggestion {
+  const frames = emoteFrames(emote);
+
   return {
     kind: 'emote',
     label: emote.code,
     insert: emote.code,
-    image: emote.urls['2'] ?? emote.urls['1'] ?? Object.values(emote.urls)[0] ?? null,
+    image: frames['2'] ?? smallestUrl(frames) ?? null,
     provider: emote.provider,
     skins: [],
   };
