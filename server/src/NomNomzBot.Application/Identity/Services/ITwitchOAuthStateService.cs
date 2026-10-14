@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Identity.Dtos;
+
 namespace NomNomzBot.Application.Identity.Services;
 
 /// <summary>
@@ -27,7 +29,22 @@ public interface ITwitchOAuthStateService
     /// nonce is absent, already used, or expired — the callback must reject in that case.
     /// </summary>
     Task<TwitchOAuthFlowState?> ConsumeAsync(string? stateNonce, CancellationToken ct = default);
+
+    /// <summary>
+    /// Holds a finished web login for a short time under a fresh single-use code, for a sign-in that must
+    /// return to another trusted dashboard origin. Only the code travels in that origin's URL.
+    /// </summary>
+    Task<string> IssueLoginHandoffAsync(WebLoginHandoff handoff, CancellationToken ct = default);
+
+    /// <summary>Looks up and removes (single-use) the login held under <paramref name="code"/>; null when absent, used, or expired.</summary>
+    Task<WebLoginHandoff?> ConsumeLoginHandoffAsync(string? code, CancellationToken ct = default);
 }
+
+/// <summary>
+/// A finished web login waiting for the dashboard at <paramref name="Origin"/> to redeem it. Only a request
+/// from that exact origin may redeem it.
+/// </summary>
+public sealed record WebLoginHandoff(string Origin, AuthResultDto Auth);
 
 /// <summary>
 /// The server-side OAuth flow payload. <paramref name="Flow"/> routes the single callback
@@ -52,6 +69,10 @@ public interface ITwitchOAuthStateService
 /// endpoint before it enters the state) the dashboard returns to after the round-trip — so an OAuth hop
 /// started from /commands lands back on /commands, not the home page. Null lands on the origin root.
 /// </para>
+/// <para>
+/// <paramref name="ReturnOrigin"/> is the trusted dashboard origin a served-web flow started from when it is
+/// NOT the public base URL (a second dashboard listed in <c>Cors:Origins</c>). Null means the base URL.
+/// </para>
 /// </summary>
 public sealed record TwitchOAuthFlowState(
     string Flow,
@@ -62,5 +83,6 @@ public sealed record TwitchOAuthFlowState(
     string? CodeVerifier = null,
     Guid? LinkUserId = null,
     string? ReturnTo = null,
-    string? ReturnRoute = null
+    string? ReturnRoute = null,
+    string? ReturnOrigin = null
 );

@@ -95,6 +95,22 @@ public class AuthController : BaseController
 
     private string GetPublicBaseUrl() => Request.ResolvePublicOrigin(_config);
 
+    private static bool IsWebClient(string? client) =>
+        string.Equals(client, "web", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The listed dashboard origin a web flow started from, when it is not the public base URL (see <see cref="WebReturnOriginPolicy"/>).</summary>
+    private string? CaptureReturnOrigin(string? client) =>
+        IsWebClient(client) ? WebReturnOriginPolicy.Capture(Request, _config, _env) : null;
+
+    /// <summary>
+    /// The origin a finished web flow goes back to: the stored return origin when it is still a listed
+    /// cross-origin target (the config may have changed during the round-trip), else the public base URL.
+    /// </summary>
+    private string ReturnOriginOrBase(string? returnOrigin) =>
+        WebReturnOriginPolicy.IsCrossOriginTarget(returnOrigin, Request, _config, _env)
+            ? returnOrigin
+            : GetPublicBaseUrl();
+
     /// <summary>
     /// The request fingerprint for a new login session: client class (web by default; clients may pass
     /// <c>X-Client-Type</c>), source IP, and user-agent.
@@ -187,7 +203,8 @@ public class AuthController : BaseController
                     Provider: provider.ToLowerInvariant(),
                     CodeVerifier: pkce.Verifier,
                     LinkUserId: userId,
-                    ReturnTo: ReturnPathPolicy.Normalize(return_to)
+                    ReturnTo: ReturnPathPolicy.Normalize(return_to),
+                    ReturnOrigin: CaptureReturnOrigin(client)
                 ),
                 ct
             );
@@ -360,7 +377,8 @@ public class AuthController : BaseController
                 redirect_uri,
                 Client: client,
                 ReturnTo: ReturnPathPolicy.Normalize(return_to),
-                ReturnRoute: NormalizeReturnRoute(return_route)
+                ReturnRoute: NormalizeReturnRoute(return_route),
+                ReturnOrigin: CaptureReturnOrigin(client)
             ),
             ct
         );
@@ -516,13 +534,7 @@ public class AuthController : BaseController
             return ResultResponse(result);
         }
 
-        return BuildLoginResponse(
-            result.Value,
-            client,
-            mobileRedirectUri,
-            flowState.ReturnTo,
-            flowState.ReturnRoute
-        );
+        return await BuildLoginResponseAsync(result.Value, client, flowState, ct);
     }
 
     // A closed set of ASCII lower-case letters/digits (ShellRouteSlug's format) — echoed unescaped into a
@@ -545,30 +557,45 @@ public class AuthController : BaseController
     /// response and store in its OS keychain. The served-web dashboard alone still uses a redirect: the access
     /// token in the URL fragment (never sent to the server) + the refresh token in an HttpOnly + Secure + Lax
     /// cookie the SPA's JS can't read (XSS can't exfiltrate it).
+    /// <para>
+    /// A web flow that started on a second listed dashboard origin (<see cref="TwitchOAuthFlowState.ReturnOrigin"/>)
+    /// gets no token in a URL to that origin and no cookie here: the login is held under a 60-second single-use
+    /// code, and that origin redeems it through <c>web/exchange</c>, which sets the cookie on that origin.
+    /// </para>
     /// </summary>
-    private IActionResult BuildLoginResponse(
+    private async Task<IActionResult> BuildLoginResponseAsync(
         AuthResultDto auth,
         string? client,
-        string? mobileRedirectUri,
-        string? returnTo = null,
-        string? returnRoute = null
+        TwitchOAuthFlowState flowState,
+        CancellationToken ct
     )
     {
         int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
+        string returnTo = flowState.ReturnTo ?? "/app";
+        string routeSuffix = flowState.ReturnRoute is not null
+            ? $"&return_route={flowState.ReturnRoute}"
+            : string.Empty;
 
-        if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
+        if (IsWebClient(client))
         {
+            string? returnOrigin = flowState.ReturnOrigin;
+            if (WebReturnOriginPolicy.IsCrossOriginTarget(returnOrigin, Request, _config, _env))
+            {
+                string code = await _oauthState.IssueLoginHandoffAsync(new(returnOrigin, auth), ct);
+                return Redirect($"{returnOrigin}{returnTo}#login_code={code}{routeSuffix}");
+            }
+
             SetRefreshTokenCookie(auth.RefreshToken);
             string fragment =
                 $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}"
-                + (returnRoute is not null ? $"&return_route={returnRoute}" : string.Empty);
+                + routeSuffix;
             // Default to /app, never "/": the refresh-token cookie is scoped Path=/api/v1/auth (deliberately
             // narrow), so it is NEVER sent on a request to "/" — landing there right after this redirect always
             // looks logged-out to the root handler, which then serves the marketing landing page instead of the
             // dashboard (the access_token sitting in the fragment is never read because that page boots no SPA
             // code at all). /app has no such cookie dependency: it always serves the SPA shell directly, which
             // reads the fragment token itself.
-            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/app"}{fragment}");
+            return Redirect($"{GetPublicBaseUrl()}{returnTo}{fragment}");
         }
 
         return Ok(
@@ -664,6 +691,42 @@ public class AuthController : BaseController
             }
         );
         ActAsCookie.Clear(HttpContext, _config);
+    }
+
+    /// <summary>
+    /// Redeem the <c>login_code</c> a web sign-in handed to a second listed dashboard origin (it arrives in that
+    /// page's URL fragment). The code works once and expires after 60 seconds. The request's <c>Origin</c> must be
+    /// the origin the code was issued for; a wrong origin is refused and the code is spent all the same. On
+    /// success the refresh token is set as the HttpOnly cookie on the calling origin and the access token is
+    /// returned in the body.
+    /// </summary>
+    [HttpPost("web/exchange")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<WebLoginExchangeDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ExchangeWebLoginCode(
+        [FromBody] WebLoginExchangeRequest body,
+        CancellationToken ct
+    )
+    {
+        WebLoginHandoff? handoff = await _oauthState.ConsumeLoginHandoffAsync(body.Code, ct);
+        if (handoff is null)
+            return UnauthenticatedResponse("Invalid or expired login code.");
+
+        string origin = Request.Headers.Origin.ToString();
+        if (!string.Equals(handoff.Origin, origin, StringComparison.OrdinalIgnoreCase))
+            return UnauthenticatedResponse("Login code rejected: wrong origin.");
+
+        AuthResultDto auth = handoff.Auth;
+        int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
+        SetRefreshTokenCookie(auth.RefreshToken);
+        return Ok(
+            new StatusResponseDto<WebLoginExchangeDto>
+            {
+                Data = new(auth.AccessToken, expiresIn, auth.User),
+            }
+        );
     }
 
     /// <summary>
@@ -945,7 +1008,8 @@ public class AuthController : BaseController
                 Client: client,
                 Provider: provider.ToLowerInvariant(),
                 CodeVerifier: pkce.Verifier,
-                ReturnTo: ReturnPathPolicy.Normalize(return_to)
+                ReturnTo: ReturnPathPolicy.Normalize(return_to),
+                ReturnOrigin: CaptureReturnOrigin(client)
             ),
             ct
         );
@@ -1003,7 +1067,8 @@ public class AuthController : BaseController
                 provider,
                 flowState.Client,
                 flowState.RedirectUri,
-                flowState.ReturnTo
+                flowState.ReturnTo,
+                flowState.ReturnOrigin
             );
         }
 
@@ -1015,12 +1080,7 @@ public class AuthController : BaseController
         if (login.IsFailure)
             return ResultResponse(login);
 
-        return BuildLoginResponse(
-            login.Value,
-            flowState.Client,
-            flowState.RedirectUri,
-            flowState.ReturnTo
-        );
+        return await BuildLoginResponseAsync(login.Value, flowState.Client, flowState, ct);
     }
 
     /// <summary>
@@ -1034,7 +1094,8 @@ public class AuthController : BaseController
         string provider,
         string? client,
         string? mobileRedirectUri,
-        string? returnTo = null
+        string? returnTo,
+        string? returnOrigin
     )
     {
         if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
@@ -1056,8 +1117,9 @@ public class AuthController : BaseController
             // Default to /app, never "/" — see BuildLoginResponse's identical fallback for why: the
             // refresh-token cookie's Path=/api/v1/auth scope means "/" always looks logged-out right after a
             // redirect here, serving the marketing landing page instead of the dashboard. /app has no such
-            // dependency; it always serves the SPA shell directly.
-            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/app"}{fragment}");
+            // dependency; it always serves the SPA shell directly. No token rides here, so a listed second
+            // dashboard origin the link started from gets the outcome directly.
+            return Redirect($"{ReturnOriginOrBase(returnOrigin)}{returnTo ?? "/app"}{fragment}");
         }
 
         return IdentityWriteResponse(link);
@@ -1305,14 +1367,6 @@ public class AuthController : BaseController
     /// (scheme + host + port), so a same-host origin on another scheme or port is still refused.
     /// </para>
     /// </summary>
-    private static bool IsLoopbackOrigin(string origin) =>
-        Uri.TryCreate(origin, UriKind.Absolute, out Uri? uri)
-        && (
-            string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
-            || uri.Host == "127.0.0.1"
-            || uri.Host == "[::1]"
-        );
-
     private bool HasAllowedOrigin()
     {
         string? origin = Request.Headers.Origin.ToString();
@@ -1343,22 +1397,8 @@ public class AuthController : BaseController
 
         // Development runs the dashboard dev server and the API on different loopback ports, and that port
         // moves; a hardcoded allowlist strands the developer on a rejected refresh. Loopback carries no
-        // cross-site risk, so trust any loopback origin here — never outside Development.
-        if (_env.IsDevelopment() && IsLoopbackOrigin(origin))
-            return true;
-
-        string[] allowedOrigins =
-            _config.GetSection("Cors:Origins").Get<string[]>()
-            ??
-            [
-                "http://localhost:3000",
-                "http://localhost:5090",
-                "http://localhost:8081",
-                "https://bot-dev.nomercy.tv",
-            ];
-        return allowedOrigins.Any(allowed =>
-            string.Equals(allowed, origin, StringComparison.OrdinalIgnoreCase)
-        );
+        // cross-site risk, so the policy trusts any loopback origin there — never outside Development.
+        return WebReturnOriginPolicy.IsListed(origin, _config, _env);
     }
 
     /// <summary>
