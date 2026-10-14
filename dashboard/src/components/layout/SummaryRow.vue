@@ -20,11 +20,14 @@ withDefaults(
   defineProps<{
     title: string;
     detail?: string;
+    // A third, smaller line for who or when, under the detail.
+    meta?: string;
     pick?: boolean;
     selected?: boolean;
   }>(),
   {
     detail: undefined,
+    meta: undefined,
     pick: false,
     selected: false,
   },
@@ -52,6 +55,7 @@ withDefaults(
         <!-- Wrap, never cut: on a phone a cut detail loses its meaning, and a long bot address its end. -->
         <span class="block text-sm font-medium wrap-break-word"><slot name="title">{{ title }}</slot></span>
         <span v-if="detail" class="block text-sm text-muted-foreground">{{ detail }}</span>
+        <span v-if="meta" data-slot="summary-row-meta" class="block text-xs text-muted-foreground">{{ meta }}</span>
       </span>
       <slot name="end" />
     </component>

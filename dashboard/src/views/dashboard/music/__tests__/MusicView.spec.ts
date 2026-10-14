@@ -322,6 +322,19 @@ describe('MusicView', () => {
     expect(writes()[0]!.position).toBe(2);
   });
 
+  // Stoney 2026-10-14: "please make this 3 rows and a bigger image".
+  it('shows a queued song as title, artist and requester on three lines', async () => {
+    await open();
+
+    const row = panel('Request queue').querySelector('[data-queue-item]');
+    const lines = [...(row?.querySelectorAll('span.block') ?? [])].map((line) =>
+      line.textContent?.trim());
+
+    expect(lines).toHaveLength(3);
+    expect(lines[2]).toBe('Requested by sample_viewer');
+    expect(lines[1]).not.toContain('Requested');
+  });
+
   // Stoney 2026-10-13: "i need to be able to drag mine to the end haha".
   it('drags a song by its handle to the end: a POST to move with the drop position, and the rows follow', async () => {
     queue.push(track(3, 'Lose Yourself', 'Eminem', 'Stoney_Eagle'));

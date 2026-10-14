@@ -188,11 +188,8 @@ const panels = computed(() => [
             v-for="item in rows"
             :key="item.position"
             :title="item.trackName"
-            :detail="
-              item.requestedBy
-                ? $t('dashboard.music.queue.by', { artist: item.artist, name: item.requestedBy })
-                : $t('dashboard.music.queue.unknownRequester', { artist: item.artist })
-            "
+            :detail="item.artist"
+            :meta="item.requestedBy ? $t('dashboard.music.queue.by', { name: item.requestedBy }) : undefined"
             data-queue-item
           >
             <template #leading>
@@ -207,11 +204,11 @@ const panels = computed(() => [
                 v-if="item.imageUrl"
                 :src="item.imageUrl"
                 alt=""
-                class="size-8 flex-none rounded-md object-cover"
+                class="size-14 flex-none rounded-md object-cover"
               />
               <span
                 v-else
-                class="flex size-8 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
+                class="flex size-14 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
               >
                 <Music class="size-4" aria-hidden="true" />
               </span>
