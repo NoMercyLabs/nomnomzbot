@@ -306,6 +306,7 @@ function pick(event: MouseEvent): void {
   <div
     :data-line-id="line.id"
     :data-removed="line.removed"
+    :data-rows="display.rows"
     :data-alt="display.alternating && index % 2 === 1 ? 'on' : 'off'"
     :data-mention="mentionsMe ? 'true' : undefined"
     :data-focus="focus"
@@ -315,11 +316,11 @@ function pick(event: MouseEvent): void {
     @click="pick"
   >
     <time
-      v-if="display.timestamps !== 'off'"
+      v-if="display.timestamps !== 'off' && display.rows === 'one'"
       class="flex-none text-muted-foreground tabular-nums"
       :datetime="line.timestamp"
     >{{ time }}</time>
-    <span v-if="display.avatars && line.avatarUrl" class="flex h-(--line-h) flex-none items-center">
+    <span v-if="display.avatars && line.avatarUrl && display.rows === 'one'" class="flex h-(--line-h) flex-none items-center">
       <img
         data-avatar
         :src="line.avatarUrl"
@@ -341,7 +342,25 @@ function pick(event: MouseEvent): void {
         :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
       >
         <!-- The name's focus ring reaches 6px past its letters, so it keeps 8px from the marks and the message. -->
-        <span data-line-head class="me-2 inline-flex h-(--line-h) items-center gap-2 align-top">
+        <span
+          data-line-head
+          class="h-(--line-h) items-center gap-2 align-top"
+          :class="display.rows === 'two' ? 'flex' : 'me-2 inline-flex'"
+        >
+          <template v-if="display.rows === 'two'">
+            <img
+              v-if="display.avatars && line.avatarUrl"
+              data-avatar
+              :src="line.avatarUrl"
+              alt=""
+              class="size-6 flex-none rounded-full"
+            />
+            <time
+              v-if="display.timestamps !== 'off'"
+              class="flex-none text-muted-foreground tabular-nums"
+              :datetime="line.timestamp"
+            >{{ time }}</time>
+          </template>
           <span
             v-if="display.platform || (display.badges && badges.length > 0)"
             class="flex items-center gap-1"

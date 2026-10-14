@@ -36,6 +36,7 @@
           "alternating": "Afwisselende rijen",
           "narrow": "Smalle regels",
           "spacing": "Berichtafstand",
+          "rows": "Rijen",
           "emoteSize": "Emotegrootte",
           "mentions": "Vermeldingen van mij markeren",
           "deleted": "Verwijderde berichten"
@@ -45,6 +46,8 @@
         "hour12": "12-uurs",
         "asSent": "Zoals verzonden",
         "readable": "Leesbaar",
+        "oneLine": "Een regel",
+        "twoLines": "Twee regels",
         "tight": "Krap",
         "normal": "Normaal",
         "roomy": "Ruim",

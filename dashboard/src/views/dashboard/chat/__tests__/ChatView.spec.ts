@@ -1106,6 +1106,28 @@ describe('ChatView display drawer', () => {
     expect(rowOf('m1').className).toContain('py-4');
   });
 
+  it('rows switch puts the time and name above the message, and is kept', async () => {
+    await open();
+    await showPanel();
+
+    const head = (): HTMLElement => rowOf('m1').querySelector('[data-line-head]') as HTMLElement;
+
+    expect(rowOf('m1').dataset.rows).toBe('one');
+    expect(head().className).toContain('inline-flex');
+    expect(head().querySelector('time')).toBeNull();
+    expect(rowOf('m1').querySelector(':scope > time')).not.toBeNull();
+
+    await pick('rows', display.twoLines);
+    expect(rowOf('m1').dataset.rows).toBe('two');
+    expect(head().className).not.toContain('inline-flex');
+    expect(head().querySelector('time')).not.toBeNull();
+    expect(rowOf('m1').querySelector(':scope > time')).toBeNull();
+    expect(head().textContent).toContain('Alice');
+    expect(head().textContent).not.toContain('first words');
+    expect(rowOf('m1').textContent).toContain('first words');
+    expect(stored().rows).toBe('two');
+  });
+
   it('emote size sets the emote height', async () => {
     await open();
     await showPanel();

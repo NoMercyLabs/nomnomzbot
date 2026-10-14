@@ -36,6 +36,7 @@
           "alternating": "Alternating rows",
           "narrow": "Narrow lines",
           "spacing": "Message spacing",
+          "rows": "Rows",
           "emoteSize": "Emote size",
           "mentions": "Highlight mentions of me",
           "deleted": "Deleted messages"
@@ -45,6 +46,8 @@
         "hour12": "12-hour",
         "asSent": "As sent",
         "readable": "Readable",
+        "oneLine": "One line",
+        "twoLines": "Two lines",
         "tight": "Tight",
         "normal": "Normal",
         "roomy": "Roomy",

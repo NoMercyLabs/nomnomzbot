@@ -25,7 +25,7 @@ import { chatDisplayDefaults, type ChatDisplay } from '../chatDisplay';
 
 type SwitchName =
   'badges' | 'avatars' | 'platform' | 'commands' | 'alternating' | 'narrow' | 'mentions';
-type SegmentName = 'timestamps' | 'nameColors' | 'spacing' | 'emoteSize' | 'deleted';
+type SegmentName = 'timestamps' | 'nameColors' | 'spacing' | 'rows' | 'emoteSize' | 'deleted';
 
 const display = defineModel<ChatDisplay>({ required: true });
 
@@ -48,6 +48,10 @@ const segmentKeys = {
     normal: 'normal',
     roomy: 'roomy',
   },
+  rows: {
+    one: 'oneLine',
+    two: 'twoLines',
+  },
   emoteSize: {
     s: 'small',
     m: 'medium',
@@ -69,7 +73,7 @@ const sections = [
   {
     key: 'layout',
     switches: ['alternating', 'narrow'],
-    segments: ['spacing'],
+    segments: ['rows', 'spacing'],
   },
   {
     key: 'emotes',
@@ -100,6 +104,7 @@ const segmentChoices = computed(() => ({
   timestamps: choices('timestamps'),
   nameColors: choices('nameColors'),
   spacing: choices('spacing'),
+  rows: choices('rows'),
   emoteSize: choices('emoteSize'),
   deleted: choices('deleted'),
 }));

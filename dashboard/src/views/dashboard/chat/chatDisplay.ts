@@ -17,6 +17,7 @@ export type TimestampStyle = 'off' | '24' | '12';
 export type NameColors = 'sent' | 'readable' | 'off';
 export type Spacing = 'tight' | 'normal' | 'roomy';
 export type EmoteSize = 's' | 'm' | 'l';
+export type RowLayout = 'one' | 'two';
 export type DeletedLook = 'hide' | 'strike' | 'show';
 
 export type ChatDisplay = {
@@ -29,6 +30,7 @@ export type ChatDisplay = {
   nameColors: NameColors;
   narrow: boolean;
   spacing: Spacing;
+  rows: RowLayout;
   emoteSize: EmoteSize;
   mentions: boolean;
   deleted: DeletedLook;
@@ -44,6 +46,7 @@ export const chatDisplayDefaults = {
   nameColors: 'readable',
   narrow: false,
   spacing: 'normal',
+  rows: 'one',
   emoteSize: 'm',
   mentions: true,
   deleted: 'strike',
