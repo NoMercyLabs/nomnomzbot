@@ -15,6 +15,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import Clock from '~icons/nnz/clock';
+import Cross from '~icons/nnz/cross';
 import EmailReply from '~icons/nnz/email-reply';
 import StopSign from '~icons/nnz/stop-sign';
 import Trash from '~icons/nnz/trash';
@@ -24,7 +25,7 @@ import { useDeleteChatMessage, useTimeoutUser, type ChatLine } from '@/api/chat'
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -533,7 +534,17 @@ function pick(event: MouseEvent): void {
     </div>
     <span v-if="removal" data-removal class="flex-none text-muted-foreground">{{ removal }}</span>
     <Dialog v-model:open="lightboxOpen">
-      <DialogContent class="w-auto max-w-[90vw] gap-3 p-3 sm:max-w-[90vw]">
+      <DialogContent class="w-auto max-w-[90vw] gap-3 p-3 sm:max-w-[90vw]" :show-close-button="false">
+        <DialogClose as-child>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="absolute top-4 right-4 z-10 bg-background/80"
+            :aria-label="$t('common.close')"
+          >
+            <Cross />
+          </Button>
+        </DialogClose>
         <DialogTitle class="sr-only">{{ $t('dashboard.chat.image.title', { name: line.displayName }) }}</DialogTitle>
         <DialogDescription class="sr-only">{{ lightbox?.alt || $t('dashboard.chat.image.untitled') }}</DialogDescription>
         <img

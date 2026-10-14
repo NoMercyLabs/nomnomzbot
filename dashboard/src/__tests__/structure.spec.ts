@@ -244,8 +244,8 @@ describe('folder layout', () => {
   });
 
   // A toast or tooltip works on every page only when the frame mounts its host once; a page that mounts its
-  // own stacks a second host, and a page without one shows nothing.
-  it('mounts the toast host and the tooltip provider once, in the dashboard frame', () => {
+  // own stacks a second host, and a page without one shows nothing. The popout window is its own frame.
+  it('mounts the toast host and the tooltip provider once per frame', () => {
     const own = allPaths(src)
       .map((path) => relative(src, path).replace(/\\/g, '/'))
       .filter((path) => path.endsWith('.vue') && !path.startsWith('components/ui/'));
@@ -255,7 +255,7 @@ describe('folder layout', () => {
       return /<(Toaster|TooltipProvider)\b/.test(text);
     });
 
-    expect(hosts).toEqual(['layouts/DashboardLayout.vue']);
+    expect(hosts).toEqual(['layouts/DashboardLayout.vue', 'layouts/PopoutLayout.vue']);
   });
 
   // Stoney 2026-10-13: "the icon size in the navbar is too small, it should match the font better and follow

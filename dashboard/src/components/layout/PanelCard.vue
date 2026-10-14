@@ -84,14 +84,15 @@ watch(
       ? 'gap-3'
       : ['overflow-hidden', flush ? 'h-full' : 'rounded-lg border border-border bg-card']"
   >
-    <!-- Actions share the title row; the description runs the full width below, never squeezed beside them. -->
+    <!-- The title keeps its whole width; actions sit beside it when they fit, else on their own row.
+         The description runs the full width below. -->
     <header
       v-if="!headless"
-      class="grid flex-none grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-2"
+      class="flex flex-none flex-wrap content-center items-center gap-x-2 gap-y-1"
       :class="bare ? '' : 'min-h-13 border-b border-border px-4 py-2'"
     >
       <h2
-        class="min-w-0"
+        class="max-w-full flex-[1_0_auto]"
         :class="[
           bare ? 'text-sm' : 'text-base',
           tier === 'quiet' ? 'font-medium text-muted-foreground' : 'font-semibold',
@@ -102,11 +103,11 @@ watch(
       <div
         v-if="$slots.actions"
         data-slot="panel-actions"
-        class="col-start-2 row-start-1 flex items-center gap-2"
+        class="ml-auto flex items-center gap-2"
       >
         <slot name="actions" />
       </div>
-      <p v-if="description" class="col-span-2 text-sm text-muted-foreground">{{ description }}</p>
+      <p v-if="description" class="basis-full text-sm text-muted-foreground">{{ description }}</p>
     </header>
     <div class="min-h-0 flex-1" :class="bare ? '' : ['overflow-y-auto', headless ? '' : pad ? 'p-4' : 'p-2']">
       <slot v-if="state === 'ready'" />

@@ -49,10 +49,13 @@ describe('the panel card header', () => {
     const actions = wrapper.find('[data-slot="panel-actions"]');
     const description = header.find('p');
 
-    expect(header.classes()).toContain('grid');
+    // The title keeps its whole width; when the actions do not fit beside it they move to their own row
+    // (owner 2026-10-14: "this session is wrapped when we have more than enough room").
+    expect(header.classes()).toEqual(expect.arrayContaining(['flex', 'flex-wrap']));
+    expect(header.find('h2').classes()).toEqual(expect.arrayContaining(['flex-[1_0_auto]', 'max-w-full']));
     expect(actions.find('[data-tabs]').exists()).toBe(true);
-    expect(actions.classes()).toEqual(expect.arrayContaining(['col-start-2', 'row-start-1']));
-    expect(description.classes()).toContain('col-span-2');
+    expect(actions.classes()).toContain('ml-auto');
+    expect(description.classes()).toContain('basis-full');
   });
 });
 
