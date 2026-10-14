@@ -166,6 +166,55 @@ public sealed class StreamRowReconcilerTests
     }
 
     [Fact]
+    public async Task A_missed_offline_row_followed_by_a_new_stream_ends_at_its_last_viewer_sample_not_the_next_start()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Channel channel = NewChannel();
+        db.Channels.Add(channel);
+        db.Streams.Add(OpenRow("old", Started));
+        db.Streams.Add(OpenRow("next", Started.AddHours(30)));
+        db.EventJournals.Add(Sample(1, Started.AddMinutes(2)));
+        db.EventJournals.Add(Sample(2, Started.AddHours(7)));
+        db.EventJournals.Add(Sample(3, Started.AddHours(30)));
+        await db.SaveChangesAsync();
+
+        await StreamRowReconciler.CloseOpenStreamsAsync(
+            db,
+            channel,
+            Started.AddHours(30),
+            CancellationToken.None,
+            backfillText: false
+        );
+        await db.SaveChangesAsync();
+
+        Domain.Stream.Entities.Stream old = await Reload(db, "old");
+        old.EndedAt.Should()
+            .Be(
+                Started.AddHours(7),
+                "the last live sample is the last proof; the next start is not"
+            );
+        (old.EndedAt - old.StartedAt).Should().Be(TimeSpan.FromHours(7));
+    }
+
+    private static Domain.EventStore.Entities.EventJournal Sample(
+        long position,
+        DateTimeOffset at
+    ) =>
+        new()
+        {
+            EventId = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            StreamPosition = position,
+            EventType = "StreamViewerCountSampledEvent",
+            EventVersion = 1,
+            Source = "domain",
+            Payload = "{}",
+            Metadata = "{}",
+            OccurredAt = at.UtcDateTime,
+            RecordedAt = at.UtcDateTime,
+        };
+
+    [Fact]
     public async Task Chat_after_the_next_streams_start_is_not_used_for_the_older_row()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();

@@ -21,6 +21,8 @@ namespace NomNomzBot.Infrastructure.Stream;
 /// </summary>
 internal static class StreamRowReconciler
 {
+    private const string ViewerSampleEventType = "StreamViewerCountSampledEvent";
+
     /// <summary>
     /// Closes every open Stream row of a channel the bot knows is not streaming, but only where the end is
     /// provable: the latest chat message stored against that stream, else the latest chat message of the
@@ -87,34 +89,69 @@ internal static class StreamRowReconciler
         CancellationToken ct
     )
     {
-        DateTime? lastChat = await db
+        if (row.StartedAt is not { } start)
+            return null;
+
+        DateTimeOffset next = starts
+            .Where(s => s > start)
+            .Select(s => s!.Value)
+            .DefaultIfEmpty(upperBound)
+            .Min();
+        if (next > upperBound)
+            next = upperBound;
+
+        return await LastActivityAsync(db, channelId, row, next, ct);
+    }
+
+    /// <summary>
+    /// The last proof that a stream was live: the latest of the chat stored against the row, the channel's
+    /// chat inside the row's window (<c>StartedAt</c> up to <paramref name="windowEnd"/>, exclusive) and the
+    /// journaled viewer-count samples inside that window (the poll publishes a sample only while the channel
+    /// is live). Null when none exists. This is the one definition of "the end of a stream whose offline
+    /// event never came"; it never returns the next stream's start.
+    /// </summary>
+    internal static async Task<DateTimeOffset?> LastActivityAsync(
+        IApplicationDbContext db,
+        Guid channelId,
+        Domain.Stream.Entities.Stream row,
+        DateTimeOffset windowEnd,
+        CancellationToken ct
+    )
+    {
+        if (row.StartedAt is not { } start)
+            return null;
+
+        DateTime from = start.UtcDateTime;
+        DateTime to = windowEnd.UtcDateTime;
+
+        DateTime? lastStreamChat = await db
             .ChatMessages.Where(m => m.StreamId == row.Id)
             .OrderByDescending(m => m.CreatedAt)
             .Select(m => (DateTime?)m.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
-        if (lastChat is null && row.StartedAt is { } start)
-        {
-            DateTimeOffset next = starts
-                .Where(s => s > start)
-                .Select(s => s!.Value)
-                .DefaultIfEmpty(upperBound)
-                .Min();
-            if (next > upperBound)
-                next = upperBound;
-            DateTime from = start.UtcDateTime;
-            DateTime to = next.UtcDateTime;
-            lastChat = await db
-                .ChatMessages.Where(m =>
-                    m.BroadcasterId == channelId && m.CreatedAt >= from && m.CreatedAt < to
-                )
-                .OrderByDescending(m => m.CreatedAt)
-                .Select(m => (DateTime?)m.CreatedAt)
-                .FirstOrDefaultAsync(ct);
-        }
+        DateTime? lastWindowChat = await db
+            .ChatMessages.Where(m =>
+                m.BroadcasterId == channelId && m.CreatedAt >= from && m.CreatedAt < to
+            )
+            .OrderByDescending(m => m.CreatedAt)
+            .Select(m => (DateTime?)m.CreatedAt)
+            .FirstOrDefaultAsync(ct);
 
-        return lastChat is { } chat
-            ? new DateTimeOffset(DateTime.SpecifyKind(chat, DateTimeKind.Utc))
+        DateTime? lastSample = await db
+            .EventJournals.Where(j =>
+                j.BroadcasterId == channelId
+                && j.EventType == ViewerSampleEventType
+                && j.OccurredAt >= from
+                && j.OccurredAt < to
+            )
+            .OrderByDescending(j => j.OccurredAt)
+            .Select(j => (DateTime?)j.OccurredAt)
+            .FirstOrDefaultAsync(ct);
+
+        DateTime? latest = new[] { lastStreamChat, lastWindowChat, lastSample }.Max();
+        return latest is { } at
+            ? new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc))
             : null;
     }
 
