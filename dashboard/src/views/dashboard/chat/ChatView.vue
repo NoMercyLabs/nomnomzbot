@@ -207,6 +207,10 @@ function track(panel: ChatPanel, open: boolean): void {
   if (!open) return;
 
   openOrder.value.push(panel);
+  makeRoom();
+}
+
+function makeRoom(): void {
   const room = twoPanelsFit.value
     ? 2
     : 1;
@@ -217,6 +221,9 @@ function track(panel: ChatPanel, open: boolean): void {
     closers[oldest]();
   }
 }
+
+// A window made narrower with two panels open closes the older one too.
+watch(twoPanelsFit, makeRoom);
 
 watch(viewerOpen, (open) =>
   track('viewer', open));

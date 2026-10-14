@@ -2052,12 +2052,20 @@ describe('ChatView emote picker', () => {
   // Stoney 2026-10-14: "maybe only allow both if there is enough space?"
   describe('side panels', () => {
     const realMatchMedia = window.matchMedia;
+    let wide = false;
+    const listeners: ((event: MediaQueryListEvent) => void)[] = [];
 
-    function screen(wide: boolean): void {
+    function screen(isWide: boolean): void {
+      wide = isWide;
+
       window.matchMedia = ((query: string): MediaQueryList => ({
-        matches: wide && query.includes('min-width: 1800px'),
+        get matches() {
+          return wide && query.includes('min-width: 1800px');
+        },
         media: query,
-        addEventListener: () => {},
+        addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => {
+          listeners.push(listener);
+        },
         removeEventListener: () => {},
         addListener: () => {},
         removeListener: () => {},
@@ -2068,6 +2076,7 @@ describe('ChatView emote picker', () => {
 
     afterEach(() => {
       window.matchMedia = realMatchMedia;
+      listeners.length = 0;
     });
 
     async function openBoth(): Promise<void> {
@@ -2094,6 +2103,22 @@ describe('ChatView emote picker', () => {
       await openBoth();
 
       expect(pressed('[data-display-toggle]')).toBe('true');
+      expect(pressed('[data-mod-tools-toggle]')).toBe('true');
+    });
+
+    // Stoney 2026-10-14: "if both were open and i shrink the available size then it does not collapse one".
+    it('closes the older panel when the window shrinks with two open', async () => {
+      screen(true);
+      await openBoth();
+
+      wide = false;
+
+      listeners.forEach((listener) =>
+        listener({ matches: false } as MediaQueryListEvent));
+
+      await settle();
+
+      expect(pressed('[data-display-toggle]')).toBe('false');
       expect(pressed('[data-mod-tools-toggle]')).toBe('true');
     });
   });
