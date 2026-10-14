@@ -41,6 +41,7 @@ let widgets: Record<string, unknown>[] = [];
 let schemas: Record<string, Field[]> = {};
 let putRefusal: string | null = null;
 let testRefusal: string | null = null;
+let schemaless: string[] = [];
 
 const text = (value: string): { key: string; text: string } => ({ key: `t.${value}`, text: value });
 
@@ -147,6 +148,12 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/settings-schema')) {
         const id = String(options?.params?.path?.widgetId);
 
+        if (schemaless.includes(id))
+          return {
+            error: { code: 'WIDGET_NO_SETTINGS_SCHEMA', message: 'no typed settings schema' },
+            response: { status: 404, ok: false },
+          };
+
         return {
           data: {
             data: {
@@ -216,6 +223,7 @@ beforeEach(() => {
   calls.length = 0;
   putRefusal = null;
   testRefusal = null;
+  schemaless = [];
 
   widgets = [
     widget('w1', 'Now Playing', {
@@ -245,7 +253,7 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(url: string = '/app/overlays?id=w1'): Promise<void> {
+async function open(url: string = '/app/overlays?id=w1', retry: boolean = false): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
@@ -270,7 +278,7 @@ async function open(url: string = '/app/overlays?id=w1'): Promise<void> {
         router,
         [
           VueQueryPlugin,
-          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry } } }) },
         ],
       ],
     },
@@ -300,6 +308,25 @@ async function type(key: string, value: string): Promise<void> {
 }
 
 describe('the overlay settings form', () => {
+  it('shows the saved keys read-only when the bot has no schema (404), without waiting on retries', async () => {
+    schemaless = ['w2'];
+    await open('/app/overlays?id=w2', true);
+
+    expect(settings().dataset.state).toBe('ready');
+    expect(settings().querySelector('[data-slot="panel-loading"]')).toBeNull();
+    expect(settings().querySelector('[data-slot="panel-error"]')).toBeNull();
+    expect(settings().textContent).toContain('speed');
+    expect(settings().textContent).toContain('5');
+  });
+
+  it('says there are no settings when the bot has no schema and nothing is saved', async () => {
+    schemaless = ['w3'];
+    await open('/app/overlays?id=w3');
+
+    expect(settings().dataset.state).toBe('empty');
+    expect(settings().textContent).toContain(en.dashboard.overlays.detail.settings.none);
+  });
+
   it('renders the control each field type asks for', async () => {
     await open();
 

@@ -230,7 +230,44 @@ const typeSearch = async (value: string): Promise<void> => {
   await settle();
 };
 
+const pressedRows = (): number =>
+  document.body.querySelectorAll('[data-overlay-row] [aria-pressed="true"]').length;
+
+function stubPhone(matches: boolean): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+  }));
+}
+
 describe('OverlaysView', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('highlights no row on a phone while no overlay is open, and the open one once it is', async () => {
+    stubPhone(true);
+    await open();
+
+    expect(pressedRows()).toBe(0);
+
+    await router.push('/app/overlays?id=w2');
+    await settle();
+
+    expect(pressedRows()).toBe(1);
+  });
+
+  it('keeps the first row highlighted beside the detail on a wide screen', async () => {
+    stubPhone(false);
+    await open();
+
+    expect(pressedRows()).toBe(1);
+  });
+
   it('counts each tab from the list and filters the list by it', async () => {
     await open();
 

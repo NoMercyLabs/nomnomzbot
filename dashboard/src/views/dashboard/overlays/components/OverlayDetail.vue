@@ -173,7 +173,7 @@ const module = computed<KeyValueItem[]>(() => {
 <template>
   <DetailPane data-overlay-detail>
     <template #header>
-      <div class="flex flex-wrap items-center gap-3">
+      <div data-page-inset class="flex flex-wrap items-center gap-3">
         <Button
           variant="ghost"
           size="icon-sm"

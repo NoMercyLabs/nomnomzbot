@@ -111,11 +111,19 @@ const rawKeys = computed<KeyValueItem[]>(() =>
   })),
 );
 
+// The bot answers 404 when an overlay declares no settings schema: that is an answer, not a failure,
+// so it shows at once instead of after the retries.
+const noSchema = computed<boolean>(() => {
+  const reason = schema.error.value ?? schema.failureReason.value;
+
+  return reason?.message.endsWith(' 404') ?? false;
+});
+
 const state = computed<PanelState>(() => {
-  if (schema.isPending.value)
+  if (!noSchema.value && schema.isPending.value)
     return 'loading';
 
-  if (schema.isError.value)
+  if (!noSchema.value && schema.isError.value)
     return 'error';
 
   return fields.value.length === 0 && rawKeys.value.length === 0

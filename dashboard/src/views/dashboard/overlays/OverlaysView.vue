@@ -11,6 +11,7 @@
 // The Overlays page: every overlay of the channel as a list, tabs that filter it, and one overlay beside it.
 // The overlay in view is the id in ?id=, so a link opens it; with no id the first row of the list shows.
 // Tab counts come from the loaded list: the bot has no count endpoint.
+import { useMediaQuery } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -108,7 +109,12 @@ const selected = computed<Widget | null>(() => {
 
   return visible.value?.[0] ?? null;
 });
-const selectedId = computed<string>(() => selected.value?.id ?? '');
+const phone = useMediaQuery('(max-width: 767px)');
+// On a phone the list shows one screen or the other, so no row stays highlighted while no detail is open.
+const selectedId = computed<string>(() =>
+  phone.value && asked.value === ''
+    ? ''
+    : selected.value?.id ?? '');
 
 function pick(widget: Widget): void {
   void router.push({ query: { ...route.query, id: widget.id } });
