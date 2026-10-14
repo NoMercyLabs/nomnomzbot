@@ -10006,6 +10006,116 @@
         }
       }
     },
+    "/api/v{version}/auth/web/exchange": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Redeem the `login_code` a web sign-in handed to a second listed dashboard origin (it arrives in that\r\npage's URL fragment). The code works once and expires after 60 seconds. The request's `Origin` must be\r\nthe origin the code was issued for; a wrong origin is refused and the code is spent all the same. On\r\nsuccess the refresh token is set as the HttpOnly cookie on the calling origin and the access token is\r\nreturned in the body.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebLoginExchangeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebLoginExchangeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebLoginExchangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWebLoginExchangeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/auth/twitch/device": {
       "post": {
         "tags": [
@@ -21568,6 +21678,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/chat/safety-status": {
+      "get": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "How safe chat is right now: a level (Calm, Watch, Raid, Over) and four live meters over the last\r\n60 seconds. Held in memory; the hub pushes the same shape as `chat_safety_status`.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChatSafetyStatusDto"
                 }
               }
             }
@@ -38394,6 +38602,310 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfEventSubReconcileReportDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/users/me/favorite-emotes": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "The caller's favorite emotes, newest first.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfFavoriteEmoteDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Add a favorite. Idempotent: the same emote twice keeps one row. At most 200 per user.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFavoriteEmoteRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFavoriteEmoteRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFavoriteEmoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfFavoriteEmoteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/users/me/favorite-emotes/{provider}/{emoteId}": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove one favorite by provider and emote id. Removing one that is not there succeeds.",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "emoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               }
             }
@@ -102212,6 +102724,57 @@
               "null",
               "string"
             ]
+          },
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tier": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "origin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ownerId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ownerLogin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ownerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ownerAvatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -102253,9 +102816,84 @@
           },
           "zeroWidth": {
             "type": "boolean"
+          },
+          "code": {
+            "type": "string",
+            "default": ""
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tier": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatEmoteOwnerDto"
+              }
+            ]
+          },
+          "artist": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatEmoteOwnerDto"
+              }
+            ]
           }
         },
         "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
+      },
+      "ChatEmoteOwnerDto": {
+        "required": [
+          "id",
+          "login",
+          "displayName",
+          "profileUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "login": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "profileUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Who owns an emote: the channel for a Twitch emote, the uploader for a 7TV, BTTV or FFZ emote. A field the\r\nprovider or cache does not have is null."
       },
       "ChatFilterAction": {
         "enum": [
@@ -102673,6 +103311,68 @@
           }
         },
         "description": "One option's live tally."
+      },
+      "ChatSafetyLevel": {
+        "enum": [
+          "Calm",
+          "Watch",
+          "Raid",
+          "Over"
+        ],
+        "description": "How safe a channel's chat is right now. The level only reports; it never acts."
+      },
+      "ChatSafetyStatusDto": {
+        "required": [
+          "level",
+          "messagesPerSecond",
+          "followsPerMinute",
+          "newAccountsPerMinute",
+          "flaggedLinesPerMinute"
+        ],
+        "type": "object",
+        "properties": {
+          "level": {
+            "description": "The level the channel reads at.",
+            "$ref": "#/components/schemas/ChatSafetyLevel"
+          },
+          "messagesPerSecond": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Chat lines in the last 60 seconds, divided by 60.",
+            "format": "double"
+          },
+          "followsPerMinute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Follows in the last 60 seconds.",
+            "format": "int32"
+          },
+          "newAccountsPerMinute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Accounts younger than 7 days that wrote their first line of the stream in the last 60 seconds.",
+            "format": "int32"
+          },
+          "flaggedLinesPerMinute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Lines spam defense acted on (not dry run) or AutoMod held, in the last 60 seconds.",
+            "format": "int32"
+          }
+        },
+        "description": "How safe a channel's chat is right now: a level and four live meters over the last 60 seconds."
       },
       "ChatSearchResultDto": {
         "required": [
@@ -108080,6 +108780,38 @@
         },
         "description": "A consequence a row count cannot express: something OUTSIDE our database stops working. Deleting a channel\r\nrevokes an overlay token every live OBS browser source is polling, drops EventSub subscriptions registered\r\nwith Twitch, and orphans channel-point rewards created under our client id — none of which is \"N rows\".\r\nConsequenceKey is an i18n resource KEY naming the effect (\"N Twitch channel-point\r\nrewards stop working\"), never a table name and never a sentence."
       },
+      "FavoriteEmoteDto": {
+        "required": [
+          "provider",
+          "emoteId",
+          "code",
+          "imageUrl",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "emoteId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One favorite emote as returned to the dashboard."
+      },
       "FeatureFlagBlastRadiusDto": {
         "required": [
           "tenantsAffected",
@@ -110868,7 +111600,9 @@
           "providerUsername",
           "providerDisplayName",
           "providerAvatarUrl",
-          "isPrimary"
+          "isPrimary",
+          "linkedAtUtc",
+          "lastLoginAtUtc"
         ],
         "type": "object",
         "properties": {
@@ -110892,6 +111626,17 @@
           },
           "isPrimary": {
             "type": "boolean"
+          },
+          "linkedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastLoginAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -121405,6 +122150,33 @@
         },
         "description": "Saves a platform default. ConfirmedChannelsAffected must equal the preview's live count."
       },
+      "SetFavoriteEmoteRequest": {
+        "required": [
+          "provider",
+          "emoteId",
+          "code",
+          "imageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "emoteId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Body of `PUT /users/me/favorite-emotes`."
+      },
       "SetFeatureFlagOverrideRequest": {
         "required": [
           "isEnabled"
@@ -124260,6 +125032,43 @@
           }
         }
       },
+      "StatusResponseDtoOfChatSafetyStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatSafetyStatusDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfChatSearchResultDto": {
         "type": "object",
         "properties": {
@@ -125713,6 +126522,43 @@
               },
               {
                 "$ref": "#/components/schemas/EventSubSubscriptionDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfFavoriteEmoteDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FavoriteEmoteDto"
               }
             ]
           },
@@ -127965,6 +128811,42 @@
             ],
             "items": {
               "$ref": "#/components/schemas/EventResponsePresetDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfFavoriteEmoteDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FavoriteEmoteDto"
             }
           },
           "message": {
@@ -136071,6 +136953,43 @@
           }
         }
       },
+      "StatusResponseDtoOfWebLoginExchangeDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WebLoginExchangeDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfWidgetDetail": {
         "type": "object",
         "properties": {
@@ -143674,7 +144593,16 @@
           "subTier",
           "managementRole",
           "memberSinceUtc",
-          "firstSeenUtc"
+          "firstSeenUtc",
+          "accountCreatedAtUtc",
+          "description",
+          "broadcasterType",
+          "userType",
+          "chatColor",
+          "nickname",
+          "timezone",
+          "isLurking",
+          "pronounIsManualOverride"
         ],
         "type": "object",
         "properties": {
@@ -143744,6 +144672,49 @@
           "firstSeenUtc": {
             "type": "string",
             "format": "date-time"
+          },
+          "accountCreatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "broadcasterType": {
+            "type": "string"
+          },
+          "userType": {
+            "type": "string"
+          },
+          "chatColor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timezone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isLurking": {
+            "type": "boolean"
+          },
+          "pronounIsManualOverride": {
+            "type": "boolean"
           }
         }
       },
@@ -143934,6 +144905,15 @@
           },
           "isAnalyticsOptedOut": {
             "type": "boolean"
+          },
+          "totalBitsCheered": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64",
+            "default": 0
           }
         },
         "description": "One viewer's aggregate profile for a channel (analytics.md §4, M.1)."
@@ -144466,6 +145446,43 @@
           "Buymeacoffee"
         ],
         "description": "The inbound provider an endpoint speaks (webhooks.md §2). Serialized as its string name on the API wire\r\n(not an ordinal) so the dashboard sends and reads a stable adapter key (e.g. `\"Generic\"`) rather than a\r\nbrittle integer, and the OpenAPI schema advertises the real choice set."
+      },
+      "WebLoginExchangeDto": {
+        "required": [
+          "accessToken",
+          "expiresIn",
+          "user"
+        ],
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserDto"
+          }
+        },
+        "description": "A redeemed web login: the access token and its lifetime. The refresh token never appears here; it is set\r\nas the HttpOnly `nnz_refresh_token` cookie on the calling origin."
+      },
+      "WebLoginExchangeRequest": {
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "description": "Redeems the single-use `login_code` a web sign-in hands to a second trusted dashboard origin (the code\r\narrives in that origin's URL fragment after the provider callback)."
       },
       "WidgetDetail": {
         "required": [
@@ -145071,6 +146088,9 @@
       "name": "EventSub"
     },
     {
+      "name": "Users"
+    },
+    {
       "name": "Feature Flags"
     },
     {
@@ -145183,9 +146203,6 @@
     },
     {
       "name": "Twitch Diagnostics"
-    },
-    {
-      "name": "Users"
     },
     {
       "name": "Viewer Data"

@@ -8492,6 +8492,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/auth/web/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem the `login_code` a web sign-in handed to a second listed dashboard origin (it arrives in that
+         *     page's URL fragment). The code works once and expires after 60 seconds. The request's `Origin` must be
+         *     the origin the code was issued for; a wrong origin is refused and the code is spent all the same. On
+         *     success the refresh token is set as the HttpOnly cookie on the calling origin and the access token is
+         *     returned in the body.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WebLoginExchangeRequest"];
+                    "text/json": components["schemas"]["WebLoginExchangeRequest"];
+                    "application/*+json": components["schemas"]["WebLoginExchangeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfWebLoginExchangeDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/auth/twitch/device": {
         parameters: {
             query?: never;
@@ -18831,6 +18935,102 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/chat/safety-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How safe chat is right now: a level (Calm, Watch, Raid, Over) and four live meters over the last
+         *     60 seconds. Held in memory; the hub pushes the same shape as `chat_safety_status`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfChatSafetyStatusDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -32703,6 +32903,274 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/users/me/favorite-emotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's favorite emotes, newest first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfFavoriteEmoteDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        /** Add a favorite. Idempotent: the same emote twice keeps one row. At most 200 per user. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SetFavoriteEmoteRequest"];
+                    "text/json": components["schemas"]["SetFavoriteEmoteRequest"];
+                    "application/*+json": components["schemas"]["SetFavoriteEmoteRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfFavoriteEmoteDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/users/me/favorite-emotes/{provider}/{emoteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove one favorite by provider and emote id. Removing one that is not there succeeds. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    provider: string;
+                    emoteId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -84165,6 +84633,15 @@ export interface components {
             animated: boolean;
             zeroWidth: boolean;
             setId: null | string;
+            id?: null | string;
+            type?: null | string;
+            /** Format: int32 */
+            tier?: null | number | string;
+            origin?: null | string;
+            ownerId?: null | string;
+            ownerLogin?: null | string;
+            ownerName?: null | string;
+            ownerAvatarUrl?: null | string;
         };
         /**
          * @description Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes
@@ -84180,6 +84657,23 @@ export interface components {
             };
             animated: boolean;
             zeroWidth: boolean;
+            /** @default  */
+            code: string;
+            type?: null | string;
+            /** Format: int32 */
+            tier?: null | number | string;
+            owner?: null | components["schemas"]["ChatEmoteOwnerDto"];
+            artist?: null | components["schemas"]["ChatEmoteOwnerDto"];
+        };
+        /**
+         * @description Who owns an emote: the channel for a Twitch emote, the uploader for a 7TV, BTTV or FFZ emote. A field the
+         *     provider or cache does not have is null.
+         */
+        ChatEmoteOwnerDto: {
+            id: null | string;
+            login: null | string;
+            displayName: null | string;
+            profileUrl: null | string;
         };
         /**
          * @description What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout
@@ -84307,6 +84801,36 @@ export interface components {
             label: string;
             /** Format: int32 */
             votes: number | string;
+        };
+        /**
+         * @description How safe a channel's chat is right now. The level only reports; it never acts.
+         * @enum {unknown}
+         */
+        ChatSafetyLevel: "Calm" | "Watch" | "Raid" | "Over";
+        /** @description How safe a channel's chat is right now: a level and four live meters over the last 60 seconds. */
+        ChatSafetyStatusDto: {
+            /** @description The level the channel reads at. */
+            level: components["schemas"]["ChatSafetyLevel"];
+            /**
+             * Format: double
+             * @description Chat lines in the last 60 seconds, divided by 60.
+             */
+            messagesPerSecond: number | string;
+            /**
+             * Format: int32
+             * @description Follows in the last 60 seconds.
+             */
+            followsPerMinute: number | string;
+            /**
+             * Format: int32
+             * @description Accounts younger than 7 days that wrote their first line of the stream in the last 60 seconds.
+             */
+            newAccountsPerMinute: number | string;
+            /**
+             * Format: int32
+             * @description Lines spam defense acted on (not dry run) or AutoMod held, in the last 60 seconds.
+             */
+            flaggedLinesPerMinute: number | string;
         };
         ChatSearchResultDto: {
             messages: components["schemas"]["DashboardChatMessageDto"][];
@@ -86090,6 +86614,15 @@ export interface components {
             /** @description Up to a handful of the affected things' names, so the user recognises WHICH break. */
             sample: string[];
         };
+        /** @description One favorite emote as returned to the dashboard. */
+        FavoriteEmoteDto: {
+            provider: string;
+            emoteId: string;
+            code: string;
+            imageUrl: null | string;
+            /** Format: date-time */
+            createdAt: string;
+        };
         /**
          * @description The counted blast radius of flipping a flag's GLOBAL toggle — shown to the operator BEFORE the toggle
          *     commits (consequences-must-be-visible). int FeatureFlagBlastRadiusDto.TenantsAffected is the number of active channels
@@ -87133,6 +87666,10 @@ export interface components {
             providerDisplayName: null | string;
             providerAvatarUrl: null | string;
             isPrimary: boolean;
+            /** Format: date-time */
+            linkedAtUtc: string;
+            /** Format: date-time */
+            lastLoginAtUtc: null | string;
         };
         /**
          * @description The rules of a `ChatFilterType.LinkPolicy` filter, stored as JSON in `ChatFilter.LinkPolicyJson`.
@@ -90415,6 +90952,13 @@ export interface components {
             /** @default false */
             speakWithTts: boolean;
         };
+        /** @description Body of `PUT /users/me/favorite-emotes`. */
+        SetFavoriteEmoteRequest: {
+            provider: string;
+            emoteId: string;
+            code: string;
+            imageUrl: null | string;
+        };
         /** @description Set a per-tenant override (the internal/beta opt-in or per-channel kill-switch). */
         SetFeatureFlagOverrideRequest: {
             isEnabled: boolean;
@@ -91436,6 +91980,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfChatSafetyStatusDto: {
+            status?: string;
+            data?: null | components["schemas"]["ChatSafetyStatusDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfChatSearchResultDto: {
             status?: string;
             data?: null | components["schemas"]["ChatSearchResultDto"];
@@ -91948,6 +92505,19 @@ export interface components {
         StatusResponseDtoOfEventSubSubscriptionDto: {
             status?: string;
             data?: null | components["schemas"]["EventSubSubscriptionDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfFavoriteEmoteDto: {
+            status?: string;
+            data?: null | components["schemas"]["FavoriteEmoteDto"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -92757,6 +93327,19 @@ export interface components {
         StatusResponseDtoOfIReadOnlyListOfEventResponsePresetDto: {
             status?: string;
             data?: null | components["schemas"]["EventResponsePresetDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfFavoriteEmoteDto: {
+            status?: string;
+            data?: null | components["schemas"]["FavoriteEmoteDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -95641,6 +96224,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfWebLoginExchangeDto: {
+            status?: string;
+            data?: null | components["schemas"]["WebLoginExchangeDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfWidgetDetail: {
             status?: string;
             data?: null | components["schemas"]["WidgetDetail"];
@@ -97904,6 +98500,16 @@ export interface components {
             memberSinceUtc: null | string;
             /** Format: date-time */
             firstSeenUtc: string;
+            /** Format: date-time */
+            accountCreatedAtUtc: null | string;
+            description: null | string;
+            broadcasterType: string;
+            userType: string;
+            chatColor: null | string;
+            nickname: null | string;
+            timezone: null | string;
+            isLurking: boolean;
+            pronounIsManualOverride: boolean;
         };
         /**
          * @description Minimal option projection for the "pick a viewer" autocomplete inputs. `Id` is the Twitch user id
@@ -97958,6 +98564,11 @@ export interface components {
             isSubscriber: boolean;
             subTier: null | string;
             isAnalyticsOptedOut: boolean;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            totalBitsCheered: number | string;
         };
         /** @description A row in the ranked/filtered viewer list (analytics.md §4, M.1). */
         ViewerProfileListItemDto: {
@@ -98115,6 +98726,23 @@ export interface components {
          * @enum {unknown}
          */
         WebhookAdapterKind: "Kofi" | "Github" | "Generic" | "Fourthwall" | "Shopify" | "Patreon" | "Buymeacoffee";
+        /**
+         * @description A redeemed web login: the access token and its lifetime. The refresh token never appears here; it is set
+         *     as the HttpOnly `nnz_refresh_token` cookie on the calling origin.
+         */
+        WebLoginExchangeDto: {
+            accessToken: string;
+            /** Format: int32 */
+            expiresIn: number | string;
+            user: components["schemas"]["UserDto"];
+        };
+        /**
+         * @description Redeems the single-use `login_code` a web sign-in hands to a second trusted dashboard origin (the code
+         *     arrives in that origin's URL fragment after the provider callback).
+         */
+        WebLoginExchangeRequest: {
+            code: string;
+        };
         /**
          * @description A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only
          *     `WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.

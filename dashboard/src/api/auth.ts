@@ -34,6 +34,9 @@ const pending = new Map<string, Request>();
 const longestRateLimitWait: number = 10;
 const rateLimitTries: number = 2;
 
+// A 401 from a sign-in call is its answer, never a reason to sign in again: that would wait on itself.
+const signInCalls = ['/auth/refresh', '/auth/web/exchange'] as const;
+
 async function afterRateLimit(first: Response, original: Request): Promise<Response> {
   let response: Response = first;
 
@@ -68,7 +71,10 @@ client.use({
       ? await afterRateLimit(first, original)
       : first;
 
-    if (response.status !== 401 || !original || request.url.endsWith('/auth/refresh'))
+    const isSignInCall = signInCalls.some((path) =>
+      request.url.endsWith(path));
+
+    if (response.status !== 401 || !original || isSignInCall)
       return response;
 
     accessToken = null;
@@ -104,6 +110,10 @@ export function acceptAccessToken(token: string): void {
   signedIn.value = true;
 }
 
+function stripFragment(): void {
+  history.replaceState(history.state, '', window.location.pathname + window.location.search);
+}
+
 // The OAuth callback returns the access token in the URL fragment; take it once and strip it.
 function consumeFragment(): boolean {
   const fragment = new URLSearchParams(window.location.hash.slice(1));
@@ -114,9 +124,46 @@ function consumeFragment(): boolean {
 
   accessToken = token;
   signedIn.value = true;
-  history.replaceState(history.state, '', window.location.pathname + window.location.search);
+  stripFragment();
 
   return true;
+}
+
+// A sign-in started on another listed site of this bot comes back with a one-time code instead of a token.
+// This site trades it for the token, and the bot sets the refresh cookie on this site. A spent code is dropped.
+function takeLoginCode(): string | null {
+  const code = new URLSearchParams(window.location.hash.slice(1)).get('login_code');
+
+  if (code) {
+    stripFragment();
+  }
+
+  return code;
+}
+
+async function exchange(code: string): Promise<boolean> {
+  const { data } = await client.POST('/api/v{version}/auth/web/exchange', {
+    params: version,
+    body: { code },
+    credentials: 'include',
+  });
+  const token = data?.data?.accessToken;
+
+  if (!token)
+    return false;
+
+  acceptAccessToken(token);
+
+  return true;
+}
+
+async function signInAgain(): Promise<boolean> {
+  const code = takeLoginCode();
+
+  if (code && await exchange(code))
+    return true;
+
+  return refresh();
 }
 
 async function refresh(): Promise<boolean> {
@@ -149,7 +196,7 @@ export function restoreSession(): Promise<boolean> {
   if (consumeFragment())
     return Promise.resolve(true);
 
-  restoring ??= refresh().finally(() => {
+  restoring ??= signInAgain().finally(() => {
     restoring = null;
   });
 
