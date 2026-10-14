@@ -1,0 +1,57 @@
+{
+  "dashboard": {
+    "analytics": {
+      "title": "Statistieken",
+      "crumb": "Live",
+      "error": "Dit kon niet laden.",
+      "range": {
+        "label": "Periode",
+        "r30": "30 dagen",
+        "r90": "90 dagen",
+        "r365": "12 maanden"
+      },
+      "period": {
+        "r30": "laatste 30 dagen",
+        "r90": "laatste 90 dagen",
+        "r365": "laatste 12 maanden"
+      },
+      "kpi": {
+        "none": "Geen data",
+        "streams": "Streams",
+        "live": "{length} live",
+        "chat": "Chatregels",
+        "perHour": "{count} per live uur",
+        "follows": "Nieuwe volgers",
+        "subs": "Nieuwe Twitch-subs",
+        "bits": "Bits gecheerd",
+        "peak": "Meeste kijkers"
+      },
+      "growth": {
+        "title": "Volgers",
+        "description": "Nieuwe volgers per dag.",
+        "series": "Volgers",
+        "takeaway": "Je kreeg {count} volgers in de {period}.",
+        "empty": "Nog geen volgers in deze periode."
+      },
+      "chatters": {
+        "title": "Chatters",
+        "description": "Verschillende mensen die chatten, per dag.",
+        "series": "Chatters",
+        "takeaway": "Op één dag chatten er hooguit {count} mensen.",
+        "empty": "Nog niemand chatte in deze periode."
+      },
+      "highlights": {
+        "title": "Hoogtepunten",
+        "streams": "Streamduur",
+        "average": "Je gemiddelde stream duurde {length}.",
+        "noStreams": "Geen streams in deze periode.",
+        "category": "Topcategorie",
+        "categoryLine": "{name}: {length} in {count} stream. | {name}: {length} in {count} streams.",
+        "commands": "Commando's",
+        "commandsLine": "Chat gebruikte {count} commando's.",
+        "rewards": "Beloningen",
+        "rewardsLine": "{count} beloningen ingewisseld, waarvan {songs} verzoeknummers."
+      }
+    }
+  }
+}

@@ -11,3 +11,18 @@
 // jsdom lays nothing out, so it leaves out the browser calls that move the view. Every browser has them;
 // without these a page that scrolls a chosen item into view throws in a test.
 Element.prototype.scrollIntoView ??= (): void => {};
+
+// jsdom has no text layout either; the charts (Unovis) measure their axis labels with these.
+Object.defineProperty(SVGElement.prototype, 'getComputedTextLength', {
+  value: () => 40,
+  configurable: true,
+});
+Object.defineProperty(SVGElement.prototype, 'getBBox', {
+  value: () => ({
+    x: 0,
+    y: 0,
+    width: 40,
+    height: 12,
+  }),
+  configurable: true,
+});

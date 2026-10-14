@@ -1,0 +1,57 @@
+{
+  "dashboard": {
+    "analytics": {
+      "title": "Analytics",
+      "crumb": "Live",
+      "error": "This could not load.",
+      "range": {
+        "label": "Range",
+        "r30": "30 days",
+        "r90": "90 days",
+        "r365": "12 months"
+      },
+      "period": {
+        "r30": "last 30 days",
+        "r90": "last 90 days",
+        "r365": "last 12 months"
+      },
+      "kpi": {
+        "none": "No data",
+        "streams": "Streams",
+        "live": "{length} live",
+        "chat": "Chat lines",
+        "perHour": "{count} per live hour",
+        "follows": "New follows",
+        "subs": "New Twitch subs",
+        "bits": "Bits cheered",
+        "peak": "Peak viewers"
+      },
+      "growth": {
+        "title": "Follows",
+        "description": "New follows per day.",
+        "series": "Follows",
+        "takeaway": "You gained {count} follows in the {period}.",
+        "empty": "No follows in this range yet."
+      },
+      "chatters": {
+        "title": "Chatters",
+        "description": "Different people who chatted, per day.",
+        "series": "Chatters",
+        "takeaway": "At most {count} people chatted on one day.",
+        "empty": "Nobody chatted in this range yet."
+      },
+      "highlights": {
+        "title": "Highlights",
+        "streams": "Stream length",
+        "average": "Your average stream ran {length}.",
+        "noStreams": "No streams in this range.",
+        "category": "Top category",
+        "categoryLine": "{name}: {length} over {count} stream. | {name}: {length} over {count} streams.",
+        "commands": "Commands",
+        "commandsLine": "Chat ran {count} commands.",
+        "rewards": "Rewards",
+        "rewardsLine": "{count} rewards redeemed, {songs} of them song requests."
+      }
+    }
+  }
+}

@@ -11,6 +11,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route';
+import { dashboardAnalyticsRoute } from '@/views/dashboard/analytics/route';
 import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route';
 import { dashboardChatRoute } from '@/views/dashboard/chat/route';
 import { dashboardCommandsRoute } from '@/views/dashboard/commands/route';
@@ -38,6 +39,7 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardOverlaysRoute,
         dashboardScriptsRoute,
         dashboardStreamRoute,
+        dashboardAnalyticsRoute,
         dashboardSettingsRoute,
         dashboardAdminChannelsRoute,
         dashboardCatalogRoute,
@@ -52,6 +54,7 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardOverlaysRoute,
         dashboardScriptsRoute,
         dashboardStreamRoute,
+        dashboardAnalyticsRoute,
         dashboardSettingsRoute,
         dashboardAdminChannelsRoute,
       ],

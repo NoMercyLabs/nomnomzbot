@@ -23,22 +23,6 @@ import nl from '@/i18n/locales/nl.json';
 beforeAll(() => {
   i18n.global.mergeLocaleMessage('en', { test: { seen: 'Seen', fresh: 'New' } });
   i18n.global.mergeLocaleMessage('nl', { ...nl, test: { seen: 'Gezien', fresh: 'Nieuw' } });
-
-  // jsdom has no text layout; Unovis measures axis labels with this.
-  Object.defineProperty(SVGElement.prototype, 'getComputedTextLength', {
-    value: () => 40,
-    configurable: true,
-  });
-
-  Object.defineProperty(SVGElement.prototype, 'getBBox', {
-    value: () => ({
-      x: 0,
-      y: 0,
-      width: 40,
-      height: 12,
-    }),
-    configurable: true,
-  });
 });
 
 afterEach(() => {
