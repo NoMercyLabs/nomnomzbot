@@ -484,6 +484,38 @@ describe('ChatView', () => {
     expect(rowOf('m1').textContent).not.toContain('<marquee>');
   });
 
+  // Owner 2026-10-14: "i want images posted to be expandable in a popout dialog modal". An emote is not a posted image.
+  it('opens a posted image large in a dialog and leaves html emotes alone', async () => {
+    const markup: string =
+      '<img class="emote" src="https://cdn.test/dino.gif" alt="DinoDance"><img src="https://cdn.test/photo.png" alt="A photo">';
+
+    history = [line('m1', 'u1', 'Geen', 'raw', { fragments: [{ type: 'html', text: markup }] })];
+    await open();
+
+    const html: Element = rowOf('m1').querySelector('[data-html]')!;
+
+    html.querySelector<HTMLImageElement>('img.emote')!.click();
+    await flushPromises();
+
+    expect(document.body.querySelector('[data-lightbox-image]')).toBeNull();
+
+    html.querySelector<HTMLImageElement>('img:not(.emote)')!.click();
+    await flushPromises();
+
+    const big: HTMLImageElement | null = document.body.querySelector('[data-lightbox-image]');
+
+    expect(big?.getAttribute('src')).toBe('https://cdn.test/photo.png');
+    expect(big?.getAttribute('alt')).toBe('A photo');
+
+    document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+
+    await flushPromises();
+
+    expect(document.body.querySelector('[data-lightbox-image]')).toBeNull();
+  });
+
   // Stoney 2026-10-14: "make them frankerfacez style": a mention is bold text in the mentioned chatter's color,
   // never a pill with a background that blends into the row highlight.
   it('shows a mention as bold text in the mentioned chatter color, with no background', async () => {

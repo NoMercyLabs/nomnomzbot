@@ -114,6 +114,10 @@
         "profile": "Open profile of {name}",
         "profileTip": "Open profile"
       },
+      "image": {
+        "title": "Image posted by {name}",
+        "untitled": "Posted image"
+      },
       "reply": {
         "label": "Reply to {name}",
         "tip": "Reply",

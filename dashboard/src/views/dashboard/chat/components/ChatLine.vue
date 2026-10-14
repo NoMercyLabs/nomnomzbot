@@ -11,7 +11,7 @@
 // One chat line. The action tray floats over the line on hover or focus and never moves it.
 // Reply hands the line to the composer, Timeout picks its length in a menu, Delete runs at once,
 // Ban asks the page for its confirm dialog, and Profile opens the one profile dialog of the frame.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import Clock from '~icons/nnz/clock';
@@ -24,6 +24,7 @@ import { useDeleteChatMessage, useTimeoutUser, type ChatLine } from '@/api/chat'
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -269,6 +270,28 @@ function emoteUrl(emote: EmoteImages): string | undefined {
   return smallestUrl(emoteFrames(emote));
 }
 
+// A posted image (not an emote) in a chat html fragment opens large. The address and caption come from the
+// image the purifier already cleaned, and the dialog draws them through its own img, never as markup.
+const lightbox = ref<{ src: string; alt: string } | null>(null);
+
+const lightboxOpen = computed<boolean>({
+  get: () => lightbox.value !== null,
+  set: (open) => {
+    if (!open) {
+      lightbox.value = null;
+    }
+  },
+});
+
+function openImage(event: MouseEvent): void {
+  const target = event.target;
+
+  if (!(target instanceof HTMLImageElement) || target.classList.contains('emote') || !target.src) return;
+
+  event.stopPropagation();
+  lightbox.value = { src: target.src, alt: target.alt };
+}
+
 // A click on the line itself picks its chatter; a click on a name or an action does its own job.
 function pick(event: MouseEvent): void {
   const target = event.target;
@@ -370,7 +393,8 @@ function pick(event: MouseEvent): void {
           <span
             v-else-if="fragment.type === 'html'"
             data-html
-            class="[&_.emote]:mx-0.5 [&_.emote]:my-[calc((var(--line-h)-var(--emote-h))/2)] [&_.emote]:inline-block [&_.emote]:h-(--emote-h) [&_.emote]:align-top [&_img]:max-h-32"
+            class="[&_.emote]:mx-0.5 [&_.emote]:my-[calc((var(--line-h)-var(--emote-h))/2)] [&_.emote]:inline-block [&_.emote]:h-(--emote-h) [&_.emote]:align-top [&_img]:max-h-32 [&_img:not(.emote)]:cursor-zoom-in"
+            @click="openImage"
             v-html="purifyChatHtml(fragment.text)"
           />
           <span
@@ -489,5 +513,18 @@ function pick(event: MouseEvent): void {
       </div>
     </div>
     <span v-if="removal" data-removal class="flex-none text-muted-foreground">{{ removal }}</span>
+    <Dialog v-model:open="lightboxOpen">
+      <DialogContent class="w-auto max-w-[90vw] gap-3 p-3 sm:max-w-[90vw]">
+        <DialogTitle class="sr-only">{{ $t('dashboard.chat.image.title', { name: line.displayName }) }}</DialogTitle>
+        <DialogDescription class="sr-only">{{ lightbox?.alt || $t('dashboard.chat.image.untitled') }}</DialogDescription>
+        <img
+          v-if="lightbox"
+          data-lightbox-image
+          :src="lightbox.src"
+          :alt="lightbox.alt"
+          class="mx-auto max-h-[85vh] max-w-[calc(90vw-1.5rem)] rounded-lg object-contain"
+        />
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

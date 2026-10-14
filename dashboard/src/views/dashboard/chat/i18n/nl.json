@@ -114,6 +114,10 @@
         "profile": "Open profiel van {name}",
         "profileTip": "Open profiel"
       },
+      "image": {
+        "title": "Afbeelding van {name}",
+        "untitled": "Geplaatste afbeelding"
+      },
       "reply": {
         "label": "Antwoord {name}",
         "tip": "Antwoord",
