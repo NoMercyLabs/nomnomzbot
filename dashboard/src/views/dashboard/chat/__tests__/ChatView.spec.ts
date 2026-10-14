@@ -423,6 +423,31 @@ describe('ChatView', () => {
     expect(document.body.querySelector('[data-chat-popout]')).toBeNull();
   });
 
+  it('packs the popped-out rows and tray tight so the tray fits a 320px window', async () => {
+    await open('/popout/chat');
+
+    const row = rows()[0]!;
+    const tray: HTMLElement = row.querySelector('[data-tray]')!;
+    const SIZE_ICON_PX = 36;
+    const WINDOW_PX = 320;
+    const buttons: number = tray.querySelectorAll('[data-line-action]').length;
+
+    expect(row.className).toContain('px-2');
+    expect(row.className).not.toContain('px-3');
+    expect(tray.className).toContain('right-1');
+    expect(tray.className).not.toContain('right-3');
+    expect(buttons * SIZE_ICON_PX).toBeLessThan(WINDOW_PX);
+  });
+
+  it('keeps the roomy rows and tray in the full chat page', async () => {
+    await open();
+
+    const row = rows()[0]!;
+
+    expect(row.className).toContain('px-3');
+    expect(row.querySelector('[data-tray]')!.className).toContain('right-3');
+  });
+
   it('renders the history lines in order with their names and messages', async () => {
     await open();
     expect(rowIds()).toEqual(['m1', 'm2', 'm3']);

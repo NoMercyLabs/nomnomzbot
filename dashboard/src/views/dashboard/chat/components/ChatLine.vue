@@ -59,6 +59,8 @@ const props = defineProps<{
   channelLogin?: string | null;
   focus?: 'on' | 'dim';
   parent?: ChatLine | null;
+  // The popped-out dock: tighter row padding, the tray close to the edge.
+  compact?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -114,7 +116,12 @@ const mentionsMe = computed<boolean>(() => {
 });
 
 const rowClass = computed<string[]>(() => {
-  const classes: string[] = [spacingPadding[props.display.spacing]];
+  const classes: string[] = [
+    spacingPadding[props.display.spacing],
+    props.compact
+      ? 'px-2'
+      : 'px-3',
+  ];
 
   if (props.display.narrow) {
     classes.push('max-w-[65ch]');
@@ -279,7 +286,7 @@ function pick(event: MouseEvent): void {
     :data-alt="display.alternating && index % 2 === 1 ? 'on' : 'off'"
     :data-mention="mentionsMe ? 'true' : undefined"
     :data-focus="focus"
-    class="group/line relative flex cursor-pointer gap-2 rounded-lg px-3 text-sm leading-(--line-h) hover:bg-muted focus-within:bg-muted"
+    class="group/line relative flex cursor-pointer gap-2 rounded-lg text-sm leading-(--line-h) hover:bg-muted focus-within:bg-muted"
     :class="rowClass"
     :style="lineStyle"
     @click="pick"
@@ -389,7 +396,8 @@ function pick(event: MouseEvent): void {
            when hidden: a fast sweep left half-painted trays over the row above (owner 2026-10-14). -->
       <div
         v-if="!line.removed"
-        class="absolute right-3 bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 invisible opacity-0 will-change-[opacity] group-hover/line:visible group-hover/line:opacity-100 group-focus-within/line:visible group-focus-within/line:opacity-100 has-aria-expanded:visible has-aria-expanded:opacity-100"
+        :class="compact ? 'right-1' : 'right-3'"
+        class="absolute bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 invisible opacity-0 will-change-[opacity] group-hover/line:visible group-hover/line:opacity-100 group-focus-within/line:visible group-focus-within/line:opacity-100 has-aria-expanded:visible has-aria-expanded:opacity-100"
         data-tray
         role="group"
         :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"

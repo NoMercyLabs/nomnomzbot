@@ -426,6 +426,7 @@ async function confirmBan(): Promise<void> {
                 :line="item"
                 :channel-id="channelId"
                 :display="display"
+                :compact="poppedOut"
                 :index="index"
                 :me="me"
                 :channel-login="current?.login ?? null"
