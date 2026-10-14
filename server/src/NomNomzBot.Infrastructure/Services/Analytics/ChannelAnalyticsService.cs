@@ -184,22 +184,43 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
             .OrderByDescending(s => s.StartedAt);
 
         int total = await query.CountAsync(ct);
+        List<Domain.Stream.Entities.Stream> page = await query
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(ct);
+
+        List<StreamWindow> windows = [.. page.Select(ToWindow)];
+        Dictionary<string, StreamChatCounts> chat = await StreamActivityCounts.ChatByStreamAsync(
+            db,
+            broadcasterId,
+            windows,
+            ct
+        );
+        Dictionary<string, int> follows = await StreamActivityCounts.FollowsByStreamAsync(
+            db,
+            broadcasterId,
+            windows,
+            ct
+        );
+
         List<StreamListItemDto> items =
         [
-            .. (
-                await query
-                    .Skip((pagination.Page - 1) * pagination.PageSize)
-                    .Take(pagination.PageSize)
-                    .ToListAsync(ct)
-            ).Select(s => new StreamListItemDto(
-                s.Id,
-                s.Title,
-                s.GameName,
-                s.StartedAt,
-                s.EndedAt,
-                DurationSeconds(s),
-                s.PeakViewers
-            )),
+            .. page.Select(s =>
+            {
+                StreamChatCounts counts = chat.GetValueOrDefault(s.Id);
+                return new StreamListItemDto(
+                    s.Id,
+                    s.Title,
+                    s.GameName,
+                    s.StartedAt,
+                    s.EndedAt,
+                    DurationSeconds(s),
+                    s.PeakViewers,
+                    counts.TotalMessages,
+                    counts.UniqueChatters,
+                    follows.GetValueOrDefault(s.Id)
+                );
+            }),
         ];
 
         return Result.Success(
@@ -220,26 +241,15 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
         if (stream is null || stream.StartedAt is null)
             return Errors.NotFound<StreamAnalyticsDto>("Stream", streamId);
 
-        // The stream's activity window: start → end, or "now" while it is still live.
-        DateTime windowStart = stream.StartedAt.Value.UtcDateTime;
-        DateTime windowEnd = (stream.EndedAt ?? clock.GetUtcNow()).UtcDateTime;
+        StreamWindow window = ToWindow(stream);
+        DateTime windowStart = window.Start;
+        DateTime windowEnd = window.End;
 
-        long totalMessages = await db.ChatMessages.LongCountAsync(
-            m =>
-                m.BroadcasterId == broadcasterId
-                && m.CreatedAt >= windowStart
-                && m.CreatedAt < windowEnd,
-            ct
-        );
-        int uniqueChatters = await db
-            .ChatMessages.Where(m =>
-                m.BroadcasterId == broadcasterId
-                && m.CreatedAt >= windowStart
-                && m.CreatedAt < windowEnd
-            )
-            .Select(m => m.UserId)
-            .Distinct()
-            .CountAsync(ct);
+        StreamChatCounts chatCounts = (
+            await StreamActivityCounts.ChatByStreamAsync(db, broadcasterId, [window], ct)
+        ).GetValueOrDefault(stream.Id);
+        long totalMessages = chatCounts.TotalMessages;
+        int uniqueChatters = chatCounts.UniqueChatters;
 
         // The activity-feed rows the alert handlers + projection log — counted by their canonical keys.
         Dictionary<string, int> eventCounts = await db
@@ -288,7 +298,7 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
             stream.PeakViewers,
             totalMessages,
             uniqueChatters,
-            eventCounts.GetValueOrDefault("channel.follow"),
+            eventCounts.GetValueOrDefault(StreamActivityCounts.FollowEventType),
             eventCounts.GetValueOrDefault("channel.subscribe"),
             eventCounts.GetValueOrDefault("channel.cheer"),
             commandsRun,
@@ -456,6 +466,10 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
     }
 
     /// <summary>Whole seconds from start to end — null while the stream is live or never stamped.</summary>
+    // The stream's activity window: start to end, or "now" while it is still live.
+    private StreamWindow ToWindow(Domain.Stream.Entities.Stream s) =>
+        new(s.Id, s.StartedAt!.Value.UtcDateTime, (s.EndedAt ?? clock.GetUtcNow()).UtcDateTime);
+
     private static long? DurationSeconds(Domain.Stream.Entities.Stream s) =>
         s is { StartedAt: { } started, EndedAt: { } ended }
             ? (long)(ended - started).TotalSeconds
