@@ -92,6 +92,23 @@ const freshPeople = (): Record<string, Record<string, unknown>> => ({
   },
 });
 
+// The moderator notes by Twitch id (what GET moderation/users/{userId}/notes answers); fresh per test.
+let notes: Record<string, Record<string, unknown>[]> = {};
+
+const freshNotes = (): Record<string, Record<string, unknown>[]> => ({
+  u1: [
+    {
+      id: 7,
+      subjectUserId: 'u1',
+      content: 'Helps new chatters find the rules.',
+      pinned: true,
+      authorName: 'Stoney_Eagle',
+      createdAt: '2026-09-20T10:00:00Z',
+      updatedAt: '2026-09-20T10:00:00Z',
+    },
+  ],
+});
+
 // A person's own channel emotes by Twitch id (what GET community/{userId}/emotes answers).
 const emotes: Record<string, Record<string, unknown>[]> = {
   u1: [
@@ -239,6 +256,18 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
   },
 });
 
+// The action keys a full moderator holds; a test drops one to see its control lock.
+const MODERATOR_KEYS = [
+  'moderation:ban',
+  'moderation:unban',
+  'moderation:vip',
+  'moderation:shoutout',
+  'moderation:usercontext:read',
+  'moderation:note:write',
+] as const;
+
+let held: string[] = [];
+
 type Options = { params?: Record<string, unknown>; body?: unknown };
 
 function record(path: string, options: Options | undefined): void {
@@ -260,6 +289,16 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/profile'))
         return { data: { data: onTheWire(profiles[userIdOf(options)] ?? null) } };
+
+      if (path.endsWith('/roles/effective/me'))
+        return { data: { data: { heldActionKeys: [...held] } }, response: { ok: true } };
+
+      if (path.endsWith('/notes')) {
+        return {
+          data: { data: onTheWire(notes[userIdOf(options)] ?? []) },
+          response: { ok: true },
+        };
+      }
 
       if (path.endsWith('/emotes')) {
         return {
@@ -315,6 +354,8 @@ beforeEach(() => {
   channelLogin.value = 'somebody';
   people = freshPeople();
   profiles = freshProfiles();
+  notes = freshNotes();
+  held = [...MODERATOR_KEYS];
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-04T10:00:00Z'));
   vipWrite = null;
@@ -417,6 +458,21 @@ async function openUser(id: string): Promise<void> {
   name(id).focus();
   name(id).click();
   await settle();
+}
+
+// jsdom has no pointer capture, so a menu opens the keyboard way (Enter on the trigger).
+function openMenu(trigger: HTMLElement): void {
+  trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+}
+
+// The VIP choice lives in the More menu; this opens the menu when it is closed.
+async function vipItem(): Promise<HTMLElement> {
+  if (!document.body.querySelector('[data-profile-vip]')) {
+    openMenu(button('[data-profile-more]'));
+    await settle();
+  }
+
+  return button('[data-profile-vip]');
 }
 
 async function openTab(label: string): Promise<void> {
@@ -577,10 +633,10 @@ describe('the profile dialog', () => {
     expect(calls.filter((c: Call) => c.path.endsWith('/ban'))).toEqual([]);
   });
 
-  it('flips the VIP button at once and keeps it when the save works', async () => {
+  it('flips the VIP choice at once and keeps it when the save works', async () => {
     await openPage();
     await openUser('u1');
-    expect(button('[data-profile-vip]').textContent).toContain('Make VIP');
+    expect((await vipItem()).textContent).toContain('Make VIP');
 
     let release: () => void = () => {};
 
@@ -588,25 +644,25 @@ describe('the profile dialog', () => {
       release = done;
     });
 
-    button('[data-profile-vip]').click();
+    (await vipItem()).click();
     await flushPromises();
-    expect(button('[data-profile-vip]').textContent).toContain('Remove VIP');
+    expect((await vipItem()).textContent).toContain('Remove VIP');
 
     release();
     await settle();
-    expect(button('[data-profile-vip]').textContent).toContain('Remove VIP');
+    expect((await vipItem()).textContent).toContain('Remove VIP');
     expect(calls.some((c: Call) => c.path.endsWith('/vip'))).toBe(true);
   });
 
-  it('rolls the VIP button back and tells the error inbox when the save fails', async () => {
+  it('rolls the VIP choice back and tells the error inbox when the save fails', async () => {
     await openPage();
     await openUser('u1');
     vipWriteFails = true;
 
-    button('[data-profile-vip]').click();
+    (await vipItem()).click();
     await settle();
 
-    expect(button('[data-profile-vip]').textContent).toContain('Make VIP');
+    expect((await vipItem()).textContent).toContain('Make VIP');
     expect(useSaveErrorsStore().items.length).toBe(1);
   });
 
@@ -615,8 +671,8 @@ describe('the profile dialog', () => {
     await openPage();
     await openUser('u1');
 
-    expect(button('[data-profile-vip]').textContent).toContain('Remove VIP');
-    const reads = ['/community/{userId}', '/profile', '/emotes'];
+    expect((await vipItem()).textContent).toContain('Remove VIP');
+    const reads = ['/community/{userId}', '/profile', '/emotes', '/notes', '/roles/effective/me'];
     const writes = calls.filter((c: Call) =>
       !reads.some((end: string) =>
         c.path.endsWith(end)));
@@ -628,8 +684,124 @@ describe('the profile dialog', () => {
     await openPage();
     await openUser('u2');
 
-    expect(button('[data-profile-vip]').disabled).toBe(true);
-    expect(button('[data-profile-vip]').textContent).toContain('VIP status unknown');
+    const item = await vipItem();
+
+    expect(item.getAttribute('aria-disabled')).toBe('true');
+    expect(item.textContent).toContain('VIP status unknown');
+  });
+
+  it('times a person out for the length chosen from the Timeout menu', async () => {
+    await openPage();
+    await openUser('u1');
+
+    openMenu(button('[data-profile-timeout]'));
+    await settle();
+    button('[data-profile-timeout-length="600"]').click();
+    await settle();
+
+    const timeouts = calls.filter((c: Call) => c.path.endsWith('/moderation/actions'));
+
+    expect(timeouts.map((c: Call) => c.body)).toEqual([
+      {
+        action: 'timeout',
+        targetUserId: 'u1',
+        durationSeconds: 600,
+      },
+    ]);
+  });
+
+  it('shouts a person out from the More menu', async () => {
+    await openPage();
+    await openUser('u1');
+
+    openMenu(button('[data-profile-more]'));
+    await settle();
+    button('[data-profile-shoutout]').click();
+    await settle();
+
+    const shoutouts = calls.filter((c: Call) => c.path.endsWith('/moderation/shoutout'));
+
+    expect(shoutouts.map((c: Call) => c.body)).toEqual([{ targetTwitchUserId: 'u1' }]);
+  });
+
+  it('offers Unban instead of Ban and Timeout for a banned person, and lifts the ban', async () => {
+    await openPage();
+    await openUser('u2');
+
+    expect(document.body.querySelector('[data-profile-ban]')).toBeNull();
+    expect(document.body.querySelector('[data-profile-timeout]')).toBeNull();
+
+    button('[data-profile-unban]').click();
+    await settle();
+
+    const unbans = calls.filter((c: Call) => c.path.endsWith('/moderation/actions/unban'));
+
+    expect(unbans.map((c: Call) => c.body)).toEqual([
+      { targetTwitchUserId: 'u2', scope: 'this_channel' },
+    ]);
+  });
+
+  it('lists the moderator notes on the Moderation tab and adds a new one', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    const panel = (): Element =>
+      dialogs()[0]!.querySelector('[role="tabpanel"][data-state="active"]')!;
+
+    expect(panel().textContent).toContain('Helps new chatters find the rules.');
+    expect(panel().textContent).toContain('Pinned · Stoney_Eagle ·');
+
+    const box = panel().querySelector<HTMLTextAreaElement>('[data-profile-note-input]')!;
+
+    box.value = 'Asked about the giveaway rules.';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    button('[data-profile-note-add]').click();
+    await settle();
+
+    const added = calls.filter((c: Call) => c.path.endsWith('/notes') && c.body !== undefined);
+
+    expect(added.map((c: Call) => c.body)).toEqual([
+      { content: 'Asked about the giveaway rules.', pinned: false },
+    ]);
+
+    expect(box.value).toBe('');
+  });
+
+  it('locks Ban and Timeout, and offers no write, when the caller may not ban here', async () => {
+    held = held.filter((key: string) => key !== 'moderation:ban');
+    await openPage();
+    await openUser('u1');
+
+    expect(button('[data-profile-ban]').disabled).toBe(true);
+    expect(button('[data-profile-timeout]').disabled).toBe(true);
+
+    expect(button('[data-profile-ban]').title).toBe(
+      'You can view this, but your role cannot change it.',
+    );
+
+    expect((await vipItem()).getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('locks the note box when the caller may read notes but not write them', async () => {
+    held = held.filter((key: string) => key !== 'moderation:note:write');
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    const scope = dialogs()[0]!.querySelector<HTMLFieldSetElement>('[data-slot="read-only-scope"]')!;
+
+    expect(scope.disabled).toBe(true);
+    expect(dialogs()[0]!.textContent).toContain('Helps new chatters find the rules.');
+  });
+
+  it('offers no note save while the note is empty', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    expect(button('[data-profile-note-add]').disabled).toBe(true);
   });
 
   it('closes on Esc and returns the focus to the name that opened it', async () => {

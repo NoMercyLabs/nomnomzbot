@@ -14,30 +14,42 @@
 import { injectDialogRootContext } from 'reka-ui';
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
+import ChevronDown from '~icons/nnz/chevron-down';
+import MenuDots from '~icons/nnz/menu-dots-horizontal';
 
+import { useChannelAccess } from '@/api/access';
 import {
   useBanMember,
   useCommunityMember,
   useVipChange,
   type CommunityMember,
 } from '@/api/community';
-import { useViewerProfile } from '@/api/people';
+import { useShoutout, useTimeout, useUnban, useViewerProfile } from '@/api/people';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ProfileHeader, { type ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
 import ProfileData from '@/components/layout/profile/ProfileData.vue';
 import ProfileEmotes from '@/components/layout/profile/ProfileEmotes.vue';
+import ProfileNotes from '@/components/layout/profile/ProfileNotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
 import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { SAVE_FAILED_MESSAGE, SAVE_FAILED_TITLE } from '@/composables/useOptimisticSave';
 import { merge } from '@/lib/array';
-import { shortDate } from '@/lib/time';
+import { formatLength, shortDate, TIMEOUT_LENGTHS } from '@/lib/time';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
 type ActivityLine = CommunityMember['recentActivity'][number];
@@ -89,6 +101,16 @@ const isOwner = computed<boolean>(() => roles.value.includes('broadcaster'));
 // The mutations need the channel id when they are made; the view is mounted inside a signed-in channel.
 const vipChange = useVipChange(channelId.value ?? '');
 const ban = useBanMember(channelId.value ?? '');
+const timeouts = useTimeout(channelId);
+const unban = useUnban(channelId);
+const shoutout = useShoutout(channelId);
+
+// Each control asks for the action key the bot's own gate checks, so a change that cannot save is never offered.
+const access = useChannelAccess(channelId);
+const canBan = computed(() => access.can('moderation:ban'));
+const canUnban = computed(() => access.can('moderation:unban'));
+const canVip = computed(() => access.can('moderation:vip'));
+const canShoutout = computed(() => access.can('moderation:shoutout'));
 
 // Twitch answers per person; null means Twitch could not be asked, so the view says unknown instead of guessing.
 const isVip = computed<boolean | null>(() => person.value?.isVip ?? null);
@@ -161,6 +183,41 @@ function toggleVip(): void {
   if (isVip.value === null) return;
 
   vipChange.mutate({ userId: props.userId, vip: !isVip.value });
+}
+
+function lockedTip(allowed: boolean): string | undefined {
+  return allowed
+    ? undefined
+    : t('common.readOnly');
+}
+
+async function timeoutFor(seconds: number): Promise<void> {
+  const length = formatLength(seconds, locale.value);
+
+  try {
+    await timeouts.mutateAsync({ userId: props.userId, durationSeconds: seconds });
+    toast.success(t('profile.timeout.done', { name: title.value, length }));
+  } catch {
+    toast.error(t('profile.timeout.failed', { name: title.value }));
+  }
+}
+
+async function liftBan(): Promise<void> {
+  try {
+    await unban.mutateAsync({ userId: props.userId });
+    toast.success(t('profile.unban.done', { name: title.value }));
+  } catch {
+    toast.error(t('profile.unban.failed', { name: title.value }));
+  }
+}
+
+async function shoutOut(): Promise<void> {
+  try {
+    await shoutout.mutateAsync({ targetTwitchUserId: props.userId });
+    toast.success(t('profile.shoutout.done', { name: title.value }));
+  } catch {
+    toast.error(t('profile.shoutout.failed', { name: title.value }));
+  }
 }
 
 async function banNow(): Promise<void> {
@@ -239,6 +296,7 @@ async function banNow(): Promise<void> {
           </TabsContent>
 
           <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-4']">
+            <ProfileNotes :user-id="userId" />
             <PanelCard
               v-if="actions.length > 0"
               data-profile-actions
@@ -280,22 +338,89 @@ async function banNow(): Promise<void> {
         </div>
       </Tabs>
 
-      <div
-        v-if="!isOwner"
-        class="flex flex-none flex-col-reverse gap-2 border-t border-border px-6 py-4 sm:flex-row sm:justify-end"
-      >
-        <Button
-          v-if="!person.isBanned"
-          data-profile-ban
-          type="button"
-          variant="destructive"
-          @click="confirmBan = true"
-        >
-          {{ $t('profile.ban.button') }}
-        </Button>
-        <Button data-profile-vip type="button" :disabled="isVip === null" @click="toggleVip">
-          {{ vipLabel }}
-        </Button>
+      <!-- One row on every width: the rarer actions sit in More, so the row never holds equal buttons. -->
+      <div v-if="!isOwner" class="flex flex-none items-center gap-2 border-t border-border px-6 py-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              data-profile-more
+              type="button"
+              variant="ghost"
+              size="icon"
+              :aria-label="$t('profile.more')"
+            >
+              <MenuDots class="size-5" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem
+              data-profile-shoutout
+              :disabled="!canShoutout"
+              :title="lockedTip(canShoutout)"
+              @select="shoutOut"
+            >
+              {{ $t('profile.shoutout.button') }}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-profile-vip
+              :disabled="isVip === null || !canVip"
+              :title="lockedTip(canVip)"
+              @select="toggleVip"
+            >
+              {{ vipLabel }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div class="ml-auto flex items-center gap-2">
+          <Button
+            v-if="person.isBanned"
+            data-profile-unban
+            type="button"
+            :disabled="!canUnban || unban.isPending.value"
+            :title="lockedTip(canUnban)"
+            @click="liftBan"
+          >
+            {{ $t('profile.unban.button') }}
+          </Button>
+          <template v-else>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button
+                  data-profile-timeout
+                  type="button"
+                  variant="outline"
+                  :disabled="!canBan"
+                  :title="lockedTip(canBan)"
+                >
+                  {{ $t('profile.timeout.button') }}
+                  <ChevronDown class="size-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{{ $t('profile.timeout.menu') }}</DropdownMenuLabel>
+                <DropdownMenuItem
+                  v-for="seconds in TIMEOUT_LENGTHS"
+                  :key="seconds"
+                  :data-profile-timeout-length="seconds"
+                  @select="timeoutFor(seconds)"
+                >
+                  {{ formatLength(seconds, locale) }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              data-profile-ban
+              type="button"
+              variant="destructive"
+              :disabled="!canBan"
+              :title="lockedTip(canBan)"
+              @click="confirmBan = true"
+            >
+              {{ $t('profile.ban.button') }}
+            </Button>
+          </template>
+        </div>
       </div>
     </template>
   </div>

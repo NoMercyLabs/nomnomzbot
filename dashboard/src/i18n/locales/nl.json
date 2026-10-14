@@ -422,6 +422,35 @@
       "remove": "VIP weghalen",
       "unknown": "VIP-status onbekend"
     },
+    "more": "Meer acties",
+    "shoutout": {
+      "button": "Shoutout geven",
+      "done": "Shoutout gegeven aan {name}.",
+      "failed": "De shoutout voor {name} is niet verstuurd."
+    },
+    "timeout": {
+      "button": "Time-out",
+      "menu": "Time-out voor",
+      "done": "{name} heeft een time-out van {length}.",
+      "failed": "{name} kon geen time-out krijgen."
+    },
+    "unban": {
+      "button": "Ban opheffen",
+      "done": "De ban van {name} is opgeheven.",
+      "failed": "De ban van {name} kon niet worden opgeheven."
+    },
+    "notes": {
+      "title": "Moderatornotities",
+      "empty": "Nog geen notities over deze persoon.",
+      "error": "De notities konden niet laden.",
+      "noAccess": "Je rol kan in dit kanaal geen notities lezen.",
+      "noWrite": "Je rol kan in dit kanaal geen notities toevoegen.",
+      "input": "Voeg een notitie toe voor de andere moderators",
+      "pin": "Bovenaan vastzetten",
+      "pinned": "Vastgezet · {line}",
+      "add": "Notitie toevoegen",
+      "by": "{name} · {date}"
+    },
     "ban": {
       "button": "Verbannen",
       "title": "{name} verbannen?",

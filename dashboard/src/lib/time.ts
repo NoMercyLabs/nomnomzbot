@@ -27,6 +27,9 @@ export function formatLength(seconds: number, locale: string): string {
   return format.format(Math.round(seconds / size));
 }
 
+// The timeout lengths every timeout menu offers, in seconds: 1 minute, 10 minutes, 1 hour, 1 day.
+export const TIMEOUT_LENGTHS = [60, 600, 3600, 86400] as const satisfies readonly number[];
+
 function twoDigits(value: number): string {
   return String(value).padStart(2, '0');
 }

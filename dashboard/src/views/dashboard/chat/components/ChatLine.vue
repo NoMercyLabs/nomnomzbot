@@ -34,14 +34,12 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { readableNameColor } from '@/lib/accent';
 import { purifyChatHtml } from '@/lib/html';
-import { formatLength } from '@/lib/time';
+import { formatLength, TIMEOUT_LENGTHS } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
 import AssetCardPopover from '@/components/layout/AssetCard.vue';
 import { badgeCard as cardOfBadge, emoteCard, type AssetCard } from '@/lib/assetCards';
 import { emoteHeights, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
-
-const LENGTHS: readonly number[] = [60, 600, 3600, 86400];
 
 const props = defineProps<{
   line: ChatLine;
@@ -399,7 +397,7 @@ function pick(event: MouseEvent): void {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{{ $t('dashboard.chat.timeout.menu') }}</DropdownMenuLabel>
             <DropdownMenuItem
-              v-for="seconds in LENGTHS"
+              v-for="seconds in TIMEOUT_LENGTHS"
               :key="seconds"
               :data-timeout-length="seconds"
               @select="timeout(seconds)"

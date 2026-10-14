@@ -422,6 +422,35 @@
       "remove": "Remove VIP",
       "unknown": "VIP status unknown"
     },
+    "more": "More actions",
+    "shoutout": {
+      "button": "Shout out",
+      "done": "Shouted out {name}.",
+      "failed": "The shoutout for {name} did not go out."
+    },
+    "timeout": {
+      "button": "Timeout",
+      "menu": "Time out for",
+      "done": "{name} is timed out for {length}.",
+      "failed": "{name} could not be timed out."
+    },
+    "unban": {
+      "button": "Unban",
+      "done": "{name} is unbanned.",
+      "failed": "{name} could not be unbanned."
+    },
+    "notes": {
+      "title": "Moderator notes",
+      "empty": "No notes on this person yet.",
+      "error": "The notes could not load.",
+      "noAccess": "Your role cannot read notes in this channel.",
+      "noWrite": "Your role cannot add notes in this channel.",
+      "input": "Add a note for the other moderators",
+      "pin": "Pin to the top",
+      "pinned": "Pinned · {line}",
+      "add": "Add note",
+      "by": "{name} · {date}"
+    },
     "ban": {
       "button": "Ban",
       "title": "Ban {name}?",
