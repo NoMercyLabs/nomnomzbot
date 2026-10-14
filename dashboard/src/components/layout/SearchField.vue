@@ -59,7 +59,11 @@ useEventListener(document, 'keydown', (event: KeyboardEvent): void => {
       :aria-label="placeholder"
     />
     <InputGroupAddon align="inline-end">
-      <Kbd>{{ shortcut }}</Kbd>
+      <!-- A quiet key cap: an outline, not a filled block, curved to the field around it
+        (16px minus the 8px inset). The addon rounds key caps itself, so this radius must win. -->
+      <Kbd class="rounded-[calc(var(--radius-md)-8px)]! border border-border bg-transparent">
+        {{ shortcut }}
+      </Kbd>
     </InputGroupAddon>
   </InputGroup>
 </template>

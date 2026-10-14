@@ -27,16 +27,29 @@ describe('the board', () => {
     const grid: VueWrapper = mount(BoardGrid, { props: { rows: 3 } });
     const cell: VueWrapper = mount(BoardCell, { props: { span: 5, rows: 2 } });
 
-    expect(grid.attributes('style')).toContain('repeat(3, minmax(0, 1fr))');
-    expect(cell.attributes('style')).toContain('grid-column: span 5');
-    expect(cell.attributes('style')).toContain('grid-row: span 2');
+    expect(grid.attributes('style')).toContain('--board-rows: repeat(3, minmax(0, 1fr))');
+    expect(cell.attributes('style')).toContain('--cell-span: span 5');
+    expect(cell.attributes('style')).toContain('--cell-rows: span 2');
   });
 
   it('gives a cell the full width and one row by default', () => {
     const cell = mount(BoardCell);
 
-    expect(cell.attributes('style')).toContain('grid-column: span 12');
-    expect(cell.attributes('style')).toContain('grid-row: span 1');
+    expect(cell.attributes('style')).toContain('--cell-span: span 12');
+    expect(cell.attributes('style')).toContain('--cell-rows: span 1');
+  });
+
+  // Stoney 2026-10-14, on his phone: "Nice mobile view...". The 12 columns squeezed three panels into a phone
+  // width, one letter per line. Below laptop width the panels stack in one column and the board scrolls.
+  it('stacks the panels in one scrolling column below laptop width', () => {
+    const grid: VueWrapper = mount(BoardGrid, { props: { rows: 2 } });
+    const cell: VueWrapper = mount(BoardCell, { props: { span: 3, rows: 2 } });
+
+    expect(grid.classes()).toEqual(expect.arrayContaining(['grid-cols-1', 'overflow-y-auto', 'lg:grid-cols-12']));
+    expect(grid.classes()).not.toContain('grid-cols-12');
+    expect(grid.attributes('style')).not.toContain('grid-template-rows');
+    expect(cell.attributes('style')).not.toMatch(/grid-(column|row)/);
+    expect(cell.classes()).toEqual(expect.arrayContaining(['lg:col-(--cell-span)', 'lg:row-(--cell-rows)']));
   });
 });
 

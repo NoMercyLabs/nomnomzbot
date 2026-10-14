@@ -238,6 +238,45 @@ describe('folder layout', () => {
     expect(dashed).toEqual([]);
   });
 
+  // The shadcn parts read --radius and --popover-foreground; neither was defined, so the search key cap and
+  // every toast drew square. A token that is read must be defined somewhere. A name built at run time
+  // (`--color-${key}` from a chart config) ends in "-" here and is set by its component.
+  it('defines every CSS variable that a style or part reads', () => {
+    const files = allPaths(src).filter((path) =>
+      /\.(vue|ts|css)$/.test(path) && !path.includes('__tests__'));
+    const text: string = files.map((path) =>
+      readFileSync(path, 'utf8')).join('\n');
+    const read = new Set([...text.matchAll(/var\((--[\w-]+)/g)].map((found) =>
+      found[1]!));
+    const defined = new Set([...text.matchAll(/(--[\w-]+)['"]?\s*:/g)].map((found) =>
+      found[1]!));
+    const missing = [...read].filter((name) =>
+      !name.endsWith('-') && !defined.has(name));
+
+    expect(missing).toEqual([]);
+  });
+
+  // styles/frame.css sizes every button outside any layer, so it beats a plain Tailwind class. The bottom
+  // bar's "h-auto px-1" lost to it and squashed every label to 3px on a phone. A button that sets its own
+  // height, side padding or gap marks the class important ("h-auto!"), or the frame silently wins.
+  it('marks a button size class important so the frame does not silently overrule it', () => {
+    const sized = /<Button\b[^>]*?\bclass="([^"]*)"/gs;
+    const frameOwned = /^(h-|px-|ps-|pe-|gap-)[\w.[\]()-]+$/;
+    const overruled: string[] = allPaths(src)
+      .filter((path) =>
+        path.endsWith('.vue') && !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'))
+      .flatMap((path) =>
+        [...readFileSync(path, 'utf8').matchAll(sized)]
+          .flatMap((found) =>
+            found[1]!.split(/\s+/))
+          .filter((name) =>
+            frameOwned.test(name))
+          .map((name) =>
+            `${relative(src, path).replace(/\\/g, '/')}: ${name}`));
+
+    expect(overruled).toEqual([]);
+  });
+
   it('gives each page translation file only the keys of its own page', () => {
     const misplaced: string[] = allPaths(join(src, 'views'))
       .map((path) => relative(src, path).replace(/\\/g, '/'))

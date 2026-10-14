@@ -227,7 +227,7 @@ function choose(voice: TtsVoice): void {
               type="button"
               variant="outline"
               size="sm"
-              class="h-7 gap-1.5 px-2.5"
+              class="h-7! gap-1.5! px-2.5!"
               :class="
                 family === chip.value
                   ? 'bg-accent text-accent-foreground dark:bg-accent dark:hover:bg-accent'

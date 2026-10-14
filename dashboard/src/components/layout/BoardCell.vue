@@ -13,16 +13,17 @@ import { computed } from 'vue';
 
 const props = withDefaults(defineProps<{ span?: number; rows?: number }>(), { span: 12, rows: 1 });
 
+// The span applies from laptop width; narrower, the board is one column and every cell takes a full row.
 const placement = computed<Record<string, string>>(() => ({
-  gridColumn: `span ${props.span}`,
-  gridRow: `span ${props.rows}`,
+  '--cell-span': `span ${props.span}`,
+  '--cell-rows': `span ${props.rows}`,
 }));
 </script>
 
 <template>
   <div
     data-slot="board-cell"
-    class="flex min-h-0 min-w-0 flex-col *:min-h-0 *:flex-1"
+    class="flex min-h-0 min-w-0 flex-col *:min-h-0 *:flex-1 lg:col-(--cell-span) lg:row-(--cell-rows)"
     :style="placement"
   >
     <slot />

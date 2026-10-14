@@ -49,7 +49,7 @@ const sheetEntries = computed<NavEntry[]>(() =>
       v-for="entry in barEntries"
       :key="entry.route"
       :variant="isCurrent(entry) ? 'secondary' : 'ghost'"
-      class="h-auto min-h-11 flex-1 flex-col gap-1 px-1 py-1.5 text-xs"
+      class="h-auto! min-h-11 flex-1 flex-col gap-1! px-1! py-1.5 text-xs"
       as-child
     >
       <RouterLink :to="{ name: entry.route }">
@@ -59,7 +59,7 @@ const sheetEntries = computed<NavEntry[]>(() =>
     </Button>
     <Sheet v-if="sheetEntries.length" v-model:open="more">
       <SheetTrigger as-child>
-        <Button variant="ghost" class="h-auto min-h-11 flex-1 flex-col gap-1 px-1 py-1.5 text-xs">
+        <Button variant="ghost" class="h-auto! min-h-11 flex-1 flex-col gap-1! px-1! py-1.5 text-xs">
           <MenuDotsHorizontal aria-hidden="true" />
           <span class="truncate">{{ t('frame.nav.more') }}</span>
         </Button>
