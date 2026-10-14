@@ -342,7 +342,24 @@
       "roles": "Roles",
       "subscription": "Twitch subscription",
       "firstSeen": "First seen",
-      "lastSeen": "Last seen"
+      "lastSeen": "Last seen",
+      "nickname": "Nickname",
+      "accountCreated": "Account created",
+      "twitchStatus": "On Twitch",
+      "chatColor": "Chat color",
+      "timezone": "Time zone",
+      "about": "About",
+      "lurking": "Lurking",
+      "bits": "Bits cheered",
+      "setByChannel": "{value} (set by the channel)",
+      "linkedOn": "{provider}: {name}, linked {date}"
+    },
+    "twitchStatus": {
+      "affiliate": "Twitch affiliate",
+      "partner": "Twitch partner",
+      "staff": "Twitch staff",
+      "admin": "Twitch admin",
+      "global_mod": "Twitch global moderator"
     },
     "trust": {
       "viewer": "Viewer",

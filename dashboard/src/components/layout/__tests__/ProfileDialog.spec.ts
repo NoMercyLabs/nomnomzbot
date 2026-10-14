@@ -126,13 +126,32 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
       profileImageUrl: null,
       pronoun: 'she/her',
       altPronoun: null,
-      linkedIdentities: [],
+      linkedIdentities: [
+        {
+          provider: 'Kick',
+          providerUsername: 'ada_k',
+          providerDisplayName: 'AdaK',
+          providerAvatarUrl: null,
+          isPrimary: false,
+          linkedAtUtc: '2026-05-06T00:00:00Z',
+          lastLoginAtUtc: null,
+        },
+      ],
       communityStanding: 'Everyone',
       // The live API sends the Twitch tier code, never a label.
       subTier: '1000',
       managementRole: 'Moderator',
       memberSinceUtc: '2020-03-04T00:00:00Z',
       firstSeenUtc: '2026-01-02T10:00:00Z',
+      accountCreatedAtUtc: '2015-06-01T00:00:00Z',
+      description: 'Writes compilers for fun.',
+      broadcasterType: 'affiliate',
+      userType: 'staff',
+      chatColor: '#FF7F50',
+      nickname: 'Countess',
+      timezone: 'Europe/London',
+      isLurking: true,
+      pronounIsManualOverride: true,
     },
     activity: {
       totalMessages: 1234,
@@ -141,6 +160,7 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
       isFollower: true,
       isSubscriber: true,
       subTier: '1000',
+      totalBitsCheered: 500,
     },
     streak: {
       currentStreak: 4,
@@ -164,6 +184,15 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
       managementRole: null,
       memberSinceUtc: null,
       firstSeenUtc: '2026-02-02T10:00:00Z',
+      accountCreatedAtUtc: null,
+      description: null,
+      broadcasterType: '',
+      userType: '',
+      chatColor: null,
+      nickname: null,
+      timezone: null,
+      isLurking: false,
+      pronounIsManualOverride: false,
     },
     activity: null,
     streak: null,
@@ -689,12 +718,32 @@ describe('the Overview tab', () => {
     expect(text).toContain('90210');
     // memberSinceUtc is when the channel role was given (ChannelMembership.GrantedAt), not the account date.
     expect(text).toContain('Role since');
-    expect(text).not.toContain('Account created');
     expect(text).toContain('Mar 4, 2020');
     expect(text).toContain('Following');
     expect(text).toContain('Yes');
     expect(text).toContain('Tier 1');
     expect(text).toContain('Jan 2, 2026');
+  });
+
+  it('shows the Twitch account facts: its age, status, nickname, color, time zone and bits', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const text = overview().textContent ?? '';
+    const swatch = overview().querySelector<HTMLElement>('[data-profile-color]');
+
+    expect(text).toContain('Account created');
+    expect(text).toContain('Jun 1, 2015');
+    expect(text).toContain('Twitch affiliate, Twitch staff');
+    expect(text).toContain('Countess');
+    expect(text).toContain('Writes compilers for fun.');
+    expect(text).toContain('Europe/London');
+    expect(text).toContain('she/her (set by the channel)');
+    expect(text).toContain('Kick: AdaK, linked May 6, 2026');
+    expect(text).toContain('Lurking');
+    expect(text).toContain('Bits cheered');
+    expect(text).toContain('500');
+    expect(swatch?.style.backgroundColor).toBe('rgb(255, 127, 80)');
   });
 
   it('omits a fact the server does not return', async () => {
@@ -710,6 +759,12 @@ describe('the Overview tab', () => {
     expect(labels).not.toContain('Following');
     expect(labels).not.toContain('Twitch ID');
     expect(labels).not.toContain('Subscription');
+
+    // An empty Twitch status, no color and not lurking are not facts worth a row.
+    for (const label of ['Account created', 'Nickname', 'About', 'Time zone', 'Chat color', 'On Twitch', 'Lurking', 'Bits cheered']) {
+      expect(labels).not.toContain(label);
+    }
+
     expect(labels).toContain('First seen');
   });
 

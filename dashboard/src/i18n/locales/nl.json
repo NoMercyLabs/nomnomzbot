@@ -342,7 +342,24 @@
       "roles": "Rollen",
       "subscription": "Twitch-abonnement",
       "firstSeen": "Eerst gezien",
-      "lastSeen": "Laatst gezien"
+      "lastSeen": "Laatst gezien",
+      "nickname": "Bijnaam",
+      "accountCreated": "Account gemaakt",
+      "twitchStatus": "Op Twitch",
+      "chatColor": "Chatkleur",
+      "timezone": "Tijdzone",
+      "about": "Over",
+      "lurking": "Lurkt",
+      "bits": "Bits gegeven",
+      "setByChannel": "{value} (ingesteld door het kanaal)",
+      "linkedOn": "{provider}: {name}, gekoppeld op {date}"
+    },
+    "twitchStatus": {
+      "affiliate": "Twitch-affiliate",
+      "partner": "Twitch-partner",
+      "staff": "Twitch-medewerker",
+      "admin": "Twitch-beheerder",
+      "global_mod": "Twitch-moderator voor heel Twitch"
     },
     "trust": {
       "viewer": "Kijker",

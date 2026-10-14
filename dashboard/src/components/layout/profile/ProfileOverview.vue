@@ -41,25 +41,55 @@ function present(item: KeyValueItem): boolean {
   return item.value !== undefined && item.value !== null && item.value !== '';
 }
 
-// A person can set a second pronoun set on pronouns.alejo.io; both show, the main one first.
-function pronouns(main: string | null | undefined, alt: string | null | undefined): string | null {
-  const sets = [main, alt].filter((value): value is string => Boolean(value));
+type Identity = PersonProfile['identity'];
 
-  return sets.length > 0
-    ? sets.join(' · ')
-    : null;
+// A person can set a second pronoun set on pronouns.alejo.io; both show, the main one first.
+// A moderator can set them by hand instead, which the list says.
+function pronouns(known: Identity | undefined): string | null {
+  const sets = [known?.pronoun, known?.altPronoun]
+    .filter((value): value is string => Boolean(value));
+
+  if (sets.length === 0)
+    return null;
+
+  const text = sets.join(' · ');
+
+  return known?.pronounIsManualOverride
+    ? t('profile.facts.setByChannel', { value: text })
+    : text;
 }
 
-// The other platforms this person signed in with, by name: "Kick: name, YouTube: name".
+// The other platforms this person signed in with, by name and link date: "Kick: name, linked May 6, 2026".
 function linked(identities: readonly LinkedIdentity[]): string | null {
   const names = identities
     .filter((identity: LinkedIdentity) => identity.provider.toLowerCase() !== 'twitch')
-    .map((identity: LinkedIdentity) =>
-      `${identity.provider}: ${identity.providerDisplayName ?? identity.providerUsername}`);
+    .map((identity: LinkedIdentity) => t('profile.facts.linkedOn', {
+      provider: identity.provider,
+      name: identity.providerDisplayName ?? identity.providerUsername,
+      date: shortDate(identity.linkedAtUtc, locale.value),
+    }));
+
+  return names.length > 0
+    ? names.join('; ')
+    : null;
+}
+
+// Twitch sends "" for a plain account; affiliate, partner and the Twitch staff roles show in words.
+function twitchStatus(known: Identity | undefined): string | null {
+  const kinds = [known?.broadcasterType, known?.userType]
+    .filter((kind): kind is string => Boolean(kind));
+  const names = kinds.map((kind: string) => t(`profile.twitchStatus.${kind}`));
 
   return names.length > 0
     ? names.join(', ')
     : null;
+}
+
+function dateAndAgo(iso: string | null | undefined): string | null {
+  if (!iso)
+    return null;
+
+  return `${shortDate(iso, locale.value)} (${agoText(iso, new Date(), locale.value)})`;
 }
 
 const identity = computed<KeyValueItem[]>(() => {
@@ -69,7 +99,13 @@ const identity = computed<KeyValueItem[]>(() => {
 
   return [
     { label: t('profile.facts.name'), value: `${who.displayName} (@${who.username})` },
-    { label: t('profile.facts.pronouns'), value: pronouns(known?.pronoun, known?.altPronoun) },
+    { label: t('profile.facts.nickname'), value: known?.nickname },
+    { label: t('profile.facts.pronouns'), value: pronouns(known) },
+    { label: t('profile.facts.accountCreated'), value: dateAndAgo(known?.accountCreatedAtUtc) },
+    { label: t('profile.facts.twitchStatus'), value: twitchStatus(known) },
+    { label: t('profile.facts.chatColor'), value: known?.chatColor },
+    { label: t('profile.facts.timezone'), value: known?.timezone },
+    { label: t('profile.facts.about'), value: known?.description },
     { label: t('profile.facts.linked'), value: linked(known?.linkedIdentities ?? []) },
     {
       label: t('profile.facts.manages'),
@@ -113,8 +149,16 @@ const relationship = computed<KeyValueItem[]>(() => {
   const first = props.profile?.identity.firstSeenUtc ?? who.firstSeen;
   const ago = agoText(who.lastSeen, new Date(), locale.value);
   const tier = tierNumber(props.profile?.identity.subTier);
+  const bits = Number(props.profile?.activity?.totalBitsCheered ?? 0);
 
   return [
+    {
+      // Only someone who said !lurk is marked; a quiet viewer is not lurking by choice.
+      label: t('profile.facts.lurking'),
+      value: props.profile?.identity.isLurking
+        ? t('profile.yesNo.true')
+        : null,
+    },
     { label: t('profile.facts.roles'), value: roleText.value },
     {
       label: t('profile.facts.subscription'),
@@ -126,6 +170,12 @@ const relationship = computed<KeyValueItem[]>(() => {
       label: t('profile.facts.bestStreak'),
       value: props.profile?.streak
         ? t('profile.streakDays', Number(props.profile.streak.maxStreak))
+        : null,
+    },
+    {
+      label: t('profile.facts.bits'),
+      value: bits > 0
+        ? bits.toLocaleString(locale.value)
         : null,
     },
     { label: t('profile.facts.firstSeen'), value: shortDate(first, locale.value) },
@@ -141,6 +191,9 @@ const latest = computed<ActivityLine[]>(() => {
   return lines.slice(0, LATEST);
 });
 
+// The chat color row shows the color itself next to its code.
+const colorLabel = computed<string>(() => t('profile.facts.chatColor'));
+
 const now = new Date();
 </script>
 
@@ -149,7 +202,19 @@ const now = new Date();
     <div class="grid gap-6 sm:grid-cols-2">
       <section class="grid content-start gap-2">
         <h3 class="text-sm font-semibold">{{ $t('profile.sections.identity') }}</h3>
-        <KeyValueList :items="identity" />
+        <KeyValueList :items="identity">
+          <template #value="{ item }">
+            <span v-if="item.label === colorLabel" class="inline-flex items-center gap-2">
+              <span
+                data-profile-color
+                class="size-3 flex-none rounded-full border"
+                :style="{ backgroundColor: String(item.value) }"
+              />
+              {{ item.value }}
+            </span>
+            <template v-else>{{ item.value }}</template>
+          </template>
+        </KeyValueList>
       </section>
       <section class="grid content-start gap-2">
         <h3 class="text-sm font-semibold">{{ $t('profile.sections.relationship') }}</h3>
