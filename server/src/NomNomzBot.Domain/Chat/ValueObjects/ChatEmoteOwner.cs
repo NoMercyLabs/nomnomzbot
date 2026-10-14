@@ -19,9 +19,11 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// <param name="Login">The owner login name (lowercase), when known.</param>
 /// <param name="DisplayName">The owner display name, when known.</param>
 /// <param name="ProfileUrl">A public profile link for the owner, when the provider has one.</param>
+/// <param name="AvatarUrl">The owner profile image link, when the platform has one (Twitch owners).</param>
 public sealed record ChatEmoteOwner(
     string? Id,
     string? Login,
     string? DisplayName,
-    string? ProfileUrl = null
+    string? ProfileUrl = null,
+    string? AvatarUrl = null
 );

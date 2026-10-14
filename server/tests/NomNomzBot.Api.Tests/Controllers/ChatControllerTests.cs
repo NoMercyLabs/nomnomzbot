@@ -787,6 +787,88 @@ public sealed class ChatControllerTests
     }
 
     [Fact]
+    public async Task GetEmotes_json_says_whose_each_emote_is_and_where_it_comes_from()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
+        catalogue
+            .GetForChannelAsync(
+                Broadcaster,
+                OperatorUserId,
+                ChatEmoteSender.Operator,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<ChatEmote>>([
+                    new(
+                        EmoteProvider.Twitch,
+                        "emote-42",
+                        "thirdSub",
+                        new Dictionary<string, string> { ["1"] = "https://cdn/42" },
+                        Animated: false,
+                        ZeroWidth: false,
+                        SetId: "8",
+                        OwnerId: "999",
+                        Type: "subscriptions",
+                        Tier: 2,
+                        Origin: ChatEmoteOrigin.Other,
+                        OwnerChannel: new ChatEmoteOwner(
+                            "999",
+                            "thirdchan",
+                            "ThirdChan",
+                            null,
+                            "https://img/thirdchan.png"
+                        )
+                    ),
+                    new(
+                        EmoteProvider.SevenTv,
+                        "7tv-1",
+                        "peepo",
+                        new Dictionary<string, string> { ["1"] = "https://7tv/peepo" },
+                        Animated: false,
+                        ZeroWidth: false,
+                        Origin: ChatEmoteOrigin.Global
+                    ),
+                ])
+            );
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            emoteCatalogue: catalogue
+        );
+
+        IActionResult result = await controller.GetEmotes(Broadcaster.ToString());
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>> body =
+            (StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>>)ok.Value!;
+        JsonSerializerOptions wire = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System
+                .Text
+                .Json
+                .Serialization
+                .JsonIgnoreCondition
+                .WhenWritingNull,
+        };
+        JsonElement sub = JsonSerializer.SerializeToElement(body.Data![0], wire);
+        sub.GetProperty("id").GetString().Should().Be("emote-42");
+        sub.GetProperty("code").GetString().Should().Be("thirdSub");
+        sub.GetProperty("type").GetString().Should().Be("subscriptions");
+        sub.GetProperty("tier").GetInt32().Should().Be(2);
+        sub.GetProperty("origin").GetString().Should().Be("other");
+        sub.GetProperty("ownerId").GetString().Should().Be("999");
+        sub.GetProperty("ownerLogin").GetString().Should().Be("thirdchan");
+        sub.GetProperty("ownerName").GetString().Should().Be("ThirdChan");
+        sub.GetProperty("ownerAvatarUrl").GetString().Should().Be("https://img/thirdchan.png");
+
+        JsonElement global = JsonSerializer.SerializeToElement(body.Data![1], wire);
+        global.GetProperty("origin").GetString().Should().Be("global");
+        global.TryGetProperty("ownerId", out JsonElement _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task GetEmotes_rejects_an_invalid_channel_id()
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
