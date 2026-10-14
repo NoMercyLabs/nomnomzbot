@@ -369,17 +369,55 @@ public static class LinkDetector
         "d3.js",
     ];
 
-    private static readonly Regex LinkPattern = BuildPattern();
+    private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(250);
+
+    private static readonly Regex LinkPattern = Warmed(BuildPattern(MatchTimeout));
 
     /// <summary>Every link in <paramref name="text"/>, in order. Never null.</summary>
-    public static IReadOnlyList<DetectedLink> Find(string? text)
+    public static IReadOnlyList<DetectedLink> Find(string? text) => Find(text, LinkPattern);
+
+    /// <summary>The seam that lets a test hand in a pattern with a tiny timeout.</summary>
+    internal static IReadOnlyList<DetectedLink> Find(string? text, Regex pattern)
     {
         if (string.IsNullOrEmpty(text))
             return [];
 
         string readable = MessageNormalizer.ReadableForm(text);
+        try
+        {
+            return FindWith(readable, pattern);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return FindWhenMatchingTimedOut(readable);
+        }
+    }
+
+    /// <summary>
+    /// A spam filter must not fail open: a timeout reported as "no link" would let the message through.
+    /// So the scheme URLs are read by a cheap token scan, and when that finds none the whole message is
+    /// reported as one link with an empty host ("a link we could not read"). Every caller treats an empty
+    /// host as not allow-listed, so the message goes to the rule instead of passing or throwing.
+    /// </summary>
+    private static List<DetectedLink> FindWhenMatchingTimedOut(string readable)
+    {
         List<DetectedLink> links = [];
-        foreach (Match match in LinkPattern.Matches(readable))
+        foreach (string token in readable.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (
+                token.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || token.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            )
+                links.Add(FromSchemeUrl(token));
+        }
+
+        return links.Count > 0 ? links : [new DetectedLink(readable, string.Empty)];
+    }
+
+    private static List<DetectedLink> FindWith(string readable, Regex pattern)
+    {
+        List<DetectedLink> links = [];
+        foreach (Match match in pattern.Matches(readable))
         {
             DetectedLink? link = match.Groups["scheme"].Success
                 ? FromSchemeUrl(match.Value)
@@ -422,7 +460,27 @@ public static class LinkDetector
         return new DetectedLink(match.Value, host);
     }
 
-    private static Regex BuildPattern()
+    /// <summary>
+    /// Runs the pattern once so the JIT cost of the large compiled regex is paid here, not by the first chat
+    /// message after a restart, where it counts against the match timeout.
+    /// </summary>
+    private static Regex Warmed(Regex pattern)
+    {
+        try
+        {
+            _ = pattern.IsMatch(
+                "warm up https://shop.example.com/x and www.example.co.uk:80/a?b#c"
+            );
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // Best effort: Find has its own timeout handling.
+        }
+
+        return pattern;
+    }
+
+    private static Regex BuildPattern(TimeSpan timeout)
     {
         string tlds = string.Join('|', GenericTlds.Concat(CountryTlds).Distinct());
         string label = @"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?";
@@ -434,7 +492,7 @@ public static class LinkDetector
                 + $@"(?<host>(?:{label}\.)+(?:{tlds}|xn--[a-z0-9-]+))"
                 + @"(?![a-z0-9@-])(?<tail>(?::\d{1,5})?(?:[/?#]\S*)?))",
             RegexOptions.Compiled | RegexOptions.CultureInvariant,
-            TimeSpan.FromMilliseconds(250)
+            timeout
         );
     }
 }
