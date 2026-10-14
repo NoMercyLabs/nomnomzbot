@@ -3,6 +3,9 @@
     "chat": {
       "title": "Chat",
       "crumb": "Live",
+      "shortcuts": {
+        "compose": "Write in the chat box"
+      },
       "status": {
         "live": "Live",
         "offline": "Offline"
@@ -155,7 +158,7 @@
         "recent": "Recent",
         "results": "Results",
         "none": "Nothing matches.",
-        "hint": "Right-click to star an emote or give one emoji its own tone.",
+        "hint": "Right-click to star an emote or emoji, or to give one emoji its own tone.",
         "tones": "Choose a skin tone",
         "toneForAll": "Skin tone for all emoji",
         "toneNames": {
@@ -168,6 +171,7 @@
         },
         "favorites": "Favorites",
         "starred": "{name}, starred",
+        "star": "Star {name}",
         "own": "You",
         "channel": "This channel",
         "others": "{source}",

@@ -195,6 +195,11 @@ vi.mock('@/api/client', () => ({
         messageId,
       });
 
+      const star = options?.params?.path as { provider?: string; emoteId?: string } | undefined;
+
+      favoriteList = favoriteList.filter((favorite) =>
+        favorite.provider !== star?.provider || favorite.emoteId !== star?.emoteId);
+
       return { data: { data: null }, response: { status: 200, ok: true } };
     },
   },
@@ -1149,6 +1154,16 @@ describe('ChatView display drawer', () => {
       expect([...tray.classList].some((name) => name.startsWith('-translate-y'))).toBe(false);
     });
 
+    // Stoney 2026-10-14: "what is this weird behavior for the quick actions?" Trays stayed up on rows the mouse
+    // had left: a tooltip trigger's data-state held the tray open. Only an open menu in the tray holds it.
+    it('holds the tray open only for its open menu, never for a tooltip state', async () => {
+      await open();
+      const tray: HTMLElement = rowOf('m1').querySelector('[data-tray]')!;
+
+      expect(tray.classList).not.toContain('has-data-[state=open]:opacity-100');
+      expect(tray.classList).toContain('has-aria-expanded:opacity-100');
+    });
+
     it('a click on a line action does not pick the chatter', async () => {
       await open();
       action('m1', 'profile').click();
@@ -1411,6 +1426,43 @@ describe('ChatView reply', () => {
     input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await settle();
     expect(banner()).toBeNull();
+  });
+
+  // Stoney 2026-10-14: "escape does not exit focus to let me press / for search".
+  it('leaves the box on Escape when there is nothing to cancel', async () => {
+    await open();
+    input().focus();
+    expect(document.activeElement).toBe(input());
+
+    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+
+    expect(document.activeElement).not.toBe(input());
+  });
+
+  // Stoney 2026-10-14: "i also want to escape search and shortcut to chat".
+  it('leaves the search on Escape and jumps to the chat box on c', async () => {
+    await open();
+    const search: HTMLInputElement = document.querySelector('[data-slot="search-field"] input')!;
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+    expect(document.activeElement).toBe(search);
+
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.activeElement).not.toBe(search);
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }));
+    await settle();
+    expect(input().contains(document.activeElement)).toBe(true);
+  });
+
+  // Stoney 2026-10-14: "can you add the shortcut mark to chat so people know it?"
+  it('marks the chat box with its key until you are in it', async () => {
+    await open();
+    const mark = document.querySelector<HTMLElement>('[data-composer-box] [data-shortcut-mark]');
+
+    expect(mark?.textContent?.trim()).toBe('C');
+    expect(mark!.classList).toContain('group-focus-within/box:hidden');
   });
 
   it('shows the parent a reply line answers, from the names Twitch sent', async () => {
@@ -1727,6 +1779,78 @@ describe('ChatView emote picker', () => {
     expect(sections()[0]).toBe('favorites');
     expect(itemsOf('favorites')).toEqual(['catJAM']);
     expect(typed()).toBe('');
+  });
+
+  // Stoney 2026-10-14: "right clicking an emote should unfavorite it, and i want to favorite all emotes".
+  it('takes the star off on a second right-click', async () => {
+    await open();
+    await openPicker();
+
+    item('catJAM').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
+    item('catJAM').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
+
+    const removed = calls.filter((call) =>
+      call.method === 'DELETE' && call.path.includes('/favorite-emotes/'));
+
+    expect(removed).toHaveLength(1);
+    expect(sections()).not.toContain('favorites');
+  });
+
+  // Stoney 2026-10-14, on the skin tone popup: "i think we need a favorite button for these". Right-click on a
+  // toned emoji asks for its tone, so the popup carries the star.
+  it('stars an emoji with skin tones from the star in its tone popup', async () => {
+    await open();
+    await openPicker();
+
+    item('👋').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
+    document.body.querySelector<HTMLElement>('[data-skin-tones] [data-tone-star]')!.click();
+    await settle();
+
+    expect(itemsOf('favorites')).toEqual(['👋']);
+    expect(document.body.querySelector('[data-skin-tones]')).toBeNull();
+  });
+
+  it('stars an emote that came without an id by its code', async () => {
+    emoteList.push({
+      ...emoteList.find((emote) =>
+        emote.code === 'catJAM')!,
+      code: 'noIdCat',
+      id: null,
+    });
+
+    await open();
+    await openPicker();
+
+    item('noIdCat').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
+
+    expect(itemsOf('favorites')).toEqual(['noIdCat']);
+    emoteList.pop();
+  });
+
+  // Stoney 2026-10-14: "right click does nothing anymore, and yes i like that favorite option for sure".
+  it('stars an emoji without skin tones on a right-click', async () => {
+    await open();
+    await openPicker();
+
+    item('😀').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
+
+    const saved = calls.filter((call) =>
+      call.method === 'PUT' && call.path.endsWith('/favorite-emotes'));
+
+    expect(saved.map((call) =>
+      call.body)).toEqual([{
+      provider: 'Emoji',
+      emoteId: '😀',
+      code: ':grinning:',
+      imageUrl: null,
+    }]);
+
+    expect(itemsOf('favorites')).toEqual(['😀']);
   });
 
   // Stoney 2026-10-14: "someone needs to be able to choose a skin tone once and the picker needs to swap them to

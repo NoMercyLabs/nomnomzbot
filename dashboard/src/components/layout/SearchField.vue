@@ -41,6 +41,7 @@ useShortcut(shortcut, () => {
       type="search"
       :placeholder="placeholder"
       :aria-label="placeholder"
+      @keydown.escape="input?.$el.blur()"
     />
     <InputGroupAddon align="inline-end">
       <!-- A quiet key cap: an outline, not a filled block, curved to the field around it

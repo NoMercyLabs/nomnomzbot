@@ -12,25 +12,40 @@
 // narrower, it slides over the page as a drawer from its side, so the content never gets squeezed.
 // Stoney 2026-10-14: "Make sure you overlay what no longer fits with a drawer from left or right".
 import { useMediaQuery } from '@vueuse/core';
+import { computed } from 'vue';
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { useFrameRail } from '@/composables/useFrameRail';
 
 // Data hooks and attributes from the page land on the panel itself, beside the content or in the drawer.
 defineOptions({ inheritAttrs: false });
 
 // A pinned panel always sits in the row where it fits and fills the column its layout gives it; open then
 // drives only the drawer.
-withDefaults(defineProps<{
+// A see-through panel changes what the page shows (Stoney 2026-10-14, the chat settings): it folds the sidebar
+// to its rail to stay in the row, and where even that has no room its drawer leaves the page unblurred.
+const props = withDefaults(defineProps<{
   label: string;
   side?: 'left' | 'right';
   pinned?: boolean;
+  seeThrough?: boolean;
 }>(), {
   side: 'right',
   pinned: false,
+  seeThrough: false,
 });
 
 const open = defineModel<boolean>('open', { required: true });
-const roomy = useMediaQuery('(min-width: 1280px)');
+const wide = useMediaQuery('(min-width: 1280px)');
+// The rail is 200px narrower than the sidebar.
+const fitsBesideRail = useMediaQuery('(min-width: 1080px)');
+const folds = computed(() =>
+  props.seeThrough && !wide.value && fitsBesideRail.value);
+const roomy = computed(() =>
+  wide.value || folds.value);
+
+useFrameRail(computed(() =>
+  folds.value && open.value));
 
 // The drawer opens without picking a control: focus on its first button (often Reset) would arm Enter.
 function keepFocusOff(event: Event): void {
@@ -52,6 +67,7 @@ function keepFocusOff(event: Event): void {
     <SheetContent
       data-slot="side-panel"
       data-drawer
+      :data-see-through="seeThrough || undefined"
       :side="side"
       :show-close-button="false"
       @open-auto-focus="keepFocusOff"

@@ -28,8 +28,10 @@ import EmailReply from '~icons/nnz/email-reply';
 
 import { chatMessageMaxLength, useChatEmotes, useSendChat, type ChatLine } from '@/api/chat';
 import { Button } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
 import { Spinner } from '@/components/ui/spinner';
 import { useBackLayer } from '@/composables/useBackCloses';
+import { keyCaps, useShortcut } from '@/composables/useShortcut';
 import { merge } from '@/lib/array';
 
 import { ChatInput, EmoteNode, type EmoteImage } from '../chatEditor';
@@ -106,6 +108,12 @@ const editor = useEditor({
   ],
   onUpdate: sync,
   onSelectionUpdate: sync,
+});
+
+const composeShortcut = { key: 'c', label: 'dashboard.chat.shortcuts.compose' } as const;
+
+useShortcut(composeShortcut, () => {
+  editor.value?.commands.focus('end');
 });
 
 // A word as it goes into the box at a position: an emote as its image, anything else as text, with a space
@@ -206,6 +214,11 @@ function onKey(event: KeyboardEvent): boolean {
     replyTo.value = null;
 
     return true;
+  }
+
+  // Nothing left to cancel: Escape leaves the box, so the page keys (/ for search) work again.
+  if (event.key === 'Escape') {
+    (event.target as HTMLElement).blur();
   }
 
   return false;
@@ -310,7 +323,7 @@ async function submit(): Promise<void> {
         :active="list.active.value"
         @pick="choose"
       />
-      <div data-composer-box class="relative min-w-0 flex-1">
+      <div data-composer-box class="group/box relative min-w-0 flex-1">
         <EditorContent :editor="editor" />
         <span
           v-if="text === ''"
@@ -320,7 +333,15 @@ async function submit(): Promise<void> {
         >
           {{ $t('dashboard.chat.composer.placeholder') }}
         </span>
-        <div class="absolute end-0.5 bottom-0.5">
+        <div class="absolute end-0.5 bottom-0.5 flex items-center gap-1">
+          <!-- The same quiet key cap as the search field, until you are in the box. -->
+          <Kbd
+            v-if="text === ''"
+            data-shortcut-mark
+            class="rounded-[calc(var(--radius-md)-8px)]! border border-border bg-transparent group-focus-within/box:hidden"
+          >
+            {{ keyCaps(composeShortcut).join(' ') }}
+          </Kbd>
           <EmotePicker
             :emotes="emotes.data.value ?? []"
             @pick="pickFromPicker"

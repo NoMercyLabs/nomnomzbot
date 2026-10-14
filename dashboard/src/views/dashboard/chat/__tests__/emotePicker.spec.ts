@@ -92,6 +92,25 @@ describe('the emote picker sections', () => {
     expect(layout({ ...context, favorites })[0]).toEqual(['favorites', ['OMEGALUL', 'zedHi'], undefined]);
   });
 
+  // Stoney 2026-10-14: "right click does nothing anymore, and yes i like that favorite option for sure". An
+  // emoji is starred under the Emoji source, by its glyph.
+  it('lists a starred emoji among the favorites', () => {
+    const grin = {
+      glyph: '😀',
+      shortcodes: ['grinning'],
+      group: 0,
+      tags: [],
+      skins: [],
+    };
+    const favorites = [favoriteKey('Emoji', '😀'), favoriteKey('Twitch', 'id-zedHi')];
+    const found = pickerSections(emotes, [grin], [], '', { ...context, favorites })[0]!;
+
+    expect(found.id).toBe('favorites');
+
+    expect(found.items.map((item) =>
+      item.insert)).toEqual(['😀', 'zedHi']);
+  });
+
   // Stoney 2026-10-14: "instead of removing the tabs, make them grayed out and locked and keep the remaining tabs
   // enabled, but please add the channel grouping".
   it('keeps every section while searching, each holding only its matches', () => {

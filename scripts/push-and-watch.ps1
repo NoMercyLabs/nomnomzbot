@@ -54,8 +54,42 @@ function Invoke-Native {
     if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
 }
 
+# GitHub allows 5,000 API calls an hour, shared by every session and agent on this account. `gh run watch`
+# polls every 3 s and spent about 1,500 calls on one run; on 2026-10-14 two watches emptied the budget, the
+# 403 read as a red build, and the script re-ran a run that had not failed. Stoney: "you need to handle this
+# better". The rate_limit endpoint itself is free.
+function Wait-GhBudget {
+    [int]$floor = 100
+    $core = (gh api rate_limit | ConvertFrom-Json).resources.core
+    if ($core.remaining -ge $floor) { return }
+    [DateTime]$reset = [DateTimeOffset]::FromUnixTimeSeconds([long]$core.reset).LocalDateTime
+    Write-Host "GitHub API budget low ($($core.remaining) left): pausing until $reset."
+    Start-Sleep -Seconds ([Math]::Max(5, [int]($reset - (Get-Date)).TotalSeconds + 5))
+}
+
+# One status read a minute, judged only on a completed run: an unreadable status is never a verdict.
+function Wait-Run {
+    param([Parameter(Mandatory = $true)][string]$RunId)
+    [DateTime]$deadline = (Get-Date).AddMinutes(90)
+    while ((Get-Date) -lt $deadline) {
+        Wait-GhBudget
+        [string]$json = gh run view $RunId --json status,conclusion
+        if ($LASTEXITCODE -eq 0 -and $json) {
+            $run = $json | ConvertFrom-Json
+            if ($run.status -eq 'completed') {
+                Write-Host "run $RunId completed: $($run.conclusion)"
+                return [string]$run.conclusion
+            }
+            Write-Host "run $RunId $($run.status)"
+        }
+        Start-Sleep -Seconds 60
+    }
+    throw "push-and-watch: run $RunId did not finish within 90 minutes."
+}
+
 Push-Location $repo
 try {
+    Wait-GhBudget
     # Read the SHA once, BEFORE the push, and push exactly that commit: a commit landed on this shared
     # tree during the push moved HEAD, and the watch then waited for a run that could never exist.
     [string]$sha = if ($Commit) { (git rev-parse --verify "$Commit^{commit}").Trim() } else { (git rev-parse HEAD).Trim() }
@@ -70,13 +104,13 @@ try {
     # PowerShell quoting AND jq quoting, and it silently matched nothing when it did not.
     [string]$runId = $null
     [int]$runWaitSeconds = 180
-    foreach ($attempt in 1..($runWaitSeconds / 5)) {
+    foreach ($attempt in 1..($runWaitSeconds / 15)) {
         [string]$json = gh run list --limit 20 --json databaseId,headSha  # no space: PowerShell would parse `a, b` as an array and pass two args
         if ($json) {
             $match = ($json | ConvertFrom-Json) | Where-Object { $_.headSha -eq $sha } | Select-Object -First 1
             if ($match) { $runId = [string]$match.databaseId; break }
         }
-        Start-Sleep -Seconds 5
+        Start-Sleep -Seconds 15
     }
     if (-not $runId) {
         # No run created is NOT the same as a run that failed. GitHub Actions can be degraded or the
@@ -95,8 +129,13 @@ try {
     }
 
     Write-Host "== watching run $runId for $($sha.Substring(0,8)) =="
-    gh run watch $runId --exit-status | Out-Host
-    [bool]$green = ($LASTEXITCODE -eq 0)
+    [string]$conclusion = Wait-Run $runId
+    [bool]$green = ($conclusion -eq 'success')
+
+    if ($conclusion -eq 'cancelled') {
+        Write-Host "CANCELLED: run $runId was cancelled (a newer push, or the early stop). Nothing deployed from it."
+        exit 1
+    }
 
     if (-not $green -and -not $NoRetry) {
         Write-Host ''
@@ -110,8 +149,7 @@ try {
         Write-Host '== RE-RUNNING FAILED JOBS ONCE (flake check - this is not a fix) =='
         Invoke-Native 'gh run rerun failed' { gh run rerun $runId --failed }
         Start-Sleep -Seconds 8
-        gh run watch $runId --exit-status | Out-Host
-        $green = ($LASTEXITCODE -eq 0)
+        $green = ((Wait-Run $runId) -eq 'success')
         if ($green) {
             Write-Host ''
             Write-Host 'NOTE: green only AFTER a re-run. That test failed once in CI and not on the'

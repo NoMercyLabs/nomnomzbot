@@ -14,6 +14,7 @@ import { nextTick } from 'vue';
 
 import { setWidth } from '@/__tests__/viewport';
 import SidePanel from '@/components/layout/SidePanel.vue';
+import { railWanted } from '@/composables/useFrameRail';
 
 let mounted: VueWrapper | undefined;
 
@@ -89,6 +90,53 @@ describe('the side panel', () => {
     await nextTick();
 
     expect(wrapper.emitted('update:open')).toEqual([[false]]);
+  });
+
+  // Stoney 2026-10-14: "the chat settings, it needs to be seen what it does, so maybe we can collapse the sidebar
+  // to give us more options". A see-through panel folds the sidebar to its rail to stay in the row, and where
+  // even that has no room it opens as a drawer without the blur.
+  describe('a see-through panel', () => {
+    async function seeThroughAt(width: number, open = true): Promise<VueWrapper> {
+      setWidth(width);
+
+      mounted = mount(SidePanel, {
+        attachTo: document.body,
+        props: {
+          label: 'Display',
+          open,
+          seeThrough: true,
+        },
+        slots: { default: '<p data-content>options</p>' },
+      });
+
+      await flushPromises();
+
+      return mounted;
+    }
+
+    it('folds the sidebar to its rail to stay beside the content', async () => {
+      const wrapper = await seeThroughAt(1160);
+
+      expect(wrapper.find('aside[data-slot="side-panel"]').exists()).toBe(true);
+      expect(railWanted.value).toBe(true);
+
+      await wrapper.setProps({ open: false });
+      expect(railWanted.value).toBe(false);
+    });
+
+    it('leaves the sidebar alone where the panel fits beside it', async () => {
+      await seeThroughAt(1440);
+
+      expect(railWanted.value).toBe(false);
+    });
+
+    it('opens as a drawer with no blur where even the rail leaves no room', async () => {
+      await seeThroughAt(900);
+      const drawer = document.body.querySelector<HTMLElement>('[role="dialog"][data-slot="side-panel"]');
+
+      expect(drawer?.dataset.seeThrough).toBe('true');
+      expect(railWanted.value).toBe(false);
+    });
   });
 
   it('shows nothing while closed, at any width', async () => {

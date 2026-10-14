@@ -19,6 +19,7 @@ import ChevronDown from '~icons/nnz/chevron-down';
 import ClockBackward from '~icons/nnz/clock-backward';
 import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 import Smile from '~icons/nnz/smile';
+import Star from '~icons/nnz/star';
 import StarFilled from '~icons/nnz/star-filled';
 
 import { useCurrentUser } from '@/api/auth';
@@ -27,13 +28,16 @@ import { useFavoriteEmoteChange, useFavoriteEmotes, type FavoriteEmote } from '@
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import type { Suggestion } from '../composerSuggest';
 import { loadEmoji, type EmojiEntry } from '../emojiCatalog';
 import {
+  emojiProvider,
   favoriteKey,
   pickerSections,
+  starId,
   remember,
   skinTone,
   toneModifiers,
@@ -117,34 +121,50 @@ const emoteByCode = computed(() =>
   new Map(props.emotes.map((emote) =>
     [emote.code, emote])));
 
-// The emote behind a picker item, when it is one the server can star (an emoji or an id-less emote is not).
-function starrable(item: Suggestion): (ChatEmoteEntry & { id: string }) | null {
+type StarTarget = {
+  provider: string;
+  emoteId: string;
+  code: string;
+};
+
+// What the server stars for a picker item: an emote by its source and id (its code when it came without one), an
+// emoji by its glyph.
+function starrable(item: Suggestion): StarTarget | null {
+  if (item.kind === 'emoji')
+    return {
+      provider: emojiProvider,
+      emoteId: item.insert,
+      code: item.label,
+    };
+
   const emote = emoteByCode.value.get(item.insert);
 
-  return item.kind === 'emote' && emote?.id
-    ? { ...emote, id: emote.id }
+  return emote
+    ? {
+        provider: emote.provider,
+        emoteId: starId(emote),
+        code: emote.code,
+      }
     : null;
 }
 
 function isFavorite(item: Suggestion): boolean {
-  const emote = starrable(item);
+  const target = starrable(item);
 
-  return emote !== null && favoriteKeys.value.includes(favoriteKey(emote.provider, emote.id));
+  if (!target)
+    return false;
+
+  return favoriteKeys.value.includes(favoriteKey(target.provider, target.emoteId));
 }
 
-// Right-click, or a long press on a phone, stars an emote or takes the star off, as in FrankerFaceZ.
+// Right-click, or a long press on a phone, stars an emote or emoji or takes the star off, as in FrankerFaceZ.
 function toggleFavorite(item: Suggestion): void {
-  const emote = starrable(item);
+  const target = starrable(item);
 
-  if (!emote) return;
+  if (!target) return;
 
   favoriteChange.mutate({
-    emote: {
-      provider: emote.provider,
-      emoteId: emote.id,
-      code: emote.code,
-      imageUrl: item.image,
-    },
+    emote: { ...target, imageUrl: item.image },
     favorite: !isFavorite(item),
   });
 }
@@ -321,6 +341,14 @@ function secondary(item: Suggestion, event: Event): void {
   askTone(item, event);
 }
 
+// A toned emoji's right-click asks for its tone, so its star lives in the tone popup.
+function starToned(): void {
+  if (!toning.value) return;
+
+  toggleFavorite(toning.value);
+  toning.value = null;
+}
+
 function closeTones(isOpen: boolean): void {
   if (!isOpen) {
     toning.value = null;
@@ -473,6 +501,20 @@ function closeTones(isOpen: boolean): void {
             @click="chooseTone(glyph)"
           >
             {{ glyph }}
+          </button>
+          <Separator orientation="vertical" class="mx-0.5 h-8 self-center" />
+          <button
+            v-if="toning"
+            type="button"
+            data-tone-star
+            :aria-pressed="isFavorite(toning)"
+            :aria-label="$t('dashboard.chat.picker.star', { name: toning.label })"
+            class="flex size-10 cursor-pointer items-center justify-center rounded-[calc(var(--radius-md)-4px)]
+              text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:bg-muted"
+            @click="starToned"
+          >
+            <StarFilled v-if="isFavorite(toning)" class="size-5" aria-hidden="true" />
+            <Star v-else class="size-5" aria-hidden="true" />
           </button>
         </PopoverContent>
       </Popover>

@@ -29,7 +29,8 @@ push, and the run for a fresh commit does not exist instantly.
 
 ```bash
 gh run list --limit 20 --json databaseId,headSha   # match YOUR sha
-gh run watch <run-id> --exit-status
+gh api rate_limit --jq .resources.core   # free; under 100 left = wait for reset
+gh run watch <run-id> --exit-status --interval 60   # default 3 s polls burn the shared 5k/hr budget
 gh run view <run-id> --log-failed
 ```
 

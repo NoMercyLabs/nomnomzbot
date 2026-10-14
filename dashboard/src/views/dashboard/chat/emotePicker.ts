@@ -44,6 +44,14 @@ export const recentLimit = 24;
 
 const providerOrder = ['Twitch', 'SevenTv', 'Bttv', 'Ffz'] as const satisfies readonly string[];
 
+// The source the server stores a starred emoji under.
+export const emojiProvider = 'Emoji';
+
+// The id a star is kept under: the emote's id, or its code when the source sent none.
+export function starId(emote: ChatEmoteEntry): string {
+  return emote.id ?? emote.code;
+}
+
 export function favoriteKey(provider: string, emoteId: string): string {
   return `${provider}:${emoteId}`;
 }
@@ -134,17 +142,20 @@ function ownerSections(
 // The favorites that are usable here, in the order given.
 function favoriteSection(
   emotes: readonly ChatEmoteEntry[],
+  emoji: readonly EmojiEntry[],
   favorites: readonly string[],
 ): PickerSection[] {
-  const byKey = new Map(emotes.flatMap((emote) =>
-    emote.id
-      ? [[favoriteKey(emote.provider, emote.id), emote] as const]
-      : []));
+  const starredEmotes = emotes.map((emote) =>
+    [favoriteKey(emote.provider, starId(emote)), emoteSuggestion(emote)] as const);
+  // An emoji is starred under the Emoji source, by its glyph.
+  const starredEmoji = emoji.map((entry) =>
+    [favoriteKey(emojiProvider, entry.glyph), emojiSuggestion(entry)] as const);
+  const byKey = new Map(merge(starredEmotes, starredEmoji));
   const items = favorites.flatMap((key) => {
-    const emote = byKey.get(key);
+    const item = byKey.get(key);
 
-    return emote
-      ? [emoteSuggestion(emote)]
+    return item
+      ? [item]
       : [];
   });
 
@@ -238,7 +249,8 @@ export function pickerSections(
   const known = new Map(sections.flatMap((section) =>
     section.items).map((item) =>
     [item.insert, item]));
-  const all = merge(favoriteSection(emotes, at.favorites), recentSection(recent, known), sections);
+  const favorites = favoriteSection(emotes, emoji, at.favorites);
+  const all = merge(favorites, recentSection(recent, known), sections);
 
   return search === ''
     ? all

@@ -313,3 +313,9 @@ a:not([data-slot]):hover {
   inset-block: min(0px, calc((100% - var(--_hit)) / 2));
   inset-inline: min(0px, calc((100% - var(--_hit)) / 2));
 }
+
+/* A see-through drawer shows what its settings change: the page behind it stays unblurred and untinted. */
+body:has([data-slot='side-panel'][data-see-through]) [data-slot='sheet-overlay'] {
+  background: transparent;
+  backdrop-filter: none;
+}

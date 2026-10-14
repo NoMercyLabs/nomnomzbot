@@ -3,6 +3,9 @@
     "chat": {
       "title": "Chat",
       "crumb": "Live",
+      "shortcuts": {
+        "compose": "Schrijf in het chatvak"
+      },
       "status": {
         "live": "Live",
         "offline": "Offline"
@@ -155,7 +158,7 @@
         "recent": "Recent",
         "results": "Resultaten",
         "none": "Niets gevonden.",
-        "hint": "Klik rechts voor een ster op een emote, of één emoji een eigen tint.",
+        "hint": "Klik rechts voor een ster op een emote of emoji, of één emoji een eigen tint.",
         "tones": "Kies een huidskleur",
         "toneForAll": "Huidskleur voor alle emoji",
         "toneNames": {
@@ -168,6 +171,7 @@
         },
         "favorites": "Favorieten",
         "starred": "{name}, met ster",
+        "star": "Ster op {name}",
         "own": "Jij",
         "channel": "Dit kanaal",
         "others": "{source}",

@@ -363,7 +363,7 @@ function pick(event: MouseEvent): void {
            so the hover holds on the way up (owner 2026-10-13 and 2026-10-14). -->
       <div
         v-if="!line.removed"
-        class="absolute right-3 bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-data-[state=open]:opacity-100"
+        class="absolute right-3 bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-aria-expanded:opacity-100"
         data-tray
         role="group"
         :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"

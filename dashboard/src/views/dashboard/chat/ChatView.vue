@@ -316,7 +316,7 @@ async function confirmBan(): Promise<void> {
           @close="closeViewer"
         />
       </SidePanel>
-      <SidePanel v-model:open="displayOpen" data-display-panel :label="$t('dashboard.chat.display.title')">
+      <SidePanel v-model:open="displayOpen" see-through data-display-panel :label="$t('dashboard.chat.display.title')">
         <ChatDisplayPanel v-model="display" />
       </SidePanel>
     </div>

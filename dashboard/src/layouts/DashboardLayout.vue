@@ -16,6 +16,7 @@ import ProfileDialog from '@/components/layout/ProfileDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { railWanted } from '@/composables/useFrameRail';
 import { applyAccent, defaultAccent } from '@/lib/accent';
 import { useRealtime } from '@/realtime/useRealtime';
 
@@ -45,7 +46,7 @@ useRealtime();
   <TooltipProvider :delay-duration="300">
     <!-- C1: the window never scrolls. Only a panel body scrolls, so every box here clips. -->
     <div class="flex h-svh overflow-hidden bg-background text-foreground">
-      <DashboardSidebar v-if="wide" />
+      <DashboardSidebar v-if="wide && !railWanted" />
       <NavRail v-else-if="medium" />
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         <!-- Without the sidebar, the channel switch and the profile need a home of their own. -->
