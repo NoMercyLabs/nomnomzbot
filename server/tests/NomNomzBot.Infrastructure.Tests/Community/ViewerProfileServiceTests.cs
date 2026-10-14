@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Application.Tts.Services;
@@ -21,6 +22,7 @@ using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Giveaways.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Infrastructure.Community;
 using NSubstitute;
@@ -47,8 +49,21 @@ public sealed class ViewerProfileServiceTests
         IPermitService Permits,
         IQuoteService Quotes,
         ITtsConfigService Tts
-    ) Build()
+    ) Build(IFollowStateService? follows = null)
     {
+        if (follows is null)
+        {
+            follows = Substitute.For<IFollowStateService>();
+            follows
+                .ResolveAsync(
+                    Arg.Any<Guid>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(FollowLookup.Unknown);
+        }
+
         ViewerProfileServiceTestDbContext db = ViewerProfileServiceTestDbContext.New();
         IViewerAnalyticsService analytics = Substitute.For<IViewerAnalyticsService>();
         IPermitService permits = Substitute.For<IPermitService>();
@@ -77,7 +92,7 @@ public sealed class ViewerProfileServiceTests
                 Errors.NotFound<Application.Tts.Dtos.UserTtsVoiceDto>("TTS voice assignment", "")
             );
 
-        ViewerProfileService sut = new(db, analytics, permits, quotes, tts);
+        ViewerProfileService sut = new(db, analytics, permits, quotes, tts, follows);
         return (sut, db, analytics, permits, quotes, tts);
     }
 
@@ -642,5 +657,113 @@ public sealed class ViewerProfileServiceTests
         Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
 
         result.Value.Identity.FirstSeenUtc.Should().Be(ImportedAt);
+    }
+
+    private static IFollowStateService FollowReturning(FollowLookup lookup)
+    {
+        IFollowStateService follows = Substitute.For<IFollowStateService>();
+        follows
+            .ResolveAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(lookup);
+        return follows;
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_FollowedAt_CarriesTheLookupDate_AsUtc()
+    {
+        DateTimeOffset followedAt = new(2024, 3, 9, 14, 30, 0, TimeSpan.FromHours(2));
+        IFollowStateService follows = FollowReturning(
+            new FollowLookup(FollowState.Following, followedAt)
+        );
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build(
+            follows
+        );
+        await SeedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        DateTime? actual = result.Value.Identity.FollowedAtUtc;
+        actual.Should().Be(new DateTime(2024, 3, 9, 12, 30, 0, DateTimeKind.Utc));
+        actual!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        await follows
+            .Received(1)
+            .ResolveAsync(
+                Broadcaster,
+                AuthEnums.Platform.Twitch,
+                "subject-twitch",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData(FollowState.NotFollowing)]
+    [InlineData(FollowState.Unknown)]
+    public async Task GetProfileAsync_FollowedAt_IsNull_WhenTheLookupHasNoFollow(FollowState state)
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build(
+            FollowReturning(new FollowLookup(state, null))
+        );
+        await SeedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Identity.FollowedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_FollowedAt_IsNull_AndTheProfileStillLoads_WhenTheLookupThrows()
+    {
+        IFollowStateService follows = Substitute.For<IFollowStateService>();
+        follows
+            .ResolveAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns<Task<FollowLookup>>(_ => throw new HttpRequestException("helix down"));
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build(
+            follows
+        );
+        await SeedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Identity.Username.Should().Be("subject");
+        result.Value.Identity.FollowedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_FollowedAt_IsNull_WithoutCallingTheLookup_WhenThePersonHasNoTwitchId()
+    {
+        IFollowStateService follows = FollowReturning(
+            new FollowLookup(FollowState.Following, DateTimeOffset.UtcNow)
+        );
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build(
+            follows
+        );
+        db.Users.Add(
+            new()
+            {
+                Id = Subject,
+                TwitchUserId = null,
+                Username = "subject",
+                UsernameNormalized = "subject",
+                DisplayName = "Subject",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Identity.FollowedAtUtc.Should().BeNull();
+        await follows.DidNotReceiveWithAnyArgs().ResolveAsync(default, default!, default!, default);
     }
 }

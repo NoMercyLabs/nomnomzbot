@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Application.Tts.Dtos;
@@ -24,6 +25,7 @@ using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Domain.Moderation.SpamDefense;
 
 namespace NomNomzBot.Infrastructure.Community;
 
@@ -38,7 +40,8 @@ public sealed class ViewerProfileService(
     IViewerAnalyticsService analytics,
     IPermitService permits,
     IQuoteService quotes,
-    ITtsConfigService tts
+    ITtsConfigService tts,
+    IFollowStateService follows
 ) : IViewerProfileService
 {
     private const int RecentQuotesPageSize = 10;
@@ -195,8 +198,35 @@ public sealed class ViewerProfileService(
             user.NickName,
             user.Timezone,
             user.IsLurking,
-            user.PronounManualOverride
+            user.PronounManualOverride,
+            await ResolveFollowedAtUtcAsync(broadcasterId, user, ct)
         );
+    }
+
+    // Cached Helix lookup; any failure means "could not find out", never a failed profile read.
+    private async Task<DateTime?> ResolveFollowedAtUtcAsync(
+        Guid broadcasterId,
+        User user,
+        CancellationToken ct
+    )
+    {
+        if (user.TwitchUserId is null)
+            return null;
+
+        try
+        {
+            FollowLookup lookup = await follows.ResolveAsync(
+                broadcasterId,
+                AuthEnums.Platform.Twitch,
+                user.TwitchUserId,
+                ct
+            );
+            return lookup.State == FollowState.Following ? lookup.FollowedAt?.UtcDateTime : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     // The person's own color wins; without one, the color the bot assigned them in THIS channel.
