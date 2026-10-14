@@ -9,7 +9,7 @@ export const toggleVariants = cva(
     variants: {
       variant: {
         default: 'bg-transparent',
-        outline: 'border-input hover:bg-muted border bg-transparent shadow-xs',
+        outline: 'rounded-[12px] bg-(--kit-surface) font-semibold text-(--kit-action-text) hover:bg-(--kit-surface-hover) hover:text-white aria-pressed:bg-(--kit-surface-pressed) aria-pressed:text-white focus-visible:ring-2 focus-visible:ring-(--kit-focus-soft)',
       },
       size: {
         default: 'h-9 min-w-9 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
