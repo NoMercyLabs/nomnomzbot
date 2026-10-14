@@ -97,6 +97,10 @@ public sealed class BttvEmoteProvider : IThirdPartyEmoteProvider
                 ["2"] = $"https://cdn.betterttv.net/emote/{emote.Id}/2x",
                 ["3"] = $"https://cdn.betterttv.net/emote/{emote.Id}/3x",
             };
+            // An animated BTTV emote's default image is a GIF; the same path with ".png" is its first frame.
+            Dictionary<string, string> staticUrls = emote.Animated
+                ? urls.ToDictionary(entry => entry.Key, entry => $"{entry.Value}.png")
+                : urls;
             result.Add(
                 new(
                     EmoteProvider.Bttv,
@@ -106,7 +110,8 @@ public sealed class BttvEmoteProvider : IThirdPartyEmoteProvider
                     emote.Animated,
                     emote.Modifier,
                     Type: type,
-                    Owner: MapOwner(emote)
+                    Owner: MapOwner(emote),
+                    StaticUrls: staticUrls
                 )
             );
         }

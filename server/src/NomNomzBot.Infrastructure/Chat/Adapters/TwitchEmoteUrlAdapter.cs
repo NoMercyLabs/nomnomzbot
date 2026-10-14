@@ -102,7 +102,8 @@ public sealed class TwitchEmoteUrlAdapter : IChatDecorationAdapter
             Formats: fragment.EmoteFormats,
             Type: cached?.Type,
             Tier: cached?.Tier,
-            Owner: cached?.Owner ?? await OwnerFromIdAsync(ownerId, ct)
+            Owner: cached?.Owner ?? await OwnerFromIdAsync(ownerId, ct),
+            StaticUrls: TwitchEmoteMapper.BuildStaticUrls(fragment.EmoteId!)
         );
     }
 

@@ -112,7 +112,8 @@ public class ChatController : BaseController
         string? OwnerId = null,
         string? OwnerLogin = null,
         string? OwnerName = null,
-        string? OwnerAvatarUrl = null
+        string? OwnerAvatarUrl = null,
+        IReadOnlyDictionary<string, string>? StaticUrls = null
     );
 
     // Mirrors Twitch's real Helix chat-settings surface (twitch-helix.md §3.2 / ITwitchChatApi) — every
@@ -510,7 +511,8 @@ public class ChatController : BaseController
                 e.OwnerChannel?.Id,
                 e.OwnerChannel?.Login,
                 e.OwnerChannel?.DisplayName,
-                e.OwnerChannel?.AvatarUrl
+                e.OwnerChannel?.AvatarUrl,
+                e.StaticUrls ?? e.Urls
             )),
         ];
         return Ok(new StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>> { Data = emotes });

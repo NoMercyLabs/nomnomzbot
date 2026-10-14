@@ -42,7 +42,8 @@ public static class ChatFragmentMapper
                     Type: fragment.Emote.Type,
                     Tier: fragment.Emote.Tier,
                     Owner: MapOwner(fragment.Emote.Owner),
-                    Artist: MapOwner(fragment.Emote.Artist)
+                    Artist: MapOwner(fragment.Emote.Artist),
+                    StaticUrls: fragment.Emote.StaticUrls ?? fragment.Emote.Urls
                 )
                 : null,
             Cheermote: fragment.CheermotePrefix is not null

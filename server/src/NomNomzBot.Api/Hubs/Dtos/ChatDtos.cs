@@ -92,6 +92,7 @@ public record ChatLinkPreviewDto(string Host, string? Title, string? Description
 /// <summary>
 /// Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes
 /// (chat-decoration spec §4). <c>Urls</c> is scale-keyed ("1"/"2"/"3"); <c>Provider</c> is the source network.
+/// <c>StaticUrls</c> holds the still image per scale for reduced motion; a non-animated emote repeats <c>Urls</c>.
 /// </summary>
 public record ChatEmoteDto(
     string Id,
@@ -105,7 +106,8 @@ public record ChatEmoteDto(
     string? Type = null,
     int? Tier = null,
     ChatEmoteOwnerDto? Owner = null,
-    ChatEmoteOwnerDto? Artist = null
+    ChatEmoteOwnerDto? Artist = null,
+    IReadOnlyDictionary<string, string>? StaticUrls = null
 );
 
 /// <summary>

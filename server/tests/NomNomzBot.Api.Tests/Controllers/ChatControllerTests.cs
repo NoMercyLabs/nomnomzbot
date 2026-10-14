@@ -764,7 +764,11 @@ public sealed class ChatControllerTests
                         "catJAM",
                         new Dictionary<string, string> { ["1"] = "https://7tv/catJAM" },
                         Animated: true,
-                        ZeroWidth: false
+                        ZeroWidth: false,
+                        StaticUrls: new Dictionary<string, string>
+                        {
+                            ["1"] = "https://7tv/catJAM_static",
+                        }
                     ),
                 ])
             );
@@ -784,6 +788,7 @@ public sealed class ChatControllerTests
         emote.Provider.Should().Be("SevenTv");
         emote.Animated.Should().BeTrue();
         emote.Urls["1"].Should().Be("https://7tv/catJAM");
+        emote.StaticUrls!["1"].Should().Be("https://7tv/catJAM_static");
     }
 
     [Fact]

@@ -103,9 +103,9 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
             IReadOnlyDictionary<string, string> source = animated
                 ? emoticon.Animated!
                 : emoticon.Urls;
-            Dictionary<string, string> urls = new(source.Count);
-            foreach (KeyValuePair<string, string> entry in source)
-                urls[entry.Key] = Normalize(entry.Value);
+            Dictionary<string, string> urls = Normalize(source);
+            // FFZ's plain urls are the still image; the "animated" set is separate.
+            Dictionary<string, string> staticUrls = animated ? Normalize(emoticon.Urls) : urls;
 
             result.Add(
                 new(
@@ -117,7 +117,8 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
                     emoticon.Modifier,
                     Type: type,
                     Owner: MapUser(emoticon.Owner),
-                    Artist: MapUser(emoticon.Artist)
+                    Artist: MapUser(emoticon.Artist),
+                    StaticUrls: staticUrls
                 )
             );
         }
@@ -128,6 +129,15 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
     // FFZ ships protocol-relative urls ("//cdn.frankerfacez.com/..."); pin them to https.
     private static string Normalize(string url) =>
         url.StartsWith("//", StringComparison.Ordinal) ? $"https:{url}" : url;
+
+    private static Dictionary<string, string> Normalize(IReadOnlyDictionary<string, string> source)
+    {
+        Dictionary<string, string> urls = new(source.Count);
+        foreach (KeyValuePair<string, string> entry in source)
+            urls[entry.Key] = Normalize(entry.Value);
+
+        return urls;
+    }
 
     // ─── Provider response shapes (Newtonsoft) ────────────────────────────────
 
