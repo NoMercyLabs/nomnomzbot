@@ -27,6 +27,7 @@ import {
 } from '@/api/community';
 import { useShoutout, useTimeout, useUnban, useViewerProfile } from '@/api/people';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import EmoteText from '@/components/layout/EmoteText.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ProfileHeader, { type ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
@@ -278,14 +279,14 @@ async function banNow(): Promise<void> {
               :state="lines.length > 0 ? 'ready' : 'empty'"
               :empty-text="$t('profile.chat.empty')"
             >
-              <ul :aria-label="$t('profile.chat.title')" class="grid">
+              <ul data-profile-chat-lines :aria-label="$t('profile.chat.title')" class="grid">
                 <li
                   v-for="line in lines"
                   :key="`${line.timestamp}-${line.content}`"
                   class="grid gap-0.5 px-2 py-1.5 text-sm"
                 >
                   <span class="text-xs text-muted-foreground">{{ dateText(line.timestamp) }}</span>
-                  <span class="wrap-break-word">{{ line.content }}</span>
+                  <EmoteText class="wrap-break-word" :text="line.content" />
                 </li>
               </ul>
             </PanelCard>

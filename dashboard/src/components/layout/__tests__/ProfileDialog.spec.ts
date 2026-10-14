@@ -268,6 +268,16 @@ const MODERATOR_KEYS = [
 
 let held: string[] = [];
 
+// The emotes usable in the channel, as the chat emote list sends them.
+const channelEmotes = [{
+  id: 'hmmm',
+  code: 'stoney90Hmmm',
+  provider: 'Twitch',
+  animated: false,
+  zeroWidth: false,
+  urls: { 1: 'https://cdn.example/hmmm/1x.png', 2: 'https://cdn.example/hmmm/2x.png' },
+}];
+
 type Options = { params?: Record<string, unknown>; body?: unknown };
 
 function record(path: string, options: Options | undefined): void {
@@ -289,6 +299,13 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/profile'))
         return { data: { data: onTheWire(profiles[userIdOf(options)] ?? null) } };
+
+      if (path.endsWith('/chat/emotes')) {
+        return {
+          data: { data: onTheWire(channelEmotes) },
+          response: { ok: true, status: 200 },
+        };
+      }
 
       if (path.endsWith('/roles/effective/me'))
         return { data: { data: { heldActionKeys: [...held] } }, response: { ok: true } };
@@ -1028,6 +1045,26 @@ describe('the Overview tab', () => {
       document.body.querySelector('[data-slot="profile-overview"]')!.closest('[role="tabpanel"]')!
         .getAttribute('data-state'),
     ).toBe('inactive');
+  });
+
+  it('shows a known emote code in a chat line as the emote, and keeps other words as text', async () => {
+    people.u1!.recentActivity = [{
+      type: 'chat',
+      content: 'nice raid stoney90Hmmm stoney90Unknown',
+      timestamp: '2026-10-01T10:00:00Z',
+    }];
+
+    await openPage();
+    await openUser('u1');
+
+    for (const scope of [overview(), dialogs()[0]!.querySelector('[data-profile-chat-lines]')!]) {
+      const emote = scope.querySelector<HTMLImageElement>('img[data-emote="stoney90Hmmm"]');
+
+      expect(emote?.src).toBe('https://cdn.example/hmmm/1x.png');
+      expect(emote?.alt).toBe('stoney90Hmmm');
+      expect(scope.textContent).toContain('nice raid');
+      expect(scope.textContent).toContain('stoney90Unknown');
+    }
   });
 
   it('says there are no chat lines and offers no All chat button when there are none', async () => {

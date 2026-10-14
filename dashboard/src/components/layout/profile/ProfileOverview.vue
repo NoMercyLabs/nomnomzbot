@@ -16,6 +16,7 @@ import ArrowRight from '~icons/nnz/arrow-right';
 
 import type { CommunityMember } from '@/api/community';
 import type { PersonProfile } from '@/api/people';
+import EmoteText from '@/components/layout/EmoteText.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import { tierNumber, type RoleKey } from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
@@ -250,7 +251,7 @@ const now = new Date();
           <span class="text-xs whitespace-nowrap text-muted-foreground tabular-nums">{{
             clockTime(line.timestamp, now, locale)
           }}</span>
-          <span class="truncate" :title="line.content">{{ line.content }}</span>
+          <EmoteText class="truncate" :title="line.content" :text="line.content" />
         </li>
       </ul>
     </section>
