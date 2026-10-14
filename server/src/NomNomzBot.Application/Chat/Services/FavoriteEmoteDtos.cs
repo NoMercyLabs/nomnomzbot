@@ -15,7 +15,14 @@ public static class FavoriteEmoteLimits
 {
     public const int MaxPerUser = 200;
 
-    public static readonly IReadOnlyList<string> Providers = ["Twitch", "SevenTv", "Bttv", "Ffz", "Emoji"];
+    public static readonly IReadOnlyList<string> Providers =
+    [
+        "Twitch",
+        "SevenTv",
+        "Bttv",
+        "Ffz",
+        "Emoji",
+    ];
 }
 
 /// <summary>One favorite emote as returned to the dashboard.</summary>

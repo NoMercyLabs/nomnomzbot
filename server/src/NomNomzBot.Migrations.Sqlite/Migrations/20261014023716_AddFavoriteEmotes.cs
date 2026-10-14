@@ -22,7 +22,7 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     Code = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     ImageUrl = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -32,21 +32,23 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_FavoriteEmotes_UserId_Provider_EmoteId",
                 table: "FavoriteEmotes",
                 columns: new[] { "UserId", "Provider", "EmoteId" },
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "FavoriteEmotes");
+            migrationBuilder.DropTable(name: "FavoriteEmotes");
         }
     }
 }

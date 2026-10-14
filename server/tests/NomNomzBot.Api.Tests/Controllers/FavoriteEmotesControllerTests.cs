@@ -123,7 +123,9 @@ public sealed class FavoriteEmotesControllerTests
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         FavoriteEmotesController anonymous = As(db, null);
 
-        (await anonymous.List(CancellationToken.None)).Should().BeOfType<UnauthorizedObjectResult>();
+        (await anonymous.List(CancellationToken.None))
+            .Should()
+            .BeOfType<UnauthorizedObjectResult>();
         (await anonymous.Add(Req("1"), CancellationToken.None))
             .Should()
             .BeOfType<UnauthorizedObjectResult>();

@@ -110,11 +110,11 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => new
-            {
-                x.UserId,
-                x.Provider,
-                x.EmoteId,
-            })
+                {
+                    x.UserId,
+                    x.Provider,
+                    x.EmoteId,
+                })
                 .IsUnique();
         });
 
