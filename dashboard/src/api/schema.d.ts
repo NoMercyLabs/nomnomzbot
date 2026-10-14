@@ -6185,6 +6185,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/analytics/channel/chat-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read when the channel's chat is busy: weekday x hour message cells for a date range. */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfChannelChatHoursDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/analytics/channel/top-viewers": {
         parameters: {
             query?: never;
@@ -78157,6 +78253,191 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/me/watched-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Channels where the caller has viewer activity (never their own), newest activity first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfWatchedChannelDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/viewer/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's own tiles in one channel: counts, points, song requests, follow and sub. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfViewerSelfSummaryDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/voice-triggers/listener-link": {
         parameters: {
             query?: never;
@@ -84534,6 +84815,15 @@ export interface components {
             timezone?: null | string;
         };
         /**
+         * @description The "when chat is busy" grid for a date range. string ChannelChatHoursDto.TimeZone is the zone the cells are bucketed
+         *     in (the channel owner's saved zone, or "UTC" when none is saved or it is unknown); only cells with at
+         *     least one message are listed.
+         */
+        ChannelChatHoursDto: {
+            timeZone: string;
+            cells: components["schemas"]["ChatHourCellDto"][];
+        };
+        /**
          * @description Everything the delete-channel confirmation must state BEFORE the button can be pressed — the largest blast
          *                 radius in the product.
          *                 Channel delete is a SOFT delete with a restore window: the tenant's rows stay on disk and every query
@@ -84847,6 +85137,20 @@ export interface components {
         ChatGifDto: {
             gifId: string;
             url: string;
+        };
+        /**
+         * @description One non-empty cell of the "when chat is busy" grid: stored chat messages on this weekday and local hour.
+         *     int ChatHourCellDto.DayOfWeek is 0 (Sunday) to 6 (Saturday); int ChatHourCellDto.Hour is 0 to 23.
+         */
+        ChatHourCellDto: {
+            /** Format: int32 */
+            dayOfWeek: number | string;
+            /** Format: int32 */
+            hour: number | string;
+            /** Format: int64 */
+            messages: number | string;
+            /** Format: int32 */
+            chatters: number | string;
         };
         /** @description OpenGraph link-preview data (chat-decoration spec §3.5); fields are null when the page exposes no tags. */
         ChatLinkPreviewDto: {
@@ -89659,6 +89963,8 @@ export interface components {
             options?: null | string[];
             description: null | components["schemas"]["LocalizedText"];
             /** @default false */
+            templated: boolean;
+            /** @default false */
             declaresVariable: boolean;
             declaredVariableDefault?: null | string;
         };
@@ -91968,6 +92274,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfChannelChatHoursDto: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelChatHoursDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfChannelDeletePreviewDto: {
             status?: string;
             data?: null | components["schemas"]["ChannelDeletePreviewDto"];
@@ -94131,6 +94450,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfWatchedChannelDto: {
+            status?: string;
+            data?: null | components["schemas"]["WatchedChannelDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfIReadOnlyListOfWidgetTemplate: {
             status?: string;
             data?: null | components["schemas"]["WidgetTemplate"][];
@@ -96264,6 +96596,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfViewerSelfSummaryDto: {
+            status?: string;
+            data?: null | components["schemas"]["ViewerSelfSummaryDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfVoiceTriggerDto: {
             status?: string;
             data?: null | components["schemas"]["VoiceTriggerDto"];
@@ -96480,6 +96825,12 @@ export interface components {
             durationSeconds?: null | number | string;
             /** Format: int32 */
             peakViewers?: null | number | string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: int32 */
+            uniqueChatters: number | string;
+            /** Format: int32 */
+            newFollowers: number | string;
         };
         StreamStatusDto: {
             isLive: boolean;
@@ -98732,6 +99083,31 @@ export interface components {
             resolvedAt?: null | string;
             resolvedByName?: null | string;
         };
+        /**
+         * @description The caller's OWN tiles in one channel. Never carries another viewer's data. `Balance` is null when the
+         *     channel has points off or the caller has no account; `FollowedAt` is null when unknown; `SubTier` is
+         *     the raw tier string the analytics profile keeps (null when not subscribed).
+         */
+        ViewerSelfSummaryDto: {
+            /** Format: date-time */
+            firstSeenAt?: null | string;
+            /** Format: date-time */
+            lastSeenAt?: null | string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: int64 */
+            totalCommandsUsed: number | string;
+            /** Format: int64 */
+            totalSongRequests: number | string;
+            pointsEnabled: boolean;
+            /** Format: int64 */
+            balance?: null | number | string;
+            songRequestsEnabled: boolean;
+            /** Format: date-time */
+            followedAt?: null | string;
+            subTier?: null | string;
+            isLive: boolean;
+        };
         /** @description One finalized chunk of a stream's spoken-word transcript (backend `VoiceTranscriptSegment`). */
         VoiceTranscriptSegmentDto: {
             text: string;
@@ -98816,6 +99192,20 @@ export interface components {
         WarnUserRequest: {
             targetUserId: string;
             reason: string;
+        };
+        /** @description One channel the caller watches: a channel where the caller has viewer activity. */
+        WatchedChannelDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            channelId: string;
+            name: string;
+            displayName: string;
+            profileImageUrl?: null | string;
+            isLive: boolean;
+            /** Format: date-time */
+            lastSeenAt?: null | string;
         };
         /** @description One viewer's attendance streak (analytics.md §4, M.3). */
         WatchStreakDto: {

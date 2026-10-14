@@ -158,6 +158,7 @@ describe('the step tree', () => {
           required: true,
           repeatable: false,
           description: null,
+          templated: false,
           declaresVariable: false,
         },
         {
@@ -166,6 +167,7 @@ describe('the step tree', () => {
           required: true,
           repeatable: false,
           description: null,
+          templated: false,
           declaresVariable: false,
         },
         {
@@ -174,6 +176,7 @@ describe('the step tree', () => {
           required: false,
           repeatable: false,
           description: null,
+          templated: false,
           declaresVariable: false,
         },
       ],
