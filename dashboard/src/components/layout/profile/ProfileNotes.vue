@@ -130,7 +130,7 @@ function confirmDelete(): void {
         class="flex items-start gap-2"
       >
         <div class="grid min-w-0 flex-1 gap-0.5">
-          <span class="wrap-break-word">{{ note.content }}</span>
+          <span class="wrap-anywhere">{{ note.content }}</span>
           <span class="text-xs text-muted-foreground">
             {{ byline(note) }}
           </span>

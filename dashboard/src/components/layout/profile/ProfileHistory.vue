@@ -86,7 +86,7 @@ function byline(entry: ModerationHistoryEntry): string {
     <ul class="grid gap-2 p-2 text-sm">
       <li v-for="entry in entries" :key="entry.id" data-profile-history class="grid gap-0.5">
         <span class="font-medium">{{ what(entry) }}</span>
-        <span v-if="entry.reason" class="wrap-break-word">{{ entry.reason }}</span>
+        <span v-if="entry.reason" class="wrap-anywhere">{{ entry.reason }}</span>
         <span class="text-xs text-muted-foreground">{{ byline(entry) }}</span>
       </li>
     </ul>

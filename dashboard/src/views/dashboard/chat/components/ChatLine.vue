@@ -284,7 +284,7 @@ function pick(event: MouseEvent): void {
         <span class="truncate">{{ replyParent }}</span>
       </p>
       <p
-        class="wrap-break-word"
+        class="wrap-anywhere"
         :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
       >
         <!-- The name's focus ring reaches 6px past its letters, so it keeps 8px from the marks and the message. -->

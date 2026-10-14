@@ -32,7 +32,7 @@ const missing: string = '-';
   >
     <template v-for="item in items" :key="item.label">
       <dt class="text-muted-foreground">{{ item.label }}</dt>
-      <dd class="m-0 min-w-0 wrap-break-word">
+      <dd class="m-0 min-w-0 wrap-anywhere">
         <slot name="value" :item="item">
           <template v-if="item.value === undefined || item.value === null || item.value === ''">
             {{ missing }}

@@ -287,7 +287,8 @@ async function banNow(): Promise<void> {
             }}</TabsTrigger>
           </TabsList>
         </div>
-        <div class="grid flex-1 px-6 py-4" :class="[fit, scroll]">
+        <!-- minmax(0,1fr): one long chat link in a panel stretched every panel in the shared cell past the edge. -->
+        <div class="grid flex-1 grid-cols-[minmax(0,1fr)] px-6 py-4" :class="[fit, scroll]">
           <TabsContent value="overview" force-mount :class="PANEL_CLASS">
             <ProfileOverview :profile="viewerProfile" />
           </TabsContent>
@@ -306,7 +307,7 @@ async function banNow(): Promise<void> {
                   class="grid gap-0.5 px-2 py-1.5 text-sm"
                 >
                   <span class="text-xs text-muted-foreground">{{ dateText(line.timestamp) }}</span>
-                  <EmoteText class="wrap-break-word" :text="line.content" />
+                  <EmoteText class="wrap-anywhere" :text="line.content" />
                 </li>
               </ul>
             </PanelCard>

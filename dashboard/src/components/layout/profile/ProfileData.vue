@@ -131,7 +131,7 @@ const moreQuotes = computed<number>(() =>
           <span class="text-muted-foreground tabular-nums">{{
             $t('profile.data.quoteNumber', { number: quote.number })
           }}</span>
-          <span class="wrap-break-word">{{ quote.text }}</span>
+          <span class="wrap-anywhere">{{ quote.text }}</span>
         </li>
         <li v-if="moreQuotes > 0" class="text-muted-foreground">
           {{ $t('profile.data.moreQuotes', { count: moreQuotes }, moreQuotes) }}
