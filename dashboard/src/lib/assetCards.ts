@@ -10,7 +10,6 @@
 
 import type { ChatEmoteEntry, ChatLine } from '@/api/chat';
 import type { KeyValueItem } from '@/components/layout/KeyValueList.vue';
-import { tierNumber } from '@/components/layout/profile/profileRoles';
 import { useReducedMotion } from '@/composables/useReducedMotion';
 
 type Fragment = ChatLine['fragments'][number];
@@ -67,6 +66,15 @@ export function emoteFrames(emote: EmoteImages): Record<string, string> {
   return useReducedMotion().value && emote.staticUrls
     ? emote.staticUrls
     : emote.urls;
+}
+
+// The server already reads Twitch's tier code ("1000") as its number, 1 to 3.
+export function emoteTier(tier: string | number | null | undefined): 1 | 2 | 3 | null {
+  const n = Number(tier);
+
+  return n === 1 || n === 2 || n === 3
+    ? n
+    : null;
 }
 
 // The image at the smallest scale, the size a chat line shows.
@@ -164,7 +172,7 @@ function emoteAssetCard(emote: EmoteFacts, title: string, image: string, t: Tran
     facts.push({ label: t('asset.layer'), value: t('asset.zeroWidth') });
   }
 
-  const tier = tierNumber(emote.tier);
+  const tier = emoteTier(emote.tier);
 
   if (tier !== null) {
     facts.push({ label: t('asset.tier'), value: t('asset.tierNumber', { n: tier }) });

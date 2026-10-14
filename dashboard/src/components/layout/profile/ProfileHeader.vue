@@ -139,8 +139,8 @@ const stats = computed<Stat[]>(() => {
 <template>
   <div
     data-slot="profile-header"
-    class="grid flex-none gap-7"
-    :class="flush ? '' : ['px-6 pb-4', inDialog ? 'pt-2' : 'pt-6']"
+    class="grid flex-none gap-6"
+    :class="flush ? '' : ['px-6 pb-6', inDialog ? 'pt-2' : 'pt-6']"
   >
     <div class="flex items-center gap-3">
       <Avatar class="size-12">
@@ -225,7 +225,7 @@ const stats = computed<Stat[]>(() => {
     </p>
 
     <!-- Who they are above, what they did here below (owner 2026-10-14: "visually split the channel activity"). -->
-    <section v-if="stats.length > 0" data-profile-activity class="mt-3 grid gap-4 border-t border-border pt-6">
+    <section v-if="stats.length > 0" data-profile-activity class="grid gap-4">
       <h3 class="text-sm font-medium">{{ $t('profile.activity') }}</h3>
       <div class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-5">
         <!-- One look for every fact on the card: a short label over its value (owner 2026-10-14: "unify the look"). -->

@@ -181,7 +181,7 @@ const emotes: Record<string, Record<string, unknown>[]> = {
       setId: 's1',
       id: 'e1',
       type: 'subscriptions',
-      tier: '1000',
+      tier: 1,
       origin: 'other',
       ownerId: 'u1',
       ownerLogin: 'ada',
@@ -1803,6 +1803,17 @@ describe('the Emotes tab', () => {
 
     expect(document.body.querySelector('[data-profile-emote="adaHi"] img')?.getAttribute('src'))
       .toBe('https://cdn/adaHi/1');
+  });
+
+  it('sorts the Twitch emotes into the tier that unlocks them', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Emotes');
+
+    const set = document.body.querySelector('[data-profile-emote="adaHi"]')!.closest<HTMLElement>('[data-profile-emote-set]');
+
+    expect(set?.dataset.profileEmoteSet).toBe('tier1');
+    expect(set?.textContent).toContain('Tier 1');
   });
 
   it('opens a card with the emote at its largest size, its tier as a number and its own page', async () => {

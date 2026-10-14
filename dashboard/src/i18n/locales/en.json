@@ -285,7 +285,15 @@
       "title": "Their channel emotes",
       "empty": "No channel emotes found for this person.",
       "error": "Their emotes could not load.",
-      "regular": "A regular Twitch channel has no Twitch emotes."
+      "regular": "A regular Twitch channel has no Twitch emotes.",
+      "sets": {
+        "tier1": "Tier 1",
+        "tier2": "Tier 2",
+        "tier3": "Tier 3",
+        "bitstier": "Bits",
+        "follower": "Follower",
+        "other": "Other"
+      }
     },
     "twitchStanding": {
       "regular": "Regular",

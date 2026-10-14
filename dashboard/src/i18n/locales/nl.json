@@ -285,7 +285,15 @@
       "title": "Hun kanaal-emotes",
       "empty": "Geen kanaal-emotes gevonden voor deze persoon.",
       "error": "Hun emotes konden niet laden.",
-      "regular": "Een gewoon Twitch-kanaal heeft geen Twitch-emotes."
+      "regular": "Een gewoon Twitch-kanaal heeft geen Twitch-emotes.",
+      "sets": {
+        "tier1": "Tier 1",
+        "tier2": "Tier 2",
+        "tier3": "Tier 3",
+        "bitstier": "Bits",
+        "follower": "Volger",
+        "other": "Overig"
+      }
     },
     "twitchStanding": {
       "regular": "Gewoon",
