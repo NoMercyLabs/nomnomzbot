@@ -252,6 +252,7 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
       memberSinceUtc: '2020-03-04T00:00:00Z',
       firstSeenUtc: '2026-01-02T10:00:00Z',
       accountCreatedAtUtc: '2015-06-01T00:00:00Z',
+      followedAtUtc: '2024-08-15T00:00:00Z',
       description: 'Writes compilers for fun.',
       broadcasterType: 'affiliate',
       userType: 'staff',
@@ -1089,6 +1090,16 @@ describe('the Overview tab', () => {
     expect(text).toContain('Bits cheered');
     expect(text).toContain('500');
     expect(swatch?.style.backgroundColor).toBe('rgb(255, 127, 80)');
+  });
+
+  it('shows since when the person follows the channel, with its age', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const text = overview().textContent ?? '';
+
+    expect(text).toContain('Following');
+    expect(text).toContain('Since Aug 15, 2024 (');
   });
 
   it('omits a fact the server does not return', async () => {

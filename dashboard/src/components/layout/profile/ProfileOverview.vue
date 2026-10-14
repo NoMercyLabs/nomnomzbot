@@ -93,6 +93,21 @@ function dateAndAgo(iso: string | null | undefined): string | null {
   return `${shortDate(iso, locale.value)} (${agoText(iso, new Date(), locale.value)})`;
 }
 
+// The follow date says more than yes or no; an old build or a follow before the bot only knows yes or no.
+function following(
+  followedAt: string | null | undefined,
+  follower: boolean | undefined,
+): string | null {
+  const since = dateAndAgo(followedAt);
+
+  if (since)
+    return t('profile.following.since', { date: since });
+
+  return follower === undefined
+    ? null
+    : t(`profile.following.${follower}`);
+}
+
 const identity = computed<KeyValueItem[]>(() => {
   const who = props.person;
   const known = props.profile?.identity;
@@ -121,12 +136,7 @@ const identity = computed<KeyValueItem[]>(() => {
         ? shortDate(known.memberSinceUtc, locale.value)
         : null,
     },
-    {
-      label: t('profile.facts.following'),
-      value: follower === undefined
-        ? null
-        : t(`profile.following.${follower}`),
-    },
+    { label: t('profile.facts.following'), value: following(known?.followedAtUtc, follower) },
     {
       label: t('profile.facts.trust'),
       value: known

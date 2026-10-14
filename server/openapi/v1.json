@@ -144060,6 +144060,13 @@
           },
           "pronounIsManualOverride": {
             "type": "boolean"
+          },
+          "followedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

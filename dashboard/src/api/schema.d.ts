@@ -98615,6 +98615,8 @@ export interface components {
             timezone?: null | string;
             isLurking: boolean;
             pronounIsManualOverride: boolean;
+            /** Format: date-time */
+            followedAtUtc?: null | string;
         };
         /**
          * @description Minimal option projection for the "pick a viewer" autocomplete inputs. `Id` is the Twitch user id

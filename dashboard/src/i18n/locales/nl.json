@@ -364,7 +364,8 @@
     },
     "following": {
       "true": "Ja",
-      "false": "Nee"
+      "false": "Nee",
+      "since": "Sinds {date}"
     },
     "facts": {
       "username": "Inlognaam",
