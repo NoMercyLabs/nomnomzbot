@@ -9,13 +9,14 @@
 -->
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core';
-import { provide } from 'vue';
+import { provide, watchEffect } from 'vue';
 
 import { frameActionsKey } from '@/components/layout/frameActions';
 import ProfileDialog from '@/components/layout/ProfileDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { applyAccent, defaultAccent } from '@/lib/accent';
 import { useRealtime } from '@/realtime/useRealtime';
 
 import BottomBar from './dashboard/BottomBar.vue';
@@ -29,7 +30,10 @@ import ProfileMenu from './dashboard/ProfileMenu.vue';
 const wide = useMediaQuery('(min-width: 840px)');
 const medium = useMediaQuery('(min-width: 600px)');
 
-const { channelId } = useCurrentChannel();
+const { current, channelId } = useCurrentChannel();
+
+// The theme wears the chat color of the channel being managed; the approved pink stands in without one.
+watchEffect(() => applyAccent(current.value?.chatColor ?? defaultAccent));
 
 provide(frameActionsKey, FrameActions);
 useRealtime();

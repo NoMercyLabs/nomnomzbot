@@ -22,13 +22,19 @@ describe('accent from a channel color', () => {
   it('gives the dark theme the same accent family as the mockups', () => {
     expect(accentTokens('#FF014F', 'dark')).toMatchObject({
       primary: 'rgb(255 1 79)',
-      'primary-foreground': 'rgb(23 23 23)',
+      'primary-foreground': 'rgb(250 250 250)',
       accent: 'rgb(78 27 43)',
       'accent-foreground': 'rgb(238 238 238)',
       ring: 'rgb(255 1 79)',
       'sidebar-primary': 'rgb(219 4 70)',
       'sidebar-accent': 'rgb(58 12 27)',
     });
+  });
+
+  // White text on an accent button, as the owner asked (2026-10-14); black only where white cannot be read.
+  it('writes white on a color that carries white, and black on a color too light for it', () => {
+    expect(accentTokens('#9146FF', 'dark')['primary-foreground']).toBe('rgb(250 250 250)');
+    expect(accentTokens('#FFD700', 'dark')['primary-foreground']).toBe('rgb(23 23 23)');
   });
 
   it('darkens a light color until text on the light theme reads at 4.5:1', () => {

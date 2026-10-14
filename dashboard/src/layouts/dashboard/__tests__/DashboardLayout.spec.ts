@@ -35,10 +35,12 @@ vi.mock('@/api/auth', () => ({
   getAccessToken: () => '',
 }));
 
+const current = ref<{ chatColor: string | null } | null>(null);
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
     channels: ref([]),
-    current: ref(null),
+    current,
     channelId: ref(null),
     isPending: ref(false),
     choose: vi.fn<() => Promise<void>>(),
@@ -99,6 +101,36 @@ afterEach(() => {
     profileImageUrl: null,
     isAdmin: false,
   };
+
+  current.value = null;
+  document.documentElement.removeAttribute('style');
+});
+
+describe('the theme of the frame', () => {
+  it('paints the accent in the color of the chosen channel, and follows a switch', async () => {
+    current.value = { chatColor: '#E05A00' };
+    mountLayout(1000);
+    await flushPromises();
+
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('rgb(224 90 0)');
+
+    current.value = { chatColor: '#00AA55' };
+    await flushPromises();
+
+    expect(document.documentElement.style.getPropertyValue('--primary')).not.toBe('rgb(224 90 0)');
+
+    expect(document.documentElement.style.getPropertyValue('--ring')).toBe(
+      document.documentElement.style.getPropertyValue('--primary'),
+    );
+  });
+
+  it('keeps the approved pink for a channel without a color', async () => {
+    current.value = { chatColor: null };
+    mountLayout(1000);
+    await flushPromises();
+
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('rgb(255 1 79)');
+  });
 });
 
 describe('the dashboard frame by window width', () => {

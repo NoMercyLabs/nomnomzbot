@@ -88,9 +88,12 @@ function blend(a: Rgb, b: Rgb, f: number): Rgb {
   return a.map((v, i) => v + (b[i]! - v) * f) as Rgb;
 }
 
-// Text on the color: whichever of near white and near black reads better.
+// The least contrast white text on an accent may have; under it the text turns black (WCAG 1.4.11 3:1).
+const inkMin = 3;
+
+// Text on the color is white, as the owner asked (2026-10-14); black only where white falls under inkMin.
 function ink(color: Rgb): Rgb {
-  return contrast(color, nearWhite) >= contrast(color, nearBlack)
+  return contrast(color, nearWhite) >= inkMin
     ? nearWhite
     : nearBlack;
 }
@@ -100,7 +103,7 @@ function readableOn(color: Rgb, background: Rgb, toward: Rgb, min: number): Rgb 
   let c: Rgb = color;
 
   for (let i = 0; i < 20; i++) {
-    if (contrast(c, background) >= min && contrast(c, ink(c)) >= min)
+    if (contrast(c, background) >= min && contrast(c, ink(c)) >= inkMin)
       return c;
 
     c = blend(c, toward, 0.08);

@@ -24,6 +24,8 @@ export type ChannelChoice = {
   // Null until the channel is set up in this bot; choosing it sets it up in moderator mode first.
   channelId: string | null;
   twitchId: string | null;
+  // The streamer's chat color (#RRGGBB), the theme accent while this channel is managed.
+  chatColor: string | null;
 };
 
 export type CurrentChannel = {
@@ -53,6 +55,7 @@ export function useCurrentChannel(): CurrentChannel {
         : 'moderated',
       channelId: row.id,
       twitchId: null,
+      chatColor: row.chatColor ?? null,
     }));
     const known = new Set<string>(own.map((row) => row.login.toLowerCase()));
     const notSetUp: ChannelChoice[] = (moderated.data.value ?? [])
@@ -65,6 +68,7 @@ export function useCurrentChannel(): CurrentChannel {
         kind: 'moderated',
         channelId: null,
         twitchId: row.id,
+        chatColor: null,
       }));
 
     return merge(own, notSetUp);
