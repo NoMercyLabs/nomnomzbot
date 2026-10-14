@@ -113,7 +113,26 @@ public class ChatController : BaseController
         string? OwnerLogin = null,
         string? OwnerName = null,
         string? OwnerAvatarUrl = null
-    );
+    )
+    {
+        public static ChatEmoteCatalogueDto From(ChatEmote e) =>
+            new(
+                e.Code,
+                e.Provider.ToString(),
+                e.Urls,
+                e.Animated,
+                e.ZeroWidth,
+                e.SetId,
+                e.Id,
+                e.Type,
+                e.Tier,
+                e.Origin?.ToString().ToLowerInvariant(),
+                e.OwnerChannel?.Id,
+                e.OwnerChannel?.Login,
+                e.OwnerChannel?.DisplayName,
+                e.OwnerChannel?.AvatarUrl
+            );
+    }
 
     // Mirrors Twitch's real Helix chat-settings surface (twitch-helix.md §3.2 / ITwitchChatApi) — every
     // field here is genuinely sent to and read back from Twitch, never persisted locally. UniqueChatMode
@@ -496,22 +515,7 @@ public class ChatController : BaseController
 
         List<ChatEmoteCatalogueDto> emotes =
         [
-            .. catalogue.Value.Select(e => new ChatEmoteCatalogueDto(
-                e.Code,
-                e.Provider.ToString(),
-                e.Urls,
-                e.Animated,
-                e.ZeroWidth,
-                e.SetId,
-                e.Id,
-                e.Type,
-                e.Tier,
-                e.Origin?.ToString().ToLowerInvariant(),
-                e.OwnerChannel?.Id,
-                e.OwnerChannel?.Login,
-                e.OwnerChannel?.DisplayName,
-                e.OwnerChannel?.AvatarUrl
-            )),
+            .. catalogue.Value.Select(ChatEmoteCatalogueDto.From),
         ];
         return Ok(new StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>> { Data = emotes });
     }

@@ -19,6 +19,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Application.Community.Services;
@@ -27,6 +28,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
@@ -53,6 +55,7 @@ public partial class CommunityController : BaseController
     private readonly IViewerProfileService _viewerProfile;
     private readonly ITwitchUsersApi _users;
     private readonly IUserService _userService;
+    private readonly IChatEmoteCatalogue _emoteCatalogue;
 
     public CommunityController(
         IApplicationDbContext db,
@@ -65,9 +68,11 @@ public partial class CommunityController : BaseController
         ICurrentUserService currentUser,
         IViewerProfileService viewerProfile,
         ITwitchUsersApi users,
-        IUserService userService
+        IUserService userService,
+        IChatEmoteCatalogue emoteCatalogue
     )
     {
+        _emoteCatalogue = emoteCatalogue;
         _userService = userService;
         _db = db;
         _channels = channels;
@@ -108,6 +113,44 @@ public partial class CommunityController : BaseController
             return ResultResponse(result);
 
         return Ok(new StatusResponseDto<ViewerProfileSummaryDto> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// The emotes this person's OWN Twitch channel offers (Twitch tiers/follower/bits plus 7TV, BTTV, FFZ) — the
+    /// asset-inspection section of the profile. <paramref name="userId"/> is the internal <c>User.Id</c> Guid, as
+    /// on the profile route. A person with no Twitch identity or no emotes gets an empty list.
+    /// </summary>
+    [RequireAction("community:read")]
+    [HttpGet("{userId:guid}/emotes")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetPersonEmotes(
+        string channelId,
+        Guid userId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid _))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<IReadOnlyList<ChatEmote>> emotes = await _emoteCatalogue.GetForPersonAsync(
+            userId,
+            ct
+        );
+        if (emotes.IsFailure)
+            return ResultResponse(emotes);
+
+        IReadOnlyList<ChatController.ChatEmoteCatalogueDto> data =
+        [
+            .. emotes.Value.Select(ChatController.ChatEmoteCatalogueDto.From),
+        ];
+        return Ok(
+            new StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>>
+            {
+                Data = data,
+            }
+        );
     }
 
     // ── Viewer analytics lookup ───────────────────────────────────────────────

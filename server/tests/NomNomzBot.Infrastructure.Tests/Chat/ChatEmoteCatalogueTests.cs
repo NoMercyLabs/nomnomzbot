@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Enums;
@@ -141,7 +142,8 @@ public sealed class ChatEmoteCatalogueTests
         ICacheService cache,
         ITwitchChatAssetsApi assets,
         ITwitchIdentityResolver identity,
-        ITwitchUsersApi? users = null
+        ITwitchUsersApi? users = null,
+        IThirdPartyEmoteProviderRegistry? providers = null
     )
     {
         if (users is null)
@@ -157,7 +159,14 @@ public sealed class ChatEmoteCatalogueTests
             users,
             NullLogger<ChatEmoteOwnerDirectory>.Instance
         );
-        return new(cache, assets, identity, owners, NullLogger<ChatEmoteCatalogue>.Instance);
+        return new(
+            cache,
+            assets,
+            identity,
+            owners,
+            providers ?? Substitute.For<IThirdPartyEmoteProviderRegistry>(),
+            NullLogger<ChatEmoteCatalogue>.Instance
+        );
     }
 
     private static TwitchUser User(string id, string login, string displayName) =>
@@ -776,6 +785,158 @@ public sealed class ChatEmoteCatalogueTests
         emotes.Single(e => e.Code == "Pog").Provider.Should().Be(EmoteProvider.Twitch);
         // The differently-cased "POG" is left untouched — still the 7TV emote.
         emotes.Single(e => e.Code == "POG").Provider.Should().Be(EmoteProvider.SevenTv);
+    }
+
+    private static readonly Guid Person = Guid.Parse("0197b2c0-2222-7000-8000-0000000000e5");
+    private const string PersonTwitchId = "555";
+
+    private static IThirdPartyEmoteProviderRegistry Registry(
+        EmoteProvider provider,
+        Result<IReadOnlyList<ChatEmote>> channelSet
+    )
+    {
+        IThirdPartyEmoteProvider adapter = Substitute.For<IThirdPartyEmoteProvider>();
+        adapter.Provider.Returns(provider);
+        adapter
+            .GetChannelAsync(PersonTwitchId, "personchan", Arg.Any<CancellationToken>())
+            .Returns(channelSet);
+        IThirdPartyEmoteProviderRegistry registry =
+            Substitute.For<IThirdPartyEmoteProviderRegistry>();
+        registry.Get(Arg.Any<EmoteProvider>()).Returns((IThirdPartyEmoteProvider?)null);
+        registry.Get(provider).Returns(adapter);
+        return registry;
+    }
+
+    private static ITwitchUsersApi PersonUsers()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    User(PersonTwitchId, "personchan", "PersonChan"),
+                ])
+            );
+        return users;
+    }
+
+    private static ITwitchIdentityResolver PersonIdentity()
+    {
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity.GetTwitchUserIdAsync(Person, Arg.Any<CancellationToken>()).Returns(PersonTwitchId);
+        return identity;
+    }
+
+    [Fact]
+    public async Task GetForPersonAsync_returns_the_persons_twitch_and_third_party_channel_emotes_as_their_own()
+    {
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetChannelEmotesByTwitchIdAsync(PersonTwitchId, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchChannelEmote>>([
+                    ChannelTyped("personSub", "30", "subscriptions"),
+                    ChannelTyped("personFollow", "31", "follower"),
+                ])
+            );
+        IThirdPartyEmoteProviderRegistry registry = Registry(
+            EmoteProvider.SevenTv,
+            Result.Success<IReadOnlyList<ChatEmote>>([SevenTv("personJAM")])
+        );
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(
+                new FakeCache(),
+                assets,
+                PersonIdentity(),
+                PersonUsers(),
+                registry
+            )
+            .GetForPersonAsync(Person);
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Select(e => e.Code)
+            .Should()
+            .BeEquivalentTo("personSub", "personFollow", "personJAM");
+        result.Value.Should().OnlyContain(e => e.Origin == ChatEmoteOrigin.Channel);
+        result
+            .Value.Should()
+            .OnlyContain(e =>
+                e.OwnerChannel != null
+                && e.OwnerChannel.Id == PersonTwitchId
+                && e.OwnerChannel.Login == "personchan"
+            );
+        ChatEmote sub = result.Value.Single(e => e.Code == "personSub");
+        sub.Type.Should().Be("subscriptions");
+        sub.Tier.Should().Be(1);
+        result.Value.Single(e => e.Code == "personFollow").Type.Should().Be("follower");
+    }
+
+    [Fact]
+    public async Task GetForPersonAsync_caches_the_fetched_third_party_set_under_the_warmer_key()
+    {
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetChannelEmotesByTwitchIdAsync(PersonTwitchId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+        FakeCache cache = new();
+
+        await Build(
+                cache,
+                assets,
+                PersonIdentity(),
+                PersonUsers(),
+                Registry(
+                    EmoteProvider.SevenTv,
+                    Result.Success<IReadOnlyList<ChatEmote>>([SevenTv("personJAM")])
+                )
+            )
+            .GetForPersonAsync(Person);
+
+        IReadOnlyList<ChatEmote>? cached = await cache.GetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, PersonTwitchId)
+        );
+        cached.Should().ContainSingle().Which.Code.Should().Be("personJAM");
+    }
+
+    [Fact]
+    public async Task GetForPersonAsync_returns_an_empty_list_for_a_person_with_no_twitch_identity()
+    {
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity.GetTwitchUserIdAsync(Person, Arg.Any<CancellationToken>()).Returns((string?)null);
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(new FakeCache(), assets, identity)
+            .GetForPersonAsync(Person);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
+        await assets.DidNotReceiveWithAnyArgs().GetChannelEmotesByTwitchIdAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task GetForPersonAsync_returns_an_empty_list_when_every_source_fails_or_is_empty()
+    {
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetChannelEmotesByTwitchIdAsync(PersonTwitchId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+        IThirdPartyEmoteProviderRegistry registry = Registry(
+            EmoteProvider.SevenTv,
+            Result.Failure<IReadOnlyList<ChatEmote>>("PROVIDER_DOWN", "down")
+        );
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(
+                new FakeCache(),
+                assets,
+                PersonIdentity(),
+                PersonUsers(),
+                registry
+            )
+            .GetForPersonAsync(Person);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
     }
 
     private sealed class FakeCache : ICacheService
