@@ -108,6 +108,23 @@ describe('ChatMessage', () => {
     expect(feed?.[0]?.id).toBe('m1');
     expect(feed?.at(-1)?.id).toBe('newest');
   });
+
+  // Owner 2026-10-14: "where do these come from? they are not from now". Old lines sent again after a
+  // restart landed under today's chat.
+  it('puts a line by its time, so an old line sent again lands in its own place', async () => {
+    const [, queries, connection] = await started();
+    const at = (id: string, timestamp: string): ChatMessagePayload => ({ ...line(id, 'A'), timestamp });
+
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [
+      at('morning', '2026-10-14T08:00:00Z'),
+      at('evening', '2026-10-14T18:00:00Z'),
+    ]);
+
+    connection.receive('ChatMessage', at('noon', '2026-10-14T12:00:00+00:00'));
+    connection.receive('ChatMessage', at('night', '2026-10-14T18:01:00Z'));
+
+    expect(lines(queries, 'A')?.map((l) => l.id)).toEqual(['morning', 'noon', 'evening', 'night']);
+  });
 });
 
 const channelEvent = (type: string, broadcasterId: string, data: unknown): unknown => ({

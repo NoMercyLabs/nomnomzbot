@@ -34,6 +34,16 @@ function markLines(
   );
 }
 
+// A line goes in by its time, not by when it arrived: an old line sent again after a restart lands in its
+// own place, not under today's chat (owner 2026-10-14: "where do these come from? they are not from now").
+function inOrder(feed: readonly ChatLine[], line: ChatLine): ChatLine[] {
+  const at = Date.parse(line.timestamp);
+  const after = feed.findLastIndex((existing) =>
+    Date.parse(existing.timestamp) <= at);
+
+  return [...feed.slice(0, after + 1), line, ...feed.slice(after + 1)];
+}
+
 // A timeout and a ban say what happened; Twitch also sends a purge for them, which must not wipe that.
 function modActionMark(action: ModActionPayload): ChatLineMark | null {
   if (action.action === 'timeout') {
@@ -59,7 +69,7 @@ export const chatHandlers: [
     handle: ({ queries }, message) => {
       queries.setQueryData<ChatLine[]>(chatKey(message.channelId), (feed) =>
         feed && !feed.some((existing) => existing.id === message.id)
-          ? [...feed, message].slice(-chatLineLimit)
+          ? inOrder(feed, message).slice(-chatLineLimit)
           : feed,
       );
     },
