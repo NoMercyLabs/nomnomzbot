@@ -87,6 +87,18 @@ public class AnalyticsController(
         CancellationToken ct
     ) => ResultResponse(await channelAnalytics.GetChatHoursAsync(channelId, from, to, ct));
 
+    /// <summary>Rank the channel's commands by successful runs over a date range.</summary>
+    [HttpGet("channel/top-commands")]
+    [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TopCommandDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTopCommands(
+        Guid channelId,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        [FromQuery] int top,
+        CancellationToken ct
+    ) => ResultResponse(await channelAnalytics.GetTopCommandsAsync(channelId, from, to, top, ct));
+
     /// <summary>Rank the channel's top viewers by the chosen metric over a date range.</summary>
     [HttpGet("channel/top-viewers")]
     [RequireAction("analytics:read")]

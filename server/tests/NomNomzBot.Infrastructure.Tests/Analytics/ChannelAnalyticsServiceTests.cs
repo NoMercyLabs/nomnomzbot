@@ -212,7 +212,7 @@ public sealed class ChannelAnalyticsServiceTests
 
     // ── Chat hours ("when chat is busy") ─────────────────────────────────────
 
-    private static async Task SeedChannelWithZoneAsync(AuthDbContext db, string? zone)
+    private static async Task<Guid> SeedChannelWithZoneAsync(AuthDbContext db, string? zone)
     {
         Guid ownerId = Guid.NewGuid();
         db.Users.Add(
@@ -235,6 +235,7 @@ public sealed class ChannelAnalyticsServiceTests
             }
         );
         await db.SaveChangesAsync();
+        return ownerId;
     }
 
     [Fact]
@@ -366,6 +367,101 @@ public sealed class ChannelAnalyticsServiceTests
             Channel,
             new(2026, 6, 22),
             new(2026, 6, 20)
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    // ── Top commands ─────────────────────────────────────────────────────────
+
+    private static NomNomzBot.Domain.Commands.Entities.CommandUsage Usage(
+        string name,
+        Guid viewer,
+        DateTimeOffset at,
+        bool worked = true
+    ) =>
+        new()
+        {
+            BroadcasterId = Channel,
+            CommandNameSnapshot = name,
+            ViewerProfileId = Guid.NewGuid(),
+            ViewerUserId = viewer,
+            WasSuccessful = worked,
+            CreatedAt = at.UtcDateTime,
+        };
+
+    [Fact]
+    public async Task GetTopCommands_ranks_by_runs_with_distinct_users_and_failures_in_the_channel_zone()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        Guid owner = await SeedChannelWithZoneAsync(db, "Europe/Amsterdam"); // CEST = UTC+2 in June
+
+        DateTimeOffset noon = new(2026, 6, 21, 10, 0, 0, TimeSpan.Zero);
+        db.CommandUsages.AddRange(
+            // The streamer's own runs are not what viewers like.
+            Usage("so", owner, noon),
+            Usage("so", owner, noon),
+            Usage("so", owner, noon),
+            Usage("so", owner, noon),
+            Usage("sr", ViewerA, noon),
+            Usage("sr", ViewerA, noon),
+            Usage("sr", ViewerB, noon),
+            Usage("sr", ViewerB, noon, worked: false),
+            Usage("lurk", ViewerA, noon),
+            // Sat 2026-06-20 22:30 UTC = Sun 00:30 local: inside the local range.
+            Usage("lurk", ViewerB, new(2026, 6, 20, 22, 30, 0, TimeSpan.Zero)),
+            // Sat 2026-06-20 21:59 UTC = Sat 23:59 local: before the range.
+            Usage("hug", ViewerA, new(2026, 6, 20, 21, 59, 0, TimeSpan.Zero))
+        );
+        db.CommandUsages.Add(
+            new()
+            {
+                BroadcasterId = Guid.NewGuid(),
+                CommandNameSnapshot = "other-channel",
+                ViewerProfileId = Guid.NewGuid(),
+                ViewerUserId = ViewerA,
+                WasSuccessful = true,
+                CreatedAt = noon.UtcDateTime,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<TopCommandDto> top = (
+            await sut.GetTopCommandsAsync(Channel, new(2026, 6, 21), new(2026, 6, 21), 10)
+        ).Value;
+
+        top.Should().Equal(new TopCommandDto("sr", 3, 2, 1), new TopCommandDto("lurk", 2, 2, 0));
+    }
+
+    [Fact]
+    public async Task GetTopCommands_keeps_only_the_requested_count()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        DateTimeOffset noon = new(2026, 6, 21, 10, 0, 0, TimeSpan.Zero);
+        db.CommandUsages.AddRange(
+            Usage("sr", ViewerA, noon),
+            Usage("sr", ViewerB, noon),
+            Usage("lurk", ViewerA, noon)
+        );
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<TopCommandDto> top = (
+            await sut.GetTopCommandsAsync(Channel, new(2026, 6, 21), new(2026, 6, 21), 1)
+        ).Value;
+
+        top.Select(c => c.Name).Should().Equal("sr");
+    }
+
+    [Fact]
+    public async Task GetTopCommands_rejects_an_inverted_range()
+    {
+        (ChannelAnalyticsService sut, _) = Build();
+
+        Result<IReadOnlyList<TopCommandDto>> result = await sut.GetTopCommandsAsync(
+            Channel,
+            new(2026, 6, 22),
+            new(2026, 6, 20),
+            10
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");

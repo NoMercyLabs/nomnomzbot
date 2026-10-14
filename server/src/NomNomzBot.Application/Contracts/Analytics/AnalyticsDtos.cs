@@ -125,6 +125,12 @@ public sealed record ChatHourCellDto(int DayOfWeek, int Hour, long Messages, int
 /// </summary>
 public sealed record ChannelChatHoursDto(string TimeZone, IReadOnlyList<ChatHourCellDto> Cells);
 
+/// <summary>
+/// One command in the "what chat runs" ranking: <see cref="Uses"/> counts the runs that worked,
+/// <see cref="Users"/> the distinct people who ran it, <see cref="Failed"/> the runs that did not work.
+/// </summary>
+public sealed record TopCommandDto(string Name, long Uses, int Users, long Failed);
+
 /// <summary>The metric a top-viewers query ranks by (analytics.md §4).</summary>
 public enum TopViewerMetric
 {

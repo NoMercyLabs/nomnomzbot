@@ -77,4 +77,16 @@ public interface IChannelAnalyticsService
         DateOnly to,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// What chat runs: the channel's commands over a range (local dates in the channel's time zone),
+    /// ranked by successful runs, at most <paramref name="top"/> of them.
+    /// </summary>
+    Task<Result<IReadOnlyList<TopCommandDto>>> GetTopCommandsAsync(
+        Guid broadcasterId,
+        DateOnly from,
+        DateOnly to,
+        int top,
+        CancellationToken ct = default
+    );
 }

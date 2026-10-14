@@ -450,11 +450,7 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
                 "VALIDATION_FAILED"
             );
 
-        string? savedZone = await db
-            .Channels.Where(c => c.Id == broadcasterId)
-            .Select(c => c.User.Timezone)
-            .FirstOrDefaultAsync(ct);
-        TimeZoneInfo zone = ResolveZone(savedZone);
+        TimeZoneInfo zone = await ChannelZoneAsync(broadcasterId, ct);
 
         // The range is local dates in the channel zone: local midnight of `from` up to local midnight after `to`.
         DateTime windowStart = LocalMidnightToUtc(from, zone);
@@ -526,6 +522,66 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
                 )),
         ];
         return Result.Success(new ChannelChatHoursDto(zone.Id, result));
+    }
+
+    public async Task<Result<IReadOnlyList<TopCommandDto>>> GetTopCommandsAsync(
+        Guid broadcasterId,
+        DateOnly from,
+        DateOnly to,
+        int top,
+        CancellationToken ct = default
+    )
+    {
+        if (!IsValidRange(from, to) || top is < 1 or > 1000)
+            return Result.Failure<IReadOnlyList<TopCommandDto>>(
+                "Invalid range or top out of [1, 1000].",
+                "VALIDATION_FAILED"
+            );
+
+        TimeZoneInfo zone = await ChannelZoneAsync(broadcasterId, ct);
+        DateTime windowStart = LocalMidnightToUtc(from, zone);
+        DateTime windowEnd = LocalMidnightToUtc(to.AddDays(1), zone);
+
+        // What viewers type: the streamer's own runs are left out.
+        Guid? ownerId = await db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => (Guid?)c.OwnerUserId)
+            .FirstOrDefaultAsync(ct);
+
+        var rows = await db
+            .CommandUsages.Where(u =>
+                u.BroadcasterId == broadcasterId
+                && u.ViewerUserId != ownerId
+                && u.CreatedAt >= windowStart
+                && u.CreatedAt < windowEnd
+            )
+            .GroupBy(u => u.CommandNameSnapshot)
+            .Select(g => new
+            {
+                Name = g.Key,
+                Uses = g.LongCount(u => u.WasSuccessful),
+                Users = g.Select(u => u.ViewerUserId).Distinct().Count(),
+                Failed = g.LongCount(u => !u.WasSuccessful),
+            })
+            .OrderByDescending(c => c.Uses)
+            .ThenBy(c => c.Name)
+            .Take(top)
+            .ToListAsync(ct);
+
+        List<TopCommandDto> ranked =
+        [
+            .. rows.Select(r => new TopCommandDto(r.Name, r.Uses, r.Users, r.Failed)),
+        ];
+        return Result.Success<IReadOnlyList<TopCommandDto>>(ranked);
+    }
+
+    private async Task<TimeZoneInfo> ChannelZoneAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        string? savedZone = await db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.User.Timezone)
+            .FirstOrDefaultAsync(ct);
+        return ResolveZone(savedZone);
     }
 
     private static TimeZoneInfo ResolveZone(string? zoneId)
