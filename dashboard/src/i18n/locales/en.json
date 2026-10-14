@@ -477,6 +477,38 @@
       "delete": "Delete note",
       "deleteTitle": "Delete this note?"
     },
+    "botStanding": {
+      "title": "Bot standing",
+      "error": "The bot standing could not load.",
+      "noAccess": "Your role cannot see the bot standing.",
+      "noWrite": "Your role cannot change the bot standing.",
+      "now": "Standing",
+      "reason": "Reason",
+      "reasonHint": "Why, for the other moderators (optional)",
+      "since": "Since",
+      "change": "Change standing",
+      "editTitle": "Bot standing for {name}",
+      "editDescription": "This changes only how the bot treats them. Twitch does not see it.",
+      "save": "Save standing",
+      "levels": {
+        "normal": {
+          "name": "Normal",
+          "effect": "The bot treats them like everyone else."
+        },
+        "muted": {
+          "name": "Muted",
+          "effect": "Their chat still shows, but the bot ignores them: no commands, triggers, welcome, poll votes, giveaway entries or chat points."
+        },
+        "shadowbanned": {
+          "name": "Shadowbanned",
+          "effect": "Muted, and their messages and events stay off your overlays."
+        },
+        "blacklisted": {
+          "name": "Blacklisted",
+          "effect": "The bot drops everything they do in chat. Nothing reaches the bot or the overlays."
+        }
+      }
+    },
     "history": {
       "title": "Moderation history",
       "empty": "Moderation has done nothing to this person here yet.",

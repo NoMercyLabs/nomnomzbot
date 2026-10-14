@@ -37,6 +37,7 @@ import ProfileHistory from '@/components/layout/profile/ProfileHistory.vue';
 import ProfileNotes from '@/components/layout/profile/ProfileNotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
+import ProfileStanding from '@/components/layout/profile/ProfileStanding.vue';
 import ProfileWarn from '@/components/layout/profile/ProfileWarn.vue';
 import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
@@ -302,6 +303,7 @@ async function banNow(): Promise<void> {
           </TabsContent>
 
           <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-4']">
+            <ProfileStanding v-if="!isOwner" :user-id="userId" :name="title" />
             <ProfileNotes :user-id="userId" />
             <ProfileHistory :internal-user-id="person.internalUserId ?? null" />
             <PanelCard

@@ -10,18 +10,29 @@
 
 import {
   useInfiniteQuery,
+  useQuery,
+  useQueryClient,
   type InfiniteData,
   type UseInfiniteQueryReturnType,
+  type UseMutationReturnType,
+  type UseQueryReturnType,
 } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { numberOrNull } from '@/lib/number';
 
 import { failed } from './channelQuery';
 import { client } from './client';
+import { userNotesKey } from './people';
 import type { components } from './schema';
 
 export type ModerationHistoryEntry = components['schemas']['ModerationHistoryEntryDto'];
+export type ModerationStanding = components['schemas']['ModerationStandingDto'];
+
+// The bot-side standings, mildest first. Normal is no standing at all.
+export const STANDING_LEVELS = ['muted', 'shadowbanned', 'blacklisted'] as const satisfies string[];
+export type StandingLevel = (typeof STANDING_LEVELS)[number];
 
 export type ModerationHistoryPage = {
   entries: ModerationHistoryEntry[];
@@ -86,5 +97,114 @@ export function useModerationHistory(
         ? (last.nextPage ?? all.length + 1)
         : undefined,
     enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
+  });
+}
+
+// Standings are kept per platform identity; the profile shows the person's Twitch one.
+const provider = 'twitch';
+
+export const standingKey = (channelId: string | null, userId: string | null): unknown[] => [
+  'moderation',
+  channelId,
+  'standing',
+  userId,
+];
+
+async function readStanding(channelId: string, userId: string): Promise<ModerationStanding | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/moderation/users/{userId}/context',
+    {
+      params: {
+        path: {
+          version,
+          channelId,
+          userId,
+        },
+      },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('moderation standing', response.status);
+
+  const standings = data?.data?.standings ?? [];
+
+  return standings.find((standing: ModerationStanding) =>
+    standing.provider === provider) ?? null;
+}
+
+// The id is the Twitch user id; null (a caller without the read right) reads nothing.
+export function useStanding(
+  channelId: MaybeRefOrGetter<string | null>,
+  userId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<ModerationStanding | null, Error> {
+  return useQuery({
+    queryKey: computed(() => standingKey(toValue(channelId), toValue(userId))),
+    queryFn: () => readStanding(toValue(channelId) as string, toValue(userId) as string),
+    enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
+  });
+}
+
+// level null puts the person back to normal.
+export type StandingChange = {
+  userId: string;
+  level: StandingLevel | null;
+  reason: string | null;
+};
+
+async function writeStanding(channelId: string, change: StandingChange): Promise<void> {
+  const path = {
+    version,
+    channelId,
+    userId: change.userId,
+  };
+  const { error, response } = change.level === null
+    ? await client.DELETE('/api/v{version}/channels/{channelId}/moderation/users/{userId}/standing', {
+        params: { path, query: { provider } },
+      })
+    : await client.POST('/api/v{version}/channels/{channelId}/moderation/users/{userId}/standing', {
+        params: { path },
+        body: {
+          provider,
+          standing: change.level,
+          reason: change.reason,
+        },
+      });
+
+  if (error !== undefined)
+    throw failed('moderation standing', response.status);
+}
+
+// The new standing shows at once. The server notes every change on the person, so the notes reload after it.
+export function useSetStanding(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<ModerationStanding | null, Error, StandingChange, number> {
+  const queries = useQueryClient();
+
+  return useOptimisticSave<ModerationStanding | null, StandingChange>({
+    queryKey: ({ userId }: StandingChange) => standingKey(toValue(channelId), userId),
+    mutationFn: async (change: StandingChange): Promise<ModerationStanding | null> => {
+      const id = toValue(channelId) as string;
+
+      await writeStanding(id, change);
+      void queries.invalidateQueries({ queryKey: userNotesKey(id, change.userId) });
+
+      return readStanding(id, change.userId);
+    },
+    apply: (
+      _current: ModerationStanding | null | undefined,
+      { userId, level, reason }: StandingChange,
+    ): ModerationStanding | null => {
+      if (level === null)
+        return null;
+
+      return {
+        userId,
+        provider,
+        standing: level,
+        reason,
+        updatedAt: new Date().toISOString(),
+      };
+    },
   });
 }

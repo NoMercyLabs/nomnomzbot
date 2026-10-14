@@ -477,6 +477,38 @@
       "delete": "Notitie verwijderen",
       "deleteTitle": "Deze notitie verwijderen?"
     },
+    "botStanding": {
+      "title": "Status bij de bot",
+      "error": "De status bij de bot kon niet laden.",
+      "noAccess": "Je rol kan de status bij de bot niet zien.",
+      "noWrite": "Je rol kan de status bij de bot niet wijzigen.",
+      "now": "Status",
+      "reason": "Reden",
+      "reasonHint": "Waarom, voor de andere moderators (optioneel)",
+      "since": "Sinds",
+      "change": "Status wijzigen",
+      "editTitle": "Status bij de bot voor {name}",
+      "editDescription": "Dit verandert alleen hoe de bot met ze omgaat. Twitch ziet het niet.",
+      "save": "Status opslaan",
+      "levels": {
+        "normal": {
+          "name": "Normaal",
+          "effect": "De bot behandelt ze zoals iedereen."
+        },
+        "muted": {
+          "name": "Gedempt",
+          "effect": "Hun chat blijft zichtbaar, maar de bot negeert ze: geen commando's, triggers, welkom, poll-stemmen, giveaway-inzendingen of chatpunten."
+        },
+        "shadowbanned": {
+          "name": "Shadowbanned",
+          "effect": "Gedempt, en hun berichten en events blijven van je overlays af."
+        },
+        "blacklisted": {
+          "name": "Geblokkeerd",
+          "effect": "De bot laat alles vallen wat ze in de chat doen. Niets bereikt de bot of de overlays."
+        }
+      }
+    },
     "history": {
       "title": "Moderatiegeschiedenis",
       "empty": "Moderatie heeft hier nog niets met deze persoon gedaan.",

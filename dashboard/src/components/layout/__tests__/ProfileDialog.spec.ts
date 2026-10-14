@@ -318,7 +318,27 @@ const MODERATOR_KEYS = [
   'moderation:note:write',
   'moderation:history:read',
   'moderation:warn',
+  'moderation:suspicioususer:write',
 ] as const;
+
+// The bot-side standing by Twitch id (what GET moderation/users/{userId}/context carries); fresh per test.
+let standings: Record<string, Record<string, unknown> | undefined> = {};
+
+// The server notes every standing change on the person, as a system note.
+function noteStanding(userId: string, text: string): void {
+  notes[userId] = [
+    {
+      id: 90 + (notes[userId]?.length ?? 0),
+      subjectUserId: userId,
+      content: text,
+      pinned: false,
+      authorName: 'Stoney_Eagle',
+      createdAt: '2026-10-04T10:00:00Z',
+      updatedAt: '2026-10-04T10:00:00Z',
+    },
+    ...(notes[userId] ?? []),
+  ];
+}
 
 let held: string[] = [];
 
@@ -377,6 +397,23 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/history/{userId}'))
         return { data: historyPage(options), response: { ok: true } };
 
+      if (path.endsWith('/context')) {
+        const standing = standings[userIdOf(options)];
+        const context = {
+          userId: userIdOf(options),
+          banCount: 0,
+          timeoutCount: 0,
+          warnCount: 0,
+          unbanCount: 0,
+          recentActions: [],
+          standings: standing
+            ? [standing]
+            : [],
+        };
+
+        return { data: { data: onTheWire(context) }, response: { ok: true } };
+      }
+
       if (path.endsWith('/notes')) {
         return {
           data: { data: onTheWire(notes[userIdOf(options)] ?? []) },
@@ -407,6 +444,23 @@ vi.mock('@/api/client', () => ({
         people[userIdOf(options)]!.isVip = true;
       }
 
+      if (path.endsWith('/standing')) {
+        const id = userIdOf(options);
+        const change = options?.body as {
+          provider: string;
+          standing: string;
+          reason: string | null;
+        };
+
+        standings[id] = {
+          userId: id,
+          ...change,
+          updatedAt: '2026-10-04T10:00:00Z',
+        };
+
+        noteStanding(id, `standing set to ${change.standing} (${change.provider})`);
+      }
+
       return { response: { ok: true } };
     }),
     PUT: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
@@ -430,6 +484,15 @@ vi.mock('@/api/client', () => ({
 
         notes = Object.fromEntries(Object.entries(notes).map(([user, list]) =>
           [user, list.filter((note: Record<string, unknown>) => note.id !== id)]));
+
+        return { response: { ok: true } };
+      }
+
+      if (path.endsWith('/standing')) {
+        const id = userIdOf(options);
+
+        noteStanding(id, `standing cleared (twitch, was ${String(standings[id]?.standing)})`);
+        standings[id] = undefined;
 
         return { response: { ok: true } };
       }
@@ -462,6 +525,7 @@ beforeEach(() => {
   people = freshPeople();
   profiles = freshProfiles();
   notes = freshNotes();
+  standings = {};
   held = [...MODERATOR_KEYS];
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-04T10:00:00Z'));
@@ -786,6 +850,7 @@ describe('the profile dialog', () => {
       '/notes',
       '/roles/effective/me',
       '/history/{userId}',
+      '/context',
     ];
     const writes = calls.filter((c: Call) =>
       !reads.some((end: string) =>
@@ -998,6 +1063,103 @@ describe('the profile dialog', () => {
     expect(deletes().map((c: Call) => noteIdOf(c))).toEqual([7]);
     expect(dialogs()[0]!.textContent).not.toContain('Helps new chatters find the rules.');
     expect(dialogs()[0]!.textContent).toContain('No notes on this person yet.');
+  });
+
+  it('sets a bot standing with its reason, shows its effect at once and reloads the note the server wrote', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    const panel = (): Element =>
+      dialogs()[0]!.querySelector('[data-slot="profile-standing"]')!;
+
+    expect(panel().textContent).toContain('The bot treats them like everyone else.');
+
+    button('[data-profile-standing-change]').click();
+    await settle();
+    button('[data-profile-standing-choice="shadowbanned"]').click();
+    await settle();
+
+    const reason = document.body.querySelector<HTMLTextAreaElement>('[data-profile-standing-reason]')!;
+
+    reason.value = '  Raid bot  ';
+    reason.dispatchEvent(new Event('input'));
+    await settle();
+    button('[data-form-action]').click();
+    await settle();
+
+    const writes = calls.filter((c: Call) => c.path.endsWith('/standing'));
+
+    expect(writes.map((c: Call) => [userIdOf(c), c.body])).toEqual([
+      ['u1', {
+        provider: 'twitch',
+        standing: 'shadowbanned',
+        reason: 'Raid bot',
+      }],
+    ]);
+
+    expect(document.body.querySelector('[data-profile-standing-dialog]')).toBeNull();
+    expect(panel().textContent).toContain('Shadowbanned');
+    expect(panel().textContent).toContain('Raid bot');
+    expect(panel().textContent).toContain('their messages and events stay off your overlays');
+    expect(dialogs()[0]!.textContent).toContain('standing set to shadowbanned (twitch)');
+  });
+
+  it('puts a person back to normal by clearing their Twitch standing', async () => {
+    standings = {
+      u1: {
+        userId: 'u1',
+        provider: 'twitch',
+        standing: 'muted',
+        reason: 'Spam',
+        updatedAt: '2026-10-01T10:00:00Z',
+      },
+    };
+
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    const panel = (): Element =>
+      dialogs()[0]!.querySelector('[data-slot="profile-standing"]')!;
+
+    expect(panel().textContent).toContain('Muted');
+    expect(panel().textContent).toContain('the bot ignores them');
+
+    button('[data-profile-standing-change]').click();
+    await settle();
+
+    expect(button('[data-profile-standing-choice="muted"]').getAttribute('data-state')).toBe('checked');
+
+    button('[data-profile-standing-choice="normal"]').click();
+    await settle();
+
+    expect(document.body.querySelector('[data-profile-standing-reason]')).toBeNull();
+
+    button('[data-form-action]').click();
+    await settle();
+
+    const clears = calls.filter((c: Call) =>
+      c.path.endsWith('/standing') && c.body === undefined);
+
+    expect(clears.map((c: Call) => [userIdOf(c), c.params?.query])).toEqual([
+      ['u1', { provider: 'twitch' }],
+    ]);
+
+    expect(panel().textContent).toContain('The bot treats them like everyone else.');
+    expect(dialogs()[0]!.textContent).toContain('standing cleared (twitch, was muted)');
+  });
+
+  it('locks the standing change for a caller without the standing right', async () => {
+    held = held.filter((key: string) => key !== 'moderation:suspicioususer:write');
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    const change = button('[data-profile-standing-change]');
+
+    expect(change.disabled).toBe(true);
+    expect(change.title).toBe('Your role cannot change the bot standing.');
   });
 
   it('locks the note box when the caller may read notes but not write them', async () => {
