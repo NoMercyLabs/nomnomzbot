@@ -9,10 +9,11 @@
 -->
 <script setup lang="ts">
 // The emote and emoji picker beside the send box, laid out as Twitch and FrankerFaceZ do: recent picks, the
-// emotes per source, the emoji per group, a jump bar, and a search over all of them. A pick goes into the box
-// at the cursor and the picker stays open for the next one; the name of the item under the pointer shows below.
+// emotes per source, the emoji per group, a jump rail at the side, and a search over all of them at the bottom.
+// A pick goes into the box at the cursor and the picker stays open for the next one; the name of the item under
+// the pointer shows below the list.
 import { useLocalStorage } from '@vueuse/core';
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ClockBackward from '~icons/nnz/clock-backward';
 import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
@@ -61,7 +62,8 @@ function title(section: PickerSection): string {
   return t(`dashboard.chat.asset.providers.${section.id}`);
 }
 
-// The jump bar fits one row as in Discord and Slack: a short name per emote source, one emoji per emoji group.
+// The jump rail beside the list, as in Discord: one icon per section. An emote source shows its first emote,
+// an emoji group a typical emoji.
 const groupMarks = {
   smileys: '😀',
   people: '👋',
@@ -74,17 +76,40 @@ const groupMarks = {
   flags: '🏁',
 } as const satisfies Record<string, string>;
 
+function groupOf(section: PickerSection): string {
+  return section.id.slice('emoji-'.length);
+}
+
+function isEmojiGroup(section: PickerSection): boolean {
+  return groupOf(section) in groupMarks;
+}
+
 function mark(section: PickerSection): string {
-  const group = section.id.slice('emoji-'.length);
+  return groupMarks[groupOf(section) as keyof typeof groupMarks];
+}
 
-  if (group in groupMarks)
-    return groupMarks[group as keyof typeof groupMarks];
+const list = useTemplateRef('list');
+const active = ref('');
+const current = computed(() =>
+  active.value || sections.value[0]?.id);
 
-  return t(`dashboard.chat.picker.short.${section.id}`);
+// The rail marks the section at the top of the list while you scroll.
+function follow(): void {
+  const top = list.value?.scrollTop ?? 0;
+  const passed = [...list.value?.querySelectorAll<HTMLElement>('[data-picker-section]') ?? []].filter((section) =>
+    section.offsetTop <= top + 1);
+
+  active.value = passed.at(-1)?.dataset.pickerSection ?? '';
 }
 
 function jump(id: string): void {
   document.getElementById(`picker-${id}`)?.scrollIntoView({ block: 'start' });
+}
+
+// The search sits at the bottom, so the picker opens with the cursor in it instead of on the first rail icon.
+function focusSearch(event: Event): void {
+  event.preventDefault();
+  document.querySelector<HTMLInputElement>('[data-picker-query]')?.focus();
 }
 
 function pick(item: Suggestion): void {
@@ -106,77 +131,82 @@ function pick(item: Suggestion): void {
         <Smile class="size-5" aria-hidden="true" />
       </Button>
     </PopoverTrigger>
-    <PopoverContent data-picker side="top" align="end" class="flex w-120 flex-col gap-2 p-2">
-      <InputGroup data-picker-search class="rounded-[calc(var(--radius-md)-8px)]">
-        <InputGroupAddon>
-          <SearchMagnifyingGlass />
-        </InputGroupAddon>
-        <InputGroupInput
-          v-model="query"
-          type="search"
-          :placeholder="$t('dashboard.chat.picker.search')"
-          :aria-label="$t('dashboard.chat.picker.search')"
-        />
-      </InputGroup>
-      <nav
-        v-if="query.trim() === ''"
-        class="flex items-center justify-between"
-        :aria-label="$t('dashboard.chat.picker.jump')"
-      >
-        <button
-          v-for="section in sections"
-          :key="section.id"
-          type="button"
-          :data-picker-jump="section.id"
-          :title="title(section)"
-          :aria-label="title(section)"
-          class="flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-[calc(var(--radius-md)-8px)]
-            px-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-          @click="jump(section.id)"
+    <PopoverContent
+      data-picker
+      side="top"
+      align="end"
+      class="flex w-120 flex-col gap-2 p-2"
+      @open-auto-focus="focusSearch"
+    >
+      <div class="flex h-80 gap-2">
+        <nav
+          v-if="query.trim() === ''"
+          class="flex w-9 shrink-0 flex-col gap-0.5 overflow-y-auto scrollbar-none"
+          :aria-label="$t('dashboard.chat.picker.jump')"
         >
-          <ClockBackward v-if="section.id === 'recent'" class="size-4" aria-hidden="true" />
-          <span v-else aria-hidden="true" :class="{ 'text-base leading-none': section.id.startsWith('emoji-') }">
-            {{ mark(section) }}
-          </span>
-        </button>
-      </nav>
-      <div class="h-80 overflow-y-auto" @mouseleave="shown = null">
-        <p v-if="sections.length === 0 || sections[0]!.items.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-          {{ $t('dashboard.chat.picker.none') }}
-        </p>
-        <section
-          v-for="section in sections"
-          :id="`picker-${section.id}`"
-          :key="section.id"
-          :data-picker-section="section.id"
-        >
-          <h3 class="sticky top-0 z-10 bg-popover px-1 py-1 text-xs font-medium text-muted-foreground">
-            {{ title(section) }}
-          </h3>
-          <div class="grid grid-cols-10 gap-0.5" role="group" :aria-label="title(section)">
-            <button
-              v-for="item in section.items"
-              :key="item.kind + item.insert"
-              type="button"
-              :data-picker-item="item.insert"
-              :aria-label="item.label"
-              class="flex aspect-square cursor-pointer items-center justify-center
+          <button
+            v-for="section in sections"
+            :key="section.id"
+            type="button"
+            :data-picker-jump="section.id"
+            :title="title(section)"
+            :aria-label="title(section)"
+            :aria-current="section.id === current || undefined"
+            class="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[calc(var(--radius-md)-8px)]
+              text-muted-foreground hover:bg-muted hover:text-foreground aria-[current]:bg-muted
+              aria-[current]:text-foreground"
+            @click="jump(section.id)"
+          >
+            <ClockBackward v-if="section.id === 'recent'" class="size-5" aria-hidden="true" />
+            <span v-else-if="isEmojiGroup(section)" class="text-xl leading-none" aria-hidden="true">
+              {{ mark(section) }}
+            </span>
+            <img
+              v-else
+              :src="section.items[0]!.image ?? undefined"
+              alt=""
+              class="size-6 object-contain"
+            />
+          </button>
+        </nav>
+        <div ref="list" class="relative min-w-0 flex-1 overflow-y-auto" @scroll="follow" @mouseleave="shown = null">
+          <p v-if="sections.length === 0 || sections[0]!.items.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+            {{ $t('dashboard.chat.picker.none') }}
+          </p>
+          <section
+            v-for="section in sections"
+            :id="`picker-${section.id}`"
+            :key="section.id"
+            :data-picker-section="section.id"
+          >
+            <h3 class="sticky top-0 z-10 bg-popover px-1 py-1 text-xs font-medium text-muted-foreground">
+              {{ title(section) }}
+            </h3>
+            <div class="grid grid-cols-10 gap-0.5" role="group" :aria-label="title(section)">
+              <button
+                v-for="item in section.items"
+                :key="item.kind + item.insert"
+                type="button"
+                :data-picker-item="item.insert"
+                :aria-label="item.label"
+                class="flex aspect-square cursor-pointer items-center justify-center
                 rounded-[calc(var(--radius-md)-8px)] hover:bg-muted focus-visible:bg-muted"
-              @mouseenter="shown = item"
-              @focus="shown = item"
-              @click="pick(item)"
-            >
-              <img
-                v-if="item.image"
-                :src="item.image"
-                alt=""
-                loading="lazy"
-                class="size-8 object-contain"
-              />
-              <span v-else class="text-2xl leading-none" aria-hidden="true">{{ item.insert }}</span>
-            </button>
-          </div>
-        </section>
+                @mouseenter="shown = item"
+                @focus="shown = item"
+                @click="pick(item)"
+              >
+                <img
+                  v-if="item.image"
+                  :src="item.image"
+                  alt=""
+                  loading="lazy"
+                  class="size-8 object-contain"
+                />
+                <span v-else class="text-2xl leading-none" aria-hidden="true">{{ item.insert }}</span>
+              </button>
+            </div>
+          </section>
+        </div>
       </div>
       <p data-picker-preview class="flex h-6 items-center gap-2 truncate px-1 text-sm" aria-live="polite">
         <template v-if="shown">
@@ -189,6 +219,18 @@ function pick(item: Suggestion): void {
         </template>
         <span v-else class="text-muted-foreground">{{ $t('dashboard.chat.picker.hint') }}</span>
       </p>
+      <InputGroup data-picker-search class="rounded-[calc(var(--radius-md)-8px)]">
+        <InputGroupAddon>
+          <SearchMagnifyingGlass />
+        </InputGroupAddon>
+        <InputGroupInput
+          v-model="query"
+          data-picker-query
+          type="search"
+          :placeholder="$t('dashboard.chat.picker.search')"
+          :aria-label="$t('dashboard.chat.picker.search')"
+        />
+      </InputGroup>
     </PopoverContent>
   </Popover>
 </template>

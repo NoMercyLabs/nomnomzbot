@@ -1462,6 +1462,28 @@ describe('ChatView emote picker', () => {
     expect(jumps).toEqual(sections());
   });
 
+  // Stoney 2026-10-14: "emote search input at the bottom, section buttons as icon only on the side of the emote
+  // scroll list" and "autofocus on search input on opening the menu".
+  it('opens with the cursor in the search below the list, and an icon rail beside it', async () => {
+    await open();
+    await openPicker();
+
+    const search = picker()!.querySelector('[data-picker-query]') as HTMLInputElement;
+    const list = picker()!.querySelector('[data-picker-section]')!;
+
+    expect(document.activeElement).toBe(search);
+    expect(list.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const rail = [...picker()!.querySelectorAll<HTMLElement>('[data-picker-jump]')];
+
+    expect(rail.every((jump) =>
+      jump.textContent.trim() === '' || jump.textContent.trim().length <= 2)).toBe(true);
+
+    expect(rail[0]!.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/bigCat-2.webp');
+    expect(rail[0]!.getAttribute('aria-label')).toBe('7TV');
+    expect(rail[0]!.getAttribute('aria-current')).toBe('true');
+  });
+
   it('puts a pick in at the cursor as its own word, stays open, and sends nothing', async () => {
     await open();
     await type('hi there');

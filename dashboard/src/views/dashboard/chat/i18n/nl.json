@@ -183,12 +183,6 @@
         "results": "Resultaten",
         "none": "Niets gevonden.",
         "hint": "Wijs er een aan om de naam te zien.",
-        "short": {
-          "Twitch": "Twitch",
-          "SevenTv": "7TV",
-          "Bttv": "BTTV",
-          "Ffz": "FFZ"
-        },
         "groups": {
           "smileys": "Smileys",
           "people": "Mensen",

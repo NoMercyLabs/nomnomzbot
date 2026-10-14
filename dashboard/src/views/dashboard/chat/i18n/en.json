@@ -183,12 +183,6 @@
         "results": "Results",
         "none": "Nothing matches.",
         "hint": "Point at one to see its name.",
-        "short": {
-          "Twitch": "Twitch",
-          "SevenTv": "7TV",
-          "Bttv": "BTTV",
-          "Ffz": "FFZ"
-        },
         "groups": {
           "smileys": "Smileys",
           "people": "People",
