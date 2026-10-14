@@ -1154,7 +1154,15 @@ describe('ChatView display drawer', () => {
 });
 
 describe('ChatView emote and badge cards', () => {
-  const sevenTv = {
+  type EmotePerson = {
+    id: string;
+    login: string;
+    displayName: string;
+    profileUrl: string | null;
+  };
+  type People = { owner?: EmotePerson; artist?: EmotePerson };
+
+  const sevenTv: People & Record<string, unknown> = {
     id: '01F6ME',
     setId: null,
     provider: 'SevenTv',
@@ -1167,7 +1175,7 @@ describe('ChatView emote and badge cards', () => {
       2: 'https://cdn.test/catjam-2.webp',
     },
   };
-  const twitch = {
+  const twitch: People & Record<string, unknown> = {
     id: '25',
     setId: '0',
     provider: 'Twitch',
@@ -1246,6 +1254,60 @@ describe('ChatView emote and badge cards', () => {
     expect(shown.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/kappa-3.png');
     expect(factsOf(shown)).toEqual([asset.provider, 'Twitch', asset.kind, asset.still]);
     expect(shown.querySelector('a')).toBeNull();
+  });
+
+  it('names a Twitch emote\'s channel, and the name opens that person\'s profile', async () => {
+    twitch.owner = {
+      id: '12826',
+      login: 'twitch',
+      displayName: 'Twitch',
+      profileUrl: null,
+    };
+
+    await open();
+    await press('img[alt="Kappa"]');
+
+    const owner = card()!.querySelector<HTMLButtonElement>('[data-asset-person="owner"]')!;
+
+    expect(card()!.textContent).toContain(asset.people.channel);
+    expect(owner.textContent?.trim()).toBe('Twitch');
+
+    owner.click();
+    await settle();
+
+    expect(useProfileDialogStore().userId).toBe('12826');
+    delete twitch.owner;
+  });
+
+  it('names a 7TV emote\'s uploader and artist, each linked to their own 7TV page', async () => {
+    sevenTv.owner = {
+      id: 'up1',
+      login: 'uploader',
+      displayName: 'Uploader',
+      profileUrl: 'https://7tv.app/users/up1',
+    };
+
+    sevenTv.artist = {
+      id: 'art1',
+      login: 'artist',
+      displayName: 'Artist',
+      profileUrl: 'https://7tv.app/users/art1',
+    };
+
+    await open();
+    await press('img[alt="catJAM"]');
+
+    const person = (role: string): HTMLAnchorElement =>
+      card()!.querySelector<HTMLAnchorElement>(`a[data-asset-person="${role}"]`)!;
+
+    expect(card()!.textContent).toContain(asset.people.uploader);
+    expect(card()!.textContent).toContain(asset.people.artist);
+    expect(person('owner').href).toBe('https://7tv.app/users/up1');
+    expect(person('owner').textContent?.trim()).toBe('Uploader');
+    expect(person('artist').href).toBe('https://7tv.app/users/art1');
+    expect(person('artist').rel).toContain('noopener');
+    delete sevenTv.owner;
+    delete sevenTv.artist;
   });
 
   it('opens a badge with its set, version and the detail Twitch sent, at the larger image', async () => {

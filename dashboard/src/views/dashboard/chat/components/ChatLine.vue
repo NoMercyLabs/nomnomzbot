@@ -324,6 +324,7 @@ function pick(event: MouseEvent): void {
             :title="emoteCards[at]!.title"
             :image="emoteCards[at]!.image"
             :facts="emoteCards[at]!.facts"
+            :people="emoteCards[at]!.people"
             :link="emoteCards[at]!.link"
             class="mx-0.5 my-[calc((var(--line-h)-var(--emote-h))/2)]"
           >

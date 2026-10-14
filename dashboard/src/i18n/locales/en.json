@@ -257,7 +257,12 @@
     },
     "set": "Badge",
     "version": "Version",
-    "info": "Detail"
+    "info": "Detail",
+    "people": {
+      "channel": "Channel",
+      "uploader": "Uploaded by",
+      "artist": "Art by"
+    }
   },
   "profile": {
     "open": "Open the profile of {name}",

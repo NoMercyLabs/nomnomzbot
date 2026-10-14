@@ -24,12 +24,29 @@ type EmoteFacts = {
   animated: boolean;
   zeroWidth: boolean;
   tier?: string | number | null;
+  owner?: EmotePersonFacts | null;
+  artist?: EmotePersonFacts | null;
+};
+
+type EmotePersonFacts = {
+  id?: string | null;
+  login?: string | null;
+  displayName?: string | null;
+  profileUrl?: string | null;
+};
+
+// Who made or owns an asset. A Twitch user id opens their profile here; anyone else links to their own page.
+export type AssetPerson = KeyValueItem & {
+  role: 'owner' | 'artist';
+  userId: string | null;
+  href: string | null;
 };
 
 export type AssetCard = {
   title: string;
   image: string;
   facts: KeyValueItem[];
+  people: AssetPerson[];
   link: { href: string; label: string } | null;
 };
 
@@ -94,7 +111,45 @@ export function catalogEmoteCard(emote: ChatEmoteEntry, t: Translate): AssetCard
   if (!image)
     return null;
 
-  return emoteAssetCard(emote, emote.code, image, t);
+  const owner = emote.ownerId
+    ? {
+        id: emote.ownerId,
+        login: emote.ownerLogin,
+        displayName: emote.ownerName,
+      }
+    : null;
+
+  return emoteAssetCard({ ...emote, owner }, emote.code, image, t);
+}
+
+// Only a Twitch emote's owner id is a Twitch user id; a 7TV, BTTV or FFZ id belongs to that site.
+function emotePerson(
+  emote: EmoteFacts,
+  role: AssetPerson['role'],
+  t: Translate,
+): AssetPerson | null {
+  const person = emote[role];
+  const name = person?.displayName ?? person?.login;
+
+  if (!person || !name)
+    return null;
+
+  const twitch = emote.provider === 'Twitch';
+  const label = role === 'artist'
+    ? 'asset.people.artist'
+    : twitch
+      ? 'asset.people.channel'
+      : 'asset.people.uploader';
+
+  return {
+    role,
+    label: t(label),
+    value: name,
+    userId: twitch
+      ? person.id ?? null
+      : null,
+    href: person.profileUrl ?? null,
+  };
 }
 
 function emoteAssetCard(emote: EmoteFacts, title: string, image: string, t: Translate): AssetCard {
@@ -121,6 +176,9 @@ function emoteAssetCard(emote: EmoteFacts, title: string, image: string, t: Tran
     title,
     image,
     facts,
+    people: [emotePerson(emote, 'owner', t), emotePerson(emote, 'artist', t)]
+      .filter((person): person is AssetPerson =>
+        person !== null),
     link: page
       ? { href: page, label: t(`asset.open.${emote.provider}`) }
       : null,
@@ -147,6 +205,7 @@ export function badgeCard(badge: Badge, t: Translate): AssetCard | null {
     title: badge.setId,
     image,
     facts,
+    people: [],
     link: null,
   };
 }

@@ -10,17 +10,31 @@
 <script setup lang="ts">
 // The card an emote or a badge opens on a click, in a chat line or a profile: the image at its largest size,
 // its name and the facts it carries, as Twitch and FrankerFaceZ show them.
+import { computed } from 'vue';
+
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { merge } from '@/lib/array';
+import type { AssetPerson } from '@/lib/assetCards';
 
-defineProps<{
+const props = defineProps<{
   label: string;
   title: string;
   image: string;
   facts: readonly KeyValueItem[];
+  people?: readonly AssetPerson[];
   link?: { href: string; label: string } | null;
 }>();
+
+const rows = computed(() =>
+  merge(props.facts, props.people ?? []));
+
+function personOf(item: KeyValueItem): AssetPerson | undefined {
+  return props.people?.find((person: AssetPerson) =>
+    person === item);
+}
 </script>
 
 <template>
@@ -35,7 +49,25 @@ defineProps<{
     <PopoverContent data-asset-card class="w-64" side="top">
       <img :src="image" :alt="title" class="mx-auto size-28 object-contain" />
       <p class="text-center font-medium break-all">{{ title }}</p>
-      <KeyValueList :items="facts" />
+      <KeyValueList :items="rows">
+        <template #value="{ item }">
+          <UserName
+            v-if="personOf(item)?.userId"
+            :data-asset-person="personOf(item)!.role"
+            :user-id="personOf(item)!.userId!"
+            :name="String(item.value)"
+          />
+          <a
+            v-else-if="personOf(item)?.href"
+            :data-asset-person="personOf(item)!.role"
+            :href="personOf(item)!.href!"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-medium underline-offset-4 hover:underline"
+          >{{ item.value }}</a>
+          <template v-else>{{ item.value }}</template>
+        </template>
+      </KeyValueList>
       <Button
         v-if="link"
         as="a"

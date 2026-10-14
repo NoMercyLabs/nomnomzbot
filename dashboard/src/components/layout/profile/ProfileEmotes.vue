@@ -95,6 +95,7 @@ function shown(provider: string): ShownEmote[] {
               :title="emote.card.title"
               :image="emote.card.image"
               :facts="emote.card.facts"
+              :people="emote.card.people"
               :link="emote.card.link"
             >
               <img :src="emote.src" :alt="emote.code" class="size-8 object-contain" />

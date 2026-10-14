@@ -257,7 +257,12 @@
     },
     "set": "Badge",
     "version": "Versie",
-    "info": "Detail"
+    "info": "Detail",
+    "people": {
+      "channel": "Kanaal",
+      "uploader": "Geüpload door",
+      "artist": "Getekend door"
+    }
   },
   "profile": {
     "open": "Open het profiel van {name}",
