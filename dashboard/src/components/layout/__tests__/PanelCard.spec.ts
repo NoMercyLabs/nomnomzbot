@@ -54,7 +54,9 @@ describe('the panel card header', () => {
     expect(header.classes()).toEqual(expect.arrayContaining(['flex', 'flex-wrap']));
     expect(header.find('h2').classes()).toEqual(expect.arrayContaining(['flex-[1_0_auto]', 'max-w-full']));
     expect(actions.find('[data-tabs]').exists()).toBe(true);
-    expect(actions.classes()).toContain('ml-auto');
+    // The growing title pushes the actions right; wrapped, they start at the left edge with the title and the
+    // description, never right-aligned under them (owner 2026-10-14: "you created a staircase again").
+    expect(actions.classes()).not.toContain('ml-auto');
     expect(description.classes()).toContain('basis-full');
   });
 });

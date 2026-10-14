@@ -103,7 +103,7 @@ watch(
       <div
         v-if="$slots.actions"
         data-slot="panel-actions"
-        class="ml-auto flex items-center gap-2"
+        class="flex items-center gap-2"
       >
         <slot name="actions" />
       </div>

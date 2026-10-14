@@ -135,7 +135,7 @@
 [data-segment] {
   flex: 1 0 auto;
   height: var(--seg-h);
-  padding: 0 var(--s2);
+  padding: 0 var(--s1_5);
   border: 0;
   border-radius: 9999px;
 }
