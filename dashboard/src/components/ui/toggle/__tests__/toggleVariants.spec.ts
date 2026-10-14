@@ -26,5 +26,7 @@ describe('outline toggle', () => {
     }
 
     expect(toggle).not.toContain('border-input');
+    // Squeezed in a header row it shrank to 76px and its words ran out past the edge.
+    expect(toggle).toContain('shrink-0');
   });
 });

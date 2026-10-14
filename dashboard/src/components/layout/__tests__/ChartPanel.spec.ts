@@ -108,30 +108,37 @@ describe('the chart panel', () => {
     expect(chart('line').find('[data-slot="chart"]').attributes('aria-hidden')).toBe('true');
   });
 
+  // A table ignores sr-only's 1px height, so on the table itself it stayed 360px tall and scrolled the whole
+  // page (owner 2026-10-14: "the whole page scrolls too"). The wrapper div clips it.
+  it('hides the screen-reader table inside a clipping wrapper, never on the table itself', () => {
+    expect(chart('line').find('table').classes()).not.toContain('sr-only');
+    expect(chart('line').find('table').element.parentElement?.classList).toContain('sr-only');
+  });
+
   it('gives screen readers the same numbers in a table, formatted for the English locale', () => {
     const cells: string[] = chart('line')
-      .findAll('table.sr-only td')
+      .findAll('div.sr-only > table td')
       .map((cell) => cell.text());
     const heads: string[] = chart('line')
-      .findAll('table.sr-only th[scope="col"]')
+      .findAll('div.sr-only > table th[scope="col"]')
       .map((cell) => cell.text());
 
     expect(heads).toEqual(['Period', 'Seen', 'New']);
     expect(cells).toEqual(['1,234', '56', '2,500.5', '78', '3,100', '90']);
-    expect(chart('line').find('table.sr-only tbody th').text()).toBe('Jan 5, 2026');
+    expect(chart('line').find('div.sr-only > table tbody th').text()).toBe('Jan 5, 2026');
   });
 
   it('formats the table for the Dutch locale and translates the series names', () => {
     i18n.global.locale.value = 'nl';
     const wrapper = chart('groupedBar');
 
-    expect(wrapper.findAll('table.sr-only th[scope="col"]').map((cell) => cell.text())).toEqual([
+    expect(wrapper.findAll('div.sr-only > table th[scope="col"]').map((cell) => cell.text())).toEqual([
       'Periode',
       'Gezien',
       'Nieuw',
     ]);
 
-    expect(wrapper.findAll('table.sr-only td').map((cell) => cell.text())).toEqual([
+    expect(wrapper.findAll('div.sr-only > table td').map((cell) => cell.text())).toEqual([
       '1.234',
       '56',
       '2.500,5',

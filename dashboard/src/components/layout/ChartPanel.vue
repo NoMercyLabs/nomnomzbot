@@ -251,27 +251,30 @@ const yDomain = computed<[number | undefined, number | undefined]>(() =>
       >
         <ChartLegendContent class="pt-0" />
       </ChartContainer>
-      <table class="sr-only">
-        <caption>
-          {{
-            title
-          }}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">{{ t('common.chart.period') }}</th>
-            <th v-for="entry in series" :key="entry.key" scope="col">{{ t(entry.labelKey) }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(row, index) in data" :key="index">
-            <th scope="row">{{ label(row[x], fullDates) }}</th>
-            <td v-for="entry in series" :key="entry.key">
-              {{ numbers.format(Number(row[entry.key] ?? 0)) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- sr-only sits on a wrapper: a table ignores its 1px height and would scroll the page. -->
+      <div class="sr-only">
+        <table>
+          <caption>
+            {{
+              title
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{{ t('common.chart.period') }}</th>
+              <th v-for="entry in series" :key="entry.key" scope="col">{{ t(entry.labelKey) }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in data" :key="index">
+              <th scope="row">{{ label(row[x], fullDates) }}</th>
+              <td v-for="entry in series" :key="entry.key">
+                {{ numbers.format(Number(row[entry.key] ?? 0)) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </PanelCard>
 </template>
