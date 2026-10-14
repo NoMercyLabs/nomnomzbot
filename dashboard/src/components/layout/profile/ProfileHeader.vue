@@ -210,19 +210,20 @@ const stats = computed<Stat[]>(() => {
       {{ $t('profile.handle', { name: who.username }) }}
     </p>
 
-    <div
-      v-if="stats.length > 0"
-      class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-5"
-    >
-      <!-- One look for every fact on the card: a short label over its value (owner 2026-10-14: "unify the look"). -->
-      <div v-for="stat in stats" :key="stat.key" data-profile-stat class="grid min-w-0 content-start gap-0.5">
-        <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
-        <b class="text-xl font-semibold tabular-nums">{{
-          typeof stat.value === 'number'
-            ? n(stat.value)
-            : stat.value
-        }}</b>
+    <!-- Who they are above, what they did here below (owner 2026-10-14: "visually split the channel activity"). -->
+    <section v-if="stats.length > 0" data-profile-activity class="mt-3 grid gap-4 border-t border-border pt-6">
+      <h3 class="text-sm font-medium">{{ $t('profile.activity') }}</h3>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-5">
+        <!-- One look for every fact on the card: a short label over its value (owner 2026-10-14: "unify the look"). -->
+        <div v-for="stat in stats" :key="stat.key" data-profile-stat class="grid min-w-0 content-start gap-0.5">
+          <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
+          <b class="text-xl font-semibold tabular-nums">{{
+            typeof stat.value === 'number'
+              ? n(stat.value)
+              : stat.value
+          }}</b>
+        </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>

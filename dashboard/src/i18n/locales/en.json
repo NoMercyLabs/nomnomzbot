@@ -292,6 +292,7 @@
       "partner": "Partner"
     },
     "lastSeen": "Last seen {ago}",
+    "activity": "Activity in this channel",
     "age": {
       "lastSeen": "Last seen",
       "account": "Twitch account made",

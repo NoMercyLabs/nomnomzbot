@@ -292,6 +292,7 @@
       "partner": "Partner"
     },
     "lastSeen": "Laatst gezien {ago}",
+    "activity": "Activiteit in dit kanaal",
     "age": {
       "lastSeen": "Laatst gezien",
       "account": "Twitch-account gemaakt",
