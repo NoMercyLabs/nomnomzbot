@@ -40,6 +40,18 @@ public sealed record OAuthCallbackDto
 /// </summary>
 public sealed record RefreshTokenRequest(string? RefreshToken, string? ActAsToken = null);
 
+/// <summary>
+/// Redeems the single-use <c>login_code</c> a web sign-in hands to a second trusted dashboard origin (the code
+/// arrives in that origin's URL fragment after the provider callback).
+/// </summary>
+public sealed record WebLoginExchangeRequest(string Code);
+
+/// <summary>
+/// A redeemed web login: the access token and its lifetime. The refresh token never appears here; it is set
+/// as the HttpOnly <c>nnz_refresh_token</c> cookie on the calling origin.
+/// </summary>
+public sealed record WebLoginExchangeDto(string AccessToken, int ExpiresIn, UserDto User);
+
 /// <summary>The request fingerprint captured for a login session (identity-auth §4).</summary>
 public sealed record AuthContextDto(string ClientType, string? IpAddress, string? UserAgent);
 

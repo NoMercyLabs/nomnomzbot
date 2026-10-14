@@ -24,6 +24,10 @@ public sealed class TwitchOAuthStateService : ITwitchOAuthStateService
     private const string CachePrefix = "twitch:oauth:state:";
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(10);
 
+    // A login handed to another dashboard origin is redeemed by that page's first script run, seconds later.
+    private const string HandoffPrefix = "auth:web:handoff:";
+    private static readonly TimeSpan HandoffTtl = TimeSpan.FromSeconds(60);
+
     private readonly ICacheService _cache;
 
     public TwitchOAuthStateService(ICacheService cache) => _cache = cache;
@@ -48,5 +52,30 @@ public sealed class TwitchOAuthStateService : ITwitchOAuthStateService
         if (state is not null)
             await _cache.RemoveAsync(key, ct); // single-use
         return state;
+    }
+
+    public async Task<string> IssueLoginHandoffAsync(
+        WebLoginHandoff handoff,
+        CancellationToken ct = default
+    )
+    {
+        string code = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
+        await _cache.SetAsync(HandoffPrefix + code, handoff, HandoffTtl, ct);
+        return code;
+    }
+
+    public async Task<WebLoginHandoff?> ConsumeLoginHandoffAsync(
+        string? code,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return null;
+
+        string key = HandoffPrefix + code;
+        WebLoginHandoff? handoff = await _cache.GetAsync<WebLoginHandoff>(key, ct);
+        if (handoff is not null)
+            await _cache.RemoveAsync(key, ct); // single-use
+        return handoff;
     }
 }

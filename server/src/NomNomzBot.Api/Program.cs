@@ -426,14 +426,9 @@ try
         {
             policy
                 .WithOrigins(
-                    builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
-                        ??
-                        [
-                            "http://localhost:3000",
-                            "http://localhost:5090",
-                            "http://localhost:8081",
-                            "https://bot-dev.nomercy.tv",
-                        ]
+                    NomNomzBot.Api.Authorization.WebReturnOriginPolicy.CorsOrigins(
+                        builder.Configuration
+                    )
                 )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
