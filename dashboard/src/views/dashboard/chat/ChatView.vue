@@ -11,8 +11,8 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
-import { refDebounced, useEventListener } from '@vueuse/core';
-import { computed, ref, watchEffect } from 'vue';
+import { refDebounced, useEventListener, useMediaQuery } from '@vueuse/core';
+import { computed, ref, watch, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
@@ -183,6 +183,49 @@ const viewerOpen = computed<boolean>({
     }
   },
 });
+
+// Side panels never squeeze the chat: two fit beside it on a wide screen, else one. Opening one more closes
+// the panel opened longest ago (owner 2026-10-14: "maybe only allow both if there is enough space?").
+type ChatPanel = 'viewer' | 'display' | 'modTools';
+
+const twoPanelsFit = useMediaQuery('(min-width: 1800px)');
+const openOrder = ref<ChatPanel[]>([]);
+const closers = {
+  viewer: closeViewer,
+  display: () => {
+    displayOpen.value = false;
+  },
+  modTools: () => {
+    modToolsOpen.value = false;
+  },
+} as const satisfies Record<ChatPanel, () => void>;
+
+function track(panel: ChatPanel, open: boolean): void {
+  openOrder.value = openOrder.value.filter((other) =>
+    other !== panel);
+
+  if (!open) return;
+
+  openOrder.value.push(panel);
+  const room = twoPanelsFit.value
+    ? 2
+    : 1;
+
+  while (openOrder.value.length > room) {
+    const oldest = openOrder.value.shift() as ChatPanel;
+
+    closers[oldest]();
+  }
+}
+
+watch(viewerOpen, (open) =>
+  track('viewer', open));
+
+watch(displayOpen, (open) =>
+  track('display', open));
+
+watch(modToolsOpen, (open) =>
+  track('modTools', open));
 
 function clearFocusOnEscape(event: KeyboardEvent): void {
   if (event.key === 'Escape') {

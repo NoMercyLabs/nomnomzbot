@@ -2049,6 +2049,55 @@ describe('ChatView emote picker', () => {
     expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('7TV');
   });
 
+  // Stoney 2026-10-14: "maybe only allow both if there is enough space?"
+  describe('side panels', () => {
+    const realMatchMedia = window.matchMedia;
+
+    function screen(wide: boolean): void {
+      window.matchMedia = ((query: string): MediaQueryList => ({
+        matches: wide && query.includes('min-width: 1800px'),
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+        onchange: null,
+      }) as MediaQueryList) as typeof window.matchMedia;
+    }
+
+    afterEach(() => {
+      window.matchMedia = realMatchMedia;
+    });
+
+    async function openBoth(): Promise<void> {
+      await open();
+      document.body.querySelector<HTMLElement>('[data-display-toggle]')!.click();
+      await settle();
+      document.body.querySelector<HTMLElement>('[data-mod-tools-toggle]')!.click();
+      await settle();
+    }
+
+    const pressed = (selector: string): string | null =>
+      document.body.querySelector(selector)!.getAttribute('aria-pressed');
+
+    it('closes the older panel when a second one would squeeze the chat', async () => {
+      screen(false);
+      await openBoth();
+
+      expect(pressed('[data-display-toggle]')).toBe('false');
+      expect(pressed('[data-mod-tools-toggle]')).toBe('true');
+    });
+
+    it('keeps two panels open where both fit', async () => {
+      screen(true);
+      await openBoth();
+
+      expect(pressed('[data-display-toggle]')).toBe('true');
+      expect(pressed('[data-mod-tools-toggle]')).toBe('true');
+    });
+  });
+
   // Stoney 2026-10-14: "Remove the input from emojis on mobile", closer to the Twitch app's tray.
   describe('on a phone', () => {
     const realMatchMedia = window.matchMedia;
