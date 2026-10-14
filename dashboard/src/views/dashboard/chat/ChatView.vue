@@ -28,6 +28,7 @@ import {
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
+import SidePanel from '@/components/layout/SidePanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
@@ -169,6 +170,17 @@ function closeViewer(): void {
   focusedUserId.value = null;
 }
 
+// The viewer panel is open while a chatter is in focus; closing the drawer ends the focus.
+const viewerOpen = computed<boolean>({
+  get: () =>
+    focusedUserId.value !== null,
+  set: (open) => {
+    if (!open) {
+      closeViewer();
+    }
+  },
+});
+
 function clearFocusOnEscape(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     focusedUserId.value = null;
@@ -293,18 +305,19 @@ async function confirmBan(): Promise<void> {
           />
         </template>
       </PanelCard>
-      <aside v-if="focusedUserId !== null" data-viewer-panel class="w-80 flex-none">
+      <SidePanel v-model:open="viewerOpen" data-viewer-panel :label="focusedName">
         <ViewerPanel
+          v-if="focusedUserId !== null"
           :user-id="focusedUserId"
           :channel-id="channelId"
           :lines="visible"
           :hour12="display.timestamps === '12'"
           @close="closeViewer"
         />
-      </aside>
-      <aside v-if="displayOpen" data-display-panel class="w-80 flex-none">
+      </SidePanel>
+      <SidePanel v-model:open="displayOpen" data-display-panel :label="$t('dashboard.chat.display.title')">
         <ChatDisplayPanel v-model="display" />
-      </aside>
+      </SidePanel>
     </div>
   </div>
   <ConfirmDialog
