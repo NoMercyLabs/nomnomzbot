@@ -322,6 +322,23 @@ describe('CommandsView list', () => {
     expect(rowNames()).toEqual(['hello', 'pipe', 'socials']);
   });
 
+  // Owner 2026-10-14: "only th controls, keep the search above".
+  it('puts the sort choice in the control bar and keeps the search above the list', async () => {
+    await open();
+    const bar = document.body.querySelector('[data-slot="page-bar"]')!;
+
+    expect(bar.querySelector('[data-segmented]')?.textContent).toContain('A to Z');
+    expect(bar.querySelector('[data-slot="search-field"]')).toBeNull();
+    expect(document.body.querySelector('[data-slot="search-field"]')).not.toBeNull();
+
+    mounted!.unmount();
+    mounted = null;
+    document.body.innerHTML = '';
+
+    await open('/app/commands?view=builtin');
+    expect(document.body.querySelector('[data-slot="page-bar"] [data-segmented]')).toBeNull();
+  });
+
   it('keeps the A to Z order after the page is opened again', async () => {
     await open();
     buttonByText('A to Z').click();

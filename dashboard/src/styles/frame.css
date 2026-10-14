@@ -109,23 +109,49 @@
 }
 
 /* Tabs are the mockup's .tabs/.tab (frame.css:79-81): a muted track with 3px padding, the chosen tab
-   lifted on --background. Concentric radius: 16 - 3 = 13. */
-[data-slot='tabs-list'] {
+   lifted on --background. Concentric radius: 16 - 3 = 13. A segmented choice in the page control bar
+   wears the same track (owner 2026-10-14: "iNcOnSisTent" — page tabs and a choice beside them looked
+   like two controls). */
+[data-slot='tabs-list'],
+[data-slot='page-bar'] [data-segmented] {
   padding: 3px;
   gap: 2px;
   background: var(--muted);
   border-radius: var(--radius-sm);
+  box-shadow: none;
 }
-[data-slot='tabs-trigger'] {
+[data-slot='tabs-trigger'],
+[data-slot='page-bar'] [data-segment] {
+  flex: none;
   height: var(--tab-h);
   padding: 0 var(--s3);
   border: 0;
   border-radius: calc(var(--radius-sm) - 3px);
   gap: var(--s1_5);
 }
-[data-slot='tabs-trigger'][data-state='active'] {
+[data-slot='tabs-trigger'][data-state='active'],
+[data-segment][data-state='on'] {
   background: var(--background);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+/* A segmented choice inside a panel is the mockup's .seg (frame.css:158-160): radius 8 with 2px padding,
+   so each option is 6; the options share the row. The 1px ring keeps the track visible on a muted
+   group, where a muted track alone vanished (owner 2026-10-14: "no it does not look right"). */
+[data-segmented] {
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--muted);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+[data-segment] {
+  flex: 1 0 auto;
+  height: var(--seg-h);
+  padding: 0 var(--s2);
+  border: 0;
+  border-radius: 6px;
 }
 
 /* The mockup switch (frame.css:151-155): 36 x 20 with a 14px thumb 2px from each edge. */

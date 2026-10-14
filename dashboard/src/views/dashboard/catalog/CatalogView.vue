@@ -329,9 +329,8 @@ function confirmDelete(): void {
             v-model="stateFilter"
             :label="t('dashboard.catalog.filter.state')"
             :options="stateOptions"
-          >
-            <SearchField v-model="query" :placeholder="t('dashboard.catalog.search')" />
-          </FilterBar>
+          />
+          <SearchField v-model="query" :placeholder="t('dashboard.catalog.search')" />
           <FilterBar
             v-model="sinceFilter"
             :label="t('dashboard.catalog.filter.since')"

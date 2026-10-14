@@ -8,8 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// One filter for the page header bar. A short choice (2 to 4 options) is a segmented control;
-// a longer one is a select with its label inside. The default slot holds a SearchField beside it.
+// One filter for the page control bar. A short choice (2 to 4 options) is a segmented control;
+// a longer one is a select with its label inside. The search stays above the list, never in the
+// bar (owner 2026-10-14: "only th controls, keep the search above").
 import { computed } from 'vue';
 
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -28,6 +29,9 @@ export interface FilterOption {
 
 const props = defineProps<{ label: string; options: readonly FilterOption[] }>();
 
+// No slots: a page that puts a search in here fails the type check.
+defineSlots<Record<string, never>>();
+
 const selected = defineModel<string>({ required: true });
 
 const segmented = computed<boolean>(() => props.options.length <= 4);
@@ -42,7 +46,6 @@ function choose(value: unknown): void {
 
 <template>
   <div data-slot="filter-bar" class="flex flex-wrap items-center gap-2">
-    <slot />
     <SegmentedControl v-if="segmented" v-model="selected" :label="label" :options="options" />
     <Select v-else :model-value="selected" @update:model-value="choose">
       <SelectTrigger :aria-label="label">

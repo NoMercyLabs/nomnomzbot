@@ -39,19 +39,19 @@ describe('the segmented control', () => {
     );
 
     expect(items.map((item) => item.attributes('data-state'))).toEqual(['off', 'on', 'off']);
-    // The open item is raised on the muted track (frame.css:158-160), the look FilterBar had alone before.
-    expect(items[1]!.classes()).toContain('data-[state=on]:bg-background');
   });
 
-  // Stoney 2026-10-14 (screenshot): "Most used" ran over its own padding because both halves were
-  // forced to the same width and allowed to shrink below the label. Equal grid columns size to the widest label.
-  it('gives every option the width of the widest label and never squeezes one below its text', () => {
+  // Stoney 2026-10-14: "iNcOnSisTent" — the page tabs and this control sat side by side in two looks,
+  // and an option was squeezed over its own padding. Both now wear the one frame.css tab track.
+  it('wears the page tab track and sizes each option to its own label', () => {
     const wrapper = control('wide');
     const group = wrapper.find('[data-slot="toggle-group"]');
     const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]');
 
-    expect(group.classes()).toEqual(expect.arrayContaining(['grid', 'grid-flow-col', 'auto-cols-fr']));
-    expect(items.every((item) => !item.classes().includes('min-w-0'))).toBe(true);
+    expect(group.attributes()).toHaveProperty('data-segmented');
+    expect(items.every((item) => 'data-segment' in item.attributes())).toBe(true);
+    expect(items.every((item) => item.classes().includes('shrink-0'))).toBe(true);
+    expect(group.classes()).not.toContain('auto-cols-fr');
   });
 
   it('emits the option a person presses and keeps one chosen when the open one is pressed again', async () => {

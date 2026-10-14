@@ -24,13 +24,12 @@ function choose(next: unknown): void {
 </script>
 
 <template>
-  <!-- The mockup segment (frame.css:158-160): a muted track of radius 8 with 2 px padding,
-       so each item is 8 - 2 = 6; the open item is raised on the background.
-       Equal grid columns: every option is as wide as the widest label, none squeezed below its text. -->
+  <!-- frame.css [data-segmented]: in the page control bar it wears the page tab track; inside a panel it is
+       the mockup's compact segment, the options sharing the row. No option shrinks below its label. -->
   <ToggleGroup
     type="single"
     :spacing="1"
-    class="grid auto-cols-fr grid-flow-col gap-0.5 rounded-[8px] bg-muted p-0.5"
+    data-segmented
     :aria-label="label"
     :model-value="chosen"
     @update:model-value="choose"
@@ -39,7 +38,8 @@ function choose(next: unknown): void {
       v-for="option in options"
       :key="option.value"
       :value="option.value"
-      class="h-(--seg-h) rounded-[6px] px-2 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+      data-segment
+      class="shrink-0 text-muted-foreground hover:bg-transparent data-[state=on]:text-foreground"
     >
       {{ option.label }}
     </ToggleGroupItem>

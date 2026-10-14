@@ -102,14 +102,12 @@ function pick(row: AdminTenant): void {
       </span>
     </template>
     <template #bar>
-      <div class="flex flex-wrap items-center gap-4">
+      <div class="ml-auto flex flex-wrap items-center gap-4">
         <FilterBar
           v-model="status"
           :label="$t('dashboard.admin.filters.statusLabel')"
           :options="statusOptions"
-        >
-          <SearchField v-model="search" :placeholder="$t('dashboard.admin.search')" />
-        </FilterBar>
+        />
         <FilterBar
           v-model="live"
           :label="$t('dashboard.admin.filters.liveLabel')"
@@ -118,7 +116,8 @@ function pick(row: AdminTenant): void {
       </div>
     </template>
   </PageHeader>
-  <div class="flex min-h-0 flex-1 flex-col p-6">
+  <div class="flex min-h-0 flex-1 flex-col gap-3 p-6">
+    <SearchField v-model="search" :placeholder="$t('dashboard.admin.search')" />
     <PanelCard
       tier="lead"
       class="min-h-80 flex-1"

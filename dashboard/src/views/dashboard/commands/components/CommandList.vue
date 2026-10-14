@@ -8,13 +8,11 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The custom commands: a search box, a sort choice and one row per command. The open command is the `selected` name.
-import { useLocalStorage } from '@vueuse/core';
+// The custom commands: a search box and one row per command, in the page's sort. The open command is the `selected` name.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCommands, type CommandListItem } from '@/api/commands';
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -23,7 +21,10 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
-defineProps<{ selected: string | null }>();
+export type CommandSort = 'uses' | 'name';
+
+// The sort choice sits in the page control bar (owner 2026-10-14); the search stays above the list.
+const props = defineProps<{ selected: string | null; sort: CommandSort }>();
 const emit = defineEmits<{ pick: [name: string]; create: [] }>();
 
 const { t } = useI18n();
@@ -31,11 +32,6 @@ const { channelId } = useCurrentChannel();
 const commands = useCommands(channelId);
 
 const search = ref('');
-const sort = useLocalStorage<string>('nnz.commands.sort', 'uses');
-const sortOptions = computed<FilterOption[]>(() => [
-  { value: 'uses', label: t('dashboard.commands.list.sortUses') },
-  { value: 'name', label: t('dashboard.commands.list.sortName') },
-]);
 
 const panel = usePanelState(commands, (data: CommandListItem[]): boolean =>
   data.length === 0);
@@ -59,7 +55,7 @@ const rows = computed<CommandListItem[]>(() => {
   );
 
   return found.sort((left: CommandListItem, right: CommandListItem): number =>
-    sort.value === 'name'
+    props.sort === 'name'
       ? left.name.localeCompare(right.name)
       : Number(right.useCount) - Number(left.useCount),
   );
@@ -88,9 +84,7 @@ function detailOf(row: CommandListItem): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <FilterBar v-model="sort" :label="$t('dashboard.commands.list.sort')" :options="sortOptions">
-      <SearchField v-model="search" :placeholder="$t('dashboard.commands.list.search')" />
-    </FilterBar>
+    <SearchField v-model="search" :placeholder="$t('dashboard.commands.list.search')" />
     <PanelCard
       :title="$t('dashboard.commands.list.title')"
       :state="state"

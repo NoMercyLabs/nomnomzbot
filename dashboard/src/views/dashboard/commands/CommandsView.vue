@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 import Plus from '~icons/nnz/add';
+import { useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -18,13 +19,14 @@ import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 
 import BuiltinList from './components/BuiltinList.vue';
 import CommandEditor from './components/CommandEditor.vue';
-import CommandList from './components/CommandList.vue';
+import CommandList, { type CommandSort } from './components/CommandList.vue';
 import NewCommandDialog from './components/NewCommandDialog.vue';
 
 const { t } = useI18n();
@@ -39,6 +41,12 @@ const tabs = computed<PageTab[]>(() => [
   { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
 ]);
 const view = usePageView(['custom', 'builtin']);
+
+const sort = useLocalStorage<CommandSort>('nnz.commands.sort', 'uses');
+const sortOptions = computed(() => [
+  { value: 'uses', label: t('dashboard.commands.list.sortUses') },
+  { value: 'name', label: t('dashboard.commands.list.sortName') },
+] as const satisfies { value: CommandSort; label: string }[]);
 
 // The open command lives in the address (?command=), so a refresh or a link keeps it.
 const selected = computed<string | null>(() =>
@@ -74,11 +82,23 @@ const creating = ref(false);
     </template>
     <template #bar>
       <PageTabs :tabs="tabs" />
+      <SegmentedControl
+        v-if="view === 'custom'"
+        v-model="sort"
+        class="ml-auto"
+        :label="$t('dashboard.commands.list.sort')"
+        :options="sortOptions"
+      />
     </template>
   </PageHeader>
   <ListDetail v-if="view === 'custom'" :show-detail="row !== undefined">
     <template #list>
-      <CommandList :selected="selected" @pick="select" @create="creating = true" />
+      <CommandList
+        :selected="selected"
+        :sort="sort"
+        @pick="select"
+        @create="creating = true"
+      />
     </template>
     <template #detail>
       <CommandEditor v-if="row" :key="row.name" :row="row" @remove="removeCommand" />
