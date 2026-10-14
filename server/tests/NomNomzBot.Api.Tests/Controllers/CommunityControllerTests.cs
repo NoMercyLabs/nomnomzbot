@@ -1497,8 +1497,8 @@ public sealed class CommunityControllerTests
         );
 
         CommunityController.CommunityUserDto mod = Data(result).Single(m => m.Id == "twitch-mod");
-        ((DateTime?)mod.LastSeen).Should().BeNull();
-        ((DateTime?)mod.FirstSeen).Should().BeNull();
+        mod.LastSeen.Should().BeNull();
+        mod.FirstSeen.Should().BeNull();
     }
 
     [Fact]
@@ -1538,8 +1538,8 @@ public sealed class CommunityControllerTests
         CommunityController.UserDetailDto detail = (
             (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
         ).Data!;
-        ((DateTime?)detail.LastSeen).Should().BeNull();
-        ((DateTime?)detail.FirstSeen).Should().BeNull();
+        detail.LastSeen.Should().BeNull();
+        detail.FirstSeen.Should().BeNull();
     }
 
     private static string BanEntryJson(string userId, string bannedBy) =>
