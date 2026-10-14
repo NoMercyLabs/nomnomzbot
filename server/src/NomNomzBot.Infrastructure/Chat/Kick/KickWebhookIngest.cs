@@ -52,6 +52,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
     private readonly TimeProvider _clock;
     private readonly ILogger<KickWebhookIngest> _logger;
     private readonly NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard _selfEchoGuard;
+    private readonly NomNomzBot.Application.Chat.Services.IChatColorAssignmentService _colors;
 
     public KickWebhookIngest(
         IApplicationDbContext db,
@@ -59,9 +60,11 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         IChannelRegistry registry,
         TimeProvider clock,
         ILogger<KickWebhookIngest> logger,
-        NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard
+        NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard,
+        NomNomzBot.Application.Chat.Services.IChatColorAssignmentService colors
     )
     {
+        _colors = colors;
         _db = db;
         _bus = bus;
         _registry = registry;
@@ -270,6 +273,13 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
                 UserLogin = Login(payload.Sender),
                 Message = payload.Content ?? string.Empty,
                 Fragments = BuildFragments(payload.Content ?? string.Empty, payload.Emotes),
+                ColorHex = await _colors.ResolveAsync(
+                    tenantId,
+                    "kick",
+                    senderKickIdText,
+                    payload.Sender.Identity?.UsernameColor,
+                    ct
+                ),
                 Badges = [],
                 IsSubscriber = badgeTypes.Contains("subscriber", StringComparer.OrdinalIgnoreCase),
                 IsVip = badgeTypes.Contains("vip", StringComparer.OrdinalIgnoreCase),

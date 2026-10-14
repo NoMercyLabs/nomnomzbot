@@ -75,6 +75,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ViewerProfiles),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ViewerData),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ViewerReports),
+        Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ChatterAssignedColors),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ViewerAgeConsents),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ViewerEngagementStates),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ViewerEngagementDailies),

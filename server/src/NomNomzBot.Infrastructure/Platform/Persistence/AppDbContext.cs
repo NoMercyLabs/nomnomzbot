@@ -162,6 +162,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Chat
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
+    public DbSet<ChatterAssignedColor> ChatterAssignedColors => Set<ChatterAssignedColor>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<Domain.Stream.Entities.Stream> Streams => Set<Domain.Stream.Entities.Stream>();
 
