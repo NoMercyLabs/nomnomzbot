@@ -183,18 +183,24 @@ function confirmDelete(): void {
     @retry="detail.refetch()"
   />
 
-  <DetailPane v-else data-slot="script-detail">
+  <DetailPane
+    v-else
+    data-slot="script-detail"
+    class="max-md:flex-none max-md:**:data-[slot=detail-pane-body]:flex-none max-md:**:data-[slot=detail-pane-body]:overflow-visible"
+  >
     <template #header>
-      <div class="flex flex-wrap items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          class="md:hidden"
-          :aria-label="$t('dashboard.scripts.detail.back')"
-          @click="$emit('back')"
-        >
-          <ArrowLeft />
-        </Button>
+      <Button
+        data-page-inset
+        data-slot="script-back"
+        variant="ghost"
+        size="sm"
+        class="mb-2 md:hidden"
+        @click="$emit('back')"
+      >
+        <ArrowLeft aria-hidden="true" />
+        {{ $t('dashboard.scripts.detail.back') }}
+      </Button>
+      <div data-page-inset class="flex flex-wrap items-center gap-3">
         <h2 class="min-w-0 truncate text-lg font-semibold">{{ script.name }}</h2>
         <div class="ml-auto flex flex-wrap items-center gap-3">
           <label class="flex items-center gap-2 text-sm text-muted-foreground">
@@ -220,7 +226,7 @@ function confirmDelete(): void {
       </div>
     </template>
 
-    <PanelCard tier="lead" pad :title="$t('dashboard.scripts.detail.title')">
+    <PanelCard class="shrink-0" tier="lead" pad :title="$t('dashboard.scripts.detail.title')">
       <div class="grid gap-5 text-sm">
         <div class="grid gap-1">
           <StatusBadge :tone="runTone" :label="runTitle" class="font-medium" />
@@ -287,6 +293,7 @@ function confirmDelete(): void {
     <PanelCard
       v-if="(triggers.data.value ?? []).length > 0"
       data-slot="script-samples"
+      class="shrink-0"
       :title="$t('dashboard.scripts.test.samples')"
       :description="$t('dashboard.scripts.test.samplesNote')"
     >
@@ -306,9 +313,19 @@ function confirmDelete(): void {
       </RowGroup>
     </PanelCard>
 
-    <div class="flex flex-none flex-wrap items-center gap-2">
-      <span class="text-xs text-muted-foreground">{{ $t('dashboard.scripts.detail.limits') }}</span>
-      <Button class="ml-auto" variant="destructive" size="sm" @click="askDelete">
+    <div data-page-inset
+         data-slot="script-footer"
+         class="mt-2 flex flex-none flex-wrap items-center gap-3 border-t pt-4"
+    >
+      <span class="min-w-0 flex-1 text-xs text-muted-foreground">
+        {{ $t('dashboard.scripts.detail.limits') }}
+      </span>
+      <Button
+        data-slot="script-delete"
+        variant="outline"
+        size="sm"
+        @click="askDelete"
+      >
         <Trash aria-hidden="true" />
         {{ $t('dashboard.scripts.detail.delete') }}
       </Button>

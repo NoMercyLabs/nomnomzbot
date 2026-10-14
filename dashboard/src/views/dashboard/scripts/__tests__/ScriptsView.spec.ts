@@ -651,6 +651,42 @@ describe('ScriptsView', () => {
     expect(document.body.querySelector('[data-run-row]')).toBeNull();
   });
 
+  it('gives the phone a labeled back button that returns to the list', async () => {
+    await open('/app/scripts?script=s1');
+
+    const back = document.body.querySelector<HTMLElement>('[data-slot="script-back"]');
+
+    expect(back?.textContent?.trim()).toBe('Back to the list');
+    expect(back?.className).toContain('md:hidden');
+
+    back!.click();
+    await settle();
+
+    expect(router.currentRoute.value.query.script).toBeUndefined();
+  });
+
+  it('sets Delete apart from Run test in its own footer, below the content', async () => {
+    await open('/app/scripts?script=s1');
+
+    const header = document.body.querySelector<HTMLElement>('[data-slot="detail-pane-header"]')!;
+    const footer = document.body.querySelector<HTMLElement>('[data-slot="script-footer"]')!;
+
+    expect(header.textContent).toContain('Run test');
+    expect(header.textContent).not.toContain('Delete');
+    expect(footer.querySelector('[data-slot="script-delete"]')?.getAttribute('data-variant')).toBe('outline');
+    expect(footer.className).toContain('border-t');
+  });
+
+  it('never lets the detail cards shrink into each other', async () => {
+    await open('/app/scripts?script=s1');
+
+    const script = document.body.querySelector<HTMLElement>('[data-slot="script-detail"] [data-slot="panel-card"]')!;
+    const samples = document.body.querySelector<HTMLElement>('[data-slot="script-samples"]')!;
+
+    expect(script.className).toContain('shrink-0');
+    expect(samples.className).toContain('shrink-0');
+  });
+
   it('says so when the channel has no scripts', async () => {
     scripts = [];
     await open();
