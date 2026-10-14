@@ -380,7 +380,7 @@ async function banNow(): Promise<void> {
 
       <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): the quiet ones are
            ghost buttons on the left, so Ban stays the one strong button in the row. -->
-      <div v-if="!isOwner" class="flex flex-none items-center gap-2 border-t border-border px-6 py-4">
+      <div v-if="!isOwner" class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4">
         <Button
           data-profile-shoutout
           type="button"
