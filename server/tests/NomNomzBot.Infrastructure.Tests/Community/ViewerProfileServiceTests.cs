@@ -689,7 +689,7 @@ public sealed class ViewerProfileServiceTests
 
         DateTime? actual = result.Value.Identity.FollowedAtUtc;
         actual.Should().Be(new DateTime(2024, 3, 9, 12, 30, 0, DateTimeKind.Utc));
-        actual!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        actual.GetValueOrDefault().Kind.Should().Be(DateTimeKind.Utc);
         await follows
             .Received(1)
             .ResolveAsync(
@@ -764,6 +764,6 @@ public sealed class ViewerProfileServiceTests
         Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
 
         result.Value.Identity.FollowedAtUtc.Should().BeNull();
-        await follows.DidNotReceiveWithAnyArgs().ResolveAsync(default, default!, default!, default);
+        await follows.DidNotReceiveWithAnyArgs().ResolveAsync(default, default!, default!);
     }
 }
