@@ -235,13 +235,22 @@ const preview = computed<ProfilePreview | null>(() => {
   };
 });
 
+// Another person opens on their Overview: the tab of the last one belongs to them.
+function show(login: string): void {
+  void router.push({ query: {
+    ...route.query,
+    u: login,
+    tab: undefined,
+  } });
+}
+
 function pick(row: CommunityRow): void {
-  void router.push({ query: { ...route.query, u: row.username } });
+  show(row.username);
 }
 
 function open(from: Seed): void {
   seed.value = from;
-  void router.push({ query: { ...route.query, u: from.login } });
+  show(from.login);
 }
 
 function openOption(option: ViewerOption): void {
@@ -283,9 +292,10 @@ async function lookUp(): Promise<void> {
 }
 
 function back(): void {
-  const { u, ...rest } = route.query;
+  const { u, tab, ...rest } = route.query;
 
   void u;
+  void tab;
   void router.push({ query: rest });
 }
 </script>

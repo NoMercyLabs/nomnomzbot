@@ -58757,7 +58757,7 @@ export interface paths {
         };
         /**
          * List the channel's pipeline runs, newest-first, paginated. `failuresOnly=true`
-         *         restricts to non-success outcomes.
+         *         restricts to non-success outcomes; `pipelineId` restricts to one pipeline's runs.
          */
         get: {
             parameters: {
@@ -58775,6 +58775,7 @@ export interface paths {
                     Order?: string;
                     Search?: string;
                     failuresOnly?: boolean;
+                    pipelineId?: string;
                 };
                 header?: never;
                 path: {
@@ -58965,7 +58966,9 @@ export interface paths {
         /**
          * The option list for one resource-picker kind (`reward`, `widget`, `voice`,
          *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`), paged
-         *     and optionally search-filtered. A source that is not connected or could not be read comes back with
+         *     and optionally search-filtered. With `value` set, only the option whose stored value equals it
+         *     exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the
+         *     first page. A source that is not connected or could not be read comes back with
          *     `sourceAvailable: false` and a `unavailableReason` — never collapsed into an empty list.
          */
         get: {
@@ -58983,6 +58986,7 @@ export interface paths {
                     Sort?: string;
                     Order?: string;
                     Search?: string;
+                    value?: string;
                 };
                 header?: never;
                 path: {
@@ -78438,6 +78442,205 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/viewer/me/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's own recent chat lines in one channel, newest first, paged. */
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number | string;
+                    /**
+                     * @description Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-
+                     *     convention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to
+                     *     nothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the
+                     *     data was invisible. Both query keys now populate the same value.
+                     */
+                    Take?: number | string;
+                    PageSize?: number | string;
+                    Sort?: string;
+                    Order?: string;
+                    Search?: string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaginatedResponseOfViewerMessageDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/viewer/me/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The channel's commands the caller may run, by name, with the caller's own last use. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfViewerCommandDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/voice-triggers/listener-link": {
         parameters: {
             query?: never;
@@ -85555,9 +85758,9 @@ export interface components {
             trustLevel: string;
             isBanned: boolean;
             /** Format: date-time */
-            firstSeen: string;
+            firstSeen?: null | string;
             /** Format: date-time */
-            lastSeen: string;
+            lastSeen?: null | string;
         };
         /** @description The authored source to compile-on-save into the widget's next append-only version. */
         CompileWidgetRequest: {
@@ -89825,6 +90028,15 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
+        PaginatedResponseOfViewerMessageDto: {
+            data?: components["schemas"]["ViewerMessageDto"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
         PaginatedResponseOfViewerProfileListItemDto: {
             data?: components["schemas"]["ViewerProfileListItemDto"][];
             /** Format: int32 */
@@ -90172,13 +90384,16 @@ export interface components {
         /**
          * @description Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional:
          *     one action object (`{"type":"send_message", ...params}`); when set, only that action runs, through the
-         *     same capture engine, instead of the saved pipeline's graph.
+         *     same capture engine, instead of the saved pipeline's graph. Graph is optional too: the draft
+         *     graph a person is editing (the same JSON the save takes); when set it is validated like a save and runs
+         *     instead of the saved graph, flat or tree. Nothing is stored.
          */
         PipelineTestRunRequest: {
             variables: {
                 [key: string]: string;
             };
             step?: unknown;
+            graph?: unknown;
         };
         /**
          * @description One row of a pipeline test-run trace: what one executed step did. `Branch` names the arm an `if` took
@@ -94414,6 +94629,19 @@ export interface components {
         StatusResponseDtoOfIReadOnlyListOfUserIdentityDto: {
             status?: string;
             data?: null | components["schemas"]["UserIdentityDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfViewerCommandDto: {
+            status?: string;
+            data?: null | components["schemas"]["ViewerCommandDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -98744,9 +98972,9 @@ export interface components {
             trustLevel: string;
             isBanned: boolean;
             /** Format: date-time */
-            firstSeen: string;
+            firstSeen?: null | string;
             /** Format: date-time */
-            lastSeen: string;
+            lastSeen?: null | string;
             recentActivity: components["schemas"]["ActivityDto"][];
             banHistory: components["schemas"]["BanRecordDto"][];
             isVip?: null | boolean;
@@ -98895,6 +99123,18 @@ export interface components {
             userId: string;
             voiceId: string;
         };
+        /**
+         * @description A command the caller may run. `CooldownSeconds` is null when none is stored; `LastUsedAt` is the
+         *     caller's own newest run of it, null if never.
+         */
+        ViewerCommandDto: {
+            name: string;
+            description?: null | string;
+            /** Format: int32 */
+            cooldownSeconds?: null | number | string;
+            /** Format: date-time */
+            lastUsedAt?: null | string;
+        };
         /** @description Command usage (owner punch list §3 row 7). */
         ViewerCommandUsageDto: {
             /** Format: int32 */
@@ -98968,6 +99208,14 @@ export interface components {
             pronounIsManualOverride: boolean;
             /** Format: date-time */
             followedAtUtc?: null | string;
+        };
+        /** @description One of the caller's own chat lines. `DeletedByModerator` is true when a moderator removed it. */
+        ViewerMessageDto: {
+            id: string;
+            /** Format: date-time */
+            sentAt: string;
+            text: string;
+            deletedByModerator: boolean;
         };
         /**
          * @description Minimal option projection for the "pick a viewer" autocomplete inputs. `Id` is the Twitch user id

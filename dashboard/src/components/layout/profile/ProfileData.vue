@@ -18,6 +18,11 @@ import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueLis
 import { shortDate } from '@/lib/time';
 
 type Quote = PersonProfile['recentQuotes'][number];
+type Permit = PersonProfile['permits']['activePermits'][number];
+
+// This DTO sends its enums as numbers, in the server's order (AuthorizationEnums.cs): grant type Role is 0.
+const ROLE_GRANT = 0;
+const ROLES = ['moderator', 'leadmoderator', 'editor', 'broadcaster'] as const;
 
 const props = defineProps<{ profile: PersonProfile }>();
 
@@ -42,7 +47,6 @@ const consent = computed<KeyValueItem[]>(() => {
         : t(`profile.yesNo.${granted}`),
     },
     { label: t('profile.data.ageConsentOn'), value: dateOrNull(permits.ageConsentConfirmedUtc) },
-    { label: t('profile.data.permits'), value: n(permits.activePermits.length) },
     {
       label: t('profile.data.analytics'),
       value: props.profile.activity?.isAnalyticsOptedOut
@@ -51,6 +55,22 @@ const consent = computed<KeyValueItem[]>(() => {
     },
   ];
 });
+
+// What a permit grants, in words: a role by its name, a single action by its key, and when it ends.
+function permitText(permit: Permit): string {
+  const role = permit.grantType === ROLE_GRANT && permit.grantedRole !== null
+    ? ROLES[Number(permit.grantedRole)]
+    : undefined;
+  const what = role
+    ? t('profile.data.permitRole', { role: t(`profile.manager.${role}`) })
+    : t('profile.data.permitAction', { action: permit.capabilityActionKey ?? '' });
+
+  return permit.expiresAt
+    ? t('profile.data.permitUntil', { what, date: shortDate(permit.expiresAt, locale.value) })
+    : what;
+}
+
+const permits = computed<Permit[]>(() => props.profile.permits.activePermits);
 
 const lines = computed<KeyValueItem[]>(() => [
   { label: t('profile.data.shoutout'), value: props.profile.overrides.shoutoutMessageTemplate },
@@ -83,6 +103,14 @@ const moreQuotes = computed<number>(() =>
       <section class="grid content-start gap-2">
         <h3 class="text-sm font-semibold">{{ $t('profile.data.consent') }}</h3>
         <KeyValueList :items="consent" />
+        <h3 class="pt-2 text-sm font-semibold">{{ $t('profile.data.permits') }}</h3>
+        <p v-if="permits.length === 0" class="text-sm text-muted-foreground">{{ $t('profile.data.noPermits') }}</p>
+        <ul v-else data-profile-permits class="grid gap-1 text-sm">
+          <li v-for="permit in permits" :key="permit.id" class="grid">
+            <span>{{ permitText(permit) }}</span>
+            <span v-if="permit.reason" class="text-xs text-muted-foreground">{{ permit.reason }}</span>
+          </li>
+        </ul>
       </section>
       <section class="grid content-start gap-2">
         <h3 class="text-sm font-semibold">{{ $t('profile.data.commands') }}</h3>

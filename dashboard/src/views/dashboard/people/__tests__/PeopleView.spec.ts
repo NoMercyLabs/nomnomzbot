@@ -436,6 +436,35 @@ describe('PeopleView', () => {
     expect(rows()[0]!.querySelector('button')!.getAttribute('aria-pressed')).toBe('true');
   });
 
+  // The profile dialog's Open full page link carries its tab, so the page opens on that tab.
+  it('opens the profile tab named in ?tab=, and keeps a picked tab in the address', async () => {
+    await open('/app/people?u=alice&tab=moderation');
+
+    const active = (): string | undefined =>
+      document.body.querySelector('[data-person-detail] [role="tab"][data-state="active"]')?.textContent?.trim();
+
+    expect(active()).toBe('Moderation');
+
+    const data = Array.from(document.body.querySelectorAll<HTMLElement>('[data-person-detail] [role="tab"]'))
+      .find((tab: HTMLElement) => tab.textContent?.trim() === 'Data');
+
+    data!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    await flushPromises();
+
+    expect(router.currentRoute.value.query.tab).toBe('data');
+    expect(active()).toBe('Data');
+  });
+
+  it('opens another person on their Overview, not on the tab of the last one', async () => {
+    await open('/app/people?u=alice&tab=moderation');
+
+    rows()[1]!.querySelector('button')!.click();
+    await flushPromises();
+
+    expect(router.currentRoute.value.query.u).not.toBe('alice');
+    expect(router.currentRoute.value.query.tab).toBeUndefined();
+  });
+
   it('shows every stored fact of the person in words: identity, points and data', async () => {
     await open('/app/people?u=alice');
 

@@ -13,6 +13,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { onTheWire } from '@/api/__tests__/wire';
 import ProfileDialog from '@/components/layout/ProfileDialog.vue';
@@ -88,6 +89,13 @@ const freshPeople = (): Record<string, Record<string, unknown>> => ({
         reason: 'spam links',
         bannedAt: '2026-09-01T10:00:00Z',
         unbannedAt: null,
+      },
+      {
+        id: 'b0',
+        bannedBy: 'Stoney_Eagle',
+        reason: 'first warning ignored',
+        bannedAt: '2026-08-01T10:00:00Z',
+        unbannedAt: '2026-08-03T10:00:00Z',
       },
     ],
   },
@@ -578,9 +586,10 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
+let router: Router;
 
 // jsdom has no layout: the chat list needs a viewport and row heights to render any rows.
-beforeEach(() => {
+beforeEach(async () => {
   calls.length = 0;
   channelLogin.value = 'somebody';
   people = freshPeople();
@@ -641,6 +650,20 @@ beforeEach(() => {
 
   pinia = createPinia();
   setActivePinia(pinia);
+
+  router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/chat', component: { render: () => null } },
+      {
+        path: '/people',
+        name: 'dashboard-people',
+        component: { render: () => null },
+      },
+    ],
+  });
+
+  await router.push('/chat');
 });
 
 afterEach(() => {
@@ -664,6 +687,7 @@ async function openPage(): Promise<void> {
       plugins: [
         i18n,
         pinia,
+        router,
         [
           VueQueryPlugin,
           { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
@@ -809,6 +833,51 @@ describe('the profile dialog', () => {
 
     expect(panel?.textContent).toContain('Not asked yet');
     expect(panel?.textContent).not.toContain('profile.');
+    expect(panel?.textContent).toContain('No active permits.');
+  });
+
+  it('says what each active permit grants, until when and why', async () => {
+    const permit = {
+      userId: 'g1',
+      grantedByUserId: 'g9',
+      revokedAt: null,
+      createdAt: '2026-10-01T10:00:00Z',
+    };
+
+    profiles.g1!.permits = {
+      ageConsentGranted: null,
+      ageConsentConfirmedUtc: null,
+      activePermits: [
+        // The API sends the grant type and the role as numbers: Role is 0, LeadModerator is 1.
+        {
+          ...permit,
+          id: 'p1',
+          grantType: 0,
+          grantedRole: 1,
+          expiresAt: '2026-10-20T10:00:00Z',
+          reason: 'Raid night',
+        },
+        {
+          ...permit,
+          id: 'p2',
+          grantType: 1,
+          grantedRole: null,
+          capabilityActionKey: 'moderation:timeout',
+        },
+      ],
+    };
+
+    await openPage();
+    await openUser('u1');
+    await openTab('Data');
+
+    const permits = Array.from(document.body.querySelectorAll('[data-profile-permits] li'))
+      .map((line: Element) => line.textContent?.trim());
+
+    expect(permits).toEqual([
+      'Lead moderator role, until Oct 20, 2026Raid night',
+      'May use moderation:timeout',
+    ]);
   });
 
   it('lists the ban history of a banned person on the Moderation tab', async () => {
@@ -820,6 +889,12 @@ describe('the profile dialog', () => {
 
     expect(active?.textContent).toContain('spam links');
     expect(active?.textContent).toContain('Stoney_Eagle');
+
+    // A lifted ban says when it was lifted; the ban still in force says nothing it does not know.
+    const lifted = Array.from(active!.querySelectorAll('[data-profile-ban-lifted]'))
+      .map((line: Element) => line.textContent?.trim());
+
+    expect(lifted).toEqual(['Lifted on Aug 3, 2026']);
   });
 
   it('asks before it bans and calls the ban endpoint only after the confirm', async () => {
@@ -1295,6 +1370,41 @@ describe('the profile dialog', () => {
     expect(useProfileDialogStore().userId).toBeNull();
     expect(document.activeElement).toBe(name('u1'));
   });
+
+  // Mockup profile.js pf-bar: the dialog links to the person's own page, on the tab open in the dialog.
+  it('opens the full page of the person on the tab open here, and closes itself', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const link = (): HTMLAnchorElement =>
+      document.body.querySelector<HTMLAnchorElement>('[data-profile-full-page]')!;
+
+    expect(link().getAttribute('href')).toBe('/people?u=ada');
+
+    await openTab('Moderation');
+    expect(link().getAttribute('href')).toBe('/people?u=ada&tab=moderation');
+
+    link().click();
+    await settle();
+
+    expect(router.currentRoute.value.fullPath).toBe('/people?u=ada&tab=moderation');
+    expect(dialogs().length).toBe(0);
+  });
+
+  it('opens again on Overview, whatever tab it closed on', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+    await openUser('u1');
+
+    const active = dialogs()[0]!.querySelector('[role="tab"][data-state="active"]');
+
+    expect(active?.textContent?.trim()).toBe('Overview');
+    expect(button('[data-profile-full-page]').getAttribute('href')).toBe('/people?u=ada');
+  });
 });
 
 const header = (): HTMLElement => document.body.querySelector('[data-slot="profile-header"]')!;
@@ -1450,6 +1560,20 @@ describe('the Overview tab', () => {
     expect(text).toContain('Bits cheered');
     expect(text).toContain('500');
     expect(swatch?.style.backgroundColor).toBe('rgb(255, 127, 80)');
+  });
+
+  it('says at the top how long the person has been around: account, follow and first sighting', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const ages = [...document.body.querySelectorAll('[data-profile-age]')].map((age: Element) =>
+      age.textContent?.trim());
+
+    expect(ages).toEqual([
+      'Twitch account made 11 years ago',
+      'Followed 2 years ago',
+      'First seen here 9 months ago',
+    ]);
   });
 
   it('shows since when the person follows the channel, with its age', async () => {

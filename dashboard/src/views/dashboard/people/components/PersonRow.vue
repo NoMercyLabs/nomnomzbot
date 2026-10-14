@@ -26,7 +26,7 @@ const props = defineProps<{ person: CommunityRow; selected: boolean }>();
 defineEmits<{ pick: [] }>();
 
 const { t, locale } = useI18n();
-const ago = useTimeAgoIntl(() => props.person.lastSeen, { locale: locale.value });
+const ago = useTimeAgoIntl(() => props.person.lastSeen ?? 0, { locale: locale.value });
 
 const lastSeen = computed<string>(() =>
   props.person.lastSeen

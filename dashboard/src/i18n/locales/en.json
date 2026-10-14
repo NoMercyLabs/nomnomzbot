@@ -267,6 +267,7 @@
   "profile": {
     "open": "Open the profile of {name}",
     "title": "Profile",
+    "fullPage": "Open full page",
     "description": "What the bot stores about this person",
     "banned": "Banned",
     "error": "This profile could not load.",
@@ -285,6 +286,11 @@
       "error": "Their emotes could not load."
     },
     "lastSeen": "Last seen {ago}",
+    "age": {
+      "account": "Twitch account made {ago}",
+      "followed": "Followed {ago}",
+      "firstSeen": "First seen here {ago}"
+    },
     "streakDays": "{n} stream | {n} streams in a row",
     "yesNo": {
       "true": "Yes",
@@ -324,6 +330,10 @@
       "ageConsentOn": "Confirmed on",
       "notAsked": "Not asked yet",
       "permits": "Active permits",
+      "noPermits": "No active permits.",
+      "permitRole": "{role} role",
+      "permitAction": "May use {action}",
+      "permitUntil": "{what}, until {date}",
       "analytics": "Viewer statistics",
       "analyticsOn": "Counted",
       "analyticsOff": "Turned off by their choice",
@@ -415,6 +425,7 @@
       "empty": "No bans stored for this person.",
       "noReason": "No reason given",
       "by": "By {name} on {date}",
+      "lifted": "Lifted on {date}",
       "counts": "Actions taken",
       "timeouts": "Timeouts",
       "bans": "Bans",

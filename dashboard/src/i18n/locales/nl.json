@@ -267,6 +267,7 @@
   "profile": {
     "open": "Open het profiel van {name}",
     "title": "Profiel",
+    "fullPage": "Open volledige pagina",
     "description": "Wat de bot over deze persoon bewaart",
     "banned": "Verbannen",
     "error": "Dit profiel kon niet laden.",
@@ -285,6 +286,11 @@
       "error": "Hun emotes konden niet laden."
     },
     "lastSeen": "Laatst gezien {ago}",
+    "age": {
+      "account": "Twitch-account gemaakt {ago}",
+      "followed": "Volgt sinds {ago}",
+      "firstSeen": "Hier voor het eerst gezien {ago}"
+    },
     "streakDays": "{n} stream | {n} streams op rij",
     "yesNo": {
       "true": "Ja",
@@ -324,6 +330,10 @@
       "ageConsentOn": "Bevestigd op",
       "notAsked": "Nog niet gevraagd",
       "permits": "Actieve vergunningen",
+      "noPermits": "Geen actieve vergunningen.",
+      "permitRole": "Rol {role}",
+      "permitAction": "Mag {action} gebruiken",
+      "permitUntil": "{what}, tot {date}",
       "analytics": "Kijkersstatistieken",
       "analyticsOn": "Geteld",
       "analyticsOff": "Uitgezet op eigen keuze",
@@ -415,6 +425,7 @@
       "empty": "Geen bans bewaard voor deze persoon.",
       "noReason": "Geen reden opgegeven",
       "by": "Door {name} op {date}",
+      "lifted": "Opgeheven op {date}",
       "counts": "Genomen acties",
       "timeouts": "Time-outs",
       "bans": "Bans",

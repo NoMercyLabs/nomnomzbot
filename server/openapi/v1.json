@@ -69146,7 +69146,7 @@
         "tags": [
           "Pipelines"
         ],
-        "summary": "List the channel's pipeline runs, newest-first, paginated. `failuresOnly=true`\r\n    restricts to non-success outcomes.",
+        "summary": "List the channel's pipeline runs, newest-first, paginated. `failuresOnly=true`\r\n    restricts to non-success outcomes; `pipelineId` restricts to one pipeline's runs.",
         "parameters": [
           {
             "name": "channelId",
@@ -69219,6 +69219,15 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "pipelineId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -69417,7 +69426,7 @@
         "tags": [
           "Pipelines"
         ],
-        "summary": "The option list for one resource-picker kind (`reward`, `widget`, `voice`,\r\n`sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`), paged\r\nand optionally search-filtered. A source that is not connected or could not be read comes back with\r\n`sourceAvailable: false` and a `unavailableReason` — never collapsed into an empty list.",
+        "summary": "The option list for one resource-picker kind (`reward`, `widget`, `voice`,\r\n`sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`), paged\r\nand optionally search-filtered. With `value` set, only the option whose stored value equals it\r\nexactly comes back (search is ignored), so the dashboard can label a saved value that is not on the\r\nfirst page. A source that is not connected or could not be read comes back with\r\n`sourceAvailable: false` and a `unavailableReason` — never collapsed into an empty list.",
         "parameters": [
           {
             "name": "kind",
@@ -69480,6 +69489,13 @@
           },
           {
             "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "value",
             "in": "query",
             "schema": {
               "type": "string"
@@ -92548,6 +92564,264 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/viewer/me/messages": {
+      "get": {
+        "tags": [
+          "Viewer"
+        ],
+        "summary": "The caller's own recent chat lines in one channel, newest first, paged.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfViewerMessageDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/viewer/me/commands": {
+      "get": {
+        "tags": [
+          "Viewer"
+        ],
+        "summary": "The channel's commands the caller may run, by name, with the caller's own last use.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfViewerCommandDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/voice-triggers/listener-link": {
       "get": {
         "tags": [
@@ -104681,9 +104955,7 @@
           "watchHours",
           "commandsUsed",
           "trustLevel",
-          "isBanned",
-          "firstSeen",
-          "lastSeen"
+          "isBanned"
         ],
         "type": "object",
         "properties": {
@@ -104741,11 +105013,17 @@
             "type": "boolean"
           },
           "firstSeen": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "lastSeen": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
@@ -117627,6 +117905,44 @@
           }
         }
       },
+      "PaginatedResponseOfViewerMessageDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewerMessageDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PaginatedResponseOfViewerProfileListItemDto": {
         "type": "object",
         "properties": {
@@ -118675,9 +118991,10 @@
               "type": "string"
             }
           },
-          "step": { }
+          "step": { },
+          "graph": { }
         },
-        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional:\r\none action object (`{\"type\":\"send_message\", ...params}`); when set, only that action runs, through the\r\nsame capture engine, instead of the saved pipeline's graph."
+        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional:\r\none action object (`{\"type\":\"send_message\", ...params}`); when set, only that action runs, through the\r\nsame capture engine, instead of the saved pipeline's graph. Graph is optional too: the draft\r\ngraph a person is editing (the same JSON the save takes); when set it is validated like a save and runs\r\ninstead of the saved graph, flat or tree. Nothing is stored."
       },
       "PipelineTraceStepDto": {
         "required": [
@@ -130587,6 +130904,42 @@
             ],
             "items": {
               "$ref": "#/components/schemas/UserIdentityDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfViewerCommandDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ViewerCommandDto"
             }
           },
           "message": {
@@ -143655,8 +144008,6 @@
           "commandsUsed",
           "trustLevel",
           "isBanned",
-          "firstSeen",
-          "lastSeen",
           "recentActivity",
           "banHistory"
         ],
@@ -143716,11 +144067,17 @@
             "type": "boolean"
           },
           "firstSeen": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "lastSeen": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "recentActivity": {
@@ -144281,6 +144638,40 @@
         },
         "description": "A viewer's assigned TTS voice within a channel (overrides the channel default when they speak)."
       },
+      "ViewerCommandDto": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastUsedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "A command the caller may run. `CooldownSeconds` is null when none is stored; `LastUsedAt` is the\r\ncaller's own newest run of it, null if never."
+      },
       "ViewerCommandUsageDto": {
         "required": [
           "totalCommandsUsed"
@@ -144579,6 +144970,31 @@
             "format": "date-time"
           }
         }
+      },
+      "ViewerMessageDto": {
+        "required": [
+          "id",
+          "sentAt",
+          "text",
+          "deletedByModerator"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "text": {
+            "type": "string"
+          },
+          "deletedByModerator": {
+            "type": "boolean"
+          }
+        },
+        "description": "One of the caller's own chat lines. `DeletedByModerator` is true when a moderator removed it."
       },
       "ViewerOptionDto": {
         "required": [

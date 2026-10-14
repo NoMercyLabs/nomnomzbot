@@ -38,6 +38,8 @@ const props = defineProps<{
   profile: PersonProfile | null;
   roles: readonly RoleKey[];
   preview?: ProfilePreview | null;
+  // Inside a padded card the card owns the spacing.
+  flush?: boolean;
 }>();
 
 const { t, n, locale } = useI18n();
@@ -47,7 +49,31 @@ const inDialog = injectDialogRootContext(null) !== null;
 const who = computed<ProfilePreview | null>(() => props.person ?? props.preview ?? null);
 const title = computed<string>(() => who.value?.displayName ?? t('profile.title'));
 const pronouns = computed<string | null>(() => props.profile?.identity.pronoun ?? null);
-const lastSeen = computed<string>(() => agoText(props.person?.lastSeen ?? undefined, new Date(), locale.value));
+const lastSeen = computed<string>(() =>
+  agoText(props.person?.lastSeen ?? undefined, new Date(), locale.value));
+
+// How long this person has been around, at a glance: their Twitch account, their follow, their first sighting here.
+const ages = computed<Stat[]>(() => {
+  const identity = props.profile?.identity;
+  const now = new Date();
+  const moments = [
+    { key: 'account', at: identity?.accountCreatedAtUtc },
+    { key: 'followed', at: identity?.followedAtUtc },
+    { key: 'firstSeen', at: identity?.firstSeenUtc ?? props.person?.firstSeen },
+  ];
+
+  return moments
+    .map(({ key, at }) =>
+      ({
+        key,
+        label: '',
+        value: agoText(at ?? undefined, now, locale.value),
+      }))
+    .filter((age: Stat) =>
+      age.value !== '')
+    .map((age: Stat) =>
+      ({ ...age, label: t(`profile.age.${age.key}`, { ago: age.value }) }));
+});
 
 const stats = computed<Stat[]>(() => {
   const who = props.person;
@@ -98,8 +124,8 @@ const stats = computed<Stat[]>(() => {
 <template>
   <div
     data-slot="profile-header"
-    class="grid flex-none gap-4 px-6 pt-6 pb-4"
-    :class="inDialog && 'pr-14'"
+    class="grid flex-none gap-4"
+    :class="flush ? '' : ['px-6 pb-4', inDialog ? 'pt-2' : 'pt-6']"
   >
     <div class="flex items-center gap-3">
       <Avatar class="size-12">
@@ -135,6 +161,15 @@ const stats = computed<Stat[]>(() => {
           }}</span>
           <span v-else-if="who" class="text-xs text-muted-foreground">{{
             $t('profile.handle', { name: who.username })
+          }}</span>
+        </div>
+        <div
+          v-if="ages.length > 0"
+          data-profile-ages
+          class="flex flex-wrap gap-x-3 text-xs text-muted-foreground"
+        >
+          <span v-for="age in ages" :key="age.key" :data-profile-age="age.key">{{
+            age.label
           }}</span>
         </div>
       </div>

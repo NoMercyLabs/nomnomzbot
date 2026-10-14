@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // One person's full profile: header, tabs and the actions. The profile dialog and the People page both show
 // this view, so a person looks the same wherever you open them. It shows only what the bot stores: a tab
-// with nothing to show says so. The tabs are local state, not the route: the page behind keeps its own ?view=.
+// with nothing to show says so.
 import { injectDialogRootContext } from 'reka-ui';
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -52,6 +52,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePageView } from '@/composables/usePageView';
 import { SAVE_FAILED_MESSAGE, SAVE_FAILED_TITLE } from '@/composables/useOptimisticSave';
 import { merge } from '@/lib/array';
 import { formatLength, shortDate, TIMEOUT_LENGTHS } from '@/lib/time';
@@ -86,7 +87,6 @@ const { t, n, locale } = useI18n();
 const errors = useSaveErrorsStore();
 const { channelId, current } = useCurrentChannel();
 
-const tab = ref('overview');
 const tabStrip = useTemplateRef<HTMLElement>('tabStrip');
 const confirmBan = ref(false);
 const warnOpen = ref(false);
@@ -133,6 +133,13 @@ const tabs = computed<readonly string[]>(() =>
   viewerProfile.value
     ? merge(BASE_TABS, PROFILE_TABS)
     : BASE_TABS);
+// On a page the open tab is ?tab=, so a link opens it and Back returns to the last one. The dialog sits over a
+// page whose query is not its own, so it keeps the tab as a model: its Open full page link carries it over.
+const dialogTab = defineModel<string>('tab', { default: 'overview' });
+const pageTab = usePageView(tabs, 'tab');
+const tab = inDialog
+  ? dialogTab
+  : pageTab;
 const title = computed<string>(() => person.value?.displayName ?? t('profile.title'));
 const lines = computed<ActivityLine[]>(() => person.value?.recentActivity ?? []);
 
@@ -174,13 +181,15 @@ watch(tab, async () => {
   tabStrip.value?.querySelector('[data-state="active"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 });
 
+// Every person opens on Overview, also when the dialog opens again: its tab outlives the view.
 watch(
   () => props.userId,
   () => {
-    tab.value = 'overview';
+    dialogTab.value = 'overview';
     confirmBan.value = false;
     warnOpen.value = false;
   },
+  { immediate: true },
 );
 
 function dateText(value: string): string {
@@ -332,6 +341,9 @@ async function banNow(): Promise<void> {
                       })
                     }}
                   </span>
+                  <span v-if="record.unbannedAt" data-profile-ban-lifted class="text-xs text-muted-foreground">{{
+                    $t('profile.moderation.lifted', { date: dateText(record.unbannedAt) })
+                  }}</span>
                 </li>
               </ul>
             </PanelCard>
