@@ -462,7 +462,7 @@ describe('PeopleView', () => {
     expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Timeouts\s*3/);
     expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Messages deleted\s*9/);
     expect(detail.textContent).toContain('Watch streak');
-    expect(detail.querySelector('[data-profile-more]')).not.toBeNull();
+    expect(detail.querySelector('[data-profile-shoutout]')).not.toBeNull();
     expect(detail.querySelector('[data-profile-ban]')).not.toBeNull();
     expect(rows()[0]!.querySelector('button')!.getAttribute('aria-pressed')).toBe('true');
   });

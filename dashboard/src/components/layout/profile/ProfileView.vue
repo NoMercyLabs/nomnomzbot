@@ -16,7 +16,6 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import ChevronDown from '~icons/nnz/chevron-down';
-import MenuDots from '~icons/nnz/menu-dots-horizontal';
 
 import { useChannelAccess } from '@/api/access';
 import { useCurrentUser } from '@/api/auth';
@@ -393,48 +392,40 @@ async function banNow(): Promise<void> {
         </div>
       </Tabs>
 
-      <!-- One row on every width: the rarer actions sit in More, so the row never holds equal buttons. -->
+      <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): the quiet ones are
+           ghost buttons on the left, so Ban stays the one strong button in the row. -->
       <div v-if="!isOwner" class="flex flex-none items-center gap-2 border-t border-border px-6 py-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button
-              data-profile-more
-              type="button"
-              variant="ghost"
-              size="icon"
-              :aria-label="$t('profile.more')"
-            >
-              <MenuDots class="size-5" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem
-              data-profile-shoutout
-              :disabled="!canShoutout"
-              :title="lockedTip(canShoutout)"
-              @select="shoutOut"
-            >
-              {{ $t('profile.shoutout.button') }}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-profile-vip
-              :disabled="isVip === null || !canVip"
-              :title="lockedTip(canVip)"
-              @select="toggleVip"
-            >
-              {{ vipLabel }}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              v-if="sanctionable"
-              data-profile-warn
-              :disabled="!canWarn || person.isBanned"
-              :title="lockedTip(canWarn)"
-              @select="warnOpen = true"
-            >
-              {{ $t('profile.warn.button') }}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          data-profile-shoutout
+          type="button"
+          variant="ghost"
+          :disabled="!canShoutout"
+          :title="lockedTip(canShoutout)"
+          @click="shoutOut"
+        >
+          {{ $t('profile.shoutout.button') }}
+        </Button>
+        <Button
+          data-profile-vip
+          type="button"
+          variant="ghost"
+          :disabled="isVip === null || !canVip"
+          :title="lockedTip(canVip)"
+          @click="toggleVip"
+        >
+          {{ vipLabel }}
+        </Button>
+        <Button
+          v-if="sanctionable"
+          data-profile-warn
+          type="button"
+          variant="ghost"
+          :disabled="!canWarn || person.isBanned"
+          :title="lockedTip(canWarn)"
+          @click="warnOpen = true"
+        >
+          {{ $t('profile.warn.button') }}
+        </Button>
         <ProfileWarn v-model:open="warnOpen" :user-id="userId" :name="title" />
 
         <div class="ml-auto flex items-center gap-2">

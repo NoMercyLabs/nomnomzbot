@@ -729,12 +729,9 @@ function openMenu(trigger: HTMLElement): void {
   trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 }
 
-// The VIP choice lives in the More menu; this opens the menu when it is closed.
+// The VIP choice is a button in the action row, beside Shout out and Warn.
 async function vipItem(): Promise<HTMLElement> {
-  if (!document.body.querySelector('[data-profile-vip]')) {
-    openMenu(button('[data-profile-more]'));
-    await settle();
-  }
+  await settle();
 
   return button('[data-profile-vip]');
 }
@@ -1011,7 +1008,7 @@ describe('the profile dialog', () => {
 
     const item = await vipItem();
 
-    expect(item.getAttribute('aria-disabled')).toBe('true');
+    expect((item as HTMLButtonElement).disabled).toBe(true);
     expect(item.textContent).toContain('VIP status unknown');
   });
 
@@ -1081,12 +1078,20 @@ describe('the profile dialog', () => {
     });
   });
 
-  it('shouts a person out from the More menu', async () => {
+  it('shows Shout out, VIP and Warn as buttons, not hidden in a menu', async () => {
     await openPage();
     await openUser('u1');
 
-    openMenu(button('[data-profile-more]'));
-    await settle();
+    expect(document.body.querySelector('[data-profile-more]')).toBeNull();
+
+    expect(['shoutout', 'vip', 'warn'].map((name: string) =>
+      document.body.querySelector(`[data-profile-${name}]`)?.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
+  });
+
+  it('shouts a person out from its button', async () => {
+    await openPage();
+    await openUser('u1');
+
     button('[data-profile-shoutout]').click();
     await settle();
 
@@ -1095,12 +1100,10 @@ describe('the profile dialog', () => {
     expect(shoutouts.map((c: Call) => c.body)).toEqual([{ targetTwitchUserId: 'u1' }]);
   });
 
-  it('warns the person from More with the reason the moderator typed', async () => {
+  it('warns the person with the reason the moderator typed', async () => {
     await openPage();
     await openUser('u1');
 
-    openMenu(button('[data-profile-more]'));
-    await settle();
     button('[data-profile-warn]').click();
     await settle();
 
@@ -1133,12 +1136,9 @@ describe('the profile dialog', () => {
     await openPage();
     await openUser('u1');
 
-    openMenu(button('[data-profile-more]'));
-    await settle();
+    const warn = document.body.querySelector<HTMLButtonElement>('[data-profile-warn]')!;
 
-    const warn = document.body.querySelector<HTMLElement>('[data-profile-warn]')!;
-
-    expect(warn.hasAttribute('data-disabled')).toBe(true);
+    expect(warn.disabled).toBe(true);
     expect(warn.getAttribute('title')).toBe(i18n.global.t('common.readOnly'));
   });
 
@@ -1199,7 +1199,7 @@ describe('the profile dialog', () => {
       'You can view this, but your role cannot change it.',
     );
 
-    expect((await vipItem()).getAttribute('aria-disabled')).toBeNull();
+    expect(((await vipItem()) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('edits a note and its pin from the note menu, keeping the rest of the note', async () => {
