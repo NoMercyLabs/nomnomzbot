@@ -12,18 +12,28 @@
 // separate rights; without the write right the box shows but is locked, so a note that cannot save is never typed.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import MenuDots from '~icons/nnz/menu-dots-horizontal';
 
 import { useChannelAccess } from '@/api/access';
-import { useAddNote, useUserNotes, type UserNote } from '@/api/people';
+import { useAddNote, useDeleteNote, useUserNotes, type UserNote } from '@/api/people';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { shortDate } from '@/lib/time';
+
+import ProfileNoteEdit from './ProfileNoteEdit.vue';
 
 const props = defineProps<{ userId: string }>();
 
@@ -77,6 +87,30 @@ function add(): void {
   draft.value = '';
   pinned.value = false;
 }
+
+// The note a menu acted on; Edit and Delete each open their own dialog for it.
+const chosen = ref<UserNote | null>(null);
+const editOpen = ref(false);
+const deleteOpen = ref(false);
+const deleteNote = useDeleteNote(channelId);
+
+function editNote(note: UserNote): void {
+  chosen.value = note;
+  editOpen.value = true;
+}
+
+function askDelete(note: UserNote): void {
+  chosen.value = note;
+  deleteOpen.value = true;
+}
+
+function confirmDelete(): void {
+  if (chosen.value) {
+    deleteNote.mutate({ userId: props.userId, noteId: Number(chosen.value.id) });
+  }
+
+  deleteOpen.value = false;
+}
 </script>
 
 <template>
@@ -89,13 +123,55 @@ function add(): void {
     @retry="notes.refetch()"
   >
     <ul class="grid gap-2 p-2 text-sm">
-      <li v-for="note in notes.data.value" :key="note.id" data-profile-note class="grid gap-0.5">
-        <span class="wrap-break-word">{{ note.content }}</span>
-        <span class="text-xs text-muted-foreground">
-          {{ byline(note) }}
-        </span>
+      <li
+        v-for="note in notes.data.value"
+        :key="note.id"
+        data-profile-note
+        class="flex items-start gap-2"
+      >
+        <div class="grid min-w-0 flex-1 gap-0.5">
+          <span class="wrap-break-word">{{ note.content }}</span>
+          <span class="text-xs text-muted-foreground">
+            {{ byline(note) }}
+          </span>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              data-profile-note-menu
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              :disabled="!canWrite || Number(note.id) < 0"
+              :title="canWrite ? undefined : $t('profile.notes.noWrite')"
+              :aria-label="$t('profile.notes.menu')"
+            >
+              <MenuDots class="size-4" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem data-profile-note-edit @select="editNote(note)">
+              {{ $t('profile.notes.edit') }}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-profile-note-delete
+              variant="destructive"
+              @select="askDelete(note)"
+            >
+              {{ $t('profile.notes.delete') }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </li>
     </ul>
+    <ProfileNoteEdit v-model:open="editOpen" :user-id="userId" :note="chosen" />
+    <ConfirmDialog
+      v-model:open="deleteOpen"
+      :title="$t('profile.notes.deleteTitle')"
+      :description="chosen?.content"
+      :action="$t('profile.notes.delete')"
+      @confirm="confirmDelete"
+    />
 
     <template #footer>
       <ReadOnlyScope

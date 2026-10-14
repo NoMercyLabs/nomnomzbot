@@ -467,7 +467,15 @@
       "pin": "Pin to the top",
       "pinned": "Pinned · {line}",
       "add": "Add note",
-      "by": "{name} · {date}"
+      "by": "{name} · {date}",
+      "menu": "Note actions",
+      "edit": "Edit",
+      "editTitle": "Edit note",
+      "editLabel": "Note",
+      "editNeeded": "A note needs some text.",
+      "save": "Save note",
+      "delete": "Delete note",
+      "deleteTitle": "Delete this note?"
     },
     "history": {
       "title": "Moderation history",

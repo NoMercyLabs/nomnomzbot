@@ -258,6 +258,70 @@ export function useAddNote(
   });
 }
 
+export type NoteChange = NoteInput & { noteId: number };
+
+// Any moderator with the note right may edit a note, as on the server; the change shows at once.
+export function useEditNote(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<UserNote[], Error, NoteChange, number> {
+  return useOptimisticSave<UserNote[], NoteChange>({
+    queryKey: ({ userId }: NoteChange) => userNotesKey(toValue(channelId), userId),
+    mutationFn: async ({ userId, noteId, content, pinned }: NoteChange): Promise<UserNote[]> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/moderation/notes/{noteId}',
+        { params: { path: {
+          version,
+          channelId: id,
+          noteId,
+        } }, body: { content, pinned } },
+      );
+
+      if (error !== undefined)
+        throw failed('edit note', response.status);
+
+      return readNotes(id, userId);
+    },
+    apply: (current: UserNote[] | undefined, { noteId, content, pinned }: NoteChange): UserNote[] =>
+      (current ?? []).map((note: UserNote) =>
+        Number(note.id) === noteId
+          ? {
+              ...note,
+              content,
+              pinned,
+            }
+          : note),
+  });
+}
+
+export type NoteRemoval = { userId: string; noteId: number };
+
+export function useDeleteNote(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<UserNote[], Error, NoteRemoval, number> {
+  return useOptimisticSave<UserNote[], NoteRemoval>({
+    queryKey: ({ userId }: NoteRemoval) => userNotesKey(toValue(channelId), userId),
+    mutationFn: async ({ userId, noteId }: NoteRemoval): Promise<UserNote[]> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/moderation/notes/{noteId}',
+        { params: { path: {
+          version,
+          channelId: id,
+          noteId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw failed('delete note', response.status);
+
+      return readNotes(id, userId);
+    },
+    apply: (current: UserNote[] | undefined, { noteId }: NoteRemoval): UserNote[] =>
+      (current ?? []).filter((note: UserNote) => Number(note.id) !== noteId),
+  });
+}
+
 // A moderation action changes the person's record, profile and place in every list.
 function personChanged(queries: QueryClient, channelId: string, userId: string): void {
   void queries.invalidateQueries({ queryKey: memberKey(channelId, userId) });

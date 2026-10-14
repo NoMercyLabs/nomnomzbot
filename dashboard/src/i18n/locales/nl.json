@@ -467,7 +467,15 @@
       "pin": "Bovenaan vastzetten",
       "pinned": "Vastgezet · {line}",
       "add": "Notitie toevoegen",
-      "by": "{name} · {date}"
+      "by": "{name} · {date}",
+      "menu": "Acties voor notitie",
+      "edit": "Bewerken",
+      "editTitle": "Notitie bewerken",
+      "editLabel": "Notitie",
+      "editNeeded": "Een notitie heeft tekst nodig.",
+      "save": "Notitie opslaan",
+      "delete": "Notitie verwijderen",
+      "deleteTitle": "Deze notitie verwijderen?"
     },
     "history": {
       "title": "Moderatiegeschiedenis",

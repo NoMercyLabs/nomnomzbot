@@ -346,6 +346,16 @@ function userIdOf(options: Options | undefined): string {
   return String((options?.params?.path as Record<string, unknown> | undefined)?.userId);
 }
 
+function noteIdOf(options: Options | undefined): number {
+  return Number((options?.params?.path as Record<string, unknown> | undefined)?.noteId);
+}
+
+function mapNotes(
+  change: (note: Record<string, unknown>) => Record<string, unknown>,
+): Record<string, Record<string, unknown>[]> {
+  return Object.fromEntries(Object.entries(notes).map(([user, list]) => [user, list.map(change)]));
+}
+
 vi.mock('@/api/client', () => ({
   client: {
     GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
@@ -399,8 +409,31 @@ vi.mock('@/api/client', () => ({
 
       return { response: { ok: true } };
     }),
+    PUT: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
+      record(path, options);
+
+      const id = noteIdOf(options);
+      const change = options?.body as { content: string; pinned: boolean };
+
+      notes = mapNotes((note: Record<string, unknown>) =>
+        note.id === id
+          ? { ...note, ...change }
+          : note);
+
+      return { data: { data: null }, response: { ok: true } };
+    }),
     DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options);
+
+      if (path.endsWith('/notes/{noteId}')) {
+        const id = noteIdOf(options);
+
+        notes = Object.fromEntries(Object.entries(notes).map(([user, list]) =>
+          [user, list.filter((note: Record<string, unknown>) => note.id !== id)]));
+
+        return { response: { ok: true } };
+      }
+
       people[userIdOf(options)]!.isVip = false;
 
       return { response: { ok: true } };
@@ -910,6 +943,61 @@ describe('the profile dialog', () => {
     );
 
     expect((await vipItem()).getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('edits a note and its pin from the note menu, keeping the rest of the note', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    openMenu(button('[data-profile-note-menu]'));
+    await settle();
+    button('[data-profile-note-edit]').click();
+    await settle();
+
+    const text = document.body.querySelector<HTMLTextAreaElement>('[data-profile-note-edit-text]')!;
+
+    expect(text.value).toBe('Helps new chatters find the rules.');
+
+    text.value = '  Helps new chatters find the rules and the FAQ.  ';
+    text.dispatchEvent(new Event('input'));
+    button('[data-profile-note-edit-pin]').click();
+    await settle();
+    button('[data-form-action]').click();
+    await settle();
+
+    const edits = calls.filter((c: Call) => c.path.endsWith('/notes/{noteId}') && c.body !== undefined);
+
+    expect(edits.map((c: Call) => [noteIdOf(c), c.body])).toEqual([
+      [7, { content: 'Helps new chatters find the rules and the FAQ.', pinned: false }],
+    ]);
+
+    expect(document.body.querySelector('[data-profile-note-edit-text]')).toBeNull();
+    expect(dialogs()[0]!.textContent).toContain('Helps new chatters find the rules and the FAQ.');
+    expect(dialogs()[0]!.textContent).not.toContain('Pinned ·');
+  });
+
+  it('deletes a note only after the moderator confirms it', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    openMenu(button('[data-profile-note-menu]'));
+    await settle();
+    button('[data-profile-note-delete]').click();
+    await settle();
+
+    const deletes = (): Call[] =>
+      calls.filter((c: Call) => c.path.endsWith('/notes/{noteId}') && c.body === undefined);
+
+    expect(deletes()).toHaveLength(0);
+
+    button('[data-confirm-action]').click();
+    await settle();
+
+    expect(deletes().map((c: Call) => noteIdOf(c))).toEqual([7]);
+    expect(dialogs()[0]!.textContent).not.toContain('Helps new chatters find the rules.');
+    expect(dialogs()[0]!.textContent).toContain('No notes on this person yet.');
   });
 
   it('locks the note box when the caller may read notes but not write them', async () => {
