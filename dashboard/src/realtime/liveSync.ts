@@ -55,6 +55,7 @@ const eventHandlers = [
   refreshing('StreamStatusChanged', merge(homeKeys, [botStatusKey, adScheduleKey])),
   refreshing('StreamInfoChanged', [homeStatsKey]),
   refreshing('MusicStateChanged', [musicQueueKey]),
+  refreshing('sr_queue_changed', [musicQueueKey]),
   refreshing('RewardRedeemed', merge(homeKeys, [rewardsKey])),
   refreshing('RedemptionStatusChanged', merge(homeKeys, [rewardsKey])),
   refreshing('RewardChanged', [rewardsKey]),

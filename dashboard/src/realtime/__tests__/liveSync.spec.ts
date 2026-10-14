@@ -78,6 +78,8 @@ const everyKey: Keys[] = [
 // Each hub event with the keys it must mark stale for the joined channel.
 const eventKeys: [string, unknown, Keys[]][] = [
   ['MusicStateChanged', { isPlaying: true, currentTrack: null }, [musicQueueKey]],
+  // Owner 2026-10-14: "i queued a song and it took too long to show up, why is this not socket based?"
+  ['sr_queue_changed', { items: [] }, [musicQueueKey]],
   ['RewardRedeemed', { broadcasterId: 'x' }, [homeStatsKey, activityKey, rewardsKey]],
   ['RedemptionStatusChanged', { broadcasterId: 'x' }, [homeStatsKey, activityKey, rewardsKey]],
   ['RewardChanged', { broadcasterId: 'x', action: 'updated' }, [rewardsKey]],
