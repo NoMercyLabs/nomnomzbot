@@ -360,10 +360,11 @@ function pick(event: MouseEvent): void {
         }}</span>
       </p>
       <!-- At the row's top-right corner, above the row: never over this line or a name, and touching the row
-           so the hover holds on the way up (owner 2026-10-13 and 2026-10-14). -->
+           so the hover holds on the way up (owner 2026-10-13 and 2026-10-14). Its own layer and `invisible`
+           when hidden: a fast sweep left half-painted trays over the row above (owner 2026-10-14). -->
       <div
         v-if="!line.removed"
-        class="absolute right-3 bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-aria-expanded:opacity-100"
+        class="absolute right-3 bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 invisible opacity-0 will-change-[opacity] group-hover/line:visible group-hover/line:opacity-100 group-focus-within/line:visible group-focus-within/line:opacity-100 has-aria-expanded:visible has-aria-expanded:opacity-100"
         data-tray
         role="group"
         :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"
