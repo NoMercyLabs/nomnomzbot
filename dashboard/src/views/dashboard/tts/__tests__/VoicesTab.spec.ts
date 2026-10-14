@@ -14,6 +14,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
+import { laptopWidth, setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -117,6 +118,7 @@ let pinia: Pinia;
 const played: string[] = [];
 
 beforeEach(() => {
+  setWidth(laptopWidth);
   localStorage.clear();
   calls.length = 0;
   played.length = 0;

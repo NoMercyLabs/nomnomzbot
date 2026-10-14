@@ -15,6 +15,7 @@ import type { SortableEvent } from 'sortablejs';
 import Grip from '~icons/nnz/hamburger';
 import Trash2 from '~icons/nnz/trash';
 import { computed, ref, useTemplateRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useConnections } from '@/api/home';
 import {
@@ -30,6 +31,7 @@ import {
 } from '@/api/music';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
+import type { BoardPanel } from '@/components/layout/board';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -42,6 +44,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import NowPlayingCard from './components/NowPlayingCard.vue';
 import RulesPanel from './components/RulesPanel.vue';
 
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const queueQuery = useMusicQueue(channelId);
@@ -115,6 +118,14 @@ function confirmRemove(): void {
   remove.mutate({ position: Number(removing.value.position) });
   removing.value = null;
 }
+
+const panels = computed(() => [
+  { id: 'now', label: t('dashboard.music.now.title') },
+  { id: 'queue', label: t('dashboard.music.queue.title') },
+  { id: 'rules', label: t('dashboard.music.rules.title') },
+  { id: 'history', label: t('dashboard.music.history.title') },
+  { id: 'thanks', label: t('dashboard.music.thanks.title') },
+] as const satisfies readonly BoardPanel[]);
 </script>
 
 <template>
@@ -123,8 +134,8 @@ function confirmRemove(): void {
       <StatusBadge :tone="spotify.tone" :label="$t(`dashboard.music.spotify.${spotify.key}`)" />
     </template>
   </PageHeader>
-  <BoardGrid :rows="2">
-    <BoardCell :span="5">
+  <BoardGrid :panels="panels" :rows="2">
+    <BoardCell panel="now" :span="5">
       <PanelCard
         tier="lead"
         :title="$t('dashboard.music.now.title')"
@@ -143,7 +154,7 @@ function confirmRemove(): void {
         />
       </PanelCard>
     </BoardCell>
-    <BoardCell :span="4">
+    <BoardCell panel="queue" :span="4">
       <PanelCard
         :title="$t('dashboard.music.queue.title')"
         :description="
@@ -210,17 +221,17 @@ function confirmRemove(): void {
         </div>
       </PanelCard>
     </BoardCell>
-    <BoardCell :span="3" :rows="2">
+    <BoardCell panel="rules" :span="3" :rows="2">
       <RulesPanel />
     </BoardCell>
-    <BoardCell :span="5">
+    <BoardCell panel="history" :span="5">
       <PanelCard
         :title="$t('dashboard.music.history.title')"
         state="empty"
         :empty-text="$t('dashboard.music.history.empty')"
       />
     </BoardCell>
-    <BoardCell :span="4">
+    <BoardCell panel="thanks" :span="4">
       <PanelCard
         :title="$t('dashboard.music.thanks.title')"
         state="empty"

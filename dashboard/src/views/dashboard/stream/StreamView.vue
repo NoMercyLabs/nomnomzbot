@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 import { useStreamHistory, useStreamInfo, type StreamInfo } from '@/api/stream';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
+import type { BoardPanel } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -65,6 +66,12 @@ const meta = computed<string>(() => {
 
   return t('dashboard.stream.noStreamYet');
 });
+
+const panels = computed(() => [
+  { id: 'info', label: t('dashboard.stream.info.title') },
+  { id: 'platforms', label: t('dashboard.stream.platforms.title') },
+  { id: 'checklist', label: t('dashboard.stream.checklist.title') },
+] as const satisfies readonly BoardPanel[]);
 </script>
 
 <template>
@@ -78,9 +85,9 @@ const meta = computed<string>(() => {
     <template v-if="meta" #meta>{{ meta }}</template>
   </PageHeader>
 
-  <BoardGrid :rows="2">
-    <BoardCell :span="8" :rows="2"><StreamInfoPanel /></BoardCell>
-    <BoardCell :span="4"><PlatformRows /></BoardCell>
-    <BoardCell :span="4"><GoLiveChecklist /></BoardCell>
+  <BoardGrid :panels="panels" :rows="2">
+    <BoardCell panel="info" :span="8" :rows="2"><StreamInfoPanel /></BoardCell>
+    <BoardCell panel="platforms" :span="4"><PlatformRows /></BoardCell>
+    <BoardCell panel="checklist" :span="4"><GoLiveChecklist /></BoardCell>
   </BoardGrid>
 </template>

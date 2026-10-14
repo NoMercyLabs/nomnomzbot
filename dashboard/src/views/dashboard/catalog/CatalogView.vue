@@ -19,6 +19,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
+import type { BoardPanel } from '@/components/layout/board';
 import ChartPanel, { type ChartRow, type ChartSeries } from '@/components/layout/ChartPanel.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
@@ -55,6 +56,12 @@ import {
 import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 
 const { t } = useI18n();
+
+const boardPanels = computed(() => [
+  { id: 'board', label: t('dashboard.catalog.layout.board') },
+  { id: 'cell', label: t('dashboard.catalog.layout.cell') },
+  { id: 'quiet', label: t('dashboard.catalog.panel.quiet') },
+] as const satisfies readonly BoardPanel[]);
 
 const tabs: PageTab[] = [
   { value: 'blocks', label: t('dashboard.catalog.tabs.blocks') },
@@ -613,14 +620,14 @@ function confirmDelete(): void {
 
         <template v-else>
           <div class="flex h-80 flex-col">
-            <BoardGrid>
-              <BoardCell :span="7" :rows="2">
+            <BoardGrid :panels="boardPanels">
+              <BoardCell panel="board" :span="7" :rows="2">
                 <PanelCard :title="t('dashboard.catalog.layout.board')" tier="lead" />
               </BoardCell>
-              <BoardCell :span="5">
+              <BoardCell panel="cell" :span="5">
                 <PanelCard :title="t('dashboard.catalog.layout.cell')" />
               </BoardCell>
-              <BoardCell :span="5">
+              <BoardCell panel="quiet" :span="5">
                 <PanelCard :title="t('dashboard.catalog.layout.cell')" tier="quiet" />
               </BoardCell>
             </BoardGrid>

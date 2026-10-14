@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n';
 import { useTtsConfig, useTtsOverlay, type TtsConfig } from '@/api/tts';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
+import type { BoardPanel } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -108,6 +109,14 @@ const overlayDetail = computed<string>(() => {
     time: new Date(ranAt).toLocaleString(locale.value),
   });
 });
+
+const overviewPanels = computed(() => [
+  { id: 'history', label: t('dashboard.tts.history.title') },
+  { id: 'settings', label: t('dashboard.tts.settings.title') },
+] as const satisfies readonly BoardPanel[]);
+const rulesPanels = computed(() => [
+  { id: 'rules', label: t('dashboard.tts.rules.title') },
+] as const satisfies readonly BoardPanel[]);
 </script>
 
 <template>
@@ -122,8 +131,8 @@ const overlayDetail = computed<string>(() => {
     <template #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
-  <BoardGrid v-if="view === 'overview'" :rows="1">
-    <BoardCell :span="7">
+  <BoardGrid v-if="view === 'overview'" :panels="overviewPanels" :rows="1">
+    <BoardCell panel="history" :span="7">
       <PanelCard
         :title="$t('dashboard.tts.history.title')"
         :description="$t('dashboard.tts.history.description')"
@@ -132,7 +141,7 @@ const overlayDetail = computed<string>(() => {
         :empty-text="$t('dashboard.tts.history.empty')"
       />
     </BoardCell>
-    <BoardCell :span="5">
+    <BoardCell panel="settings" :span="5">
       <PanelCard
         :title="$t('dashboard.tts.settings.title')"
         :state="settingsState"
@@ -182,8 +191,8 @@ const overlayDetail = computed<string>(() => {
 
   <VoicesTab v-else-if="view === 'voices'" />
 
-  <BoardGrid v-else :rows="1">
-    <BoardCell>
+  <BoardGrid v-else :panels="rulesPanels" :rows="1">
+    <BoardCell panel="rules">
       <PanelCard
         :title="$t('dashboard.tts.rules.title')"
         state="empty"

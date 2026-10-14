@@ -12,6 +12,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import { laptopWidth, phoneWidth, setWidth } from '@/__tests__/viewport';
 import { frameActionsKey } from '@/components/layout/frameActions';
 import { i18n } from '@/i18n';
 import BoardCell from '@/components/layout/BoardCell.vue';
@@ -23,9 +24,22 @@ import StatTile from '@/components/layout/StatTile.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 
 describe('the board', () => {
+  const panels = [{ id: 'one', label: 'One' }, { id: 'two', label: 'Two' }];
+  const realMatchMedia = window.matchMedia;
+
+  afterEach(() => {
+    window.matchMedia = realMatchMedia;
+  });
+
   it('splits the height into the rows it is given and places a cell by span and rows', () => {
-    const grid: VueWrapper = mount(BoardGrid, { props: { rows: 3 } });
-    const cell: VueWrapper = mount(BoardCell, { props: { span: 5, rows: 2 } });
+    setWidth(laptopWidth);
+
+    const grid: VueWrapper = mount(BoardGrid, { props: { panels, rows: 3 } });
+    const cell: VueWrapper = mount(BoardCell, { props: {
+      panel: 'one',
+      span: 5,
+      rows: 2,
+    } });
 
     expect(grid.attributes('style')).toContain('--board-rows: repeat(3, minmax(0, 1fr))');
     expect(cell.attributes('style')).toContain('--cell-span: span 5');
@@ -33,17 +47,24 @@ describe('the board', () => {
   });
 
   it('gives a cell the full width and one row by default', () => {
-    const cell = mount(BoardCell);
+    const cell = mount(BoardCell, { props: { panel: 'one' } });
 
     expect(cell.attributes('style')).toContain('--cell-span: span 12');
     expect(cell.attributes('style')).toContain('--cell-rows: span 1');
   });
 
   // Stoney 2026-10-14, on his phone: "Nice mobile view...". The 12 columns squeezed three panels into a phone
-  // width, one letter per line. Below laptop width the panels stack in one column and the board scrolls.
-  it('stacks the panels in one scrolling column below laptop width', () => {
-    const grid: VueWrapper = mount(BoardGrid, { props: { rows: 2 } });
-    const cell: VueWrapper = mount(BoardCell, { props: { span: 3, rows: 2 } });
+  // width, one letter per line. Below laptop width a board of one panel stacks in one column; a board of more
+  // panels shows them one at a time behind tabs (BoardGrid.spec).
+  it('stacks a single panel in one column below laptop width', () => {
+    setWidth(phoneWidth);
+
+    const grid: VueWrapper = mount(BoardGrid, { props: { panels: panels.slice(0, 1), rows: 2 } });
+    const cell: VueWrapper = mount(BoardCell, { props: {
+      panel: 'one',
+      span: 3,
+      rows: 2,
+    } });
 
     expect(grid.classes()).toEqual(expect.arrayContaining(['grid-cols-1', 'overflow-y-auto', 'lg:grid-cols-12']));
     expect(grid.classes()).not.toContain('grid-cols-12');
@@ -76,26 +97,6 @@ describe('the list and detail layout', () => {
   describe('the aside', () => {
     const realMatchMedia = window.matchMedia;
     let mounted: VueWrapper | undefined;
-
-    // A window of the given width: matchMedia answers min-width queries against it.
-    function setWidth(width: number): void {
-      window.matchMedia = ((query: string): MediaQueryList => {
-        const min = query.match(/min-width:\s*(\d+)px/);
-
-        return {
-          matches: min
-            ? width >= Number(min[1])
-            : false,
-          media: query,
-          addEventListener: () => {},
-          removeEventListener: () => {},
-          addListener: () => {},
-          removeListener: () => {},
-          dispatchEvent: () => false,
-          onchange: null,
-        } as MediaQueryList;
-      }) as typeof window.matchMedia;
-    }
 
     async function withAside(width: number, asideOpen = false): Promise<VueWrapper> {
       setWidth(width);
