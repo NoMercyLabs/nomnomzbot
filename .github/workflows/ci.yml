@@ -21,6 +21,9 @@ jobs:
   test:
     name: Test (backend)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,9 +61,19 @@ jobs:
         working-directory: server
         run: dotnet test NomNomzBot.slnx -c Debug --no-build
 
+      # A red here means the run can never deploy: cancel the sibling job instead of letting it burn minutes.
+      - name: Stop the run early
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+
   contract:
     name: Contract test (frontend)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,6 +124,12 @@ jobs:
                   message = " | ".join(line.strip() for line in message.splitlines() if line.strip())[:800]
                   print(f"::error::{case.get('classname')}.{case.get('name')}: {message}")
           EOF
+
+      - name: Stop the run early
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
   build:
     name: Build & push image
