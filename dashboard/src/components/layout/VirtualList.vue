@@ -25,8 +25,9 @@ const props = withDefaults(
     estimateSize: number;
     label: string;
     stick?: boolean;
+    pauseOnHover?: boolean;
   }>(),
-  { stick: false },
+  { stick: false, pauseOnHover: false },
 );
 
 defineSlots<{ default(props: { item: T; index: number }): unknown }>();
@@ -40,6 +41,10 @@ const OVERSCAN = 8;
 const scrollArea = ref<HTMLElement | null>(null);
 const atBottom = ref(true);
 const newBelow = ref(0);
+// pauseOnHover: the pointer is over the feed, so new rows do not move it.
+const hovering = ref(false);
+const held = computed(() =>
+  props.pauseOnHover && hovering.value);
 
 type Options = PartialKeys<
   VirtualizerOptions<HTMLElement, Element>,
@@ -52,7 +57,7 @@ const options = computed<Options>(() => ({
   estimateSize: () => props.estimateSize,
   getItemKey: (index: number) => props.itemKey(props.items[index]!, index),
   overscan: OVERSCAN,
-  anchorTo: props.stick
+  anchorTo: props.stick && !held.value
     ? 'end'
     : 'start',
   scrollEndThreshold: AT_BOTTOM_SLACK,
@@ -124,6 +129,20 @@ function scrollToBottom(): void {
   virtualizer.value.scrollToIndex(props.items.length - 1, { align: 'end' });
 }
 
+function onPointerEnter(): void {
+  hovering.value = true;
+}
+
+// Leaving resumes the feed: a reader who was at the bottom goes on to the newest row.
+async function onPointerLeave(): Promise<void> {
+  hovering.value = false;
+
+  if (!props.stick || !atBottom.value) return;
+
+  await nextTick();
+  jumpToBottom();
+}
+
 function jumpToBottom(): void {
   newBelow.value = 0;
   scrollToBottom();
@@ -173,7 +192,7 @@ watch(
       return;
     }
 
-    if (atBottom.value) {
+    if (atBottom.value && !held.value) {
       await nextTick();
       scrollToBottom();
     } else {
@@ -200,6 +219,8 @@ onMounted(async () => {
       :aria-label="label"
       class="min-h-0 flex-1 overflow-y-auto rounded-[8px] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
       @scroll.passive="onScroll"
+      @pointerenter="onPointerEnter"
+      @pointerleave="onPointerLeave"
       @keydown="onKey"
     >
       <div

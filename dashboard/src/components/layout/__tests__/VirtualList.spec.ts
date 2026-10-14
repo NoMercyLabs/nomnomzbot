@@ -333,6 +333,43 @@ describe('the stick-to-bottom mode', () => {
     wrapper.unmount();
   });
 
+  it('holds the view while the pointer is over the feed and jumps to the newest on leave', async () => {
+    const wrapper: VueWrapper = list(rows(50), { stick: true, pauseOnHover: true });
+
+    await nextTick();
+    await nextTick();
+    await scroller(wrapper).dispatchEvent(new Event('pointerenter'));
+
+    await wrapper.setProps({ items: rows(52) });
+    await nextTick();
+    await nextTick();
+
+    expect(scroller(wrapper).scrollTop).toBe(BOTTOM_OF(50));
+    expect(wrapper.find('[data-new-below]').text()).toBe('2 new messages below');
+
+    await scroller(wrapper).dispatchEvent(new Event('pointerleave'));
+    await nextTick();
+    await nextTick();
+
+    expect(scroller(wrapper).scrollTop).toBe(BOTTOM_OF(52));
+    expect(wrapper.find('[data-new-below]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('keeps following new rows under the pointer when pauseOnHover is off', async () => {
+    const wrapper: VueWrapper = list(rows(50), { stick: true });
+
+    await nextTick();
+    await nextTick();
+    await scroller(wrapper).dispatchEvent(new Event('pointerenter'));
+    await wrapper.setProps({ items: rows(51) });
+    await nextTick();
+    await nextTick();
+
+    expect(scroller(wrapper).scrollTop).toBe(BOTTOM_OF(51));
+    wrapper.unmount();
+  });
+
   it('does not count or move when the list is not in stick mode', async () => {
     const wrapper = list(rows(50));
 

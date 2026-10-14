@@ -415,6 +415,7 @@ async function confirmBan(): Promise<void> {
           <VirtualList
             :key="searching ? 'search' : 'feed'"
             :stick="!searching"
+            :pause-on-hover="poppedOut"
             :items="feedLines"
             :item-key="(line: ChatLineData) => line.id"
             :estimate-size="40"
