@@ -1,0 +1,92 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, describe, expect, it } from 'vitest';
+import { defineComponent, h } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+
+import { i18n } from '@/i18n';
+
+import BottomBar from '../BottomBar.vue';
+import { dashboardNav } from '../navigation';
+
+const page = defineComponent({ render: () => h('div') });
+
+let mounted: VueWrapper | undefined;
+
+afterEach(() => {
+  mounted?.unmount();
+  document.body.innerHTML = '';
+});
+
+function makeRouter(): Router {
+  const names = dashboardNav.flatMap((group) => group.entries.map((entry) => entry.route));
+
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: names.map((name: string) => ({
+      name,
+      path: `/${name}`,
+      component: page,
+    })),
+  });
+}
+
+async function openMore(path: string): Promise<void> {
+  const router = makeRouter();
+
+  await router.push(path);
+
+  mounted = mount(BottomBar, {
+    attachTo: document.body,
+    global: { plugins: [router, i18n] },
+  });
+
+  await flushPromises();
+
+  const trigger = mounted.findAll('button').find((button) => button.text() === 'More');
+
+  await trigger!.trigger('click');
+  await flushPromises();
+}
+
+function sheet(): HTMLElement {
+  return document.body.querySelector<HTMLElement>('[data-slot="more-drawer"]')!;
+}
+
+// Stoney 2026-10-15 audit: on a phone the More menu had no close control and two rows looked highlighted.
+describe('the bottom bar More menu', () => {
+  it('has a visible close control that closes the sheet', async () => {
+    await openMore('/dashboard-analytics');
+
+    const close = sheet().querySelector<HTMLElement>('[data-drawer-close]');
+
+    expect(close).not.toBeNull();
+    expect(close!.getAttribute('aria-label')).toBe('Close');
+
+    close!.click();
+    await flushPromises();
+
+    expect(document.body.querySelector('[data-slot="more-drawer"]')).toBeNull();
+  });
+
+  it('marks only the row of the current page, and focus does not land on another row', async () => {
+    await openMore('/dashboard-analytics');
+
+    const current = sheet().querySelectorAll('[aria-current="page"]');
+    const shaded = sheet().querySelectorAll('[data-slot="item"].bg-muted');
+
+    expect(current).toHaveLength(1);
+    expect(current[0]!.textContent).toContain('Analytics');
+    expect(shaded).toHaveLength(1);
+    expect(document.activeElement?.closest('a')).toBeNull();
+  });
+});

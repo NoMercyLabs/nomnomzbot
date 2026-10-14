@@ -11,6 +11,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ChevronRight from '~icons/nnz/chevron-right';
+import Cross from '~icons/nnz/cross';
 import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
 
 import { Button } from '@/components/ui/button';
@@ -67,9 +68,18 @@ const sheetEntries = computed<NavEntry[]>(() =>
         </Button>
       </DrawerTrigger>
       <DrawerContent data-slot="more-drawer">
-        <DrawerHeader>
+        <DrawerHeader class="flex-row items-center justify-between">
           <DrawerTitle>{{ t('frame.nav.more') }}</DrawerTitle>
           <DrawerDescription class="sr-only">{{ t('frame.nav.moreHelp') }}</DrawerDescription>
+          <Button
+            data-drawer-close
+            variant="ghost"
+            size="icon"
+            :aria-label="t('common.close')"
+            @click="more = false"
+          >
+            <Cross class="size-5" aria-hidden="true" />
+          </Button>
         </DrawerHeader>
         <ItemGroup class="overflow-y-auto px-2 pb-4">
           <Item
