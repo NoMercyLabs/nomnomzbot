@@ -155,8 +155,17 @@
         "recent": "Recent",
         "results": "Results",
         "none": "Nothing matches.",
-        "hint": "Point at one to see its name. Right-click an emote to star it, or an emoji to change its skin tone.",
+        "hint": "Right-click to star an emote or give one emoji its own tone.",
         "tones": "Choose a skin tone",
+        "toneForAll": "Skin tone for all emoji",
+        "toneNames": {
+          "0": "Default yellow",
+          "1": "Light",
+          "2": "Medium-light",
+          "3": "Medium",
+          "4": "Medium-dark",
+          "5": "Dark"
+        },
         "favorites": "Favorites",
         "starred": "{name}, starred",
         "own": "Your emotes",

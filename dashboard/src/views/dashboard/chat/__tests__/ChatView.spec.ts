@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { chatKey, type ChatLine } from '@/api/chat';
+import { chatKey, type ChatEmoteEntry, type ChatLine } from '@/api/chat';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
@@ -56,7 +56,7 @@ let searchPages: Record<string, SearchPage> = {};
 
 let favoriteList: Record<string, unknown>[] = [];
 
-const emoteList = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code) => ({
+const emoteList = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code): ChatEmoteEntry => ({
   id: `id-${code}`,
   origin: 'channel',
   code,
@@ -1620,6 +1620,9 @@ describe('ChatView emote picker', () => {
 
   beforeEach(() => {
     localStorage.removeItem('nnz.chat.recent-picks');
+    localStorage.removeItem('nnz.chat.skin-tone');
+    localStorage.removeItem('nnz.chat.skin-tones');
+    localStorage.removeItem('nnz.chat.picker-collapsed');
     favoriteList = [];
   });
 
@@ -1726,37 +1729,62 @@ describe('ChatView emote picker', () => {
     expect(typed()).toBe('');
   });
 
-  // Stoney 2026-10-14: "make variant emotes yellow and give the user the choice of which and make long press
-  // clear the choice and the user pick a new version".
-  it('shows a skin-tone emoji yellow, asks for the tone once, and asks again after a long press', async () => {
-    const tones = (): string[] => [...document.body.querySelectorAll<HTMLElement>('[data-skin-option]')]
-      .map((option) =>
-        option.dataset.skinOption ?? '');
-
+  // Stoney 2026-10-14: "someone needs to be able to choose a skin tone once and the picker needs to swap them to
+  // that skin tone for all emojis, this is very tedious".
+  it('turns every emoji to the one skin tone chosen beside the search', async () => {
     await open();
     await openPicker();
 
     expect(item('👋').dataset.skins).toBe('5');
+    expect(item('👋').textContent.trim()).toBe('👋');
 
     item('👋').click();
     await settle();
-    expect(typed()).toBe('');
+    expect(typed()).toBe('👋 ');
+
+    (picker()!.querySelector('[data-skin-tone-button]') as HTMLElement).click();
+    await settle();
+
+    const hands = [...document.body.querySelectorAll<HTMLElement>('[data-tone-choice]')];
+
+    expect(hands.map((hand) =>
+      hand.textContent.trim())).toEqual(['✋', '✋🏻', '✋🏼', '✋🏽', '✋🏾', '✋🏿']);
+
+    hands[3]!.click();
+    await settle();
+    expect(localStorage.getItem('nnz.chat.skin-tone')).toBe('3');
+    expect(item('👋').textContent.trim()).toBe('👋🏽');
+    expect(item('👏').textContent.trim()).toBe('👏🏽');
+
+    item('👏').click();
+    await settle();
+    expect(typed()).toBe('👋 👏🏽 ');
+  });
+
+  // Stoney 2026-10-14: "make long press clear the choice and the user pick a new version". A long press gives one
+  // emoji a tone of its own; the others keep the tone chosen for all.
+  it('gives one emoji its own tone on a long press, and asks again on the next one', async () => {
+    const tones = (): string[] => [...document.body.querySelectorAll<HTMLElement>('[data-skin-option]')]
+      .map((option) =>
+        option.dataset.skinOption ?? '');
+
+    localStorage.setItem('nnz.chat.skin-tone', '3');
+    await open();
+    await openPicker();
+
+    item('👋').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
     expect(tones()).toEqual(['👋', '👋🏻', '👋🏼', '👋🏽', '👋🏾', '👋🏿']);
 
-    skinOption('👋🏽').click();
+    skinOption('👋🏿').click();
     await settle();
-    expect(typed()).toBe('👋🏽 ');
-    expect(tones()).toEqual([]);
-
-    item('👋').click();
-    await settle();
-    expect(typed()).toBe('👋🏽 👋🏽 ');
-    expect(tones()).toEqual([]);
+    expect(typed()).toBe('👋🏿 ');
+    expect(item('👋').textContent.trim()).toBe('👋🏿');
+    expect(item('👏').textContent.trim()).toBe('👏🏽');
 
     item('👋').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await settle();
     expect(tones()).toHaveLength(6);
-    expect(typed()).toBe('👋🏽 👋🏽 ');
     expect(JSON.parse(localStorage.getItem('nnz.chat.skin-tones') ?? '{}')).toEqual({});
   });
 
@@ -1788,16 +1816,97 @@ describe('ChatView emote picker', () => {
     expect(JSON.parse(localStorage.getItem('nnz.chat.recent-picks')!)).toEqual(['bigCat', 'Kappa']);
   });
 
-  it('searches emotes, emoji short codes and emoji tags in one list', async () => {
+  // Stoney 2026-10-14: "instead of removing the tabs, make them grayed out and locked and keep the remaining tabs
+  // enabled, but please add the channel grouping".
+  it('searches emotes, emoji short codes and emoji tags and keeps them in their sections', async () => {
     await open();
     await openPicker();
     await searchPicker('cat');
-    expect(sections()).toEqual(['results']);
-    expect(itemsOf('results').slice(0, 3)).toEqual(['catJAM', 'catKISS', 'bigCat']);
-    expect(itemsOf('results')).toContain('🐱');
+    expect(sections()[0]).toBe('channel');
+    expect(itemsOf('channel')).toEqual(['catJAM', 'catKISS', 'bigCat']);
+    expect(itemsOf('emoji-animals')).toContain('🐱');
 
     await searchPicker('love');
-    expect(itemsOf('results')).toContain('😍');
+    expect(itemsOf('emoji-smileys')).toContain('😍');
+  });
+
+  it('grays out and locks the rail tabs without a match, and keeps the others', async () => {
+    const jump = (id: string): HTMLButtonElement =>
+      picker()!.querySelector(`[data-picker-jump="${id}"]`)!;
+
+    await open();
+    await openPicker();
+    await searchPicker('cat');
+
+    expect(jump('channel').disabled).toBe(false);
+    expect(jump('emoji-animals').disabled).toBe(false);
+    expect(jump('emoji-flags').disabled).toBe(true);
+    expect(jump('channel').querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/bigCat-2.webp');
+  });
+
+  // Stoney 2026-10-14: "use the channel avatar instead of its first emote", and the Twitch picker's sections that
+  // name their source and fold away.
+  it('shows another channel by its avatar and names the source in its heading', async () => {
+    emoteList.push({
+      ...emoteList[0]!,
+      id: 'id-zedHi',
+      code: 'zedHi',
+      provider: 'Twitch',
+      origin: 'other',
+      ownerLogin: 'zed',
+      ownerName: 'Zed',
+      ownerAvatarUrl: 'https://cdn.test/zed.png',
+    });
+
+    try {
+      await open();
+      await openPicker();
+
+      const jump = picker()!.querySelector('[data-picker-jump="owner-zed"]')!;
+      const heading = picker()!.querySelector('[data-picker-collapse="owner-zed"]')!;
+
+      expect(jump.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/zed.png');
+      expect(heading.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/zed.png');
+      expect(heading.textContent).toContain('Zed');
+      expect(heading.textContent).toContain('Twitch');
+    } finally {
+      emoteList.pop();
+    }
+  });
+
+  it('folds a section away from its heading and keeps it folded across a reopen', async () => {
+    localStorage.removeItem('nnz.chat.picker-collapsed');
+    await open();
+    await openPicker();
+
+    const heading = (): HTMLElement => picker()!.querySelector('[data-picker-collapse="channel"]')!;
+
+    heading().click();
+    await settle();
+    expect(heading().getAttribute('aria-expanded')).toBe('false');
+    expect(itemsOf('channel')).toEqual([]);
+    expect(JSON.parse(localStorage.getItem('nnz.chat.picker-collapsed')!)).toEqual(['channel']);
+
+    (picker()!.querySelector('[data-picker-jump="channel"]') as HTMLElement).click();
+    await settle();
+    expect(itemsOf('channel')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
+  });
+
+  it('marks a favorite with a star in the grid', async () => {
+    favoriteList = [{
+      provider: 'SevenTv',
+      emoteId: 'id-catJAM',
+      code: 'catJAM',
+      imageUrl: null,
+    }];
+
+    await open();
+    await openPicker();
+
+    const starred = [...picker()!.querySelectorAll<HTMLElement>('[data-favorite-badge]')].map((badge) =>
+      badge.closest<HTMLElement>('[data-picker-item]')!.dataset.pickerItem);
+
+    expect(starred).toEqual(['catJAM', 'catJAM']);
   });
 
   it('says so when nothing matches', async () => {

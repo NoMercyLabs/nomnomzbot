@@ -21,21 +21,24 @@ import {
 import type { EmojiEntry } from './emojiCatalog';
 
 // The picker by owner, as Stoney asked on 2026-10-14: favorites, recent picks, your own emotes, this channel's,
-// every other channel by name, the global ones, then the emoji per Unicode group. A search turns it into one
-// list of every match. A section of one channel carries that channel's name.
+// every other channel by name, the global ones, then the emoji per Unicode group. A search keeps every section,
+// each with only its matches. A section of one channel carries that channel's name and avatar.
 export type PickerSection = {
   id: string;
   items: Suggestion[];
   name?: string;
+  avatar?: string;
 };
 
-// The name of the channel being viewed, and the favorites as favoriteKey values, newest first.
+// The channel being viewed, the avatars of that channel and of you, and the favorites as favoriteKey values,
+// newest first.
 export type PickerContext = {
   channelName: string | null;
+  channelAvatar?: string | null;
+  ownAvatar?: string | null;
   favorites: readonly string[];
 };
 
-export const pickerSearchLimit = 120;
 export const recentLimit = 24;
 
 const providerOrder = ['Twitch', 'SevenTv', 'Bttv', 'Ffz'] as const satisfies readonly string[];
@@ -77,11 +80,15 @@ function ownerSections(
   for (const emote of ordered) {
     const id = sectionOf(emote);
     // Only another channel's section is named after its owner; a 7TV emote's owner is its uploader.
+    const owned = id.startsWith('owner-');
     const section = groups.get(id) ?? {
       id,
       items: [],
-      name: id.startsWith('owner-')
+      name: owned
         ? emote.ownerName ?? emote.ownerLogin ?? undefined
+        : undefined,
+      avatar: owned
+        ? emote.ownerAvatarUrl ?? undefined
         : undefined,
     };
 
@@ -90,9 +97,15 @@ function ownerSections(
   }
 
   const channel = groups.get('channel');
+  const own = groups.get('own');
 
   if (channel) {
     channel.name = at.channelName ?? undefined;
+    channel.avatar = at.channelAvatar ?? undefined;
+  }
+
+  if (own) {
+    own.avatar = at.ownAvatar ?? undefined;
   }
 
   const others = [...groups.values()]
@@ -177,6 +190,40 @@ function recentSection(
     : [];
 }
 
+// Every match ranked as the composer ranks it, best first: an emote by its code, an emoji by its glyph.
+function matchRanks(
+  emotes: readonly ChatEmoteEntry[],
+  emoji: readonly EmojiEntry[],
+  search: string,
+): ReadonlyMap<string, number> {
+  const hits = merge(
+    emoteSuggestions(emotes, search, Infinity),
+    emojiSuggestions(emoji, search, Infinity),
+  );
+
+  return new Map(hits.map((hit, rank) =>
+    [hit.insert, rank]));
+}
+
+// A search keeps every section, so the rail keeps its place; a section holds only its matches, best first.
+function narrow(
+  sections: readonly PickerSection[],
+  ranks: ReadonlyMap<string, number>,
+): PickerSection[] {
+  const rankOf = (item: Suggestion): number =>
+    ranks.get(item.insert) ?? -1;
+
+  return sections.map((section) => {
+    const items = section.items
+      .filter((item) =>
+        rankOf(item) >= 0)
+      .sort((a, b) =>
+        rankOf(a) - rankOf(b));
+
+    return { ...section, items };
+  });
+}
+
 export function pickerSections(
   emotes: readonly ChatEmoteEntry[],
   emoji: readonly EmojiEntry[],
@@ -185,20 +232,41 @@ export function pickerSections(
   at: PickerContext,
 ): readonly PickerSection[] {
   const search = query.trim();
-
-  if (search !== '') {
-    const emoteHits = emoteSuggestions(emotes, search, pickerSearchLimit);
-    const emojiHits = emojiSuggestions(emoji, search, pickerSearchLimit);
-
-    return [{ id: 'results', items: merge(emoteHits, emojiHits).slice(0, pickerSearchLimit) }];
-  }
-
   const sections = merge(ownerSections(emotes, at), emojiSections(emoji));
   const known = new Map(sections.flatMap((section) =>
     section.items).map((item) =>
     [item.insert, item]));
+  const all = merge(favoriteSection(emotes, at.favorites), recentSection(recent, known), sections);
 
-  return merge(favoriteSection(emotes, at.favorites), recentSection(recent, known), sections);
+  return search === ''
+    ? all
+    : narrow(all, matchRanks(emotes, emoji, search));
+}
+
+// The skin tone modifiers, light to dark: tone 1 is U+1F3FB. Tone 0 is the yellow emoji.
+export const toneModifiers = ['🏻', '🏼', '🏽', '🏾', '🏿'] as const satisfies readonly string[];
+
+function modifiersOf(glyph: string): string[] {
+  return [...glyph].filter((char) =>
+    (toneModifiers as readonly string[]).includes(char));
+}
+
+// The version of an emoji in one skin tone, where every person in it has that tone; the emoji as it is when it
+// has no such version.
+export function skinTone(item: Pick<Suggestion, 'insert' | 'skins'>, tone: number): string {
+  const modifier = toneModifiers[tone - 1];
+
+  if (!modifier)
+    return item.insert;
+
+  const toned = item.skins.find((skin) => {
+    const modifiers = modifiersOf(skin);
+
+    return modifiers.length > 0 && modifiers.every((found) =>
+      found === modifier);
+  });
+
+  return toned ?? item.insert;
 }
 
 export function remember(recent: readonly string[], insert: string): string[] {

@@ -13,13 +13,15 @@
 // A pick goes into the box at the cursor and the picker stays open for the next one; the name of the item under
 // the pointer shows below the list.
 import { useLocalStorage, useMediaQuery } from '@vueuse/core';
-import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ChevronDown from '~icons/nnz/chevron-down';
 import ClockBackward from '~icons/nnz/clock-backward';
 import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 import Smile from '~icons/nnz/smile';
 import StarFilled from '~icons/nnz/star-filled';
 
+import { useCurrentUser } from '@/api/auth';
 import type { ChatEmoteEntry } from '@/api/chat';
 import { useFavoriteEmoteChange, useFavoriteEmotes, type FavoriteEmote } from '@/api/favoriteEmotes';
 import { Button } from '@/components/ui/button';
@@ -29,7 +31,15 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import type { Suggestion } from '../composerSuggest';
 import { loadEmoji, type EmojiEntry } from '../emojiCatalog';
-import { favoriteKey, pickerSections, remember, type PickerSection } from '../emotePicker';
+import {
+  favoriteKey,
+  pickerSections,
+  remember,
+  skinTone,
+  toneModifiers,
+  type PickerContext,
+  type PickerSection,
+} from '../emotePicker';
 
 const props = defineProps<{ emotes: readonly ChatEmoteEntry[] }>();
 
@@ -59,11 +69,32 @@ const favoriteKeys = computed(() =>
   (favorites.data.value ?? []).map((favorite: FavoriteEmote) =>
     favoriteKey(favorite.provider, favorite.emoteId)));
 
+const me = useCurrentUser();
+const context = computed<PickerContext>(() => ({
+  channelName: channel.value?.displayName ?? null,
+  channelAvatar: channel.value?.profileImageUrl ?? null,
+  ownAvatar: me.data.value?.profileImageUrl ?? null,
+  favorites: favoriteKeys.value,
+}));
+
+// Every section as it is without a search: the rail keeps all of them, so it never jumps while you type.
+const browse = computed(() =>
+  pickerSections(props.emotes, emoji.value, recent.value, '', context.value));
+
 const sections = computed(() =>
-  pickerSections(props.emotes, emoji.value, recent.value, query.value, {
-    channelName: channel.value?.displayName ?? null,
-    favorites: favoriteKeys.value,
-  }));
+  query.value.trim() === ''
+    ? browse.value
+    : pickerSections(props.emotes, emoji.value, recent.value, query.value, context.value));
+
+const shownSections = computed(() =>
+  sections.value.filter((section) =>
+    section.items.length > 0));
+
+// Stoney 2026-10-14: "instead of removing the tabs, make them grayed out and locked and keep the remaining tabs
+// enabled". A section without a match stays on the rail, grayed out and not clickable.
+const matched = computed(() =>
+  new Set(shownSections.value.map((section) =>
+    section.id)));
 
 function title(section: PickerSection): string {
   if (section.name)
@@ -117,8 +148,40 @@ function toggleFavorite(item: Suggestion): void {
   });
 }
 
-// The jump rail beside the list, as in Discord: one icon per section. An emote source shows its first emote,
-// an emoji group a typical emoji.
+// A channel's section names the sources its emotes come from in its heading, as the Twitch picker does. A source
+// section already says it in its title.
+function sourceOf(section: PickerSection): string {
+  if (!['own', 'channel'].includes(section.id) && !section.id.startsWith('owner-'))
+    return '';
+
+  const providers = new Set(section.items.map((item) =>
+    item.provider ?? ''));
+
+  return [...providers].filter(Boolean).map((provider) =>
+    t(`asset.providers.${provider}`)).join(', ');
+}
+
+// The picture of a section: the channel's avatar, else its first emote.
+function cover(section: PickerSection): string | undefined {
+  return section.avatar ?? section.items[0]?.image ?? undefined;
+}
+
+// A heading folds its section away; the folded ones are kept on this device.
+const collapsed = useLocalStorage<string[]>('nnz.chat.picker-collapsed', []);
+
+function isCollapsed(section: PickerSection): boolean {
+  return collapsed.value.includes(section.id);
+}
+
+function toggle(id: string): void {
+  collapsed.value = collapsed.value.includes(id)
+    ? collapsed.value.filter((folded) =>
+        folded !== id)
+    : [...collapsed.value, id];
+}
+
+// The jump rail beside the list, as in Discord: one icon per section. A channel shows its avatar, an emote source
+// its first emote, an emoji group a typical emoji.
 const groupMarks = {
   smileys: '😀',
   people: '👋',
@@ -146,7 +209,7 @@ function mark(section: PickerSection): string {
 const list = useTemplateRef('list');
 const active = ref('');
 const current = computed(() =>
-  active.value || sections.value[0]?.id);
+  active.value || shownSections.value[0]?.id);
 
 // The rail marks the section at the top of the list while you scroll.
 function follow(): void {
@@ -157,7 +220,13 @@ function follow(): void {
   active.value = passed.at(-1)?.dataset.pickerSection ?? '';
 }
 
-function jump(id: string): void {
+// A jump to a folded section unfolds it first.
+async function jump(id: string): Promise<void> {
+  if (collapsed.value.includes(id)) {
+    toggle(id);
+    await nextTick();
+  }
+
   document.getElementById(`picker-${id}`)?.scrollIntoView({ block: 'start' });
 }
 
@@ -190,8 +259,22 @@ function pick(item: Suggestion, glyph = item.insert): void {
   emit('pick', glyph);
 }
 
-// Stoney 2026-10-14: "make variant emotes yellow and give the user the choice of which and make long press clear
-// the choice and the user pick a new version". The choice is kept per emoji on this device.
+// Stoney 2026-10-14: "someone needs to be able to choose a skin tone once and the picker needs to swap them to
+// that skin tone for all emojis". One tone, chosen beside the search, turns every emoji to it; 0 is yellow.
+const skinToneForAll = useLocalStorage<number>('nnz.chat.skin-tone', 0);
+const hands = [0, 1, 2, 3, 4, 5].map((tone: number) =>
+  skinTone({ insert: '✋', skins: toneModifiers.map((modifier) =>
+    `✋${modifier}`) }, tone));
+
+const toneMenu = ref(false);
+
+function chooseToneForAll(tone: number): void {
+  skinToneForAll.value = tone;
+  toneMenu.value = false;
+}
+
+// "make long press clear the choice and the user pick a new version": a long press gives one emoji a tone of
+// its own, kept per emoji on this device, over the tone for all.
 const skinChoices = useLocalStorage<Record<string, string>>('nnz.chat.skin-tones', {});
 const toning = ref<Suggestion | null>(null);
 const toneAnchor = shallowRef<HTMLElement | null>(null);
@@ -200,28 +283,25 @@ const toneOptions = computed(() =>
     ? [toning.value.insert, ...toning.value.skins]
     : []);
 
+// The emoji as it shows and goes into the box: its own tone, else the tone for all.
+function glyph(item: Suggestion): string {
+  return skinChoices.value[item.insert] ?? skinTone(item, skinToneForAll.value);
+}
+
 function askTone(item: Suggestion, event: Event): void {
   toneAnchor.value = event.currentTarget as HTMLElement;
   toning.value = item;
 }
 
-function choose(item: Suggestion, event: Event): void {
-  const chosen = skinChoices.value[item.insert];
-
-  if (item.skins.length === 0 || chosen) {
-    pick(item, chosen);
-
-    return;
-  }
-
-  askTone(item, event);
+function choose(item: Suggestion): void {
+  pick(item, glyph(item));
 }
 
-function chooseTone(glyph: string): void {
+function chooseTone(toned: string): void {
   if (!toning.value) return;
 
-  skinChoices.value = { ...skinChoices.value, [toning.value.insert]: glyph };
-  pick(toning.value, glyph);
+  skinChoices.value = { ...skinChoices.value, [toning.value.insert]: toned };
+  pick(toning.value, toned);
   toning.value = null;
 }
 
@@ -272,21 +352,22 @@ function closeTones(isOpen: boolean): void {
     >
       <div class="flex h-80 gap-2 max-md:flex-col-reverse">
         <nav
-          v-if="query.trim() === ''"
           class="flex w-9 shrink-0 flex-col gap-0.5 overflow-y-auto scrollbar-none max-md:w-auto max-md:flex-row
             max-md:overflow-x-auto max-md:overflow-y-hidden"
           :aria-label="$t('dashboard.chat.picker.jump')"
         >
           <button
-            v-for="section in sections"
+            v-for="section in browse"
             :key="section.id"
             type="button"
             :data-picker-jump="section.id"
             :title="title(section)"
             :aria-label="title(section)"
             :aria-current="section.id === current || undefined"
+            :disabled="!matched.has(section.id)"
             class="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[calc(var(--radius-md)-8px)]
-              text-muted-foreground hover:bg-muted hover:text-foreground aria-[current]:bg-muted
+              text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed
+              disabled:opacity-40 disabled:grayscale disabled:hover:bg-transparent aria-[current]:bg-muted
               aria-[current]:text-foreground"
             @click="jump(section.id)"
           >
@@ -297,26 +378,48 @@ function closeTones(isOpen: boolean): void {
             </span>
             <img
               v-else
-              :src="section.items[0]!.image ?? undefined"
+              :src="cover(section)"
               alt=""
               class="size-6 object-contain"
+              :class="{ 'rounded-full object-cover': section.avatar }"
             />
           </button>
         </nav>
         <div ref="list" class="relative min-w-0 flex-1 overflow-y-auto" @scroll="follow" @mouseleave="shown = null">
-          <p v-if="sections.length === 0 || sections[0]!.items.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+          <p v-if="shownSections.length === 0" class="p-4 text-center text-sm text-muted-foreground">
             {{ $t('dashboard.chat.picker.none') }}
           </p>
           <section
-            v-for="section in sections"
+            v-for="section in shownSections"
             :id="`picker-${section.id}`"
             :key="section.id"
             :data-picker-section="section.id"
           >
-            <h3 class="sticky top-0 z-10 bg-popover px-1 py-1 text-xs font-medium text-muted-foreground">
-              {{ title(section) }}
+            <h3 class="sticky top-0 z-10 bg-popover">
+              <button
+                type="button"
+                :data-picker-collapse="section.id"
+                :aria-expanded="!isCollapsed(section)"
+                class="flex h-7 w-full cursor-pointer items-center gap-2 rounded-[calc(var(--radius-md)-8px)] px-1
+                  text-xs font-medium text-muted-foreground hover:text-foreground"
+                @click="toggle(section.id)"
+              >
+                <img v-if="section.avatar" :src="section.avatar" alt="" class="size-4 rounded-full object-cover" />
+                <span class="truncate">{{ title(section) }}</span>
+                <span v-if="sourceOf(section)" class="shrink-0 font-normal">{{ sourceOf(section) }}</span>
+                <ChevronDown
+                  class="ms-auto size-4 shrink-0 transition-transform motion-reduce:transition-none"
+                  :class="{ '-rotate-90': isCollapsed(section) }"
+                  aria-hidden="true"
+                />
+              </button>
             </h3>
-            <div class="grid grid-cols-10 gap-0.5 max-md:grid-cols-7" role="group" :aria-label="title(section)">
+            <div
+              v-if="!isCollapsed(section)"
+              class="grid grid-cols-10 gap-0.5 max-md:grid-cols-7"
+              role="group"
+              :aria-label="title(section)"
+            >
               <button
                 v-for="item in section.items"
                 :key="item.kind + item.insert"
@@ -324,18 +427,18 @@ function closeTones(isOpen: boolean): void {
                 :data-picker-item="item.insert"
                 :data-favorite="isFavorite(item) || undefined"
                 :data-skins="item.skins.length || undefined"
-                :aria-haspopup="item.skins.length > 0 && !skinChoices[item.insert] ? 'dialog' : undefined"
                 :aria-label="isFavorite(item) ? $t('dashboard.chat.picker.starred', { name: item.label }) : item.label"
                 class="relative flex aspect-square cursor-pointer items-center justify-center
                 rounded-[calc(var(--radius-md)-8px)] hover:bg-muted focus-visible:bg-muted"
                 @mouseenter="shown = item"
                 @focus="shown = item"
-                @click="choose(item, $event)"
+                @click="choose(item)"
                 @contextmenu.prevent="secondary(item, $event)"
               >
-                <span
-                  v-if="item.skins.length > 0"
-                  class="absolute right-0.5 bottom-0.5 size-1 rounded-full bg-muted-foreground/40"
+                <StarFilled
+                  v-if="isFavorite(item)"
+                  data-favorite-badge
+                  class="absolute top-0.5 right-0.5 size-2.5 text-muted-foreground"
                   aria-hidden="true"
                 />
                 <img
@@ -345,7 +448,7 @@ function closeTones(isOpen: boolean): void {
                   loading="lazy"
                   class="size-8 object-contain max-md:size-10"
                 />
-                <span v-else class="text-2xl leading-none max-md:text-3xl" aria-hidden="true">{{ item.insert }}</span>
+                <span v-else class="text-2xl leading-none max-md:text-3xl" aria-hidden="true">{{ glyph(item) }}</span>
               </button>
             </div>
           </section>
@@ -376,32 +479,70 @@ function closeTones(isOpen: boolean): void {
       <p
         v-if="!phone"
         data-picker-preview
-        class="flex h-6 items-center gap-2 truncate px-1 text-sm"
+        class="flex h-6 min-w-0 items-center gap-2 px-1 text-sm"
         aria-live="polite"
       >
         <template v-if="shown">
           <StarFilled v-if="isFavorite(shown)" class="size-4 flex-none" :aria-label="$t('dashboard.chat.picker.favorites')" />
           <span class="truncate font-medium">{{ shown.label }}</span>
-          <span class="text-xs text-muted-foreground">{{
+          <span class="shrink-0 text-xs text-muted-foreground">{{
             shown.provider
               ? $t(`asset.providers.${shown.provider}`)
               : $t(`dashboard.chat.composer.kind.${shown.kind}`)
           }}</span>
         </template>
-        <span v-else class="text-muted-foreground">{{ $t('dashboard.chat.picker.hint') }}</span>
+        <span v-else class="truncate text-muted-foreground">{{ $t('dashboard.chat.picker.hint') }}</span>
       </p>
-      <InputGroup v-if="!phone" data-picker-search class="rounded-[calc(var(--radius-md)-8px)]">
-        <InputGroupAddon>
-          <SearchMagnifyingGlass />
-        </InputGroupAddon>
-        <InputGroupInput
-          v-model="query"
-          data-picker-query
-          type="search"
-          :placeholder="$t('dashboard.chat.picker.search')"
-          :aria-label="$t('dashboard.chat.picker.search')"
-        />
-      </InputGroup>
+      <div class="flex items-center gap-2 max-md:justify-end">
+        <InputGroup v-if="!phone" data-picker-search class="flex-1 rounded-[calc(var(--radius-md)-8px)]">
+          <InputGroupAddon>
+            <SearchMagnifyingGlass />
+          </InputGroupAddon>
+          <InputGroupInput
+            v-model="query"
+            data-picker-query
+            type="search"
+            :placeholder="$t('dashboard.chat.picker.search')"
+            :aria-label="$t('dashboard.chat.picker.search')"
+          />
+        </InputGroup>
+        <Popover v-model:open="toneMenu">
+          <PopoverTrigger as-child>
+            <Button
+              data-skin-tone-button
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="gap-0.5! rounded-[calc(var(--radius-md)-8px)] px-1.5!"
+              :aria-label="$t('dashboard.chat.picker.toneForAll')"
+            >
+              <span class="text-xl leading-none" aria-hidden="true">{{ hands[skinToneForAll] }}</span>
+              <ChevronDown class="size-4 text-muted-foreground" aria-hidden="true" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            data-tone-column
+            side="top"
+            align="end"
+            class="flex w-auto flex-col gap-0.5 p-1"
+            :aria-label="$t('dashboard.chat.picker.toneForAll')"
+          >
+            <button
+              v-for="(hand, tone) in hands"
+              :key="hand"
+              type="button"
+              :data-tone-choice="tone"
+              :aria-label="$t(`dashboard.chat.picker.toneNames.${tone}`)"
+              :aria-pressed="tone === skinToneForAll"
+              class="flex size-10 cursor-pointer items-center justify-center rounded-[calc(var(--radius-md)-4px)]
+                text-2xl leading-none hover:bg-muted focus-visible:bg-muted aria-pressed:bg-muted"
+              @click="chooseToneForAll(tone)"
+            >
+              {{ hand }}
+            </button>
+          </PopoverContent>
+        </Popover>
+      </div>
     </PopoverContent>
   </Popover>
 </template>

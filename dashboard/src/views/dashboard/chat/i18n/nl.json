@@ -155,8 +155,17 @@
         "recent": "Recent",
         "results": "Resultaten",
         "none": "Niets gevonden.",
-        "hint": "Wijs er een aan om de naam te zien. Klik rechts op een emote voor een ster, of op een emoji voor een andere huidskleur.",
+        "hint": "Klik rechts voor een ster op een emote, of één emoji een eigen tint.",
         "tones": "Kies een huidskleur",
+        "toneForAll": "Huidskleur voor alle emoji",
+        "toneNames": {
+          "0": "Standaard geel",
+          "1": "Licht",
+          "2": "Middellicht",
+          "3": "Middel",
+          "4": "Middeldonker",
+          "5": "Donker"
+        },
         "favorites": "Favorieten",
         "starred": "{name}, met ster",
         "own": "Jouw emotes",

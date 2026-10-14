@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatEmoteEntry } from '@/api/chat';
 
-import { favoriteKey, pickerSections, type PickerContext } from '../emotePicker';
+import { favoriteKey, pickerSections, skinTone, type PickerContext } from '../emotePicker';
 
 // The server marks each emote own, channel, other or global (ChatEmoteOrigin) and names its owner.
 function emote(
@@ -92,11 +92,85 @@ describe('the emote picker sections', () => {
     expect(layout({ ...context, favorites })[0]).toEqual(['favorites', ['OMEGALUL', 'zedHi'], undefined]);
   });
 
-  it('turns into one list of matches while searching, favorites or not', () => {
+  // Stoney 2026-10-14: "instead of removing the tabs, make them grayed out and locked and keep the remaining tabs
+  // enabled, but please add the channel grouping".
+  it('keeps every section while searching, each holding only its matches', () => {
     const favorites = [favoriteKey('Twitch', 'id-zedHi')];
-    const sections = pickerSections(emotes, [], [], 'ada', { ...context, favorites });
+    const found = pickerSections(emotes, [], [], 'h', { ...context, favorites }).map((section) =>
+      [section.id, section.items.map((item) =>
+        item.insert)]);
 
-    expect(sections.map((section) =>
-      section.id)).toEqual(['results']);
+    expect(found).toEqual([
+      ['favorites', ['zedHi']],
+      ['own', []],
+      ['channel', []],
+      ['owner-ada', ['adaHype']],
+      ['owner-zed', ['zedHi']],
+      ['others-Twitch', ['ghostly']],
+      ['global-Twitch', []],
+      ['global-SevenTv', ['PepeLaugh']],
+      ['global-Bttv', []],
+      ['global-Ffz', []],
+    ]);
+  });
+
+  it('puts the best match first inside a section', () => {
+    const codes = [emote('xLULx', 'Ffz', 'global'), emote('LULW', 'Ffz', 'global')];
+    const section = pickerSections(codes, [], [], 'lul', context)[0]!;
+
+    expect(section.items.map((item) =>
+      item.insert)).toEqual(['LULW', 'xLULx']);
+  });
+
+  // Stoney 2026-10-14: "use the channel avatar instead of its first emote".
+  it('carries the avatar of the channel a section belongs to', () => {
+    const avatars = {
+      ...context,
+      channelAvatar: 'https://cdn.test/stoney.png',
+      ownAvatar: 'https://cdn.test/me.png',
+    };
+    const withOwner = [
+      { ...emote('zedHi', 'Twitch', 'other', 'Zed'), ownerAvatarUrl: 'https://cdn.test/zed.png' },
+      emote('stoneyWave', 'Twitch', 'channel'),
+      emote('myOwn', 'Twitch', 'own'),
+      emote('Kappa', 'Twitch', 'global'),
+    ];
+    const found = pickerSections(withOwner, [], [], '', avatars).map((section) =>
+      [section.id, section.avatar]);
+
+    expect(found).toEqual([
+      ['own', 'https://cdn.test/me.png'],
+      ['channel', 'https://cdn.test/stoney.png'],
+      ['owner-zed', 'https://cdn.test/zed.png'],
+      ['global-Twitch', undefined],
+    ]);
+  });
+});
+
+// Stoney 2026-10-14: "someone needs to be able to choose a skin tone once and the picker needs to swap them to that
+// skin tone for all emojis, this is very tedious".
+describe('one skin tone for every emoji', () => {
+  const tones = ['🏻', '🏼', '🏽', '🏾', '🏿'];
+  const wave = { insert: '👋', skins: tones.map((tone) =>
+    `👋${tone}`) };
+  // A handshake comes in every pair of tones; only the pair of the chosen tone is that tone.
+  const shake = { insert: '🤝', skins: ['🤝🏻', '🫱🏻‍🫲🏼', '🫱🏼‍🫲🏻', '🤝🏼'] };
+
+  it('gives the yellow emoji for the default tone', () => {
+    expect(skinTone(wave, 0)).toBe('👋');
+  });
+
+  it('gives the version of the chosen tone', () => {
+    expect(skinTone(wave, 3)).toBe('👋🏽');
+    expect(skinTone(wave, 5)).toBe('👋🏿');
+  });
+
+  it('takes the version where every person has the chosen tone', () => {
+    expect(skinTone(shake, 2)).toBe('🤝🏼');
+  });
+
+  it('keeps the emoji as it is when it has no skin tones or not that one', () => {
+    expect(skinTone({ insert: '🍔', skins: [] }, 4)).toBe('🍔');
+    expect(skinTone(shake, 5)).toBe('🤝');
   });
 });
