@@ -21,6 +21,19 @@
   /* Twitch's own chat-badge colors, so a role reads as the badge people know (owner 2026-10-14). */
   --role-broadcaster: #e91916;
   --role-vip: #e005b9;
+  /* Button look from the NomNomz Figma kit (Y3uHgP9au3Gm9piJ68fR0s, owner 2026-10-14); sizes stay shadcn. */
+  --kit-pill-from: #ffffff;
+  --kit-pill-to: #edebff;
+  --kit-pill-pressed: #e3e0ff;
+  --kit-ink: #1b1b1b;
+  --kit-lilac: #edebff;
+  --kit-surface: #222222;
+  --kit-surface-hover: #2e2e2e;
+  --kit-surface-pressed: #000000;
+  --kit-action-text: #b5b5b5;
+  --kit-focus: #ff0055;
+  --kit-focus-soft: rgb(255 255 255 / 0.64);
+  --kit-danger: #e51a3c;
   --background: oklch(0.177638 0 0);
   --foreground: oklch(0.949119 0 0);
   --card: oklch(0.213423 0 0);

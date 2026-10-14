@@ -8,11 +8,11 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/80',
-        outline: 'border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground shadow-xs',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+        default: 'rounded-full border-black/20 bg-linear-to-b from-(--kit-pill-from) to-(--kit-pill-to) font-extrabold text-(--kit-ink) hover:opacity-90 active:from-(--kit-pill-pressed) active:to-(--kit-pill-from) focus-visible:border-(--kit-focus) focus-visible:ring-2 focus-visible:ring-(--kit-focus)',
+        outline: 'rounded-xl bg-(--kit-surface) font-semibold text-(--kit-action-text) hover:bg-(--kit-surface-hover) hover:text-white active:bg-(--kit-surface-pressed) aria-expanded:bg-(--kit-surface-hover) aria-expanded:text-white focus-visible:border-(--kit-focus-soft) focus-visible:ring-2 focus-visible:ring-(--kit-focus-soft)',
+        secondary: 'rounded-full border-black/20 bg-(--kit-surface) font-semibold text-(--kit-lilac) hover:bg-(--kit-surface-hover) active:border-(--kit-surface) active:bg-(--kit-surface-pressed) aria-expanded:bg-(--kit-surface-hover) focus-visible:border-(--kit-focus-soft) focus-visible:ring-2 focus-visible:ring-(--kit-focus-soft)',
         ghost: 'hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground',
-        destructive: 'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
+        destructive: 'rounded-full border-black/20 bg-(--kit-danger) font-extrabold text-(--kit-lilac) shadow-[inset_0_0_0_999px_rgb(0_0_0/0.16)] hover:shadow-none active:shadow-[inset_0_0_0_999px_rgb(0_0_0/0.32)] focus-visible:border-(--kit-lilac) focus-visible:ring-2 focus-visible:ring-(--kit-lilac)',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {

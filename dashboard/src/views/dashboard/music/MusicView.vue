@@ -15,6 +15,7 @@ import type { SortableEvent } from 'sortablejs';
 import Grip from '~icons/nnz/hamburger';
 import IconRules from '~icons/nnz/settings-fader';
 import Trash2 from '~icons/nnz/trash';
+import Cross from '~icons/nnz/cross';
 import { computed, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -39,7 +40,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -145,8 +146,18 @@ const panels = computed(() => [
             {{ $t('dashboard.music.rules.title') }}
           </Button>
         </SheetTrigger>
-        <SheetContent class="gap-0 p-0" :aria-describedby="undefined">
+        <SheetContent class="gap-0 p-0" :show-close-button="false" :aria-describedby="undefined">
           <SheetTitle class="sr-only">{{ $t('dashboard.music.rules.title') }}</SheetTitle>
+          <SheetClose as-child>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="absolute top-3 right-3 z-10"
+              :aria-label="$t('common.close')"
+            >
+              <Cross aria-hidden="true" />
+            </Button>
+          </SheetClose>
           <RulesPanel flush />
         </SheetContent>
       </Sheet>
