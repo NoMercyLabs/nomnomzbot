@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<{
 const shows = inject(boardKey, () =>
   true);
 
-// The span applies from laptop width; narrower, the board is one column and every cell takes a full row.
+// The span applies on a board wide enough for its columns; narrower, the board shows one panel at a time.
 const placement = computed<Record<string, string>>(() => ({
   '--cell-span': `span ${props.span}`,
   '--cell-rows': `span ${props.rows}`,
@@ -37,7 +37,7 @@ const placement = computed<Record<string, string>>(() => ({
     v-show="shows(panel)"
     data-slot="board-cell"
     :data-panel="panel"
-    class="flex min-h-0 min-w-0 flex-1 flex-col *:min-h-0 *:flex-1 lg:col-(--cell-span) lg:row-(--cell-rows)"
+    class="flex min-h-0 min-w-0 flex-1 flex-col *:min-h-0 *:flex-1 in-data-board-wide:col-(--cell-span) in-data-board-wide:row-(--cell-rows)"
     :style="placement"
   >
     <slot />

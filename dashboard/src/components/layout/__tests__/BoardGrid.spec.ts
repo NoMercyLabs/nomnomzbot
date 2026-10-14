@@ -90,6 +90,45 @@ describe('the board on a phone', () => {
   });
 });
 
+// Stoney 2026-10-14, a shot of Music at 1160 px with the rules squeezed into a strip: "constrained layouts need to
+// be considered for". The sidebar takes its share, so the board decides by its own width, not the window's.
+describe('a board squeezed by the sidebar', () => {
+  const RealObserver = globalThis.ResizeObserver;
+
+  afterEach(() => {
+    if (RealObserver) {
+      globalThis.ResizeObserver = RealObserver;
+    } else {
+      Reflect.deleteProperty(globalThis, 'ResizeObserver');
+    }
+  });
+
+  it('shows one panel at a time when the board itself is too narrow for its columns', async () => {
+    globalThis.ResizeObserver = class {
+      constructor(private readonly report: ResizeObserverCallback) {}
+
+      observe(target: Element): void {
+        const entry = {
+          target,
+          contentRect: { width: 900, height: 800 },
+          contentBoxSize: [{ inlineSize: 900, blockSize: 800 }],
+        };
+
+        this.report([entry as unknown as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+
+      unobserve(): void {}
+
+      disconnect(): void {}
+    } as unknown as typeof ResizeObserver;
+
+    const { wrapper } = await boardAt(laptopWidth);
+
+    expect(wrapper.findAll('[role="tab"]')).toHaveLength(3);
+    expect(visibleBodies(wrapper)).toEqual(['queue']);
+  });
+});
+
 describe('the board from laptop width', () => {
   it('shows every panel side by side with no tabs', async () => {
     const { wrapper } = await boardAt(laptopWidth, '/?panel=happening');

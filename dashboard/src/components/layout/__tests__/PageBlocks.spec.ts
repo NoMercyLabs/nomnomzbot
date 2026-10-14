@@ -41,7 +41,10 @@ describe('the board', () => {
       rows: 2,
     } });
 
-    expect(grid.attributes('style')).toContain('--board-rows: repeat(3, minmax(0, 1fr))');
+    const board = grid.find('[data-slot="board-grid"]');
+
+    expect(board.attributes('data-board-wide')).toBe('true');
+    expect(board.attributes('style')).toContain('--board-rows: repeat(3, minmax(0, 1fr))');
     expect(cell.attributes('style')).toContain('--cell-span: span 5');
     expect(cell.attributes('style')).toContain('--cell-rows: span 2');
   });
@@ -66,11 +69,18 @@ describe('the board', () => {
       rows: 2,
     } });
 
-    expect(grid.classes()).toEqual(expect.arrayContaining(['grid-cols-1', 'overflow-y-auto', 'lg:grid-cols-12']));
-    expect(grid.classes()).not.toContain('grid-cols-12');
-    expect(grid.attributes('style')).not.toContain('grid-template-rows');
+    const board = grid.find('[data-slot="board-grid"]');
+
+    expect(board.attributes('data-board-wide')).toBeUndefined();
+    expect(board.classes()).toEqual(expect.arrayContaining(['grid-cols-1', 'overflow-y-auto']));
+    expect(board.classes()).not.toContain('grid-cols-12');
+    expect(board.attributes('style')).not.toContain('grid-template-rows');
     expect(cell.attributes('style')).not.toMatch(/grid-(column|row)/);
-    expect(cell.classes()).toEqual(expect.arrayContaining(['lg:col-(--cell-span)', 'lg:row-(--cell-rows)']));
+
+    expect(cell.classes()).toEqual(expect.arrayContaining([
+      'in-data-board-wide:col-(--cell-span)',
+      'in-data-board-wide:row-(--cell-rows)',
+    ]));
   });
 });
 

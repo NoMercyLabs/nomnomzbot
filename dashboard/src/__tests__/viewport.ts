@@ -11,6 +11,9 @@
 // jsdom has no matchMedia, so a page under test would always lay out as a phone. setWidth gives the window
 // a width: matchMedia answers min-width queries against it.
 export function setWidth(width: number): void {
+  // A board measures itself; jsdom has no layout, so it starts from the window width.
+  window.innerWidth = width;
+
   window.matchMedia = ((query: string): MediaQueryList => {
     const min = query.match(/min-width:\s*(\d+)px/);
 
