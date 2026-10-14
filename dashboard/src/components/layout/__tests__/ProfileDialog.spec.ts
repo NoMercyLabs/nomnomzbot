@@ -317,6 +317,7 @@ const MODERATOR_KEYS = [
   'moderation:usercontext:read',
   'moderation:note:write',
   'moderation:history:read',
+  'moderation:warn',
 ] as const;
 
 let held: string[] = [];
@@ -802,6 +803,53 @@ describe('the profile dialog', () => {
     const shoutouts = calls.filter((c: Call) => c.path.endsWith('/moderation/shoutout'));
 
     expect(shoutouts.map((c: Call) => c.body)).toEqual([{ targetTwitchUserId: 'u1' }]);
+  });
+
+  it('warns the person from More with the reason the moderator typed', async () => {
+    await openPage();
+    await openUser('u1');
+
+    openMenu(button('[data-profile-more]'));
+    await settle();
+    button('[data-profile-warn]').click();
+    await settle();
+
+    const reason = document.body.querySelector<HTMLTextAreaElement>('[data-profile-warn-reason]')!;
+
+    // An empty reason is refused here, as Twitch would refuse it.
+    button('[data-form-action]').click();
+    await settle();
+
+    expect(calls.filter((c: Call) => c.path.endsWith('/moderation/warn'))).toHaveLength(0);
+    expect(document.body.textContent).toContain('Twitch needs a reason');
+
+    reason.value = '  Please stop the caps  ';
+    reason.dispatchEvent(new Event('input'));
+    await settle();
+    button('[data-form-action]').click();
+    await settle();
+
+    const warns = calls.filter((c: Call) => c.path.endsWith('/moderation/warn'));
+
+    expect(warns.map((c: Call) => c.body)).toEqual([
+      { targetUserId: 'u1', reason: 'Please stop the caps' },
+    ]);
+
+    expect(document.body.querySelector('[data-profile-warn-reason]')).toBeNull();
+  });
+
+  it('locks Warn for a caller without the warn right', async () => {
+    held = MODERATOR_KEYS.filter((key: string) => key !== 'moderation:warn');
+    await openPage();
+    await openUser('u1');
+
+    openMenu(button('[data-profile-more]'));
+    await settle();
+
+    const warn = document.body.querySelector<HTMLElement>('[data-profile-warn]')!;
+
+    expect(warn.hasAttribute('data-disabled')).toBe(true);
+    expect(warn.getAttribute('title')).toBe(i18n.global.t('common.readOnly'));
   });
 
   it('offers Unban instead of Ban and Timeout for a banned person, and lifts the ban', async () => {

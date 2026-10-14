@@ -37,6 +37,7 @@ import ProfileHistory from '@/components/layout/profile/ProfileHistory.vue';
 import ProfileNotes from '@/components/layout/profile/ProfileNotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
+import ProfileWarn from '@/components/layout/profile/ProfileWarn.vue';
 import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
 import {
@@ -86,6 +87,7 @@ const { channelId, current } = useCurrentChannel();
 const tab = ref('overview');
 const tabStrip = useTemplateRef<HTMLElement>('tabStrip');
 const confirmBan = ref(false);
+const warnOpen = ref(false);
 
 const member = useCommunityMember(channelId, () =>
   props.userId);
@@ -113,6 +115,7 @@ const canBan = computed(() => access.can('moderation:ban'));
 const canUnban = computed(() => access.can('moderation:unban'));
 const canVip = computed(() => access.can('moderation:vip'));
 const canShoutout = computed(() => access.can('moderation:shoutout'));
+const canWarn = computed(() => access.can('moderation:warn'));
 
 // Twitch answers per person; null means Twitch could not be asked, so the view says unknown instead of guessing.
 const isVip = computed<boolean | null>(() => person.value?.isVip ?? null);
@@ -174,6 +177,7 @@ watch(
   () => {
     tab.value = 'overview';
     confirmBan.value = false;
+    warnOpen.value = false;
   },
 );
 
@@ -372,8 +376,17 @@ async function banNow(): Promise<void> {
             >
               {{ vipLabel }}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              data-profile-warn
+              :disabled="!canWarn || person.isBanned"
+              :title="lockedTip(canWarn)"
+              @select="warnOpen = true"
+            >
+              {{ $t('profile.warn.button') }}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <ProfileWarn v-model:open="warnOpen" :user-id="userId" :name="title" />
 
         <div class="ml-auto flex items-center gap-2">
           <Button

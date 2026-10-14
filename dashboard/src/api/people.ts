@@ -329,6 +329,40 @@ export function useTimeout(
   });
 }
 
+export type WarnInput = { userId: string; reason: string };
+
+// Twitch Warn Chat User, signed by the caller; the person must accept it before they chat again.
+export function useWarn(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, WarnInput, unknown> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, reason }: WarnInput): Promise<void> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/moderation/warn',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { targetUserId: userId, reason },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('warn', response.status);
+
+      if (data?.data?.success === false)
+        throw new Error(data.data.message ?? 'warn refused');
+    },
+    onSuccess: (_data: void, { userId }: WarnInput) => {
+      const channel = toValue(channelId) as string;
+
+      personChanged(queries, channel, userId);
+      // The history is keyed by the internal id, which this call does not know.
+      void queries.invalidateQueries({ queryKey: ['moderation', channel, 'history'] });
+    },
+  });
+}
+
 export type PersonInput = { userId: string };
 
 // Lifts a timeout (or a ban) in this channel.
