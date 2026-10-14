@@ -16,6 +16,8 @@ export type EmojiEntry = {
   shortcodes: string[];
   group: number;
   tags: readonly string[];
+  // The five skin-tone versions, light to dark; empty when the emoji has none.
+  skins: readonly string[];
 };
 
 let loading: Promise<EmojiEntry[]> | null = null;
@@ -40,6 +42,8 @@ async function readCatalog(): Promise<EmojiEntry[]> {
         : [found],
       group: emoji.group ?? -1,
       tags: emoji.tags ?? [],
+      skins: emoji.skins?.map((skin) =>
+        skin.unicode) ?? [],
     }];
   });
 }

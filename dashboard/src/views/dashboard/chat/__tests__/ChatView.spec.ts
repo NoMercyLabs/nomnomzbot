@@ -1524,8 +1524,13 @@ describe('ChatView emote picker', () => {
     ...document.body.querySelectorAll<HTMLElement>(`[data-picker-section="${id}"] [data-picker-item]`),
   ].map((item) =>
     item.dataset.pickerItem ?? '');
+  // jsdom's selector engine cannot match an emoji inside an attribute value, so the lookups compare the data.
   const item = (insert: string): HTMLElement =>
-    document.body.querySelector(`[data-picker-item="${insert}"]`) as HTMLElement;
+    [...document.body.querySelectorAll<HTMLElement>('[data-picker-item]')].find((found) =>
+      found.dataset.pickerItem === insert)!;
+  const skinOption = (glyph: string): HTMLElement =>
+    [...document.body.querySelectorAll<HTMLElement>('[data-skin-option]')].find((found) =>
+      found.dataset.skinOption === glyph)!;
 
   beforeEach(() => {
     localStorage.removeItem('nnz.chat.recent-picks');
@@ -1610,6 +1615,40 @@ describe('ChatView emote picker', () => {
     expect(sections()[0]).toBe('favorites');
     expect(itemsOf('favorites')).toEqual(['catJAM']);
     expect(typed()).toBe('');
+  });
+
+  // Stoney 2026-10-14: "make variant emotes yellow and give the user the choice of which and make long press
+  // clear the choice and the user pick a new version".
+  it('shows a skin-tone emoji yellow, asks for the tone once, and asks again after a long press', async () => {
+    const tones = (): string[] => [...document.body.querySelectorAll<HTMLElement>('[data-skin-option]')]
+      .map((option) =>
+        option.dataset.skinOption ?? '');
+
+    await open();
+    await openPicker();
+
+    expect(item('👋').dataset.skins).toBe('5');
+
+    item('👋').click();
+    await settle();
+    expect(typed()).toBe('');
+    expect(tones()).toEqual(['👋', '👋🏻', '👋🏼', '👋🏽', '👋🏾', '👋🏿']);
+
+    skinOption('👋🏽').click();
+    await settle();
+    expect(typed()).toBe('👋🏽 ');
+    expect(tones()).toEqual([]);
+
+    item('👋').click();
+    await settle();
+    expect(typed()).toBe('👋🏽 👋🏽 ');
+    expect(tones()).toEqual([]);
+
+    item('👋').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
+    expect(tones()).toHaveLength(6);
+    expect(typed()).toBe('👋🏽 👋🏽 ');
+    expect(JSON.parse(localStorage.getItem('nnz.chat.skin-tones') ?? '{}')).toEqual({});
   });
 
   it('puts a pick in at the cursor as its own word, stays open, and sends nothing', async () => {
