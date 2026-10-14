@@ -22,7 +22,8 @@
         "chat": "Chat lines",
         "perHour": "{count} per live hour",
         "follows": "New follows",
-        "subs": "New Twitch subs",
+        "subs": "Twitch subs",
+        "subsKinds": "New, renewed and gifted",
         "bits": "Bits cheered",
         "peak": "Peak viewers"
       },
@@ -50,7 +51,9 @@
         "commands": "Commands",
         "commandsLine": "Chat ran {count} commands.",
         "rewards": "Rewards",
-        "rewardsLine": "{count} rewards redeemed, {songs} of them song requests."
+        "rewardsLine": "{count} rewards redeemed.",
+        "songs": "Song requests",
+        "songsLine": "{count} songs requested."
       }
     }
   }

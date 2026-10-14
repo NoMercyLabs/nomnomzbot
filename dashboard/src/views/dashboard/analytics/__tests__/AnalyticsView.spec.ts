@@ -208,7 +208,9 @@ describe('the Analytics overview', () => {
     expect(tile('Chat lines')).toContain('1,200');
     expect(tile('Chat lines')).toContain('300 per live hour');
     expect(tile('New follows')).toContain('14');
-    expect(tile('New Twitch subs')).toContain('3');
+    // The server counts new subs, resubs and gifts together, so the tile says so.
+    expect(tile('Twitch subs')).toContain('3');
+    expect(tile('Twitch subs')).toContain('New, renewed and gifted');
     expect(tile('Bits cheered')).toContain('500');
     expect(tile('Peak viewers')).toContain('31');
   });
@@ -227,7 +229,10 @@ describe('the Analytics overview', () => {
     expect(highlights).toContain('Your average stream ran 2 hr.');
     expect(highlights).toContain('Software and Game Development: 3 hr over 1 stream.');
     expect(highlights).toContain('Chat ran 80 commands.');
-    expect(highlights).toContain('20 rewards redeemed, 6 of them song requests.');
+    // Song requests also come from the !sr command, so they are their own fact, not a part of the rewards.
+    expect(highlights).toContain('20 rewards redeemed.');
+    expect(highlights).toContain('6 songs requested.');
+    expect(highlights).not.toContain('of them');
   });
 
   it('says how many follows came in and charts them per day', async () => {

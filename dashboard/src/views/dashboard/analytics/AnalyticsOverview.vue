@@ -162,7 +162,12 @@ const highlights = computed<Highlight[]>(() => {
       title: t('dashboard.analytics.highlights.rewards'),
       detail: t('dashboard.analytics.highlights.rewardsLine', {
         count: n(Number(known.value.redemptionsCount)),
-        songs: n(Number(known.value.songRequests)),
+      }),
+    }, {
+      key: 'songs',
+      title: t('dashboard.analytics.highlights.songs'),
+      detail: t('dashboard.analytics.highlights.songsLine', {
+        count: n(Number(known.value.songRequests)),
       }),
     });
   }
@@ -186,7 +191,11 @@ const highlights = computed<Highlight[]>(() => {
           :context="perHour"
         />
         <StatTile :label="t('dashboard.analytics.kpi.follows')" :value="count(known?.newFollowers)" />
-        <StatTile :label="t('dashboard.analytics.kpi.subs')" :value="count(known?.newSubscribers)" />
+        <StatTile
+          :label="t('dashboard.analytics.kpi.subs')"
+          :value="count(known?.newSubscribers)"
+          :context="t('dashboard.analytics.kpi.subsKinds')"
+        />
         <StatTile :label="t('dashboard.analytics.kpi.bits')" :value="count(known?.bitsCheered)" />
         <StatTile :label="t('dashboard.analytics.kpi.peak')" :value="count(known?.peakViewers)" />
       </StatStrip>

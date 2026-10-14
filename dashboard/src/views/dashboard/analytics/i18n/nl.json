@@ -22,7 +22,8 @@
         "chat": "Chatregels",
         "perHour": "{count} per live uur",
         "follows": "Nieuwe volgers",
-        "subs": "Nieuwe Twitch-subs",
+        "subs": "Twitch-subs",
+        "subsKinds": "Nieuw, verlengd en cadeau",
         "bits": "Bits gecheerd",
         "peak": "Meeste kijkers"
       },
@@ -50,7 +51,9 @@
         "commands": "Commando's",
         "commandsLine": "Chat gebruikte {count} commando's.",
         "rewards": "Beloningen",
-        "rewardsLine": "{count} beloningen ingewisseld, waarvan {songs} verzoeknummers."
+        "rewardsLine": "{count} beloningen ingewisseld.",
+        "songs": "Verzoeknummers",
+        "songsLine": "{count} nummers aangevraagd."
       }
     }
   }
