@@ -640,8 +640,12 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
     private StreamWindow ToWindow(Domain.Stream.Entities.Stream s) =>
         new(s.Id, s.StartedAt!.Value.UtcDateTime, (s.EndedAt ?? clock.GetUtcNow()).UtcDateTime);
 
+    // Twitch ends a stream after 48 hours at most. A longer row was closed late (an offline event that never
+    // came), so its end is not a real stream end and the bot reports no length rather than an invented one.
+    private static readonly TimeSpan LongestStream = TimeSpan.FromHours(48);
+
     private static long? DurationSeconds(Domain.Stream.Entities.Stream s) =>
-        s is { StartedAt: { } started, EndedAt: { } ended }
+        s is { StartedAt: { } started, EndedAt: { } ended } && ended - started <= LongestStream
             ? (long)(ended - started).TotalSeconds
             : null;
 

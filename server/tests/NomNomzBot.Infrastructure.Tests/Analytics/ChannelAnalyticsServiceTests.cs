@@ -552,6 +552,26 @@ public sealed class ChannelAnalyticsServiceTests
     }
 
     [Fact]
+    public async Task ListStreams_gives_no_duration_to_a_row_longer_than_Twitch_allows_one_stream_to_run()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        db.Streams.AddRange(
+            StreamRow("s-stale", StreamStart, StreamStart.AddDays(30), 5),
+            StreamRow("s-long", StreamStart.AddDays(-40), StreamStart.AddDays(-40).AddHours(47), 5)
+        );
+        await db.SaveChangesAsync();
+
+        PagedList<StreamListItemDto> page = (
+            await sut.ListStreamsAsync(Channel, new(1, 25, null, null))
+        ).Value;
+
+        page.Items.Single(s => s.StreamId == "s-stale")
+            .DurationSeconds.Should()
+            .BeNull("a 30 day row was closed late; its end is not a real stream end");
+        page.Items.Single(s => s.StreamId == "s-long").DurationSeconds.Should().Be(47 * 3600);
+    }
+
+    [Fact]
     public async Task ListStreams_counts_chat_chatters_and_follows_per_row_inside_each_window()
     {
         (ChannelAnalyticsService sut, AuthDbContext db) = Build();
