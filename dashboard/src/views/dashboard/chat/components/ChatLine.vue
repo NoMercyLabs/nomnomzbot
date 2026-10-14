@@ -250,23 +250,29 @@ function pick(event: MouseEvent): void {
         class="wrap-break-word"
         :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
       >
-        <span data-line-head class="me-1 inline-flex h-(--line-h) items-center gap-1 align-top">
-          <PlatformLogo
-            v-if="display.platform"
-            data-platform
-            :platform="line.provider"
-            class="size-4 flex-none"
-          />
-          <template v-if="display.badges">
-            <img
-              v-for="badge in badges"
-              :key="badge.key"
-              data-badge
-              :src="badge.src"
-              :alt="badge.alt"
+        <!-- The name's focus ring reaches 6px past its letters, so it keeps 8px from the marks and the message. -->
+        <span data-line-head class="me-2 inline-flex h-(--line-h) items-center gap-2 align-top">
+          <span
+            v-if="display.platform || (display.badges && badges.length > 0)"
+            class="flex items-center gap-1"
+          >
+            <PlatformLogo
+              v-if="display.platform"
+              data-platform
+              :platform="line.provider"
               class="size-4 flex-none"
             />
-          </template>
+            <template v-if="display.badges">
+              <img
+                v-for="badge in badges"
+                :key="badge.key"
+                data-badge
+                :src="badge.src"
+                :alt="badge.alt"
+                class="size-4 flex-none"
+              />
+            </template>
+          </span>
           <UserName
             :user-id="line.userId"
             :name="line.displayName"

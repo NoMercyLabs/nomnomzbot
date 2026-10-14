@@ -32,7 +32,7 @@ function open(event: MouseEvent): void {
     data-slot="user-name"
     :data-user="userId"
     :aria-label="$t('profile.open', { name })"
-    class="cursor-pointer rounded-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+    class="-mx-1.5 cursor-pointer rounded-md px-1.5 font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset"
     @click="open"
   >
     {{ name }}
