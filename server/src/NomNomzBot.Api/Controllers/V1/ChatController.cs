@@ -112,7 +112,8 @@ public class ChatController : BaseController
         string? OwnerId = null,
         string? OwnerLogin = null,
         string? OwnerName = null,
-        string? OwnerAvatarUrl = null
+        string? OwnerAvatarUrl = null,
+        IReadOnlyDictionary<string, string>? StaticUrls = null
     )
     {
         public static ChatEmoteCatalogueDto From(ChatEmote e) =>
@@ -130,7 +131,8 @@ public class ChatController : BaseController
                 e.OwnerChannel?.Id,
                 e.OwnerChannel?.Login,
                 e.OwnerChannel?.DisplayName,
-                e.OwnerChannel?.AvatarUrl
+                e.OwnerChannel?.AvatarUrl,
+                e.StaticUrls ?? e.Urls
             );
     }
 

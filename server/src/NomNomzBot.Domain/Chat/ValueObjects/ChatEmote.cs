@@ -44,6 +44,10 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// The channel the picker groups this emote under: the owning channel of a Twitch emote, or the viewed channel for a
 /// 7TV, BTTV or FFZ channel set. Null for a global emote. Set by the catalogue per request.
 /// </param>
+/// <param name="StaticUrls">
+/// Still-image links with the same scales as <see cref="Urls"/>, for a viewer who asks for reduced motion. An emote
+/// that is not animated carries the same links as <see cref="Urls"/>. Null only on an entry cached before this field existed.
+/// </param>
 public sealed record ChatEmote(
     EmoteProvider Provider,
     string Id,
@@ -59,5 +63,6 @@ public sealed record ChatEmote(
     ChatEmoteOwner? Owner = null,
     ChatEmoteOwner? Artist = null,
     ChatEmoteOrigin? Origin = null,
-    ChatEmoteOwner? OwnerChannel = null
+    ChatEmoteOwner? OwnerChannel = null,
+    IReadOnlyDictionary<string, string>? StaticUrls = null
 );

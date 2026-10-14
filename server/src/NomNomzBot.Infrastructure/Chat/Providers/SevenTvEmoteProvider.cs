@@ -97,6 +97,7 @@ public sealed class SevenTvEmoteProvider : IThirdPartyEmoteProvider
                 : host.Url;
 
             Dictionary<string, string> urls = new();
+            Dictionary<string, string> staticUrls = new();
             foreach (SevenTvFile file in host.Files)
             {
                 if (!string.Equals(file.Format, "WEBP", StringComparison.OrdinalIgnoreCase))
@@ -108,6 +109,9 @@ public sealed class SevenTvEmoteProvider : IThirdPartyEmoteProvider
 
                 string scale = file.Name[..separator]; // "1x.webp" → "1"
                 urls[scale] = $"{baseUrl}/{file.Name}";
+                staticUrls[scale] = emote.Data.Animated
+                    ? $"{baseUrl}/{scale}x_static.webp"
+                    : urls[scale];
             }
 
             if (urls.Count == 0)
@@ -126,7 +130,8 @@ public sealed class SevenTvEmoteProvider : IThirdPartyEmoteProvider
                     emote.Data.Animated,
                     zeroWidth,
                     Type: type,
-                    Owner: MapOwner(emote.Data.Owner)
+                    Owner: MapOwner(emote.Data.Owner),
+                    StaticUrls: staticUrls
                 )
             );
         }

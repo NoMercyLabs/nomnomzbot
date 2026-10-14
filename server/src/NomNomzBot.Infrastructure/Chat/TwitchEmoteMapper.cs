@@ -34,10 +34,14 @@ internal static class TwitchEmoteMapper
         ("3", "3.0"),
     ];
 
-    public static Dictionary<string, string> BuildUrls(string id, bool animated)
-    {
-        string format = animated ? "animated" : "static";
+    public static Dictionary<string, string> BuildUrls(string id, bool animated) =>
+        BuildUrls(id, animated ? "animated" : "static");
 
+    /// <summary>The still image of an emote: the "static" format exists for every Twitch emote, animated or not.</summary>
+    public static Dictionary<string, string> BuildStaticUrls(string id) => BuildUrls(id, "static");
+
+    private static Dictionary<string, string> BuildUrls(string id, string format)
+    {
         Dictionary<string, string> urls = new(Scales.Length);
         foreach ((string key, string scale) in Scales)
             urls[key] = $"https://static-cdn.jtvnw.net/emoticons/v2/{id}/{format}/dark/{scale}";
@@ -113,7 +117,8 @@ internal static class TwitchEmoteMapper
             Formats: formats,
             Type: string.IsNullOrEmpty(type) ? null : type,
             Tier: tier,
-            Owner: owner
+            Owner: owner,
+            StaticUrls: BuildStaticUrls(id)
         );
     }
 }

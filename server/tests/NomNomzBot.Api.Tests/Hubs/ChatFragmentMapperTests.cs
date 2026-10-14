@@ -57,6 +57,48 @@ public sealed class ChatFragmentMapperTests
     }
 
     [Fact]
+    public void MapFragment_carries_the_emote_static_urls_for_reduced_motion()
+    {
+        ChatMessageFragment animated = new()
+        {
+            Type = "emote",
+            Text = "catJAM",
+            Emote = new(
+                EmoteProvider.SevenTv,
+                "7tv-2",
+                "catJAM",
+                new Dictionary<string, string> { ["1"] = "https://cdn.7tv/1x.webp" },
+                Animated: true,
+                ZeroWidth: false,
+                StaticUrls: new Dictionary<string, string>
+                {
+                    ["1"] = "https://cdn.7tv/1x_static.webp",
+                }
+            ),
+        };
+        ChatMessageFragment cachedBeforeTheField = new()
+        {
+            Type = "emote",
+            Text = "Old",
+            Emote = new(
+                EmoteProvider.Bttv,
+                "b1",
+                "Old",
+                new Dictionary<string, string> { ["1"] = "https://cdn.btt/1x" },
+                Animated: false,
+                ZeroWidth: false
+            ),
+        };
+
+        ChatEmoteDto withStatic = ChatFragmentMapper.MapFragment(animated).Emote!;
+        ChatEmoteDto fallback = ChatFragmentMapper.MapFragment(cachedBeforeTheField).Emote!;
+
+        withStatic.Urls["1"].Should().Be("https://cdn.7tv/1x.webp");
+        withStatic.StaticUrls!["1"].Should().Be("https://cdn.7tv/1x_static.webp");
+        fallback.StaticUrls.Should().BeEquivalentTo(fallback.Urls);
+    }
+
+    [Fact]
     public void MapFragment_carries_a_twitch_emotes_code_type_tier_and_owner()
     {
         ChatMessageFragment fragment = new()
