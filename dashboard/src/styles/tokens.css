@@ -16,6 +16,9 @@
    the split woff2 files of 5.3.2 draw nothing in Chrome (measured 2026-10-14). */
 @import '@fontsource-variable/inter';
 @import '@fontsource/noto-color-emoji/emoji.css';
+/* The Figma kit's faces: Plus Jakarta Sans on buttons, Geist on badges and tooltips. Bundled, like Inter. */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/geist';
 
 :root {
   /* Twitch's own chat-badge colors, so a role reads as the badge people know (owner 2026-10-14). */
@@ -35,6 +38,8 @@
   --kit-focus-soft: rgb(255 255 255 / 0.64);
   --kit-danger: #e51a3c;
   --kit-tooltip-border: #3a3a3a;
+  --kit-font-button: 'Plus Jakarta Sans Variable', var(--font);
+  --kit-font-label: 'Geist Variable', var(--font);
   /* Toggle looks from the same kit: outline of an unchecked box, and the thumb fades. */
   --kit-outline: #484848;
   --kit-thumb-off-from: #edebfe;

@@ -14,44 +14,28 @@
    A button is found by its cva class group/button, not data-slot: a trigger rendered as-child
    (popover, dialog, menu) replaces data-slot with its own, and such a button lost every rule here. */
 
-/* Anything you can press looks pressable at rest (owner 2026-10-12). Three weights: default = solid accent,
-   the one primary action; outline = an edge at 3:1 or more (WCAG 1.4.11); ghost = full-tone text with an
-   underline, so it reads as a link and never as a label. */
+/* Sizes only: the look of each variant (fill, radius, weight) is the NomNomz Figma kit in
+   components/ui/button (owner 2026-10-14). Ghost = full-tone text with an underline, so it reads as a link. */
 .group\/button {
   height: var(--btn-h);
   padding-inline: var(--s4);
   gap: var(--s2);
-  border-radius: var(--radius-sm);
-  font-weight: 500;
   cursor: pointer;
 }
 .group\/button[data-size='sm'] {
   height: var(--btn-h-sm);
   padding-inline: var(--s3);
-  border-radius: var(--radius-sm);
 }
 .group\/button[data-size^='icon'] {
   width: var(--btn-h);
   padding: 0;
-  border-radius: var(--radius-sm);
 }
 .group\/button[data-size='icon-sm'] {
   width: var(--btn-h-sm);
   height: var(--btn-h-sm);
 }
-.group\/button[data-variant='default']:hover {
-  background: color-mix(in oklab, var(--primary) 88%, var(--foreground));
-}
-.group\/button[data-variant='outline'] {
-  background: transparent;
-  border-color: var(--input);
-  box-shadow: none;
-}
-.group\/button[data-variant='outline']:hover {
-  background: var(--muted);
-  border-color: color-mix(in oklab, var(--foreground) 65%, transparent);
-}
 .group\/button[data-variant='ghost'] {
+  border-radius: var(--radius-sm);
   text-decoration: underline;
   text-decoration-color: color-mix(in oklab, var(--foreground) 45%, transparent);
   text-underline-offset: 4px;
@@ -81,24 +65,6 @@
   background: color-mix(in oklab, var(--foreground) 24%, var(--popover));
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
 }
-/* Red is for harm only: a plain edge and red text; solid red stays for the final confirm in a dialog. */
-.group\/button[data-variant='destructive'] {
-  background: transparent;
-  border-color: var(--input);
-  color: var(--destructive);
-}
-.group\/button[data-variant='destructive']:hover {
-  background: color-mix(in oklab, var(--destructive) 14%, transparent);
-}
-/* The final confirm of a dialog (mockup .btn.destructive, frame.css:128). */
-[data-slot='alert-dialog-footer'] .group\/button[data-variant='destructive'] {
-  background: var(--destructive);
-  border-color: transparent;
-  color: var(--destructive-foreground);
-}
-[data-slot='alert-dialog-footer'] .group\/button[data-variant='destructive']:hover {
-  background: color-mix(in oklab, var(--destructive) 88%, var(--foreground));
-}
 .group\/button:disabled {
   cursor: not-allowed;
 }
@@ -120,9 +86,16 @@
   border-radius: var(--radius-sm);
   box-shadow: none;
 }
+/* Every segmented control spans its container, as the kit's Segmented Controls do (owner 2026-10-14: "please
+   span all segment controls"). A strip too narrow for its options keeps them whole and scrolls sideways. */
+[data-slot='tabs-list'],
+[data-segmented] {
+  width: 100%;
+  min-width: max-content;
+}
 [data-slot='tabs-trigger'],
 [data-slot='page-bar'] [data-segment] {
-  flex: none;
+  flex: 1 0 auto;
   height: var(--tab-h);
   padding: 0 var(--s3);
   border: 0;
@@ -154,7 +127,8 @@
   border-radius: 6px;
 }
 
-/* The mockup switch (frame.css:151-155): 36 x 20 with a 14px thumb 2px from each edge. */
+/* The mockup switch size (frame.css:151-155): 36 x 20 with a 14px thumb 2px from each edge. Its colors are the
+   kit's, in components/ui/switch. */
 [data-slot='switch'] {
   width: 36px;
   height: 20px;
@@ -164,19 +138,7 @@
   width: 14px;
   height: 14px;
 }
-/* On is full-tone foreground, not the accent: a list of switches would spend the one accent on every row. */
-[data-slot='switch'][data-state='checked'] {
-  background: var(--foreground);
-}
-[data-slot='switch'][data-state='unchecked'] {
-  background: var(--muted);
-  border-color: var(--input);
-}
-[data-slot='switch-thumb'][data-state='unchecked'] {
-  background: var(--muted-foreground);
-}
 [data-slot='switch-thumb'][data-state='checked'] {
-  background: var(--background);
   translate: 16px 0;
 }
 
