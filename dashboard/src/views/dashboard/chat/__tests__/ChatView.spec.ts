@@ -24,18 +24,33 @@ import { useProfileDialogStore } from '@/stores/profileDialog';
 import ChatView from '../ChatView.vue';
 import en from '../i18n/en.json';
 
-type Options = { params?: { path?: Record<string, unknown> }; body?: unknown };
+type Options = {
+  params?: { path?: Record<string, unknown>; query?: Record<string, unknown> };
+  body?: unknown;
+};
 type Call = {
   method: string;
   path: string;
   body: unknown;
   messageId: string;
+  query?: Record<string, unknown>;
 };
 type Answer = { data?: unknown; response: { status: number; ok: boolean } };
+type SearchPage = { messages: ChatLine[]; nextCursor: string | null };
 
 const calls: Call[] = [];
 let history: ChatLine[] = [];
 let sendOk: boolean = true;
+// The search answer per `before` cursor; the first page has no cursor. A cursor with no page fails.
+let searchPages: Record<string, SearchPage> = {};
+
+const searchAnswer = (options?: Options): Answer => {
+  const page = searchPages[String(options?.params?.query?.before ?? '')];
+
+  return page === undefined
+    ? { response: { status: 500, ok: false } }
+    : { data: { data: page }, response: { status: 200, ok: true } };
+};
 
 const line = (
   id: string,
@@ -74,13 +89,17 @@ const line = (
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string): Promise<Answer> => {
+    GET: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({
         method: 'GET',
         path,
         body: undefined,
         messageId: '',
+        query: options?.params?.query,
       });
+
+      if (path.endsWith('/chat/search'))
+        return searchAnswer(options);
 
       if (path.endsWith('/auth/me')) {
         return { data: { data: { username: 'stoney_eagle' } }, response: { status: 200, ok: true } };
@@ -199,6 +218,7 @@ beforeEach(() => {
   calls.length = 0;
   localStorage.clear();
   sendOk = true;
+  searchPages = {};
 
   history = [
     line('m1', 'u1', 'Alice', 'first words'),
@@ -551,6 +571,78 @@ describe('ChatView', () => {
     expect(bar.querySelector('[data-display-toggle]')).not.toBeNull();
 
     expect(document.body.querySelector('[role="switch"]')).toBeNull();
+  });
+
+  // Stoney 2026-10-13: "searching messages should also be possible and go all the way back from the
+  // first message to return chat messages containing a fuzzy search result".
+  describe('search', () => {
+    const searchBox = (): HTMLInputElement =>
+      document.body.querySelector('[data-slot="page-bar"] input[type="search"]') as HTMLInputElement;
+    const searches = (): Call[] => calls.filter((call) => call.path.endsWith('/chat/search'));
+
+    async function search(value: string): Promise<void> {
+      searchBox().value = value;
+      searchBox().dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((done) => setTimeout(done, 300));
+      await settle();
+    }
+
+    beforeEach(() => {
+      searchPages = {
+        '': {
+          messages: [line('s9', 'u2', 'Bob', 'hello again'), line('s8', 'u1', 'Alice', 'helo there')],
+          nextCursor: 'older',
+        },
+        older: { messages: [line('s1', 'u1', 'Alice', 'hello first')], nextCursor: null },
+      };
+    });
+
+    it('asks the server for the typed words and shows only the matching lines, newest first', async () => {
+      await open();
+      await search('hello');
+
+      expect(searches()).toHaveLength(1);
+      expect(searches()[0]!.query?.q).toBe('hello');
+      expect(rowIds()).toEqual(['s9', 's8']);
+      expect(document.body.querySelector('input[data-composer]')).toBeNull();
+    });
+
+    it('goes further back with the cursor until the first message, then says so', async () => {
+      await open();
+      await search('hello');
+
+      document.body.querySelector<HTMLButtonElement>('[data-search-more]')!.click();
+      await settle();
+
+      expect(searches().at(-1)!.query?.before).toBe('older');
+      expect(rowIds()).toEqual(['s9', 's8', 's1']);
+      expect(document.body.querySelector('[data-search-more]')).toBeNull();
+
+      expect(document.body.querySelector('[data-search-end]')?.textContent).toContain(
+        'Searched back to the first message',
+      );
+    });
+
+    it('says a failed search failed, and never that it reached the first message', async () => {
+      searchPages = {};
+      await open();
+      await search('hello');
+
+      expect(document.body.querySelector('[data-slot="panel-error"]')?.textContent).toContain(
+        'The search did not work.',
+      );
+
+      expect(document.body.querySelector('[data-search-end]')).toBeNull();
+    });
+
+    it('returns to the live feed when the search box is cleared', async () => {
+      await open();
+      await search('hello');
+      await search('');
+
+      expect(rowIds()).toEqual(['m1', 'm2', 'm3']);
+      expect(document.body.querySelector('input[data-composer]')).not.toBeNull();
+    });
   });
 
   it('removes command lines while the Commands view option is off', async () => {

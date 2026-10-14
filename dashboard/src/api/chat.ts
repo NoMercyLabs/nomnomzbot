@@ -9,9 +9,12 @@
 // -----------------------------------------------------------------------------
 
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
+  type InfiniteData,
+  type UseInfiniteQueryReturnType,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
@@ -89,6 +92,53 @@ export function useChatHistory(
     },
     enabled: computed(() => toValue(channelId) !== null),
     staleTime: Infinity,
+  });
+}
+
+// A search page may come back short with a cursor (the server scans a bounded slice per call), so the
+// reader keeps going back until the cursor is null: then the first message has been searched.
+export type ChatSearchPage = { messages: ChatLine[]; nextCursor: string | null };
+
+export const chatSearchMinLength = 2;
+
+const chatSearchKey = (channelId: string | null, query: string): unknown[] => [
+  'channels',
+  channelId,
+  'chat',
+  'search',
+  query,
+];
+
+async function readSearchPage(
+  channelId: string,
+  query: string,
+  before: string | undefined,
+): Promise<ChatSearchPage> {
+  const { data, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/search', {
+    params: { path: { version: '1', channelId }, query: { q: query, before } },
+  });
+
+  ensureOk(response, 'search');
+
+  return {
+    messages: (data?.data?.messages ?? []) as ChatLine[],
+    nextCursor: data?.data?.nextCursor ?? null,
+  };
+}
+
+export function useChatSearch(
+  channelId: MaybeRefOrGetter<string | null>,
+  query: MaybeRefOrGetter<string>,
+): UseInfiniteQueryReturnType<InfiniteData<ChatSearchPage>, Error> {
+  return useInfiniteQuery({
+    queryKey: computed(() => chatSearchKey(toValue(channelId), toValue(query))),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }): Promise<ChatSearchPage> =>
+      readSearchPage(toValue(channelId) as string, toValue(query), pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: ChatSearchPage): string | undefined =>
+      last.nextCursor ?? undefined,
+    enabled: computed(() =>
+      toValue(channelId) !== null && toValue(query).length >= chatSearchMinLength),
   });
 }
 

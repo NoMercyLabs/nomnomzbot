@@ -300,6 +300,11 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(c => c.Tags);
             b.Ignore(c => c.ContentLabels);
         });
+        // Mapping Channel made VtsConnection.Channel a real FK; the soft-delete tests write a connection
+        // without a channel row, so drop the nav like the others.
+        modelBuilder.Entity<NomNomzBot.Domain.Vts.Entities.VtsConnection>(b =>
+            b.Ignore(v => v.Channel)
+        );
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelModerator>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Service>();
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();

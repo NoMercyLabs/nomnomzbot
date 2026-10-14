@@ -128,7 +128,8 @@ export function useBlockedTracks(
 }
 
 type QueueMutation = UseMutationReturnType<MusicQueue, Error, void, number>;
-type RowMutation = UseMutationReturnType<MusicQueue, Error, { position: number }, number>;
+type RowMutation<TInput = { position: number }> =
+  UseMutationReturnType<MusicQueue, Error, TInput, number>;
 
 // Rows keep the position numbers the bot handed out, in order, so the next call names the row on screen.
 function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
@@ -223,6 +224,55 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
       const rest = base.queue.filter((item: QueueItem) => item.position !== position);
 
       return { ...base, queue: renumbered(base.queue, [moved, ...rest]) };
+    },
+  });
+}
+
+export type QueueMove = {
+  position: number;
+  toPosition: number;
+};
+
+// A dragged song lands exactly where it was dropped; the bot keeps the fair-queue rules for later requests.
+export function useMoveQueueItem(
+  channelId: MaybeRefOrGetter<string | null>,
+): RowMutation<QueueMove> {
+  return useOptimisticSave<MusicQueue, QueueMove>({
+    queryKey: () => musicQueueKey(toValue(channelId)),
+    mutationFn: async ({ position, toPosition }: QueueMove): Promise<MusicQueue> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/music/queue/{position}/move',
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              position,
+            },
+          },
+          body: { toPosition },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('move', response.status);
+
+      return readQueue(id);
+    },
+    apply: (current: MusicQueue | undefined, { position, toPosition }: QueueMove): MusicQueue => {
+      const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+      const from = base.queue.findIndex((item: QueueItem) => item.position === position);
+      const to = base.queue.findIndex((item: QueueItem) => item.position === toPosition);
+
+      if (from < 0 || to < 0)
+        return base;
+
+      const rows = base.queue.filter((_: QueueItem, index: number) => index !== from);
+
+      rows.splice(to, 0, base.queue[from]!);
+
+      return { ...base, queue: renumbered(base.queue, rows) };
     },
   });
 }

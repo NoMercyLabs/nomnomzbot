@@ -43,6 +43,17 @@ describe('the segmented control', () => {
     expect(items[1]!.classes()).toContain('data-[state=on]:bg-background');
   });
 
+  // Stoney 2026-10-14 (screenshot): "Most used" ran over its own padding because both halves were
+  // forced to the same width and allowed to shrink below the label. Equal grid columns size to the widest label.
+  it('gives every option the width of the widest label and never squeezes one below its text', () => {
+    const wrapper = control('wide');
+    const group = wrapper.find('[data-slot="toggle-group"]');
+    const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]');
+
+    expect(group.classes()).toEqual(expect.arrayContaining(['grid', 'grid-flow-col', 'auto-cols-fr']));
+    expect(items.every((item) => !item.classes().includes('min-w-0'))).toBe(true);
+  });
+
   it('emits the option a person presses and keeps one chosen when the open one is pressed again', async () => {
     const wrapper = control('wide');
     const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]');

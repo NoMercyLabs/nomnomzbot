@@ -24,6 +24,14 @@
         "shieldOn": "Schildmodus aan",
         "shieldOff": "Schildmodus uit"
       },
+      "shoutouts": {
+        "title": "Voorgestelde shoutouts · {count}",
+        "streams": "Geen streams in 14 dagen | {count} stream in 14 dagen | {count} streams in 14 dagen",
+        "send": "Shoutout",
+        "later": "Nu niet",
+        "sent": "Shoutout verstuurd.",
+        "failed": "De shoutout ging niet uit. Probeer het zo opnieuw."
+      },
       "quick": {
         "title": "Snelle acties",
         "adTitle": "Volgende reclameblok",

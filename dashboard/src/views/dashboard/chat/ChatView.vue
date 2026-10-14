@@ -11,16 +11,23 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
-import { useEventListener } from '@vueuse/core';
-import { computed, ref } from 'vue';
+import { refDebounced, useEventListener } from '@vueuse/core';
+import { computed, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
 
 import { useCurrentUser } from '@/api/auth';
-import { useBanUser, useChatHistory, type ChatLine as ChatLineData } from '@/api/chat';
+import {
+  chatSearchMinLength,
+  useBanUser,
+  useChatHistory,
+  useChatSearch,
+  type ChatLine as ChatLineData,
+} from '@/api/chat';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
@@ -64,6 +71,60 @@ const emptyText = computed<string>(() =>
     : t('dashboard.chat.feed.empty'),
 );
 const live = computed(() => current.value?.isLive === true);
+
+// Search swaps the live feed for the matches from the whole stored history, newest first.
+// A page can come back empty with a cursor (the server scans a bounded slice), so an empty
+// result keeps going back by itself; "Search further back" asks for older matches.
+const SEARCH_PAUSE_MS = 250;
+const search = ref('');
+const typed = refDebounced(computed(() => search.value.trim()), SEARCH_PAUSE_MS);
+const searching = computed(() => typed.value.length >= chatSearchMinLength);
+const found = useChatSearch(channelId, typed);
+const foundLines = computed<ChatLineData[]>(() =>
+  (found.data.value?.pages ?? []).flatMap((page) => page.messages));
+const searchState = usePanelState(found, () =>
+  foundLines.value.length === 0);
+// Only a finished search says it reached the first message; a failed one says nothing of the sort.
+const searchDone = computed(() =>
+  searchState.value === 'ready' || searchState.value === 'empty');
+
+watchEffect(() => {
+  if (foundLines.value.length > 0 || !found.hasNextPage.value || found.isFetching.value) return;
+
+  void found.fetchNextPage();
+});
+
+const feedLines = computed<ChatLineData[]>(() =>
+  searching.value
+    ? foundLines.value
+    : visible.value);
+
+const feedPanel = computed(() =>
+  searching.value
+    ? {
+        title: t('dashboard.chat.search.title'),
+        description: t('dashboard.chat.search.count', { count: foundLines.value.length, query: typed.value }),
+        state: searchState.value,
+        emptyText: t('dashboard.chat.search.empty', { query: typed.value }),
+        errorText: t('dashboard.chat.search.error'),
+      }
+    : {
+        title: t('dashboard.chat.feed.title'),
+        description: t('dashboard.chat.feed.count', { count: visible.value.length }),
+        state: panelState.value,
+        emptyText: emptyText.value,
+        errorText: t('dashboard.chat.feed.error'),
+      });
+
+function retryFeed(): void {
+  if (searching.value) {
+    void found.refetch();
+
+    return;
+  }
+
+  void history.refetch();
+}
 
 const banOpen = computed(() => banTarget.value !== null);
 
@@ -136,6 +197,7 @@ async function confirmBan(): Promise<void> {
     </template>
     <template #bar>
       <div data-chat-controls class="ml-auto flex items-center gap-2">
+        <SearchField v-model="search" :placeholder="$t('dashboard.chat.search.placeholder')" />
         <Button
           data-display-toggle
           variant="outline"
@@ -157,12 +219,8 @@ async function confirmBan(): Promise<void> {
       <PanelCard
         class="min-h-96 flex-1"
         tier="lead"
-        :title="$t('dashboard.chat.feed.title')"
-        :description="$t('dashboard.chat.feed.count', { count: visible.length })"
-        :state="panelState"
-        :empty-text="emptyText"
-        :error-text="$t('dashboard.chat.feed.error')"
-        @retry="history.refetch()"
+        v-bind="feedPanel"
+        @retry="retryFeed"
       >
         <template v-if="focusedUserId !== null" #actions>
           <Button data-focus-clear variant="ghost" size="sm" @click="focusedUserId = null">
@@ -172,11 +230,12 @@ async function confirmBan(): Promise<void> {
         </template>
         <div class="flex h-full min-h-80 flex-col">
           <VirtualList
-            stick
-            :items="visible"
+            :key="searching ? 'search' : 'feed'"
+            :stick="!searching"
+            :items="feedLines"
             :item-key="(line: ChatLineData) => line.id"
             :estimate-size="40"
-            :label="$t('dashboard.chat.feed.label')"
+            :label="searching ? $t('dashboard.chat.search.label') : $t('dashboard.chat.feed.label')"
           >
             <template #default="{ item, index }">
               <ChatLine
@@ -193,7 +252,22 @@ async function confirmBan(): Promise<void> {
           </VirtualList>
         </div>
         <template #footer>
-          <ChatComposer :channel-id="channelId" />
+          <template v-if="searching">
+            <Button
+              v-if="found.hasNextPage.value"
+              data-search-more
+              variant="outline"
+              size="sm"
+              :disabled="found.isFetchingNextPage.value"
+              @click="found.fetchNextPage()"
+            >
+              {{ $t('dashboard.chat.search.more') }}
+            </Button>
+            <p v-else-if="searchDone" data-search-end class="text-sm text-muted-foreground">
+              {{ $t('dashboard.chat.search.end') }}
+            </p>
+          </template>
+          <ChatComposer v-else :channel-id="channelId" />
         </template>
       </PanelCard>
       <aside v-if="focusedUserId !== null" data-viewer-panel class="w-80 flex-none">

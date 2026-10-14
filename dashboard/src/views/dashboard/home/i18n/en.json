@@ -24,6 +24,14 @@
         "shieldOn": "Shield mode on",
         "shieldOff": "Shield mode off"
       },
+      "shoutouts": {
+        "title": "Suggested shoutouts · {count}",
+        "streams": "No streams in 14 days | {count} stream in 14 days | {count} streams in 14 days",
+        "send": "Shoutout",
+        "later": "Not now",
+        "sent": "Shoutout sent.",
+        "failed": "The shoutout did not go out. Try again in a moment."
+      },
       "quick": {
         "title": "Quick actions",
         "adTitle": "Next ad break",

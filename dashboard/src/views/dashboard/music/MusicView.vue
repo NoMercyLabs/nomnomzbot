@@ -10,11 +10,15 @@
 <script setup lang="ts">
 import ListEnd from '~icons/nnz/playlist-add';
 import Music from '~icons/nnz/note-eighth-pair';
+import { useSortable } from '@vueuse/integrations/useSortable';
+import type { SortableEvent } from 'sortablejs';
+import Grip from '~icons/nnz/hamburger';
 import Trash2 from '~icons/nnz/trash';
-import { computed, ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 
 import { useConnections } from '@/api/home';
 import {
+  useMoveQueueItem,
   usePauseMusic,
   usePromoteQueueItem,
   useMusicQueue,
@@ -46,6 +50,7 @@ const pause = usePauseMusic(channelId);
 const resume = useResumeMusic(channelId);
 const skip = useSkipMusic(channelId);
 const promote = usePromoteQueueItem(channelId);
+const move = useMoveQueueItem(channelId);
 const remove = useRemoveQueueItem(channelId);
 
 const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlaying']>(
@@ -54,6 +59,27 @@ const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlayin
 const rows = computed<QueueItem[]>(
   () => queueQuery.data.value?.queue ?? [],
 );
+
+// A song dragged by its handle lands where it was dropped (Stoney: "i need to be able to drag mine to the end").
+const queueList = useTemplateRef<HTMLElement>('queueList');
+
+function dropped(event: SortableEvent): void {
+  const from = rows.value[event.oldIndex ?? -1];
+  const to = rows.value[event.newIndex ?? -1];
+
+  if (from === undefined || to === undefined || from === to) return;
+
+  move.mutate({
+    position: Number(from.position),
+    toPosition: Number(to.position),
+  });
+}
+
+useSortable(queueList, rows, {
+  handle: '[data-drag-handle]',
+  animation: 150,
+  onUpdate: dropped,
+});
 
 const nowState = usePanelState(queueQuery, (queue: MusicQueue): boolean =>
   !queue.nowPlaying);
@@ -128,51 +154,60 @@ function confirmRemove(): void {
         :error-text="$t('dashboard.music.queue.error')"
         @retry="queueQuery.refetch()"
       >
-        <SummaryRow
-          v-for="item in rows"
-          :key="item.position"
-          :title="item.trackName"
-          :detail="
-            item.requestedBy
-              ? $t('dashboard.music.queue.by', { artist: item.artist, name: item.requestedBy })
-              : $t('dashboard.music.queue.unknownRequester', { artist: item.artist })
-          "
-          data-queue-item
-        >
-          <template #leading>
-            <img
-              v-if="item.imageUrl"
-              :src="item.imageUrl"
-              alt=""
-              class="size-8 flex-none rounded-md object-cover"
-            />
-            <span
-              v-else
-              class="flex size-8 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
-            >
-              <Music class="size-4" aria-hidden="true" />
-            </span>
-          </template>
-          <template #trailing>
-            <Button
-              variant="outline"
-              size="sm"
-              :aria-label="$t('dashboard.music.queue.nextRow', { title: item.trackName })"
-              @click="promote.mutate({ position: Number(item.position) })"
-            >
-              <ListEnd aria-hidden="true" />
-              {{ $t('dashboard.music.queue.next') }}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              :aria-label="$t('dashboard.music.queue.remove', { title: item.trackName })"
-              @click="removing = item"
-            >
-              <Trash2 aria-hidden="true" />
-            </Button>
-          </template>
-        </SummaryRow>
+        <div ref="queueList" data-queue-list>
+          <SummaryRow
+            v-for="item in rows"
+            :key="item.position"
+            :title="item.trackName"
+            :detail="
+              item.requestedBy
+                ? $t('dashboard.music.queue.by', { artist: item.artist, name: item.requestedBy })
+                : $t('dashboard.music.queue.unknownRequester', { artist: item.artist })
+            "
+            data-queue-item
+          >
+            <template #leading>
+              <span
+                data-drag-handle
+                :title="$t('dashboard.music.queue.drag')"
+                class="-ml-1 flex size-6 flex-none cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"
+              >
+                <Grip class="size-4" aria-hidden="true" />
+              </span>
+              <img
+                v-if="item.imageUrl"
+                :src="item.imageUrl"
+                alt=""
+                class="size-8 flex-none rounded-md object-cover"
+              />
+              <span
+                v-else
+                class="flex size-8 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
+              >
+                <Music class="size-4" aria-hidden="true" />
+              </span>
+            </template>
+            <template #trailing>
+              <Button
+                variant="outline"
+                size="sm"
+                :aria-label="$t('dashboard.music.queue.nextRow', { title: item.trackName })"
+                @click="promote.mutate({ position: Number(item.position) })"
+              >
+                <ListEnd aria-hidden="true" />
+                {{ $t('dashboard.music.queue.next') }}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                :aria-label="$t('dashboard.music.queue.remove', { title: item.trackName })"
+                @click="removing = item"
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </template>
+          </SummaryRow>
+        </div>
       </PanelCard>
     </BoardCell>
     <BoardCell :span="3" :rows="2">

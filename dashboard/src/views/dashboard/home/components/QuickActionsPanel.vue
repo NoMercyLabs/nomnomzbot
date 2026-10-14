@@ -42,6 +42,7 @@ import Timer24 from '~icons/nnz/timer';
 
 import PollDialog from './PollDialog.vue';
 import PredictionDialog from './PredictionDialog.vue';
+import ShoutoutSuggestions from './ShoutoutSuggestions.vue';
 import TimersDialog from './TimersDialog.vue';
 
 type Running = {
@@ -313,6 +314,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
         </SummaryRow>
       </div>
     </RowGroup>
+    <ShoutoutSuggestions :channel-id="channelId" />
     <TimersDialog v-model:open="timersOpen" :timers="allTimers" />
     <PollDialog v-model:open="pollOpen" :poll="runningPoll" />
     <PredictionDialog v-model:open="predictionOpen" :prediction="runningPrediction" />
