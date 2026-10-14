@@ -21,21 +21,20 @@ import {
   useVipChange,
   type CommunityMember,
 } from '@/api/community';
+import { useViewerProfile } from '@/api/people';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import ProfileHeader from '@/components/layout/profile/ProfileHeader.vue';
+import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
+import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
+import { shortDate } from '@/lib/time';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import StatTile from '@/components/layout/StatTile.vue';
-import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -46,13 +45,16 @@ import { useSaveErrorsStore } from '@/stores/saveErrors';
 
 type ActivityLine = CommunityMember['recentActivity'][number];
 
-const TABS: readonly string[] = ['overview', 'chat', 'activity', 'moderation'];
-const KNOWN_TRUST: readonly string[] = ['viewer', 'moderator', 'vip'];
+// The header already shows every count, so no tab repeats them.
+const TABS: readonly string[] = ['overview', 'chat', 'moderation'];
 
-const { t, n, locale } = useI18n();
+// Every panel stays mounted in one grid cell, so the dialog takes the tallest tab's size up front and never jumps.
+const PANEL_CLASS = 'col-start-1 row-start-1 data-[state=inactive]:invisible';
+
+const { t, locale } = useI18n();
 const profile = useProfileDialogStore();
 const errors = useSaveErrorsStore();
-const { channelId } = useCurrentChannel();
+const { channelId, current } = useCurrentChannel();
 
 const isOpen = computed(() => profile.userId !== null);
 const tab = ref('overview');
@@ -61,6 +63,15 @@ const confirmBan = ref(false);
 const member = useCommunityMember(channelId, () =>
   profile.userId);
 const person = computed<CommunityMember | null>(() => member.data.value ?? null);
+const viewer = useViewerProfile(channelId, () =>
+  person.value?.internalUserId ?? null);
+const viewerProfile = computed(() => viewer.data.value ?? null);
+const roles = computed<RoleKey[]>(() =>
+  person.value
+    ? roleKeys(person.value, viewerProfile.value, current.value?.login)
+    : []);
+// Twitch refuses a ban or VIP on the channel's own account, so the dialog does not offer them.
+const isOwner = computed<boolean>(() => roles.value.includes('broadcaster'));
 
 // The mutations need the channel id when they are made; the dialog is mounted inside a signed-in channel.
 const vipChange = useVipChange(channelId.value ?? '');
@@ -87,33 +98,9 @@ watch(
   },
 );
 
-function shortDate(value: string): string {
-  return new Date(value).toLocaleDateString(locale.value, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+function dateText(value: string): string {
+  return shortDate(value, locale.value);
 }
-
-function trustLabel(level: string): string {
-  return KNOWN_TRUST.includes(level)
-    ? t(`profile.trust.${level}`)
-    : level;
-}
-
-const facts = computed<KeyValueItem[]>(() => {
-  const who = person.value;
-
-  if (!who)
-    return [];
-
-  return [
-    { label: t('profile.facts.username'), value: `@${who.username}` },
-    { label: t('profile.facts.trust'), value: trustLabel(who.trustLevel) },
-    { label: t('profile.facts.firstSeen'), value: shortDate(who.firstSeen) },
-    { label: t('profile.facts.lastSeen'), value: shortDate(who.lastSeen) },
-  ];
-});
 
 function setOpen(open: boolean): void {
   if (!open) {
@@ -150,37 +137,20 @@ async function banNow(): Promise<void> {
     <DialogContent
       data-slot="profile-dialog"
       :show-close-button="false"
-      class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
       @close-auto-focus="giveFocusBack"
     >
-      <div class="flex flex-none items-center gap-3 px-6 pt-6 pr-14 pb-4">
-        <Avatar class="size-12">
-          <AvatarImage v-if="person?.profileImageUrl" :src="person.profileImageUrl" :alt="title" />
-          <AvatarFallback>{{ title.slice(0, 2).toUpperCase() }}</AvatarFallback>
-        </Avatar>
-        <div class="grid min-w-0 gap-0.5">
-          <DialogTitle class="truncate text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription class="text-sm text-muted-foreground">
-            {{ person ? `@${person.username}` : $t('profile.description') }}
-          </DialogDescription>
-        </div>
-        <StatusBadge
-          v-if="person?.isBanned"
-          class="ml-auto"
-          tone="bad"
-          :label="$t('profile.banned')"
-        />
-        <DialogClose as-child>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            class="absolute top-4 right-4"
-            :aria-label="$t('common.close')"
-          >
-            <Cross />
-          </Button>
-        </DialogClose>
-      </div>
+      <ProfileHeader :person="person" :profile="viewerProfile" :roles="roles" />
+      <DialogClose as-child>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="absolute top-4 right-4"
+          :aria-label="$t('common.close')"
+        >
+          <Cross />
+        </Button>
+      </DialogClose>
 
       <div v-if="member.isPending.value" data-profile-loading class="grid gap-2 px-6 pb-4">
         <Skeleton class="h-16 rounded-lg" />
@@ -207,26 +177,17 @@ async function banNow(): Promise<void> {
               }}</TabsTrigger>
             </TabsList>
           </div>
-          <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-            <TabsContent value="overview" class="grid gap-4">
-              <div class="grid grid-cols-3 gap-3">
-                <StatTile
-                  :label="$t('profile.stats.messages')"
-                  :value="Number(person.messageCount)"
-                />
-                <StatTile
-                  :label="$t('profile.stats.watchHours')"
-                  :value="n(Number(person.watchHours), { maximumFractionDigits: 1 })"
-                />
-                <StatTile
-                  :label="$t('profile.stats.commands')"
-                  :value="Number(person.commandsUsed)"
-                />
-              </div>
-              <KeyValueList :items="facts" />
+          <div class="grid min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <TabsContent value="overview" force-mount :class="[PANEL_CLASS, 'grid gap-4']">
+              <ProfileOverview
+                :person="person"
+                :profile="viewerProfile"
+                :roles="roles"
+                @show-chat="tab = 'chat'"
+              />
             </TabsContent>
 
-            <TabsContent value="chat">
+            <TabsContent value="chat" force-mount :class="PANEL_CLASS">
               <PanelCard
                 class="h-64"
                 :title="$t('profile.chat.title')"
@@ -242,7 +203,7 @@ async function banNow(): Promise<void> {
                   <template #default="{ item }">
                     <div class="grid gap-0.5 px-2 py-1.5 text-sm">
                       <span class="text-xs text-muted-foreground">{{
-                        shortDate(item.timestamp)
+                        dateText(item.timestamp)
                       }}</span>
                       <span class="wrap-break-word">{{ item.content }}</span>
                     </div>
@@ -251,22 +212,7 @@ async function banNow(): Promise<void> {
               </PanelCard>
             </TabsContent>
 
-            <TabsContent value="activity" class="grid grid-cols-3 gap-3">
-              <StatTile
-                :label="$t('profile.stats.messages')"
-                :value="Number(person.messageCount)"
-              />
-              <StatTile
-                :label="$t('profile.stats.watchHours')"
-                :value="n(Number(person.watchHours), { maximumFractionDigits: 1 })"
-              />
-              <StatTile
-                :label="$t('profile.stats.commands')"
-                :value="Number(person.commandsUsed)"
-              />
-            </TabsContent>
-
-            <TabsContent value="moderation">
+            <TabsContent value="moderation" force-mount :class="PANEL_CLASS">
               <PanelCard
                 :title="$t('profile.moderation.title')"
                 :state="person.banHistory.length > 0 ? 'ready' : 'empty'"
@@ -279,7 +225,7 @@ async function banNow(): Promise<void> {
                       {{
                         $t('profile.moderation.by', {
                           name: record.bannedBy,
-                          date: shortDate(record.bannedAt),
+                          date: dateText(record.bannedAt),
                         })
                       }}
                     </span>
@@ -290,7 +236,7 @@ async function banNow(): Promise<void> {
           </div>
         </Tabs>
 
-        <DialogFooter class="flex-none border-t border-border px-6 py-4">
+        <DialogFooter v-if="!isOwner" class="flex-none border-t border-border px-6 py-4">
           <Button
             v-if="!person.isBanned"
             data-profile-ban

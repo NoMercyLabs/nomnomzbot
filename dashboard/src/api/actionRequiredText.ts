@@ -25,6 +25,7 @@ export interface AttentionWords {
 export interface AttentionTranslator {
   t: (key: string, named?: Record<string, unknown>) => string;
   te: (key: string) => boolean;
+  locale: { readonly value: string };
 }
 
 const WORDS = 'frame.inbox.attention.';
@@ -98,7 +99,7 @@ function titleNamed(
     ...item.parameters,
     count: Number(item.count),
     provider: providerName(provider),
-    until: clockTime(until, now),
+    until: clockTime(until, now, i18n.locale.value),
     source: i18n.t(WORDS + sourceKey),
   };
 }

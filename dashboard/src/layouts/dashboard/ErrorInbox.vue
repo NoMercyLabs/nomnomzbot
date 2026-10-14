@@ -20,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
-const { t, te } = useI18n();
+const { t, te, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 const { data: items } = useActionRequired(channelId);
 const { mutate: dismissItem } = useDismissActionRequired(channelId);
@@ -28,7 +28,11 @@ const saveErrors = useSaveErrorsStore();
 const open = ref(false);
 const count = computed(() => (items.value?.length ?? 0) + saveErrors.items.length);
 const attention = computed(() =>
-  (items.value ?? []).map((item) => ({ id: item.id, ...attentionWords(item, { t, te }) })),
+  (items.value ?? []).map((item) => ({ id: item.id, ...attentionWords(item, {
+    t,
+    te,
+    locale,
+  }) })),
 );
 </script>
 

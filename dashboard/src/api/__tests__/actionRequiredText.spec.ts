@@ -25,7 +25,11 @@ function translator(locale: 'en' | 'nl') {
     messages: { en, nl },
   });
 
-  return { t: i18n.global.t, te: i18n.global.te };
+  return {
+    t: i18n.global.t,
+    te: i18n.global.te,
+    locale: i18n.global.locale,
+  };
 }
 
 function item(overrides: Partial<ActionRequiredItem>): ActionRequiredItem {
@@ -177,8 +181,10 @@ describe('attentionWords', () => {
     );
 
     expect(attentionWords(spotify(nextDay), translator('en'), now).title).toBe(
-      'Spotify paused your music until 2026-10-14 01:05',
+      'Spotify paused your music until Oct 14, 01:05',
     );
+
+    expect(attentionWords(spotify(nextDay), translator('nl'), now).title).toContain('14 okt');
   });
 
   it('shows the plain fallback title and no message for a key it has no words for', () => {

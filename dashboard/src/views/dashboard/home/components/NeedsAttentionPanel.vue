@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
-const { t, te } = useI18n();
+const { t, te, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const attentionQuery = useActionRequired(channelId);
@@ -37,7 +37,11 @@ const attentionState = usePanelState(
 const attention = computed(() =>
   (attentionQuery.data.value ?? []).map((item) => ({
     id: item.id,
-    ...attentionWords(item, { t, te }),
+    ...attentionWords(item, {
+      t,
+      te,
+      locale,
+    }),
   })),
 );
 </script>

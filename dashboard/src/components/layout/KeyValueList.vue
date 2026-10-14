@@ -24,7 +24,7 @@ const missing: string = '-';
 <template>
   <dl
     data-slot="key-value-list"
-    class="grid grid-cols-[minmax(6rem,9rem)_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm"
+    class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm"
   >
     <template v-for="item in items" :key="item.label">
       <dt class="text-muted-foreground">{{ item.label }}</dt>
