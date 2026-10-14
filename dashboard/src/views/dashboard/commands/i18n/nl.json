@@ -4,6 +4,7 @@
       "title": "Commando's",
       "crumb": "Bouwen",
       "new": "Nieuw commando",
+      "back": "Terug naar de lijst",
       "tabs": {
         "custom": "Eigen",
         "builtin": "Ingebouwd"

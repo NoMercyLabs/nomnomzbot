@@ -162,7 +162,7 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
       <Button
         data-step-remove
         type="button"
-        variant="destructive"
+        variant="outline"
         size="sm"
         @click="$emit('remove')"
       >

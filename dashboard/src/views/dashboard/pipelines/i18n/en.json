@@ -4,6 +4,7 @@
       "title": "Pipelines",
       "crumb": "Build",
       "new": "New pipeline",
+      "back": "Back to the list",
       "noWrite": "Your role cannot change pipelines.",
       "list": {
         "search": "Search pipelines",

@@ -523,6 +523,25 @@ describe('CommandsView editor', () => {
     expect(router.currentRoute.value.query.command).toBeUndefined();
   });
 
+  it('offers a way back to the list that closes the open command', async () => {
+    await open('/app/commands?command=hello');
+    const back = document.body.querySelector<HTMLButtonElement>('[data-detail-back]');
+
+    expect(back?.textContent).toContain('Back to the list');
+    back!.click();
+    await settle();
+
+    expect(router.currentRoute.value.query.command).toBeUndefined();
+    expect(editor()).toBeNull();
+  });
+
+  it('keeps one strong button: Save leads, and Delete is quiet, never the filled danger look', async () => {
+    await open('/app/commands?command=hello');
+
+    expect(buttonByText('Save changes').dataset.variant).toBeUndefined();
+    expect(buttonByText('Delete').dataset.variant).toBe('outline');
+  });
+
   it('tells the streamer a pipeline command with no pipeline answers nothing', async () => {
     await open('/app/commands?command=pipe');
 

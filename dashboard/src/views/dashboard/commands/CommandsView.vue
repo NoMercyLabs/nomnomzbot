@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 import Plus from '~icons/nnz/add';
+import ArrowLeft from '~icons/nnz/arrow-left';
 import { useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -101,7 +102,21 @@ const creating = ref(false);
       />
     </template>
     <template #detail>
-      <CommandEditor v-if="row" :key="row.name" :row="row" @remove="removeCommand" />
+      <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
+        <Button
+          data-detail-back
+          data-page-inset
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="self-start md:hidden"
+          @click="select(undefined)"
+        >
+          <ArrowLeft aria-hidden="true" />
+          {{ $t('dashboard.commands.back') }}
+        </Button>
+        <CommandEditor :key="row.name" :row="row" @remove="removeCommand" />
+      </div>
       <PanelCard
         v-else
         state="empty"

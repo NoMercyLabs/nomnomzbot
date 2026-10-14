@@ -4,6 +4,7 @@
       "title": "Commands",
       "crumb": "Build",
       "new": "New command",
+      "back": "Back to the list",
       "tabs": {
         "custom": "Custom",
         "builtin": "Built-in"

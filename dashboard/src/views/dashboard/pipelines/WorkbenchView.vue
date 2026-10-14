@@ -12,6 +12,7 @@
 // the engine walks them with every check split into lanes, and the picked step in detail beside the canvas.
 // Narrower than a laptop the palette and the details slide in as drawers, and the back button closes them.
 import Add from '~icons/nnz/add';
+import ArrowLeft from '~icons/nnz/arrow-left';
 import Undo from '~icons/nnz/arrow-back-up';
 import Redo from '~icons/nnz/arrow-forward-up';
 import Flag from '~icons/nnz/flag';
@@ -350,6 +351,17 @@ const leaveOpen = computed<boolean>({
     </template>
     <template #actions>
       <span class="flex items-center gap-1" :title="canWrite ? undefined : $t('dashboard.pipelines.noWrite')">
+        <Button
+          data-detail-back
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="md:hidden"
+          @click="router.push({ name: 'dashboard-pipelines' })"
+        >
+          <ArrowLeft aria-hidden="true" />
+          {{ $t('dashboard.pipelines.back') }}
+        </Button>
         <Button
           data-workbench-undo
           type="button"

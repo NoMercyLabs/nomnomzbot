@@ -492,6 +492,17 @@ describe('the workbench canvas', () => {
       .toBe('Only if {args.count} is more than 2');
   });
 
+  it('offers a way back to the pipelines list', async () => {
+    await open();
+    const back = document.body.querySelector<HTMLButtonElement>('[data-detail-back]');
+
+    expect(back?.textContent).toContain('Back to the list');
+    back!.click();
+    await flushPromises();
+
+    expect(router.currentRoute.value.name).toBe('dashboard-pipelines');
+  });
+
   it('marks a step whose required field is empty as not set up', async () => {
     await open();
 

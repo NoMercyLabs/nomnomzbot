@@ -119,7 +119,7 @@ function remove(): void {
 <template>
   <PanelCard data-command-editor tier="lead" pad :title="`!${row.name}`">
     <template #actions>
-      <Button type="button" variant="destructive" size="sm" @click="confirmOpen = true">
+      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
         <Trash2 aria-hidden="true" />
         {{ $t('dashboard.commands.editor.delete') }}
       </Button>

@@ -4,6 +4,7 @@
       "title": "Pipelines",
       "crumb": "Bouwen",
       "new": "Nieuwe pipeline",
+      "back": "Terug naar de lijst",
       "noWrite": "Jouw rol kan pipelines niet wijzigen.",
       "list": {
         "search": "Pipelines zoeken",
