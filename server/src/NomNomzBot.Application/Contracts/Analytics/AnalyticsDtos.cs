@@ -134,7 +134,10 @@ public sealed record ViewerProfileDto(
     bool IsFollower,
     bool IsSubscriber,
     string? SubTier,
-    bool IsAnalyticsOptedOut
+    bool IsAnalyticsOptedOut,
+    // Sum of the bits this person cheered in this channel's chat (ChatMessage.BitsAmount). Filled by the
+    // Community profile aggregation; the analytics service itself leaves it 0.
+    long TotalBitsCheered = 0
 );
 
 /// <summary>A row in the ranked/filtered viewer list (analytics.md §4, M.1).</summary>
