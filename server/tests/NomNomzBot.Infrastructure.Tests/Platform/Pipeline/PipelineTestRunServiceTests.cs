@@ -51,7 +51,25 @@ public sealed class PipelineTestRunServiceTests
 
     private static PipelineTestRunDbContext NewDb() => PipelineTestRunDbContext.New();
 
-    private static Harness Build(PipelineTestRunDbContext db)
+    // Stands in for the save gate: accepts any graph and returns its wire JSON, like a valid save would.
+    private static IPipelineService EchoPipelines()
+    {
+        IPipelineService pipelines = Substitute.For<IPipelineService>();
+        pipelines
+            .ValidateGraphAsync(Arg.Any<object?>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+                Task.FromResult(
+                    Result.Success(
+                        ci.ArgAt<object?>(0) is null
+                            ? null
+                            : JsonSerializer.Serialize(ci.ArgAt<object?>(0))
+                    )
+                )
+            );
+        return pipelines;
+    }
+
+    private static Harness Build(PipelineTestRunDbContext db, IPipelineService? pipelines = null)
     {
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(Channel);
@@ -97,7 +115,8 @@ public sealed class PipelineTestRunServiceTests
                 registry,
                 resolver,
                 NullLogger<PipelineEngine>.Instance,
-                TimeProvider.System
+                TimeProvider.System,
+                pipelines ?? EchoPipelines()
             ),
             chat,
             moderation,
@@ -468,5 +487,130 @@ public sealed class PipelineTestRunServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    private const string SavedGraph = """
+        {"steps":[{"id":"aaaaaaaa-0000-4000-8000-00000000000a","action":{"type":"send_message","message":"saved"}}]}
+        """;
+
+    private static async Task SeedSavedGraphAsync(PipelineTestRunDbContext db)
+    {
+        db.Pipelines.Add(
+            new()
+            {
+                Id = PipelineId,
+                BroadcasterId = Channel,
+                Name = "saved",
+                IsEnabled = true,
+                GraphJsonCache = SavedGraph,
+            }
+        );
+        await db.SaveChangesAsync();
+    }
+
+    private static PipelineTestRunRequest DraftRequest(string graphJson) =>
+        new(
+            new Dictionary<string, string>(),
+            Graph: JsonDocument.Parse(graphJson).RootElement.Clone()
+        );
+
+    [Fact]
+    public async Task A_flat_draft_runs_instead_of_the_saved_graph_and_the_trace_names_the_draft_step_ids()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedSavedGraphAsync(db);
+        const string draft = """
+            {"steps":[
+              {"id":"11111111-0000-4000-8000-000000000001","action":{"type":"set_variable","name":"n","value":"7"}},
+              {"id":"11111111-0000-4000-8000-000000000002","action":{"type":"send_message","message":"draft {n}"}}
+            ]}
+            """;
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, DraftRequest(draft))).Value;
+
+        result.Success.Should().BeTrue();
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("draft 7");
+        result
+            .Trace.Select(t => t.StepId)
+            .Should()
+            .Equal("11111111-0000-4000-8000-000000000001", "11111111-0000-4000-8000-000000000002");
+        db.Pipelines.Single(p => p.Id == PipelineId).GraphJsonCache.Should().Be(SavedGraph.Trim());
+    }
+
+    [Fact]
+    public async Task A_tree_draft_traces_the_block_and_the_taken_lane_by_the_draft_ids_and_stores_nothing()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedSavedGraphAsync(db);
+        const string draft = """
+            {"steps":[
+              {"id":"22222222-0000-4000-8000-000000000001","action":{"type":"set_variable","name":"score","value":"5"}},
+              {"id":"22222222-0000-4000-8000-000000000002","block_kind":"if","action":{"type":"if"},
+               "condition":{"type":"comparison","left":"{score}","operator":"gt","right":"3"}},
+              {"id":"22222222-0000-4000-8000-000000000003","parent_step_id":"22222222-0000-4000-8000-000000000002","branch":"then",
+               "action":{"type":"send_message","message":"big {score}"}},
+              {"id":"22222222-0000-4000-8000-000000000004","parent_step_id":"22222222-0000-4000-8000-000000000002","branch":"else",
+               "action":{"type":"send_message","message":"small"}}
+            ]}
+            """;
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, DraftRequest(draft))).Value;
+
+        result.Success.Should().BeTrue();
+        result.Trace.Select(t => t.StepType).Should().Equal("set_variable", "if", "send_message");
+        result
+            .Trace.Select(t => t.StepId)
+            .Should()
+            .Equal(
+                "22222222-0000-4000-8000-000000000001",
+                "22222222-0000-4000-8000-000000000002",
+                "22222222-0000-4000-8000-000000000003"
+            );
+        result.Trace[1].Branch.Should().Be("then");
+        result.Trace[2].Output.Should().Be("big 5");
+        db.PipelineSteps.Should().BeEmpty();
+        db.Pipelines.Single(p => p.Id == PipelineId).GraphJsonCache.Should().Be(SavedGraph.Trim());
+    }
+
+    [Fact]
+    public async Task An_invalid_draft_fails_with_the_save_validation_failure_and_runs_nothing()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        IPipelineService pipelines = Substitute.For<IPipelineService>();
+        pipelines
+            .ValidateGraphAsync(Arg.Any<object?>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(Result.Failure<string?>("Unknown action 'nope'.", "INVALID_GRAPH"))
+            );
+        Harness h = Build(db, pipelines);
+        await SeedSavedGraphAsync(db);
+
+        Result<TestRunResultDto> result = await h.Sut.RunAsync(
+            PipelineId,
+            DraftRequest("""{"steps":[{"action":{"type":"nope"}}]}""")
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("INVALID_GRAPH");
+        result.ErrorMessage.Should().Be("Unknown action 'nope'.");
+    }
+
+    [Fact]
+    public async Task A_request_without_a_graph_still_runs_the_saved_pipeline()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedSavedGraphAsync(db);
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, Request())).Value;
+
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("saved");
+        result
+            .Trace.Should()
+            .ContainSingle()
+            .Which.StepId.Should()
+            .Be("aaaaaaaa-0000-4000-8000-00000000000a");
     }
 }

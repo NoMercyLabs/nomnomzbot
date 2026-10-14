@@ -46,6 +46,13 @@ public interface IPipelineService
     Task<Result> DeleteAsync(string broadcasterId, Guid id, CancellationToken ct = default);
 
     /// <summary>
+    /// Runs a graph through the exact save-time gate (wire parse plus the pipeline validator) without
+    /// storing anything. Returns the wire JSON a save would persist, or the same typed failure a save
+    /// returns. A null graph succeeds with null.
+    /// </summary>
+    Task<Result<string?>> ValidateGraphAsync(object? graph, CancellationToken ct = default);
+
+    /// <summary>
     /// Real, counted rows (commands / chat triggers / timers / event responses) that reference this
     /// pipeline right now — for the delete confirmation, computed from the live tenant data, never
     /// estimated.

@@ -120,6 +120,11 @@ public class PipelineRequest
     /// <summary>True only for a dashboard test run: the engine then records a per-step trace into
     /// <see cref="PipelineExecutionResult.Trace"/>. Normal runs leave it false and pay nothing.</summary>
     public bool CollectTrace { get; init; }
+
+    /// <summary>True for a draft graph run without a <see cref="PipelineId"/> (a dashboard test run of an
+    /// unsaved edit): a graph with blocks then runs through the tree walker, with step rows built in memory
+    /// from the graph and keyed by the ids the client sent. Normal inline runs leave it false.</summary>
+    public bool RunInlineGraphAsTree { get; init; }
 }
 
 public class PipelineExecutionResult

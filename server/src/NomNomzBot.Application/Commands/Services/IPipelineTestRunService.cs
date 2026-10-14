@@ -17,11 +17,14 @@ namespace NomNomzBot.Application.Commands.Services;
 /// <summary>
 /// Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. <paramref name="Step"/> is optional:
 /// one action object (<c>{"type":"send_message", ...params}</c>); when set, only that action runs, through the
-/// same capture engine, instead of the saved pipeline's graph.
+/// same capture engine, instead of the saved pipeline's graph. <paramref name="Graph"/> is optional too: the draft
+/// graph a person is editing (the same JSON the save takes); when set it is validated like a save and runs
+/// instead of the saved graph, flat or tree. Nothing is stored.
 /// </summary>
 public sealed record PipelineTestRunRequest(
     IReadOnlyDictionary<string, string> Variables,
-    JsonElement? Step = null
+    JsonElement? Step = null,
+    JsonElement? Graph = null
 );
 
 /// <summary>
