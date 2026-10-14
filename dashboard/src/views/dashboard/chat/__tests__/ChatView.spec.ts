@@ -2388,6 +2388,24 @@ describe('ChatView emote picker', () => {
       expect(rows.every((row) => row.classList.contains('phone:snap-start'))).toBe(true);
     });
 
+    // Coordinator 2026-10-15: fixed cell size, as the Twitch and Discord pickers have. The list is one header plus
+    // a whole number of rows tall, so the first screen ends on a whole row.
+    it('gives the cells a fixed size and the list a height of whole rows', async () => {
+      await open();
+      await openPicker();
+
+      const list = picker()!.querySelector('[data-picker-section]')!.parentElement!;
+      const grid = picker()!.querySelector('[role="group"]')!;
+      const cell = picker()!.querySelector('[data-picker-item]')!;
+
+      expect(list.className).toContain('phone:h-[calc(1.75rem+5*3.125rem-0.125rem)]');
+      expect(list.className).toContain('h-[calc(1.75rem+7*2.625rem-0.125rem)]');
+      expect(grid.className).toContain('phone:grid-cols-[repeat(auto-fill,3rem)]');
+      expect(cell.className).toContain('size-10');
+      expect(cell.className).toContain('phone:size-12');
+      expect(cell.className).not.toContain('aspect-square');
+    });
+
     // A closed tray that hands the focus back to its button draws a focus ring there, and a focus in the box
     // would pull the keyboard up. The focus goes nowhere.
     it('leaves the focus off the smile button and the box when it closes', async () => {

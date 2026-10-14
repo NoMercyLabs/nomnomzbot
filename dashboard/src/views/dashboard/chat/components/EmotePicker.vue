@@ -365,11 +365,11 @@ function closeTones(isOpen: boolean): void {
       side="top"
       align="end"
       :collision-padding="phone ? 0 : 8"
-      class="flex w-120 flex-col gap-2 p-2 phone:w-screen phone:rounded-none phone:border-x-0"
+      class="flex w-125 flex-col gap-2 p-2 phone:w-screen phone:rounded-none phone:border-x-0"
       @open-auto-focus="focusSearch"
       @close-auto-focus="returnFocus"
     >
-      <div class="flex h-80 gap-2 phone:flex-col-reverse">
+      <div class="flex h-80 gap-2 phone:h-auto phone:flex-col-reverse">
         <div data-picker-rail class="flex min-w-0 shrink-0 gap-1 phone:items-center">
           <nav
             class="flex w-9 shrink-0 flex-col gap-0.5 overflow-y-auto scrollbar-none phone:w-auto phone:min-w-0
@@ -409,7 +409,9 @@ function closeTones(isOpen: boolean): void {
         </div>
         <div
           ref="list"
-          class="relative min-w-0 flex-1 overflow-y-auto phone:snap-y phone:snap-mandatory phone:scroll-pt-7"
+          class="relative h-[calc(1.75rem+7*2.625rem-0.125rem)] min-w-0 flex-1 overflow-y-auto
+            phone:h-[calc(1.75rem+5*3.125rem-0.125rem)] phone:flex-none phone:snap-y phone:snap-mandatory
+            phone:scroll-pt-7"
           @scroll="follow"
           @mouseleave="shown = null"
         >
@@ -443,7 +445,7 @@ function closeTones(isOpen: boolean): void {
             </h3>
             <div
               v-if="!isCollapsed(section)"
-              class="grid grid-cols-10 gap-0.5 phone:grid-cols-7"
+              class="grid grid-cols-[repeat(auto-fill,2.5rem)] gap-0.5 phone:grid-cols-[repeat(auto-fill,3rem)]"
               role="group"
               :aria-label="title(section)"
             >
@@ -455,7 +457,7 @@ function closeTones(isOpen: boolean): void {
                 :data-favorite="isFavorite(item) || undefined"
                 :data-skins="item.skins.length || undefined"
                 :aria-label="isFavorite(item) ? $t('dashboard.chat.picker.starred', { name: item.label }) : item.label"
-                class="relative flex aspect-square cursor-pointer items-center justify-center phone:snap-start
+                class="relative flex size-10 cursor-pointer phone:size-12 items-center justify-center phone:snap-start
                 rounded-[calc(var(--radius-md)-8px)] hover:bg-muted focus-visible:bg-muted"
                 @mouseenter="shown = item"
                 @focus="shown = item"
