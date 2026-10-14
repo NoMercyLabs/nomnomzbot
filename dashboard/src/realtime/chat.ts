@@ -38,10 +38,13 @@ function markLines(
 // own place, not under today's chat (owner 2026-10-14: "where do these come from? they are not from now").
 function inOrder(feed: readonly ChatLine[], line: ChatLine): ChatLine[] {
   const at = Date.parse(line.timestamp);
-  const after = feed.findLastIndex((existing) =>
-    Date.parse(existing.timestamp) <= at);
+  const later = feed.findIndex((existing) =>
+    Date.parse(existing.timestamp) > at);
+  const index = later === -1
+    ? feed.length
+    : later;
 
-  return [...feed.slice(0, after + 1), line, ...feed.slice(after + 1)];
+  return [...feed.slice(0, index), line, ...feed.slice(index)];
 }
 
 // A timeout and a ban say what happened; Twitch also sends a purge for them, which must not wipe that.
