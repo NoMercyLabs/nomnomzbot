@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { components } from '@/api/schema';
 import type { WidgetSettingsField } from '@/api/widgets';
+import { numberOrNull } from '@/lib/number';
 
 type LocalizedText = components['schemas']['LocalizedText'];
 
@@ -46,17 +47,6 @@ export function humanize(key: string): string {
 // Settings values are plain JSON, so two values are the same when they serialize the same.
 export function sameValue(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
-}
-
-export function numberOrNull(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined || value === '')
-    return null;
-
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : null;
 }
 
 // Holds a typed number inside the field's min and max; text that is not a number keeps the old value.

@@ -109,6 +109,57 @@ const freshNotes = (): Record<string, Record<string, unknown>[]> => ({
   ],
 });
 
+// The moderation history pages by internal id (what GET moderation/history/{userId} answers), newest first.
+const history: Record<string, Record<string, unknown>[][]> = {
+  g1: [
+    [
+      {
+        id: 'h2',
+        subjectUserId: 'g1',
+        subjectTwitchUserId: 'u1',
+        actionType: 'timeout',
+        moderatorUserId: 'm1',
+        moderatorDisplayName: 'Stoney_Eagle',
+        reason: 'Spam links',
+        durationSeconds: 600,
+        occurredAt: '2026-10-01T18:00:00Z',
+      },
+      {
+        id: 'h1',
+        subjectUserId: 'g1',
+        subjectTwitchUserId: 'u1',
+        actionType: 'filter_hit',
+        occurredAt: '2026-09-30T18:00:00Z',
+      },
+    ],
+    [
+      {
+        id: 'h0',
+        subjectUserId: 'g1',
+        subjectTwitchUserId: 'u1',
+        actionType: 'warn',
+        moderatorUserId: 'm1',
+        moderatorDisplayName: 'Stoney_Eagle',
+        reason: 'Caps',
+        occurredAt: '2026-09-01T18:00:00Z',
+      },
+    ],
+  ],
+};
+
+function historyPage(options: Options | undefined): unknown {
+  const pages = history[userIdOf(options)] ?? [[]];
+  const page = Number((options?.params?.query as Record<string, unknown> | undefined)?.Page ?? 1);
+
+  return {
+    data: onTheWire(pages[page - 1] ?? []),
+    hasMore: page < pages.length,
+    nextPage: page < pages.length
+      ? page + 1
+      : null,
+  };
+}
+
 // A person's own channel emotes by Twitch id (what GET community/{userId}/emotes answers).
 const emotes: Record<string, Record<string, unknown>[]> = {
   u1: [
@@ -264,6 +315,7 @@ const MODERATOR_KEYS = [
   'moderation:shoutout',
   'moderation:usercontext:read',
   'moderation:note:write',
+  'moderation:history:read',
 ] as const;
 
 let held: string[] = [];
@@ -309,6 +361,9 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/roles/effective/me'))
         return { data: { data: { heldActionKeys: [...held] } }, response: { ok: true } };
+
+      if (path.endsWith('/history/{userId}'))
+        return { data: historyPage(options), response: { ok: true } };
 
       if (path.endsWith('/notes')) {
         return {
@@ -689,7 +744,14 @@ describe('the profile dialog', () => {
     await openUser('u1');
 
     expect((await vipItem()).textContent).toContain('Remove VIP');
-    const reads = ['/community/{userId}', '/profile', '/emotes', '/notes', '/roles/effective/me'];
+    const reads = [
+      '/community/{userId}',
+      '/profile',
+      '/emotes',
+      '/notes',
+      '/roles/effective/me',
+      '/history/{userId}',
+    ];
     const writes = calls.filter((c: Call) =>
       !reads.some((end: string) =>
         c.path.endsWith(end)));
@@ -811,6 +873,45 @@ describe('the profile dialog', () => {
 
     expect(scope.disabled).toBe(true);
     expect(dialogs()[0]!.textContent).toContain('Helps new chatters find the rules.');
+  });
+
+  it('lists what moderation did to the person, by whom and why, and shows older rows on request', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    const rows = (): string[] =>
+      Array.from(dialogs()[0]!.querySelectorAll('[data-profile-history]')).map((row: Element) =>
+        row.textContent ?? '');
+
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0]).toContain('Timed out for 10 min');
+    expect(rows()[0]).toContain('Spam links');
+    expect(rows()[0]).toContain('Stoney_Eagle ·');
+    expect(rows()[1]).toContain('Caught by a chat filter');
+    expect(rows()[1]).toContain('Automatic ·');
+
+    const asked = calls.filter((c: Call) => c.path.endsWith('/history/{userId}'));
+
+    expect(asked.map((c: Call) => userIdOf(c))).toEqual(['g1']);
+
+    button('[data-profile-history-more]').click();
+    await settle();
+
+    expect(rows()).toHaveLength(3);
+    expect(rows()[2]).toContain('Warned');
+    expect(rows()[2]).toContain('Caps');
+    expect(document.body.querySelector('[data-profile-history-more]')).toBeNull();
+  });
+
+  it('does not ask for the moderation history when the caller may not read it', async () => {
+    held = held.filter((key: string) => key !== 'moderation:history:read');
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    expect(calls.some((c: Call) => c.path.endsWith('/history/{userId}'))).toBe(false);
+    expect(dialogs()[0]!.textContent).toContain('Your role cannot see the moderation history.');
   });
 
   it('offers no note save while the note is empty', async () => {

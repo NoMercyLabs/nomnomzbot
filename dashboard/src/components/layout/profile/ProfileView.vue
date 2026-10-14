@@ -33,6 +33,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import ProfileHeader, { type ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
 import ProfileData from '@/components/layout/profile/ProfileData.vue';
 import ProfileEmotes from '@/components/layout/profile/ProfileEmotes.vue';
+import ProfileHistory from '@/components/layout/profile/ProfileHistory.vue';
 import ProfileNotes from '@/components/layout/profile/ProfileNotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
@@ -298,6 +299,7 @@ async function banNow(): Promise<void> {
 
           <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-4']">
             <ProfileNotes :user-id="userId" />
+            <ProfileHistory :internal-user-id="person.internalUserId ?? null" />
             <PanelCard
               v-if="actions.length > 0"
               data-profile-actions

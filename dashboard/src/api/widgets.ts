@@ -17,6 +17,7 @@ import {
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
+import { numberOrNull } from '@/lib/number';
 
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
@@ -42,17 +43,6 @@ export const widgetSchemaKey = (channelId: string | null, widgetId: string | nul
   'widget-schema',
   widgetId,
 ];
-
-function numberOrNull(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined)
-    return null;
-
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : null;
-}
 
 // Pages are read one after the other until the bot says there are no more.
 async function readWidgets(channelId: string): Promise<Widget[]> {

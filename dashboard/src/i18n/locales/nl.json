@@ -457,6 +457,29 @@
       "add": "Notitie toevoegen",
       "by": "{name} · {date}"
     },
+    "history": {
+      "title": "Moderatiegeschiedenis",
+      "empty": "Moderatie heeft hier nog niets met deze persoon gedaan.",
+      "error": "De moderatiegeschiedenis kon niet laden.",
+      "noAccess": "Je rol kan de moderatiegeschiedenis niet zien.",
+      "more": "Oudere tonen",
+      "by": "{name} · {date}",
+      "automatic": "Automatisch · {date}",
+      "timedOutFor": "Time-out van {length}",
+      "kinds": {
+        "ban": "Verbannen",
+        "timeout": "Time-out",
+        "warn": "Gewaarschuwd",
+        "warn_ack": "Waarschuwing geaccepteerd",
+        "unban": "Verbanning opgeheven",
+        "delete_message": "Bericht verwijderd",
+        "automod_denied": "Bericht door AutoMod vastgehouden, daarna geweigerd",
+        "filter_hit": "Gevangen door een chatfilter",
+        "report_validated": "Melding bevestigd",
+        "note": "Notitie",
+        "other": "Moderatieactie"
+      }
+    },
     "ban": {
       "button": "Verbannen",
       "title": "{name} verbannen?",

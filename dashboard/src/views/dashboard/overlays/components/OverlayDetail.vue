@@ -31,10 +31,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { numberOrNull } from '@/lib/number';
 
 import OverlaySettings from './OverlaySettings.vue';
 import { maskedAddress, overlayKind, plainEvent, type OverlayKind } from './overlayKind';
-import { numberOrNull } from './settingField';
 
 const COPIED_MS = 2000;
 

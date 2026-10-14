@@ -22,6 +22,7 @@ import {
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
+import { numberOrNull } from '@/lib/number';
 
 import { memberKey, type CommunityRow } from './community';
 import { client } from './client';
@@ -72,17 +73,6 @@ export const userNotesKey = (channelId: string | null, userId: string | null): u
 
 function failed(what: string, status: number): Error {
   return new Error(`${what} ${status}`);
-}
-
-function numberOrNull(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined)
-    return null;
-
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : null;
 }
 
 async function readPage(

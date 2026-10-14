@@ -457,6 +457,29 @@
       "add": "Add note",
       "by": "{name} · {date}"
     },
+    "history": {
+      "title": "Moderation history",
+      "empty": "Moderation has done nothing to this person here yet.",
+      "error": "The moderation history could not load.",
+      "noAccess": "Your role cannot see the moderation history.",
+      "more": "Show older",
+      "by": "{name} · {date}",
+      "automatic": "Automatic · {date}",
+      "timedOutFor": "Timed out for {length}",
+      "kinds": {
+        "ban": "Banned",
+        "timeout": "Timed out",
+        "warn": "Warned",
+        "warn_ack": "Accepted the warning",
+        "unban": "Unbanned",
+        "delete_message": "Message deleted",
+        "automod_denied": "Message held by AutoMod, then denied",
+        "filter_hit": "Caught by a chat filter",
+        "report_validated": "Report confirmed",
+        "note": "Note",
+        "other": "Moderation action"
+      }
+    },
     "ban": {
       "button": "Ban",
       "title": "Ban {name}?",
