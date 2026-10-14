@@ -506,7 +506,7 @@ public sealed class CommunityControllerTests
 
         CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
 
-        foreach (string? scope in new string?[] { null, "channel" })
+        foreach (string? scope in new[] { null, "channel" })
         {
             List<CommunityController.ViewerOptionDto> options = SearchData(
                 await controller.SearchViewers(
@@ -671,7 +671,7 @@ public sealed class CommunityControllerTests
 
         await userService
             .DidNotReceiveWithAnyArgs()
-            .UpsertTwitchProfileAsync(default!, default!, default!, default, default);
+            .UpsertTwitchProfileAsync(default!, default!, default!, default);
         (await db.Users.CountAsync()).Should().Be(0);
     }
 

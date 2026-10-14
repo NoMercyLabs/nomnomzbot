@@ -184,7 +184,7 @@ public sealed class ChatterPresencePollServiceTests
 
         read.Should().Be(0);
         (await rig.Db.ViewerProfiles.CountAsync()).Should().Be(0);
-        await rig.Api.DidNotReceiveWithAnyArgs().GetChattersAsync(default, default!, default);
+        await rig.Api.DidNotReceiveWithAnyArgs().GetChattersAsync(default, default!);
     }
 
     [Fact]
