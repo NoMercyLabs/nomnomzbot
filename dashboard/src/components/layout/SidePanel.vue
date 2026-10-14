@@ -15,6 +15,7 @@ import { useMediaQuery } from '@vueuse/core';
 import { computed } from 'vue';
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { provideDrawerClose } from '@/composables/useDrawerClose';
 import { useFrameRail } from '@/composables/useFrameRail';
 
 // Data hooks and attributes from the page land on the panel itself, beside the content or in the drawer.
@@ -46,6 +47,12 @@ const roomy = computed(() =>
 
 useFrameRail(computed(() =>
   folds.value && open.value));
+
+// As a drawer it covers the button that opened it, so its top panel carries a close button.
+provideDrawerClose(() => {
+  open.value = false;
+}, computed(() =>
+  !roomy.value));
 
 // The drawer opens without picking a control: focus on its first button (often Reset) would arm Enter.
 function keepFocusOff(event: Event): void {

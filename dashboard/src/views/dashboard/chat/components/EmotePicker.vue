@@ -253,7 +253,8 @@ async function jump(id: string): Promise<void> {
 
 // On a phone the picker is a full-width tray as in the Twitch app: no search and no focus, so the keyboard stays
 // down, and the jump rail runs along the bottom. Stoney 2026-10-14: "Remove the input from emojis on mobile".
-const phone = useMediaQuery('(max-width: 767px)');
+// Narrow AND touch, the `phone:` variant in main.css: a narrow desktop window (the popout dock) keeps the desktop picker.
+const phone = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
 
 // The search sits at the bottom, so the picker opens with the cursor in it instead of on the first rail icon.
 function focusSearch(event: Event): void {
@@ -375,14 +376,14 @@ function closeTones(isOpen: boolean): void {
       side="top"
       align="end"
       :collision-padding="phone ? 0 : 8"
-      class="flex w-120 flex-col gap-2 p-2 max-md:w-screen max-md:rounded-none max-md:border-x-0"
+      class="flex w-120 flex-col gap-2 p-2 phone:w-screen phone:rounded-none phone:border-x-0"
       @open-auto-focus="focusSearch"
       @close-auto-focus="returnFocus"
     >
-      <div class="flex h-80 gap-2 max-md:flex-col-reverse">
+      <div class="flex h-80 gap-2 phone:flex-col-reverse">
         <nav
-          class="flex w-9 shrink-0 flex-col gap-0.5 overflow-y-auto scrollbar-none max-md:w-auto max-md:flex-row
-            max-md:overflow-x-auto max-md:overflow-y-hidden"
+          class="flex w-9 shrink-0 flex-col gap-0.5 overflow-y-auto scrollbar-none phone:w-auto phone:flex-row
+            phone:overflow-x-auto phone:overflow-y-hidden"
           :aria-label="$t('dashboard.chat.picker.jump')"
         >
           <button
@@ -445,7 +446,7 @@ function closeTones(isOpen: boolean): void {
             </h3>
             <div
               v-if="!isCollapsed(section)"
-              class="grid grid-cols-10 gap-0.5 max-md:grid-cols-7"
+              class="grid grid-cols-10 gap-0.5 phone:grid-cols-7"
               role="group"
               :aria-label="title(section)"
             >
@@ -475,9 +476,9 @@ function closeTones(isOpen: boolean): void {
                   :src="item.image"
                   alt=""
                   loading="lazy"
-                  class="size-8 object-contain max-md:size-10"
+                  class="size-8 object-contain phone:size-10"
                 />
-                <span v-else class="text-2xl leading-none max-md:text-3xl" aria-hidden="true">{{ glyph(item) }}</span>
+                <span v-else class="text-2xl leading-none phone:text-3xl" aria-hidden="true">{{ glyph(item) }}</span>
               </button>
             </div>
           </section>
@@ -536,7 +537,7 @@ function closeTones(isOpen: boolean): void {
         </template>
         <span v-else class="truncate text-muted-foreground">{{ $t('dashboard.chat.picker.hint') }}</span>
       </p>
-      <div class="flex items-center gap-2 max-md:justify-end">
+      <div class="flex items-center gap-2 phone:justify-end">
         <InputGroup v-if="!phone" data-picker-search class="flex-1 rounded-[calc(var(--radius-md)-8px)]">
           <InputGroupAddon>
             <SearchMagnifyingGlass />

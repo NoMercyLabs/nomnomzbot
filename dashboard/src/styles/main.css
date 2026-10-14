@@ -17,6 +17,8 @@
 
 /* Dark is the default theme; tokens.css switches to light with the .light class. */
 @custom-variant dark (&:not(.light, .light *));
+/* A phone: narrow AND touch. A narrow desktop window (the chat popout dock) keeps the desktop layout. */
+@custom-variant phone (@media (max-width: 767px) and (pointer: coarse));
 
 /* Colors and fonts map to the tokens. Radii and text sizes share Tailwind's variable
    names (--radius-sm, --text-sm), so the :root values in tokens.css override them directly. */

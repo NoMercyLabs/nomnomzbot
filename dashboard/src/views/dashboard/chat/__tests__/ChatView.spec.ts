@@ -2315,20 +2315,43 @@ describe('ChatView emote picker', () => {
   });
 
   // Stoney 2026-10-14: "Remove the input from emojis on mobile", closer to the Twitch app's tray.
+  // A narrow window answers the width part only; a phone also has a coarse (touch) pointer.
+  function stubScreen(touch: boolean): void {
+    window.matchMedia = ((query: string): MediaQueryList => ({
+      matches: !query.includes('min-width') && (!query.includes('pointer: coarse') || touch),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      onchange: null,
+    }) as MediaQueryList) as typeof window.matchMedia;
+  }
+
+  // Stoney 2026-10-14 ("geez", popout screenshot): the 526px popout dock got the phone tray with huge emotes.
+  describe('in a narrow desktop window', () => {
+    const realMatchMedia = window.matchMedia;
+
+    beforeEach(() => stubScreen(false));
+
+    afterEach(() => {
+      window.matchMedia = realMatchMedia;
+    });
+
+    it('keeps the desktop picker with its search box', async () => {
+      await open();
+      await openPicker();
+
+      expect(picker()!.querySelector('[data-picker-query]')).not.toBeNull();
+    });
+  });
+
   describe('on a phone', () => {
     const realMatchMedia = window.matchMedia;
 
     beforeEach(() => {
-      window.matchMedia = ((query: string): MediaQueryList => ({
-        matches: query.includes('max-width: 767px'),
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        addListener: () => {},
-        removeListener: () => {},
-        dispatchEvent: () => false,
-        onchange: null,
-      }) as MediaQueryList) as typeof window.matchMedia;
+      stubScreen(true);
     });
 
     afterEach(() => {

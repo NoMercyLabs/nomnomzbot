@@ -44,10 +44,12 @@
   background: var(--muted);
   text-decoration-color: var(--foreground);
 }
-/* An icon alone has no text to underline, so it gets the outline edge instead. */
+/* An icon alone has no text to underline and no resting edge: it reacts only to hover and press, and a keyboard
+   focus draws the focus outline (owner 2026-10-14: "no border for cursor or touch events other than reactive ones
+   that are not persistent"). */
 .group\/button[data-variant='ghost'][data-size^='icon'] {
   text-decoration: none;
-  border-color: var(--input);
+  border-color: transparent;
 }
 /* A tray (data-tray) is already one edged surface, and many icons draw their own ring: its icon buttons
    carry no edge of their own (owner 2026-10-13). They nest concentric: tray 12px, 2px padding, 10px. */

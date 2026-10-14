@@ -15,8 +15,11 @@
 import { useTimeoutFn } from '@vueuse/core';
 import { ref, watch } from 'vue';
 
+import Cross from '~icons/nnz/cross';
+
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDrawerClose } from '@/composables/useDrawerClose';
 
 export type PanelState = 'ready' | 'loading' | 'empty' | 'error';
 
@@ -50,6 +53,8 @@ const props = withDefaults(
 );
 
 defineEmits<{ retry: [] }>();
+
+const drawerClose = useDrawerClose();
 
 const skeletonShown = ref(false);
 const { start, stop } = useTimeoutFn(
@@ -101,11 +106,21 @@ watch(
         {{ title }}
       </h2>
       <div
-        v-if="$slots.actions"
+        v-if="$slots.actions || drawerClose.shown.value"
         data-slot="panel-actions"
         class="flex items-center gap-2"
       >
         <slot name="actions" />
+        <Button
+          v-if="drawerClose.shown.value"
+          data-drawer-close
+          variant="ghost"
+          size="icon-sm"
+          :aria-label="$t('common.close')"
+          @click="drawerClose.close"
+        >
+          <Cross />
+        </Button>
       </div>
       <p v-if="description" class="basis-full text-sm text-muted-foreground">{{ description }}</p>
     </header>

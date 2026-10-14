@@ -10,10 +10,12 @@
 
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { nextTick } from 'vue';
+import { h, nextTick } from 'vue';
 
 import { setWidth } from '@/__tests__/viewport';
+import PanelCard from '@/components/layout/PanelCard.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
+import { i18n } from '@/i18n';
 import { railWanted } from '@/composables/useFrameRail';
 
 let mounted: VueWrapper | undefined;
@@ -73,6 +75,52 @@ describe('the side panel', () => {
 
     expect(drawer.classList).toContain('data-[side=right]:w-120');
     expect(drawer.classList).not.toContain('data-[side=right]:w-3/4');
+  });
+
+  // Owner 2026-10-14: "no close button?". The drawer hides the sheet corner X; its top panel carries one.
+  describe('the close button of its top panel', () => {
+    async function panelsAt(width: number): Promise<VueWrapper> {
+      setWidth(width);
+
+      mounted = mount(SidePanel, {
+        attachTo: document.body,
+        props: {
+          label: 'Display',
+          open: true,
+          'onUpdate:open': (value: boolean) =>
+            mounted!.setProps({ open: value }),
+        },
+        slots: {
+          default: () =>
+            h(PanelCard, { title: 'Display' }, {
+              default: () =>
+                h(PanelCard, { title: 'Inner' }),
+            }),
+        },
+        global: { plugins: [i18n] },
+      });
+
+      await flushPromises();
+
+      return mounted;
+    }
+
+    it('closes the drawer, and only the top panel shows it', async () => {
+      const wrapper = await panelsAt(412);
+      const closes = document.body.querySelectorAll<HTMLElement>('[data-drawer-close]');
+
+      expect(closes).toHaveLength(1);
+      expect(closes[0]!.getAttribute('aria-label')).toBe('Close');
+      closes[0]!.click();
+      await flushPromises();
+      expect(wrapper.props('open')).toBe(false);
+    });
+
+    it('is absent beside the content, where the button that opened it stays in view', async () => {
+      await panelsAt(1440);
+
+      expect(document.body.querySelector('[data-drawer-close]')).toBeNull();
+    });
   });
 
   it('opens the drawer without putting the focus on one of its controls', async () => {
