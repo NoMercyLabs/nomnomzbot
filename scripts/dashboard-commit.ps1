@@ -38,6 +38,15 @@ $id = @('-c', 'user.name=Stoney_Eagle', '-c', 'user.email=45034970+StoneyEagle@u
 
 if (-not $DryRun -and -not $MessageFile) { throw 'MessageFile is required unless -DryRun.' }
 
+# The linter fixes what it can in the slice's own files first, so a fixable rule never fails the gate
+# after minutes of type-check (2026-10-14: the same fixable annotation rule failed two gates in a row).
+$lintable = @($Paths | Where-Object { ($_ -match '^dashboard/.+\.(ts|vue)$' -or (Test-Path "$repo/$_" -PathType Container)) -and $_ -match '^dashboard/' -and (Test-Path "$repo/$_") } | ForEach-Object { $_ -replace '^dashboard/', '' })
+if ($lintable.Count -gt 0) {
+    Push-Location "$repo/dashboard"
+    npx eslint --fix @lintable | Out-Null
+    Pop-Location
+}
+
 # One gate at a time: a second run force-checks-out and cleans the shared worktree under the first
 # (2026-10-13: a parallel run deleted a builder's new file mid-lint). Held through the commit so HEAD
 # cannot move between the gate and the commit. Released when this process exits, even on a crash.
