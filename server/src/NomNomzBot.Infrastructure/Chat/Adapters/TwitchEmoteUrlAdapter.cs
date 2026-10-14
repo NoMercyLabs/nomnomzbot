@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Enums;
@@ -21,54 +22,99 @@ namespace NomNomzBot.Infrastructure.Chat.Adapters;
 /// emote urls are a deterministic CDN template keyed on the EventSub-supplied id — there is no lookup and so no possible
 /// miss. It only fills emote fragments the EventSub payload already flagged (<c>EmoteId</c> set) that the third-party
 /// step did not already claim (<c>Emote is null</c>); animated emotes use the animated format when the payload offers it.
+/// The emote's type, tier and owner come from the cached Twitch channel and global sets (cache only, never Helix); an
+/// emote the cache does not know keeps just the owner id, with the owner's name when it is cached.
 /// </summary>
 public sealed class TwitchEmoteUrlAdapter : IChatDecorationAdapter
 {
-    // Twitch emote CDN v2: /{id}/{format}/{theme}/{scale}. Dark theme + the three offered scales.
-    private static readonly (string Key, string Scale)[] Scales =
-    [
-        ("1", "1.0"),
-        ("2", "2.0"),
-        ("3", "3.0"),
-    ];
+    private readonly ICacheService _cache;
+
+    public TwitchEmoteUrlAdapter(ICacheService cache)
+    {
+        _cache = cache;
+    }
 
     public int Order => 30;
 
     public bool AppliesTo(ChatDecorationContext context) =>
         context.Fragments.Any(IsUnresolvedTwitchEmote);
 
-    public Task DecorateAsync(ChatDecorationContext context, CancellationToken ct = default)
+    public async Task DecorateAsync(ChatDecorationContext context, CancellationToken ct = default)
     {
+        Dictionary<string, ChatEmote> known = await KnownEmotesAsync(
+            context.TwitchBroadcasterId,
+            ct
+        );
+
         foreach (ChatMessageFragment fragment in context.Fragments)
             if (IsUnresolvedTwitchEmote(fragment))
-                fragment.Emote = BuildTwitchEmote(fragment);
-
-        return Task.CompletedTask;
+                fragment.Emote = await BuildTwitchEmoteAsync(fragment, known, ct);
     }
 
     private static bool IsUnresolvedTwitchEmote(ChatMessageFragment fragment) =>
         fragment is { Type: "emote", Emote: null } && !string.IsNullOrEmpty(fragment.EmoteId);
 
-    private static ChatEmote BuildTwitchEmote(ChatMessageFragment fragment)
+    // The cached channel set wins over the global set for the same id.
+    private async Task<Dictionary<string, ChatEmote>> KnownEmotesAsync(
+        string twitchBroadcasterId,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, ChatEmote> known = new(StringComparer.Ordinal);
+        IReadOnlyList<ChatEmote>? channel = string.IsNullOrEmpty(twitchBroadcasterId)
+            ? null
+            : await _cache.GetAsync<IReadOnlyList<ChatEmote>>(
+                ChatEmoteCacheKeys.Channel(EmoteProvider.Twitch, twitchBroadcasterId),
+                ct
+            );
+        IReadOnlyList<ChatEmote>? global = await _cache.GetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Global(EmoteProvider.Twitch),
+            ct
+        );
+
+        foreach (ChatEmote emote in (channel ?? []).Concat(global ?? []))
+            known.TryAdd(emote.Id, emote);
+
+        return known;
+    }
+
+    private async Task<ChatEmote> BuildTwitchEmoteAsync(
+        ChatMessageFragment fragment,
+        Dictionary<string, ChatEmote> known,
+        CancellationToken ct
+    )
     {
         bool animated = fragment.EmoteFormats.Contains("animated");
-        string format = animated ? "animated" : "static";
-
-        Dictionary<string, string> urls = new(Scales.Length);
-        foreach ((string key, string scale) in Scales)
-            urls[key] =
-                $"https://static-cdn.jtvnw.net/emoticons/v2/{fragment.EmoteId}/{format}/dark/{scale}";
+        string? ownerId = string.IsNullOrEmpty(fragment.EmoteOwnerId)
+            ? null
+            : fragment.EmoteOwnerId;
+        known.TryGetValue(fragment.EmoteId!, out ChatEmote? cached);
 
         return new(
             EmoteProvider.Twitch,
             fragment.EmoteId!,
             fragment.Text,
-            urls,
+            TwitchEmoteMapper.BuildUrls(fragment.EmoteId!, animated),
             animated,
             ZeroWidth: false,
             SetId: fragment.EmoteSetId,
-            OwnerId: fragment.EmoteOwnerId,
-            Formats: fragment.EmoteFormats
+            OwnerId: ownerId,
+            Formats: fragment.EmoteFormats,
+            Type: cached?.Type,
+            Tier: cached?.Tier,
+            Owner: cached?.Owner ?? await OwnerFromIdAsync(ownerId, ct)
         );
+    }
+
+    private async Task<ChatEmoteOwner?> OwnerFromIdAsync(string? ownerId, CancellationToken ct)
+    {
+        if (ownerId is null)
+            return null;
+
+        ChatEmoteOwner? cached = await _cache.GetAsync<ChatEmoteOwner>(
+            ChatEmoteCacheKeys.TwitchOwner(ownerId),
+            ct
+        );
+        return cached ?? new ChatEmoteOwner(ownerId, null, null);
     }
 }

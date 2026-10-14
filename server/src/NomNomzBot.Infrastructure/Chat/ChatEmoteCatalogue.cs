@@ -25,8 +25,8 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// (app token, no scope), and the logged-in OPERATOR's cross-channel emotes via Get User Emotes on the OPERATOR's
 /// OWN token (<c>user:read:emotes</c>) so a moderator's personal subscription emotes reach their composer on ANY
 /// channel they operate — not only their own — keyed to the operator so they never leak between operators. Twitch
-/// emote urls are built from the deterministic CDN template — the exact shape <c>TwitchEmoteUrlAdapter</c> uses for
-/// the live feed — so the composer renders Twitch emotes identically. Cache-only for third-party (never a provider
+/// emote urls, types and tiers come from <see cref="TwitchEmoteMapper"/> — the exact shape <c>TwitchEmoteUrlAdapter</c>
+/// and the Twitch emote warmer use for the live feed — so the composer renders Twitch emotes identically. Cache-only for third-party (never a provider
 /// HTTP call here); any Twitch fetch failure (including a missing user-emotes scope, or an operator with no linked
 /// Twitch identity) degrades that source to empty rather than failing the catalogue.
 /// </summary>
@@ -50,15 +50,6 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     // emotes from; bound the fan-out so a pathological account (following thousands of channels) can never spin the
     // catalogue. Beyond this cap the pass is truncated (logged, never silent).
     private const int MaxFollowerEmoteChannels = 60;
-
-    // Twitch emote CDN v2: /{id}/{format}/{theme}/{scale}. Dark theme + the three offered scales — mirrors
-    // TwitchEmoteUrlAdapter so a Twitch emote in the composer matches the same emote in the feed.
-    private static readonly (string Key, string Scale)[] Scales =
-    [
-        ("1", "1.0"),
-        ("2", "2.0"),
-        ("3", "3.0"),
-    ];
 
     // Precedence low-to-high is applied by add order below (first-wins dedup): Twitch native before third-party.
     private static readonly EmoteProvider[] ThirdParty =
@@ -139,10 +130,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
             return [];
         }
 
-        List<ChatEmote> mapped =
-        [
-            .. fetched.Value.Select(e => Map(e.Id, e.Name, e.Format, setId: null)),
-        ];
+        List<ChatEmote> mapped = [.. fetched.Value.Select(TwitchEmoteMapper.FromGlobal)];
         await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchGlobalTtl, ct);
         return mapped;
     }
@@ -176,7 +164,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
         List<ChatEmote> mapped =
         [
-            .. fetched.Value.Select(e => Map(e.Id, e.Name, e.Format, e.EmoteSetId)),
+            .. fetched.Value.Select(e => TwitchEmoteMapper.FromChannel(e, twitchId, null)),
         ];
         await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchChannelTtl, ct);
         return mapped;
@@ -235,7 +223,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
             foreach (TwitchUserEmote emote in fetched.Value.Items)
             {
-                mapped.Add(Map(emote.Id, emote.Name, emote.Format, emote.EmoteSetId));
+                mapped.Add(TwitchEmoteMapper.FromUser(emote));
 
                 if (
                     !string.IsNullOrEmpty(emote.OwnerId)
@@ -300,34 +288,8 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
             foreach (TwitchChannelEmote emote in fetched.Value)
                 if (string.Equals(emote.EmoteType, "follower", StringComparison.Ordinal))
-                    mapped.Add(Map(emote.Id, emote.Name, emote.Format, emote.EmoteSetId));
+                    mapped.Add(TwitchEmoteMapper.FromChannel(emote, ownerId, null));
         }
-    }
-
-    private static ChatEmote Map(
-        string id,
-        string code,
-        IReadOnlyList<string> formats,
-        string? setId
-    )
-    {
-        bool animated = formats.Contains("animated");
-        string format = animated ? "animated" : "static";
-
-        Dictionary<string, string> urls = new(Scales.Length);
-        foreach ((string key, string scale) in Scales)
-            urls[key] = $"https://static-cdn.jtvnw.net/emoticons/v2/{id}/{format}/dark/{scale}";
-
-        return new(
-            EmoteProvider.Twitch,
-            id,
-            code,
-            urls,
-            animated,
-            ZeroWidth: false,
-            SetId: setId,
-            Formats: formats
-        );
     }
 
     // Dedup by code, CASE-SENSITIVE, first-wins. Emote codes are case-sensitive everywhere — Twitch "Kappa", and

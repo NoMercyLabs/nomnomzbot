@@ -56,7 +56,7 @@ public sealed class BttvEmoteProvider : IThirdPartyEmoteProvider
     internal static IReadOnlyList<ChatEmote> ParseGlobal(string json)
     {
         List<BttvEmote>? emotes = JsonConvert.DeserializeObject<List<BttvEmote>>(json);
-        return Map(emotes ?? []);
+        return Map(emotes ?? [], "global");
     }
 
     internal static IReadOnlyList<ChatEmote> ParseChannel(string json)
@@ -66,10 +66,24 @@ public sealed class BttvEmoteProvider : IThirdPartyEmoteProvider
             return [];
 
         List<BttvEmote> all = [.. response.ChannelEmotes, .. response.SharedEmotes];
-        return Map(all);
+        return Map(all, "channel");
     }
 
-    private static IReadOnlyList<ChatEmote> Map(IReadOnlyList<BttvEmote> emotes)
+    private static ChatEmoteOwner? MapOwner(BttvEmote emote)
+    {
+        string? id = emote.User?.Id ?? emote.UserId;
+        if (string.IsNullOrEmpty(id))
+            return null;
+
+        return new(
+            id,
+            emote.User?.Name,
+            emote.User?.DisplayName,
+            $"https://betterttv.com/users/{id}"
+        );
+    }
+
+    private static IReadOnlyList<ChatEmote> Map(IReadOnlyList<BttvEmote> emotes, string type)
     {
         List<ChatEmote> result = new(emotes.Count);
         foreach (BttvEmote emote in emotes)
@@ -84,7 +98,16 @@ public sealed class BttvEmoteProvider : IThirdPartyEmoteProvider
                 ["3"] = $"https://cdn.betterttv.net/emote/{emote.Id}/3x",
             };
             result.Add(
-                new(EmoteProvider.Bttv, emote.Id, emote.Code, urls, emote.Animated, emote.Modifier)
+                new(
+                    EmoteProvider.Bttv,
+                    emote.Id,
+                    emote.Code,
+                    urls,
+                    emote.Animated,
+                    emote.Modifier,
+                    Type: type,
+                    Owner: MapOwner(emote)
+                )
             );
         }
 
@@ -99,6 +122,15 @@ public sealed class BttvEmoteProvider : IThirdPartyEmoteProvider
         public string Code { get; set; } = string.Empty;
         public bool Animated { get; set; }
         public bool Modifier { get; set; }
+        public string? UserId { get; set; }
+        public BttvUser? User { get; set; }
+    }
+
+    private sealed class BttvUser
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public string? DisplayName { get; set; }
     }
 
     private sealed class BttvChannelEmotes

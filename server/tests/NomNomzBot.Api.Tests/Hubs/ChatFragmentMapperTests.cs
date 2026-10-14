@@ -57,6 +57,100 @@ public sealed class ChatFragmentMapperTests
     }
 
     [Fact]
+    public void MapFragment_carries_a_twitch_emotes_code_type_tier_and_owner()
+    {
+        ChatMessageFragment fragment = new()
+        {
+            Type = "emote",
+            Text = "streamerSub",
+            Emote = new(
+                EmoteProvider.Twitch,
+                "300",
+                "streamerSub",
+                new Dictionary<string, string>(),
+                Animated: false,
+                ZeroWidth: false,
+                Type: "subscriptions",
+                Tier: 2,
+                Owner: new("100", "streamer", "Streamer", "https://www.twitch.tv/streamer")
+            ),
+        };
+
+        ChatEmoteDto emote = ChatFragmentMapper.MapFragment(fragment).Emote!;
+
+        emote.Code.Should().Be("streamerSub");
+        emote.Type.Should().Be("subscriptions");
+        emote.Tier.Should().Be(2);
+        emote
+            .Owner.Should()
+            .Be(
+                new ChatEmoteOwnerDto(
+                    "100",
+                    "streamer",
+                    "Streamer",
+                    "https://www.twitch.tv/streamer"
+                )
+            );
+    }
+
+    [Fact]
+    public void MapFragment_carries_the_emote_artist()
+    {
+        ChatMessageFragment fragment = new()
+        {
+            Type = "emote",
+            Text = "ArtEmote",
+            Emote = new(
+                EmoteProvider.Ffz,
+                "78",
+                "ArtEmote",
+                new Dictionary<string, string>(),
+                Animated: false,
+                ZeroWidth: false,
+                Artist: new("9", "drawer", "Drawer", "https://www.frankerfacez.com/drawer")
+            ),
+        };
+
+        ChatEmoteDto emote = ChatFragmentMapper.MapFragment(fragment).Emote!;
+
+        emote
+            .Artist.Should()
+            .Be(
+                new ChatEmoteOwnerDto(
+                    "9",
+                    "drawer",
+                    "Drawer",
+                    "https://www.frankerfacez.com/drawer"
+                )
+            );
+    }
+
+    [Fact]
+    public void MapFragment_leaves_the_details_null_when_the_emote_has_none()
+    {
+        ChatMessageFragment fragment = new()
+        {
+            Type = "emote",
+            Text = "Kappa",
+            Emote = new(
+                EmoteProvider.Twitch,
+                "25",
+                "Kappa",
+                new Dictionary<string, string>(),
+                Animated: false,
+                ZeroWidth: false
+            ),
+        };
+
+        ChatEmoteDto emote = ChatFragmentMapper.MapFragment(fragment).Emote!;
+
+        emote.Code.Should().Be("Kappa");
+        emote.Type.Should().BeNull();
+        emote.Tier.Should().BeNull();
+        emote.Owner.Should().BeNull();
+    }
+
+    [Fact]
     public void MapFragment_carries_the_resolved_cheermote_image()
     {
         ChatMessageFragment fragment = new()

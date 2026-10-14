@@ -22,6 +22,9 @@ namespace NomNomzBot.Api.Hubs.Dtos;
 /// </summary>
 public static class ChatFragmentMapper
 {
+    private static ChatEmoteOwnerDto? MapOwner(ChatEmoteOwner? owner) =>
+        owner is null ? null : new(owner.Id, owner.Login, owner.DisplayName, owner.ProfileUrl);
+
     public static ChatFragmentDto MapFragment(ChatMessageFragment fragment) =>
         new(
             Type: fragment.Type,
@@ -34,7 +37,12 @@ public static class ChatFragmentMapper
                     Provider: fragment.Emote.Provider.ToString(),
                     Urls: fragment.Emote.Urls,
                     Animated: fragment.Emote.Animated,
-                    ZeroWidth: fragment.Emote.ZeroWidth
+                    ZeroWidth: fragment.Emote.ZeroWidth,
+                    Code: fragment.Emote.Code,
+                    Type: fragment.Emote.Type,
+                    Tier: fragment.Emote.Tier,
+                    Owner: MapOwner(fragment.Emote.Owner),
+                    Artist: MapOwner(fragment.Emote.Artist)
                 )
                 : null,
             Cheermote: fragment.CheermotePrefix is not null

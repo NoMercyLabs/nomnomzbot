@@ -62,16 +62,24 @@ public sealed class SevenTvEmoteProvider : IThirdPartyEmoteProvider
     internal static IReadOnlyList<ChatEmote> ParseGlobal(string json)
     {
         SevenTvEmoteSet? set = JsonConvert.DeserializeObject<SevenTvEmoteSet>(json);
-        return Map(set?.Emotes ?? []);
+        return Map(set?.Emotes ?? [], "global");
     }
 
     internal static IReadOnlyList<ChatEmote> ParseUser(string json)
     {
         SevenTvUserResponse? response = JsonConvert.DeserializeObject<SevenTvUserResponse>(json);
-        return Map(response?.EmoteSet?.Emotes ?? []);
+        return Map(response?.EmoteSet?.Emotes ?? [], "channel");
     }
 
-    private static IReadOnlyList<ChatEmote> Map(IReadOnlyList<SevenTvActiveEmote> emotes)
+    private static ChatEmoteOwner? MapOwner(SevenTvOwner? owner) =>
+        string.IsNullOrEmpty(owner?.Id)
+            ? null
+            : new(owner.Id, owner.Username, owner.DisplayName, $"https://7tv.app/users/{owner.Id}");
+
+    private static IReadOnlyList<ChatEmote> Map(
+        IReadOnlyList<SevenTvActiveEmote> emotes,
+        string type
+    )
     {
         List<ChatEmote> result = new(emotes.Count);
         foreach (SevenTvActiveEmote emote in emotes)
@@ -116,7 +124,9 @@ public sealed class SevenTvEmoteProvider : IThirdPartyEmoteProvider
                     emote.Name,
                     urls,
                     emote.Data.Animated,
-                    zeroWidth
+                    zeroWidth,
+                    Type: type,
+                    Owner: MapOwner(emote.Data.Owner)
                 )
             );
         }
@@ -150,6 +160,16 @@ public sealed class SevenTvEmoteProvider : IThirdPartyEmoteProvider
         public bool Animated { get; set; }
         public int Flags { get; set; }
         public SevenTvHost? Host { get; set; }
+        public SevenTvOwner? Owner { get; set; }
+    }
+
+    private sealed class SevenTvOwner
+    {
+        public string? Id { get; set; }
+        public string? Username { get; set; }
+
+        [JsonProperty("display_name")]
+        public string? DisplayName { get; set; }
     }
 
     private sealed class SevenTvHost

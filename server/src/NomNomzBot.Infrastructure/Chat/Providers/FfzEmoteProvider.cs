@@ -65,7 +65,7 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
             if (response.Sets.TryGetValue(setId.ToString(), out FfzSet? set))
                 emoticons.AddRange(set.Emoticons);
 
-        return Map(emoticons);
+        return Map(emoticons, "global");
     }
 
     internal static IReadOnlyList<ChatEmote> ParseRoom(string json)
@@ -78,10 +78,20 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
         foreach (FfzSet set in response.Sets.Values)
             emoticons.AddRange(set.Emoticons);
 
-        return Map(emoticons);
+        return Map(emoticons, "channel");
     }
 
-    private static IReadOnlyList<ChatEmote> Map(IReadOnlyList<FfzEmoticon> emoticons)
+    private static ChatEmoteOwner? MapUser(FfzUser? user) =>
+        user is null || user.Id == 0
+            ? null
+            : new(
+                user.Id.ToString(),
+                user.Name,
+                user.DisplayName,
+                $"https://www.frankerfacez.com/{user.Name}"
+            );
+
+    private static IReadOnlyList<ChatEmote> Map(IReadOnlyList<FfzEmoticon> emoticons, string type)
     {
         List<ChatEmote> result = new(emoticons.Count);
         foreach (FfzEmoticon emoticon in emoticons)
@@ -104,7 +114,10 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
                     emoticon.Name,
                     urls,
                     animated,
-                    emoticon.Modifier
+                    emoticon.Modifier,
+                    Type: type,
+                    Owner: MapUser(emoticon.Owner),
+                    Artist: MapUser(emoticon.Artist)
                 )
             );
         }
@@ -143,5 +156,18 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
         public Dictionary<string, string> Urls { get; set; } = new();
         public Dictionary<string, string>? Animated { get; set; }
         public bool Modifier { get; set; }
+        public FfzUser? Owner { get; set; }
+        public FfzUser? Artist { get; set; }
+    }
+
+    private sealed class FfzUser
+    {
+        [JsonProperty("_id")]
+        public int Id { get; set; }
+
+        public string? Name { get; set; }
+
+        [JsonProperty("display_name")]
+        public string? DisplayName { get; set; }
     }
 }
