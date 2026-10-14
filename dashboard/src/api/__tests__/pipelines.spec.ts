@@ -238,6 +238,8 @@ describe('useSavePipeline', () => {
     expect(inbox.items.map((item: { titleKey: string }) => item.titleKey)).toEqual([
       'frame.inbox.saveFailedTitle',
     ]);
+
+    expect(inbox.items[0]?.what).toEqual({ key: 'savePipeline', params: { name: 'p1' } });
   });
 });
 

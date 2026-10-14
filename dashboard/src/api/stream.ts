@@ -108,6 +108,7 @@ export function useSnoozeAd(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<AdSchedule | null, Error, void, number> {
   return useOptimisticSave<AdSchedule | null, void>({
+    describe: () => ({ key: 'snoozeAd' }),
     queryKey: () => adScheduleKey(toValue(channelId)),
     mutationFn: async (): Promise<AdSchedule | null> => {
       const id = toValue(channelId) as string;
@@ -187,6 +188,7 @@ export function useSaveStreamInfo(
   const queries = useQueryClient();
 
   return useOptimisticSave<StreamInfo | null, StreamInfoDraft>({
+    describe: ({ title }) => ({ key: 'updateStreamInfo', params: { title } }),
     queryKey: () => streamInfoKey(toValue(channelId)),
     mutationFn: async (draft: StreamInfoDraft): Promise<StreamInfo | null> => {
       const id = toValue(channelId) as string;

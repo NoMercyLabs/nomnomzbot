@@ -159,6 +159,11 @@ function transport(
   isPlaying: boolean | null,
 ): QueueMutation {
   return useOptimisticSave<MusicQueue, void>({
+    describe: () => ({ key: isPlaying === null
+      ? 'skipSong'
+      : isPlaying
+        ? 'resumeSong'
+        : 'pauseSong' }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async (): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;
@@ -193,6 +198,7 @@ export function useSkipMusic(channelId: MaybeRefOrGetter<string | null>): QueueM
 
 export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>): RowMutation {
   return useOptimisticSave<MusicQueue, { position: number }>({
+    describe: ({ position }) => ({ key: 'promoteQueueItem', params: { position: String(position) } }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;
@@ -238,6 +244,7 @@ export function useMoveQueueItem(
   channelId: MaybeRefOrGetter<string | null>,
 ): RowMutation<QueueMove> {
   return useOptimisticSave<MusicQueue, QueueMove>({
+    describe: ({ position, toPosition }) => ({ key: 'moveQueueItem', params: { position: String(position), toPosition: String(toPosition) } }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position, toPosition }: QueueMove): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;
@@ -287,6 +294,7 @@ function leavesQueue(current: MusicQueue | undefined, position: number): MusicQu
 // A removed song leaves the queue at once; a refused remove puts it back and reaches the error inbox.
 export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): RowMutation {
   return useOptimisticSave<MusicQueue, { position: number }>({
+    describe: ({ position }) => ({ key: 'removeQueueItem', params: { position: String(position) } }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;
@@ -318,6 +326,7 @@ export function useBanQueueItem(channelId: MaybeRefOrGetter<string | null>): Row
   const queries = useQueryClient();
 
   return useOptimisticSave<MusicQueue, { position: number }>({
+    describe: ({ position }) => ({ key: 'banQueueItem', params: { position: String(position) } }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;
@@ -350,6 +359,7 @@ export function useBlockTrack(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<BlockedTrack[], Error, BlockTrack, number> {
   return useOptimisticSave<BlockedTrack[], BlockTrack>({
+    describe: ({ title }) => ({ key: 'blockTrack', params: { title } }),
     queryKey: () => blockedTracksKey(toValue(channelId)),
     mutationFn: async (track: BlockTrack): Promise<BlockedTrack[]> => {
       const id = toValue(channelId) as string;
@@ -385,6 +395,7 @@ export function useUnblockTrack(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<BlockedTrack[], Error, { blockedTrackId: string }, number> {
   return useOptimisticSave<BlockedTrack[], { blockedTrackId: string }>({
+    describe: ({ blockedTrackId }) => ({ key: 'unblockTrack', params: { id: blockedTrackId } }),
     queryKey: () => blockedTracksKey(toValue(channelId)),
     mutationFn: async ({ blockedTrackId }: { blockedTrackId: string }): Promise<BlockedTrack[]> => {
       const id = toValue(channelId) as string;
@@ -425,6 +436,7 @@ export function useSaveMusicConfig(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<MusicConfig | null, Error, MusicConfigChange, number> {
   return useOptimisticSave<MusicConfig | null, MusicConfigChange>({
+    describe: () => ({ key: 'saveMusicSettings' }),
     queryKey: () => musicConfigKey(toValue(channelId)),
     mutationFn: async (change: MusicConfigChange): Promise<MusicConfig | null> => {
       const id = toValue(channelId) as string;

@@ -339,6 +339,7 @@ describe('notes', () => {
 
     expect(queries.getQueryData(userNotesKey(channel, 't1'))).toEqual([note]);
     expect(inbox.items).toHaveLength(1);
+    expect(inbox.items[0]?.what).toEqual({ key: 'addUserNote', params: { userId: 't1' } });
   });
 });
 

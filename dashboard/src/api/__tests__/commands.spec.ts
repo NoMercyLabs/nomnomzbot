@@ -225,6 +225,7 @@ describe('useUpdateCommand', () => {
     ).toBe('hi');
 
     expect(inbox.items).toHaveLength(1);
+    expect(inbox.items[0]?.what).toEqual({ key: 'updateCommand', params: { name: '!hello' } });
   });
 
   it('a rename shows the new name in the cached row at once', async () => {

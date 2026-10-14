@@ -129,6 +129,9 @@ export function useVipChange(
   channelId: string,
 ): UseMutationReturnType<CommunityMember | null, Error, VipChange, number> {
   return useOptimisticSave<CommunityMember | null, VipChange>({
+    describe: ({ userId, vip }) => ({ key: vip
+      ? 'addVip'
+      : 'removeVip', params: { userId } }),
     queryKey: ({ userId }: VipChange) => memberKey(channelId, userId),
     mutationFn: async ({ userId, vip }: VipChange): Promise<CommunityMember | null> => {
       const params = {

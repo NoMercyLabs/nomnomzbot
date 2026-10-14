@@ -256,6 +256,7 @@ describe('useSetWidgetEnabled', () => {
 
     expect(queries.getQueryData<Widget[]>(widgetsKey(channel))).toEqual(before);
     expect(inbox.items).toHaveLength(1);
+    expect(inbox.items[0]?.what).toEqual({ key: 'turnOffWidget', params: { id: 'a' } });
   });
 });
 

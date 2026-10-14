@@ -91,6 +91,9 @@ export function useSetScriptEnabled(): UseMutationReturnType<
   const queries = useQueryClient();
 
   return useOptimisticSave<CodeScriptSummary[], EnabledChange>({
+    describe: ({ id, isEnabled }) => ({ key: isEnabled
+      ? 'turnOnScript'
+      : 'turnOffScript', params: { id } }),
     queryKey: codeScriptsKey,
     mutationFn: async ({ id, isEnabled }: EnabledChange): Promise<CodeScriptSummary[]> => {
       const { error, response } = await client.PATCH('/api/v{version}/code-scripts/{id}/enabled', {

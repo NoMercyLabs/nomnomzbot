@@ -190,6 +190,7 @@ describe('useSetScriptEnabled', () => {
 
     expect(queries.getQueryData<CodeScriptSummary[]>(codeScriptsKey)?.[0]?.isEnabled).toBe(false);
     expect(inbox.items.length).toBe(1);
+    expect(inbox.items[0]?.what).toEqual({ key: 'turnOnScript', params: { id: 'a' } });
   });
 
   it('refreshes the detail entry of that script after the bot accepts', async () => {

@@ -182,6 +182,9 @@ export function useResolveQueueItem(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<ReviewQueueItem[], Error, QueueResolution, number> {
   return useOptimisticSave<ReviewQueueItem[], QueueResolution>({
+    describe: ({ action }) => ({ key: action === 'approve'
+      ? 'approveReview'
+      : 'denyReview' }),
     queryKey: () => reviewQueueKey(toValue(channelId)),
     mutationFn: async ({ queueItemId, action }: QueueResolution): Promise<ReviewQueueItem[]> => {
       const id = toValue(channelId) as string;

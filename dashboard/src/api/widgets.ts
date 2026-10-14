@@ -158,6 +158,9 @@ export function useSetWidgetEnabled(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Widget[], Error, WidgetEnabledInput, number> {
   return useOptimisticSave<Widget[], WidgetEnabledInput>({
+    describe: ({ widgetId, isEnabled }) => ({ key: isEnabled
+      ? 'turnOnWidget'
+      : 'turnOffWidget', params: { id: widgetId } }),
     queryKey: () => widgetsKey(toValue(channelId)),
     mutationFn: ({ widgetId, isEnabled }: WidgetEnabledInput): Promise<Widget[]> =>
       putWidget(toValue(channelId) as string, widgetId, { isEnabled }, 'switch widget'),
@@ -171,6 +174,7 @@ export function useSaveWidgetSettings(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Widget[], Error, WidgetSettingsInput, number> {
   return useOptimisticSave<Widget[], WidgetSettingsInput>({
+    describe: ({ widgetId }) => ({ key: 'saveWidgetSettings', params: { id: widgetId } }),
     queryKey: () => widgetsKey(toValue(channelId)),
     mutationFn: ({ widgetId, settings }: WidgetSettingsInput): Promise<Widget[]> =>
       putWidget(toValue(channelId) as string, widgetId, { settings }, 'save widget settings'),

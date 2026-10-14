@@ -245,6 +245,7 @@ export function useSavePipeline(
   const queries = useQueryClient();
 
   return useOptimisticSave<Pipeline, PipelineChange>({
+    describe: ({ id, name }) => ({ key: 'savePipeline', params: { name: name ?? id } }),
     queryKey: ({ id }: PipelineChange) => pipelineKey(toValue(channelId), id),
     mutationFn: async (change: PipelineChange): Promise<Pipeline> => {
       const saved = await writePipeline(toValue(channelId) as string, change);

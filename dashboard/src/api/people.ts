@@ -216,6 +216,7 @@ export function useAddNote(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<UserNote[], Error, NoteInput, number> {
   return useOptimisticSave<UserNote[], NoteInput>({
+    describe: ({ userId }) => ({ key: 'addUserNote', params: { userId } }),
     queryKey: ({ userId }: NoteInput) => userNotesKey(toValue(channelId), userId),
     mutationFn: async ({ userId, content, pinned }: NoteInput): Promise<UserNote[]> => {
       const id = toValue(channelId) as string;
@@ -265,6 +266,7 @@ export function useEditNote(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<UserNote[], Error, NoteChange, number> {
   return useOptimisticSave<UserNote[], NoteChange>({
+    describe: ({ userId }) => ({ key: 'editUserNote', params: { userId } }),
     queryKey: ({ userId }: NoteChange) => userNotesKey(toValue(channelId), userId),
     mutationFn: async ({ userId, noteId, content, pinned }: NoteChange): Promise<UserNote[]> => {
       const id = toValue(channelId) as string;
@@ -300,6 +302,7 @@ export function useDeleteNote(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<UserNote[], Error, NoteRemoval, number> {
   return useOptimisticSave<UserNote[], NoteRemoval>({
+    describe: ({ userId }) => ({ key: 'deleteUserNote', params: { userId } }),
     queryKey: ({ userId }: NoteRemoval) => userNotesKey(toValue(channelId), userId),
     mutationFn: async ({ userId, noteId }: NoteRemoval): Promise<UserNote[]> => {
       const id = toValue(channelId) as string;

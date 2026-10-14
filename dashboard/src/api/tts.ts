@@ -170,6 +170,7 @@ export function useSetTtsVoice(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<TtsConfig | null, Error, TtsVoicePick, number> {
   return useOptimisticSave<TtsConfig | null, TtsVoicePick>({
+    describe: ({ voiceId }) => ({ key: 'setTtsVoice', params: { id: voiceId } }),
     queryKey: () => ttsConfigKey(toValue(channelId)),
     mutationFn: async ({ voiceId, provider }: TtsVoicePick): Promise<TtsConfig | null> => {
       const { data, error, response } = await client.PUT(
@@ -280,6 +281,9 @@ export function useSetPersonVoice(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<PersonVoice | null, Error, PersonVoiceChange, number> {
   return useOptimisticSave<PersonVoice | null, PersonVoiceChange>({
+    describe: ({ userId, voice }) => ({ key: voice
+      ? 'setPersonVoice'
+      : 'clearPersonVoice', params: { userId } }),
     queryKey: ({ userId }: PersonVoiceChange) => personVoiceKey(toValue(channelId), userId),
     mutationFn: async (change: PersonVoiceChange): Promise<PersonVoice | null> => {
       await writePersonVoice(toValue(channelId) as string, change);

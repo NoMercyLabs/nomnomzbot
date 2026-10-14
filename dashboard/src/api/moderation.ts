@@ -182,6 +182,9 @@ export function useSetStanding(
   const queries = useQueryClient();
 
   return useOptimisticSave<ModerationStanding | null, StandingChange>({
+    describe: ({ userId, level }) => ({ key: level === null
+      ? 'clearStanding'
+      : 'setStanding', params: { userId } }),
     queryKey: ({ userId }: StandingChange) => standingKey(toValue(channelId), userId),
     mutationFn: async (change: StandingChange): Promise<ModerationStanding | null> => {
       const id = toValue(channelId) as string;

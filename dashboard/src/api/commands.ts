@@ -133,6 +133,15 @@ function saveRow<TVariables>(
   send: (variables: TVariables) => { commandName: string; change: CommandChange },
 ): RowsMutation<TVariables> {
   return useOptimisticSave<CommandListItem[], TVariables>({
+    describe: (variables) => {
+      const { commandName, change } = send(variables);
+
+      return { key: change.isEnabled === true
+        ? 'turnOnCommand'
+        : change.isEnabled === false
+          ? 'turnOffCommand'
+          : 'updateCommand', params: { name: commandName } };
+    },
     queryKey: () => commandsKey(toValue(channelId)),
     mutationFn: (variables: TVariables): Promise<CommandListItem[]> => {
       const { commandName, change } = send(variables);
@@ -178,6 +187,7 @@ export function useDeleteCommand(
   channelId: MaybeRefOrGetter<string | null>,
 ): RowsMutation<{ commandName: string }> {
   return useOptimisticSave<CommandListItem[], { commandName: string }>({
+    describe: ({ commandName }) => ({ key: 'deleteCommand', params: { name: commandName } }),
     queryKey: () => commandsKey(toValue(channelId)),
     mutationFn: async ({ commandName }: { commandName: string }): Promise<CommandListItem[]> => {
       const id = toValue(channelId) as string;
@@ -241,6 +251,9 @@ export function useToggleBuiltin(
   number
 > {
   return useOptimisticSave<BuiltinCommand[], { builtinKey: string; enabled: boolean }>({
+    describe: ({ builtinKey, enabled }) => ({ key: enabled
+      ? 'turnOnBuiltin'
+      : 'turnOffBuiltin', params: { name: builtinKey } }),
     queryKey: () => builtinsKey(toValue(channelId)),
     mutationFn: async ({
       builtinKey,

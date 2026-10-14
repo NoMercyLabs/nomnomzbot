@@ -92,6 +92,7 @@ export function useToggleTimer(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Timer[], Error, string, number> {
   return useOptimisticSave<Timer[], string>({
+    describe: (timerId) => ({ key: 'toggleTimer', params: { id: timerId } }),
     queryKey: () => timersKey(toValue(channelId)),
     mutationFn: async (timerId: string): Promise<Timer[]> => {
       const id = toValue(channelId) as string;
@@ -132,6 +133,7 @@ export function useStartPoll(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Poll[], Error, NewPoll, number> {
   return useOptimisticSave<Poll[], NewPoll>({
+    describe: ({ title }) => ({ key: 'startPoll', params: { title } }),
     queryKey: () => pollsKey(toValue(channelId)),
     mutationFn: async (poll: NewPoll): Promise<Poll[]> => {
       const id = toValue(channelId) as string;
@@ -234,6 +236,7 @@ export function useStartPrediction(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Prediction[], Error, NewPrediction, number> {
   return useOptimisticSave<Prediction[], NewPrediction>({
+    describe: ({ title }) => ({ key: 'startPrediction', params: { title } }),
     queryKey: () => predictionsKey(toValue(channelId)),
     mutationFn: async (prediction: NewPrediction): Promise<Prediction[]> => {
       const id = toValue(channelId) as string;
@@ -297,6 +300,7 @@ export function useLockPrediction(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Prediction[], Error, string, number> {
   return useOptimisticSave<Prediction[], string>({
+    describe: (predictionId) => ({ key: 'lockPrediction', params: { id: predictionId } }),
     queryKey: () => predictionsKey(toValue(channelId)),
     mutationFn: (predictionId: string): Promise<Prediction[]> =>
       endPrediction(toValue(channelId) as string, predictionId, { status: 'LOCKED' }),
@@ -313,6 +317,7 @@ export function useResolvePrediction(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Prediction[], Error, PredictionResolution, number> {
   return useOptimisticSave<Prediction[], PredictionResolution>({
+    describe: ({ predictionId }) => ({ key: 'resolvePrediction', params: { id: predictionId } }),
     queryKey: () => predictionsKey(toValue(channelId)),
     mutationFn: (resolution: PredictionResolution): Promise<Prediction[]> =>
       endPrediction(toValue(channelId) as string, resolution.predictionId, {
@@ -332,6 +337,7 @@ export function useCancelPrediction(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Prediction[], Error, string, number> {
   return useOptimisticSave<Prediction[], string>({
+    describe: (predictionId) => ({ key: 'cancelPrediction', params: { id: predictionId } }),
     queryKey: () => predictionsKey(toValue(channelId)),
     mutationFn: (predictionId: string): Promise<Prediction[]> =>
       endPrediction(toValue(channelId) as string, predictionId, { status: 'CANCELED' }),
@@ -345,6 +351,7 @@ export function useEndPoll(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Poll[], Error, string, number> {
   return useOptimisticSave<Poll[], string>({
+    describe: (pollId) => ({ key: 'endPoll', params: { id: pollId } }),
     queryKey: () => pollsKey(toValue(channelId)),
     mutationFn: async (pollId: string): Promise<Poll[]> => {
       const id = toValue(channelId) as string;

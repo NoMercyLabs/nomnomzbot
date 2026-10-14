@@ -48,6 +48,7 @@ export function useDismissActionRequired(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<ActionRequiredItem[], Error, string, number> {
   return useOptimisticSave<ActionRequiredItem[], string>({
+    describe: (itemId) => ({ key: 'dismissActionRequired', params: { itemId } }),
     queryKey: () => actionRequiredKey(toValue(channelId)),
     mutationFn: async (itemId: string): Promise<ActionRequiredItem[]> => {
       const id = toValue(channelId) as string;

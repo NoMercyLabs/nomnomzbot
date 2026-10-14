@@ -186,6 +186,7 @@ describe('useRemoveQueueItem', () => {
 
     expect(queries.getQueryData<MusicQueue>(musicQueueKey(channel))).toEqual(queue);
     expect(inbox.items).toHaveLength(1);
+    expect(inbox.items[0]?.what).toEqual({ key: 'removeQueueItem', params: { position: '2' } });
   });
 });
 

@@ -14,6 +14,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createApp, type App } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useSaveErrorsStore } from '@/stores/saveErrors';
+
 import {
   ttsConfigKey,
   ttsVoicesKey,
@@ -258,6 +260,11 @@ describe('useSetTtsVoice', () => {
 
     expect(hook.save.error.value?.message).toBe('No such voice');
     expect(queries.getQueryData<TtsConfig>(ttsConfigKey('c1'))).toEqual(config);
+
+    expect(useSaveErrorsStore().items[0]?.what).toEqual({
+      key: 'setTtsVoice',
+      params: { id: 'nl-NL-ColetteNeural' },
+    });
   });
 });
 
