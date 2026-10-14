@@ -74,6 +74,9 @@ describe('the step form rows', () => {
         }),
         field({ name: 'args', repeatable: true }),
         field({ name: 'headers', kind: 'key_value_map' }),
+        field({ name: 'user_id', kind: 'twitch_user' }),
+        field({ name: 'voice', kind: 'voice' }),
+        field({ name: 'code_script_id', kind: 'resource_id' }),
       ],
     };
     const rows = actionRows(step({ action: {
@@ -91,8 +94,12 @@ describe('the step form rows', () => {
       'color:choice:blue',
       'args:fixed:undefined',
       'headers:fixed:undefined',
+      'user_id:pick:undefined',
+      'voice:pick:undefined',
+      'code_script_id:line:undefined',
     ]);
 
+    expect(rows[7]?.kind).toBe('twitch_user');
     expect(rows[0]?.label).toBe('Message');
     expect(rows[1]?.label).toBe('Reason');
 

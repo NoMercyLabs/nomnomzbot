@@ -150,6 +150,13 @@
           "save": "Save the pipeline",
           "add": "Add a step"
         },
+        "picker": {
+          "find": "Search",
+          "noMatch": "Nothing matches this search.",
+          "unavailable": "The bot cannot read this list right now.",
+          "useTyped": "Use \"{text}\"",
+          "clear": "Clear this setting"
+        },
         "palette": {
           "label": "Steps to add",
           "find": "Find a step",

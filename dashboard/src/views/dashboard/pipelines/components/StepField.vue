@@ -13,6 +13,7 @@
 // over undefined: the step saves without the setting.
 import { computed, useId } from 'vue';
 
+import type { PickerKind } from '@/api/pipelines';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 import type { FieldRow } from './stepFields';
+import StepPicker from './StepPicker.vue';
 import { valueText } from './stepWords';
 
 const props = defineProps<{ row: FieldRow }>();
@@ -69,6 +71,14 @@ function typed(event: Event): void {
         </SelectItem>
       </SelectContent>
     </Select>
+    <StepPicker
+      v-else-if="row.control === 'pick'"
+      :id="id"
+      :kind="row.kind as PickerKind"
+      :value="text"
+      :required="row.required"
+      @change="emit('change', $event)"
+    />
     <Textarea
       v-else-if="row.control === 'lines'"
       :id="id"

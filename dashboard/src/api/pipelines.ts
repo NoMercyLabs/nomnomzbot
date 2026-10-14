@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -309,6 +310,62 @@ export function usePipelineCatalog(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<PipelineCatalog, Error> {
   return channelQuery(channelId, catalogKey, readCatalog);
+}
+
+export type PipelineOptionList = components['schemas']['PipelineOptionListResult'];
+export type PipelineOption = components['schemas']['PipelineOption'];
+
+// The resource kinds the bot can list for a field (PipelineOptionsController).
+export const PICKER_KINDS = [
+  'reward',
+  'widget',
+  'voice',
+  'sound_clip',
+  'discord_channel',
+  'discord_role',
+  'twitch_user',
+  'asset',
+] as const satisfies string[];
+
+export type PickerKind = (typeof PICKER_KINDS)[number];
+
+const optionPage = 50;
+
+async function readOptions(
+  channelId: string,
+  kind: PickerKind,
+  search: string,
+): Promise<PipelineOptionList> {
+  const { data, error, response } = await client.GET('/api/v{version}/pipelines/options/{kind}', {
+    params: {
+      path: { version, kind },
+      query: { PageSize: optionPage, Search: search || undefined },
+    },
+    // The route carries no channel, so the tenant goes in the header the bot reads it from.
+    headers: { 'X-Channel-Id': channelId },
+  });
+
+  if (error !== undefined || !data?.data)
+    throw failed('pipeline options', response.status);
+
+  return data.data;
+}
+
+// What a picker field can choose from, narrowed by the search; a source that is not connected says why.
+export function usePipelineOptions(
+  channelId: MaybeRefOrGetter<string | null>,
+  kind: MaybeRefOrGetter<PickerKind>,
+  search: MaybeRefOrGetter<string>,
+): UseQueryReturnType<PipelineOptionList, Error> {
+  return useQuery({
+    queryKey: computed(() =>
+      ['channels', toValue(channelId), 'pipeline-options', toValue(kind), toValue(search)]),
+    queryFn: () =>
+      readOptions(toValue(channelId) as string, toValue(kind), toValue(search)),
+    enabled: computed(() => toValue(channelId) !== null),
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
 }
 
 export type TestRunRequest = { id: string; variables: Record<string, string> };

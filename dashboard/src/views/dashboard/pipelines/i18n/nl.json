@@ -150,6 +150,13 @@
           "save": "De pipeline opslaan",
           "add": "Een stap toevoegen"
         },
+        "picker": {
+          "find": "Zoeken",
+          "noMatch": "Niets past bij deze zoekopdracht.",
+          "unavailable": "De bot kan deze lijst nu niet lezen.",
+          "useTyped": "\"{text}\" gebruiken",
+          "clear": "Deze instelling leegmaken"
+        },
         "palette": {
           "label": "Stappen om toe te voegen",
           "find": "Zoek een stap",

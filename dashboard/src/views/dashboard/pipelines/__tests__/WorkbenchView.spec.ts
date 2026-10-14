@@ -17,6 +17,8 @@ import type {
   Pipeline,
   PipelineBlastRadius,
   PipelineCatalog,
+  PipelineOption,
+  PipelineOptionList,
   PipelineStep,
 } from '@/api/pipelines';
 import { i18n } from '@/i18n';
@@ -94,6 +96,31 @@ const catalog = {
       ],
     },
     {
+      type: 'speak',
+      category: { key: 'pipeline.category.chat' },
+      description: { key: 'pipeline.speak.description' },
+      fields: [
+        {
+          name: 'voice',
+          kind: 'voice',
+          required: false,
+          repeatable: false,
+          description: null,
+          templated: false,
+          declaresVariable: false,
+        },
+        {
+          name: 'channel_id',
+          kind: 'discord_channel',
+          required: true,
+          repeatable: false,
+          description: null,
+          templated: false,
+          declaresVariable: false,
+        },
+      ],
+    },
+    {
       type: 'wait',
       category: { key: 'pipeline.category.flow' },
       description: { key: 'pipeline.wait.description' },
@@ -152,7 +179,63 @@ vi.mock('@/api/pipelines', async (original) => ({
   usePipelineCatalog: () => query(catalog),
   useBlastRadius: () => query(radius),
   useSavePipeline: () => ({ mutateAsync: save.mutateAsync, isPending: ref(false) }),
+  usePipelineOptions: (_channel: unknown, kind: () => string, search: Ref<string>) =>
+    ({
+      ...query(null),
+      data: computed(() =>
+        kind() === 'voice'
+          ? botSearch(search.value)
+          : discordDown),
+      isFetching: ref(false),
+    }),
 }));
+
+// The bot lists its first page and searches the rest: Ava is only on a later page.
+function botSearch(search: string): PipelineOptionList {
+  const term = search.toLowerCase();
+
+  if (term === '')
+    return voices;
+
+  const items = [...voices.items, ava].filter((option: PipelineOption) =>
+    option.label.toLowerCase().includes(term));
+
+  return {
+    ...voices,
+    items,
+    totalCount: items.length,
+  };
+}
+
+const voices: PipelineOptionList = {
+  sourceAvailable: true,
+  items: [
+    {
+      value: 'guy',
+      label: 'Guy',
+      secondaryText: 'en-US',
+      state: 0,
+    },
+    {
+      value: 'jenny',
+      label: 'Jenny',
+      reason: 'Needs the voice pack',
+      state: 1,
+    },
+  ],
+  totalCount: 2,
+};
+const ava: PipelineOption = {
+  value: 'ava',
+  label: 'Ava',
+  state: 0,
+};
+const discordDown: PipelineOptionList = {
+  sourceAvailable: false,
+  unavailableReason: 'Discord is not connected.',
+  items: [],
+  totalCount: 0,
+};
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
@@ -304,6 +387,19 @@ async function type(name: string, value: string): Promise<void> {
   input.value = value;
   input.dispatchEvent(new Event('input'));
   input.dispatchEvent(new Event('change'));
+  await flushPromises();
+}
+
+// Searches in the open picker and waits past its pause, so the bot is asked.
+async function find(text: string): Promise<void> {
+  const search = document.body.querySelector<HTMLInputElement>('[data-slot="popover-content"] input')!;
+
+  search.value = text;
+  search.dispatchEvent(new Event('input'));
+
+  await new Promise<void>((done: () => void) =>
+    setTimeout(done, 300));
+
   await flushPromises();
 }
 
@@ -509,6 +605,72 @@ describe('changing the steps', () => {
 
     expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.block_config)
       .toEqual({ mode: 'repeat', count: 3 });
+  });
+
+  it('picks a voice the bot lists, and says why one it cannot use is off', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="speak"]');
+    await press('[data-step-field="voice"] button');
+
+    const jenny = document.body.querySelector<HTMLElement>('[data-picker-option="jenny"]')!;
+
+    expect(jenny.hasAttribute('data-disabled')).toBe(true);
+    expect(jenny.textContent).toContain('Needs the voice pack');
+
+    await press('[data-picker-option="guy"]');
+
+    expect(document.body.querySelector('[data-step-field="voice"] button')?.textContent).toContain('Guy');
+
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({ type: 'speak', voice: 'guy' });
+  });
+
+  it('shows what the bot finds beyond its first page, and says so only when it finds nothing', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="speak"]');
+    await press('[data-step-field="voice"] button');
+    await find('Ava');
+
+    const popover = (): string =>
+      document.body.querySelector('[data-slot="popover-content"]')?.textContent ?? '';
+
+    expect(document.body.querySelector('[data-picker-option="ava"]')).not.toBeNull();
+    expect(popover()).not.toContain(en.dashboard.pipelines.workbench.picker.noMatch);
+
+    await find('zzz');
+
+    expect(popover()).toContain(en.dashboard.pipelines.workbench.picker.noMatch);
+  });
+
+  it('keeps typed words as the setting, so it can fill in from the run', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="speak"]');
+    await press('[data-step-field="voice"] button');
+
+    const search = document.body.querySelector<HTMLInputElement>('[data-slot="popover-content"] input')!;
+
+    search.value = '{user.voice}';
+    search.dispatchEvent(new Event('input'));
+    await flushPromises();
+    await press('[data-picker-typed]');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action)
+      .toEqual({ type: 'speak', voice: '{user.voice}' });
+  });
+
+  it('says why a list the bot cannot reach is empty', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="speak"]');
+    await press('[data-step-field="channel_id"] button');
+
+    expect(document.body.querySelector('[data-picker-unavailable]')?.textContent?.trim())
+      .toBe('Discord is not connected.');
   });
 
   it('locks every change for a role that cannot change pipelines', async () => {

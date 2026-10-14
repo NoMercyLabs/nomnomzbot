@@ -10,20 +10,29 @@
 
 // The step form in the inspector: one row per setting, with the control its kind needs. Action settings come
 // from the bot's catalog; block settings mirror the engine's block configs (PipelineTreeTypes.cs).
-import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
+import {
+  PICKER_KINDS,
+  type PickerKind,
+  type PipelineActionDescriptor,
+  type PipelineActionField,
+  type PipelineStep,
+} from '@/api/pipelines';
 import type { TextOf } from '@/composables/useLocalizedText';
 import { humanize } from '@/lib/text';
 
 import { fieldHelp, fieldLabel, type Words } from './stepWords';
 
-// line and lines are text, choice is a fixed list; fixed shows the value and is not edited here yet.
-export type FieldControl = 'line' | 'lines' | 'number' | 'switch' | 'choice' | 'fixed';
+// line and lines are text, choice is a fixed list, pick searches what the bot lists for the kind; fixed shows
+// the value and is not edited here yet.
+export type FieldControl = 'line' | 'lines' | 'number' | 'switch' | 'choice' | 'pick' | 'fixed';
 
 export type FieldChoice = { value: string; label: string };
 
 export type FieldRow = {
   name: string;
   label: string;
+  // The bot's field kind; a pick asks the bot for this kind's options.
+  kind: string;
   control: FieldControl;
   value: unknown;
   help: string;
@@ -40,6 +49,10 @@ const page = 'dashboard.pipelines.workbench';
 const CASE_OPERATORS = ['eq', 'ne', 'gt', 'lt', 'gte', 'lte', 'contains'] as const satisfies string[];
 const LOOP_MODES = ['repeat', 'foreach', 'while'] as const satisfies string[];
 
+export function isPickerKind(kind: string): kind is PickerKind {
+  return (PICKER_KINDS as readonly string[]).includes(kind);
+}
+
 function controlOf(field: PipelineActionField): FieldControl {
   if (field.repeatable || field.kind === 'key_value_map')
     return 'fixed';
@@ -52,6 +65,9 @@ function controlOf(field: PipelineActionField): FieldControl {
 
   if (field.kind === 'enum')
     return 'choice';
+
+  if (isPickerKind(field.kind))
+    return 'pick';
 
   return field.templated
     ? 'lines'
@@ -70,6 +86,7 @@ export function actionRows(
     return {
       name: field.name,
       label: fieldLabel(field.name, words),
+      kind: field.kind,
       control,
       value: control === 'switch'
         ? saved === true
@@ -157,6 +174,7 @@ export function blockRows(step: PipelineStep, words: Words): FieldRow[] {
     ({
       name: field.name,
       label: words.t(`${page}.blockField.${field.name}.label`),
+      kind: 'block',
       control: field.control,
       value: config[field.name] ?? field.fallback,
       help: words.t(`${page}.blockField.${field.name}.help`),

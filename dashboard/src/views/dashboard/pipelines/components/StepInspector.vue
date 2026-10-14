@@ -67,6 +67,7 @@ const keepGoing = computed<FieldRow>(() =>
   ({
     name: 'continue_on_error',
     label: t(`${page}.inspector.keepGoing`),
+    kind: 'boolean',
     control: 'switch',
     value: props.step.continue_on_error,
     help: t(`${page}.inspector.keepGoingHelp`),
