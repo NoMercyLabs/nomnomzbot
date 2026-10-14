@@ -86,9 +86,12 @@
   box-shadow: none;
 }
 /* Every segmented control spans its container, as the kit's Segmented Controls do (owner 2026-10-14: "please
-   span all segment controls"). A strip too narrow for its options keeps them whole and scrolls sideways. */
+   span all segment controls"). A strip too narrow for its options keeps them whole and scrolls sideways.
+   Two controls in one flex row share it equally (flex-basis 0 wins over the width there); alone, width spans. */
+[data-slot='tabs'],
 [data-slot='tabs-list'],
 [data-segmented] {
+  flex: 1 1 0;
   width: 100%;
   min-width: max-content;
 }
