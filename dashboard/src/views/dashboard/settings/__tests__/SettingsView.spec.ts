@@ -153,17 +153,17 @@ describe('Readability options', () => {
     expect(states).toEqual(['off', 'off', 'on']);
   });
 
-  // The sample is a made-up chat line: a real viewer's name is channel data and never ships in the words file.
-  it('shows a sample chat line with a neutral name, a space before the time, and no real viewer', async () => {
+  // Owner 2026-10-14: "why is there a chat example in the main config when these are all in the chat view
+  // settings?" Readability is for the whole dashboard, so its sample is a page heading and body text.
+  it('shows a dashboard text sample, a heading and body text, never a chat line', async () => {
     await open();
-    const sample: string = (
-      document.body.querySelector('[data-slot="readability-sample"]')?.textContent ?? ''
-    )
-      .replace(/\s+/g, ' ')
-      .trim();
+    const sample: HTMLElement = document.body.querySelector('[data-slot="readability-sample"]')!;
+    const text = (sample.textContent ?? '').replace(/\s+/g, ' ').trim();
 
-    expect(sample.startsWith('A viewer 18:26 ')).toBe(true);
-    expect(sample).not.toContain('DukaSoft');
+    expect(sample.querySelector('[data-sample-heading]')?.textContent).toBe('A page heading');
+    expect(text).toContain('Body text reads like this on every page.');
+    expect(text).not.toContain('chat');
+    expect(text).not.toContain('viewer');
   });
 
   it('a text size scales every text token', async () => {

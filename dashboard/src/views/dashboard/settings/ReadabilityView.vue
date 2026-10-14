@@ -138,17 +138,11 @@ function setSize(next: number[] | undefined): void {
           class="mx-3 rounded-[12px] border border-border bg-background p-4"
           aria-live="polite"
         >
-          <!-- The words file holds the spaces: template whitespace across line breaks is dropped. -->
-          <i18n-t keypath="dashboard.settings.readability.sample.line" tag="p" scope="global">
-            <template #name>
-              <b>{{ $t('dashboard.settings.readability.sample.name') }}</b>
-            </template>
-            <template #time>
-              <span class="text-muted-foreground">{{
-                $t('dashboard.settings.readability.sample.time')
-              }}</span>
-            </template>
-          </i18n-t>
+          <!-- Dashboard text, not a chat line: the chat feed has its own Display options. -->
+          <p data-sample-heading class="font-semibold">
+            {{ $t('dashboard.settings.readability.sample.heading') }}
+          </p>
+          <p>{{ $t('dashboard.settings.readability.sample.body') }}</p>
           <p class="text-muted-foreground">
             {{ $t('dashboard.settings.readability.sample.pangram') }}
           </p>

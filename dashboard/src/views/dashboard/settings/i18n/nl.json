@@ -32,9 +32,8 @@
           "description": "Het voorbeeld hieronder toont elke wijziging direct."
         },
         "sample": {
-          "name": "Een kijker",
-          "time": "18:26",
-          "line": "{name} {time} Zo leest de chat met deze opties.",
+          "heading": "Een paginakop",
+          "body": "Zo leest de tekst op elke pagina.",
           "pangram": "Pa's wijze lynx bezag vroom het fikse aquaduct. 0123456789"
         },
         "font": {
