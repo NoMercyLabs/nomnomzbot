@@ -391,7 +391,6 @@ describe('VoicesTab', () => {
     expect(writes('POST')).toHaveLength(1);
 
     expect(writes('POST')[0]!.init.body).toEqual({
-      text: 'Hello chat, this is how I sound.',
       voiceId: 'nl-NL-ColetteNeural',
     });
 
@@ -493,7 +492,6 @@ describe('VoicesTab', () => {
     await settle();
 
     expect(writes('POST')[0]!.init.body).toEqual({
-      text: 'Hello chat, this is how I sound.',
       voiceId: 'en-US-AriaNeural',
     });
 

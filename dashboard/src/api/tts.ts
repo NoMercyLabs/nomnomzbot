@@ -37,7 +37,8 @@ export type TtsVoicePage = {
   total: number | null;
 };
 export type TtsVoicePick = { voiceId: string; provider: string };
-export type TtsSampleRequest = { voiceId: string; text: string };
+// No text: the bot speaks the voice's own introduction.
+export type TtsSampleRequest = { voiceId: string; text?: string };
 
 const version = '1';
 // The server clamps a voices page to 200 rows.

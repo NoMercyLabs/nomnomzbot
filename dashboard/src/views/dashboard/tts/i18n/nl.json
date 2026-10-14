@@ -54,7 +54,6 @@
         "count": "{shown} van {loaded} stemmen",
         "countFirst": "{shown} van de eerste {loaded} stemmen",
         "more": "Meer stemmen laden",
-        "sampleText": "Hallo chat, zo klink ik.",
         "playSample": "Speel een voorbeeld van {voice}",
         "stopSample": "Stop het voorbeeld van {voice}",
         "playLabel": "Voorbeeld afspelen",

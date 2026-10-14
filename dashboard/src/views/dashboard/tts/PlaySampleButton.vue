@@ -12,7 +12,6 @@ import LoaderFade from '~icons/nnz/loader-fade';
 import Play from '~icons/nnz/play';
 import Square from '~icons/nnz/stop';
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { useTtsSample } from '@/api/tts';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,6 @@ const props = withDefaults(defineProps<{ voiceId: string; compact?: boolean }>()
   compact: false,
 });
 
-const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const sample = useTtsSample(channelId);
 const audio = ref<HTMLAudioElement | null>(null);
@@ -51,10 +49,7 @@ async function toggle(): Promise<void> {
     return stop();
 
   try {
-    const result = await sample.mutateAsync({
-      voiceId: props.voiceId,
-      text: t('dashboard.tts.voices.sampleText'),
-    });
+    const result = await sample.mutateAsync({ voiceId: props.voiceId });
     const player = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
 
     player.addEventListener('ended', stop);

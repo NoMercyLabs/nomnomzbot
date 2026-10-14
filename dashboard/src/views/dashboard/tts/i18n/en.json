@@ -54,7 +54,6 @@
         "count": "{shown} of {loaded} voices",
         "countFirst": "{shown} of the first {loaded} voices",
         "more": "Load more voices",
-        "sampleText": "Hello chat, this is how I sound.",
         "playSample": "Play a sample of {voice}",
         "stopSample": "Stop the sample of {voice}",
         "playLabel": "Play sample",

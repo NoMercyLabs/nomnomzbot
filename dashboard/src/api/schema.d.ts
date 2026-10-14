@@ -97865,7 +97865,8 @@ export interface components {
         };
         /** @description Request to test a TTS voice. */
         TtsTestRequestDto: {
-            text: string;
+            /** @description The line to speak. When null or blank, the server speaks the voice's own introduction. */
+            text?: null | string;
             voiceId: string;
         };
         /** @description Result of a TTS test synthesis. */

@@ -114,7 +114,8 @@ describe('PlaySampleButton', () => {
 
     button().click();
     await flushPromises();
-    expect(posts).toEqual([{ text: 'Hello chat, this is how I sound.', voiceId: 'v1' }]);
+    // No text: the bot speaks the voice's own introduction.
+    expect(posts).toEqual([{ voiceId: 'v1' }]);
     expect(state()).toBe('loading');
     expect(button().disabled).toBe(true);
     expect(button().getAttribute('aria-busy')).toBe('true');
