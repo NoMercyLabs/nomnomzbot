@@ -12,7 +12,7 @@
 // this view, so a person looks the same wherever you open them. It shows only what the bot stores: a tab
 // with nothing to show says so. The tabs are local state, not the route: the page behind keeps its own ?view=.
 import { injectDialogRootContext } from 'reka-ui';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -69,6 +69,7 @@ const errors = useSaveErrorsStore();
 const { channelId, current } = useCurrentChannel();
 
 const tab = ref('overview');
+const tabStrip = useTemplateRef<HTMLElement>('tabStrip');
 const confirmBan = ref(false);
 
 const member = useCommunityMember(channelId, () =>
@@ -137,6 +138,12 @@ const actions = computed<KeyValueItem[]>(() => {
   ];
 });
 
+// A phone shows part of the last tab; choosing it slides the whole tab into view.
+watch(tab, async () => {
+  await nextTick();
+  tabStrip.value?.querySelector('[data-state="active"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+});
+
 watch(
   () => props.userId,
   () => {
@@ -188,8 +195,9 @@ async function banNow(): Promise<void> {
 
     <template v-else>
       <Tabs v-model="tab" class="flex flex-1 flex-col gap-0" :class="fit">
-        <div class="flex-none overflow-x-auto px-6">
-          <TabsList>
+        <!-- A phone swipes the tabs sideways like the Twitch app: the cut-off last tab shows there are more. -->
+        <div ref="tabStrip" class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none">
+          <TabsList class="w-max">
             <TabsTrigger v-for="name in tabs" :key="name" :value="name">{{
               $t(`profile.tabs.${name}`)
             }}</TabsTrigger>

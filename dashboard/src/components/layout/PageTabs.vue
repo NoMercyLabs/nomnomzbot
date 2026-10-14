@@ -28,7 +28,8 @@ const view = usePageView(values);
 </script>
 
 <template>
-  <Tabs v-model="view">
+  <!-- A phone swipes a long tab row sideways; it never widens the page. -->
+  <Tabs v-model="view" class="min-w-0 overflow-x-auto scrollbar-none">
     <TabsList>
       <TabsTrigger v-for="tab in tabs" :key="tab.value" :value="tab.value">
         {{ tab.label }}

@@ -60,7 +60,7 @@ const { t } = useI18n();
       <!-- A narrow screen scrolls the row sideways; wrapping drops one tab onto a line of its own. -->
       <TabsList
         :aria-label="t('site.home.demo.label')"
-        class="w-full justify-start overflow-x-auto"
+        class="w-full justify-start overflow-x-auto scrollbar-none"
       >
         <TabsTrigger v-for="tab in tabs" :key="tab.id" :value="tab.id">{{
           t(`site.home.demo.tabs.${tab.id}`)

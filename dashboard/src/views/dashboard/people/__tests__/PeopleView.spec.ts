@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import { onTheWire } from '@/api/__tests__/wire';
 import { i18n } from '@/i18n';
 
 import PeopleView from '../PeopleView.vue';
@@ -195,7 +196,7 @@ vi.mock('@/api/client', () => ({
       }
 
       if (path.endsWith('/profile'))
-        return ok(summary);
+        return ok(onTheWire(summary));
 
       return ok(null);
     },

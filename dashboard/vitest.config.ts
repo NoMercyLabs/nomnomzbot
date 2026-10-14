@@ -17,6 +17,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: 'jsdom',
+      setupFiles: ['./vitest.setup.ts'],
       exclude: [...configDefaults.exclude, 'e2e/**'],
       root: fileURLToPath(new URL('./', import.meta.url)),
       // A route or page test loads the whole page module graph cold: 4.5 s alone, up to 23 s in a full

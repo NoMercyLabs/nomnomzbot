@@ -24,7 +24,7 @@ const { t } = useI18n();
   <Tabs default-value="twitch" class="gap-2">
     <TabsList
       :aria-label="t('site.home.outcomes.platforms.label')"
-      class="w-full justify-start overflow-x-auto"
+      class="w-full justify-start overflow-x-auto scrollbar-none"
     >
       <TabsTrigger v-for="platform in platforms" :key="platform" :value="platform">
         <PlatformLogo :platform="platform" />

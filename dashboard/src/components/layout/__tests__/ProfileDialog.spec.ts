@@ -14,6 +14,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, ref } from 'vue';
 
+import { onTheWire } from '@/api/__tests__/wire';
 import ProfileDialog from '@/components/layout/ProfileDialog.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { i18n } from '@/i18n';
@@ -189,7 +190,7 @@ vi.mock('@/api/client', () => ({
       record(path, options);
 
       if (path.endsWith('/profile'))
-        return { data: { data: profiles[userIdOf(options)] ?? null } };
+        return { data: { data: onTheWire(profiles[userIdOf(options)] ?? null) } };
 
       return { data: { data: { ...people[userIdOf(options)] } } };
     }),
@@ -415,6 +416,23 @@ describe('the profile dialog', () => {
 
     expect(panels.filter((panel) => panel.dataset.state === 'inactive').every((panel) =>
       panel.classList.contains('data-[state=inactive]:invisible'))).toBe(true);
+  });
+
+  // The live API leaves a never-asked consent out of the answer; the tab once printed profile.yesNo.undefined.
+  it('says in words that a person was never asked to confirm their age', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const data = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]'))
+      .find((tab: HTMLElement) => tab.textContent?.trim() === 'Data');
+
+    data!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    await settle();
+
+    const panel = dialogs()[0]!.querySelector('[role="tabpanel"][data-state="active"]');
+
+    expect(panel?.textContent).toContain('Not asked yet');
+    expect(panel?.textContent).not.toContain('profile.');
   });
 
   it('lists the ban history of a banned person on the Moderation tab', async () => {

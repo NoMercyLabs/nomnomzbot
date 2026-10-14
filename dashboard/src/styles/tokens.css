@@ -170,21 +170,24 @@ html[data-density='touch'] {
   --chart-5: oklch(0.86 0 0);
 }
 
-/* One scrollbar for every scroll area, so no OS default ever shows (owner 2026-10-12). hover-check.py gates it. */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border-radius: 10px;
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--muted-foreground);
+/* One scrollbar for every scroll area, so no OS default ever shows (owner 2026-10-12). A touch screen keeps
+   the phone's own thin bar that fades after a scroll: a fixed 10px bar there took width from every page. */
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 10px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
 }

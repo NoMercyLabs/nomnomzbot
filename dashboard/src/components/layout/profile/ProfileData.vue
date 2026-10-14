@@ -31,7 +31,8 @@ function dateOrNull(value: string | null | undefined): string | null {
 
 const consent = computed<KeyValueItem[]>(() => {
   const permits = props.profile.permits;
-  const granted = permits.ageConsentGranted;
+  // The API leaves a never-asked consent out of the answer, so missing and null both mean not asked.
+  const granted = permits.ageConsentGranted ?? null;
 
   return [
     {

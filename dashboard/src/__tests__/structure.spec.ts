@@ -119,6 +119,23 @@ describe('folder layout', () => {
     expect(tinted).toEqual([]);
   });
 
+  // A phone swipes a sideways row like the Twitch app; a scrollbar under the profile tabs looked broken
+  // (2026-10-14). A code block keeps its bar: a desktop reader needs it to reach a long line.
+  it('shows no scrollbar under a sideways row, except a code block', () => {
+    const barred: string[] = allPaths(src)
+      .filter(
+        (path) =>
+          path.endsWith('.vue') &&
+          !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
+      )
+      .flatMap((path) =>
+        [...readFileSync(path, 'utf8').matchAll(/<(\w+)\b[^>]*?\bclass="([^"]*\boverflow-x-auto\b[^"]*)"/g)]
+          .filter(([, tag, classes]) => tag !== 'pre' && !/\bscrollbar-none\b/.test(classes ?? ''))
+          .map(([, tag]) => `${relative(src, path).replace(/\\/g, '/')} <${tag}>`));
+
+    expect(barred).toEqual([]);
+  });
+
   // A page that builds its own segmented control loses the shared look (a settings copy showed no chosen
   // option at all). Pages use SegmentedControl or FilterBar from components/layout.
   it('builds a segmented control only inside the shared layout blocks', () => {
