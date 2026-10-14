@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Viewer;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -25,8 +26,11 @@ namespace NomNomzBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Authorize]
 [Tags("Viewer")]
-public class ViewerSelfController(IViewerSelfService viewer, ICurrentUserService currentUser)
-    : BaseController
+public class ViewerSelfController(
+    IViewerSelfService viewer,
+    IViewerSelfActivityService activity,
+    ICurrentUserService currentUser
+) : BaseController
 {
     /// <summary>Channels where the caller has viewer activity (never their own), newest activity first.</summary>
     [HttpGet("api/v{version:apiVersion}/me/watched-channels")]
@@ -48,6 +52,40 @@ public class ViewerSelfController(IViewerSelfService viewer, ICurrentUserService
         if (!TryGetCaller(out Guid caller))
             return UnauthenticatedResponse();
         return ResultResponse(await viewer.GetSummaryAsync(channelId, caller, ct));
+    }
+
+    /// <summary>The caller's own recent chat lines in one channel, newest first, paged.</summary>
+    [HttpGet("api/v{version:apiVersion}/channels/{channelId:guid}/viewer/me/messages")]
+    [ProducesResponseType<PaginatedResponse<ViewerMessageDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyMessages(
+        Guid channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetCaller(out Guid caller))
+            return UnauthenticatedResponse();
+
+        Result<PagedList<ViewerMessageDto>> page = await activity.ListMessagesAsync(
+            channelId,
+            caller,
+            request.Page,
+            request.Take,
+            ct
+        );
+        return page.IsSuccess ? GetPaginatedResponse(page.Value, request) : ResultResponse(page);
+    }
+
+    /// <summary>The channel's commands the caller may run, by name, with the caller's own last use.</summary>
+    [HttpGet("api/v{version:apiVersion}/channels/{channelId:guid}/viewer/me/commands")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ViewerCommandDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetMyCommands(Guid channelId, CancellationToken ct)
+    {
+        if (!TryGetCaller(out Guid caller))
+            return UnauthenticatedResponse();
+        return ResultResponse(await activity.ListCommandsAsync(channelId, caller, ct));
     }
 
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);
