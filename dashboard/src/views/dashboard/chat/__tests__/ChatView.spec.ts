@@ -2280,3 +2280,43 @@ describe('ChatView emote picker', () => {
     expect(document.activeElement?.closest('[data-composer]')).not.toBeNull();
   });
 });
+
+describe('ChatView dock layout', () => {
+  const searchField = (): HTMLElement | null => document.body.querySelector('[data-slot="search-field"]');
+  const dockSearchToggle = (): HTMLButtonElement | null =>
+    document.body.querySelector('[data-dock-search-toggle]');
+
+  it('drops the page title and the panel header in the popped-out window', async () => {
+    await open('/popout/chat');
+
+    expect(document.body.querySelector('h1')).toBeNull();
+    expect(document.body.querySelector('[data-slot="panel-card"] h2')).toBeNull();
+    expect(document.body.querySelector('[data-dock-bar]')).not.toBeNull();
+  });
+
+  it('hides the search field until its toggle is pressed', async () => {
+    await open('/popout/chat');
+
+    expect(searchField()).toBeNull();
+
+    dockSearchToggle()!.click();
+    await settle();
+
+    expect(searchField()).not.toBeNull();
+    expect(dockSearchToggle()!.getAttribute('aria-pressed')).toBe('true');
+
+    dockSearchToggle()!.click();
+    await settle();
+
+    expect(searchField()).toBeNull();
+  });
+
+  it('keeps the page unchanged outside the popout', async () => {
+    await open();
+
+    expect(document.body.querySelector('h1')).not.toBeNull();
+    expect(document.body.querySelector('[data-slot="panel-card"] h2')).not.toBeNull();
+    expect(searchField()).not.toBeNull();
+    expect(dockSearchToggle()).toBeNull();
+  });
+});

@@ -30,6 +30,8 @@ const props = withDefaults(
     flush?: boolean;
     // One section in a flat list (a profile tab): a small heading over the content, no box, padding or dividers.
     bare?: boolean;
+    // No head at all: the panel is only its body (a docked chat that needs every pixel for the feed).
+    headless?: boolean;
     state?: PanelState;
     emptyText?: string;
     errorText?: string;
@@ -40,6 +42,7 @@ const props = withDefaults(
     pad: false,
     flush: false,
     bare: false,
+    headless: false,
     state: 'ready',
     emptyText: undefined,
     errorText: undefined,
@@ -83,6 +86,7 @@ watch(
   >
     <!-- Actions share the title row; the description runs the full width below, never squeezed beside them. -->
     <header
+      v-if="!headless"
       class="grid flex-none grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-2"
       :class="bare ? '' : 'min-h-13 border-b border-border px-4 py-2'"
     >
@@ -104,7 +108,7 @@ watch(
       </div>
       <p v-if="description" class="col-span-2 text-sm text-muted-foreground">{{ description }}</p>
     </header>
-    <div class="min-h-0 flex-1" :class="bare ? '' : ['overflow-y-auto', pad ? 'p-4' : 'p-2']">
+    <div class="min-h-0 flex-1" :class="bare ? '' : ['overflow-y-auto', headless ? '' : pad ? 'p-4' : 'p-2']">
       <slot v-if="state === 'ready'" />
       <div
         v-else-if="state === 'loading'"
@@ -140,7 +144,7 @@ watch(
     <footer
       v-if="$slots.footer"
       class="flex flex-none items-center gap-2"
-      :class="bare ? '' : 'border-t border-border px-4 py-3'"
+      :class="bare ? '' : ['border-t border-border', headless ? 'p-2' : 'px-4 py-3']"
     >
       <slot name="footer" />
     </footer>

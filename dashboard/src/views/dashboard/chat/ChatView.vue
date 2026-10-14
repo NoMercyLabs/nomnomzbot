@@ -19,6 +19,7 @@ import ArrowUpRight from '~icons/nnz/arrow-up-right';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
 import Moderator from '~icons/nnz/moderator';
+import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 
 import { useCurrentUser } from '@/api/auth';
 import {
@@ -59,6 +60,18 @@ const poppedOut = computed(() => route.meta.popout === true);
 
 function popOut(): void {
   window.open(router.resolve({ name: 'popout-chat' }).href, 'nnz-chat', 'popup,width=440,height=760');
+}
+
+// The dock keeps its search field shut until the person asks for it; the page always shows it.
+const dockSearchOpen = ref(false);
+const searchShown = computed(() => !poppedOut.value || dockSearchOpen.value);
+
+function toggleDockSearch(): void {
+  dockSearchOpen.value = !dockSearchOpen.value;
+
+  if (!dockSearchOpen.value) {
+    search.value = '';
+  }
 }
 
 const display = useChatDisplay();
@@ -280,7 +293,59 @@ async function confirmBan(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.chat.title')" :crumb="$t('dashboard.chat.crumb')">
+  <!-- The dock (a small window, an OBS dock): one slim bar of icon buttons, then the feed edge to edge. -->
+  <div v-if="poppedOut" data-dock-bar class="flex flex-none items-center gap-1 border-b border-border px-2 py-1">
+    <StatusBadge
+      :tone="live ? 'live' : 'off'"
+      :label="live ? $t('dashboard.chat.status.live') : $t('dashboard.chat.status.offline')"
+    />
+    <div class="ml-auto flex items-center gap-1">
+      <Button
+        v-if="focusedUserId !== null"
+        data-focus-clear
+        variant="ghost"
+        size="icon"
+        :aria-label="$t('dashboard.chat.viewer.clearFocus', { name: focusedName })"
+        @click="focusedUserId = null"
+      >
+        <Cross class="size-5" aria-hidden="true" />
+      </Button>
+      <Button
+        data-dock-search-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="dockSearchOpen"
+        :aria-label="$t('dashboard.chat.dock.search')"
+        @click="toggleDockSearch"
+      >
+        <SearchMagnifyingGlass class="size-5" aria-hidden="true" />
+      </Button>
+      <Button
+        data-mod-tools-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="modToolsOpen"
+        :aria-label="$t('dashboard.chat.modTools.title')"
+        @click="modToolsOpen = !modToolsOpen"
+      >
+        <Moderator class="size-5" aria-hidden="true" />
+      </Button>
+      <Button
+        data-display-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="displayOpen"
+        :aria-label="$t('dashboard.chat.display.toggle')"
+        @click="displayOpen = !displayOpen"
+      >
+        <SettingsFader class="size-5" aria-hidden="true" />
+      </Button>
+    </div>
+  </div>
+  <div v-if="poppedOut && searchShown" class="flex-none border-b border-border p-2">
+    <SearchField v-model="search" :placeholder="$t('dashboard.chat.search.placeholder')" />
+  </div>
+  <PageHeader v-else-if="!poppedOut" :title="$t('dashboard.chat.title')" :crumb="$t('dashboard.chat.crumb')">
     <template #status>
       <StatusBadge
         :tone="live ? 'live' : 'off'"
@@ -288,60 +353,59 @@ async function confirmBan(): Promise<void> {
       />
     </template>
     <template #bar>
-      <!-- A popped-out window is narrow: the search takes the room left and the toggles show their icon only. -->
-      <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2" :class="{ 'flex-1': poppedOut }">
+      <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2">
         <SearchField
           v-model="search"
-          :class="poppedOut ? 'min-w-0 flex-1' : 'w-64'"
+          class="w-64"
           :placeholder="$t('dashboard.chat.search.placeholder')"
         />
         <Button
           data-mod-tools-toggle
           variant="outline"
-          :size="poppedOut ? 'icon-sm' : 'sm'"
+          size="sm"
           :aria-pressed="modToolsOpen"
           :aria-label="$t('dashboard.chat.modTools.title')"
           @click="modToolsOpen = !modToolsOpen"
         >
           <Moderator class="size-4" aria-hidden="true" />
-          <template v-if="!poppedOut">{{ $t('dashboard.chat.modTools.title') }}</template>
+          {{ $t('dashboard.chat.modTools.title') }}
         </Button>
         <Button
           data-display-toggle
           variant="outline"
-          :size="poppedOut ? 'icon-sm' : 'sm'"
+          size="sm"
           :aria-pressed="displayOpen"
           :aria-label="$t('dashboard.chat.display.toggle')"
           @click="displayOpen = !displayOpen"
         >
           <SettingsFader class="size-4" aria-hidden="true" />
-          <template v-if="!poppedOut">{{ $t('dashboard.chat.display.toggle') }}</template>
+          {{ $t('dashboard.chat.display.toggle') }}
         </Button>
-        <Button
-          v-if="!poppedOut"
-          data-chat-popout
-          variant="outline"
-          size="sm"
-          @click="popOut"
-        >
+        <Button data-chat-popout variant="outline" size="sm" @click="popOut">
           <ArrowUpRight class="size-4" aria-hidden="true" />
           {{ $t('dashboard.chat.popout') }}
         </Button>
       </div>
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:py-0">
+  <div
+    data-page-body
+    class="flex min-h-0 flex-1 flex-col"
+    :class="poppedOut ? 'gap-0 p-0' : 'gap-3 p-6 max-md:py-0'"
+  >
     <p v-if="banFailed" role="alert" class="text-sm text-destructive max-md:px-4 max-md:pt-3">
       {{ $t('dashboard.chat.ban.failed') }}
     </p>
     <div class="flex min-h-0 flex-1 gap-3">
       <PanelCard
-        class="min-h-96 flex-1"
+        :class="poppedOut ? 'min-h-0 flex-1' : 'min-h-96 flex-1'"
         tier="lead"
+        :headless="poppedOut"
+        :flush="poppedOut"
         v-bind="feedPanel"
         @retry="retryFeed"
       >
-        <template v-if="focusedUserId !== null" #actions>
+        <template v-if="focusedUserId !== null && !poppedOut" #actions>
           <Button data-focus-clear variant="ghost" size="sm" @click="focusedUserId = null">
             <Cross class="size-4" aria-hidden="true" />
             {{ $t('dashboard.chat.viewer.clearFocus', { name: focusedName }) }}

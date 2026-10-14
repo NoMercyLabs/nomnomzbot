@@ -92,6 +92,9 @@
         "emptyCommands": "Only commands so far. Switch on Commands in Display to see them.",
         "error": "The chat could not load."
       },
+      "dock": {
+        "search": "Search chat"
+      },
       "search": {
         "placeholder": "Search chat",
         "title": "Search results",
