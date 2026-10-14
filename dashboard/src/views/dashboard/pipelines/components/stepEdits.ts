@@ -144,6 +144,43 @@ export function insertSteps(
   return [...merge(shifted, [placed], inner)];
 }
 
+// Settings to change on one step: the named action and block settings change, a cleared one (undefined) goes.
+export type StepPatch = {
+  action?: Record<string, unknown>;
+  block_config?: Record<string, unknown>;
+  continue_on_error?: boolean;
+};
+
+function withSettings<T extends object>(current: T, change: Record<string, unknown>): T {
+  const next: Record<string, unknown> = { ...current, ...change };
+
+  for (const [key, value] of Object.entries(change)) {
+    if (value === undefined) {
+      delete next[key];
+    }
+  }
+
+  return next as T;
+}
+
+function patched(step: PipelineStep, patch: StepPatch): PipelineStep {
+  return {
+    ...step,
+    action: withSettings(step.action, patch.action ?? {}),
+    block_config: patch.block_config
+      ? withSettings(step.block_config ?? {}, patch.block_config)
+      : step.block_config,
+    continue_on_error: patch.continue_on_error ?? step.continue_on_error,
+  };
+}
+
+export function patchStep(steps: PipelineStep[], id: string, patch: StepPatch): PipelineStep[] {
+  return steps.map((step: PipelineStep) =>
+    step.id === id
+      ? patched(step, patch)
+      : step);
+}
+
 // A step is plain JSON; a JSON copy also reads through the reactive proxy the draft holds it in, which
 // structuredClone refuses.
 function copyOf(step: PipelineStep, target: PipelineStep, ids: Map<string, string>): PipelineStep {

@@ -43,7 +43,7 @@ import { useShortcut } from '@/composables/useShortcut';
 import { newAction, newBlock, type AddableBlock } from './components/newSteps';
 import StepCard from './components/StepCard.vue';
 import StepInspector from './components/StepInspector.vue';
-import { laneEnd, type MintId, type Spot } from './components/stepEdits';
+import { laneEnd, type MintId, type Spot, type StepPatch } from './components/stepEdits';
 import StepPalette from './components/StepPalette.vue';
 import { buildStepTree, findNode, findStepNode, type StepLane } from './components/stepTree';
 import { startSources, type StartSource } from './components/stepWords';
@@ -111,6 +111,14 @@ function duplicate(): void {
 
   if (step?.id) {
     draft.duplicate(step.id);
+  }
+}
+
+function patch(change: StepPatch): void {
+  const step = selected.value?.step;
+
+  if (step?.id) {
+    draft.patch(step.id, change);
   }
 }
 
@@ -183,6 +191,11 @@ function addBlock(kind: AddableBlock): void {
 }
 
 async function save(): Promise<void> {
+  // A field hands its typed value over when it is left, so Ctrl+S in a field leaves it first.
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+
   if (!draft.dirty.value || !canWrite.value) return;
 
   try {
@@ -381,6 +394,7 @@ const leaveOpen = computed<boolean>({
         :read-only="!canWrite"
         @duplicate="duplicate"
         @remove="remove"
+        @patch="patch"
       />
     </SidePanel>
   </div>

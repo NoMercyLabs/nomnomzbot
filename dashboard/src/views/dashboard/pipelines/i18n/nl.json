@@ -73,6 +73,51 @@
           "starts_with": "begint met",
           "ends_with": "eindigt op"
         },
+        "blockField": {
+          "value": {
+            "label": "Waarde om te controleren",
+            "help": "Elk geval hieronder vergelijkt zich met deze waarde."
+          },
+          "match": {
+            "label": "Past bij",
+            "help": "De waarde waar dit geval naar zoekt."
+          },
+          "operator": {
+            "label": "Hoe het vergelijkt",
+            "help": "Getallen vergelijken als getallen, andere tekst zonder op hoofdletters te letten."
+          },
+          "is_default": {
+            "label": "Gebruiken als geen ander geval past",
+            "help": "Maar één geval hoort de terugval te zijn."
+          },
+          "mode": {
+            "label": "Herhalen",
+            "help": "Hoe de stappen binnenin weten wanneer ze stoppen.",
+            "repeat": "Een vast aantal keer",
+            "foreach": "Eén keer voor elk item in een lijst",
+            "while": "Zolang een controle klopt"
+          },
+          "count": {
+            "label": "Keer",
+            "help": "Hoe vaak de stappen binnenin draaien."
+          },
+          "list_var": {
+            "label": "Lijst",
+            "help": "Een variabele of tekst met items gescheiden door komma's."
+          },
+          "max_iterations": {
+            "label": "Hooguit zoveel rondes",
+            "help": "Leeg gebruikt de grens van de bot. Hij kan alleen lager."
+          },
+          "max_loop_runtime_seconds": {
+            "label": "Hooguit zoveel seconden",
+            "help": "Stopt het herhalen als het langer duurt."
+          },
+          "weight": {
+            "label": "Gewicht",
+            "help": "Een pad met gewicht 2 wordt twee keer zo vaak gekozen als een pad met gewicht 1."
+          }
+        },
         "notSetUp": "Nog niet ingesteld: {fields} is leeg. | Nog niet ingesteld: {fields} zijn leeg.",
         "inspector": {
           "label": "Stapdetails",
@@ -83,9 +128,9 @@
           "noFields": "Deze stap heeft geen instellingen.",
           "condition": "Alleen uitvoeren als",
           "always": "Draait altijd.",
-          "onError": "Als het mislukt",
-          "goesOn": "De pipeline gaat door.",
-          "stops": "De pipeline stopt.",
+          "keepGoing": "Doorgaan als deze stap mislukt",
+          "keepGoingHelp": "Uit: een fout stopt de pipeline hier.",
+          "templated": "Woorden tussen accolades, zoals {'{'}user{'}'}, worden ingevuld tijdens de run.",
           "plainGoesOn": "Als het mislukt, gaat de pipeline door.",
           "plainStops": "Als het mislukt, stopt de pipeline.",
           "declares": "Latere stappen kunnen het gebruiken.",

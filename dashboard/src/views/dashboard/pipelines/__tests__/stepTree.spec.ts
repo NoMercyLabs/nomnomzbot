@@ -182,18 +182,25 @@ describe('the step tree', () => {
       ],
     };
 
+    const labels: Record<string, string> = { 'pipelineField.user_id': 'Viewer' };
+    const words = {
+      t: (key: string) =>
+        labels[key] ?? key,
+      te: (key: string) =>
+        key in labels,
+    };
+
     expect(missingFields(step({ action: {
       type: 'timeout',
-      user_id: 'u1',
       duration: '  ',
-    } }), descriptor))
-      .toEqual(['Duration']);
+    } }), descriptor, words))
+      .toEqual(['Viewer', 'Duration']);
 
     expect(missingFields(step({ action: {
       type: 'timeout',
       user_id: 'u1',
       duration: 0,
-    } }), descriptor))
+    } }), descriptor, words))
       .toEqual([]);
   });
 });

@@ -78,16 +78,26 @@ function isEmpty(value: unknown): boolean {
   return value === undefined || value === null || String(value).trim() === '';
 }
 
+// A field's name as the KMP editor labels it (pipelineField.<name>), humanized when it has no label.
+export function fieldLabel(name: string, { t, te }: Words): string {
+  const key = `pipelineField.${name}`;
+
+  return te(key)
+    ? t(key)
+    : humanize(name);
+}
+
 // The required fields the step still leaves empty: the card says "Not set up yet" for them.
 export function missingFields(
   step: PipelineStep,
   descriptor: PipelineActionDescriptor | undefined,
+  words: Words,
 ): string[] {
   return (descriptor?.fields ?? [])
     .filter((field: PipelineActionField) =>
       field.required && isEmpty(step.action[field.name]))
     .map((field: PipelineActionField) =>
-      humanize(field.name));
+      fieldLabel(field.name, words));
 }
 
 export function fieldHelp(type: string, field: PipelineActionField, text: TextOf): string {

@@ -73,6 +73,51 @@
           "starts_with": "starts with",
           "ends_with": "ends with"
         },
+        "blockField": {
+          "value": {
+            "label": "Value to check",
+            "help": "Each case below compares itself with this value."
+          },
+          "match": {
+            "label": "Matches",
+            "help": "The value this case looks for."
+          },
+          "operator": {
+            "label": "How it compares",
+            "help": "Numbers compare as numbers, other text without caring about capitals."
+          },
+          "is_default": {
+            "label": "Use when no other case matches",
+            "help": "Only one case should be the fallback."
+          },
+          "mode": {
+            "label": "Repeat",
+            "help": "How the steps inside know when to stop.",
+            "repeat": "A set number of times",
+            "foreach": "Once for each item in a list",
+            "while": "While a check holds"
+          },
+          "count": {
+            "label": "Times",
+            "help": "How many times the steps inside run."
+          },
+          "list_var": {
+            "label": "List",
+            "help": "A variable or text with items split by commas."
+          },
+          "max_iterations": {
+            "label": "At most this many rounds",
+            "help": "Empty uses the bot's limit. It can only be lower."
+          },
+          "max_loop_runtime_seconds": {
+            "label": "At most this many seconds",
+            "help": "Stops the repeat when it runs longer."
+          },
+          "weight": {
+            "label": "Weight",
+            "help": "A path with weight 2 is picked twice as often as one with weight 1."
+          }
+        },
         "notSetUp": "Not set up yet: {fields} is empty. | Not set up yet: {fields} are empty.",
         "inspector": {
           "label": "Step details",
@@ -83,9 +128,9 @@
           "noFields": "This step has no settings.",
           "condition": "Only run if",
           "always": "Always runs.",
-          "onError": "If it fails",
-          "goesOn": "The pipeline goes on.",
-          "stops": "The pipeline stops.",
+          "keepGoing": "Keep going if this step fails",
+          "keepGoingHelp": "Off: a failure stops the pipeline here.",
+          "templated": "Words in braces, like {'{'}user{'}'}, fill in from the run.",
           "plainGoesOn": "If it fails, the pipeline goes on.",
           "plainStops": "If it fails, the pipeline stops.",
           "declares": "Later steps can use it.",

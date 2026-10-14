@@ -8,9 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The picked step in detail (5-workbench.html:344-379): Settings lists every field the bot's catalog gives the
-// action, with its saved value; In plain words says what the step does from the same facts. Duplicate and
-// Remove change the draft; a role that cannot change pipelines sees them locked.
+// The picked step in detail (5-workbench.html:344-379): Settings edits every field the bot's catalog gives the
+// action, or the block's own settings; In plain words says what the step does from the same facts. Each edit,
+// Duplicate and Remove change the draft; a role that cannot change pipelines sees them locked.
 import FileCopy from '~icons/nnz/file-copy';
 import Trash from '~icons/nnz/trash';
 import { computed, ref, watch } from 'vue';
@@ -20,11 +20,14 @@ import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
+import { FieldGroup } from '@/components/ui/field';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocalizedText } from '@/composables/useLocalizedText';
-import { humanize } from '@/lib/text';
 
-import { conditionSentence, fieldHelp, stepSentence, stepTitle, valueText } from './stepWords';
+import type { StepPatch } from './stepEdits';
+import StepField from './StepField.vue';
+import { actionRows, blockRows, type FieldRow } from './stepFields';
+import { conditionSentence, stepSentence, stepTitle } from './stepWords';
 
 const props = defineProps<{
   step: PipelineStep;
@@ -33,7 +36,11 @@ const props = defineProps<{
   readOnly: boolean;
 }>();
 
-defineEmits<{ duplicate: []; remove: [] }>();
+const emit = defineEmits<{
+  duplicate: [];
+  remove: [];
+  patch: [patch: StepPatch];
+}>();
 
 const { t, te } = useI18n();
 const text = useLocalizedText();
@@ -47,32 +54,33 @@ watch(() => props.step.id, () => {
 
 const title = computed(() => stepTitle(props.step, { t, te }));
 
-// One field stacked as name, value and help: the help runs the full panel width instead of wrapping in a
-// value column.
-type FieldRow = {
-  name: string;
-  label: string;
-  value: string | null;
-  help: string;
-};
+const fields = computed(() =>
+  props.step.block_kind === null
+    ? actionRows(props.step, props.descriptor, {
+        t,
+        te,
+        text,
+      })
+    : blockRows(props.step, { t, te }));
 
-const fields = computed<FieldRow[]>(() => {
-  if (props.step.block_kind !== null) {
-    return Object.entries(props.step.block_config ?? {}).map(([key, value]) => ({
-      name: key,
-      label: humanize(key),
-      value: valueText(value),
-      help: '',
-    }));
-  }
-
-  return (props.descriptor?.fields ?? []).map((field: PipelineActionField) => ({
-    name: field.name,
-    label: humanize(field.name),
-    value: valueText(props.step.action[field.name]),
-    help: fieldHelp(props.step.action.type, field, text),
+const keepGoing = computed<FieldRow>(() =>
+  ({
+    name: 'continue_on_error',
+    label: t(`${page}.inspector.keepGoing`),
+    control: 'switch',
+    value: props.step.continue_on_error,
+    help: t(`${page}.inspector.keepGoingHelp`),
+    choices: [],
+    required: false,
+    templated: false,
+    target: 'step',
   }));
-});
+
+function change(row: FieldRow, value: unknown): void {
+  emit('patch', row.target === 'step'
+    ? { continue_on_error: value === true }
+    : { [row.target]: { [row.name]: value } });
+}
 
 const declares = computed(() =>
   (props.descriptor?.fields ?? []).some((field: PipelineActionField) =>
@@ -82,11 +90,6 @@ const condition = computed(() =>
   props.step.condition
     ? conditionSentence(props.step.condition, { t, te })
     : t(`${page}.inspector.always`));
-
-const onError = computed(() =>
-  props.step.continue_on_error
-    ? t(`${page}.inspector.goesOn`)
-    : t(`${page}.inspector.stops`));
 
 const plainOnError = computed(() =>
   props.step.continue_on_error
@@ -113,24 +116,23 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
           {{ $t('dashboard.pipelines.workbench.inspector.plain') }}
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="settings" class="flex flex-col gap-4 pt-2">
-        <dl v-if="fields.length > 0" data-inspector-fields class="m-0 flex flex-col gap-3 text-sm">
-          <div v-for="field in fields" :key="field.name" data-inspector-field class="flex flex-col gap-0.5">
-            <dt class="font-medium">{{ field.label }}</dt>
-            <dd class="m-0 wrap-break-word" :class="field.value === null && 'text-muted-foreground'">
-              {{ field.value ?? $t('dashboard.pipelines.workbench.inspector.notSet') }}
-            </dd>
-            <dd v-if="field.help" class="m-0 text-xs text-muted-foreground">{{ field.help }}</dd>
-          </div>
-        </dl>
-        <p v-else class="text-sm text-muted-foreground">
-          {{ $t('dashboard.pipelines.workbench.inspector.noFields') }}
-        </p>
+      <TabsContent value="settings" class="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pt-2 pb-1">
+        <ReadOnlyScope :read-only="readOnly" :reason="$t('dashboard.pipelines.noWrite')">
+          <FieldGroup data-inspector-fields class="gap-4">
+            <StepField
+              v-for="row in fields"
+              :key="`${step.id}:${row.name}`"
+              :row="row"
+              @change="change(row, $event)"
+            />
+            <p v-if="fields.length === 0" class="text-sm text-muted-foreground">
+              {{ $t('dashboard.pipelines.workbench.inspector.noFields') }}
+            </p>
+            <StepField :key="`${step.id}:keep-going`" :row="keepGoing" @change="change(keepGoing, $event)" />
+          </FieldGroup>
+        </ReadOnlyScope>
         <KeyValueList
-          :items="[
-            { label: $t('dashboard.pipelines.workbench.inspector.condition'), value: condition },
-            { label: $t('dashboard.pipelines.workbench.inspector.onError'), value: onError },
-          ]"
+          :items="[{ label: $t('dashboard.pipelines.workbench.inspector.condition'), value: condition }]"
         />
       </TabsContent>
       <TabsContent value="plain" data-inspector-plain class="flex flex-col gap-2 pt-2 text-sm">

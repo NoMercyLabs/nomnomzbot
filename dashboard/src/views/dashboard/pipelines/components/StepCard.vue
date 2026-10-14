@@ -61,7 +61,7 @@ const condition = computed(() =>
   step.value.condition
     ? conditionSentence(step.value.condition, { t, te })
     : null);
-const missing = computed(() => missingFields(step.value, descriptor.value));
+const missing = computed(() => missingFields(step.value, descriptor.value, { t, te }));
 const selected = computed(() => props.node.key === props.selectedKey);
 
 function laneName(lane: StepLane, index: number): string {

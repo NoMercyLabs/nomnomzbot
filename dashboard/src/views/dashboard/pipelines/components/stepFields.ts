@@ -1,0 +1,169 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+// The step form in the inspector: one row per setting, with the control its kind needs. Action settings come
+// from the bot's catalog; block settings mirror the engine's block configs (PipelineTreeTypes.cs).
+import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
+import type { TextOf } from '@/composables/useLocalizedText';
+import { humanize } from '@/lib/text';
+
+import { fieldHelp, fieldLabel, type Words } from './stepWords';
+
+// line and lines are text, choice is a fixed list; fixed shows the value and is not edited here yet.
+export type FieldControl = 'line' | 'lines' | 'number' | 'switch' | 'choice' | 'fixed';
+
+export type FieldChoice = { value: string; label: string };
+
+export type FieldRow = {
+  name: string;
+  label: string;
+  control: FieldControl;
+  value: unknown;
+  help: string;
+  choices: FieldChoice[];
+  required: boolean;
+  templated: boolean;
+  // Where the value lives: an action setting, a block setting, or a setting of the step itself.
+  target: 'action' | 'block_config' | 'step';
+};
+
+const page = 'dashboard.pipelines.workbench';
+
+// The comparisons a switch case runs (PipelineEngine MatchesCase).
+const CASE_OPERATORS = ['eq', 'ne', 'gt', 'lt', 'gte', 'lte', 'contains'] as const satisfies string[];
+const LOOP_MODES = ['repeat', 'foreach', 'while'] as const satisfies string[];
+
+function controlOf(field: PipelineActionField): FieldControl {
+  if (field.repeatable || field.kind === 'key_value_map')
+    return 'fixed';
+
+  if (field.kind === 'boolean')
+    return 'switch';
+
+  if (field.kind === 'number')
+    return 'number';
+
+  if (field.kind === 'enum')
+    return 'choice';
+
+  return field.templated
+    ? 'lines'
+    : 'line';
+}
+
+export function actionRows(
+  step: PipelineStep,
+  descriptor: PipelineActionDescriptor | undefined,
+  words: Words & { text: TextOf },
+): FieldRow[] {
+  return (descriptor?.fields ?? []).map((field: PipelineActionField) => {
+    const control = controlOf(field);
+    const saved = step.action[field.name];
+
+    return {
+      name: field.name,
+      label: fieldLabel(field.name, words),
+      control,
+      value: control === 'switch'
+        ? saved === true
+        : saved,
+      help: fieldHelp(step.action.type, field, words.text),
+      choices: (field.options ?? []).map((option: string) =>
+        ({ value: option, label: humanize(option) })),
+      required: field.required,
+      templated: field.templated,
+      target: 'action',
+    };
+  });
+}
+
+type BlockField = {
+  name: string;
+  control: FieldControl;
+  choices?: readonly string[];
+  fallback?: unknown;
+};
+
+function loopFields(mode: string): BlockField[] {
+  const measure: BlockField[] = mode === 'foreach'
+    ? [{ name: 'list_var', control: 'line' }]
+    : [];
+  const count: BlockField[] = mode === 'repeat'
+    ? [{ name: 'count', control: 'number' }]
+    : [];
+
+  return [
+    {
+      name: 'mode',
+      control: 'choice',
+      choices: LOOP_MODES,
+      fallback: 'repeat',
+    },
+    ...count,
+    ...measure,
+    { name: 'max_iterations', control: 'number' },
+    { name: 'max_loop_runtime_seconds', control: 'number' },
+  ];
+}
+
+function blockFields(step: PipelineStep): BlockField[] {
+  const config = step.block_config ?? {};
+
+  switch (step.block_kind) {
+    case 'switch':
+      return [{ name: 'value', control: 'lines' }];
+    case 'switch_case':
+      return [
+        { name: 'match', control: 'line' },
+        {
+          name: 'operator',
+          control: 'choice',
+          choices: CASE_OPERATORS,
+          fallback: 'eq',
+        },
+        {
+          name: 'is_default',
+          control: 'switch',
+          fallback: false,
+        },
+      ];
+    case 'loop':
+      return loopFields(String(config.mode ?? 'repeat'));
+    case 'random_case':
+      return [{ name: 'weight', control: 'number' }];
+    default:
+      return [];
+  }
+}
+
+// The words of one choice: a case compares like a condition, a repeat names its mode.
+function choiceLabel(name: string, value: string, { t }: Words): string {
+  return name === 'operator'
+    ? t(`${page}.operator.${value}`)
+    : t(`${page}.blockField.${name}.${value}`);
+}
+
+export function blockRows(step: PipelineStep, words: Words): FieldRow[] {
+  const config = step.block_config ?? {};
+
+  return blockFields(step).map((field: BlockField) =>
+    ({
+      name: field.name,
+      label: words.t(`${page}.blockField.${field.name}.label`),
+      control: field.control,
+      value: config[field.name] ?? field.fallback,
+      help: words.t(`${page}.blockField.${field.name}.help`),
+      choices: (field.choices ?? []).map((value: string) =>
+        ({ value, label: choiceLabel(field.name, value, words) })),
+      required: false,
+      templated: field.name === 'value',
+      target: 'block_config',
+    }));
+}

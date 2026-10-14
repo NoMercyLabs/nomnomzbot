@@ -17,6 +17,7 @@ import {
   insertSteps,
   laneEnd,
   numberLanes,
+  patchStep,
   removeStep,
   withIds,
 } from '../components/stepEdits';
@@ -142,10 +143,36 @@ describe('the step edits', () => {
     expect(shape(steps)).toEqual(['say@-:0', 'check@-:2', 'inner@check:0', 'wait@-:3', 'new@-:1']);
   });
 
+  it('sets one setting of a step and keeps its other settings and the other steps', () => {
+    const steps = patchStep(graph, 'wait', { action: { seconds: 5 }, continue_on_error: true });
+
+    expect(steps[3]).toEqual({
+      ...graph[3],
+      action: { type: 'wait', seconds: 5 },
+      continue_on_error: true,
+    });
+
+    expect(steps.slice(0, 3)).toEqual(graph.slice(0, 3));
+  });
+
+  it('drops a setting that is cleared, so the step saves without it', () => {
+    const steps = patchStep(graph, 'say', { action: { message: undefined } });
+
+    expect(steps[0]?.action).toEqual({ type: 'send_message' });
+  });
+
+  it('sets a block setting in its config, starting one when the block had none', () => {
+    const steps = patchStep(graph, 'check', { block_config: { count: 3 } });
+
+    expect(steps[1]?.block_config).toEqual({ count: 3 });
+    expect(steps[1]?.action).toEqual({ type: 'if' });
+  });
+
   it('leaves the saved list as it was', () => {
     removeStep(graph, 'say');
     duplicateStep(graph, 'wait', counter());
     insertSteps(graph, [step({ id: 'new' })], laneEnd(graph, null, null));
+    patchStep(graph, 'wait', { action: { seconds: 9 }, block_config: { count: 1 } });
 
     expect(shape(graph)).toEqual(['say@-:0', 'check@-:1', 'inner@check:0', 'wait@-:2']);
   });

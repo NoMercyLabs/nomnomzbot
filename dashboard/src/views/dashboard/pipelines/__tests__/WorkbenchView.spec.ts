@@ -212,6 +212,8 @@ const cards = (): HTMLElement[] =>
   [...document.body.querySelectorAll<HTMLElement>('[data-step]')];
 const card = (id: string): HTMLElement =>
   document.body.querySelector<HTMLElement>(`[data-step-id="${id}"]`)!;
+const fieldInput = (name: string): HTMLInputElement =>
+  document.body.querySelector<HTMLInputElement>(`[data-step-field="${name}"] input, [data-step-field="${name}"] textarea`)!;
 const titleOf = (id: string): string | undefined =>
   card(id).querySelector('[data-step-title]')?.textContent?.trim();
 
@@ -262,7 +264,7 @@ describe('the step inspector', () => {
     const inspector = document.body.querySelector<HTMLElement>('[data-step-inspector]')!;
 
     expect(inspector.textContent).toContain('Step 1.1');
-    expect(inspector.querySelector('[data-inspector-fields]')?.textContent).toContain('hi there');
+    expect(fieldInput('message').value).toBe('hi there');
     expect(card('hi').querySelector('button')?.getAttribute('aria-pressed')).toBe('true');
   });
 
@@ -276,7 +278,7 @@ describe('the step inspector', () => {
     await flushPromises();
     steps.splice(0, steps.length, ...saved);
 
-    expect(document.body.querySelector('[data-inspector-fields]')?.textContent).toContain('no id');
+    expect(fieldInput('message').value).toBe('no id');
   });
 
   it('closes when the person picks the same step again', async () => {
@@ -292,6 +294,16 @@ describe('the step inspector', () => {
 
 async function press(selector: string): Promise<void> {
   document.body.querySelector<HTMLButtonElement>(selector)!.click();
+  await flushPromises();
+}
+
+// Types into a field and leaves it, as a person does.
+async function type(name: string, value: string): Promise<void> {
+  const input = fieldInput(name);
+
+  input.value = value;
+  input.dispatchEvent(new Event('input'));
+  input.dispatchEvent(new Event('change'));
   await flushPromises();
 }
 
@@ -443,6 +455,62 @@ describe('changing the steps', () => {
     expect(groups).toEqual(['blocks', 'pipeline.category.chat', 'pipeline.category.flow']);
   });
 
+  it('changes a setting once the person leaves the field, and Undo brings the old value back', async () => {
+    await open();
+    await press('[data-step-id="pause"] button');
+    await type('seconds', '5');
+
+    expect(card('pause').querySelector('[data-step-missing]')).toBeNull();
+    expect(saveButton().disabled).toBe(false);
+
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[2]?.action)
+      .toEqual({ type: 'wait', seconds: 5 });
+
+    await press('[data-workbench-undo]');
+
+    expect(fieldInput('seconds').value).toBe('');
+    expect(card('pause').querySelector('[data-step-missing]')).not.toBeNull();
+  });
+
+  it('drops a setting the person empties', async () => {
+    await open();
+    await press('[data-step-id="hi"] button');
+    await type('message', '  ');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[1]?.action).toEqual({ type: 'send_message' });
+  });
+
+  it('lets a step keep the pipeline going when it fails', async () => {
+    await open();
+    await press('[data-step-id="hi"] button');
+    await press('[data-step-field="continue_on_error"] button[role="switch"]');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[1]?.continue_on_error).toBe(true);
+  });
+
+  it('gives a new repeat its own settings, starting at once', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-block="loop"]');
+
+    const names = [...document.body.querySelectorAll<HTMLElement>('[data-step-field]')]
+      .map((item: HTMLElement) =>
+        item.dataset.stepField);
+
+    expect(names).toEqual(['mode', 'count', 'max_iterations', 'max_loop_runtime_seconds', 'continue_on_error']);
+    expect(fieldInput('count').value).toBe('1');
+
+    await type('count', '3');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.block_config)
+      .toEqual({ mode: 'repeat', count: 3 });
+  });
+
   it('locks every change for a role that cannot change pipelines', async () => {
     held.value = [];
     await open();
@@ -454,5 +522,6 @@ describe('changing the steps', () => {
       .toBe(true);
 
     expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-add]')?.disabled).toBe(true);
+    expect(fieldInput('message').closest('fieldset')?.disabled).toBe(true);
   });
 });

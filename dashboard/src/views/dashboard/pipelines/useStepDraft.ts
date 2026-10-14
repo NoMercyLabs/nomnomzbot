@@ -20,10 +20,12 @@ import {
   insertSteps,
   laneEnd,
   numberLanes,
+  patchStep,
   removeStep,
   withIds,
   type MintId,
   type Spot,
+  type StepPatch,
 } from './components/stepEdits';
 
 // Makes the new step, with the steps inside it, from fresh ids.
@@ -38,6 +40,7 @@ export type StepDraft = {
   redo: () => void;
   remove: (id: string) => void;
   duplicate: (id: string) => void;
+  patch: (id: string, patch: StepPatch) => void;
   // Adds at the spot, or at the end of the top level; gives the new step's id.
   add: (make: MakeSteps, spot?: Spot) => string | null;
 };
@@ -71,6 +74,9 @@ export function useStepDraft(saved: Ref<Pipeline | undefined>): StepDraft {
     },
     duplicate: (id: string) => {
       steps.value = duplicateStep(steps.value, id, mint);
+    },
+    patch: (id: string, patch: StepPatch) => {
+      steps.value = patchStep(steps.value, id, patch);
     },
     add: (make: MakeSteps, spot?: Spot) => {
       const added = make(mint);

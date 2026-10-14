@@ -75,16 +75,21 @@ function place(tree, key, value) {
   node[parts.at(-1)] = value;
 }
 
-// The step titles the KMP editor shows: pipelines_block_<action type> becomes pipelineBlock.<action type>.
-// A title with a Compose format argument (%1$s) is a sentence for another place, so it stays out.
-const blockPrefix = 'pipelines_block_';
+// The step titles and field labels the KMP editor shows: pipelines_block_<action type> becomes
+// pipelineBlock.<action type>, pipelines_field_<field> becomes pipelineField.<field>. A word with a Compose
+// format argument (%1$s) is a sentence for another place, so it stays out.
+const editorWords = {
+  pipelines_block_: 'pipelineBlock',
+  pipelines_field_: 'pipelineField',
+};
 
-function blockTitles(words) {
-  return [...words.entries()]
-    .filter(([name, text]) =>
-      name.startsWith(blockPrefix) && !text.includes('%'))
-    .map(([name, text]) =>
-      [`pipelineBlock.${name.slice(blockPrefix.length)}`, text]);
+function editorTitles(words) {
+  return Object.entries(editorWords).flatMap(([prefix, group]) =>
+    [...words.entries()]
+      .filter(([name, text]) =>
+        name.startsWith(prefix) && !text.includes('%'))
+      .map(([name, text]) =>
+        [`${group}.${name.slice(prefix.length)}`, text]));
 }
 
 for (const [locale, folder] of Object.entries(folders)) {
@@ -101,7 +106,7 @@ for (const [locale, folder] of Object.entries(folders)) {
     count += 1;
   }
 
-  for (const [key, text] of blockTitles(words).sort()) {
+  for (const [key, text] of editorTitles(words).sort()) {
     place(tree, key, escapeVueI18n(unescapeCompose(text)));
   }
 
