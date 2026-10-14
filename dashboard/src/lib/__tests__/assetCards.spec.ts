@@ -50,28 +50,13 @@ afterEach(() => {
 });
 
 describe('emote frames', () => {
-  it('shows the still frames, small and large, when the reader asked for less motion', async () => {
+  // Owner 2026-10-14: "bring back the moving emotes". Emotes are chat content, like on Twitch, so the
+  // system's less-motion setting does not freeze them.
+  it('keeps the moving frames, small and large, even when the system asks for less motion', async () => {
     prefers(true);
-    const { catalogEmoteCard, emoteFrames, smallestUrl } = await load();
-
-    expect(smallestUrl(emoteFrames(animated))).toBe('https://cdn.7tv.app/e1/1x_static.webp');
-    expect(catalogEmoteCard(animated, t)?.image).toBe('https://cdn.7tv.app/e1/4x_static.webp');
-  });
-
-  it('keeps the moving frames when the reader did not ask for less motion', async () => {
-    prefers(false);
     const { catalogEmoteCard, emoteFrames, smallestUrl } = await load();
 
     expect(smallestUrl(emoteFrames(animated))).toBe('https://cdn.7tv.app/e1/1x.webp');
     expect(catalogEmoteCard(animated, t)?.image).toBe('https://cdn.7tv.app/e1/4x.webp');
-  });
-
-  it('keeps the moving frames when the server sent no still ones', async () => {
-    prefers(true);
-    const { emoteFrames, smallestUrl } = await load();
-
-    expect(smallestUrl(emoteFrames({ ...animated, staticUrls: null }))).toBe(
-      'https://cdn.7tv.app/e1/1x.webp',
-    );
   });
 });

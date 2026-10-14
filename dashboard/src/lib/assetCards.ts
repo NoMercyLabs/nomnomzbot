@@ -10,7 +10,6 @@
 
 import type { ChatEmoteEntry, ChatLine } from '@/api/chat';
 import type { KeyValueItem } from '@/components/layout/KeyValueList.vue';
-import { useReducedMotion } from '@/composables/useReducedMotion';
 
 type Fragment = ChatLine['fragments'][number];
 type Badge = ChatLine['badges'][number];
@@ -61,11 +60,9 @@ export type EmoteImages = {
   staticUrls?: null | Record<string, string>;
 };
 
-// The still frames when the reader asked for less motion; a still emote has the same frames either way.
+// Emotes always move, like on Twitch; the system's less-motion setting does not freeze chat content.
 export function emoteFrames(emote: EmoteImages): Record<string, string> {
-  return useReducedMotion().value && emote.staticUrls
-    ? emote.staticUrls
-    : emote.urls;
+  return emote.urls;
 }
 
 // The server already reads Twitch's tier code ("1000") as its number, 1 to 3.
