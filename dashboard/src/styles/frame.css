@@ -115,8 +115,9 @@
 [data-slot='tabs-trigger'][data-state='active'],
 [data-segment][data-state='on'] {
   color: var(--foreground);
-  background: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--border);
+  /* Neutral, not --accent: in dark mode --accent and --secondary are purple, and the kit's pill is grey. */
+  background: color-mix(in oklch, var(--foreground) 8%, var(--muted));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 12%, transparent);
 }
 
 /* A segmented choice inside a panel keeps its compact height; the 1px ring keeps the track visible on a
