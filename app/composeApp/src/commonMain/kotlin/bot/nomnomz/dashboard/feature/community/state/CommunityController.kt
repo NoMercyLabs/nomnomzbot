@@ -145,7 +145,7 @@ class CommunityController(
     }
 
     // Fetch the current role/page, sort it "most recently active first" (the default the owner asked for —
-    // [CommunityMember.lastSeen] is an ISO-8601 string, so a plain descending string sort orders it correctly),
+    // [CommunityMember.lastSeen] is an ISO-8601 string, so a plain descending string sort orders it correctly; a person never seen sorts last),
     // and project it. [isInitial] distinguishes the first full-page load (a failure or a truly empty community
     // becomes a full-page Error/Empty) from a navigation/reload (a failure surfaces over the kept list, an
     // empty filtered role just shows an empty list under its filter).
@@ -173,7 +173,7 @@ class CommunityController(
             is ApiResult.Ok -> {
                 val page: CommunityPage = result.value
                 lastNextCursor = page.nextCursor
-                val members: List<CommunityMember> = page.data.sortedByDescending { it.lastSeen }
+                val members: List<CommunityMember> = page.data.sortedByDescending { it.lastSeen.orEmpty() }
                 _state.value =
                     if (
                         isInitial &&

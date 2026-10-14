@@ -158,7 +158,8 @@ const roleText = computed<string>(() => {
 const relationship = computed<KeyValueItem[]>(() => {
   const who = props.person;
   const first = props.profile?.identity.firstSeenUtc ?? who.firstSeen;
-  const ago = agoText(who.lastSeen, new Date(), locale.value);
+  const last = who.lastSeen ?? undefined;
+  const ago = agoText(last, new Date(), locale.value);
   const tier = tierNumber(props.profile?.identity.subTier);
   const bits = Number(props.profile?.activity?.totalBitsCheered ?? 0);
 
@@ -189,8 +190,18 @@ const relationship = computed<KeyValueItem[]>(() => {
         ? bits.toLocaleString(locale.value)
         : null,
     },
-    { label: t('profile.facts.firstSeen'), value: shortDate(first, locale.value) },
-    { label: t('profile.facts.lastSeen'), value: `${shortDate(who.lastSeen, locale.value)} (${ago})` },
+    {
+      label: t('profile.facts.firstSeen'),
+      value: first
+        ? shortDate(first, locale.value)
+        : null,
+    },
+    {
+      label: t('profile.facts.lastSeen'),
+      value: last
+        ? `${shortDate(last, locale.value)} (${ago})`
+        : null,
+    },
   ].filter(present);
 });
 

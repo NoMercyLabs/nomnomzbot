@@ -250,9 +250,9 @@ data class CommunityMember(
     val messageCount: Int = 0,
     val watchHours: Double = 0.0,
     val commandsUsed: Int = 0,
-    /** ISO-8601 first-/last-seen timestamps (backend DateTime). */
-    val firstSeen: String = "",
-    val lastSeen: String = "",
+    /** ISO-8601 first-/last-seen timestamps (backend DateTime?); null when the bot never observed the person. */
+    val firstSeen: String? = null,
+    val lastSeen: String? = null,
 )
 
 /**

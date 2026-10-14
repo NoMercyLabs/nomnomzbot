@@ -29,7 +29,9 @@ const { t, locale } = useI18n();
 const ago = useTimeAgoIntl(() => props.person.lastSeen, { locale: locale.value });
 
 const lastSeen = computed<string>(() =>
-  t('dashboard.people.list.lastSeen', { ago: ago.value }),
+  props.person.lastSeen
+    ? t('dashboard.people.list.lastSeen', { ago: ago.value })
+    : t('dashboard.people.list.neverSeen'),
 );
 const initials = computed<string>(() =>
   props.person.displayName.slice(0, 2).toUpperCase(),

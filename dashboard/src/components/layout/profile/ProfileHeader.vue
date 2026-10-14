@@ -47,7 +47,7 @@ const inDialog = injectDialogRootContext(null) !== null;
 const who = computed<ProfilePreview | null>(() => props.person ?? props.preview ?? null);
 const title = computed<string>(() => who.value?.displayName ?? t('profile.title'));
 const pronouns = computed<string | null>(() => props.profile?.identity.pronoun ?? null);
-const lastSeen = computed<string>(() => agoText(props.person?.lastSeen, new Date(), locale.value));
+const lastSeen = computed<string>(() => agoText(props.person?.lastSeen ?? undefined, new Date(), locale.value));
 
 const stats = computed<Stat[]>(() => {
   const who = props.person;
