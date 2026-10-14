@@ -30,7 +30,7 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 px-6 pt-4 pb-6">
+  <div data-page-body class="min-h-0 flex-1 px-6 pt-4 pb-6">
     <PanelCard
       :title="$t('dashboard.commands.builtin.title')"
       :state="state"

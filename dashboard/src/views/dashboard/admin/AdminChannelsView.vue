@@ -116,8 +116,8 @@ function pick(row: AdminTenant): void {
       </div>
     </template>
   </PageHeader>
-  <div class="flex min-h-0 flex-1 flex-col gap-3 p-6">
-    <SearchField v-model="search" :placeholder="$t('dashboard.admin.search')" />
+  <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6">
+    <SearchField v-model="search" class="max-md:mx-4" :placeholder="$t('dashboard.admin.search')" />
     <PanelCard
       tier="lead"
       class="min-h-80 flex-1"

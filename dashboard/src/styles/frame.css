@@ -222,6 +222,19 @@ a:not([data-slot]):hover {
   text-decoration-color: var(--foreground);
 }
 
+/* On a phone the screen edge is the only frame, as in the Twitch app: a page body keeps no side margin and its
+   panels run edge to edge, so the text sits one panel padding from the edge instead of two (owner 2026-10-14:
+   "remove all double side margins for a better mobile app feel"). */
+@media (width < 48rem) {
+  [data-page-body] {
+    padding-inline: 0;
+  }
+  [data-page-body] [data-slot='panel-card'] {
+    border-inline-width: 0;
+    border-radius: 0;
+  }
+}
+
 /* Status is a dot beside plain text, never a tinted pill (owner 2026-10-13: too many colors). */
 .dot {
   display: inline-block;

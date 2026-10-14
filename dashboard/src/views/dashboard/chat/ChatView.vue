@@ -239,8 +239,8 @@ async function confirmBan(): Promise<void> {
       </div>
     </template>
   </PageHeader>
-  <div class="flex min-h-0 flex-1 flex-col gap-3 p-6">
-    <p v-if="banFailed" role="alert" class="text-sm text-destructive">
+  <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:py-0">
+    <p v-if="banFailed" role="alert" class="text-sm text-destructive max-md:px-4 max-md:pt-3">
       {{ $t('dashboard.chat.ban.failed') }}
     </p>
     <div class="flex min-h-0 flex-1 gap-3">

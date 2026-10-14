@@ -178,6 +178,33 @@ describe('folder layout', () => {
     );
   });
 
+  // Stoney 2026-10-14: "remove all double side margins for a better mobile app feel". On a phone a page body
+  // drops its side margin and its panels run edge to edge; the panel pages must carry the marker.
+  it('runs the panels of a page body edge to edge on a phone', () => {
+    const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8');
+    const bodies = [
+      'components/layout/BoardGrid.vue',
+      'views/dashboard/chat/ChatView.vue',
+      'views/dashboard/commands/components/BuiltinList.vue',
+      'views/dashboard/admin/AdminChannelsView.vue',
+    ];
+
+    expect(frame).toMatch(
+      /@media \(width < 48rem\)\s*\{\s*\[data-page-body\]\s*\{\s*padding-inline:\s*0;\s*\}\s*\[data-page-body\] \[data-slot='panel-card'\]\s*\{[^}]*border-inline-width:\s*0;[^}]*border-radius:\s*0;/,
+    );
+
+    const marked = (path: string): boolean => {
+      const text: string = readFileSync(join(src, path), 'utf8');
+
+      return /<(div|section)\b[^>]*\bdata-page-body\b/.test(text);
+    };
+
+    const unmarked = bodies.filter((path) =>
+      !marked(path));
+
+    expect(unmarked).toEqual([]);
+  });
+
   // A toast or tooltip works on every page only when the frame mounts its host once; a page that mounts its
   // own stacks a second host, and a page without one shows nothing.
   it('mounts the toast host and the tooltip provider once, in the dashboard frame', () => {

@@ -21,8 +21,9 @@ const rowTemplate = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr)
 <template>
   <section
     data-slot="board-grid"
+    data-page-body
     class="grid min-h-0 flex-1 auto-rows-[minmax(20rem,auto)] grid-cols-1 gap-4 overflow-y-auto px-4 pt-4
-      pb-6 lg:grid-cols-12 lg:[grid-template-rows:var(--board-rows)] lg:overflow-visible lg:px-6"
+      pb-6 lg:grid-cols-12 lg:grid-rows-(--board-rows) lg:overflow-visible lg:px-6"
     :style="{ '--board-rows': rowTemplate }"
   >
     <slot />
