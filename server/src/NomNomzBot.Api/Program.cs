@@ -417,6 +417,7 @@ try
     {
         options.AddSchemaTransformer(new UlidGuidSchemaTransformer());
         options.AddSchemaTransformer(new OpenMapSchemaTransformer());
+        options.AddSchemaTransformer(new OmitNullableRequiredSchemaTransformer());
     });
 
     // CORS
