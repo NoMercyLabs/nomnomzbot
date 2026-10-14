@@ -65,7 +65,10 @@ public sealed record StreamListItemDto(
     DateTimeOffset? StartedAt,
     DateTimeOffset? EndedAt,
     long? DurationSeconds,
-    int? PeakViewers
+    int? PeakViewers,
+    long TotalMessages,
+    int UniqueChatters,
+    int NewFollowers
 );
 
 /// <summary>

@@ -295,6 +295,50 @@ public sealed class ChannelAnalyticsServiceTests
     }
 
     [Fact]
+    public async Task ListStreams_counts_chat_chatters_and_follows_per_row_inside_each_window()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        DateTimeOffset olderStart = StreamStart.AddDays(-2);
+        DateTimeOffset olderEnd = olderStart.AddHours(2);
+        db.Streams.AddRange(
+            StreamRow("s-old", olderStart, olderEnd),
+            StreamRow("s-new", StreamStart, StreamEnd),
+            StreamRow("s-quiet", StreamStart.AddDays(-5), StreamStart.AddDays(-5).AddHours(1))
+        );
+        db.ChatMessages.AddRange(
+            ChatLine("n-1", "viewer-a", StreamStart.AddMinutes(5)),
+            ChatLine("n-2", "viewer-a", StreamStart.AddMinutes(6)),
+            ChatLine("n-3", "viewer-b", StreamStart.AddMinutes(7)),
+            ChatLine("n-4", "viewer-c", StreamStart.AddMinutes(8)),
+            ChatLine("o-1", "viewer-a", olderStart.AddMinutes(10)),
+            ChatLine("o-2", "viewer-d", olderStart.AddMinutes(20)),
+            ChatLine("gap", "viewer-a", olderEnd.AddHours(1)),
+            ChatLine("after", "viewer-a", StreamEnd.AddMinutes(1))
+        );
+        db.ChannelEvents.AddRange(
+            EventRow("f-1", "channel.follow", StreamStart.AddMinutes(9)),
+            EventRow("f-2", "channel.follow", StreamStart.AddMinutes(10)),
+            EventRow("f-3", "channel.follow", olderStart.AddMinutes(30)),
+            EventRow("sub", "channel.subscribe", StreamStart.AddMinutes(11)),
+            EventRow("f-out", "channel.follow", StreamEnd.AddHours(2))
+        );
+        await db.SaveChangesAsync();
+
+        PagedList<StreamListItemDto> page = (
+            await sut.ListStreamsAsync(Channel, new(1, 25, null, null))
+        ).Value;
+
+        StreamListItemDto current = page.Items.Single(s => s.StreamId == "s-new");
+        (current.TotalMessages, current.UniqueChatters, current.NewFollowers)
+            .Should()
+            .Be((4L, 3, 2));
+        StreamListItemDto older = page.Items.Single(s => s.StreamId == "s-old");
+        (older.TotalMessages, older.UniqueChatters, older.NewFollowers).Should().Be((2L, 2, 1));
+        StreamListItemDto quiet = page.Items.Single(s => s.StreamId == "s-quiet");
+        (quiet.TotalMessages, quiet.UniqueChatters, quiet.NewFollowers).Should().Be((0L, 0, 0));
+    }
+
+    [Fact]
     public async Task GetStream_folds_only_the_activity_inside_the_streams_window()
     {
         (ChannelAnalyticsService sut, AuthDbContext db) = Build();
