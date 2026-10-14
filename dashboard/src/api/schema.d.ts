@@ -23119,6 +23119,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/community/{userId}/emotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The emotes this person's OWN Twitch channel offers (Twitch tiers/follower/bits plus 7TV, BTTV, FFZ) — the
+         *     asset-inspection section of the profile. userId is the internal `User.Id` Guid, as
+         *     on the profile route. A person with no Twitch identity or no emotes gets an empty list.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    userId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfChatEmoteCatalogueDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/community/search": {
         parameters: {
             query?: never;
@@ -83123,11 +83221,11 @@ export interface components {
         ActionDefaultDto: {
             actionKey: string;
             plane: components["schemas"]["AuthPlane"];
-            description: null | string;
+            description?: null | string;
             /** Format: int32 */
             shippedDefaultLevel: number | string;
             /** Format: int32 */
-            platformDefaultLevel: null | number | string;
+            platformDefaultLevel?: null | number | string;
             /** Format: int32 */
             effectiveDefaultLevel: number | string;
             /** Format: int32 */
@@ -83149,7 +83247,7 @@ export interface components {
             actionDefinitionId: string;
             actionKey: string;
             plane: components["schemas"]["AuthPlane"];
-            description: null | string;
+            description?: null | string;
             /** Format: int32 */
             defaultLevel: number | string;
             /** Format: int32 */
@@ -83157,7 +83255,7 @@ export interface components {
             floorTier: components["schemas"]["DangerTier"];
             isGrantableViaPermit: boolean;
             /** Format: int32 */
-            overrideLevel: null | number | string;
+            overrideLevel?: null | number | string;
             /** Format: int32 */
             effectiveLevel: number | string;
         };
@@ -83188,8 +83286,8 @@ export interface components {
             /** Format: date-time */
             detectedAt: string;
             deepLinkRoute: string;
-            sourceUserId: null | string;
-            sourceUserName: null | string;
+            sourceUserId?: null | string;
+            sourceUserName?: null | string;
             /** Format: int32 */
             count: number | string;
             queueItemIds: string[];
@@ -83203,9 +83301,9 @@ export interface components {
         ActivityEventDto: {
             id: string;
             type: string;
-            userId: null | string;
-            username: null | string;
-            data: null | string;
+            userId?: null | string;
+            username?: null | string;
+            data?: null | string;
             /** Format: date-time */
             timestamp: string;
         };
@@ -83220,7 +83318,7 @@ export interface components {
             /** Format: date-time */
             validFrom: string;
             /** Format: date-time */
-            validTo: null | string;
+            validTo?: null | string;
         };
         AddModerationNoteRequest: {
             note: string;
@@ -83228,15 +83326,15 @@ export interface components {
         /** @description Create payload for a new quote (quotes.md §3). `QuotedAt` defaults to creation when null. */
         AddQuoteRequest: {
             text: string;
-            quotedDisplayName: null | string;
-            contextGame: null | string;
+            quotedDisplayName?: null | string;
+            contextGame?: null | string;
             /** Format: date-time */
-            quotedAt: null | string;
+            quotedAt?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            createdByUserId: null | string;
+            createdByUserId?: null | string;
         };
         AddTermRequest: {
             term: string;
@@ -83288,7 +83386,7 @@ export interface components {
             fromUtc: string;
             /** Format: date-time */
             toUtc: string;
-            eventType: null | string;
+            eventType?: null | string;
             /** Format: int64 */
             expectedCount: number | string;
         };
@@ -83308,7 +83406,7 @@ export interface components {
             fromUtc: string;
             /** Format: date-time */
             toUtc: string;
-            eventType: null | string;
+            eventType?: null | string;
             /** Format: int64 */
             matchingEventCount: number | string;
         };
@@ -83323,7 +83421,7 @@ export interface components {
             fromUtc: string;
             /** Format: date-time */
             toUtc: string;
-            eventType: null | string;
+            eventType?: null | string;
         };
         /**
          * @description The outcome of an admin-initiated replay: long AdminEventReplayResultDto.AppliedCount journal events in the stated scope
@@ -83341,7 +83439,7 @@ export interface components {
             fromUtc: string;
             /** Format: date-time */
             toUtc: string;
-            eventType: null | string;
+            eventType?: null | string;
             /** Format: int64 */
             appliedCount: number | string;
         };
@@ -83370,7 +83468,7 @@ export interface components {
             version: string;
             status: string;
             enabled: boolean;
-            lastError: null | string;
+            lastError?: null | string;
             /** Format: date-time */
             lastConfirmedAt: string;
         };
@@ -83409,14 +83507,14 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId: string;
-            pipelineName: null | string;
+            pipelineName?: null | string;
             pipelineExists: boolean;
             status: string;
             displayState: string;
             /** Format: date-time */
             dueAt: string;
             /** Format: date-time */
-            firedAt: null | string;
+            firedAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             triggeredByDisplayName: string;
@@ -83478,7 +83576,7 @@ export interface components {
             name: string;
             twitchChannelId: string;
             status: string;
-            suspendedReason: null | string;
+            suspendedReason?: null | string;
             billingTierKey: string;
             deploymentMode: string;
             /**
@@ -83492,7 +83590,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            suspendedAt: null | string;
+            suspendedAt?: null | string;
         };
         /** @description One tenant row for the operator console (stream-admin.md §4 Platform admin). */
         AdminTenantDto: {
@@ -83509,7 +83607,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            suspendedAt: null | string;
+            suspendedAt?: null | string;
         };
         /**
          * @description One tenant's error budget for the trailing 24-hour window, computed purely from real
@@ -83538,11 +83636,11 @@ export interface components {
             /** Format: int64 */
             errors: number | string;
             /** Format: double */
-            errorRate: null | number | string;
+            errorRate?: null | number | string;
             /** Format: double */
             targetSuccessRate: number | string;
             /** Format: double */
-            budgetRemainingFraction: null | number | string;
+            budgetRemainingFraction?: null | number | string;
         };
         /** @description One currency's worth of a tenant's total priced usage cost for the period. */
         AdminTenantUsageCostDto: {
@@ -83598,14 +83696,14 @@ export interface components {
             id: string;
             displayName: string;
             login: string;
-            email: null | string;
+            email?: null | string;
             role: string;
             /** Format: int32 */
             channelCount: number | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            lastActive: null | string;
+            lastActive?: null | string;
         };
         /**
          * @description One delivery attempt across ALL tenants, for the platform-wide delivery log. string AdminWebhookDeliveryDto.EndpointName
@@ -83631,10 +83729,10 @@ export interface components {
             attempt: number | string;
             status: string;
             /** Format: int32 */
-            responseCode: null | number | string;
+            responseCode?: null | number | string;
             /** Format: int32 */
-            durationMs: null | number | string;
-            error: null | string;
+            durationMs?: null | number | string;
+            error?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -83649,7 +83747,7 @@ export interface components {
             newDeliveryId: number | string;
             status: string;
             /** Format: int32 */
-            responseCode: null | number | string;
+            responseCode?: null | number | string;
         };
         /**
          * @description The channel's auto-provisioned alert overlay (widgets-overlays.md §1.2): its OBS browser-source URL and
@@ -83658,7 +83756,7 @@ export interface components {
         AlertOverlayDto: {
             overlayUrl: string;
             /** Format: date-time */
-            lastRanAt: null | string;
+            lastRanAt?: null | string;
         };
         /**
          * @description The alert queue's read model plus honest connection state (widgets-overlays.md §1.2, the
@@ -83685,7 +83783,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            deliveredAt: null | string;
+            deliveredAt?: null | string;
         };
         AnnounceRequest: {
             message: string;
@@ -83694,7 +83792,7 @@ export interface components {
         /** @description Apply a network-wide block — the confirmed count must match a freshly recomputed one. */
         ApplyNetworkBlockRequest: {
             targetTwitchUserId: string;
-            reason: null | string;
+            reason?: null | string;
             justification: string;
             /** Format: int32 */
             confirmedTenantCount: number | string;
@@ -83719,10 +83817,10 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            scopeChannelId: null | string;
+            scopeChannelId?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
-            reason: null | string;
+            expiresAt?: null | string;
+            reason?: null | string;
         };
         /**
          * @description Author (create or reprice) one unit. Upsert by string AuthorPricedUnitRequest.UnitKey: a key with no existing row is
@@ -83765,7 +83863,7 @@ export interface components {
             type: string;
             isActive: boolean;
             /** Format: int32 */
-            volumePercent: null | number | string;
+            volumePercent?: null | number | string;
         };
         /** @description Body of the anonymous device-poll action. */
         AutomationDevicePollRequest: {
@@ -83825,8 +83923,8 @@ export interface components {
          *     never drift (produced by the single Infrastructure-layer MusicAutomationProjection helper).
          */
         AutomationNowPlayingDto: {
-            title: null | string;
-            artist: null | string;
+            title?: null | string;
+            artist?: null | string;
             /** Format: int32 */
             durationMs: number | string;
             /** Format: int32 */
@@ -83834,12 +83932,12 @@ export interface components {
             isPlaying: boolean;
             shuffleEnabled: boolean;
             repeatMode: string;
-            isSaved: null | boolean;
+            isSaved?: null | boolean;
             /** Format: date-time */
             serverTime: string;
             /** Format: int32 */
             volumePercent: number | string;
-            albumArtUrl: null | string;
+            albumArtUrl?: null | string;
             /** @default true */
             canSetShuffle: boolean;
             /** @default true */
@@ -83873,9 +83971,9 @@ export interface components {
         AutomationObsInputDto: {
             name: string;
             kind: string;
-            muted: null | boolean;
+            muted?: null | boolean;
             /** Format: double */
-            volumeDb: null | number | string;
+            volumeDb?: null | number | string;
         };
         /**
          * @description One OBS scene, as the data plane lists it for a property-inspector picker (S-STREAMDECK-OBS-REMAINDER)
@@ -83934,7 +84032,7 @@ export interface components {
             uri: string;
             /** Format: int32 */
             trackCount: number | string;
-            imageUrl: null | string;
+            imageUrl?: null | string;
         };
         /** @description An automation API token as the dashboard sees it — the secret never appears here. */
         AutomationTokenDto: {
@@ -83948,11 +84046,11 @@ export interface components {
             scopes: string[];
             allowedPipelineIds: string[];
             /** Format: date-time */
-            lastUsedAt: null | string;
+            lastUsedAt?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             /** Format: date-time */
-            revokedAt: null | string;
+            revokedAt?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -83998,7 +84096,7 @@ export interface components {
         BannedUserDto: {
             userId: string;
             username: string;
-            reason: null | string;
+            reason?: null | string;
             bannedBy: string;
             /** Format: date-time */
             bannedAt: string;
@@ -84006,11 +84104,11 @@ export interface components {
         BanRecordDto: {
             id: string;
             bannedBy: string;
-            reason: null | string;
+            reason?: null | string;
             /** Format: date-time */
             bannedAt: string;
             /** Format: date-time */
-            unbannedAt: null | string;
+            unbannedAt?: null | string;
         };
         BanRequest: {
             reason: string;
@@ -84033,7 +84131,7 @@ export interface components {
             justification: string;
             breakGlass: boolean;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /** @description A Stripe billing-portal redirect. */
         BillingPortalDto: {
@@ -84088,8 +84186,8 @@ export interface components {
             provider: string;
             trackUri: string;
             title: string;
-            reason: null | string;
-            blockedByUserId: null | string;
+            reason?: null | string;
+            blockedByUserId?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -84108,9 +84206,9 @@ export interface components {
         /** @description DTO describing the connected bot account. */
         BotStatusDto: {
             connected: boolean;
-            login: null | string;
-            displayName: null | string;
-            profileImageUrl: null | string;
+            login?: null | string;
+            displayName?: null | string;
+            profileImageUrl?: null | string;
         };
         /** @description A built-in command as one channel sees it. */
         BuiltinCommandDto: {
@@ -84137,9 +84235,9 @@ export interface components {
              * Format: int32
              * @description The channel's own cooldown; null = the default applies.
              */
-            cooldownSecondsOverride: null | number | string;
+            cooldownSecondsOverride?: null | number | string;
             /** @description The channel's own floor (rung name); null = the default applies. */
-            minPermissionLevelOverride: null | string;
+            minPermissionLevelOverride?: null | string;
             /**
              * Format: int32
              * @description How many replies of its reply group the channel has reworded.
@@ -84148,7 +84246,7 @@ export interface components {
         };
         /** @description A proposed reply text (null = back to the shipped wording) — the preview body. */
         BuiltinReplyDefaultChange: {
-            template: null | string;
+            template?: null | string;
         };
         /**
          * @description One built-in response slot as the admin editor shows it. ShippedTemplate is the wording a
@@ -84160,8 +84258,8 @@ export interface components {
         BuiltinReplyDefaultDto: {
             builtinKey: string;
             slot: string;
-            shippedTemplate: null | string;
-            platformTemplate: null | string;
+            shippedTemplate?: null | string;
+            platformTemplate?: null | string;
             /** Format: int32 */
             channelsWithOwnReply: number | string;
         };
@@ -84204,14 +84302,14 @@ export interface components {
         BundleMetadata: {
             name: string;
             version: string;
-            author: null | string;
-            license: null | string;
-            description: null | string;
+            author?: null | string;
+            license?: null | string;
+            description?: null | string;
         };
         /** @description Cancel the subscription (immediate or at period end). */
         CancelSubscriptionRequest: {
             atPeriodEnd: boolean;
-            reason: null | string;
+            reason?: null | string;
         };
         /**
          * @description One outward/mutating effect the real logic tried to perform during a dry-run, RECORDED instead of executed.
@@ -84230,27 +84328,27 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             sinkType: string;
             /** Format: int64 */
             cost: number | string;
-            iconUrl: null | string;
+            iconUrl?: null | string;
             isEnabled: boolean;
             permission: string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
             cooldownPerUser: boolean;
             /** Format: int32 */
-            stockLimit: null | number | string;
+            stockLimit?: null | number | string;
             /** Format: int32 */
-            stockRemaining: null | number | string;
+            stockRemaining?: null | number | string;
             /** Format: int32 */
-            maxPerViewerPerStream: null | number | string;
+            maxPerViewerPerStream?: null | number | string;
             /** Format: int32 */
             sortOrder: number | string;
             /** Format: date-time */
@@ -84282,15 +84380,15 @@ export interface components {
             itemNameSnapshot: string;
             status: string;
             /** Format: int64 */
-            ledgerEntryId: null | number | string;
-            inputArgs: null | string;
+            ledgerEntryId?: null | number | string;
+            inputArgs?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
         CategoryDto: {
             id: string;
             name: string;
-            boxArtUrl: null | string;
+            boxArtUrl?: null | string;
         };
         /** @description Change the active tier (upgrade/downgrade). */
         ChangeTierRequest: {
@@ -84326,7 +84424,7 @@ export interface components {
             /** Format: int32 */
             gamesPlayed: number | string;
             /** Format: int32 */
-            peakViewers: null | number | string;
+            peakViewers?: null | number | string;
         };
         /** @description % change of each headline metric vs the preceding equal-length window (0 when the prior window is 0). */
         ChannelAnalyticsDeltasDto: {
@@ -84387,7 +84485,7 @@ export interface components {
             /** Format: int64 */
             currencySpentTotal: number | string;
             /** Format: int32 */
-            peakViewers: null | number | string;
+            peakViewers?: null | number | string;
             deltas: components["schemas"]["ChannelAnalyticsDeltasDto"];
         };
         ChannelAssetDto: {
@@ -84421,7 +84519,7 @@ export interface components {
         ChannelBanOutcomeDto: {
             broadcasterLogin: string;
             succeeded: boolean;
-            error: null | string;
+            error?: null | string;
         };
         /**
          * @description The channel's onboarding "basics" — the settable-anywhere command string ChannelBasicsDto.Prefix, the default
@@ -84430,10 +84528,10 @@ export interface components {
          */
         ChannelBasicsDto: {
             prefix: string;
-            botLinePrefix: null | string;
-            locale: null | string;
+            botLinePrefix?: null | string;
+            locale?: null | string;
             autoJoin: boolean;
-            timezone: null | string;
+            timezone?: null | string;
         };
         /**
          * @description Everything the delete-channel confirmation must state BEFORE the button can be pressed — the largest blast
@@ -84472,17 +84570,17 @@ export interface components {
             id: string;
             name: string;
             displayName: string;
-            profileImageUrl: null | string;
+            profileImageUrl?: null | string;
             isLive: boolean;
             isOnboarded: boolean;
-            title: null | string;
-            gameName: null | string;
+            title?: null | string;
+            gameName?: null | string;
             /** Format: int32 */
-            viewerCount: null | number | string;
+            viewerCount?: null | number | string;
             /** Format: date-time */
-            botJoinedAt: null | string;
+            botJoinedAt?: null | string;
             subscriptionTier: string;
-            language: null | string;
+            language?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -84501,7 +84599,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            peerId: null | string;
+            peerId?: null | string;
             optInType: string;
             direction: string;
             isEnabled: boolean;
@@ -84519,7 +84617,7 @@ export interface components {
             category: string;
             description: string;
             connected: boolean;
-            connectedAs: null | string;
+            connectedAs?: null | string;
             authStatus?: null | string;
         };
         /** @description A channel-management membership row for the dashboard roles screen (roles-permissions §4). */
@@ -84534,7 +84632,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             userId: string;
-            username: null | string;
+            username?: null | string;
             role: components["schemas"]["ManagementRole"];
             /** Format: int32 */
             levelValue: number | string;
@@ -84543,16 +84641,16 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            grantedByUserId: null | string;
+            grantedByUserId?: null | string;
             /** Format: date-time */
             grantedAt: string;
             /** Format: date-time */
-            lastSyncedAt: null | string;
+            lastSyncedAt?: null | string;
         };
         /** @description A channel's own name and the way TTS says it, or null when TTS reads the name as written. */
         ChannelNamePronunciationDto: {
             channelName: string;
-            pronunciation: null | string;
+            pronunciation?: null | string;
         };
         /**
          * @description A channel's built-in-command personality tone. string ChannelPersonalityDto.Personality is the canonical tone token
@@ -84568,11 +84666,11 @@ export interface components {
             id: string;
             displayName: string;
             login: string;
-            thumbnailUrl: null | string;
+            thumbnailUrl?: null | string;
         };
         /** @description Read-model for a channel's Spotify BYOC state — never carries the secret. */
         ChannelSpotifyCredentialsDto: {
-            clientId: null | string;
+            clientId?: null | string;
             hasClientSecret: boolean;
         };
         /**
@@ -84587,11 +84685,11 @@ export interface components {
             id: string;
             login: string;
             displayName: string;
-            profileImageUrl: null | string;
+            profileImageUrl?: null | string;
             isLive: boolean;
             role: string;
             /** Format: int32 */
-            viewerCount: null | number | string;
+            viewerCount?: null | number | string;
             provider: string;
             chatColor?: null | string;
         };
@@ -84602,7 +84700,7 @@ export interface components {
         ChatBadgeDto: {
             setId: string;
             id: string;
-            info: null | string;
+            info?: null | string;
             urls: {
                 [key: string]: string;
             };
@@ -84618,11 +84716,11 @@ export interface components {
             bits: number | string;
             /** Format: int32 */
             tier: number | string;
-            urls: null | {
+            urls?: null | {
                 [key: string]: string;
             };
             animated: boolean;
-            colorHex: null | string;
+            colorHex?: null | string;
         };
         ChatEmoteCatalogueDto: {
             code: string;
@@ -84632,7 +84730,7 @@ export interface components {
             };
             animated: boolean;
             zeroWidth: boolean;
-            setId: null | string;
+            setId?: null | string;
             id?: null | string;
             type?: null | string;
             /** Format: int32 */
@@ -84649,7 +84747,7 @@ export interface components {
          */
         ChatEmoteDto: {
             id: string;
-            setId: null | string;
+            setId?: null | string;
             format: string;
             provider: string;
             urls: {
@@ -84670,10 +84768,10 @@ export interface components {
          *     provider or cache does not have is null.
          */
         ChatEmoteOwnerDto: {
-            id: null | string;
-            login: null | string;
-            displayName: null | string;
-            profileUrl: null | string;
+            id?: null | string;
+            login?: null | string;
+            displayName?: null | string;
+            profileUrl?: null | string;
         };
         /**
          * @description What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout
@@ -84693,11 +84791,11 @@ export interface components {
             id: string;
             filterType: components["schemas"]["ChatFilterType"];
             name: string;
-            pattern: null | string;
+            pattern?: null | string;
             terms: string[];
             action: components["schemas"]["ChatFilterAction"];
             /** Format: int32 */
-            timeoutSeconds: null | number | string;
+            timeoutSeconds?: null | number | string;
             /** Format: int32 */
             exemptMinRoleLevel: number | string;
             isEnabled: boolean;
@@ -84716,7 +84814,7 @@ export interface components {
          */
         ChatFilterTestResult: {
             isMatch: boolean;
-            compileError: null | string;
+            compileError?: null | string;
         };
         /**
          * @description How a `ChatFilter` (moderation.md J.6) matches a chat message: a compiled ChatFilterType.Regex
@@ -84731,7 +84829,7 @@ export interface components {
             emote: null | components["schemas"]["ChatEmoteDto"];
             cheermote: null | components["schemas"]["ChatCheermoteDto"];
             mention: null | components["schemas"]["ChatMentionDto"];
-            linkUrl: null | string;
+            linkUrl?: null | string;
             linkPreview: null | components["schemas"]["ChatLinkPreviewDto"];
             gif?: null | components["schemas"]["ChatGifDto"];
         };
@@ -84746,9 +84844,9 @@ export interface components {
         /** @description OpenGraph link-preview data (chat-decoration spec §3.5); fields are null when the page exposes no tags. */
         ChatLinkPreviewDto: {
             host: string;
-            title: null | string;
-            description: null | string;
-            imageUrl: null | string;
+            title?: null | string;
+            description?: null | string;
+            imageUrl?: null | string;
         };
         /**
          * @description Mention fragment data (@user) plus the mentioned user's last-seen chat colour as #RRGGBB (chat-decoration spec §3.1),
@@ -84758,7 +84856,7 @@ export interface components {
             userId: string;
             username: string;
             displayName: string;
-            color: null | string;
+            color?: null | string;
         };
         /**
          * @description A 7TV paint, already flattened to the CSS a widget applies directly — the wire mirror of
@@ -84767,9 +84865,9 @@ export interface components {
         ChatPaintDto: {
             id: string;
             name: string;
-            backgroundImage: null | string;
-            color: null | string;
-            textShadow: null | string;
+            backgroundImage?: null | string;
+            color?: null | string;
+            textShadow?: null | string;
             isImageOnly: boolean;
         };
         /**
@@ -84790,9 +84888,9 @@ export interface components {
             /** Format: date-time */
             openedAt: string;
             /** Format: date-time */
-            closesAt: null | string;
+            closesAt?: null | string;
             /** Format: date-time */
-            closedAt: null | string;
+            closedAt?: null | string;
         };
         /** @description One option's live tally. */
         ChatPollOptionDto: {
@@ -84834,7 +84932,7 @@ export interface components {
         };
         ChatSearchResultDto: {
             messages: components["schemas"]["DashboardChatMessageDto"][];
-            nextCursor: null | string;
+            nextCursor?: null | string;
         };
         ChatSettingsDto: {
             slowMode: boolean;
@@ -84861,12 +84959,12 @@ export interface components {
             matchType: string;
             caseSensitive: boolean;
             isEnabled: boolean;
-            response: null | string;
+            response?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
             minPermissionLevel: string;
@@ -84887,7 +84985,7 @@ export interface components {
             ok: boolean;
             ready: boolean;
             status: string;
-            detail: null | string;
+            detail?: null | string;
         };
         /** @description A Stripe Checkout session redirect. */
         CheckoutSessionDto: {
@@ -84922,7 +85020,7 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             codes: components["schemas"]["MaskedCodeDto"][];
         };
         /** @description A code pool summary — counts only, never code contents (D6). */
@@ -84933,7 +85031,7 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             /** Format: int32 */
             total: number | string;
             /** Format: int32 */
@@ -84948,14 +85046,14 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             isEnabled: boolean;
             language: string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            currentVersionId: null | string;
+            currentVersionId?: null | string;
             currentVersion: null | components["schemas"]["CodeScriptVersionDto"];
             /** Format: date-time */
             createdAt: string;
@@ -84969,14 +85067,14 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             isEnabled: boolean;
             /** Format: int32 */
-            currentVersion: null | number | string;
+            currentVersion?: null | number | string;
             currentValidationStatus: string;
-            lastRuntimeError: null | string;
+            lastRuntimeError?: null | string;
             /** Format: date-time */
-            lastRanAt: null | string;
+            lastRanAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -85001,7 +85099,7 @@ export interface components {
             validationErrors: components["schemas"]["ScriptValidationError"][];
             declaredCapabilities: string[];
             /** Format: date-time */
-            publishedAt: null | string;
+            publishedAt?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -85019,22 +85117,22 @@ export interface components {
             minPermissionLevel: string;
             isEnabled: boolean;
             prefixMode: string;
-            customPrefix: null | string;
+            customPrefix?: null | string;
             matchMode: string;
-            matchPattern: null | string;
-            templateResponse: null | string;
-            templateResponses: null | string[];
+            matchPattern?: null | string;
+            templateResponse?: null | string;
+            templateResponses?: null | string[];
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
             /** Format: int32 */
             userCooldownSeconds: number | string;
             cooldownPerUser: boolean;
-            description: null | string;
+            description?: null | string;
             aliases: string[];
             /** Format: int64 */
             useCount: number | string;
@@ -85061,27 +85159,27 @@ export interface components {
             minPermissionLevel: string;
             isEnabled: boolean;
             prefixMode: string;
-            customPrefix: null | string;
+            customPrefix?: null | string;
             matchMode: string;
-            matchPattern: null | string;
+            matchPattern?: null | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
             /** Format: int32 */
             userCooldownSeconds: number | string;
             cooldownPerUser: boolean;
-            description: null | string;
+            description?: null | string;
             aliases: string[];
             /** Format: int64 */
             useCount: number | string;
             /** Format: date-time */
             createdAt: string;
-            templateResponse: null | string;
-            templateResponses: null | string[];
+            templateResponse?: null | string;
+            templateResponses?: null | string[];
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** @description The fun-command preset this command was seeded from; null when the channel wrote it. */
             presetKey?: null | string;
             speakWithTts?: boolean;
@@ -85094,8 +85192,8 @@ export interface components {
         CommandPresetDto: {
             key: string;
             tier: string;
-            description: null | string;
-            templateResponse: null | string;
+            description?: null | string;
+            templateResponse?: null | string;
             templateResponses: string[];
             minPermissionLevel: string;
             /** Format: int32 */
@@ -85111,7 +85209,7 @@ export interface components {
             id: string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
+            profileImageUrl?: null | string;
             reason: string;
             bannedBy: string;
             /** Format: date-time */
@@ -85133,10 +85231,10 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            internalUserId: null | string;
+            internalUserId?: null | string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
+            profileImageUrl?: null | string;
             /** Format: int32 */
             messageCount: number | string;
             /** Format: double */
@@ -85161,7 +85259,7 @@ export interface components {
          */
         ConnectIntegrationRequest: {
             scopeSetKey: string;
-            returnUrl: null | string;
+            returnUrl?: null | string;
             shopDomain?: null | string;
         };
         ConsentRecordDto: {
@@ -85174,7 +85272,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            broadcasterId: null | string;
+            broadcasterId?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
@@ -85183,13 +85281,13 @@ export interface components {
             consentType: string;
             status: string;
             lawfulBasis: string;
-            consentVersion: null | string;
+            consentVersion?: null | string;
             /** Format: date-time */
             grantedAt: string;
             /** Format: date-time */
-            withdrawnAt: null | string;
+            withdrawnAt?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /** @description Request to create an automation API token. */
         CreateAutomationTokenRequest: {
@@ -85204,25 +85302,25 @@ export interface components {
         /** @description Create a catalog item (economy.md §4). */
         CreateCatalogItemRequest: {
             name: string;
-            description: null | string;
+            description?: null | string;
             sinkType: string;
             /** Format: int64 */
             cost: number | string;
-            iconUrl: null | string;
+            iconUrl?: null | string;
             isEnabled: boolean;
             permission: string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
             cooldownPerUser: boolean;
             /** Format: int32 */
-            stockLimit: null | number | string;
+            stockLimit?: null | number | string;
             /** Format: int32 */
-            maxPerViewerPerStream: null | number | string;
+            maxPerViewerPerStream?: null | number | string;
             /** Format: int32 */
             sortOrder: number | string;
         };
@@ -85279,7 +85377,7 @@ export interface components {
         /** @description Create a named script + its Version 1 (custom-code.md §4). No BroadcasterId (broker invariant). */
         CreateCodeScriptRequest: {
             name: string;
-            description: null | string;
+            description?: null | string;
             sourceCode: string;
         };
         /** @description Append a new immutable version; `Publish` = save-and-swap on valid (custom-code.md §4). */
@@ -85335,7 +85433,7 @@ export interface components {
             kind: string;
             key: string;
             displayName: string;
-            description: null | string;
+            description?: null | string;
             payloadJson: string;
         };
         CreateDiscordNotificationConfigRequest: {
@@ -85346,16 +85444,16 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pingRoleId: null | string;
-            messageTemplate: null | string;
+            pingRoleId?: null | string;
+            messageTemplate?: null | string;
             embedConfig: null | components["schemas"]["DiscordEmbedDto"];
-            milestoneType: null | string;
+            milestoneType?: null | string;
             /** Format: int32 */
-            milestoneThreshold: null | number | string;
+            milestoneThreshold?: null | number | string;
         };
         CreateDiscordNotificationRoleRequest: {
             discordRoleId: string;
-            roleName: null | string;
+            roleName?: null | string;
             selfAssignEnabled: boolean;
             /** @default false */
             dmEnabled: boolean;
@@ -85391,15 +85489,15 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            grantsTierId: null | string;
+            grantsTierId?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /** @description Request to mint a local-IPC dev-mode key (stream-admin.md §4). */
         CreateIpcKeyRequest: {
-            label: null | string;
+            label?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /** @description Create a stream marker at the current live position (Helix POST /streams/markers). */
         CreateMarkerDto: {
@@ -85440,7 +85538,7 @@ export interface components {
         /** @description Create payload for a new named pick-list. `Items` may be null/empty; entries are trimmed. */
         CreatePickListRequest: {
             name: string;
-            description: null | string;
+            description?: null | string;
             items: string[];
         };
         /** @description Request to create a new pipeline. */
@@ -85477,10 +85575,10 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            userId: null | string;
+            userId?: null | string;
             displayName: string;
             roleIds: string[];
-            serviceAccountName: null | string;
+            serviceAccountName?: null | string;
         };
         CreateRewardRequest: {
             title: string;
@@ -85511,13 +85609,13 @@ export interface components {
         /** @description Create a savings jar (economy.md §4). */
         CreateSavingsJarRequest: {
             name: string;
-            description: null | string;
+            description?: null | string;
             /** Format: int64 */
-            goalAmount: null | number | string;
-            iconUrl: null | string;
+            goalAmount?: null | number | string;
+            iconUrl?: null | string;
             isOpen: boolean;
             /** Format: int64 */
-            maxWithdrawalPerChannel: null | number | string;
+            maxWithdrawalPerChannel?: null | number | string;
         };
         /**
          * @description Create Channel Stream Schedule Segment request body. `StartTime` is the RFC3339 segment start,
@@ -85655,7 +85753,7 @@ export interface components {
             viewerUserId: string;
             viewerTwitchUserId: string;
             viewerDisplayName: string;
-            viewerAvatarUrl: null | string;
+            viewerAvatarUrl?: null | string;
             /** Format: int64 */
             balance: number | string;
             /** Format: int64 */
@@ -85664,7 +85762,7 @@ export interface components {
             lifetimeSpent: number | string;
             isFrozen: boolean;
             /** Format: date-time */
-            lastActivityAt: null | string;
+            lastActivityAt?: null | string;
         };
         /** @description A channel's currency definition (economy.md §4). */
         CurrencyConfigDto: {
@@ -85679,13 +85777,13 @@ export interface components {
              */
             broadcasterId: string;
             currencyName: string;
-            currencyNamePlural: null | string;
-            iconUrl: null | string;
+            currencyNamePlural?: null | string;
+            iconUrl?: null | string;
             isEnabled: boolean;
             /** Format: int64 */
             startingBalance: number | string;
             /** Format: int64 */
-            maxBalance: null | number | string;
+            maxBalance?: null | number | string;
             /** Format: int32 */
             decimalPlaces: number | string;
             /** Format: date-time */
@@ -85714,25 +85812,25 @@ export interface components {
             /** Format: int64 */
             balanceAfter: number | string;
             entryType: string;
-            sourceType: null | string;
+            sourceType?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            sourceId: null | string;
+            sourceId?: null | string;
             /** Format: int64 */
-            relatedEntryId: null | number | string;
+            relatedEntryId?: null | number | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            eventId: null | string;
-            reason: null | string;
+            eventId?: null | string;
+            reason?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            actorUserId: null | string;
+            actorUserId?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -85741,8 +85839,8 @@ export interface components {
             id: string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
-            color: null | string;
+            profileImageUrl?: null | string;
+            color?: null | string;
             broadcasterType: string;
             isAdmin: boolean;
             /** Format: date-time */
@@ -85758,17 +85856,17 @@ export interface components {
             name: string;
             displayName: string;
             sourceKind: string;
-            presetKey: null | string;
-            endpointUrl: null | string;
+            presetKey?: null | string;
+            endpointUrl?: null | string;
             hasAuthSecret: boolean;
             fieldMap: {
                 [key: string]: string;
             };
             /** Format: int32 */
-            pollIntervalSeconds: null | number | string;
+            pollIntervalSeconds?: null | number | string;
             isEnabled: boolean;
             /** Format: date-time */
-            lastReceivedAt: null | string;
+            lastReceivedAt?: null | string;
             fieldErrors: {
                 [key: string]: string;
             };
@@ -85829,11 +85927,11 @@ export interface components {
             badges: components["schemas"]["ChatBadgeDto"][];
             /** Format: int32 */
             bitsAmount: number | string;
-            color: null | string;
+            color?: null | string;
             messageType: string;
-            replyToMessageId: null | string;
-            replyParentMessageBody: null | string;
-            replyParentUserName: null | string;
+            replyToMessageId?: null | string;
+            replyParentMessageBody?: null | string;
+            replyParentUserName?: null | string;
             timestamp: string;
             avatarUrl?: null | string;
             pronouns?: null | string;
@@ -86031,8 +86129,8 @@ export interface components {
             mentionable: boolean;
             permissions: string;
             canAssign: boolean;
-            unavailableReasonCode: null | string;
-            unavailableReason: null | string;
+            unavailableReasonCode?: null | string;
+            unavailableReason?: null | string;
         };
         DiscordDispatchLogDto: {
             /**
@@ -86051,22 +86149,22 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            streamId: null | string;
-            postedMessageId: null | string;
+            streamId?: null | string;
+            postedMessageId?: null | string;
             status: string;
-            error: null | string;
+            error?: null | string;
             /** Format: date-time */
             dispatchedAt: string;
         };
         /** @description The `[VC:JSON]` embed shape — mirrors the Domain `DiscordEmbedConfig` on the wire. */
         DiscordEmbedDto: {
-            title: null | string;
-            description: null | string;
-            color: null | string;
-            thumbnailUrl: null | string;
-            imageUrl: null | string;
-            footerText: null | string;
-            fields: null | components["schemas"]["DiscordEmbedFieldDto"][];
+            title?: null | string;
+            description?: null | string;
+            color?: null | string;
+            thumbnailUrl?: null | string;
+            imageUrl?: null | string;
+            footerText?: null | string;
+            fields?: null | components["schemas"]["DiscordEmbedFieldDto"][];
         };
         DiscordEmbedFieldDto: {
             name: string;
@@ -86076,10 +86174,10 @@ export interface components {
         /** @description A live guild channel, for the target/button channel pickers. `Type` is Discord's channel type (0 = text). */
         DiscordGuildChannelDto: {
             id: string;
-            name: null | string;
+            name?: null | string;
             /** Format: int32 */
             type: number | string;
-            parentId: null | string;
+            parentId?: null | string;
             /** Format: int32 */
             position: number | string;
         };
@@ -86096,12 +86194,12 @@ export interface components {
              */
             broadcasterId: string;
             guildId: string;
-            guildName: null | string;
+            guildName?: null | string;
             botInstalled: boolean;
             serverConsentStatus: string;
-            approvedByDiscordUserId: null | string;
+            approvedByDiscordUserId?: null | string;
             /** Format: date-time */
-            approvedAt: null | string;
+            approvedAt?: null | string;
             streamerEnabled: boolean;
             isLinkActive: boolean;
             /** Format: date-time */
@@ -86113,8 +86211,8 @@ export interface components {
         DiscordGuildInfoDto: {
             id: string;
             name: string;
-            icon: null | string;
-            description: null | string;
+            icon?: null | string;
+            description?: null | string;
         };
         /**
          * @description A live guild role, for the notify-role picker. `Managed` roles cannot be self-assigned.
@@ -86155,12 +86253,12 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pingRoleId: null | string;
-            messageTemplate: null | string;
+            pingRoleId?: null | string;
+            messageTemplate?: null | string;
             embedConfig: null | components["schemas"]["DiscordEmbedDto"];
-            milestoneType: null | string;
+            milestoneType?: null | string;
             /** Format: int32 */
-            milestoneThreshold: null | number | string;
+            milestoneThreshold?: null | number | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -86169,7 +86267,7 @@ export interface components {
         DiscordNotificationPreviewDto: {
             renderedContent: string;
             renderedEmbed: null | components["schemas"]["DiscordEmbedDto"];
-            pingRoleMention: null | string;
+            pingRoleMention?: null | string;
         };
         DiscordNotificationRoleDto: {
             /**
@@ -86183,11 +86281,11 @@ export interface components {
              */
             guildConnectionId: string;
             discordRoleId: string;
-            roleName: null | string;
+            roleName?: null | string;
             selfAssignEnabled: boolean;
             dmEnabled: boolean;
-            buttonMessageId: null | string;
-            buttonChannelId: null | string;
+            buttonMessageId?: null | string;
+            buttonChannelId?: null | string;
             /** Format: int32 */
             optInCount: number | string;
             /** Format: date-time */
@@ -86204,15 +86302,15 @@ export interface components {
          */
         DiscordPostableChannelDto: {
             id: string;
-            name: null | string;
+            name?: null | string;
             /** Format: int32 */
             type: number | string;
-            parentId: null | string;
+            parentId?: null | string;
             /** Format: int32 */
             position: number | string;
             canPost: boolean;
-            unavailableReasonCode: null | string;
-            unavailableReason: null | string;
+            unavailableReasonCode?: null | string;
+            unavailableReason?: null | string;
         };
         /**
          * @description Dismisses one or more action-required inbox items by their stable string ActionRequiredItemDto.Id
@@ -86224,7 +86322,7 @@ export interface components {
         };
         DraftContentVersionRequest: {
             payloadJson: string;
-            renderGalleryRefs: null | string[];
+            renderGalleryRefs?: null | string[];
         };
         /** @description One channel earning rule (economy.md §4). `Source` is an `EarningSource` token. */
         EarningRuleDto: {
@@ -86238,24 +86336,24 @@ export interface components {
             /** Format: int64 */
             rate: number | string;
             /** Format: int32 */
-            unitWindowSeconds: null | number | string;
+            unitWindowSeconds?: null | number | string;
             /** Format: int64 */
-            perWindowCap: null | number | string;
+            perWindowCap?: null | number | string;
             /** Format: int64 */
-            perStreamCap: null | number | string;
+            perStreamCap?: null | number | string;
             /** Format: int32 */
-            minRoleLevel: null | number | string;
+            minRoleLevel?: null | number | string;
             /** Format: int32 */
             configSchemaVersion: number | string;
-            bonusConfig: null | {
+            bonusConfig?: null | {
                 [key: string]: unknown;
             };
         };
         /** @description Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable. */
         EditQuoteRequest: {
             text: string;
-            quotedDisplayName: null | string;
-            contextGame: null | string;
+            quotedDisplayName?: null | string;
+            contextGame?: null | string;
         };
         /** @description An operator ending the active window on one platform now. */
         EndLockdownRequest: {
@@ -86323,7 +86421,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            issuedByAdminId: null | string;
+            issuedByAdminId?: null | string;
         };
         /**
          * @description The counted blast radius of comping a tenant to `GrantedTierKey` — the limit keys whose effective
@@ -86381,7 +86479,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            broadcasterId: null | string;
+            broadcasterId?: null | string;
             requestType: string;
             requestedBy: string;
             status: string;
@@ -86390,13 +86488,13 @@ export interface components {
             anonymizationApplied: boolean;
             /** Format: int32 */
             rowsAffected: number | string;
-            exportLocation: null | string;
-            exportFormat: null | string;
-            failureReason: null | string;
+            exportLocation?: null | string;
+            exportFormat?: null | string;
+            failureReason?: null | string;
             /** Format: date-time */
             requestedAt: string;
             /** Format: date-time */
-            completedAt: null | string;
+            completedAt?: null | string;
         };
         /**
          * @description Platform-wide request counts by status, counted from the real ledger rows — the compliance console's
@@ -86422,7 +86520,7 @@ export interface components {
             atOffense: number | string;
             action: string;
             /** Format: int32 */
-            timeoutSeconds: null | number | string;
+            timeoutSeconds?: null | number | string;
         };
         /**
          * @description One row of the developer-facing event catalog (dev-platform.md §8, `GET /api/v1/sdk/event-catalog`):
@@ -86462,7 +86560,7 @@ export interface components {
          */
         EventResponseDefaultChange: {
             isEnabled: boolean;
-            message: null | string;
+            message?: null | string;
             /** @default false */
             speakWithTts: boolean;
         };
@@ -86474,7 +86572,7 @@ export interface components {
         EventResponseDefaultDto: {
             eventType: string;
             isEnabled: boolean;
-            message: null | string;
+            message?: null | string;
             variables: string[];
             /** Format: int32 */
             channelsFollowing: number | string;
@@ -86500,12 +86598,12 @@ export interface components {
             eventType: string;
             isEnabled: boolean;
             responseType: string;
-            message: null | string;
+            message?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             metadata: {
                 [key: string]: string;
             };
@@ -86572,11 +86670,11 @@ export interface components {
             status: string;
             enabled: boolean;
             /** Format: int32 */
-            cost: null | number | string;
-            twitchSubscriptionId: null | string;
-            lastError: null | string;
+            cost?: null | number | string;
+            twitchSubscriptionId?: null | string;
+            lastError?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -86619,7 +86717,7 @@ export interface components {
             provider: string;
             emoteId: string;
             code: string;
-            imageUrl: null | string;
+            imageUrl?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -86643,13 +86741,13 @@ export interface components {
         /** @description A feature flag's global definition (admin view). */
         FeatureFlagDto: {
             key: string;
-            description: null | string;
+            description?: null | string;
             isEnabledGlobally: boolean;
             /** Format: int32 */
             rolloutPercentage: number | string;
-            minTierKey: null | string;
-            requiresConsent: null | string;
-            deploymentMode: null | string;
+            minTierKey?: null | string;
+            requiresConsent?: null | string;
+            deploymentMode?: null | string;
         };
         /**
          * @description One per-tenant override as the admin console reads it back: which flag, which channel (by id and by
@@ -86664,9 +86762,9 @@ export interface components {
             broadcasterId: string;
             channelName: string;
             isEnabled: boolean;
-            reason: null | string;
+            reason?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -86684,7 +86782,7 @@ export interface components {
             description: string;
             isEnabled: boolean;
             /** Format: date-time */
-            enabledAt: null | string;
+            enabledAt?: null | string;
             requiredScopes: string[];
             /** @default true */
             entitled: boolean;
@@ -86698,14 +86796,14 @@ export interface components {
              */
             id: string;
             instanceId: string;
-            displayName: null | string;
-            baseUrl: null | string;
+            displayName?: null | string;
+            baseUrl?: null | string;
             deploymentMode: string;
             trustState: string;
             /** Format: date-time */
             firstSeenAt: string;
             /** Format: date-time */
-            lastHandshakeAt: null | string;
+            lastHandshakeAt?: null | string;
             activeKeys: components["schemas"]["FederationPeerKeyDto"][];
         };
         FederationPeerKeyDto: {
@@ -86725,7 +86823,7 @@ export interface components {
             /** Format: date-time */
             validFrom: string;
             /** Format: date-time */
-            validTo: null | string;
+            validTo?: null | string;
             isActive: boolean;
         };
         /** @description A viewer files a report about a chatter they saw (id + name come from the chat context). */
@@ -86756,7 +86854,7 @@ export interface components {
             /** Format: int32 */
             batchExamined: number | string;
             /** Format: date-time */
-            restoredAt: null | string;
+            restoredAt?: null | string;
             /** Format: date-time */
             blockedAt: string;
         };
@@ -86774,7 +86872,7 @@ export interface components {
             /** Format: date-time */
             grantedAt: string;
             isActive: boolean;
-            inviteCode: null | string;
+            inviteCode?: null | string;
         };
         FreezeBody: {
             frozen: boolean;
@@ -86793,7 +86891,7 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             framework: string;
             trustTier: string;
             /** Format: int32 */
@@ -86804,14 +86902,14 @@ export interface components {
                 [key: string]: unknown;
             };
             defaultEventSubscriptions: string[];
-            sourceCode: null | string;
-            gitHubRepoUrl: null | string;
-            pinnedCommitSha: null | string;
-            pinnedTag: null | string;
+            sourceCode?: null | string;
+            gitHubRepoUrl?: null | string;
+            pinnedCommitSha?: null | string;
+            pinnedTag?: null | string;
             reviewStatus: string;
-            reviewNotes: null | string;
+            reviewNotes?: null | string;
             /** Format: date-time */
-            reviewedAt: null | string;
+            reviewedAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             nameKey?: null | string;
@@ -86829,7 +86927,7 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             framework: string;
             trustTier: string;
             /** Format: int32 */
@@ -86850,21 +86948,21 @@ export interface components {
             isEnabled: boolean;
             requires18Plus: boolean;
             /** Format: int64 */
-            minBet: null | number | string;
+            minBet?: null | number | string;
             /** Format: int64 */
-            maxBet: null | number | string;
+            maxBet?: null | number | string;
             /** Format: double */
-            houseEdgePercent: null | number | string;
+            houseEdgePercent?: null | number | string;
             /** Format: double */
-            winChancePercent: null | number | string;
+            winChancePercent?: null | number | string;
             /** Format: double */
-            payoutMultiplier: null | number | string;
+            payoutMultiplier?: null | number | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
             /** Format: int32 */
-            maxPlaysPerStream: null | number | string;
+            maxPlaysPerStream?: null | number | string;
             permission: string;
-            config: null | {
+            config?: null | {
                 [key: string]: unknown;
             };
         };
@@ -86906,23 +87004,23 @@ export interface components {
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
-            joinClosesAt: null | string;
+            joinClosesAt?: null | string;
             /** Format: date-time */
-            resolvedAt: null | string;
-            state: null | {
+            resolvedAt?: null | string;
+            state?: null | {
                 [key: string]: unknown;
             };
-            outcome: null | {
+            outcome?: null | {
                 [key: string]: unknown;
             };
         };
         /** @description Generic / Standard-Webhooks adapter config (Zapier/IFTTT/Make/Stream Deck/custom). */
         GenericInboundConfig: {
-            signatureHeaderName: null | string;
-            signaturePrefix: null | string;
-            signingStringTemplate: null | string;
-            timestampHeaderName: null | string;
-            sharedSecretBodyField: null | string;
+            signatureHeaderName?: null | string;
+            signaturePrefix?: null | string;
+            signingStringTemplate?: null | string;
+            timestampHeaderName?: null | string;
+            sharedSecretBodyField?: null | string;
             eventKindJsonPath: string;
             providerEventIdJsonPath: string;
         };
@@ -86935,42 +87033,42 @@ export interface components {
             id: string;
             title: string;
             entryMode: string;
-            keyword: null | string;
+            keyword?: null | string;
             /** Format: int64 */
-            entryCost: null | number | string;
+            entryCost?: null | number | string;
             /** Format: int32 */
             maxEntriesPerUser: number | string;
-            eligibilityJson: null | string;
-            weightingJson: null | string;
+            eligibilityJson?: null | string;
+            weightingJson?: null | string;
             /** Format: int32 */
             winnerCount: number | string;
             excludeModerators: boolean;
             /** Format: int32 */
-            claimWindowMinutes: null | number | string;
+            claimWindowMinutes?: null | number | string;
             prizeMode: string;
             /** Format: int64 */
-            prizeCurrencyAmount: null | number | string;
+            prizeCurrencyAmount?: null | number | string;
             prizeFromPot: boolean;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            prizePipelineId: null | string;
+            prizePipelineId?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            prizeCodePoolId: null | string;
+            prizeCodePoolId?: null | string;
             requires18Plus: boolean;
             status: string;
             /** Format: date-time */
-            openedAt: null | string;
+            openedAt?: null | string;
             /** Format: date-time */
-            closesAt: null | string;
+            closesAt?: null | string;
             /** Format: date-time */
-            scheduledCloseAt: null | string;
+            scheduledCloseAt?: null | string;
             /** Format: date-time */
-            drawnAt: null | string;
+            drawnAt?: null | string;
             /** Format: int32 */
             entryCount: number | string;
             /** Format: date-time */
@@ -87025,8 +87123,8 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            assignedCodeId: null | string;
-            whisperDelivered: null | boolean;
+            assignedCodeId?: null | string;
+            whisperDelivered?: null | boolean;
         };
         /** @description Grant a viewer's explicit 18+ gambling consent (economy.md §4). */
         GrantAgeConsentRequest: {
@@ -87036,8 +87134,8 @@ export interface components {
              */
             viewerUserId: string;
             confirmationMethod: string;
-            ipAddress: null | string;
-            consentVersion: null | string;
+            ipAddress?: null | string;
+            consentVersion?: null | string;
         };
         GrantCapabilityBody: {
             /**
@@ -87047,8 +87145,8 @@ export interface components {
             userId: string;
             actionKey: string;
             /** Format: date-time */
-            expiresAt: null | string;
-            reason: null | string;
+            expiresAt?: null | string;
+            reason?: null | string;
         };
         /**
          * @description Grants (upserts) the single active consent row for (BroadcasterId, SubjectUserId, ConsentType).
@@ -87066,12 +87164,12 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            broadcasterId: null | string;
+            broadcasterId?: null | string;
             consentType: string;
             lawfulBasis: string;
-            consentVersion: null | string;
-            source: null | string;
-            proofOfConsentIp: null | string;
+            consentVersion?: null | string;
+            source?: null | string;
+            proofOfConsentIp?: null | string;
         };
         GrantPermissionRequest: {
             userId: string;
@@ -87085,8 +87183,8 @@ export interface components {
             userId: string;
             role: components["schemas"]["ManagementRole"];
             /** Format: date-time */
-            expiresAt: null | string;
-            reason: null | string;
+            expiresAt?: null | string;
+            reason?: null | string;
         };
         /** @description Admin-grant a tier to a channel without Stripe. */
         GrantTierRequest: {
@@ -87110,7 +87208,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            approvedByUserId: null | string;
+            approvedByUserId?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -87131,9 +87229,9 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            targetBroadcasterId: null | string;
-            targetResource: null | string;
-            justification: null | string;
+            targetBroadcasterId?: null | string;
+            targetResource?: null | string;
+            justification?: null | string;
             breakGlass: boolean;
             outcome: string;
             /** Format: date-time */
@@ -87154,11 +87252,11 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            userId: null | string;
+            userId?: null | string;
             name: string;
             isActive: boolean;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             serviceAccountKey?: null | string;
         };
         /**
@@ -87176,11 +87274,11 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            userId: null | string;
+            userId?: null | string;
             name: string;
             isActive: boolean;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             activeAssignments: components["schemas"]["IamRoleAssignmentDto"][];
         };
         /** @description Whether a platform IAM principal is a human employee or a service account. */
@@ -87207,12 +87305,12 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            scopeChannelId: null | string;
+            scopeChannelId?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             /** Format: date-time */
-            revokedAt: null | string;
-            reason: null | string;
+            revokedAt?: null | string;
+            reason?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -87224,7 +87322,7 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             isSystem: boolean;
             permissionKeys: string[];
         };
@@ -87301,11 +87399,11 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            targetPipelineId: null | string;
-            targetEventType: null | string;
+            targetPipelineId?: null | string;
+            targetEventType?: null | string;
             isEnabled: boolean;
             /** Format: date-time */
-            lastReceivedAt: null | string;
+            lastReceivedAt?: null | string;
             /** Format: int64 */
             receiveCount: number | string;
             /** Format: date-time */
@@ -87323,7 +87421,7 @@ export interface components {
             id: string;
             name: string;
             source: string;
-            marketplaceItemId: null | string;
+            marketplaceItemId?: null | string;
             version: string;
             /** Format: date-time */
             installedAt: string;
@@ -87347,7 +87445,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
         };
         IntegrationDto: {
             id: string;
@@ -87355,9 +87453,9 @@ export interface components {
             category: string;
             description: string;
             connected: boolean;
-            connectedAs: null | string;
-            oauthUrl: null | string;
-            lastSync: null | string;
+            connectedAs?: null | string;
+            oauthUrl?: null | string;
+            lastSync?: null | string;
         };
         IntegrationsResponse: {
             integrations: components["schemas"]["IntegrationDto"][];
@@ -87373,7 +87471,7 @@ export interface components {
         IntegrationStatusDto: {
             provider: string;
             connected: boolean;
-            accountName: null | string;
+            accountName?: null | string;
             grantedScopeSets: string[];
             capabilities: {
                 [key: string]: boolean;
@@ -87398,9 +87496,9 @@ export interface components {
             invitedBroadcasterId: string;
             role: string;
             /** Format: int64 */
-            contributionCapPerStream: null | number | string;
+            contributionCapPerStream?: null | number | string;
             /** Format: int64 */
-            withdrawalCap: null | number | string;
+            withdrawalCap?: null | number | string;
         };
         /** @description An invite-code view (admin). */
         InviteCodeDto: {
@@ -87419,10 +87517,10 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            grantsTierId: null | string;
-            grantsTierKey: null | string;
+            grantsTierId?: null | string;
+            grantsTierKey?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /** @description Validate or redeem an invite code by its code string. */
         InviteCodeRequest: {
@@ -87433,11 +87531,11 @@ export interface components {
             isValid: boolean;
             code: string;
             grantsFoundersBadge: boolean;
-            grantsTierKey: null | string;
+            grantsTierKey?: null | string;
             /** Format: int32 */
             remainingRedemptions: number | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /**
          * @description A billing invoice view. string InvoiceDto.DunningStatus is InvoiceDunningStatus
@@ -87450,7 +87548,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             id: string;
-            number: null | string;
+            number?: null | string;
             status: string;
             /** Format: int32 */
             amountDueCents: number | string;
@@ -87458,21 +87556,21 @@ export interface components {
             amountPaidCents: number | string;
             currency: string;
             /** Format: date-time */
-            periodStart: null | string;
+            periodStart?: null | string;
             /** Format: date-time */
-            periodEnd: null | string;
+            periodEnd?: null | string;
             /** Format: date-time */
             issuedAt: string;
             /** Format: date-time */
-            paidAt: null | string;
-            hostedInvoiceUrl: null | string;
+            paidAt?: null | string;
+            hostedInvoiceUrl?: null | string;
             /** Format: date-time */
-            dueAt: null | string;
+            dueAt?: null | string;
             dunningStatus: string;
             /** Format: int32 */
             amountRefundedCents: number | string;
             /** Format: date-time */
-            refundedAt: null | string;
+            refundedAt?: null | string;
         };
         /**
          * @description A local-IPC dev-mode key registry row (stream-admin.md §4). Metadata only — the stored SHA-256
@@ -87485,13 +87583,13 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             id: string;
-            label: null | string;
+            label?: null | string;
             isEnabled: boolean;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             /** Format: date-time */
             createdAt: string;
-            plaintextKey: null | string;
+            plaintextKey?: null | string;
         };
         /**
          * @description The one-time issue result: string IssuedAutomationTokenDto.Secret is shown exactly once (create/rotate) and is never
@@ -87550,19 +87648,19 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            contributorUserId: null | string;
+            contributorUserId?: null | string;
             /** Format: int64 */
             amount: number | string;
             movementType: string;
             /** Format: int64 */
             jarBalanceAfter: number | string;
             /** Format: int64 */
-            ledgerEntryId: null | number | string;
+            ledgerEntryId?: null | number | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            actorUserId: null | string;
+            actorUserId?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -87599,12 +87697,12 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            broadcasterId: null | string;
+            broadcasterId?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            jarId: null | string;
+            jarId?: null | string;
             metric: string;
             scope: string;
             period: string;
@@ -87628,12 +87726,12 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            subjectUserId: null | string;
+            subjectUserId?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            subjectAccountId: null | string;
+            subjectAccountId?: null | string;
             displayName: string;
             /** Format: int64 */
             value: number | string;
@@ -87663,13 +87761,13 @@ export interface components {
         LinkedIdentityDto: {
             provider: string;
             providerUsername: string;
-            providerDisplayName: null | string;
-            providerAvatarUrl: null | string;
+            providerDisplayName?: null | string;
+            providerAvatarUrl?: null | string;
             isPrimary: boolean;
             /** Format: date-time */
             linkedAtUtc: string;
             /** Format: date-time */
-            lastLoginAtUtc: null | string;
+            lastLoginAtUtc?: null | string;
         };
         /**
          * @description The rules of a `ChatFilterType.LinkPolicy` filter, stored as JSON in `ChatFilter.LinkPolicyJson`.
@@ -87698,7 +87796,7 @@ export interface components {
             /** Format: int32 */
             lobbyWindowSeconds: number | string;
             /** Format: int32 */
-            tickIntervalSeconds: null | number | string;
+            tickIntervalSeconds?: null | number | string;
             requiresEntryFee: boolean;
         };
         /**
@@ -87757,12 +87855,12 @@ export interface components {
              * Format: date-time
              * @description Set when a moderator ended it early.
              */
-            endedAt: null | string;
+            endedAt?: null | string;
             /**
              * Format: date-time
              * @description Set only after every engaged control was really put back.
              */
-            restoredAt: null | string;
+            restoredAt?: null | string;
             /** @description Controls this window tightened. */
             engaged: components["schemas"]["LockdownControl"][];
             /** @description Requested controls this platform does not offer here. */
@@ -87819,10 +87917,10 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             id: string;
-            label: null | string;
+            label?: null | string;
             status: string;
             /** Format: date-time */
-            assignedAt: null | string;
+            assignedAt?: null | string;
         };
         /**
          * @description One batch's progress: `Banned`, `Failed` (final), `Retrying` (waiting for a next attempt) and
@@ -87838,7 +87936,7 @@ export interface components {
             /** Format: date-time */
             requestedAt: string;
             /** Format: date-time */
-            completedAt: null | string;
+            completedAt?: null | string;
             /** Format: int32 */
             total: number | string;
             /** Format: int32 */
@@ -87869,7 +87967,7 @@ export interface components {
             broadcasterId: string;
             broadcasterLogin: string;
             status: string;
-            optIn: null | string;
+            optIn?: null | string;
             isOwnChannel: boolean;
             isAttacked: boolean;
             isLive: boolean;
@@ -87887,8 +87985,8 @@ export interface components {
          */
         MassBanRequest: {
             targets: components["schemas"]["MassBanTargetDto"][];
-            attackedChannels: null | string[];
-            excludedChannels: null | string[];
+            attackedChannels?: null | string[];
+            excludedChannels?: null | string[];
         };
         /** @description The outcome per channel of a mass-ban request. */
         MassBanResultDto: {
@@ -87897,7 +87995,7 @@ export interface components {
         /** @description One account: its numeric Twitch user id and the optional reason Twitch shows. */
         MassBanTargetDto: {
             twitchUserId: string;
-            reason: null | string;
+            reason?: null | string;
         };
         /** @description An account not banned: `Status` is `failed`, `retrying` or `waiting`; `Error` says why. */
         MassBanTargetResultDto: {
@@ -87905,9 +88003,9 @@ export interface components {
             status: string;
             /** Format: int32 */
             attempts: number | string;
-            error: null | string;
+            error?: null | string;
             /** Format: date-time */
-            nextAttemptAt: null | string;
+            nextAttemptAt?: null | string;
         };
         /** @description Media-input verbs → `OBS_WEBSOCKET_MEDIA_INPUT_ACTION_*`. */
         MediaAction: number;
@@ -87920,7 +88018,7 @@ export interface components {
             /** Format: int32 */
             maxDurationSeconds: number | string;
             /** Format: int64 */
-            entryCost: null | number | string;
+            entryCost?: null | number | string;
             /** Format: int32 */
             maxQueueLength: number | string;
             /** Format: int32 */
@@ -87939,17 +88037,17 @@ export interface components {
              */
             requesterUserId: string;
             requesterDisplayName: string;
-            requesterAvatarUrl: null | string;
+            requesterAvatarUrl?: null | string;
             sourceType: string;
             sourceUrl: string;
             mediaRef: string;
-            title: null | string;
+            title?: null | string;
             /** Format: int32 */
             durationSeconds: number | string;
-            thumbnailUrl: null | string;
+            thumbnailUrl?: null | string;
             status: string;
             /** Format: int32 */
-            queuePosition: null | number | string;
+            queuePosition?: null | number | string;
             /** Format: date-time */
             requestedAt: string;
         };
@@ -87998,17 +88096,17 @@ export interface components {
             action: string;
             moderatorId: string;
             moderatorUsername: string;
-            targetUserId: null | string;
-            targetUsername: null | string;
-            reason: null | string;
+            targetUserId?: null | string;
+            targetUsername?: null | string;
+            reason?: null | string;
             /** Format: int32 */
-            durationSeconds: null | number | string;
+            durationSeconds?: null | number | string;
             /** Format: date-time */
             timestamp: string;
         };
         ModerationActionResult: {
             success: boolean;
-            message: null | string;
+            message?: null | string;
         };
         /** @description The channel's escalation policy (J.10). */
         ModerationEscalationPolicyDto: {
@@ -88038,11 +88136,11 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            moderatorUserId: null | string;
-            moderatorDisplayName: null | string;
-            reason: null | string;
+            moderatorUserId?: null | string;
+            moderatorDisplayName?: null | string;
+            reason?: null | string;
             /** Format: int32 */
-            durationSeconds: null | number | string;
+            durationSeconds?: null | number | string;
             /** Format: date-time */
             occurredAt: string;
             /** Format: date-time */
@@ -88057,16 +88155,16 @@ export interface components {
             id: string;
             source: string;
             status: string;
-            targetTwitchUserId: null | string;
-            targetUsernameSnapshot: null | string;
-            messageContentSnapshot: null | string;
-            autoModCategory: null | string;
+            targetTwitchUserId?: null | string;
+            targetUsernameSnapshot?: null | string;
+            messageContentSnapshot?: null | string;
+            autoModCategory?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            resolvedAt: null | string;
-            resolvedByName: null | string;
-            resolutionAction: null | string;
+            resolvedAt?: null | string;
+            resolvedByName?: null | string;
+            resolutionAction?: null | string;
         };
         ModerationRuleDetail: {
             /** Format: int32 */
@@ -88076,8 +88174,8 @@ export interface components {
             isEnabled: boolean;
             action: string;
             /** Format: int32 */
-            durationSeconds: null | number | string;
-            reason: null | string;
+            durationSeconds?: null | number | string;
+            reason?: null | string;
             settings: {
                 [key: string]: unknown;
             };
@@ -88092,7 +88190,7 @@ export interface components {
             userId: string;
             provider: string;
             standing: string;
-            reason: null | string;
+            reason?: null | string;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -88122,7 +88220,7 @@ export interface components {
         };
         /** @description Where the permission came from, in the operator's words ("asked in Discord 2026-10-06"). */
         ModeratorMassBanOptInRequest: {
-            note: null | string;
+            note?: null | string;
         };
         /** @description Grant or revoke a viewer's moderator privileges, identified by their Twitch user id. */
         ModeratorRequest: {
@@ -88132,12 +88230,12 @@ export interface components {
             id: string;
             action: string;
             moderator: string;
-            target: null | string;
-            reason: null | string;
+            target?: null | string;
+            reason?: null | string;
             /** Format: date-time */
             timestamp: string;
             /** Format: int32 */
-            duration: null | number | string;
+            duration?: null | number | string;
         };
         /** @description Request to drop a queued song at a new zero-based position in the queue. */
         MoveQueueItemDto: {
@@ -88182,7 +88280,7 @@ export interface components {
             uri: string;
             /** Format: int32 */
             trackCount: number | string;
-            imageUrl: null | string;
+            imageUrl?: null | string;
             provider: string;
         };
         /** @description Full music queue including now playing and upcoming tracks. */
@@ -88194,10 +88292,10 @@ export interface components {
         MusicQueueItem: {
             trackName: string;
             artist: string;
-            imageUrl: null | string;
+            imageUrl?: null | string;
             /** Format: int32 */
             durationMs: number | string;
-            requestedBy: null | string;
+            requestedBy?: null | string;
             /**
              * Format: int32
              * @default 0
@@ -88249,8 +88347,8 @@ export interface components {
              */
             targetUserId: string;
             targetTwitchUserId: string;
-            targetDisplayName: null | string;
-            reason: null | string;
+            targetDisplayName?: null | string;
+            reason?: null | string;
             justification: string;
             /**
              * Format: ulid
@@ -88268,12 +88366,12 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            liftedByPrincipalId: null | string;
-            liftJustification: null | string;
+            liftedByPrincipalId?: null | string;
+            liftJustification?: null | string;
             /** Format: date-time */
-            liftAttemptedAt: null | string;
+            liftAttemptedAt?: null | string;
             /** Format: date-time */
-            liftedAt: null | string;
+            liftedAt?: null | string;
             /** Format: int32 */
             restoredChannelCount: number | string;
             liftFailedChannelIds: string[];
@@ -88291,7 +88389,7 @@ export interface components {
              */
             targetUserId: string;
             targetTwitchUserId: string;
-            targetDisplayName: null | string;
+            targetDisplayName?: null | string;
             /** Format: int32 */
             tenantCount: number | string;
             tenants: components["schemas"]["NetworkBlockAffectedTenantDto"][];
@@ -88312,16 +88410,16 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            initiatedByUserId: null | string;
-            matchTerm: null | string;
-            reason: null | string;
+            initiatedByUserId?: null | string;
+            matchTerm?: null | string;
+            reason?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            targetUserId: null | string;
-            targetTwitchUserId: null | string;
-            targetDisplayName: null | string;
+            targetUserId?: null | string;
+            targetTwitchUserId?: null | string;
+            targetDisplayName?: null | string;
             /** Format: int32 */
             channelCount: number | string;
             status: string;
@@ -88329,9 +88427,9 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            revertedByUserId: null | string;
+            revertedByUserId?: null | string;
             /** Format: date-time */
-            revertedAt: null | string;
+            revertedAt?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -88348,10 +88446,10 @@ export interface components {
          *                 that do not report them.
          */
         NowPlayingDto: {
-            trackName: null | string;
-            artist: null | string;
-            album: null | string;
-            imageUrl: null | string;
+            trackName?: null | string;
+            artist?: null | string;
+            album?: null | string;
+            imageUrl?: null | string;
             /** Format: int32 */
             durationMs: number | string;
             /** Format: int32 */
@@ -88359,7 +88457,7 @@ export interface components {
             isPlaying: boolean;
             /** Format: int32 */
             volume: number | string;
-            requestedBy: null | string;
+            requestedBy?: null | string;
             provider: string;
             shuffleState: boolean;
             repeatState: string;
@@ -88408,7 +88506,7 @@ export interface components {
             instanceCount: number | string;
             hasLeader: boolean;
             /** Format: date-time */
-            leaderSince: null | string;
+            leaderSince?: null | string;
         };
         /**
          * @description A channel's OBS connection as the dashboard sees it (obs-control.md §3). The OBS-WS password never
@@ -88417,17 +88515,17 @@ export interface components {
          */
         ObsConnectionDto: {
             mode: string;
-            host: null | string;
+            host?: null | string;
             /** Format: int32 */
-            port: null | number | string;
+            port?: null | number | string;
             hasPassword: boolean;
             hasBridgeToken: boolean;
             /** Format: int32 */
             eventSubscriptionsMask: number | string;
             isEnabled: boolean;
             /** Format: date-time */
-            lastConnectedAt: null | string;
-            lastError: null | string;
+            lastConnectedAt?: null | string;
+            lastError?: null | string;
         };
         /** @description REST body for the scene-transition-select route: make one transition the active one. */
         ObsCurrentTransitionRequest: {
@@ -88458,9 +88556,9 @@ export interface components {
         ObsInputDto: {
             name: string;
             kind: string;
-            muted: null | boolean;
+            muted?: null | boolean;
             /** Format: double */
-            volumeDb: null | number | string;
+            volumeDb?: null | number | string;
         };
         /** @description REST body for the audio-mixer mute route: set an input's mute to an absolute state. */
         ObsInputMuteRequest: {
@@ -88489,8 +88587,8 @@ export interface components {
          */
         ObsProbeDto: {
             connected: boolean;
-            errorCode: null | string;
-            error: null | string;
+            errorCode?: null | string;
+            error?: null | string;
         };
         /** @description REST body for the recording route. */
         ObsRecordRequest: {
@@ -88503,7 +88601,7 @@ export interface components {
         /** @description One raw OBS-WS request (the generic pass-through surface). */
         ObsRequest: {
             requestType: string;
-            requestData: null | {
+            requestData?: null | {
                 [key: string]: unknown;
             };
         };
@@ -88517,10 +88615,10 @@ export interface components {
         /** @description The outcome of one OBS-WS request as the caller sees it. */
         ObsResponse: {
             ok: boolean;
-            responseData: null | {
+            responseData?: null | {
                 [key: string]: unknown;
             };
-            error: null | string;
+            error?: null | string;
         };
         ObsSceneDto: {
             name: string;
@@ -88557,12 +88655,12 @@ export interface components {
         };
         /** @description Live OBS state for the dashboard and the `{{obs.*}}` template vars. */
         ObsStateDto: {
-            currentScene: null | string;
+            currentScene?: null | string;
             streaming: boolean;
             recording: boolean;
             recordPaused: boolean;
             replayBufferActive: boolean;
-            recordTimecode: null | string;
+            recordTimecode?: null | string;
         };
         /**
          * @description OBS performance stats (obs-websocket v5 `GetStats`) — CPU/memory load and the
@@ -88601,7 +88699,7 @@ export interface components {
          */
         ObsStudioTransitionRequest: {
             /** Format: int32 */
-            durationMs: null | number | string;
+            durationMs?: null | number | string;
         };
         /** @description Start/stop/toggle for OBS outputs (streaming, replay buffer, virtual cam). */
         ObsToggle: number;
@@ -88624,7 +88722,7 @@ export interface components {
         ObsVendorRequest: {
             vendorName: string;
             requestType: string;
-            requestData: null | {
+            requestData?: null | {
                 [key: string]: unknown;
             };
         };
@@ -88665,12 +88763,12 @@ export interface components {
             attempt: number | string;
             status: string;
             /** Format: int32 */
-            responseCode: null | number | string;
+            responseCode?: null | number | string;
             /** Format: int32 */
-            durationMs: null | number | string;
+            durationMs?: null | number | string;
             /** Format: date-time */
-            nextRetryAt: null | string;
-            error: null | string;
+            nextRetryAt?: null | string;
+            error?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -88682,20 +88780,20 @@ export interface components {
             id: string;
             name: string;
             fqdn: string;
-            path: null | string;
+            path?: null | string;
             subscribedEventTypes: string[];
-            bodyTemplate: null | string;
+            bodyTemplate?: null | string;
             bodyIsJson: boolean;
             isEnabled: boolean;
             /** Format: int32 */
             consecutiveFailureCount: number | string;
             /** Format: date-time */
-            disabledAt: null | string;
-            disabledReason: null | string;
+            disabledAt?: null | string;
+            disabledReason?: null | string;
             /** Format: date-time */
-            lastDeliveryAt: null | string;
+            lastDeliveryAt?: null | string;
             /** Format: date-time */
-            lastSuccessAt: null | string;
+            lastSuccessAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -88734,11 +88832,11 @@ export interface components {
          */
         OverlayNowPlayingSnapshot: {
             isPlaying: boolean;
-            track: null | string;
-            artist: null | string;
-            artUrl: null | string;
-            provider: null | string;
-            trackUri: null | string;
+            track?: null | string;
+            artist?: null | string;
+            artUrl?: null | string;
+            provider?: null | string;
+            trackUri?: null | string;
             /** Format: int32 */
             durationMs: number | string;
             /** Format: int32 */
@@ -89473,9 +89571,9 @@ export interface components {
             id: number | string;
             subjectType: string;
             subjectId: string;
-            subjectName: null | string;
+            subjectName?: null | string;
             resourceType: string;
-            resourceId: null | string;
+            resourceId?: null | string;
             permissionValue: string;
             /** Format: date-time */
             createdAt: string;
@@ -89495,20 +89593,20 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             userId: string;
-            username: null | string;
+            username?: null | string;
             grantType: components["schemas"]["PermitGrantType"];
             grantedRole: null | components["schemas"]["ManagementRole"];
-            capabilityActionKey: null | string;
+            capabilityActionKey?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             grantedByUserId: string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             /** Format: date-time */
-            revokedAt: null | string;
-            reason: null | string;
+            revokedAt?: null | string;
+            reason?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -89522,7 +89620,7 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             items: string[];
             /** Format: date-time */
             createdAt: string;
@@ -89551,7 +89649,7 @@ export interface components {
             kind: string;
             required: boolean;
             repeatable: boolean;
-            options: null | string[];
+            options?: null | string[];
             description: null | components["schemas"]["LocalizedText"];
             /** @default false */
             declaresVariable: boolean;
@@ -89600,14 +89698,14 @@ export interface components {
             id: string;
             channelId: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             isEnabled: boolean;
             triggerKind: string;
             graph: null | components["schemas"]["JsonElement"];
             /** Format: int64 */
             triggerCount: number | string;
             /** Format: date-time */
-            lastTriggeredAt: null | string;
+            lastTriggeredAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -89619,7 +89717,7 @@ export interface components {
              *     `args`. Surfaced so the pipeline builder can render one labelled field per declared name when this
              *     pipeline is picked as a `run_pipeline` target, instead of a raw positional/generic argument list.
              */
-            parameterNames: null | string[];
+            parameterNames?: null | string[];
         };
         /** @description Full run detail — the summary fields plus its ordered per-step logs. */
         PipelineExecutionDetailDto: {
@@ -89629,18 +89727,18 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             triggerKind: string;
             status: string;
             /** Format: int32 */
             hostCallCount: number | string;
             /** Format: int32 */
             durationMs: number | string;
-            errorMessage: null | string;
+            errorMessage?: null | string;
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
-            completedAt: null | string;
+            completedAt?: null | string;
             stepLogs: components["schemas"]["PipelineExecutionStepLogDto"][];
         };
         /** @description One step's outcome within a run, so the FAILING step is identifiable in the detail read. */
@@ -89651,7 +89749,7 @@ export interface components {
             succeeded: boolean;
             /** Format: int32 */
             durationMs: number | string;
-            errorMessage: null | string;
+            errorMessage?: null | string;
         };
         /** @description Lightweight run summary for the execution-history list view (H.4 PipelineExecution). */
         PipelineExecutionSummaryDto: {
@@ -89661,18 +89759,18 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             triggerKind: string;
             status: string;
             /** Format: int32 */
             hostCallCount: number | string;
             /** Format: int32 */
             durationMs: number | string;
-            errorMessage: null | string;
+            errorMessage?: null | string;
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
-            completedAt: null | string;
+            completedAt?: null | string;
         };
         PipelineGraphInput: {
             steps: components["schemas"]["PipelineStepInput"][];
@@ -89685,12 +89783,12 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             isEnabled: boolean;
             /** Format: int64 */
             triggerCount: number | string;
             /** Format: date-time */
-            lastTriggeredAt: null | string;
+            lastTriggeredAt?: null | string;
             /** Format: date-time */
             updatedAt: string;
             /**
@@ -89698,7 +89796,7 @@ export interface components {
              *                 the `run_pipeline` target picker (fed by the list endpoint) knows a target's declared parameters without
              *                 a second per-row fetch.
              */
-            parameterNames: null | string[];
+            parameterNames?: null | string[];
             /**
              * @description True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to
              *                 the platform default.
@@ -89718,9 +89816,9 @@ export interface components {
              * @description What genuinely identifies this item in context beyond the label (cost, locale, duration, login vs display
              *     name, …) — kind-specific, populated from the real source, never fabricated.
              */
-            secondaryText: null | string;
+            secondaryText?: null | string;
             /** @description Optional preview/avatar/icon url; null when the source has none. */
-            imageUrl: null | string;
+            imageUrl?: null | string;
             /** @description Whether the item is currently pickable. */
             state: components["schemas"]["PipelineOptionState"];
             /** @description Populated when PipelineOptionState PipelineOption.State is PipelineOptionState.Unavailable. */
@@ -89735,7 +89833,7 @@ export interface components {
             /** @description False when the underlying source is not connected/reachable for this tenant. */
             sourceAvailable: boolean;
             /** @description Populated when bool PipelineOptionListResult.SourceAvailable is false. */
-            unavailableReason: null | string;
+            unavailableReason?: null | string;
             /** @description The page of options; empty (with bool PipelineOptionListResult.SourceAvailable true) is a real empty list. */
             items: components["schemas"]["PipelineOption"][];
             /**
@@ -89788,8 +89886,8 @@ export interface components {
         /** @description One variable a traced step changed: the value before the step ran and the value after (null = unset). */
         PipelineTraceVariableChangeDto: {
             key: string;
-            before: null | string;
-            after: null | string;
+            before?: null | string;
+            after?: null | string;
         };
         PipelineValidationResult: {
             isValid?: boolean;
@@ -89842,8 +89940,8 @@ export interface components {
         /** @description The platform bot admin screen's read model — real state, read from the stored credential. */
         PlatformBotAdminStatusDto: {
             state: string;
-            botUsername: null | string;
-            botDisplayName: null | string;
+            botUsername?: null | string;
+            botDisplayName?: null | string;
         };
         /** @description Body for polling a platform-bot reconnect — carries the same confirmation as the start call. */
         PlatformBotReconnectPollRequest: {
@@ -89884,23 +89982,23 @@ export interface components {
             kind: string;
             key: string;
             displayName: string;
-            description: null | string;
+            description?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            currentVersionId: null | string;
+            currentVersionId?: null | string;
             /** Format: int32 */
-            currentVersion: null | number | string;
+            currentVersion?: null | number | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            latestDraftVersionId: null | string;
+            latestDraftVersionId?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            retiredAt: null | string;
+            retiredAt?: null | string;
         };
         /**
          * @description What the definition's installed copies look like across every tenant right now: how many exist, how many
@@ -89929,7 +90027,7 @@ export interface components {
              */
             definitionId: string;
             /** Format: int32 */
-            fromVersion: null | number | string;
+            fromVersion?: null | number | string;
             /** Format: int32 */
             toVersion: number | string;
             mode: string;
@@ -89945,11 +90043,11 @@ export interface components {
             /** Format: int32 */
             previewSkippedCount: number | string;
             /** Format: int32 */
-            confirmedAffectedCount: null | number | string;
+            confirmedAffectedCount?: null | number | string;
             status: string;
             /** Format: date-time */
-            completedAt: null | string;
-            failureReason: null | string;
+            completedAt?: null | string;
+            failureReason?: null | string;
             rebuildFailedWidgetIds: string[];
             validationFailedPipelineIds: string[];
             validationFailedCodeScriptIds: string[];
@@ -89972,7 +90070,7 @@ export interface components {
             contentHash: string;
             payloadJson: string;
             renderGalleryRefs: string[];
-            publishNote: null | string;
+            publishNote?: null | string;
             /** Format: date-time */
             draftedAt: string;
             /**
@@ -89981,12 +90079,12 @@ export interface components {
              */
             draftedByPrincipalId: string;
             /** Format: date-time */
-            publishedAt: null | string;
+            publishedAt?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            publishedByPrincipalId: null | string;
+            publishedByPrincipalId?: null | string;
         };
         /**
          * @description The counted consequence of changing one platform default, shown BEFORE the save (consequences must be
@@ -90030,7 +90128,7 @@ export interface components {
             rowId: string;
             defaultName: string;
             /** Format: int32 */
-            installedVersion: null | number | string;
+            installedVersion?: null | number | string;
             /** Format: int32 */
             defaultVersion: number | string;
             isEdited: boolean;
@@ -90051,7 +90149,7 @@ export interface components {
             kind: string;
             key: string;
             displayName: string;
-            description: null | string;
+            description?: null | string;
             /** Format: int32 */
             version: number | string;
             payloadJson: string;
@@ -90074,7 +90172,7 @@ export interface components {
             kind: string;
             displayName: string;
             /** Format: int32 */
-            installedVersion: null | number | string;
+            installedVersion?: null | number | string;
             /** Format: int32 */
             currentVersion: number | string;
             editedSinceInstall: boolean;
@@ -90088,7 +90186,7 @@ export interface components {
             id: string;
             login: string;
             displayName: string;
-            profileImageUrl: null | string;
+            profileImageUrl?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -90170,7 +90268,7 @@ export interface components {
             entry: string;
             kind: string;
             framework: string;
-            dependencies: null | string[];
+            dependencies?: null | string[];
         };
         /** @description Catalog entry as returned by the public catalog endpoint. */
         PronounCatalogDto: {
@@ -90179,7 +90277,7 @@ export interface components {
             name: string;
             subject: string;
             object: string;
-            key: null | string;
+            key?: null | string;
         };
         PronounDto: {
             /** Format: int32 */
@@ -90195,7 +90293,7 @@ export interface components {
             /** @description One of ProtectionCheckStates. */
             state: string;
             /** @description The platform the check is about, or null when it covers the whole channel. */
-            platform: null | string;
+            platform?: null | string;
             /** @description Plain English: why the check is in this state, and what is missing when it is not ok. */
             reason: string;
         };
@@ -90218,7 +90316,7 @@ export interface components {
          */
         ProviderCredentialDto: {
             provider: string;
-            clientId: null | string;
+            clientId?: null | string;
             clientIdSource: string;
             secretSource: string;
             /**
@@ -90236,7 +90334,7 @@ export interface components {
         };
         PublishContentRequest: {
             mode: string;
-            publishNote: null | string;
+            publishNote?: null | string;
             /** Format: int32 */
             confirmedPreviewAffectedCount: number | string;
         };
@@ -90255,7 +90353,7 @@ export interface components {
         PublishSubmissionDto: {
             submissionId: string;
             status: string;
-            reviewNote: null | string;
+            reviewNote?: null | string;
         };
         /** @description Redeem a catalog item (economy.md §4). */
         PurchaseRequest: {
@@ -90269,10 +90367,10 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             buyerUserId: string;
-            inputArgs: null | string;
+            inputArgs?: null | string;
             /** Format: int32 */
             roleLevel: number | string;
-            idempotencyKey: null | string;
+            idempotencyKey?: null | string;
         };
         /** @description A queue item with its position. Cost is 0 for a free request. */
         QueueItemDto: {
@@ -90280,10 +90378,10 @@ export interface components {
             position: number | string;
             trackName: string;
             artist: string;
-            imageUrl: null | string;
+            imageUrl?: null | string;
             /** Format: int32 */
             durationMs: number | string;
-            requestedBy: null | string;
+            requestedBy?: null | string;
             /**
              * Format: int32
              * @default 0
@@ -90300,10 +90398,10 @@ export interface components {
             /** Format: int32 */
             number: number | string;
             text: string;
-            quotedDisplayName: null | string;
-            contextGame: null | string;
+            quotedDisplayName?: null | string;
+            contextGame?: null | string;
             /** Format: date-time */
-            quotedAt: null | string;
+            quotedAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             /**
@@ -90325,7 +90423,7 @@ export interface components {
             /** Format: int32 */
             viewerCount: number | string;
             /** Format: date-time */
-            accountCreatedAt: null | string;
+            accountCreatedAt?: null | string;
             /** Format: int32 */
             earlierRaidCount: number | string;
             isBanned: boolean;
@@ -90425,7 +90523,7 @@ export interface components {
         /** @description The result of redeeming an invite code. */
         RedeemInviteCodeResultDto: {
             grantedFoundersBadge: boolean;
-            grantedTierKey: null | string;
+            grantedTierKey?: null | string;
             foundersBadge: null | components["schemas"]["FoundersBadgeDto"];
         };
         /** @description Body of `POST /automation/v1/pair` — the code IS the credential. */
@@ -90443,10 +90541,10 @@ export interface components {
             rewardTitle: string;
             userId: string;
             userDisplayName: string;
-            userAvatarUrl: null | string;
+            userAvatarUrl?: null | string;
             /** Format: int32 */
             cost: number | string;
-            userInput: null | string;
+            userInput?: null | string;
             status: string;
             /** Format: date-time */
             redeemedAt: string;
@@ -90481,7 +90579,7 @@ export interface components {
          *     impersonated user, never the operator. The served-web dashboard keeps that token in an HttpOnly cookie.
          */
         RefreshTokenRequest: {
-            refreshToken: null | string;
+            refreshToken?: null | string;
             actAsToken?: null | string;
         };
         /** @description Refund a completed purchase (economy.md §4). */
@@ -90495,8 +90593,8 @@ export interface components {
         };
         RegisterFederationPeerRequest: {
             instanceId: string;
-            displayName: null | string;
-            baseUrl: null | string;
+            displayName?: null | string;
+            baseUrl?: null | string;
             deploymentMode: string;
             publicKey: string;
             keyId: string;
@@ -90561,7 +90659,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            broadcasterId: null | string;
+            broadcasterId?: null | string;
             requestedBy: string;
             scope: string;
         };
@@ -90589,9 +90687,9 @@ export interface components {
             effectiveLevel: string;
             communityStanding: string;
             communityLevel: string;
-            managementRole: null | string;
+            managementRole?: null | string;
             managementLevel: string;
-            permitRole: null | string;
+            permitRole?: null | string;
             permitCapabilities: string[];
             winningSource: string;
             heldActionKeys: string[];
@@ -90667,8 +90765,8 @@ export interface components {
         RewardDetail: {
             id: string;
             title: string;
-            prompt: null | string;
-            response: null | string;
+            prompt?: null | string;
+            response?: null | string;
             /** Format: int32 */
             cost: number | string;
             isEnabled: boolean;
@@ -90676,21 +90774,21 @@ export interface components {
             isUserInputRequired: boolean;
             isPaused: boolean;
             isMigrationPending: boolean;
-            backgroundColor: null | string;
-            imageUrl: null | string;
+            backgroundColor?: null | string;
+            imageUrl?: null | string;
             /** Format: int32 */
-            maxPerStream: null | number | string;
+            maxPerStream?: null | number | string;
             /** Format: int32 */
-            maxPerUserPerStream: null | number | string;
+            maxPerUserPerStream?: null | number | string;
             /** Format: int32 */
-            globalCooldownSeconds: null | number | string;
+            globalCooldownSeconds?: null | number | string;
             /** Format: int32 */
-            timerDurationSeconds: null | number | string;
+            timerDurationSeconds?: null | number | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -90704,7 +90802,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            internalUserId: null | string;
+            internalUserId?: null | string;
             displayName: string;
             /** Format: int32 */
             points: number | string;
@@ -90724,8 +90822,8 @@ export interface components {
          *     ApiKey is the YouTube Data API key and is accepted for the youtube provider only.
          */
         SaveProviderCredentialRequest: {
-            clientId: null | string;
-            clientSecret: null | string;
+            clientId?: null | string;
+            clientSecret?: null | string;
             apiKey?: null | string;
         };
         /** @description Both switches are explicit on every save — no partial policy writes (opt-in, default-deny). */
@@ -90736,7 +90834,7 @@ export interface components {
         SaveTwitchCredentialRequest: {
             clientId: string;
             clientSecret: string;
-            botUsername: null | string;
+            botUsername?: null | string;
         };
         /** @description A pooled cross-channel savings jar (economy.md §4). */
         SavingsJarDto: {
@@ -90751,15 +90849,15 @@ export interface components {
              */
             ownerBroadcasterId: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             /** Format: int64 */
-            goalAmount: null | number | string;
+            goalAmount?: null | number | string;
             /** Format: int64 */
             balance: number | string;
-            iconUrl: null | string;
+            iconUrl?: null | string;
             isOpen: boolean;
             /** Format: int64 */
-            maxWithdrawalPerChannel: null | number | string;
+            maxWithdrawalPerChannel?: null | number | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -90801,7 +90899,7 @@ export interface components {
          *     the way an editor shows them. string? ScriptSourcePosition.File is null when the file is not known.
          */
         ScriptSourcePosition: {
-            file: null | string;
+            file?: null | string;
             /** Format: int32 */
             line: number | string;
             /** Format: int32 */
@@ -90832,12 +90930,12 @@ export interface components {
              * Format: int32
              * @description The line in the script where the problem is. Null when it has no single line.
              */
-            line: null | number | string;
+            line?: null | number | string;
             /**
              * Format: int32
              * @description The column in that line where the problem starts. Null when it has no single column.
              */
-            column: null | number | string;
+            column?: null | number | string;
             /** @description The project file the line and column belong to. Null when unknown (older stored errors). */
             file?: null | string;
         };
@@ -90888,7 +90986,7 @@ export interface components {
             name: string;
             status: string;
             /** Format: int32 */
-            latencyMs: null | number | string;
+            latencyMs?: null | number | string;
         };
         ServiceHealthResponseDto: {
             name: string;
@@ -90901,7 +90999,7 @@ export interface components {
          */
         SetActionDefaultRequest: {
             /** Format: int32 */
-            level: null | number | string;
+            level?: null | number | string;
             /** Format: int32 */
             confirmedChannelsAffected: number | string;
             confirmDanger: boolean;
@@ -90915,12 +91013,12 @@ export interface components {
         };
         /** @description Saves a reply text. ConfirmedChannelsAffected must equal the preview's live count. */
         SetBuiltinReplyDefaultRequest: {
-            template: null | string;
+            template?: null | string;
             /** Format: int32 */
             confirmedChannelsAffected: number | string;
         };
         SetBuiltinReplyRequest: {
-            template: null | string;
+            template?: null | string;
         };
         SetBuiltinSpeakWithTtsRequest: {
             enabled: boolean;
@@ -90946,7 +91044,7 @@ export interface components {
         /** @description Saves a platform default. ConfirmedChannelsAffected must equal the preview's live count. */
         SetEventResponseDefaultRequest: {
             isEnabled: boolean;
-            message: null | string;
+            message?: null | string;
             /** Format: int32 */
             confirmedChannelsAffected: number | string;
             /** @default false */
@@ -90957,7 +91055,7 @@ export interface components {
             provider: string;
             emoteId: string;
             code: string;
-            imageUrl: null | string;
+            imageUrl?: null | string;
         };
         /** @description Set a per-tenant override (the internal/beta opt-in or per-channel kill-switch). */
         SetFeatureFlagOverrideRequest: {
@@ -90969,7 +91067,7 @@ export interface components {
         /** @description Create-or-update a flag's global definition (rollout-updates §5 ramp controls). */
         SetFeatureFlagRequest: {
             key: string;
-            description: null | string;
+            description?: null | string;
             isEnabledGlobally: boolean;
             /** Format: int32 */
             rolloutPercentage: number | string;
@@ -91000,7 +91098,7 @@ export interface components {
         SetModerationStandingRequest: {
             provider: string;
             standing: string;
-            reason: null | string;
+            reason?: null | string;
         };
         SetOverrideBody: {
             /** Format: int32 */
@@ -91044,7 +91142,7 @@ export interface components {
             limitValue: number | string;
             reason: string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         SetTrustLevelRequest: {
             level: string;
@@ -91070,7 +91168,7 @@ export interface components {
             type: string;
             method: string;
             endpoint: string;
-            pollEndpoint: null | string;
+            pollEndpoint?: null | string;
         };
         /** @description One input the user fills in for a step (key, label, control type, required flag, help text). */
         SetupFieldDto: {
@@ -91078,7 +91176,7 @@ export interface components {
             label: string;
             type: string;
             required: boolean;
-            help: null | string;
+            help?: null | string;
         };
         /** @description One onboarding step: presentation + live state + the action and fields that complete it. */
         SetupStepDto: {
@@ -91129,7 +91227,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            addedByUserId: null | string;
+            addedByUserId?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -91157,9 +91255,9 @@ export interface components {
             /** @description The name as Twitch shows it. */
             displayName: string;
             /** @description The chat color from their latest chat line in this channel, or null when none is known. */
-            color: null | string;
+            color?: null | string;
             /** @description The category of their channel on Twitch now (Get Channel Information), or null when none is set. */
-            lastCategory: null | string;
+            lastCategory?: null | string;
             /**
              * Format: int32
              * @description How many archived streams they published in the last 14 days (Get Videos, type archive).
@@ -91169,10 +91267,10 @@ export interface components {
              * Format: date-time
              * @description When this channel last shouted them out, from our own records, or null when never.
              */
-            lastShoutoutAt: null | string;
+            lastShoutoutAt?: null | string;
         };
         ShoutoutTemplateDto: {
-            template: null | string;
+            template?: null | string;
         };
         ShuffleDto: {
             enabled: boolean;
@@ -91215,7 +91313,7 @@ export interface components {
             /** Format: int32 */
             cooldownSeconds: number | string;
             minPermissionLevel: string;
-            triggerWord: null | string;
+            triggerWord?: null | string;
             /** Format: date-time */
             createdAt: string;
             previewUrl: string;
@@ -91247,9 +91345,9 @@ export interface components {
             noStandingShare: number | string;
             mayContributeToNetwork: boolean;
             /** Format: date-time */
-            reversedAt: null | string;
-            reversalReason: null | string;
-            reversedByActorId: null | string;
+            reversedAt?: null | string;
+            reversalReason?: null | string;
+            reversedByActorId?: null | string;
             /** Format: int32 */
             restoredAccountCount: number | string;
             restorationFailedAccountIds: string;
@@ -91276,7 +91374,7 @@ export interface components {
             catalogue: components["schemas"]["SpamSettingDescriptorDto"][];
             invariants: components["schemas"]["SpamInvariantDto"][];
             /** Format: date-time */
-            enforcementEligibleAt: null | string;
+            enforcementEligibleAt?: null | string;
             isPinned: boolean;
         };
         /**
@@ -91416,7 +91514,7 @@ export interface components {
             wasDryRun: boolean;
             reason: string;
             /** Format: date-time */
-            overturnedAt: null | string;
+            overturnedAt?: null | string;
             /** Format: date-time */
             detectedAt: string;
         };
@@ -91442,12 +91540,12 @@ export interface components {
             explanationKey: string;
             costKey: string;
             /** Format: double */
-            minimum: null | number | string;
+            minimum?: null | number | string;
             /** Format: double */
-            maximum: null | number | string;
+            maximum?: null | number | string;
             isToggle: boolean;
-            pendingSlice: null | string;
-            inactiveReasonKey: null | string;
+            pendingSlice?: null | string;
+            inactiveReasonKey?: null | string;
         };
         /**
          * @description The spam-defence trust ladder (spam-defense.md §L4). Ladder-valued so comparisons are ordinary
@@ -91459,8 +91557,8 @@ export interface components {
         /** @description Start a Stripe Checkout for a tier. */
         StartCheckoutRequest: {
             tierKey: string;
-            successUrl: null | string;
-            cancelUrl: null | string;
+            successUrl?: null | string;
+            cancelUrl?: null | string;
         };
         StartCommercialDto: {
             /** Format: int32 */
@@ -96309,16 +96407,16 @@ export interface components {
          */
         StreamAnalyticsDto: {
             streamId: string;
-            title: null | string;
-            gameName: null | string;
+            title?: null | string;
+            gameName?: null | string;
             /** Format: date-time */
-            startedAt: null | string;
+            startedAt?: null | string;
             /** Format: date-time */
-            endedAt: null | string;
+            endedAt?: null | string;
             /** Format: int64 */
-            durationSeconds: null | number | string;
+            durationSeconds?: null | number | string;
             /** Format: int32 */
-            peakViewers: null | number | string;
+            peakViewers?: null | number | string;
             /** Format: int64 */
             totalMessages: number | string;
             /** Format: int32 */
@@ -96350,31 +96448,31 @@ export interface components {
             enabled: boolean;
         };
         StreamInfoDto: {
-            title: null | string;
-            gameName: null | string;
+            title?: null | string;
+            gameName?: null | string;
             tags: string[];
             isLive: boolean;
             /** Format: int32 */
             viewerCount: number | string;
             /** Format: date-time */
-            startedAt: null | string;
-            language: null | string;
+            startedAt?: null | string;
+            language?: null | string;
             /** Format: date-time */
             lastStreamedAt?: null | string;
         };
         /** @description One stream in the channel's history list, newest first — the per-stream entry point. */
         StreamListItemDto: {
             streamId: string;
-            title: null | string;
-            gameName: null | string;
+            title?: null | string;
+            gameName?: null | string;
             /** Format: date-time */
-            startedAt: null | string;
+            startedAt?: null | string;
             /** Format: date-time */
-            endedAt: null | string;
+            endedAt?: null | string;
             /** Format: int64 */
-            durationSeconds: null | number | string;
+            durationSeconds?: null | number | string;
             /** Format: int32 */
-            peakViewers: null | number | string;
+            peakViewers?: null | number | string;
         };
         StreamStatusDto: {
             isLive: boolean;
@@ -96407,11 +96505,11 @@ export interface components {
             status: string;
             cancelAtPeriodEnd: boolean;
             /** Format: date-time */
-            currentPeriodEnd: null | string;
+            currentPeriodEnd?: null | string;
             /** Format: date-time */
-            trialEndsAt: null | string;
+            trialEndsAt?: null | string;
             /** Format: date-time */
-            gracePeriodEndsAt: null | string;
+            gracePeriodEndsAt?: null | string;
             isInviteOnlyGrant: boolean;
             allowsCustomBotName: boolean;
             prioritySupport: boolean;
@@ -96429,8 +96527,8 @@ export interface components {
             isEnabled: boolean;
             status: string;
             /** Format: date-time */
-            lastEventAt: null | string;
-            endpointUrl: null | string;
+            lastEventAt?: null | string;
+            endpointUrl?: null | string;
         };
         /** @description One recorded supporter event for the events list (supporter-events.md §5). */
         SupporterEventDto: {
@@ -96443,12 +96541,12 @@ export interface components {
             kind: string;
             supporterDisplayName: string;
             /** Format: int64 */
-            amountMinor: null | number | string;
-            currency: null | string;
-            tier: null | string;
+            amountMinor?: null | number | string;
+            currency?: null | string;
+            tier?: null | string;
             /** Format: int32 */
-            quantity: null | number | string;
-            messageText: null | string;
+            quantity?: null | number | string;
+            messageText?: null | string;
             isRecurring: boolean;
             /** Format: date-time */
             receivedAt: string;
@@ -96465,9 +96563,9 @@ export interface components {
             /** Format: int32 */
             levelValue: number | string;
             source: string;
-            subTier: null | string;
+            subTier?: null | string;
             /** Format: date-time */
-            lastSeenAt: null | string;
+            lastSeenAt?: null | string;
         };
         /**
          * @description The effective entitlement of ONE channel this person owns: the tier `IBillingTierService` actually
@@ -96518,8 +96616,8 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            broadcasterId: null | string;
-            channelName: null | string;
+            broadcasterId?: null | string;
+            channelName?: null | string;
             eventType: string;
             source: string;
             /** Format: date-time */
@@ -96538,10 +96636,10 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            scopeBroadcasterId: null | string;
-            scopeChannelName: null | string;
+            scopeBroadcasterId?: null | string;
+            scopeChannelName?: null | string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /** @description One proven external login this person holds (`UserIdentity`). */
         SupportPersonIdentityDto: {
@@ -96552,7 +96650,7 @@ export interface components {
             /** Format: date-time */
             linkedAt: string;
             /** Format: date-time */
-            lastLoginAt: null | string;
+            lastLoginAt?: null | string;
         };
         /** @description This person's moderation rollup in ONE tenant (`UserModerationHistory`). */
         SupportPersonModerationHistoryDto: {
@@ -96571,8 +96669,8 @@ export interface components {
             /** Format: int32 */
             messagesDeletedCount: number | string;
             /** Format: date-time */
-            lastActionAt: null | string;
-            lastActionType: null | string;
+            lastActionAt?: null | string;
+            lastActionType?: null | string;
         };
         /**
          * @description The bot-side negative moderation standing this person carries in ONE tenant on ONE platform
@@ -96588,7 +96686,7 @@ export interface components {
             channelName: string;
             provider: string;
             standing: string;
-            reason: null | string;
+            reason?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -96619,11 +96717,11 @@ export interface components {
             username: string;
             displayName: string;
             platform: string;
-            twitchUserId: null | string;
+            twitchUserId?: null | string;
             isPlatformPrincipal: boolean;
             isAnonymized: boolean;
             /** Format: date-time */
-            lastSeenAt: null | string;
+            lastSeenAt?: null | string;
             /** Format: int32 */
             tenantCount: number | string;
         };
@@ -96640,7 +96738,7 @@ export interface components {
             /** Format: double */
             heatScore: number | string;
             /** Format: date-time */
-            lastHeatEventAt: null | string;
+            lastHeatEventAt?: null | string;
             /** Format: date-time */
             computedAt: string;
         };
@@ -96658,11 +96756,11 @@ export interface components {
             username: string;
             displayName: string;
             platform: string;
-            twitchUserId: null | string;
+            twitchUserId?: null | string;
             isPlatformPrincipal: boolean;
             isAnonymized: boolean;
             /** Format: date-time */
-            lastSeenAt: null | string;
+            lastSeenAt?: null | string;
             identities: components["schemas"]["SupportPersonIdentityDto"][];
             platformConnections: components["schemas"]["SupportPersonPlatformConnectionDto"][];
             iamRoles: components["schemas"]["SupportPersonIamRoleDto"][];
@@ -96739,9 +96837,9 @@ export interface components {
             /** Format: date-time */
             grantedAt: string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
             /** Format: date-time */
-            revokedAt: null | string;
+            revokedAt?: null | string;
         };
         /** @description One live per-tenant quota exception, for the operator console. */
         TenantLimitOverrideDto: {
@@ -96767,7 +96865,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            expiresAt: null | string;
+            expiresAt?: null | string;
         };
         /**
          * @description One person who belongs to a tenant, for the operator's act-as picker: the owner, a management member, a
@@ -96782,10 +96880,10 @@ export interface components {
             userId: string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
+            profileImageUrl?: null | string;
             relation: string;
-            managementRole: null | string;
-            communityStanding: null | string;
+            managementRole?: null | string;
+            communityStanding?: null | string;
         };
         /**
          * @description Outcome of an operator-forced re-application of pending EF Core migrations (S-ADMIN-3) — a database-wide
@@ -96817,7 +96915,7 @@ export interface components {
          */
         TestRunResultDto: {
             success: boolean;
-            error: null | string;
+            error?: null | string;
             /** Format: int64 */
             durationMs: number | string;
             /** Format: int32 */
@@ -96825,10 +96923,10 @@ export interface components {
             capturedEffects: components["schemas"]["CapturedEffectDto"][];
             chatOutput: string[];
             log: string[];
-            variablesSet: null | {
+            variablesSet?: null | {
                 [key: string]: string;
             };
-            console: null | string[];
+            console?: null | string[];
             /** @description Every effect, chat message and console line in the order it happened; empty when the run kind has none. */
             timeline?: components["schemas"]["TimelineEntryDto"][];
             /** @description What each executed step did, in run order (pipeline test-runs only; empty for scripts). */
@@ -96839,7 +96937,7 @@ export interface components {
         TestTriggerDto: {
             id: string;
             responseKey: string;
-            userDisplayName: null | string;
+            userDisplayName?: null | string;
             variables: {
                 [key: string]: string;
             };
@@ -96913,9 +97011,9 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** Format: date-time */
-            lastFiredAt: null | string;
+            lastFiredAt?: null | string;
             /** Format: int32 */
             nextMessageIndex: number | string;
             /** Format: date-time */
@@ -96937,7 +97035,7 @@ export interface components {
             isEnabled: boolean;
             fireOnce: boolean;
             /** Format: date-time */
-            lastFiredAt: null | string;
+            lastFiredAt?: null | string;
             /** Format: int32 */
             messageCount: number | string;
             /** Format: date-time */
@@ -96952,7 +97050,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             viewerUserId: string;
-            displayName: null | string;
+            displayName?: null | string;
             /** Format: int64 */
             metricValue: number | string;
         };
@@ -96972,12 +97070,12 @@ export interface components {
             toViewerUserId: string;
             /** Format: int64 */
             amount: number | string;
-            reason: null | string;
+            reason?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            actorUserId: null | string;
+            actorUserId?: null | string;
         };
         TransferDto: {
             deviceId: string;
@@ -97066,19 +97164,19 @@ export interface components {
             /** Format: date-time */
             detectedAt: string;
             /** Format: date-time */
-            confirmedAt: null | string;
+            confirmedAt?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            confirmedByUserId: null | string;
+            confirmedByUserId?: null | string;
             /** Format: date-time */
-            overturnedAt: null | string;
+            overturnedAt?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            overturnedByUserId: null | string;
+            overturnedByUserId?: null | string;
             reversalPreview: string;
         };
         /**
@@ -97106,7 +97204,7 @@ export interface components {
             isEnabled: boolean;
             mode: string;
             defaultProvider: string;
-            defaultVoiceId: null | string;
+            defaultVoiceId?: null | string;
             /** Format: int32 */
             maxCharacters: number | string;
             minPermission: string;
@@ -97115,7 +97213,7 @@ export interface components {
             profanityCensorEnabled: boolean;
             modApprovalRequired: boolean;
             /** Format: int32 */
-            minBitsToTts: null | number | string;
+            minBitsToTts?: null | number | string;
             /** @default true */
             viewerVoiceSelfServiceEnabled: boolean;
             /** @default false */
@@ -97136,7 +97234,7 @@ export interface components {
             characterCount: number | string;
             /** Format: int32 */
             durationMs: number | string;
-            playbackUrl: null | string;
+            playbackUrl?: null | string;
         };
         /** @description One pronunciation-lexicon rule: when Phrase appears in an utterance, TTS speaks Replacement. */
         TtsLexiconEntryDto: {
@@ -97157,7 +97255,7 @@ export interface components {
         TtsOverlayDto: {
             overlayUrl: string;
             /** Format: date-time */
-            lastRanAt: null | string;
+            lastRanAt?: null | string;
         };
         /** @description A pending TTS utterance awaiting moderator review (tts.md P.1a), shaped for the moderator queue UI. */
         TtsQueueEntryDto: {
@@ -97167,9 +97265,9 @@ export interface components {
              */
             id: string;
             requestedByTwitchUserId: string;
-            requestedByDisplayName: null | string;
+            requestedByDisplayName?: null | string;
             originalText: string;
-            censoredText: null | string;
+            censoredText?: null | string;
             voiceId: string;
             wasCensored: boolean;
             status: string;
@@ -97177,7 +97275,7 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             expiresAt: string;
-            sourceMessageId: null | string;
+            sourceMessageId?: null | string;
         };
         /** @description Request to test a TTS voice. */
         TtsTestRequestDto: {
@@ -97241,12 +97339,12 @@ export interface components {
             gender: string;
             provider: string;
             isDefault: boolean;
-            accent: null | string;
-            age: null | string;
+            accent?: null | string;
+            age?: null | string;
             styles: string[];
             tags: string[];
-            description: null | string;
-            previewUrl: null | string;
+            description?: null | string;
+            previewUrl?: null | string;
         };
         /** @description The bulk-import outcome: how many assignments were upserted and every row that was skipped, with its reason. */
         TtsVoiceImportResultDto: {
@@ -97293,7 +97391,7 @@ export interface components {
          */
         TwitchAutoModSettingsDto: {
             /** Format: int32 */
-            overallLevel: null | number | string;
+            overallLevel?: null | number | string;
             /** Format: int32 */
             aggression: number | string;
             /** Format: int32 */
@@ -97347,7 +97445,7 @@ export interface components {
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
-            endedAt: null | string;
+            endedAt?: null | string;
         };
         /** @description One choice in a poll, with its running vote tallies (Get/Create/End Polls). */
         TwitchPollChoice: {
@@ -97371,7 +97469,7 @@ export interface components {
             broadcasterName: string;
             broadcasterLogin: string;
             title: string;
-            winningOutcomeId: null | string;
+            winningOutcomeId?: null | string;
             outcomes: components["schemas"]["TwitchPredictionOutcome"][];
             /** Format: int32 */
             predictionWindow: number | string;
@@ -97379,9 +97477,9 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            endedAt: null | string;
+            endedAt?: null | string;
             /** Format: date-time */
-            lockedAt: null | string;
+            lockedAt?: null | string;
         };
         /** @description One of the 2–10 possible outcomes of a prediction, with its running tally of predictors. */
         TwitchPredictionOutcome: {
@@ -97391,7 +97489,7 @@ export interface components {
             users: number | string;
             /** Format: int32 */
             channelPoints: number | string;
-            topPredictors: null | components["schemas"]["TwitchPredictionTopPredictor"][];
+            topPredictors?: null | components["schemas"]["TwitchPredictionTopPredictor"][];
             color: string;
         };
         /** @description A leading predictor on an outcome — points wagered and (once resolved) points won. */
@@ -97441,7 +97539,7 @@ export interface components {
             endTime: string;
             title: string;
             /** Format: date-time */
-            canceledUntil: null | string;
+            canceledUntil?: null | string;
             category: null | components["schemas"]["TwitchScheduleCategory"];
             isRecurring: boolean;
             /** @description The streamer's saved IANA timezone the segment is shown in; null when none is saved. */
@@ -97474,7 +97572,7 @@ export interface components {
             feature: string;
             granted: boolean;
             isProgressive: boolean;
-            gatedByFeature: null | string;
+            gatedByFeature?: null | string;
         };
         /** @description The created marker returned by Create Stream Marker (its id, timestamp, offset and description). */
         TwitchStreamMarker: {
@@ -97499,9 +97597,9 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            resolvedAt: null | string;
-            resolvedBy: null | string;
-            resolutionText: null | string;
+            resolvedAt?: null | string;
+            resolvedBy?: null | string;
+            resolutionText?: null | string;
         };
         /**
          * @description A dashboard unban request — the reversal of BanUserRequest. string UnbanUserRequest.Scope is
@@ -97516,32 +97614,32 @@ export interface components {
         /** @description The channel's cooldown and permission floor for a built-in; null = use the default. */
         UpdateBuiltinSettingsRequest: {
             /** Format: int32 */
-            cooldownSeconds: null | number | string;
-            minPermissionLevel: null | string;
+            cooldownSeconds?: null | number | string;
+            minPermissionLevel?: null | string;
         };
         /** @description Partial update of a catalog item (PATCH semantics — null = unchanged) (economy.md §4). */
         UpdateCatalogItemRequest: {
-            name: null | string;
-            description: null | string;
+            name?: null | string;
+            description?: null | string;
             /** Format: int64 */
-            cost: null | number | string;
-            iconUrl: null | string;
-            isEnabled: null | boolean;
-            permission: null | string;
+            cost?: null | number | string;
+            iconUrl?: null | string;
+            isEnabled?: null | boolean;
+            permission?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: null | string;
+            pipelineId?: null | string;
             /** Format: int32 */
-            cooldownSeconds: null | number | string;
-            cooldownPerUser: null | boolean;
+            cooldownSeconds?: null | number | string;
+            cooldownPerUser?: null | boolean;
             /** Format: int32 */
-            stockLimit: null | number | string;
+            stockLimit?: null | number | string;
             /** Format: int32 */
-            maxPerViewerPerStream: null | number | string;
+            maxPerViewerPerStream?: null | number | string;
             /** Format: int32 */
-            sortOrder: null | number | string;
+            sortOrder?: null | number | string;
         };
         UpdateChannelAudioMixRequest: {
             /** Format: int32 */
@@ -97644,15 +97742,15 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pingRoleId: null | string;
-            messageTemplate: null | string;
+            pingRoleId?: null | string;
+            messageTemplate?: null | string;
             embedConfig: null | components["schemas"]["DiscordEmbedDto"];
-            milestoneType: null | string;
+            milestoneType?: null | string;
             /** Format: int32 */
-            milestoneThreshold: null | number | string;
+            milestoneThreshold?: null | number | string;
         };
         UpdateDiscordNotificationRoleRequest: {
-            roleName: null | string;
+            roleName?: null | string;
             selfAssignEnabled: boolean;
             /** @default false */
             dmEnabled: boolean;
@@ -97662,7 +97760,7 @@ export interface components {
             firstTimeChatterEnabled: boolean;
             returningChatterEnabled: boolean;
             watchStreakEnabled: boolean;
-            streakMilestones: null | (number | string)[];
+            streakMilestones?: null | (number | string)[];
             /** Format: int32 */
             greetCooldownSeconds: number | string;
         };
@@ -97707,7 +97805,7 @@ export interface components {
             /** Format: int32 */
             maxDurationSeconds: number | string;
             /** Format: int64 */
-            entryCost: null | number | string;
+            entryCost?: null | number | string;
             /** Format: int32 */
             maxQueueLength: number | string;
             /** Format: int32 */
@@ -97764,7 +97862,7 @@ export interface components {
         /** @description Edit payload — the desired full state of the list (name is renamable, all items replaced). */
         UpdatePickListRequest: {
             name: string;
-            description: null | string;
+            description?: null | string;
             items: string[];
         };
         /** @description A re-pin to a new commit/tag — always forces the item back through review. */
@@ -97839,12 +97937,12 @@ export interface components {
         };
         /** @description Toggle a vacation and/or (re)schedule its window (Helix PATCH /schedule/settings). */
         UpdateScheduleSettingsDto: {
-            isVacationEnabled: null | boolean;
+            isVacationEnabled?: null | boolean;
             /** Format: date-time */
-            vacationStartTime: null | string;
+            vacationStartTime?: null | string;
             /** Format: date-time */
-            vacationEndTime: null | string;
-            timezone: null | string;
+            vacationEndTime?: null | string;
+            timezone?: null | string;
         };
         UpdateSoundClipRequest: {
             displayName: string;
@@ -97861,9 +97959,9 @@ export interface components {
             triggerWord?: null | string;
         };
         UpdateStreamRequest: {
-            title: null | string;
-            gameName: null | string;
-            tags: null | string[];
+            title?: null | string;
+            gameName?: null | string;
+            tags?: null | string[];
         };
         UpdateTagsRequest: {
             tags: string[];
@@ -98049,7 +98147,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            peerId: null | string;
+            peerId?: null | string;
             optInType: string;
             direction: string;
             isEnabled: boolean;
@@ -98057,13 +98155,13 @@ export interface components {
         /** @description Upsert a channel's currency definition (economy.md §4). */
         UpsertCurrencyConfigRequest: {
             currencyName: string;
-            currencyNamePlural: null | string;
-            iconUrl: null | string;
+            currencyNamePlural?: null | string;
+            iconUrl?: null | string;
             isEnabled: boolean;
             /** Format: int64 */
             startingBalance: number | string;
             /** Format: int64 */
-            maxBalance: null | number | string;
+            maxBalance?: null | number | string;
             /** Format: int32 */
             decimalPlaces: number | string;
         };
@@ -98071,14 +98169,14 @@ export interface components {
             name: string;
             displayName: string;
             sourceKind: string;
-            presetKey: null | string;
-            endpointUrl: null | string;
-            authSecret: null | string;
+            presetKey?: null | string;
+            endpointUrl?: null | string;
+            authSecret?: null | string;
             fieldMap: {
                 [key: string]: string;
             };
             /** Format: int32 */
-            pollIntervalSeconds: null | number | string;
+            pollIntervalSeconds?: null | number | string;
             isEnabled: boolean;
         };
         /** @description Upsert one earning rule (economy.md §4). string UpsertEarningRuleRequest.Source is an `EarningSource` token. */
@@ -98088,14 +98186,14 @@ export interface components {
             /** Format: int64 */
             rate: number | string;
             /** Format: int32 */
-            unitWindowSeconds: null | number | string;
+            unitWindowSeconds?: null | number | string;
             /** Format: int64 */
-            perWindowCap: null | number | string;
+            perWindowCap?: null | number | string;
             /** Format: int64 */
-            perStreamCap: null | number | string;
+            perStreamCap?: null | number | string;
             /** Format: int32 */
-            minRoleLevel: null | number | string;
-            bonusConfig: null | {
+            minRoleLevel?: null | number | string;
+            bonusConfig?: null | {
                 [key: string]: unknown;
             };
         };
@@ -98119,21 +98217,21 @@ export interface components {
             isEnabled: boolean;
             requires18Plus: boolean;
             /** Format: int64 */
-            minBet: null | number | string;
+            minBet?: null | number | string;
             /** Format: int64 */
-            maxBet: null | number | string;
+            maxBet?: null | number | string;
             /** Format: double */
-            houseEdgePercent: null | number | string;
+            houseEdgePercent?: null | number | string;
             /** Format: double */
-            winChancePercent: null | number | string;
+            winChancePercent?: null | number | string;
             /** Format: double */
-            payoutMultiplier: null | number | string;
+            payoutMultiplier?: null | number | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
             /** Format: int32 */
-            maxPlaysPerStream: null | number | string;
+            maxPlaysPerStream?: null | number | string;
             permission: string;
-            config: null | {
+            config?: null | {
                 [key: string]: unknown;
             };
         };
@@ -98187,7 +98285,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            id: null | string;
+            id?: null | string;
             metric: string;
             scope: string;
             period: string;
@@ -98198,7 +98296,7 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            jarId: null | string;
+            jarId?: null | string;
         };
         /** @description Upsert request; string? UpsertObsConnectionRequest.Password is WRITE-ONLY (null = keep, empty string = clear). */
         UpsertObsConnectionRequest: {
@@ -98222,12 +98320,12 @@ export interface components {
         UpsertSupporterConnectionRequest: {
             sourceKey: string;
             connectionMode: string;
-            authSecret: null | string;
+            authSecret?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            integrationConnectionId: null | string;
+            integrationConnectionId?: null | string;
             isEnabled: boolean;
         };
         /** @description Request to create or update a lexicon rule. `word` matches whole words case-insensitively; `exact` is a case-sensitive literal. */
@@ -98275,10 +98373,10 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            internalUserId: null | string;
+            internalUserId?: null | string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
+            profileImageUrl?: null | string;
             /** Format: int32 */
             messageCount: number | string;
             /** Format: double */
@@ -98293,16 +98391,16 @@ export interface components {
             lastSeen: string;
             recentActivity: components["schemas"]["ActivityDto"][];
             banHistory: components["schemas"]["BanRecordDto"][];
-            isVip: null | boolean;
-            isModerator: null | boolean;
+            isVip?: null | boolean;
+            isModerator?: null | boolean;
         };
         /** @description Full user information. */
         UserDto: {
             id: string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
-            email: null | string;
+            profileImageUrl?: null | string;
+            email?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -98316,13 +98414,13 @@ export interface components {
             provider: string;
             providerUserId: string;
             providerUsername: string;
-            providerDisplayName: null | string;
-            providerAvatarUrl: null | string;
+            providerDisplayName?: null | string;
+            providerAvatarUrl?: null | string;
             isPrimary: boolean;
             /** Format: date-time */
             linkedAt: string;
             /** Format: date-time */
-            lastLoginAt: null | string;
+            lastLoginAt?: null | string;
         };
         /**
          * @description A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel
@@ -98331,7 +98429,7 @@ export interface components {
          */
         UserModerationContextDto: {
             userId: string;
-            username: null | string;
+            username?: null | string;
             /** Format: int32 */
             banCount: number | string;
             /** Format: int32 */
@@ -98340,9 +98438,9 @@ export interface components {
             warnCount: number | string;
             /** Format: int32 */
             unbanCount: number | string;
-            lastActionType: null | string;
+            lastActionType?: null | string;
             /** Format: date-time */
-            lastActionAt: null | string;
+            lastActionAt?: null | string;
             recentActions: components["schemas"]["ModerationActionLog"][];
             standings: components["schemas"]["ModerationStandingDto"][];
             history?: null | components["schemas"]["UserModerationHistorySummaryDto"];
@@ -98361,10 +98459,10 @@ export interface components {
             /** Format: int32 */
             messagesDeletedCount: number | string;
             /** Format: date-time */
-            firstSeenAt: null | string;
+            firstSeenAt?: null | string;
             /** Format: date-time */
-            lastActionAt: null | string;
-            lastActionType: null | string;
+            lastActionAt?: null | string;
+            lastActionType?: null | string;
             /** Format: date-time */
             lastWarningAt?: null | string;
             /** Format: date-time */
@@ -98377,7 +98475,7 @@ export interface components {
             subjectUserId: string;
             content: string;
             pinned: boolean;
-            authorName: null | string;
+            authorName?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -98388,11 +98486,11 @@ export interface components {
             id: string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
-            email: null | string;
-            pronoun: null | string;
+            profileImageUrl?: null | string;
+            email?: null | string;
+            pronoun?: null | string;
             /** Format: int32 */
-            pronounId: null | number | string;
+            pronounId?: null | number | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -98401,12 +98499,12 @@ export interface components {
         /** @description Pronoun state for the self-service API. */
         UserPronounDto: {
             /** Format: int32 */
-            pronounId: null | number | string;
-            pronounName: null | string;
-            pronounBadge: null | string;
+            pronounId?: null | number | string;
+            pronounName?: null | string;
+            pronounBadge?: null | string;
             /** Format: int32 */
-            altPronounId: null | number | string;
-            altPronounName: null | string;
+            altPronounId?: null | number | string;
+            altPronounName?: null | string;
             manualOverride: boolean;
         };
         /** @description GDPR data summary for a user. */
@@ -98420,9 +98518,9 @@ export interface components {
             /** Format: int32 */
             commandsUsed: number | string;
             /** Format: date-time */
-            firstSeen: null | string;
+            firstSeen?: null | string;
             /** Format: date-time */
-            lastActive: null | string;
+            lastActive?: null | string;
             exportAvailable: boolean;
         };
         /** @description The J.5 trust + heat pair as the mod panel shows it. */
@@ -98444,7 +98542,7 @@ export interface components {
             /** Format: int32 */
             totalCommandsUsed: number | string;
             /** Format: date-time */
-            lastUsedUtc: null | string;
+            lastUsedUtc?: null | string;
         };
         /** @description One free-form `ViewerDatum` key/value pair (owner punch list §3 row 8). */
         ViewerDatumDto: {
@@ -98486,28 +98584,28 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             userId: string;
-            twitchUserId: null | string;
+            twitchUserId?: null | string;
             username: string;
             displayName: string;
-            profileImageUrl: null | string;
-            pronoun: null | string;
-            altPronoun: null | string;
+            profileImageUrl?: null | string;
+            pronoun?: null | string;
+            altPronoun?: null | string;
             linkedIdentities: components["schemas"]["LinkedIdentityDto"][];
             communityStanding: string;
-            subTier: null | string;
-            managementRole: null | string;
+            subTier?: null | string;
+            managementRole?: null | string;
             /** Format: date-time */
-            memberSinceUtc: null | string;
+            memberSinceUtc?: null | string;
             /** Format: date-time */
             firstSeenUtc: string;
             /** Format: date-time */
-            accountCreatedAtUtc: null | string;
-            description: null | string;
+            accountCreatedAtUtc?: null | string;
+            description?: null | string;
             broadcasterType: string;
             userType: string;
-            chatColor: null | string;
-            nickname: null | string;
-            timezone: null | string;
+            chatColor?: null | string;
+            nickname?: null | string;
+            timezone?: null | string;
             isLurking: boolean;
             pronounIsManualOverride: boolean;
         };
@@ -98520,7 +98618,7 @@ export interface components {
             id: string;
             label: string;
             subLabel: string;
-            imageUrl: null | string;
+            imageUrl?: null | string;
             inChannel: boolean;
         };
         /**
@@ -98528,14 +98626,14 @@ export interface components {
          *     voice (owner punch list §3 row 6).
          */
         ViewerOverridesDto: {
-            shoutoutMessageTemplate: null | string;
+            shoutoutMessageTemplate?: null | string;
             ttsVoice: null | components["schemas"]["UserTtsVoiceDto"];
         };
         ViewerPermitsDto: {
             activePermits: components["schemas"]["PermitGrantDto"][];
-            ageConsentGranted: null | boolean;
+            ageConsentGranted?: null | boolean;
             /** Format: date-time */
-            ageConsentConfirmedUtc: null | string;
+            ageConsentConfirmedUtc?: null | string;
         };
         /** @description One viewer's aggregate profile for a channel (analytics.md §4, M.1). */
         ViewerProfileDto: {
@@ -98545,11 +98643,11 @@ export interface components {
              */
             viewerUserId: string;
             viewerTwitchUserId: string;
-            displayName: null | string;
+            displayName?: null | string;
             /** Format: date-time */
-            firstSeenAt: null | string;
+            firstSeenAt?: null | string;
             /** Format: date-time */
-            lastSeenAt: null | string;
+            lastSeenAt?: null | string;
             /** Format: int64 */
             totalWatchSeconds: number | string;
             /** Format: int64 */
@@ -98562,7 +98660,7 @@ export interface components {
             totalSongRequests: number | string;
             isFollower: boolean;
             isSubscriber: boolean;
-            subTier: null | string;
+            subTier?: null | string;
             isAnalyticsOptedOut: boolean;
             /**
              * Format: int64
@@ -98577,13 +98675,13 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             viewerUserId: string;
-            displayName: null | string;
+            displayName?: null | string;
             /** Format: int64 */
             totalWatchSeconds: number | string;
             /** Format: int64 */
             totalMessages: number | string;
             /** Format: date-time */
-            lastSeenAt: null | string;
+            lastSeenAt?: null | string;
         };
         /** @description How the viewer list is sorted (analytics.md §4). */
         ViewerProfileSort: number;
@@ -98615,15 +98713,15 @@ export interface components {
              */
             id: string;
             reportedTwitchUserId: string;
-            reportedUsername: null | string;
+            reportedUsername?: null | string;
             reason: string;
             status: string;
-            reporterName: null | string;
+            reporterName?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
-            resolvedAt: null | string;
-            resolvedByName: null | string;
+            resolvedAt?: null | string;
+            resolvedByName?: null | string;
         };
         /** @description One finalized chunk of a stream's spoken-word transcript (backend `VoiceTranscriptSegment`). */
         VoiceTranscriptSegmentDto: {
@@ -98650,10 +98748,10 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            stickerAssetId: null | string;
-            stickerImageUrl: null | string;
+            stickerAssetId?: null | string;
+            stickerImageUrl?: null | string;
             /** Format: date-time */
-            lastFiredAt: null | string;
+            lastFiredAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -98673,7 +98771,7 @@ export interface components {
             isEnabled: boolean;
             status: string;
             /** Format: date-time */
-            lastConnectedAt: null | string;
+            lastConnectedAt?: null | string;
         };
         /** @description REST body for the raw control route. */
         VtsControlRequest: {
@@ -98702,8 +98800,8 @@ export interface components {
         /** @description The outcome of one VTS API request: OBS-style ok/data/error (vtube-studio.md §3). */
         VtsRequestResult: {
             ok: boolean;
-            dataJson: null | string;
-            error: null | string;
+            dataJson?: null | string;
+            error?: null | string;
         };
         /** @description Issue a warning to a chatter — they must acknowledge it before chatting again (Twitch Warn Chat User). */
         WarnUserRequest: {
@@ -98765,28 +98863,28 @@ export interface components {
              */
             id: string;
             name: string;
-            description: null | string;
+            description?: null | string;
             framework: string;
             source: string;
             isEnabled: boolean;
-            overlayUrl: null | string;
+            overlayUrl?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            activeVersionId: null | string;
+            activeVersionId?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            galleryItemId: null | string;
+            galleryItemId?: null | string;
             settings: {
                 [key: string]: unknown;
             };
             eventSubscriptions: string[];
-            lastRuntimeError: null | string;
+            lastRuntimeError?: null | string;
             /** Format: date-time */
-            lastRanAt: null | string;
+            lastRanAt?: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -98798,19 +98896,19 @@ export interface components {
         /** @description A preview action request: the action type, its parameters and the variables that seed its context. */
         WidgetPreviewActionRequest: {
             actionType: string;
-            parameters: null | {
+            parameters?: null | {
                 [key: string]: unknown;
             };
-            variables: null | {
+            variables?: null | {
                 [key: string]: string;
             };
         };
         /** @description What the preview action did; the same fields the overlay hub's invoke returns. */
         WidgetPreviewActionResponse: {
             success: boolean;
-            output: null | string;
-            error: null | string;
-            errorCode: null | string;
+            output?: null | string;
+            error?: null | string;
+            errorCode?: null | string;
             variables: {
                 [key: string]: string;
             };
@@ -98879,7 +98977,7 @@ export interface components {
         /** @description The test-fire request: an event type, and an optional explicit payload (a sample is used when omitted). */
         WidgetTestEventRequest: {
             eventType: string;
-            data: null | {
+            data?: null | {
                 [key: string]: unknown;
             };
         };
@@ -98918,12 +99016,12 @@ export interface components {
             /** Format: int32 */
             versionNumber: number | string;
             buildStatus: string;
-            sourceCode: null | string;
-            buildError: null | string;
-            buildLog: null | string;
-            contentHash: null | string;
+            sourceCode?: null | string;
+            buildError?: null | string;
+            buildLog?: null | string;
+            contentHash?: null | string;
             /** Format: date-time */
-            compiledAt: null | string;
+            compiledAt?: null | string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -98937,9 +99035,9 @@ export interface components {
             /** Format: int32 */
             versionNumber: number | string;
             buildStatus: string;
-            contentHash: null | string;
+            contentHash?: null | string;
             /** Format: date-time */
-            compiledAt: null | string;
+            compiledAt?: null | string;
             /** Format: date-time */
             createdAt: string;
         };

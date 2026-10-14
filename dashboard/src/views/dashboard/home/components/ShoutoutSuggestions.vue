@@ -48,7 +48,7 @@ function detailOf(entry: ShoutoutSuggestion): string {
 
   const streams = t('dashboard.home.shoutouts.streams', Number(entry.streamsLast14Days));
 
-  return entry.lastCategory === null
+  return !entry.lastCategory
     ? streams
     : `${streams} · ${entry.lastCategory}`;
 }

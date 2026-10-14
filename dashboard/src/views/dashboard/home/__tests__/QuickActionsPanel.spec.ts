@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import { onTheWire } from '@/api/__tests__/wire';
 import { i18n } from '@/i18n';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
@@ -144,7 +145,7 @@ function freshAnswers(): Record<string, () => Answer> {
     '/timers': () => ok(timers),
     '/live-ops/polls': () => ok(pollList),
     '/live-ops/predictions': () => ok([]),
-    '/moderation/shoutout-suggestions': () => ok(suggestions),
+    '/moderation/shoutout-suggestions': () => ok(onTheWire(suggestions)),
   };
 }
 

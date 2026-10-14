@@ -245,7 +245,7 @@ function openOption(option: ViewerOption): void {
     id: option.id,
     login: option.subLabel.replace(/^@/, ''),
     displayName: option.label,
-    profileImageUrl: option.imageUrl,
+    profileImageUrl: option.imageUrl ?? null,
   });
 }
 
@@ -269,7 +269,7 @@ async function lookUp(): Promise<void> {
       id: person.id,
       login: person.login,
       displayName: person.displayName,
-      profileImageUrl: person.profileImageUrl,
+      profileImageUrl: person.profileImageUrl ?? null,
     });
   } catch (error: unknown) {
     if (error instanceof TwitchUserNotFoundError) {

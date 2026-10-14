@@ -207,14 +207,14 @@ export function toTestRunResult(dto: components['schemas']['TestRunResultDto']):
     success: dto.success,
     durationMs: Number(dto.durationMs),
     hostCallCount: Number(dto.hostCallCount),
-    error: dto.error,
-    chatOutput: dto.chatOutput,
-    variablesSet: dto.variablesSet,
+    error: dto.error ?? null,
+    chatOutput: dto.chatOutput ?? null,
+    variablesSet: dto.variablesSet ?? null,
     timeline: (dto.timeline ?? []).map((entry: components['schemas']['TimelineEntryDto']) => ({
       ...entry,
       seq: Number(entry.seq),
     })),
-    console: dto.console,
+    console: dto.console ?? null,
     effects: dto.capturedEffects.map((effect: components['schemas']['CapturedEffectDto']) => ({
       name: effect.name,
       argsPreview: effect.argsPreview,

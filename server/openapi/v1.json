@@ -26832,6 +26832,114 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/community/{userId}/emotes": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "The emotes this person's OWN Twitch channel offers (Twitch tiers/follower/bits plus 7TV, BTTV, FFZ) — the\r\nasset-inspection section of the profile. userId is the internal `User.Id` Guid, as\r\non the profile route. A person with no Twitch identity or no emotes gets an empty list.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfChatEmoteCatalogueDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/community/search": {
       "get": {
         "tags": [
@@ -98420,9 +98528,7 @@
         "required": [
           "actionKey",
           "plane",
-          "description",
           "shippedDefaultLevel",
-          "platformDefaultLevel",
           "effectiveDefaultLevel",
           "floorLevel",
           "floorTier",
@@ -98494,12 +98600,10 @@
           "actionDefinitionId",
           "actionKey",
           "plane",
-          "description",
           "defaultLevel",
           "floorLevel",
           "floorTier",
           "isGrantableViaPermit",
-          "overrideLevel",
           "effectiveLevel"
         ],
         "type": "object",
@@ -98573,8 +98677,6 @@
           "parameters",
           "detectedAt",
           "deepLinkRoute",
-          "sourceUserId",
-          "sourceUserName",
           "count",
           "queueItemIds"
         ],
@@ -98663,9 +98765,6 @@
         "required": [
           "id",
           "type",
-          "userId",
-          "username",
-          "data",
           "timestamp"
         ],
         "type": "object",
@@ -98720,8 +98819,7 @@
           "publicKey",
           "keyId",
           "algorithm",
-          "validFrom",
-          "validTo"
+          "validFrom"
         ],
         "type": "object",
         "properties": {
@@ -98760,11 +98858,7 @@
       },
       "AddQuoteRequest": {
         "required": [
-          "text",
-          "quotedDisplayName",
-          "contextGame",
-          "quotedAt",
-          "createdByUserId"
+          "text"
         ],
         "type": "object",
         "properties": {
@@ -98910,7 +99004,6 @@
           "projectionName",
           "fromUtc",
           "toUtc",
-          "eventType",
           "expectedCount"
         ],
         "type": "object",
@@ -98953,7 +99046,6 @@
           "projectionName",
           "fromUtc",
           "toUtc",
-          "eventType",
           "matchingEventCount"
         ],
         "type": "object",
@@ -98996,8 +99088,7 @@
           "broadcasterId",
           "projectionName",
           "fromUtc",
-          "toUtc",
-          "eventType"
+          "toUtc"
         ],
         "type": "object",
         "properties": {
@@ -99031,7 +99122,6 @@
           "projectionName",
           "fromUtc",
           "toUtc",
-          "eventType",
           "appliedCount"
         ],
         "type": "object",
@@ -99101,7 +99191,6 @@
           "version",
           "status",
           "enabled",
-          "lastError",
           "lastConfirmedAt"
         ],
         "type": "object",
@@ -99165,12 +99254,10 @@
           "broadcasterId",
           "channelDisplayName",
           "pipelineId",
-          "pipelineName",
           "pipelineExists",
           "status",
           "displayState",
           "dueAt",
-          "firedAt",
           "createdAt",
           "triggeredByDisplayName",
           "canRetry"
@@ -99371,14 +99458,12 @@
           "name",
           "twitchChannelId",
           "status",
-          "suspendedReason",
           "billingTierKey",
           "deploymentMode",
           "ownerUserId",
           "ownerDisplayName",
           "membershipCount",
-          "createdAt",
-          "suspendedAt"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -99446,8 +99531,7 @@
           "status",
           "billingTierKey",
           "isLive",
-          "createdAt",
-          "suspendedAt"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -99493,9 +99577,7 @@
           "windowEndUtc",
           "attempts",
           "errors",
-          "errorRate",
-          "targetSuccessRate",
-          "budgetRemainingFraction"
+          "targetSuccessRate"
         ],
         "type": "object",
         "properties": {
@@ -99699,11 +99781,9 @@
           "id",
           "displayName",
           "login",
-          "email",
           "role",
           "channelCount",
-          "createdAt",
-          "lastActive"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -99756,9 +99836,6 @@
           "eventType",
           "attempt",
           "status",
-          "responseCode",
-          "durationMs",
-          "error",
           "createdAt"
         ],
         "type": "object",
@@ -99836,8 +99913,7 @@
         "required": [
           "originalDeliveryId",
           "newDeliveryId",
-          "status",
-          "responseCode"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -99874,8 +99950,7 @@
       },
       "AlertOverlayDto": {
         "required": [
-          "overlayUrl",
-          "lastRanAt"
+          "overlayUrl"
         ],
         "type": "object",
         "properties": {
@@ -99918,8 +99993,7 @@
           "kind",
           "payloadJson",
           "status",
-          "createdAt",
-          "deliveredAt"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -99974,7 +100048,6 @@
       "ApplyNetworkBlockRequest": {
         "required": [
           "targetTwitchUserId",
-          "reason",
           "justification",
           "confirmedTenantCount"
         ],
@@ -100019,10 +100092,7 @@
       "AssignIamRoleRequest": {
         "required": [
           "principalId",
-          "roleId",
-          "scopeChannelId",
-          "expiresAt",
-          "reason"
+          "roleId"
         ],
         "type": "object",
         "properties": {
@@ -100174,8 +100244,7 @@
           "id",
           "name",
           "type",
-          "isActive",
-          "volumePercent"
+          "isActive"
         ],
         "type": "object",
         "properties": {
@@ -100322,17 +100391,13 @@
       },
       "AutomationNowPlayingDto": {
         "required": [
-          "title",
-          "artist",
           "durationMs",
           "positionMs",
           "isPlaying",
           "shuffleEnabled",
           "repeatMode",
-          "isSaved",
           "serverTime",
-          "volumePercent",
-          "albumArtUrl"
+          "volumePercent"
         ],
         "type": "object",
         "properties": {
@@ -100460,9 +100525,7 @@
       "AutomationObsInputDto": {
         "required": [
           "name",
-          "kind",
-          "muted",
-          "volumeDb"
+          "kind"
         ],
         "type": "object",
         "properties": {
@@ -100590,8 +100653,7 @@
           "id",
           "name",
           "uri",
-          "trackCount",
-          "imageUrl"
+          "trackCount"
         ],
         "type": "object",
         "properties": {
@@ -100628,9 +100690,6 @@
           "tokenPrefix",
           "scopes",
           "allowedPipelineIds",
-          "lastUsedAt",
-          "expiresAt",
-          "revokedAt",
           "createdAt"
         ],
         "type": "object",
@@ -100824,7 +100883,6 @@
         "required": [
           "userId",
           "username",
-          "reason",
           "bannedBy",
           "bannedAt"
         ],
@@ -100855,9 +100913,7 @@
         "required": [
           "id",
           "bannedBy",
-          "reason",
-          "bannedAt",
-          "unbannedAt"
+          "bannedAt"
         ],
         "type": "object",
         "properties": {
@@ -100931,8 +100987,7 @@
       "BeginTenantAccessRequest": {
         "required": [
           "justification",
-          "breakGlass",
-          "expiresAt"
+          "breakGlass"
         ],
         "type": "object",
         "properties": {
@@ -101030,8 +101085,6 @@
           "provider",
           "trackUri",
           "title",
-          "reason",
-          "blockedByUserId",
           "createdAt"
         ],
         "type": "object",
@@ -101115,10 +101168,7 @@
       },
       "BotStatusDto": {
         "required": [
-          "connected",
-          "login",
-          "displayName",
-          "profileImageUrl"
+          "connected"
         ],
         "type": "object",
         "properties": {
@@ -101156,8 +101206,6 @@
           "replyGroup",
           "speakWithTts",
           "isReserved",
-          "cooldownSecondsOverride",
-          "minPermissionLevelOverride",
           "replyOverrideCount"
         ],
         "type": "object",
@@ -101229,9 +101277,6 @@
         "description": "A built-in command as one channel sees it."
       },
       "BuiltinReplyDefaultChange": {
-        "required": [
-          "template"
-        ],
         "type": "object",
         "properties": {
           "template": {
@@ -101247,8 +101292,6 @@
         "required": [
           "builtinKey",
           "slot",
-          "shippedTemplate",
-          "platformTemplate",
           "channelsWithOwnReply"
         ],
         "type": "object",
@@ -101389,10 +101432,7 @@
       "BundleMetadata": {
         "required": [
           "name",
-          "version",
-          "author",
-          "license",
-          "description"
+          "version"
         ],
         "type": "object",
         "properties": {
@@ -101425,8 +101465,7 @@
       },
       "CancelSubscriptionRequest": {
         "required": [
-          "atPeriodEnd",
-          "reason"
+          "atPeriodEnd"
         ],
         "type": "object",
         "properties": {
@@ -101462,18 +101501,12 @@
         "required": [
           "id",
           "name",
-          "description",
           "sinkType",
           "cost",
-          "iconUrl",
           "isEnabled",
           "permission",
-          "pipelineId",
           "cooldownSeconds",
           "cooldownPerUser",
-          "stockLimit",
-          "stockRemaining",
-          "maxPerViewerPerStream",
           "sortOrder",
           "createdAt",
           "updatedAt"
@@ -101591,8 +101624,6 @@
           "costPaid",
           "itemNameSnapshot",
           "status",
-          "ledgerEntryId",
-          "inputArgs",
           "createdAt"
         ],
         "type": "object",
@@ -101659,8 +101690,7 @@
       "CategoryDto": {
         "required": [
           "id",
-          "name",
-          "boxArtUrl"
+          "name"
         ],
         "type": "object",
         "properties": {
@@ -101708,8 +101738,7 @@
           "songRequests",
           "currencyEarnedTotal",
           "currencySpentTotal",
-          "gamesPlayed",
-          "peakViewers"
+          "gamesPlayed"
         ],
         "type": "object",
         "properties": {
@@ -101957,7 +101986,6 @@
           "songRequests",
           "currencyEarnedTotal",
           "currencySpentTotal",
-          "peakViewers",
           "deltas"
         ],
         "type": "object",
@@ -102141,8 +102169,7 @@
       "ChannelBanOutcomeDto": {
         "required": [
           "broadcasterLogin",
-          "succeeded",
-          "error"
+          "succeeded"
         ],
         "type": "object",
         "properties": {
@@ -102164,10 +102191,7 @@
       "ChannelBasicsDto": {
         "required": [
           "prefix",
-          "botLinePrefix",
-          "locale",
-          "autoJoin",
-          "timezone"
+          "autoJoin"
         ],
         "type": "object",
         "properties": {
@@ -102245,15 +102269,9 @@
           "id",
           "name",
           "displayName",
-          "profileImageUrl",
           "isLive",
           "isOnboarded",
-          "title",
-          "gameName",
-          "viewerCount",
-          "botJoinedAt",
           "subscriptionTier",
-          "language",
           "createdAt"
         ],
         "type": "object",
@@ -102327,7 +102345,6 @@
         "required": [
           "id",
           "broadcasterId",
-          "peerId",
           "optInType",
           "direction",
           "isEnabled"
@@ -102369,8 +102386,7 @@
           "name",
           "category",
           "description",
-          "connected",
-          "connectedAs"
+          "connected"
         ],
         "type": "object",
         "properties": {
@@ -102408,13 +102424,10 @@
         "required": [
           "id",
           "userId",
-          "username",
           "role",
           "levelValue",
           "source",
-          "grantedByUserId",
-          "grantedAt",
-          "lastSyncedAt"
+          "grantedAt"
         ],
         "type": "object",
         "properties": {
@@ -102472,8 +102485,7 @@
       },
       "ChannelNamePronunciationDto": {
         "required": [
-          "channelName",
-          "pronunciation"
+          "channelName"
         ],
         "type": "object",
         "properties": {
@@ -102512,8 +102524,7 @@
         "required": [
           "id",
           "displayName",
-          "login",
-          "thumbnailUrl"
+          "login"
         ],
         "type": "object",
         "properties": {
@@ -102537,7 +102548,6 @@
       },
       "ChannelSpotifyCredentialsDto": {
         "required": [
-          "clientId",
           "hasClientSecret"
         ],
         "type": "object",
@@ -102559,10 +102569,8 @@
           "id",
           "login",
           "displayName",
-          "profileImageUrl",
           "isLive",
           "role",
-          "viewerCount",
           "provider"
         ],
         "type": "object",
@@ -102613,7 +102621,6 @@
         "required": [
           "setId",
           "id",
-          "info",
           "urls"
         ],
         "type": "object",
@@ -102644,9 +102651,7 @@
           "prefix",
           "bits",
           "tier",
-          "urls",
-          "animated",
-          "colorHex"
+          "animated"
         ],
         "type": "object",
         "properties": {
@@ -102696,8 +102701,7 @@
           "provider",
           "urls",
           "animated",
-          "zeroWidth",
-          "setId"
+          "zeroWidth"
         ],
         "type": "object",
         "properties": {
@@ -102781,7 +102785,6 @@
       "ChatEmoteDto": {
         "required": [
           "id",
-          "setId",
           "format",
           "provider",
           "urls",
@@ -102860,12 +102863,6 @@
         "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
       },
       "ChatEmoteOwnerDto": {
-        "required": [
-          "id",
-          "login",
-          "displayName",
-          "profileUrl"
-        ],
         "type": "object",
         "properties": {
           "id": {
@@ -102910,10 +102907,8 @@
           "id",
           "filterType",
           "name",
-          "pattern",
           "terms",
           "action",
-          "timeoutSeconds",
           "exemptMinRoleLevel",
           "isEnabled",
           "isCaseSensitive",
@@ -103004,8 +102999,7 @@
       },
       "ChatFilterTestResult": {
         "required": [
-          "isMatch",
-          "compileError"
+          "isMatch"
         ],
         "type": "object",
         "properties": {
@@ -103036,7 +103030,6 @@
           "emote",
           "cheermote",
           "mention",
-          "linkUrl",
           "linkPreview"
         ],
         "type": "object",
@@ -103124,10 +103117,7 @@
       },
       "ChatLinkPreviewDto": {
         "required": [
-          "host",
-          "title",
-          "description",
-          "imageUrl"
+          "host"
         ],
         "type": "object",
         "properties": {
@@ -103159,8 +103149,7 @@
         "required": [
           "userId",
           "username",
-          "displayName",
-          "color"
+          "displayName"
         ],
         "type": "object",
         "properties": {
@@ -103186,9 +103175,6 @@
         "required": [
           "id",
           "name",
-          "backgroundImage",
-          "color",
-          "textShadow",
           "isImageOnly"
         ],
         "type": "object",
@@ -103230,9 +103216,7 @@
           "options",
           "status",
           "totalVotes",
-          "openedAt",
-          "closesAt",
-          "closedAt"
+          "openedAt"
         ],
         "type": "object",
         "properties": {
@@ -103376,8 +103360,7 @@
       },
       "ChatSearchResultDto": {
         "required": [
-          "messages",
-          "nextCursor"
+          "messages"
         ],
         "type": "object",
         "properties": {
@@ -103460,8 +103443,6 @@
           "matchType",
           "caseSensitive",
           "isEnabled",
-          "response",
-          "pipelineId",
           "cooldownSeconds",
           "minPermissionLevel",
           "createdAt",
@@ -103526,8 +103507,7 @@
         "required": [
           "ok",
           "ready",
-          "status",
-          "detail"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -103608,7 +103588,6 @@
         "required": [
           "id",
           "name",
-          "description",
           "codes"
         ],
         "type": "object",
@@ -103640,7 +103619,6 @@
         "required": [
           "id",
           "name",
-          "description",
           "total",
           "available",
           "assigned"
@@ -103692,10 +103670,8 @@
         "required": [
           "id",
           "name",
-          "description",
           "isEnabled",
           "language",
-          "currentVersionId",
           "currentVersion",
           "createdAt",
           "updatedAt"
@@ -103754,12 +103730,8 @@
         "required": [
           "id",
           "name",
-          "description",
           "isEnabled",
-          "currentVersion",
           "currentValidationStatus",
-          "lastRuntimeError",
-          "lastRanAt",
           "createdAt",
           "updatedAt"
         ],
@@ -103827,7 +103799,6 @@
           "validationStatus",
           "validationErrors",
           "declaredCapabilities",
-          "publishedAt",
           "createdAt"
         ],
         "type": "object",
@@ -103896,16 +103867,10 @@
           "minPermissionLevel",
           "isEnabled",
           "prefixMode",
-          "customPrefix",
           "matchMode",
-          "matchPattern",
-          "templateResponse",
-          "templateResponses",
-          "pipelineId",
           "cooldownSeconds",
           "userCooldownSeconds",
           "cooldownPerUser",
-          "description",
           "aliases",
           "useCount",
           "createdAt",
@@ -104039,19 +104004,13 @@
           "minPermissionLevel",
           "isEnabled",
           "prefixMode",
-          "customPrefix",
           "matchMode",
-          "matchPattern",
           "cooldownSeconds",
           "userCooldownSeconds",
           "cooldownPerUser",
-          "description",
           "aliases",
           "useCount",
-          "createdAt",
-          "templateResponse",
-          "templateResponses",
-          "pipelineId"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -104173,8 +104132,6 @@
         "required": [
           "key",
           "tier",
-          "description",
-          "templateResponse",
           "templateResponses",
           "minPermissionLevel",
           "cooldownSeconds",
@@ -104252,7 +104209,6 @@
           "id",
           "username",
           "displayName",
-          "profileImageUrl",
           "reason",
           "bannedBy",
           "bannedAt"
@@ -104332,10 +104288,8 @@
       "CommunityUserDto": {
         "required": [
           "id",
-          "internalUserId",
           "username",
           "displayName",
-          "profileImageUrl",
           "messageCount",
           "watchHours",
           "commandsUsed",
@@ -104423,8 +104377,7 @@
       },
       "ConnectIntegrationRequest": {
         "required": [
-          "scopeSetKey",
-          "returnUrl"
+          "scopeSetKey"
         ],
         "type": "object",
         "properties": {
@@ -104449,15 +104402,11 @@
       "ConsentRecordDto": {
         "required": [
           "id",
-          "broadcasterId",
           "subjectUserId",
           "consentType",
           "status",
           "lawfulBasis",
-          "consentVersion",
-          "grantedAt",
-          "withdrawnAt",
-          "expiresAt"
+          "grantedAt"
         ],
         "type": "object",
         "properties": {
@@ -104558,17 +104507,12 @@
       "CreateCatalogItemRequest": {
         "required": [
           "name",
-          "description",
           "sinkType",
           "cost",
-          "iconUrl",
           "isEnabled",
           "permission",
-          "pipelineId",
           "cooldownSeconds",
           "cooldownPerUser",
-          "stockLimit",
-          "maxPerViewerPerStream",
           "sortOrder"
         ],
         "type": "object",
@@ -104818,7 +104762,6 @@
       "CreateCodeScriptRequest": {
         "required": [
           "name",
-          "description",
           "sourceCode"
         ],
         "type": "object",
@@ -104978,7 +104921,6 @@
           "kind",
           "key",
           "displayName",
-          "description",
           "payloadJson"
         ],
         "type": "object",
@@ -105008,11 +104950,7 @@
           "triggerType",
           "enabled",
           "targetChannelId",
-          "pingRoleId",
-          "messageTemplate",
-          "embedConfig",
-          "milestoneType",
-          "milestoneThreshold"
+          "embedConfig"
         ],
         "type": "object",
         "properties": {
@@ -105069,7 +105007,6 @@
       "CreateDiscordNotificationRoleRequest": {
         "required": [
           "discordRoleId",
-          "roleName",
           "selfAssignEnabled"
         ],
         "type": "object",
@@ -105166,9 +105103,7 @@
       "CreateInviteCodeRequest": {
         "required": [
           "maxRedemptions",
-          "grantsFoundersBadge",
-          "grantsTierId",
-          "expiresAt"
+          "grantsFoundersBadge"
         ],
         "type": "object",
         "properties": {
@@ -105202,10 +105137,6 @@
         "description": "Create an invite code (admin)."
       },
       "CreateIpcKeyRequest": {
-        "required": [
-          "label",
-          "expiresAt"
-        ],
         "type": "object",
         "properties": {
           "label": {
@@ -105340,7 +105271,6 @@
       "CreatePickListRequest": {
         "required": [
           "name",
-          "description",
           "items"
         ],
         "type": "object",
@@ -105461,10 +105391,8 @@
       "CreatePrincipalRequest": {
         "required": [
           "principalType",
-          "userId",
           "displayName",
-          "roleIds",
-          "serviceAccountName"
+          "roleIds"
         ],
         "type": "object",
         "properties": {
@@ -105589,11 +105517,7 @@
       "CreateSavingsJarRequest": {
         "required": [
           "name",
-          "description",
-          "goalAmount",
-          "iconUrl",
-          "isOpen",
-          "maxWithdrawalPerChannel"
+          "isOpen"
         ],
         "type": "object",
         "properties": {
@@ -105980,12 +105904,10 @@
           "viewerUserId",
           "viewerTwitchUserId",
           "viewerDisplayName",
-          "viewerAvatarUrl",
           "balance",
           "lifetimeEarned",
           "lifetimeSpent",
-          "isFrozen",
-          "lastActivityAt"
+          "isFrozen"
         ],
         "type": "object",
         "properties": {
@@ -106053,11 +105975,8 @@
           "id",
           "broadcasterId",
           "currencyName",
-          "currencyNamePlural",
-          "iconUrl",
           "isEnabled",
           "startingBalance",
-          "maxBalance",
           "decimalPlaces",
           "createdAt",
           "updatedAt"
@@ -106137,12 +106056,6 @@
           "amount",
           "balanceAfter",
           "entryType",
-          "sourceType",
-          "sourceId",
-          "relatedEntryId",
-          "eventId",
-          "reason",
-          "actorUserId",
           "createdAt"
         ],
         "type": "object",
@@ -106249,8 +106162,6 @@
           "id",
           "username",
           "displayName",
-          "profileImageUrl",
-          "color",
           "broadcasterType",
           "isAdmin",
           "createdAt"
@@ -106297,13 +106208,9 @@
           "name",
           "displayName",
           "sourceKind",
-          "presetKey",
-          "endpointUrl",
           "hasAuthSecret",
           "fieldMap",
-          "pollIntervalSeconds",
           "isEnabled",
-          "lastReceivedAt",
           "fieldErrors"
         ],
         "type": "object",
@@ -106463,11 +106370,7 @@
           "isCommand",
           "badges",
           "bitsAmount",
-          "color",
           "messageType",
-          "replyToMessageId",
-          "replyParentMessageBody",
-          "replyParentUserName",
           "timestamp"
         ],
         "type": "object",
@@ -107025,9 +106928,7 @@
           "managed",
           "mentionable",
           "permissions",
-          "canAssign",
-          "unavailableReasonCode",
-          "unavailableReason"
+          "canAssign"
         ],
         "type": "object",
         "properties": {
@@ -107086,10 +106987,7 @@
           "notificationConfigId",
           "triggerType",
           "dedupeKey",
-          "streamId",
-          "postedMessageId",
           "status",
-          "error",
           "dispatchedAt"
         ],
         "type": "object",
@@ -107140,15 +107038,6 @@
         }
       },
       "DiscordEmbedDto": {
-        "required": [
-          "title",
-          "description",
-          "color",
-          "thumbnailUrl",
-          "imageUrl",
-          "footerText",
-          "fields"
-        ],
         "type": "object",
         "properties": {
           "title": {
@@ -107221,9 +107110,7 @@
       "DiscordGuildChannelDto": {
         "required": [
           "id",
-          "name",
           "type",
-          "parentId",
           "position"
         ],
         "type": "object",
@@ -107267,11 +107154,8 @@
           "id",
           "broadcasterId",
           "guildId",
-          "guildName",
           "botInstalled",
           "serverConsentStatus",
-          "approvedByDiscordUserId",
-          "approvedAt",
           "streamerEnabled",
           "isLinkActive",
           "createdAt",
@@ -107337,9 +107221,7 @@
       "DiscordGuildInfoDto": {
         "required": [
           "id",
-          "name",
-          "icon",
-          "description"
+          "name"
         ],
         "type": "object",
         "properties": {
@@ -107432,11 +107314,7 @@
           "triggerType",
           "enabled",
           "targetChannelId",
-          "pingRoleId",
-          "messageTemplate",
           "embedConfig",
-          "milestoneType",
-          "milestoneThreshold",
           "createdAt",
           "updatedAt"
         ],
@@ -107513,8 +107391,7 @@
       "DiscordNotificationPreviewDto": {
         "required": [
           "renderedContent",
-          "renderedEmbed",
-          "pingRoleMention"
+          "renderedEmbed"
         ],
         "type": "object",
         "properties": {
@@ -107544,11 +107421,8 @@
           "id",
           "guildConnectionId",
           "discordRoleId",
-          "roleName",
           "selfAssignEnabled",
           "dmEnabled",
-          "buttonMessageId",
-          "buttonChannelId",
           "optInCount",
           "createdAt",
           "updatedAt"
@@ -107613,13 +107487,9 @@
       "DiscordPostableChannelDto": {
         "required": [
           "id",
-          "name",
           "type",
-          "parentId",
           "position",
-          "canPost",
-          "unavailableReasonCode",
-          "unavailableReason"
+          "canPost"
         ],
         "type": "object",
         "properties": {
@@ -107689,8 +107559,7 @@
       },
       "DraftContentVersionRequest": {
         "required": [
-          "payloadJson",
-          "renderGalleryRefs"
+          "payloadJson"
         ],
         "type": "object",
         "properties": {
@@ -107714,12 +107583,7 @@
           "source",
           "isEnabled",
           "rate",
-          "unitWindowSeconds",
-          "perWindowCap",
-          "perStreamCap",
-          "minRoleLevel",
-          "configSchemaVersion",
-          "bonusConfig"
+          "configSchemaVersion"
         ],
         "type": "object",
         "properties": {
@@ -107798,9 +107662,7 @@
       },
       "EditQuoteRequest": {
         "required": [
-          "text",
-          "quotedDisplayName",
-          "contextGame"
+          "text"
         ],
         "type": "object",
         "properties": {
@@ -107970,8 +107832,7 @@
           "grantedTierKey",
           "reason",
           "expiresAt",
-          "issuedAt",
-          "issuedByAdminId"
+          "issuedAt"
         ],
         "type": "object",
         "properties": {
@@ -108113,7 +107974,6 @@
           "id",
           "subjectUserId",
           "subjectIdHash",
-          "broadcasterId",
           "requestType",
           "requestedBy",
           "status",
@@ -108121,11 +107981,7 @@
           "cryptoShredApplied",
           "anonymizationApplied",
           "rowsAffected",
-          "exportLocation",
-          "exportFormat",
-          "failureReason",
-          "requestedAt",
-          "completedAt"
+          "requestedAt"
         ],
         "type": "object",
         "properties": {
@@ -108272,8 +108128,7 @@
       "EscalationLadderStep": {
         "required": [
           "atOffense",
-          "action",
-          "timeoutSeconds"
+          "action"
         ],
         "type": "object",
         "properties": {
@@ -108376,8 +108231,7 @@
       },
       "EventResponseDefaultChange": {
         "required": [
-          "isEnabled",
-          "message"
+          "isEnabled"
         ],
         "type": "object",
         "properties": {
@@ -108401,7 +108255,6 @@
         "required": [
           "eventType",
           "isEnabled",
-          "message",
           "variables",
           "channelsFollowing",
           "channelsWithOwnResponse",
@@ -108460,8 +108313,6 @@
           "eventType",
           "isEnabled",
           "responseType",
-          "message",
-          "pipelineId",
           "metadata",
           "createdAt",
           "updatedAt",
@@ -108649,10 +108500,6 @@
           "transport",
           "status",
           "enabled",
-          "cost",
-          "twitchSubscriptionId",
-          "lastError",
-          "expiresAt",
           "createdAt"
         ],
         "type": "object",
@@ -108785,7 +108632,6 @@
           "provider",
           "emoteId",
           "code",
-          "imageUrl",
           "createdAt"
         ],
         "type": "object",
@@ -108841,12 +108687,8 @@
       "FeatureFlagDto": {
         "required": [
           "key",
-          "description",
           "isEnabledGlobally",
-          "rolloutPercentage",
-          "minTierKey",
-          "requiresConsent",
-          "deploymentMode"
+          "rolloutPercentage"
         ],
         "type": "object",
         "properties": {
@@ -108897,8 +108739,6 @@
           "broadcasterId",
           "channelName",
           "isEnabled",
-          "reason",
-          "expiresAt",
           "updatedAt"
         ],
         "type": "object",
@@ -108943,7 +108783,6 @@
           "label",
           "description",
           "isEnabled",
-          "enabledAt",
           "requiredScopes"
         ],
         "type": "object",
@@ -108996,12 +108835,9 @@
         "required": [
           "id",
           "instanceId",
-          "displayName",
-          "baseUrl",
           "deploymentMode",
           "trustState",
           "firstSeenAt",
-          "lastHandshakeAt",
           "activeKeys"
         ],
         "type": "object",
@@ -109059,7 +108895,6 @@
           "algorithm",
           "publicKey",
           "validFrom",
-          "validTo",
           "isActive"
         ],
         "type": "object",
@@ -109133,7 +108968,6 @@
           "subjectUsername",
           "indicators",
           "batchExamined",
-          "restoredAt",
           "blockedAt"
         ],
         "type": "object",
@@ -109195,8 +109029,7 @@
         "required": [
           "id",
           "grantedAt",
-          "isActive",
-          "inviteCode"
+          "isActive"
         ],
         "type": "object",
         "properties": {
@@ -109236,7 +109069,6 @@
         "required": [
           "id",
           "name",
-          "description",
           "framework",
           "trustTier",
           "installCount",
@@ -109244,13 +109076,7 @@
           "sourceKind",
           "defaultSettings",
           "defaultEventSubscriptions",
-          "sourceCode",
-          "gitHubRepoUrl",
-          "pinnedCommitSha",
-          "pinnedTag",
           "reviewStatus",
-          "reviewNotes",
-          "reviewedAt",
           "createdAt"
         ],
         "type": "object",
@@ -109362,7 +109188,6 @@
         "required": [
           "id",
           "name",
-          "description",
           "framework",
           "trustTier",
           "installCount",
@@ -109423,15 +109248,8 @@
           "category",
           "isEnabled",
           "requires18Plus",
-          "minBet",
-          "maxBet",
-          "houseEdgePercent",
-          "winChancePercent",
-          "payoutMultiplier",
           "cooldownSeconds",
-          "maxPlaysPerStream",
-          "permission",
-          "config"
+          "permission"
         ],
         "type": "object",
         "properties": {
@@ -109598,11 +109416,7 @@
           "gameType",
           "status",
           "participantCount",
-          "startedAt",
-          "joinClosesAt",
-          "resolvedAt",
-          "state",
-          "outcome"
+          "startedAt"
         ],
         "type": "object",
         "properties": {
@@ -109662,11 +109476,6 @@
       },
       "GenericInboundConfig": {
         "required": [
-          "signatureHeaderName",
-          "signaturePrefix",
-          "signingStringTemplate",
-          "timestampHeaderName",
-          "sharedSecretBodyField",
           "eventKindJsonPath",
           "providerEventIdJsonPath"
         ],
@@ -109716,25 +109525,13 @@
           "id",
           "title",
           "entryMode",
-          "keyword",
-          "entryCost",
           "maxEntriesPerUser",
-          "eligibilityJson",
-          "weightingJson",
           "winnerCount",
           "excludeModerators",
-          "claimWindowMinutes",
           "prizeMode",
-          "prizeCurrencyAmount",
           "prizeFromPot",
-          "prizePipelineId",
-          "prizeCodePoolId",
           "requires18Plus",
           "status",
-          "openedAt",
-          "closesAt",
-          "scheduledCloseAt",
-          "drawnAt",
           "entryCount",
           "createdAt"
         ],
@@ -109938,9 +109735,7 @@
           "viewerDisplayName",
           "drawnAt",
           "status",
-          "isRedraw",
-          "assignedCodeId",
-          "whisperDelivered"
+          "isRedraw"
         ],
         "type": "object",
         "properties": {
@@ -109992,9 +109787,7 @@
       "GrantAgeConsentRequest": {
         "required": [
           "viewerUserId",
-          "confirmationMethod",
-          "ipAddress",
-          "consentVersion"
+          "confirmationMethod"
         ],
         "type": "object",
         "properties": {
@@ -110024,9 +109817,7 @@
       "GrantCapabilityBody": {
         "required": [
           "userId",
-          "actionKey",
-          "expiresAt",
-          "reason"
+          "actionKey"
         ],
         "type": "object",
         "properties": {
@@ -110056,12 +109847,8 @@
       "GrantConsentRequest": {
         "required": [
           "subjectUserId",
-          "broadcasterId",
           "consentType",
-          "lawfulBasis",
-          "consentVersion",
-          "source",
-          "proofOfConsentIp"
+          "lawfulBasis"
         ],
         "type": "object",
         "properties": {
@@ -110123,9 +109910,7 @@
       "GrantRoleBody": {
         "required": [
           "userId",
-          "role",
-          "expiresAt",
-          "reason"
+          "role"
         ],
         "type": "object",
         "properties": {
@@ -110175,7 +109960,6 @@
           "id",
           "host",
           "isEnabled",
-          "approvedByUserId",
           "createdAt",
           "updatedAt"
         ],
@@ -110217,9 +110001,6 @@
           "principalId",
           "principalType",
           "permission",
-          "targetBroadcasterId",
-          "targetResource",
-          "justification",
           "breakGlass",
           "outcome",
           "occurredAt"
@@ -110282,10 +110063,8 @@
         "required": [
           "id",
           "principalType",
-          "userId",
           "name",
-          "isActive",
-          "expiresAt"
+          "isActive"
         ],
         "type": "object",
         "properties": {
@@ -110331,10 +110110,8 @@
         "required": [
           "id",
           "principalType",
-          "userId",
           "name",
           "isActive",
-          "expiresAt",
           "activeAssignments"
         ],
         "type": "object",
@@ -110387,10 +110164,6 @@
           "principalId",
           "roleId",
           "roleName",
-          "scopeChannelId",
-          "expiresAt",
-          "revokedAt",
-          "reason",
           "createdAt"
         ],
         "type": "object",
@@ -110452,7 +110225,6 @@
         "required": [
           "id",
           "name",
-          "description",
           "isSystem",
           "permissionKeys"
         ],
@@ -110605,10 +110377,7 @@
           "adapter",
           "ingestUrl",
           "verificationSecretSet",
-          "targetPipelineId",
-          "targetEventType",
           "isEnabled",
-          "lastReceivedAt",
           "receiveCount",
           "createdAt",
           "updatedAt",
@@ -110691,7 +110460,6 @@
           "id",
           "name",
           "source",
-          "marketplaceItemId",
           "version",
           "installedAt"
         ],
@@ -110747,9 +110515,6 @@
         "description": "The channel row an install created or replaced."
       },
       "InstallPlatformTemplateRequest": {
-        "required": [
-          "pipelineId"
-        ],
         "type": "object",
         "properties": {
           "pipelineId": {
@@ -110769,10 +110534,7 @@
           "name",
           "category",
           "description",
-          "connected",
-          "connectedAs",
-          "oauthUrl",
-          "lastSync"
+          "connected"
         ],
         "type": "object",
         "properties": {
@@ -110829,7 +110591,6 @@
         "required": [
           "provider",
           "connected",
-          "accountName",
           "grantedScopeSets",
           "capabilities",
           "needsReauth"
@@ -110878,9 +110639,7 @@
         "required": [
           "jarId",
           "invitedBroadcasterId",
-          "role",
-          "contributionCapPerStream",
-          "withdrawalCap"
+          "role"
         ],
         "type": "object",
         "properties": {
@@ -110924,10 +110683,7 @@
           "code",
           "maxRedemptions",
           "redemptionCount",
-          "grantsFoundersBadge",
-          "grantsTierId",
-          "grantsTierKey",
-          "expiresAt"
+          "grantsFoundersBadge"
         ],
         "type": "object",
         "properties": {
@@ -110999,9 +110755,7 @@
           "isValid",
           "code",
           "grantsFoundersBadge",
-          "grantsTierKey",
-          "remainingRedemptions",
-          "expiresAt"
+          "remainingRedemptions"
         ],
         "type": "object",
         "properties": {
@@ -111041,20 +110795,13 @@
       "InvoiceDto": {
         "required": [
           "id",
-          "number",
           "status",
           "amountDueCents",
           "amountPaidCents",
           "currency",
-          "periodStart",
-          "periodEnd",
           "issuedAt",
-          "paidAt",
-          "hostedInvoiceUrl",
-          "dueAt",
           "dunningStatus",
-          "amountRefundedCents",
-          "refundedAt"
+          "amountRefundedCents"
         ],
         "type": "object",
         "properties": {
@@ -111153,11 +110900,8 @@
       "IpcDevModeKeyDto": {
         "required": [
           "id",
-          "label",
           "isEnabled",
-          "expiresAt",
-          "createdAt",
-          "plaintextKey"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -111277,12 +111021,9 @@
           "id",
           "jarId",
           "sourceBroadcasterId",
-          "contributorUserId",
           "amount",
           "movementType",
           "jarBalanceAfter",
-          "ledgerEntryId",
-          "actorUserId",
           "createdAt"
         ],
         "type": "object",
@@ -111396,8 +111137,6 @@
       "LeaderboardConfigDto": {
         "required": [
           "id",
-          "broadcasterId",
-          "jarId",
           "metric",
           "scope",
           "period",
@@ -111475,8 +111214,6 @@
       "LeaderboardEntryDto": {
         "required": [
           "rank",
-          "subjectUserId",
-          "subjectAccountId",
           "displayName",
           "value"
         ],
@@ -111598,11 +111335,8 @@
         "required": [
           "provider",
           "providerUsername",
-          "providerDisplayName",
-          "providerAvatarUrl",
           "isPrimary",
-          "linkedAtUtc",
-          "lastLoginAtUtc"
+          "linkedAtUtc"
         ],
         "type": "object",
         "properties": {
@@ -111666,7 +111400,6 @@
           "minPlayers",
           "maxPlayers",
           "lobbyWindowSeconds",
-          "tickIntervalSeconds",
           "requiresEntryFee"
         ],
         "type": "object",
@@ -111754,8 +111487,6 @@
           "trigger",
           "startedAt",
           "expiresAt",
-          "endedAt",
-          "restoredAt",
           "engaged",
           "unavailable",
           "applyFailed",
@@ -111963,9 +111694,7 @@
       "MaskedCodeDto": {
         "required": [
           "id",
-          "label",
-          "status",
-          "assignedAt"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -111998,7 +111727,6 @@
           "batchId",
           "channelLogin",
           "requestedAt",
-          "completedAt",
           "total",
           "banned",
           "failed",
@@ -112106,7 +111834,6 @@
           "broadcasterId",
           "broadcasterLogin",
           "status",
-          "optIn",
           "isOwnChannel",
           "isAttacked",
           "isLive",
@@ -112162,9 +111889,7 @@
       },
       "MassBanRequest": {
         "required": [
-          "targets",
-          "attackedChannels",
-          "excludedChannels"
+          "targets"
         ],
         "type": "object",
         "properties": {
@@ -112212,8 +111937,7 @@
       },
       "MassBanTargetDto": {
         "required": [
-          "twitchUserId",
-          "reason"
+          "twitchUserId"
         ],
         "type": "object",
         "properties": {
@@ -112233,9 +111957,7 @@
         "required": [
           "twitchUserId",
           "status",
-          "attempts",
-          "error",
-          "nextAttemptAt"
+          "attempts"
         ],
         "type": "object",
         "properties": {
@@ -112280,7 +112002,6 @@
           "allowTwitchClips",
           "allowYouTube",
           "maxDurationSeconds",
-          "entryCost",
           "maxQueueLength",
           "perUserCooldownSeconds"
         ],
@@ -112339,15 +112060,11 @@
           "id",
           "requesterUserId",
           "requesterDisplayName",
-          "requesterAvatarUrl",
           "sourceType",
           "sourceUrl",
           "mediaRef",
-          "title",
           "durationSeconds",
-          "thumbnailUrl",
           "status",
-          "queuePosition",
           "requestedAt"
         ],
         "type": "object",
@@ -112519,10 +112236,6 @@
           "action",
           "moderatorId",
           "moderatorUsername",
-          "targetUserId",
-          "targetUsername",
-          "reason",
-          "durationSeconds",
           "timestamp"
         ],
         "type": "object",
@@ -112574,8 +112287,7 @@
       },
       "ModerationActionResult": {
         "required": [
-          "success",
-          "message"
+          "success"
         ],
         "type": "object",
         "properties": {
@@ -112637,10 +112349,6 @@
           "subjectUserId",
           "subjectTwitchUserId",
           "actionType",
-          "moderatorUserId",
-          "moderatorDisplayName",
-          "reason",
-          "durationSeconds",
           "occurredAt"
         ],
         "type": "object",
@@ -112709,14 +112417,7 @@
           "id",
           "source",
           "status",
-          "targetTwitchUserId",
-          "targetUsernameSnapshot",
-          "messageContentSnapshot",
-          "autoModCategory",
-          "createdAt",
-          "resolvedAt",
-          "resolvedByName",
-          "resolutionAction"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -112788,8 +112489,6 @@
           "type",
           "isEnabled",
           "action",
-          "durationSeconds",
-          "reason",
           "settings",
           "exemptRoles",
           "createdAt",
@@ -112857,7 +112556,6 @@
           "userId",
           "provider",
           "standing",
-          "reason",
           "updatedAt"
         ],
         "type": "object",
@@ -112970,9 +112668,6 @@
         "description": "A streamer's permission as recorded by the operator, for a channel that may never have joined the bot."
       },
       "ModeratorMassBanOptInRequest": {
-        "required": [
-          "note"
-        ],
         "type": "object",
         "properties": {
           "note": {
@@ -113001,10 +112696,7 @@
           "id",
           "action",
           "moderator",
-          "target",
-          "reason",
-          "timestamp",
-          "duration"
+          "timestamp"
         ],
         "type": "object",
         "properties": {
@@ -113175,7 +112867,6 @@
           "name",
           "uri",
           "trackCount",
-          "imageUrl",
           "provider"
         ],
         "type": "object",
@@ -113239,9 +112930,7 @@
         "required": [
           "trackName",
           "artist",
-          "imageUrl",
-          "durationMs",
-          "requestedBy"
+          "durationMs"
         ],
         "type": "object",
         "properties": {
@@ -113347,18 +113036,12 @@
           "id",
           "targetUserId",
           "targetTwitchUserId",
-          "targetDisplayName",
-          "reason",
           "justification",
           "appliedByPrincipalId",
           "appliedAt",
           "tenantCount",
           "channelCount",
           "status",
-          "liftedByPrincipalId",
-          "liftJustification",
-          "liftAttemptedAt",
-          "liftedAt",
           "restoredChannelCount",
           "liftFailedChannelIds"
         ],
@@ -113469,7 +113152,6 @@
         "required": [
           "targetUserId",
           "targetTwitchUserId",
-          "targetDisplayName",
           "tenantCount",
           "tenants"
         ],
@@ -113510,16 +113192,8 @@
         "required": [
           "id",
           "originBroadcasterId",
-          "initiatedByUserId",
-          "matchTerm",
-          "reason",
-          "targetUserId",
-          "targetTwitchUserId",
-          "targetDisplayName",
           "channelCount",
           "status",
-          "revertedByUserId",
-          "revertedAt",
           "createdAt"
         ],
         "type": "object",
@@ -113637,15 +113311,10 @@
       },
       "NowPlayingDto": {
         "required": [
-          "trackName",
-          "artist",
-          "album",
-          "imageUrl",
           "durationMs",
           "progressMs",
           "isPlaying",
           "volume",
-          "requestedBy",
           "provider",
           "shuffleState",
           "repeatState"
@@ -113810,8 +113479,7 @@
       "ObsBridgeStatusDto": {
         "required": [
           "instanceCount",
-          "hasLeader",
-          "leaderSince"
+          "hasLeader"
         ],
         "type": "object",
         "properties": {
@@ -113839,14 +113507,10 @@
       "ObsConnectionDto": {
         "required": [
           "mode",
-          "host",
-          "port",
           "hasPassword",
           "hasBridgeToken",
           "eventSubscriptionsMask",
-          "isEnabled",
-          "lastConnectedAt",
-          "lastError"
+          "isEnabled"
         ],
         "type": "object",
         "properties": {
@@ -113977,9 +113641,7 @@
       "ObsInputDto": {
         "required": [
           "name",
-          "kind",
-          "muted",
-          "volumeDb"
+          "kind"
         ],
         "type": "object",
         "properties": {
@@ -114061,9 +113723,7 @@
       },
       "ObsProbeDto": {
         "required": [
-          "connected",
-          "errorCode",
-          "error"
+          "connected"
         ],
         "type": "object",
         "properties": {
@@ -114111,8 +113771,7 @@
       },
       "ObsRequest": {
         "required": [
-          "requestType",
-          "requestData"
+          "requestType"
         ],
         "type": "object",
         "properties": {
@@ -114153,9 +113812,7 @@
       },
       "ObsResponse": {
         "required": [
-          "ok",
-          "responseData",
-          "error"
+          "ok"
         ],
         "type": "object",
         "properties": {
@@ -114268,12 +113925,10 @@
       },
       "ObsStateDto": {
         "required": [
-          "currentScene",
           "streaming",
           "recording",
           "recordPaused",
-          "replayBufferActive",
-          "recordTimecode"
+          "replayBufferActive"
         ],
         "type": "object",
         "properties": {
@@ -114400,9 +114055,6 @@
         "description": "Studio mode status (obs-websocket v5 `GetStudioModeEnabled`) — the same single-flag\r\n            shape as ObsVirtualCamStatusDto."
       },
       "ObsStudioTransitionRequest": {
-        "required": [
-          "durationMs"
-        ],
         "type": "object",
         "properties": {
           "durationMs": {
@@ -114452,8 +114104,7 @@
       "ObsVendorRequest": {
         "required": [
           "vendorName",
-          "requestType",
-          "requestData"
+          "requestType"
         ],
         "type": "object",
         "properties": {
@@ -114528,10 +114179,6 @@
           "eventType",
           "attempt",
           "status",
-          "responseCode",
-          "durationMs",
-          "nextRetryAt",
-          "error",
           "createdAt"
         ],
         "type": "object",
@@ -114606,16 +114253,10 @@
           "id",
           "name",
           "fqdn",
-          "path",
           "subscribedEventTypes",
-          "bodyTemplate",
           "bodyIsJson",
           "isEnabled",
           "consecutiveFailureCount",
-          "disabledAt",
-          "disabledReason",
-          "lastDeliveryAt",
-          "lastSuccessAt",
           "createdAt",
           "updatedAt"
         ],
@@ -114749,11 +114390,6 @@
       "OverlayNowPlayingSnapshot": {
         "required": [
           "isPlaying",
-          "track",
-          "artist",
-          "artUrl",
-          "provider",
-          "trackUri",
           "durationMs",
           "progressMs",
           "observedAt"
@@ -117798,9 +117434,7 @@
           "id",
           "subjectType",
           "subjectId",
-          "subjectName",
           "resourceType",
-          "resourceId",
           "permissionValue",
           "createdAt"
         ],
@@ -117848,14 +117482,9 @@
         "required": [
           "id",
           "userId",
-          "username",
           "grantType",
           "grantedRole",
-          "capabilityActionKey",
           "grantedByUserId",
-          "expiresAt",
-          "revokedAt",
-          "reason",
           "createdAt"
         ],
         "type": "object",
@@ -117935,7 +117564,6 @@
         "required": [
           "id",
           "name",
-          "description",
           "items",
           "createdAt",
           "updatedAt"
@@ -118018,7 +117646,6 @@
           "kind",
           "required",
           "repeatable",
-          "options",
           "description"
         ],
         "type": "object",
@@ -118186,15 +117813,12 @@
           "id",
           "channelId",
           "name",
-          "description",
           "isEnabled",
           "triggerKind",
           "graph",
           "triggerCount",
-          "lastTriggeredAt",
           "createdAt",
-          "updatedAt",
-          "parameterNames"
+          "updatedAt"
         ],
         "type": "object",
         "properties": {
@@ -118270,14 +117894,11 @@
       "PipelineExecutionDetailDto": {
         "required": [
           "id",
-          "pipelineId",
           "triggerKind",
           "status",
           "hostCallCount",
           "durationMs",
-          "errorMessage",
           "startedAt",
-          "completedAt",
           "stepLogs"
         ],
         "type": "object",
@@ -118351,8 +117972,7 @@
           "stepIndex",
           "actionType",
           "succeeded",
-          "durationMs",
-          "errorMessage"
+          "durationMs"
         ],
         "type": "object",
         "properties": {
@@ -118390,14 +118010,11 @@
       "PipelineExecutionSummaryDto": {
         "required": [
           "id",
-          "pipelineId",
           "triggerKind",
           "status",
           "hostCallCount",
           "durationMs",
-          "errorMessage",
-          "startedAt",
-          "completedAt"
+          "startedAt"
         ],
         "type": "object",
         "properties": {
@@ -118477,12 +118094,9 @@
         "required": [
           "id",
           "name",
-          "description",
           "isEnabled",
           "triggerCount",
-          "lastTriggeredAt",
-          "updatedAt",
-          "parameterNames"
+          "updatedAt"
         ],
         "type": "object",
         "properties": {
@@ -118543,8 +118157,6 @@
         "required": [
           "value",
           "label",
-          "secondaryText",
-          "imageUrl",
           "state"
         ],
         "type": "object",
@@ -118588,7 +118200,6 @@
       "PipelineOptionListResult": {
         "required": [
           "sourceAvailable",
-          "unavailableReason",
           "items",
           "totalCount"
         ],
@@ -118728,9 +118339,7 @@
       },
       "PipelineTraceVariableChangeDto": {
         "required": [
-          "key",
-          "before",
-          "after"
+          "key"
         ],
         "type": "object",
         "properties": {
@@ -118906,9 +118515,7 @@
       },
       "PlatformBotAdminStatusDto": {
         "required": [
-          "state",
-          "botUsername",
-          "botDisplayName"
+          "state"
         ],
         "type": "object",
         "properties": {
@@ -119022,12 +118629,7 @@
           "kind",
           "key",
           "displayName",
-          "description",
-          "currentVersionId",
-          "currentVersion",
-          "latestDraftVersionId",
-          "createdAt",
-          "retiredAt"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -119129,17 +118731,13 @@
         "required": [
           "id",
           "definitionId",
-          "fromVersion",
           "toVersion",
           "mode",
           "requestedByPrincipalId",
           "requestedAt",
           "previewAffectedCount",
           "previewSkippedCount",
-          "confirmedAffectedCount",
           "status",
-          "completedAt",
-          "failureReason",
           "rebuildFailedWidgetIds",
           "validationFailedPipelineIds",
           "validationFailedCodeScriptIds",
@@ -119270,11 +118868,8 @@
           "contentHash",
           "payloadJson",
           "renderGalleryRefs",
-          "publishNote",
           "draftedAt",
-          "draftedByPrincipalId",
-          "publishedAt",
-          "publishedByPrincipalId"
+          "draftedByPrincipalId"
         ],
         "type": "object",
         "properties": {
@@ -119403,7 +118998,6 @@
           "kind",
           "rowId",
           "defaultName",
-          "installedVersion",
           "defaultVersion",
           "isEdited",
           "changes"
@@ -119475,7 +119069,6 @@
           "kind",
           "key",
           "displayName",
-          "description",
           "version",
           "payloadJson"
         ],
@@ -119521,7 +119114,6 @@
           "definitionId",
           "kind",
           "displayName",
-          "installedVersion",
           "currentVersion",
           "editedSinceInstall"
         ],
@@ -119571,7 +119163,6 @@
           "id",
           "login",
           "displayName",
-          "profileImageUrl",
           "createdAt"
         ],
         "type": "object",
@@ -119780,8 +119371,7 @@
         "required": [
           "entry",
           "kind",
-          "framework",
-          "dependencies"
+          "framework"
         ],
         "type": "object",
         "properties": {
@@ -119811,8 +119401,7 @@
           "id",
           "name",
           "subject",
-          "object",
-          "key"
+          "object"
         ],
         "type": "object",
         "properties": {
@@ -119874,7 +119463,6 @@
         "required": [
           "key",
           "state",
-          "platform",
           "reason"
         ],
         "type": "object",
@@ -119920,7 +119508,6 @@
       "ProviderCredentialDto": {
         "required": [
           "provider",
-          "clientId",
           "clientIdSource",
           "secretSource",
           "appDecisionRecorded",
@@ -119964,7 +119551,6 @@
       "PublishContentRequest": {
         "required": [
           "mode",
-          "publishNote",
           "confirmedPreviewAffectedCount"
         ],
         "type": "object",
@@ -120035,8 +119621,7 @@
       "PublishSubmissionDto": {
         "required": [
           "submissionId",
-          "status",
-          "reviewNote"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -120059,9 +119644,7 @@
         "required": [
           "itemId",
           "buyerUserId",
-          "inputArgs",
-          "roleLevel",
-          "idempotencyKey"
+          "roleLevel"
         ],
         "type": "object",
         "properties": {
@@ -120103,9 +119686,7 @@
           "position",
           "trackName",
           "artist",
-          "imageUrl",
-          "durationMs",
-          "requestedBy"
+          "durationMs"
         ],
         "type": "object",
         "properties": {
@@ -120160,9 +119741,6 @@
           "id",
           "number",
           "text",
-          "quotedDisplayName",
-          "contextGame",
-          "quotedAt",
           "createdAt"
         ],
         "type": "object",
@@ -120224,7 +119802,6 @@
           "raiderLogin",
           "raiderDisplayName",
           "viewerCount",
-          "accountCreatedAt",
           "earlierRaidCount",
           "isBanned",
           "isNetworkBlocked",
@@ -120562,7 +120139,6 @@
       "RedeemInviteCodeResultDto": {
         "required": [
           "grantedFoundersBadge",
-          "grantedTierKey",
           "foundersBadge"
         ],
         "type": "object",
@@ -120613,9 +120189,7 @@
           "rewardTitle",
           "userId",
           "userDisplayName",
-          "userAvatarUrl",
           "cost",
-          "userInput",
           "status",
           "redeemedAt"
         ],
@@ -120724,9 +120298,6 @@
         "description": "One live/recent countdown for a time-limited reward redemption. `RemainingSeconds` is\r\n            the CURRENT clock-derived value; `Status` is running | paused | completed | canceled."
       },
       "RefreshTokenRequest": {
-        "required": [
-          "refreshToken"
-        ],
         "type": "object",
         "properties": {
           "refreshToken": {
@@ -120765,8 +120336,6 @@
       "RegisterFederationPeerRequest": {
         "required": [
           "instanceId",
-          "displayName",
-          "baseUrl",
           "deploymentMode",
           "publicKey",
           "keyId",
@@ -120929,7 +120498,6 @@
       "RequestErasureRequest": {
         "required": [
           "subjectUserId",
-          "broadcasterId",
           "requestedBy",
           "scope"
         ],
@@ -120963,9 +120531,7 @@
           "effectiveLevel",
           "communityStanding",
           "communityLevel",
-          "managementRole",
           "managementLevel",
-          "permitRole",
           "permitCapabilities",
           "winningSource",
           "heldActionKeys"
@@ -121184,21 +120750,12 @@
         "required": [
           "id",
           "title",
-          "prompt",
-          "response",
           "cost",
           "isEnabled",
           "isManageable",
           "isUserInputRequired",
           "isPaused",
           "isMigrationPending",
-          "backgroundColor",
-          "imageUrl",
-          "maxPerStream",
-          "maxPerUserPerStream",
-          "globalCooldownSeconds",
-          "timerDurationSeconds",
-          "pipelineId",
           "createdAt",
           "updatedAt"
         ],
@@ -121315,7 +120872,6 @@
         "required": [
           "rank",
           "userId",
-          "internalUserId",
           "displayName",
           "points"
         ],
@@ -121384,10 +120940,6 @@
         }
       },
       "SaveProviderCredentialRequest": {
-        "required": [
-          "clientId",
-          "clientSecret"
-        ],
         "type": "object",
         "properties": {
           "clientId": {
@@ -121430,8 +120982,7 @@
       "SaveTwitchCredentialRequest": {
         "required": [
           "clientId",
-          "clientSecret",
-          "botUsername"
+          "clientSecret"
         ],
         "type": "object",
         "properties": {
@@ -121454,12 +121005,8 @@
           "id",
           "ownerBroadcasterId",
           "name",
-          "description",
-          "goalAmount",
           "balance",
-          "iconUrl",
           "isOpen",
-          "maxWithdrawalPerChannel",
           "createdAt",
           "updatedAt"
         ],
@@ -121640,7 +121187,6 @@
       },
       "ScriptSourcePosition": {
         "required": [
-          "file",
           "line",
           "column"
         ],
@@ -121718,9 +121264,7 @@
       "ScriptValidationError": {
         "required": [
           "code",
-          "message",
-          "line",
-          "column"
+          "message"
         ],
         "type": "object",
         "properties": {
@@ -121924,8 +121468,7 @@
       "ServiceHealthDto": {
         "required": [
           "name",
-          "status",
-          "latencyMs"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -121963,7 +121506,6 @@
       },
       "SetActionDefaultRequest": {
         "required": [
-          "level",
           "confirmedChannelsAffected",
           "confirmDanger"
         ],
@@ -122017,7 +121559,6 @@
       },
       "SetBuiltinReplyDefaultRequest": {
         "required": [
-          "template",
           "confirmedChannelsAffected"
         ],
         "type": "object",
@@ -122040,9 +121581,6 @@
         "description": "Saves a reply text. ConfirmedChannelsAffected must equal the preview's live count."
       },
       "SetBuiltinReplyRequest": {
-        "required": [
-          "template"
-        ],
         "type": "object",
         "properties": {
           "template": {
@@ -122121,7 +121659,6 @@
       "SetEventResponseDefaultRequest": {
         "required": [
           "isEnabled",
-          "message",
           "confirmedChannelsAffected"
         ],
         "type": "object",
@@ -122154,8 +121691,7 @@
         "required": [
           "provider",
           "emoteId",
-          "code",
-          "imageUrl"
+          "code"
         ],
         "type": "object",
         "properties": {
@@ -122205,7 +121741,6 @@
       "SetFeatureFlagRequest": {
         "required": [
           "key",
-          "description",
           "isEnabledGlobally",
           "rolloutPercentage"
         ],
@@ -122318,8 +121853,7 @@
       "SetModerationStandingRequest": {
         "required": [
           "provider",
-          "standing",
-          "reason"
+          "standing"
         ],
         "type": "object",
         "properties": {
@@ -122435,8 +121969,7 @@
         "required": [
           "limitKey",
           "limitValue",
-          "reason",
-          "expiresAt"
+          "reason"
         ],
         "type": "object",
         "properties": {
@@ -122521,8 +122054,7 @@
         "required": [
           "type",
           "method",
-          "endpoint",
-          "pollEndpoint"
+          "endpoint"
         ],
         "type": "object",
         "properties": {
@@ -122549,8 +122081,7 @@
           "key",
           "label",
           "type",
-          "required",
-          "help"
+          "required"
         ],
         "type": "object",
         "properties": {
@@ -122706,7 +122237,6 @@
         "required": [
           "trustedChannelId",
           "trustedChannelName",
-          "addedByUserId",
           "createdAt"
         ],
         "type": "object",
@@ -122792,10 +122322,7 @@
           "twitchUserId",
           "login",
           "displayName",
-          "color",
-          "lastCategory",
-          "streamsLast14Days",
-          "lastShoutoutAt"
+          "streamsLast14Days"
         ],
         "type": "object",
         "properties": {
@@ -122846,9 +122373,6 @@
         "description": "One chatter of the current stream the streamer may want to shout out."
       },
       "ShoutoutTemplateDto": {
-        "required": [
-          "template"
-        ],
         "type": "object",
         "properties": {
           "template": {
@@ -122931,7 +122455,6 @@
           "isEnabled",
           "cooldownSeconds",
           "minPermissionLevel",
-          "triggerWord",
           "createdAt",
           "previewUrl"
         ],
@@ -123014,9 +122537,6 @@
           "actionedCount",
           "noStandingShare",
           "mayContributeToNetwork",
-          "reversedAt",
-          "reversalReason",
-          "reversedByActorId",
           "restoredAccountCount",
           "restorationFailedAccountIds",
           "firstSeenAt",
@@ -123125,7 +122645,6 @@
           "settings",
           "catalogue",
           "invariants",
-          "enforcementEligibleAt",
           "isPinned"
         ],
         "type": "object",
@@ -123368,7 +122887,6 @@
           "wouldHaveBeen",
           "wasDryRun",
           "reason",
-          "overturnedAt",
           "detectedAt"
         ],
         "type": "object",
@@ -123460,11 +122978,7 @@
           "labelKey",
           "explanationKey",
           "costKey",
-          "minimum",
-          "maximum",
-          "isToggle",
-          "pendingSlice",
-          "inactiveReasonKey"
+          "isToggle"
         ],
         "type": "object",
         "properties": {
@@ -123533,9 +123047,7 @@
       },
       "StartCheckoutRequest": {
         "required": [
-          "tierKey",
-          "successUrl",
-          "cancelUrl"
+          "tierKey"
         ],
         "type": "object",
         "properties": {
@@ -137178,12 +136690,6 @@
       "StreamAnalyticsDto": {
         "required": [
           "streamId",
-          "title",
-          "gameName",
-          "startedAt",
-          "endedAt",
-          "durationSeconds",
-          "peakViewers",
           "totalMessages",
           "uniqueChatters",
           "newFollowers",
@@ -137353,13 +136859,9 @@
       },
       "StreamInfoDto": {
         "required": [
-          "title",
-          "gameName",
           "tags",
           "isLive",
-          "viewerCount",
-          "startedAt",
-          "language"
+          "viewerCount"
         ],
         "type": "object",
         "properties": {
@@ -137416,13 +136918,7 @@
       },
       "StreamListItemDto": {
         "required": [
-          "streamId",
-          "title",
-          "gameName",
-          "startedAt",
-          "endedAt",
-          "durationSeconds",
-          "peakViewers"
+          "streamId"
         ],
         "type": "object",
         "properties": {
@@ -137540,9 +137036,6 @@
           "tierDisplayName",
           "status",
           "cancelAtPeriodEnd",
-          "currentPeriodEnd",
-          "trialEndsAt",
-          "gracePeriodEndsAt",
           "isInviteOnlyGrant",
           "allowsCustomBotName",
           "prioritySupport"
@@ -137610,9 +137103,7 @@
           "connectionMode",
           "hasSecret",
           "isEnabled",
-          "status",
-          "lastEventAt",
-          "endpointUrl"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -137653,11 +137144,6 @@
           "sourceKey",
           "kind",
           "supporterDisplayName",
-          "amountMinor",
-          "currency",
-          "tier",
-          "quantity",
-          "messageText",
           "isRecurring",
           "receivedAt"
         ],
@@ -137729,9 +137215,7 @@
           "channelName",
           "standing",
           "levelValue",
-          "source",
-          "subTier",
-          "lastSeenAt"
+          "source"
         ],
         "type": "object",
         "properties": {
@@ -137839,8 +137323,6 @@
       "SupportPersonHistoryEntryDto": {
         "required": [
           "eventId",
-          "broadcasterId",
-          "channelName",
           "eventType",
           "source",
           "occurredAt"
@@ -137883,10 +137365,7 @@
         "required": [
           "principalId",
           "principalName",
-          "roleName",
-          "scopeBroadcasterId",
-          "scopeChannelName",
-          "expiresAt"
+          "roleName"
         ],
         "type": "object",
         "properties": {
@@ -137931,8 +137410,7 @@
           "providerUserId",
           "providerUsername",
           "isPrimary",
-          "linkedAt",
-          "lastLoginAt"
+          "linkedAt"
         ],
         "type": "object",
         "properties": {
@@ -137969,9 +137447,7 @@
           "timeoutCount",
           "banCount",
           "warningCount",
-          "messagesDeletedCount",
-          "lastActionAt",
-          "lastActionType"
+          "messagesDeletedCount"
         ],
         "type": "object",
         "properties": {
@@ -138037,7 +137513,6 @@
           "channelName",
           "provider",
           "standing",
-          "reason",
           "createdAt"
         ],
         "type": "object",
@@ -138113,10 +137588,8 @@
           "username",
           "displayName",
           "platform",
-          "twitchUserId",
           "isPlatformPrincipal",
           "isAnonymized",
-          "lastSeenAt",
           "tenantCount"
         ],
         "type": "object",
@@ -138171,7 +137644,6 @@
           "channelName",
           "trustScore",
           "heatScore",
-          "lastHeatEventAt",
           "computedAt"
         ],
         "type": "object",
@@ -138220,10 +137692,8 @@
           "username",
           "displayName",
           "platform",
-          "twitchUserId",
           "isPlatformPrincipal",
           "isAnonymized",
-          "lastSeenAt",
           "identities",
           "platformConnections",
           "iamRoles",
@@ -138454,9 +137924,7 @@
           "targetBroadcasterId",
           "justification",
           "breakGlass",
-          "grantedAt",
-          "expiresAt",
-          "revokedAt"
+          "grantedAt"
         ],
         "type": "object",
         "properties": {
@@ -138510,8 +137978,7 @@
           "limitValue",
           "reason",
           "grantedByPrincipalId",
-          "createdAt",
-          "expiresAt"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -138563,10 +138030,7 @@
           "userId",
           "username",
           "displayName",
-          "profileImageUrl",
-          "relation",
-          "managementRole",
-          "communityStanding"
+          "relation"
         ],
         "type": "object",
         "properties": {
@@ -138685,14 +138149,11 @@
       "TestRunResultDto": {
         "required": [
           "success",
-          "error",
           "durationMs",
           "hostCallCount",
           "capturedEffects",
           "chatOutput",
-          "log",
-          "variablesSet",
-          "console"
+          "log"
         ],
         "type": "object",
         "properties": {
@@ -138789,7 +138250,6 @@
         "required": [
           "id",
           "responseKey",
-          "userDisplayName",
           "variables"
         ],
         "type": "object",
@@ -138957,8 +138417,6 @@
           "minChatActivity",
           "isEnabled",
           "fireOnce",
-          "pipelineId",
-          "lastFiredAt",
           "nextMessageIndex",
           "createdAt",
           "updatedAt"
@@ -139045,7 +138503,6 @@
           "intervalMinutes",
           "isEnabled",
           "fireOnce",
-          "lastFiredAt",
           "messageCount",
           "createdAt"
         ],
@@ -139102,7 +138559,6 @@
       "TopViewerDto": {
         "required": [
           "viewerUserId",
-          "displayName",
           "metricValue"
         ],
         "type": "object",
@@ -139137,9 +138593,7 @@
         "required": [
           "fromViewerUserId",
           "toViewerUserId",
-          "amount",
-          "reason",
-          "actorUserId"
+          "amount"
         ],
         "type": "object",
         "properties": {
@@ -139421,10 +138875,6 @@
           "outcome",
           "reason",
           "detectedAt",
-          "confirmedAt",
-          "confirmedByUserId",
-          "overturnedAt",
-          "overturnedByUserId",
           "reversalPreview"
         ],
         "type": "object",
@@ -139549,14 +138999,12 @@
           "isEnabled",
           "mode",
           "defaultProvider",
-          "defaultVoiceId",
           "maxCharacters",
           "minPermission",
           "skipBotMessages",
           "readUsernames",
           "profanityCensorEnabled",
-          "modApprovalRequired",
-          "minBitsToTts"
+          "modApprovalRequired"
         ],
         "type": "object",
         "properties": {
@@ -139641,8 +139089,7 @@
           "voiceId",
           "provider",
           "characterCount",
-          "durationMs",
-          "playbackUrl"
+          "durationMs"
         ],
         "type": "object",
         "properties": {
@@ -139708,8 +139155,7 @@
       },
       "TtsOverlayDto": {
         "required": [
-          "overlayUrl",
-          "lastRanAt"
+          "overlayUrl"
         ],
         "type": "object",
         "properties": {
@@ -139730,15 +139176,12 @@
         "required": [
           "id",
           "requestedByTwitchUserId",
-          "requestedByDisplayName",
           "originalText",
-          "censoredText",
           "voiceId",
           "wasCensored",
           "status",
           "createdAt",
-          "expiresAt",
-          "sourceMessageId"
+          "expiresAt"
         ],
         "type": "object",
         "properties": {
@@ -139955,12 +139398,8 @@
           "gender",
           "provider",
           "isDefault",
-          "accent",
-          "age",
           "styles",
-          "tags",
-          "description",
-          "previewUrl"
+          "tags"
         ],
         "type": "object",
         "properties": {
@@ -140163,7 +139602,6 @@
       },
       "TwitchAutoModSettingsDto": {
         "required": [
-          "overallLevel",
           "aggression",
           "bullying",
           "disability",
@@ -140311,8 +139749,7 @@
           "channelPointsPerVote",
           "status",
           "duration",
-          "startedAt",
-          "endedAt"
+          "startedAt"
         ],
         "type": "object",
         "properties": {
@@ -140434,13 +139871,10 @@
           "broadcasterName",
           "broadcasterLogin",
           "title",
-          "winningOutcomeId",
           "outcomes",
           "predictionWindow",
           "status",
-          "createdAt",
-          "endedAt",
-          "lockedAt"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -140509,7 +139943,6 @@
           "title",
           "users",
           "channelPoints",
-          "topPredictors",
           "color"
         ],
         "type": "object",
@@ -140673,7 +140106,6 @@
           "startTime",
           "endTime",
           "title",
-          "canceledUntil",
           "category",
           "isRecurring"
         ],
@@ -140772,8 +140204,7 @@
           "scope",
           "feature",
           "granted",
-          "isProgressive",
-          "gatedByFeature"
+          "isProgressive"
         ],
         "type": "object",
         "properties": {
@@ -140836,10 +140267,7 @@
           "userName",
           "text",
           "status",
-          "createdAt",
-          "resolvedAt",
-          "resolvedBy",
-          "resolutionText"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -140904,10 +140332,6 @@
         "description": "A dashboard unban request — the reversal of BanUserRequest. string UnbanUserRequest.Scope is\r\n`\"this_channel\"` (default) or `\"all_moderated\"`, which lifts the ban across every channel Twitch says\r\nthe operator moderates (the \"un-nuke\")."
       },
       "UpdateBuiltinSettingsRequest": {
-        "required": [
-          "cooldownSeconds",
-          "minPermissionLevel"
-        ],
         "type": "object",
         "properties": {
           "cooldownSeconds": {
@@ -140929,20 +140353,6 @@
         "description": "The channel's cooldown and permission floor for a built-in; null = use the default."
       },
       "UpdateCatalogItemRequest": {
-        "required": [
-          "name",
-          "description",
-          "cost",
-          "iconUrl",
-          "isEnabled",
-          "permission",
-          "pipelineId",
-          "cooldownSeconds",
-          "cooldownPerUser",
-          "stockLimit",
-          "maxPerViewerPerStream",
-          "sortOrder"
-        ],
         "type": "object",
         "properties": {
           "name": {
@@ -141406,11 +140816,7 @@
         "required": [
           "enabled",
           "targetChannelId",
-          "pingRoleId",
-          "messageTemplate",
-          "embedConfig",
-          "milestoneType",
-          "milestoneThreshold"
+          "embedConfig"
         ],
         "type": "object",
         "properties": {
@@ -141463,7 +140869,6 @@
       },
       "UpdateDiscordNotificationRoleRequest": {
         "required": [
-          "roleName",
           "selfAssignEnabled"
         ],
         "type": "object",
@@ -141488,7 +140893,6 @@
           "firstTimeChatterEnabled",
           "returningChatterEnabled",
           "watchStreakEnabled",
-          "streakMilestones",
           "greetCooldownSeconds"
         ],
         "type": "object",
@@ -141643,7 +141047,6 @@
           "allowTwitchClips",
           "allowYouTube",
           "maxDurationSeconds",
-          "entryCost",
           "maxQueueLength",
           "perUserCooldownSeconds"
         ],
@@ -141899,7 +141302,6 @@
       "UpdatePickListRequest": {
         "required": [
           "name",
-          "description",
           "items"
         ],
         "type": "object",
@@ -142174,12 +141576,6 @@
         "description": "Update Channel Stream Schedule Segment request body. All fields optional — only the ones set are sent\r\n(the transport omits nulls), matching Twitch's \"patch only what you provide\" semantics. The broadcaster\r\nand the segment id are method arguments, not part of this body."
       },
       "UpdateScheduleSettingsDto": {
-        "required": [
-          "isVacationEnabled",
-          "vacationStartTime",
-          "vacationEndTime",
-          "timezone"
-        ],
         "type": "object",
         "properties": {
           "isVacationEnabled": {
@@ -142255,11 +141651,6 @@
         }
       },
       "UpdateStreamRequest": {
-        "required": [
-          "title",
-          "gameName",
-          "tags"
-        ],
         "type": "object",
         "properties": {
           "title": {
@@ -142969,7 +142360,6 @@
       },
       "UpsertChannelFederationOptInRequest": {
         "required": [
-          "peerId",
           "optInType",
           "direction",
           "isEnabled"
@@ -142998,11 +142388,8 @@
       "UpsertCurrencyConfigRequest": {
         "required": [
           "currencyName",
-          "currencyNamePlural",
-          "iconUrl",
           "isEnabled",
           "startingBalance",
-          "maxBalance",
           "decimalPlaces"
         ],
         "type": "object",
@@ -143058,11 +142445,7 @@
           "name",
           "displayName",
           "sourceKind",
-          "presetKey",
-          "endpointUrl",
-          "authSecret",
           "fieldMap",
-          "pollIntervalSeconds",
           "isEnabled"
         ],
         "type": "object",
@@ -143118,12 +142501,7 @@
         "required": [
           "source",
           "isEnabled",
-          "rate",
-          "unitWindowSeconds",
-          "perWindowCap",
-          "perStreamCap",
-          "minRoleLevel",
-          "bonusConfig"
+          "rate"
         ],
         "type": "object",
         "properties": {
@@ -143234,15 +142612,8 @@
           "category",
           "isEnabled",
           "requires18Plus",
-          "minBet",
-          "maxBet",
-          "houseEdgePercent",
-          "winChancePercent",
-          "payoutMultiplier",
           "cooldownSeconds",
-          "maxPlaysPerStream",
-          "permission",
-          "config"
+          "permission"
         ],
         "type": "object",
         "properties": {
@@ -143453,13 +142824,11 @@
       },
       "UpsertLeaderboardConfigRequest": {
         "required": [
-          "id",
           "metric",
           "scope",
           "period",
           "isPublic",
-          "topN",
-          "jarId"
+          "topN"
         ],
         "type": "object",
         "properties": {
@@ -143577,8 +142946,6 @@
         "required": [
           "sourceKey",
           "connectionMode",
-          "authSecret",
-          "integrationConnectionId",
           "isEnabled"
         ],
         "type": "object",
@@ -143753,10 +143120,8 @@
       "UserDetailDto": {
         "required": [
           "id",
-          "internalUserId",
           "username",
           "displayName",
-          "profileImageUrl",
           "messageCount",
           "watchHours",
           "commandsUsed",
@@ -143765,9 +143130,7 @@
           "firstSeen",
           "lastSeen",
           "recentActivity",
-          "banHistory",
-          "isVip",
-          "isModerator"
+          "banHistory"
         ],
         "type": "object",
         "properties": {
@@ -143863,8 +143226,6 @@
           "id",
           "username",
           "displayName",
-          "profileImageUrl",
-          "email",
           "createdAt",
           "lastLoginAt"
         ],
@@ -143907,11 +143268,8 @@
           "provider",
           "providerUserId",
           "providerUsername",
-          "providerDisplayName",
-          "providerAvatarUrl",
           "isPrimary",
-          "linkedAt",
-          "lastLoginAt"
+          "linkedAt"
         ],
         "type": "object",
         "properties": {
@@ -143956,13 +143314,10 @@
       "UserModerationContextDto": {
         "required": [
           "userId",
-          "username",
           "banCount",
           "timeoutCount",
           "warnCount",
           "unbanCount",
-          "lastActionType",
-          "lastActionAt",
           "recentActions",
           "standings"
         ],
@@ -144066,10 +143421,7 @@
           "timeoutCount",
           "banCount",
           "warningCount",
-          "messagesDeletedCount",
-          "firstSeenAt",
-          "lastActionAt",
-          "lastActionType"
+          "messagesDeletedCount"
         ],
         "type": "object",
         "properties": {
@@ -144148,7 +143500,6 @@
           "subjectUserId",
           "content",
           "pinned",
-          "authorName",
           "createdAt",
           "updatedAt"
         ],
@@ -144193,10 +143544,6 @@
           "id",
           "username",
           "displayName",
-          "profileImageUrl",
-          "email",
-          "pronoun",
-          "pronounId",
           "createdAt",
           "lastLoginAt"
         ],
@@ -144251,11 +143598,6 @@
       },
       "UserPronounDto": {
         "required": [
-          "pronounId",
-          "pronounName",
-          "pronounBadge",
-          "altPronounId",
-          "altPronounName",
           "manualOverride"
         ],
         "type": "object",
@@ -144308,8 +143650,6 @@
           "watchHours",
           "channelsCount",
           "commandsUsed",
-          "firstSeen",
-          "lastActive",
           "exportAvailable"
         ],
         "type": "object",
@@ -144415,8 +143755,7 @@
       },
       "ViewerCommandUsageDto": {
         "required": [
-          "totalCommandsUsed",
-          "lastUsedUtc"
+          "totalCommandsUsed"
         ],
         "type": "object",
         "properties": {
@@ -144582,25 +143921,13 @@
       "ViewerIdentityDto": {
         "required": [
           "userId",
-          "twitchUserId",
           "username",
           "displayName",
-          "profileImageUrl",
-          "pronoun",
-          "altPronoun",
           "linkedIdentities",
           "communityStanding",
-          "subTier",
-          "managementRole",
-          "memberSinceUtc",
           "firstSeenUtc",
-          "accountCreatedAtUtc",
-          "description",
           "broadcasterType",
           "userType",
-          "chatColor",
-          "nickname",
-          "timezone",
           "isLurking",
           "pronounIsManualOverride"
         ],
@@ -144723,7 +144050,6 @@
           "id",
           "label",
           "subLabel",
-          "imageUrl",
           "inChannel"
         ],
         "type": "object",
@@ -144751,7 +144077,6 @@
       },
       "ViewerOverridesDto": {
         "required": [
-          "shoutoutMessageTemplate",
           "ttsVoice"
         ],
         "type": "object",
@@ -144777,9 +144102,7 @@
       },
       "ViewerPermitsDto": {
         "required": [
-          "activePermits",
-          "ageConsentGranted",
-          "ageConsentConfirmedUtc"
+          "activePermits"
         ],
         "type": "object",
         "properties": {
@@ -144808,9 +144131,6 @@
         "required": [
           "viewerUserId",
           "viewerTwitchUserId",
-          "displayName",
-          "firstSeenAt",
-          "lastSeenAt",
           "totalWatchSeconds",
           "totalMessages",
           "totalCommandsUsed",
@@ -144818,7 +144138,6 @@
           "totalSongRequests",
           "isFollower",
           "isSubscriber",
-          "subTier",
           "isAnalyticsOptedOut"
         ],
         "type": "object",
@@ -144921,10 +144240,8 @@
       "ViewerProfileListItemDto": {
         "required": [
           "viewerUserId",
-          "displayName",
           "totalWatchSeconds",
-          "totalMessages",
-          "lastSeenAt"
+          "totalMessages"
         ],
         "type": "object",
         "properties": {
@@ -145068,13 +144385,9 @@
         "required": [
           "id",
           "reportedTwitchUserId",
-          "reportedUsername",
           "reason",
           "status",
-          "reporterName",
-          "createdAt",
-          "resolvedAt",
-          "resolvedByName"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -145149,9 +144462,6 @@
           "startingCount",
           "currentCount",
           "cooldownSeconds",
-          "stickerAssetId",
-          "stickerImageUrl",
-          "lastFiredAt",
           "createdAt",
           "updatedAt"
         ],
@@ -145232,8 +144542,7 @@
           "hasBridgeToken",
           "eventSubscriptionsMask",
           "isEnabled",
-          "status",
-          "lastConnectedAt"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -145364,9 +144673,7 @@
       },
       "VtsRequestResult": {
         "required": [
-          "ok",
-          "dataJson",
-          "error"
+          "ok"
         ],
         "type": "object",
         "properties": {
@@ -145488,17 +144795,11 @@
         "required": [
           "id",
           "name",
-          "description",
           "framework",
           "source",
           "isEnabled",
-          "overlayUrl",
-          "activeVersionId",
-          "galleryItemId",
           "settings",
           "eventSubscriptions",
-          "lastRuntimeError",
-          "lastRanAt",
           "createdAt",
           "updatedAt",
           "galleryUpdateAvailable",
@@ -145597,9 +144898,7 @@
       },
       "WidgetPreviewActionRequest": {
         "required": [
-          "actionType",
-          "parameters",
-          "variables"
+          "actionType"
         ],
         "type": "object",
         "properties": {
@@ -145628,9 +144927,6 @@
       "WidgetPreviewActionResponse": {
         "required": [
           "success",
-          "output",
-          "error",
-          "errorCode",
           "variables"
         ],
         "type": "object",
@@ -145813,8 +145109,7 @@
       },
       "WidgetTestEventRequest": {
         "required": [
-          "eventType",
-          "data"
+          "eventType"
         ],
         "type": "object",
         "properties": {
@@ -145864,11 +145159,6 @@
           "widgetId",
           "versionNumber",
           "buildStatus",
-          "sourceCode",
-          "buildError",
-          "buildLog",
-          "contentHash",
-          "compiledAt",
           "createdAt"
         ],
         "type": "object",
@@ -145937,8 +145227,6 @@
           "id",
           "versionNumber",
           "buildStatus",
-          "contentHash",
-          "compiledAt",
           "createdAt"
         ],
         "type": "object",

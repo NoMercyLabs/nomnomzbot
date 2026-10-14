@@ -48,7 +48,7 @@ export function useCurrentChannel(): CurrentChannel {
     const own: ChannelChoice[] = (mine.data.value ?? []).map((row) => ({
       login: row.login,
       displayName: row.displayName,
-      profileImageUrl: row.profileImageUrl,
+      profileImageUrl: row.profileImageUrl ?? null,
       isLive: row.isLive,
       kind: row.role === 'broadcaster'
         ? 'own'
