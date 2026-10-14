@@ -27,7 +27,7 @@ public sealed class OmitNullableRequiredSchemaTransformer : IOpenApiSchemaTransf
         CancellationToken cancellationToken
     )
     {
-        if (schema.Required is { Count: > 0 } required && schema.Properties is { Count: > 0 })
+        if (schema is { Required: { Count: > 0 } required, Properties.Count: > 0 })
         {
             foreach (KeyValuePair<string, IOpenApiSchema> property in schema.Properties)
                 if (AcceptsNull(property.Value))
