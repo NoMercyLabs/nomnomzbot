@@ -11,7 +11,6 @@
 using FluentAssertions;
 using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Infrastructure.Chat;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
 
