@@ -209,7 +209,7 @@ async function undo(): Promise<void> {
         <Cross class="size-5" aria-hidden="true" />
       </Button>
     </template>
-    <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
+    <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-7">
       <ProfileHeader flush :person="person" :profile="viewerProfile" :roles="roles" />
       <StatTile
         v-if="showCurrency && account"

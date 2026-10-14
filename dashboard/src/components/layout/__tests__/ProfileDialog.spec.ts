@@ -1519,7 +1519,12 @@ describe('the profile header', () => {
         b.textContent?.trim() === name)!;
 
     expect(row.firstElementChild?.hasAttribute('data-profile-standing')).toBe(true);
-    expect(badge('Moderator').querySelector('svg')?.classList).toContain('text-role-moderator');
+
+    expect(badge('Moderator').classList).toContain('bg-muted');
+
+    expect(badge('Moderator').querySelector('[data-profile-platform]')?.getAttribute('fill'))
+      .toBe('#9146FF');
+
     expect(badge('VIP').querySelector('svg')?.classList).toContain('text-role-vip');
 
     expect(badge('Subscriber').querySelector('[data-profile-platform]')?.getAttribute('fill'))
@@ -1528,7 +1533,8 @@ describe('the profile header', () => {
 
   // Mockup profile.js .stats: the number on top and its label under it, so a label that wraps never pushes
   // its number out of line with the others.
-  it('shows a stat for each number the API returns, the number above its label', async () => {
+  // Owner 2026-10-14 "unify the look": every fact on the card is a label over its value.
+  it('shows a stat for each number the API returns, its label above the number', async () => {
     await openPage();
     await openUser('u1');
 
@@ -1537,11 +1543,11 @@ describe('the profile header', () => {
     );
 
     expect(stats).toEqual([
-      '1,234 Chat lines',
-      '12.5 Hours watched',
-      '7 Commands used',
-      '9 Rewards redeemed',
-      '4 Watch streak',
+      'Chat lines 1,234',
+      'Hours watched 12.5',
+      'Commands used 7',
+      'Rewards redeemed 9',
+      'Watch streak 4',
     ]);
   });
 

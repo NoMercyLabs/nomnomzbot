@@ -40,11 +40,15 @@ const shown = computed<string>(() =>
 <template>
   <div
     data-slot="stat-tile"
-    class="grid min-w-0 gap-1"
-    :class="plain ? '' : 'rounded-lg border border-border bg-card p-4'"
+    class="grid min-w-0"
+    :class="plain ? 'gap-0.5' : 'gap-1 rounded-lg border border-border bg-card p-4'"
   >
-    <span class="text-sm text-muted-foreground">{{ label }}</span>
-    <b class="text-2xl font-semibold tabular-nums" :class="warn ? 'text-destructive' : ''">{{
+    <!-- Plain matches the profile card's facts: a small label over a smaller value. -->
+    <span class="text-muted-foreground" :class="plain ? 'text-xs' : 'text-sm'">{{ label }}</span>
+    <b
+      class="font-semibold tabular-nums"
+      :class="[plain ? 'text-xl' : 'text-2xl', warn ? 'text-destructive' : '']"
+    >{{
       shown
     }}</b>
     <span

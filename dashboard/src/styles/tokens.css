@@ -20,7 +20,6 @@
 :root {
   /* Twitch's own chat-badge colors, so a role reads as the badge people know (owner 2026-10-14). */
   --role-broadcaster: #e91916;
-  --role-moderator: #00ad03;
   --role-vip: #e005b9;
   --background: oklch(0.177638 0 0);
   --foreground: oklch(0.949119 0 0);

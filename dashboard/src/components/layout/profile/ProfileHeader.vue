@@ -125,7 +125,7 @@ const stats = computed<Stat[]>(() => {
 <template>
   <div
     data-slot="profile-header"
-    class="grid flex-none gap-4"
+    class="grid flex-none gap-7"
     :class="flush ? '' : ['px-6 pb-4', inDialog ? 'pt-2' : 'pt-6']"
   >
     <div class="flex items-center gap-3">
@@ -172,8 +172,14 @@ const stats = computed<Stat[]>(() => {
             variant="secondary"
             class="bg-muted text-muted-foreground"
           >
-            <!-- The stored subscription is Twitch's (Helix seed and reconcile); a YouTube member is not the same. -->
-            <PlatformLogo v-if="role === 'subscriber'" data-profile-platform platform="twitch" />
+            <!-- The stored subscription is Twitch's (Helix seed and reconcile); a YouTube member is not the same.
+                 A mod is a mod per platform: the badge carries each platform's logo in its own color, no tint
+                 (owner 2026-10-14). -->
+            <PlatformLogo
+              v-if="role === 'subscriber' || role === 'moderator'"
+              data-profile-platform
+              platform="twitch"
+            />
             <component
               :is="roleIcons[role].icon"
               v-else
@@ -193,11 +199,11 @@ const stats = computed<Stat[]>(() => {
     <dl
       v-if="ages.length > 0"
       data-profile-ages
-      class="grid grid-cols-2 gap-x-4 gap-y-2"
+      class="grid grid-cols-2 gap-x-4 gap-y-5"
     >
-      <div v-for="age in ages" :key="age.key" :data-profile-age="age.key" class="grid min-w-0">
+      <div v-for="age in ages" :key="age.key" :data-profile-age="age.key" class="grid min-w-0 gap-0.5">
         <dt class="truncate text-xs text-muted-foreground">{{ age.label }}</dt>
-        <dd class="truncate text-sm">{{ age.value }}</dd>
+        <dd class="truncate text-base font-medium">{{ age.value }}</dd>
       </div>
     </dl>
     <p v-else-if="who" class="text-xs text-muted-foreground">
@@ -206,15 +212,16 @@ const stats = computed<Stat[]>(() => {
 
     <div
       v-if="stats.length > 0"
-      class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3 rounded-lg border border-border p-3"
+      class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-5"
     >
-      <div v-for="stat in stats" :key="stat.key" data-profile-stat class="grid min-w-0 content-start gap-1">
-        <b class="text-2xl font-semibold tabular-nums">{{
+      <!-- One look for every fact on the card: a short label over its value (owner 2026-10-14: "unify the look"). -->
+      <div v-for="stat in stats" :key="stat.key" data-profile-stat class="grid min-w-0 content-start gap-0.5">
+        <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
+        <b class="text-xl font-semibold tabular-nums">{{
           typeof stat.value === 'number'
             ? n(stat.value)
             : stat.value
         }}</b>
-        <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
       </div>
     </div>
   </div>

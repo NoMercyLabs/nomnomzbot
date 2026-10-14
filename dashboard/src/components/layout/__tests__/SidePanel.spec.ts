@@ -65,6 +65,16 @@ describe('the side panel', () => {
     expect(drawer!.textContent).toContain('Display');
   });
 
+  // Owner 2026-10-14: "the inline pannel grew, but the drawer stayed the same". The sheet sets its width per
+  // side (data-[side=right]:w-3/4), which beats a plain width class, so ours must carry the same prefix.
+  it('gives the drawer the same width as the inline panel, set per side so the sheet default loses', async () => {
+    await panelAt(412);
+    const drawer = document.body.querySelector<HTMLElement>('[role="dialog"][data-display-panel]')!;
+
+    expect(drawer.classList).toContain('data-[side=right]:w-120');
+    expect(drawer.classList).not.toContain('data-[side=right]:w-3/4');
+  });
+
   it('opens the drawer without putting the focus on one of its controls', async () => {
     setWidth(412);
 

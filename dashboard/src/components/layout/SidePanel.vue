@@ -58,7 +58,7 @@ function keepFocusOff(event: Event): void {
     v-if="roomy && (open || pinned)"
     data-slot="side-panel"
     class="flex min-h-0 flex-col *:flex-1"
-    :class="pinned ? 'min-w-0' : 'w-80 flex-none'"
+    :class="pinned ? 'min-w-0' : 'w-120 flex-none'"
     v-bind="$attrs"
   >
     <slot />
@@ -71,7 +71,7 @@ function keepFocusOff(event: Event): void {
       :side="side"
       :show-close-button="false"
       @open-auto-focus="keepFocusOff"
-      class="w-88 max-w-[90vw] gap-0 p-0 sm:max-w-none *:flex-1 *:rounded-none *:border-0"
+      class="gap-0 p-0 data-[side=left]:w-120 data-[side=right]:w-120 data-[side=left]:max-w-[90vw] data-[side=right]:max-w-[90vw] data-[side=left]:sm:max-w-[90vw] data-[side=right]:sm:max-w-[90vw] *:flex-1 *:rounded-none *:border-0"
       v-bind="$attrs"
     >
       <SheetTitle class="sr-only">{{ label }}</SheetTitle>
