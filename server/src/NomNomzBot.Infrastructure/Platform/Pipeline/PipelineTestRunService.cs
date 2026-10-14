@@ -39,7 +39,8 @@ public sealed class PipelineTestRunService(
     IChannelRegistry registry,
     ITemplateResolver resolver,
     ILogger<PipelineEngine> logger,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    IPipelineService pipelines
 ) : IPipelineTestRunService
 {
     // The only actions run for real: side-effect-free, and each contributes to realistic branching. Everything else
@@ -78,6 +79,23 @@ public sealed class PipelineTestRunService(
             : found.GraphJsonCache;
 
         Guid? runPipelineId = pipelineId;
+        if (request.Graph is { } draft)
+        {
+            // The draft a person is editing: held to the same gate as a save, then run in place of the saved
+            // graph. PipelineId null makes the engine read this graph (and build tree rows in memory).
+            Result<string?> validated = await pipelines.ValidateGraphAsync(
+                draft,
+                cancellationToken
+            );
+            if (validated.IsFailure)
+                return Result.Failure<TestRunResultDto>(
+                    validated.ErrorMessage,
+                    validated.ErrorCode
+                );
+            graphJson = validated.Value ?? "{}";
+            runPipelineId = null;
+        }
+
         if (request.Step is { } step)
         {
             if (
@@ -131,6 +149,7 @@ public sealed class PipelineTestRunService(
             RawMessage = string.Empty,
             InitialVariables = new(request.Variables, StringComparer.OrdinalIgnoreCase),
             CollectTrace = true,
+            RunInlineGraphAsTree = request.Graph is not null,
         };
 
         PipelineExecutionResult result = await engine.ExecuteAsync(

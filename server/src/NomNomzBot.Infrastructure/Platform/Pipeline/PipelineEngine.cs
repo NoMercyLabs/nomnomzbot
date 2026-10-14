@@ -221,6 +221,18 @@ public sealed class PipelineEngine : IPipelineEngine
         else
         {
             definition = ParseJson(request.PipelineJson);
+
+            // An inline graph (a test-run draft) with blocks has no saved rows: build them in memory
+            // so the same tree walker runs it, keyed by the ids the client sent.
+            if (
+                request.RunInlineGraphAsTree
+                && definition is not null
+                && PipelineDraftRows.IsTree(definition)
+            )
+            {
+                treeRows = PipelineDraftRows.Build(definition, request.BroadcasterId);
+                isTreeRun = true;
+            }
         }
 
         if (!isTreeRun && definition is null)

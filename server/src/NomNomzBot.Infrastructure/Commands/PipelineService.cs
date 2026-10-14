@@ -517,6 +517,11 @@ public class PipelineService : IPipelineService
             ct
         );
 
+    public Task<Result<string?>> ValidateGraphAsync(
+        object? graph,
+        CancellationToken ct = default
+    ) => ValidateAndSerializeGraphAsync(graph, ct);
+
     /// <summary>
     /// Save-time gate (S007): re-serializes the incoming graph to its exact wire JSON, deserializes it as
     /// the same <see cref="PipelineDefinition"/> shape <see cref="Platform.Pipeline.PipelineEngine"/> reads
