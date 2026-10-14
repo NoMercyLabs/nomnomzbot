@@ -8,7 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
+using System.Text;
 using NomNomzBot.Domain.Chat.Enums;
+using NomNomzBot.Domain.Chat.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Chat;
 
@@ -19,12 +22,30 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// </summary>
 internal static class ChatEmoteCacheKeys
 {
-    /// <summary><c>chat:emotes:{provider}:global</c> — a provider's global emote set (every channel).</summary>
-    public static string Global(EmoteProvider provider) => $"chat:emotes:{Token(provider)}:global";
+    /// <summary>
+    /// A fingerprint of the cached <see cref="ChatEmote"/> fields. A build that adds or changes a field reads under new
+    /// keys, so it never takes a list an older build cached without that field: on 2026-10-14 lists cached before the
+    /// owner field existed tagged every Twitch emote as global.
+    /// </summary>
+    public static readonly string EmoteShape = ShapeOf(typeof(ChatEmote));
 
-    /// <summary><c>chat:emotes:{provider}:channel:{broadcasterId}</c> — a provider's per-channel emote set.</summary>
+    /// <summary>A short hash of a record's property names and types.</summary>
+    public static string ShapeOf(Type type)
+    {
+        IEnumerable<string> fields = type.GetProperties()
+            .OrderBy(p => p.Name, StringComparer.Ordinal)
+            .Select(p => $"{p.Name}:{p.PropertyType.FullName}");
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(string.Join(',', fields)));
+        return Convert.ToHexStringLower(hash)[..8];
+    }
+
+    /// <summary><c>chat:emotes:{shape}:{provider}:global</c> — a provider's global emote set (every channel).</summary>
+    public static string Global(EmoteProvider provider) =>
+        $"chat:emotes:{EmoteShape}:{Token(provider)}:global";
+
+    /// <summary><c>chat:emotes:{shape}:{provider}:channel:{broadcasterId}</c> — a provider's per-channel emote set.</summary>
     public static string Channel(EmoteProvider provider, string twitchBroadcasterId) =>
-        $"chat:emotes:{Token(provider)}:channel:{twitchBroadcasterId}";
+        $"chat:emotes:{EmoteShape}:{Token(provider)}:channel:{twitchBroadcasterId}";
 
     /// <summary>
     /// <c>chat:emotes:twitch:user:{twitchUserId}</c> — the signed-in user's cross-channel Twitch emotes
@@ -32,7 +53,7 @@ internal static class ChatEmoteCacheKeys
     /// subscription emotes never leak into another user's composer.
     /// </summary>
     public static string TwitchUser(string twitchUserId) =>
-        $"chat:emotes:twitch:user:{twitchUserId}";
+        $"chat:emotes:{EmoteShape}:twitch:user:{twitchUserId}";
 
     /// <summary>
     /// <c>chat:emotes:twitch:owner:{twitchUserId}</c> — a Twitch emote owner's login and display name, fetched once per
