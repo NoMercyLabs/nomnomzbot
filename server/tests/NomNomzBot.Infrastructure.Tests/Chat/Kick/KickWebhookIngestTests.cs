@@ -116,7 +116,8 @@ public sealed class KickWebhookIngestTests
             registry ?? Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
             clock ?? TimeProvider.System,
             NullLogger<KickWebhookIngest>.Instance,
-            guard ?? new FakeBotSelfEchoGuard()
+            guard ?? new FakeBotSelfEchoGuard(),
+            NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators.PassThroughChatColors.Create()
         );
 
     /// <summary>
@@ -173,6 +174,21 @@ public sealed class KickWebhookIngestTests
         published.UserLogin.Should().Be("chatterboi", "the channel slug is the stable handle");
         published.Message.Should().Be("hello kick [emote:37226:EZ]");
         published.OccurredAt.Should().Be(DateTimeOffset.Parse("2026-07-11T12:34:56Z"));
+    }
+
+    [Fact]
+    public async Task A_kick_identity_username_color_comes_through_as_the_chat_line_color()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+
+        await ingest.HandleAsync("chat.message.sent", ChatBody);
+
+        ChatMessageReceivedEvent published = bus
+            .Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        published.ColorHex.Should().Be("#FF0000");
     }
 
     [Fact]

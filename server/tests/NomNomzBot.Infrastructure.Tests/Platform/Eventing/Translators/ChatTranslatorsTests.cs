@@ -75,7 +75,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -158,7 +159,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            guard
+            guard,
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -196,7 +198,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -232,7 +235,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -276,7 +280,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -315,7 +320,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -360,7 +366,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -414,7 +421,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -468,7 +476,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(
@@ -517,7 +526,8 @@ public sealed class ChatTranslatorsTests
             bus,
             Clock,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
         );
 
         await translator.TranslateAsync(

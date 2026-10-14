@@ -368,6 +368,10 @@ public static class DependencyInjection
         >();
         // Per-channel chat-colour memory backing the mention-colour step (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
+        services.AddSingleton<
+            Application.Chat.Services.IChatColorAssignmentService,
+            Chat.ChatColorAssignmentService
+        >();
         // Typed @target to login (a display name such as a Korean one is not a login); reads the user table.
         services.AddScoped<
             Application.Chat.Services.IMentionTargetResolver,
@@ -867,7 +871,8 @@ public static class DependencyInjection
             typeof(ITtsService), // singleton — stateful TTS queues
             typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
             typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
-            typeof(IDeploymentProfileService) // singleton — boot detector + Current accessor (wired explicitly above)
+            typeof(IDeploymentProfileService), // singleton — boot detector + Current accessor (wired explicitly above)
+            typeof(Application.Chat.Services.IChatColorAssignmentService) // singleton — the dev-catalog sample stub is a second impl
         );
 
         // Ambient outbound-sanction scope. Singleton because the AsyncLocal it wraps is process-wide state,

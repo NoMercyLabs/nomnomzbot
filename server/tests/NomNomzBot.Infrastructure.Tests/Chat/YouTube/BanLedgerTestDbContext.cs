@@ -84,6 +84,7 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         await _connection.DisposeAsync();
     }
 
+    public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();

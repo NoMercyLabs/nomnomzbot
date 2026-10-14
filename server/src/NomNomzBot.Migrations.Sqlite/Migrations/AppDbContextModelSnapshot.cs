@@ -1183,6 +1183,47 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChatMessages");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Chat.Entities.ChatterAssignedColor", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("ColorHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Provider", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ChatterAssignedColor_Broadcaster_Provider_User");
+
+                    b.ToTable("ChatterAssignedColors");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan", b =>
                 {
                     b.Property<Guid>("Id")

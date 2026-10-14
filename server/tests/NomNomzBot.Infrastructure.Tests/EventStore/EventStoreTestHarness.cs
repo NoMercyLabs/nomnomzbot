@@ -428,6 +428,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.ChatterAssignedColor> ChatterAssignedColors =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>

@@ -247,6 +247,7 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
+    public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<Domain.Giveaways.Entities.Giveaway> Giveaways => throw new NotSupportedException();
     public DbSet<Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>

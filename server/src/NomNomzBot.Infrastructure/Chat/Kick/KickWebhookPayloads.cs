@@ -37,6 +37,9 @@ internal sealed class KickUserRef
 
 internal sealed class KickIdentity
 {
+    [JsonPropertyName("username_color")]
+    public string? UsernameColor { get; set; }
+
     [JsonPropertyName("badges")]
     public List<KickBadge>? Badges { get; set; }
 }

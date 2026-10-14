@@ -189,7 +189,8 @@ public sealed class ChannelChatMessageTranslator(
     IEventBus bus,
     TimeProvider clock,
     IChannelRegistry registry,
-    NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard
+    NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard,
+    NomNomzBot.Application.Chat.Services.IChatColorAssignmentService colors
 ) : EventSubEventTranslator(bus, clock)
 {
     public override string SubscriptionType => "channel.chat.message";
@@ -240,7 +241,13 @@ public sealed class ChannelChatMessageTranslator(
             UserDisplayName = payload.GetRequiredString("chatter_user_name"),
             Message = messageText,
             Fragments = ChatPayload.ReadFragments(message),
-            ColorHex = payload.GetString("color"),
+            ColorHex = await colors.ResolveAsync(
+                notification.BroadcasterId,
+                "twitch",
+                chatterUserId,
+                payload.GetString("color"),
+                ct
+            ),
             MessageType = payload.GetString("message_type") ?? "text",
             Badges = badges,
             IsSubscriber = ChatPayload.HasBadge(badges, "subscriber", "founder"),

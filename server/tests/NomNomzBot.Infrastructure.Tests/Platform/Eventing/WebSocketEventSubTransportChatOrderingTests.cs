@@ -175,7 +175,8 @@ public sealed class WebSocketEventSubTransportChatOrderingTests
             bus,
             new FakeTimeProvider(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)),
             Substitute.For<IChannelRegistry>(),
-            NeverSuppressGuard()
+            NeverSuppressGuard(),
+            Translators.PassThroughChatColors.Create()
         );
 
         private static IBotSelfEchoGuard NeverSuppressGuard()
