@@ -1066,6 +1066,19 @@ describe('ChatView display drawer', () => {
       expect(rowOf('m2').className).toContain('opacity-70');
     });
 
+    // Owner 2026-10-14: "i selected bamo and my name tag still draws my eyes".
+    it('drops the mention tint of a dimmed line, so only the picked chatter stands out', async () => {
+      history[1] = line('m2', 'u2', 'Bob', 'hey @stoney_eagle look');
+      await open();
+      expect(rowOf('m2').className).toContain('bg-primary/10');
+
+      rowOf('m1').click();
+      await settle();
+
+      expect(rowOf('m2').dataset.focus).toBe('dim');
+      expect(rowOf('m2').className).not.toContain('bg-primary/10');
+    });
+
     it('offers Clear focus on the chatter in the header, and it ends the focus', async () => {
       await open();
 

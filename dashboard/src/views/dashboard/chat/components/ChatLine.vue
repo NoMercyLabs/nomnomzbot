@@ -122,9 +122,11 @@ const rowClass = computed<string[]>(() => {
     classes.push('opacity-70');
   }
 
+  // A dimmed line drops its mention tint, so only the picked chatter's lines draw the eye (owner
+  // 2026-10-14: "i selected bamo and my name tag still draws my eyes").
   if (props.focus === 'on') {
     classes.push('bg-primary/8');
-  } else if (mentionsMe.value) {
+  } else if (mentionsMe.value && props.focus !== 'dim') {
     classes.push('bg-primary/10');
   } else if (props.display.alternating && props.index % 2 === 1) {
     classes.push('bg-muted/40');
