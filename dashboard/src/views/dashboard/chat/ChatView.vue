@@ -288,27 +288,34 @@ async function confirmBan(): Promise<void> {
       />
     </template>
     <template #bar>
-      <div data-chat-controls class="ml-auto flex items-center gap-2">
-        <SearchField v-model="search" class="w-64" :placeholder="$t('dashboard.chat.search.placeholder')" />
+      <!-- A popped-out window is narrow: the search takes the room left and the toggles show their icon only. -->
+      <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2" :class="{ 'flex-1': poppedOut }">
+        <SearchField
+          v-model="search"
+          :class="poppedOut ? 'min-w-0 flex-1' : 'w-64'"
+          :placeholder="$t('dashboard.chat.search.placeholder')"
+        />
         <Button
           data-mod-tools-toggle
           variant="outline"
-          size="sm"
+          :size="poppedOut ? 'icon-sm' : 'sm'"
           :aria-pressed="modToolsOpen"
+          :aria-label="$t('dashboard.chat.modTools.title')"
           @click="modToolsOpen = !modToolsOpen"
         >
           <Moderator class="size-4" aria-hidden="true" />
-          {{ $t('dashboard.chat.modTools.title') }}
+          <template v-if="!poppedOut">{{ $t('dashboard.chat.modTools.title') }}</template>
         </Button>
         <Button
           data-display-toggle
           variant="outline"
-          size="sm"
+          :size="poppedOut ? 'icon-sm' : 'sm'"
           :aria-pressed="displayOpen"
+          :aria-label="$t('dashboard.chat.display.toggle')"
           @click="displayOpen = !displayOpen"
         >
           <SettingsFader class="size-4" aria-hidden="true" />
-          {{ $t('dashboard.chat.display.toggle') }}
+          <template v-if="!poppedOut">{{ $t('dashboard.chat.display.toggle') }}</template>
         </Button>
         <Button
           v-if="!poppedOut"
