@@ -11,7 +11,7 @@
         "all": "All",
         "moderator": "Moderators",
         "vip": "VIPs",
-        "subscriber": "Subscribers",
+        "subscriber": "Twitch subscribers",
         "regular": "Regulars",
         "new": "New"
       },
@@ -19,7 +19,7 @@
         "all": "Everyone the bot has seen in your chat.",
         "moderator": "People who moderate your channel.",
         "vip": "People who hold the VIP badge on Twitch.",
-        "subscriber": "People who subscribe to your channel.",
+        "subscriber": "People who subscribe to your channel on Twitch.",
         "regular": "People who come back stream after stream.",
         "new": "People first seen in the last 90 days, from the pages loaded so far."
       },
@@ -41,7 +41,7 @@
           "moderator": "Moderator",
           "vip": "VIP"
         },
-        "noSubscribers": "The bot has no list of subscribers yet. Twitch gives it a count, not the people.",
+        "noSubscribers": "The bot has no list of Twitch subscribers yet. Twitch gives it a count, not the people.",
         "noRegulars": "The bot does not count streams per person yet, so it cannot tell who is a regular."
       },
       "detail": {

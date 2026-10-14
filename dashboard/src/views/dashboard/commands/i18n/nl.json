@@ -62,7 +62,7 @@
       },
       "roles": {
         "Everyone": "Iedereen",
-        "Subscriber": "Abonnees",
+        "Subscriber": "Twitch-abonnees",
         "Vip": "VIP's",
         "Artist": "Artiesten",
         "Moderator": "Moderators",

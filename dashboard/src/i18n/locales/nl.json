@@ -106,15 +106,15 @@
       "poll_winner_percentage": "Het winnende aandeel als tekst, zoals (68%), of niets als niemand stemde",
       "poll_results": "Elke keuze met stemmen en aandeel, gescheiden door {'|'}",
       "followed_at": "Wanneer de follow gebeurde",
-      "tier": "Het abonnementsniveau (bijv. \"Tier 1\")",
-      "months": "Cumulatief aantal maanden geabonneerd",
-      "streak": "Aantal opeenvolgende maanden geabonneerd",
-      "message": "Het bericht bij de gebeurtenis (een resub- of cheerbericht)",
-      "also_said": "\"Ze zeiden ook: ...\" - het resub-bericht, al opgemaakt met inleiding en aanhalingstekens; leeg als de resubscriber niets schreef",
-      "event_count": "Hoeveel er zijn weggegeven (gift-abonnementen)",
+      "tier": "Het Twitch-abonnementsniveau (bijv. \"Tier 1\")",
+      "months": "Cumulatief aantal maanden geabonneerd op Twitch",
+      "streak": "Aantal opeenvolgende maanden geabonneerd op Twitch",
+      "message": "Het bericht bij de gebeurtenis (een Twitch-resub- of cheerbericht)",
+      "also_said": "\"Ze zeiden ook: ...\" - het Twitch-resub-bericht, al opgemaakt met inleiding en aanhalingstekens; leeg als de resubscriber niets schreef",
+      "event_count": "Hoeveel er zijn weggegeven (Twitch-gift-abonnementen)",
       "anonymous": "Of de gever anoniem wilde blijven (\"true\"/\"false\")",
       "bits": "Hoeveel bits er zijn gecheerd",
-      "gifter": "Wie deze kijker een sub gaf (\"Anonymous\" als de gever anoniem bleef)",
+      "gifter": "Wie deze kijker een Twitch-sub gaf (\"Anonymous\" als de gever anoniem bleef)",
       "gifter_id": "Het platform-gebruikers-id van de gever; leeg als de gever anoniem bleef",
       "viewers": "Het kijkersaantal dat een raid meebrengt",
       "reward": "De titel van de kanaalpunten-beloning",
@@ -292,7 +292,7 @@
     },
     "standing": {
       "everyone": "Kijker",
-      "subscriber": "Abonnee",
+      "subscriber": "Twitch-abonnee",
       "vip": "VIP",
       "artist": "Artiest",
       "moderator": "Moderator"
@@ -358,7 +358,8 @@
       "broadcaster": "Streamer",
       "moderator": "Moderator",
       "vip": "VIP",
-      "subscriber": "Abonnee",
+      "subscriber": "Twitch-abonnee",
+      "subscriberBadge": "Abonnee",
       "viewer": "Kijker"
     },
     "following": {
@@ -623,7 +624,7 @@
         "moderator": "Moderator",
         "artist": "Artiest",
         "vip": "VIP",
-        "subscriber": "Abonnee",
+        "subscriber": "Twitch-abonnee",
         "viewer": "Kijker"
       }
     },

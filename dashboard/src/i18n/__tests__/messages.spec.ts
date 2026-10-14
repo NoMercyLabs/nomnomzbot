@@ -59,4 +59,25 @@ describe('words files', () => {
 
     expect(broken).toEqual([]);
   });
+
+  // Owner rule: a Twitch subscriber and a YouTube subscriber are not the same thing, so a word about
+  // subscribing names its platform. A key listed here sits beside a platform logo or names one in context.
+  it('names the platform in every English text about subscribing', () => {
+    const marked = /Twitch|YouTube|Kick/u;
+    const subscribing = /\b(?:re)?sub(?:s|scribe\w*|scription\w*)?\b/iu;
+    const besideALogo = new Set(['profile.roles.subscriberBadge']);
+    const unmarked: string[] = [];
+
+    for (const [file, words] of Object.entries(files)) {
+      if (!file.endsWith('/en.json')) continue;
+
+      for (const [key, text] of messages(words, '', [])) {
+        if (subscribing.test(text) && !marked.test(text) && !besideALogo.has(key)) {
+          unmarked.push(`${file} ${key}: ${text}`);
+        }
+      }
+    }
+
+    expect(unmarked).toEqual([]);
+  });
 });

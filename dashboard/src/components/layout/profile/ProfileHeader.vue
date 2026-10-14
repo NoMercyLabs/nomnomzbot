@@ -126,7 +126,9 @@ const stats = computed<Stat[]>(() => {
             <!-- The stored subscription is Twitch's (Helix seed and reconcile); a YouTube member is not the same. -->
             <PlatformLogo v-if="role === 'subscriber'" data-profile-platform platform="twitch" mono />
             <component :is="roleIcons[role]" v-else aria-hidden="true" />
-            {{ $t(`profile.roles.${role}`) }}
+            {{ $t(role === 'subscriber'
+              ? 'profile.roles.subscriberBadge'
+              : `profile.roles.${role}`) }}
           </Badge>
           <span v-if="lastSeen" class="text-xs text-muted-foreground">{{
             $t('profile.lastSeen', { ago: lastSeen })

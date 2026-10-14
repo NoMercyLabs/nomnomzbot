@@ -62,7 +62,7 @@
       },
       "roles": {
         "Everyone": "Everyone",
-        "Subscriber": "Subscribers",
+        "Subscriber": "Twitch subscribers",
         "Vip": "VIPs",
         "Artist": "Artists",
         "Moderator": "Moderators",

@@ -106,15 +106,15 @@
       "poll_winner_percentage": "The winning share as text, like (68%), or nothing when no one voted",
       "poll_results": "Every choice with its votes and share, separated by {'|'}",
       "followed_at": "When the follow happened",
-      "tier": "The subscription tier (e.g. \"Tier 1\")",
-      "months": "Cumulative months subscribed",
-      "streak": "Consecutive months subscribed",
-      "message": "The message attached to the event (a resub or cheer message)",
-      "also_said": "\"They also said: ...\" - the resub message, pre-formatted with a lead-in and quotes; empty when the resubscriber didn't write one",
-      "event_count": "How many were gifted (gift subscriptions)",
+      "tier": "The Twitch subscription tier (e.g. \"Tier 1\")",
+      "months": "Cumulative months subscribed on Twitch",
+      "streak": "Consecutive months subscribed on Twitch",
+      "message": "The message attached to the event (a Twitch resub or cheer message)",
+      "also_said": "\"They also said: ...\" - the Twitch resub message, pre-formatted with a lead-in and quotes; empty when the resubscriber didn't write one",
+      "event_count": "How many were gifted (Twitch gift subscriptions)",
       "anonymous": "Whether the sender chose to stay anonymous (\"true\"/\"false\")",
       "bits": "How many bits were cheered",
-      "gifter": "Who gifted the sub to this viewer (\"Anonymous\" when the gifter stayed anonymous)",
+      "gifter": "Who gifted the Twitch sub to this viewer (\"Anonymous\" when the gifter stayed anonymous)",
       "gifter_id": "The gifter's platform user id; empty when the gifter stayed anonymous",
       "viewers": "The viewer count carried over by a raid",
       "reward": "The channel-points reward's title",
@@ -292,7 +292,7 @@
     },
     "standing": {
       "everyone": "Viewer",
-      "subscriber": "Subscriber",
+      "subscriber": "Twitch subscriber",
       "vip": "VIP",
       "artist": "Artist",
       "moderator": "Moderator"
@@ -358,7 +358,8 @@
       "broadcaster": "Broadcaster",
       "moderator": "Moderator",
       "vip": "VIP",
-      "subscriber": "Subscriber",
+      "subscriber": "Twitch subscriber",
+      "subscriberBadge": "Subscriber",
       "viewer": "Viewer"
     },
     "following": {
@@ -623,7 +624,7 @@
         "moderator": "Moderator",
         "artist": "Artist",
         "vip": "VIP",
-        "subscriber": "Subscriber",
+        "subscriber": "Twitch subscriber",
         "viewer": "Viewer"
       }
     },

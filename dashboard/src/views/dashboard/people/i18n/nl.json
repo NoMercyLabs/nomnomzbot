@@ -11,7 +11,7 @@
         "all": "Iedereen",
         "moderator": "Moderators",
         "vip": "VIP's",
-        "subscriber": "Abonnees",
+        "subscriber": "Twitch-abonnees",
         "regular": "Vaste kijkers",
         "new": "Nieuw"
       },
@@ -19,7 +19,7 @@
         "all": "Iedereen die de bot in je chat heeft gezien.",
         "moderator": "Mensen die je kanaal modereren.",
         "vip": "Mensen met de VIP-badge op Twitch.",
-        "subscriber": "Mensen die op je kanaal geabonneerd zijn.",
+        "subscriber": "Mensen die op Twitch op je kanaal geabonneerd zijn.",
         "regular": "Mensen die stream na stream terugkomen.",
         "new": "Mensen die in de laatste 90 dagen voor het eerst zijn gezien, uit de pagina's die al geladen zijn."
       },
@@ -41,7 +41,7 @@
           "moderator": "Moderator",
           "vip": "VIP"
         },
-        "noSubscribers": "De bot heeft nog geen lijst met abonnees. Twitch geeft een aantal, geen namen.",
+        "noSubscribers": "De bot heeft nog geen lijst met Twitch-abonnees. Twitch geeft een aantal, geen namen.",
         "noRegulars": "De bot telt nog geen streams per persoon, dus hij weet niet wie een vaste kijker is."
       },
       "detail": {

@@ -40,7 +40,7 @@
         "who": "Who may request",
         "levels": {
           "everyone": "Everyone",
-          "subscribers": "Subscribers",
+          "subscribers": "Twitch subscribers",
           "vip": "VIPs",
           "moderators": "Moderators",
           "broadcaster": "Only me"

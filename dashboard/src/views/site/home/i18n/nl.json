@@ -99,7 +99,7 @@
       "alerts": {
         "raidTitle": "crumb_tv raidde met 214 kijkers",
         "raidDetail": "shoutout in de chat geplaatst · overlay op de stream afgespeeld",
-        "subTitle": "crumb_tv is voor maand 6 opnieuw gesubd",
+        "subTitle": "crumb_tv is voor maand 6 opnieuw gesubd op Twitch",
         "subDetail": "overlay afgespeeld · TTS las het bericht voor"
       },
       "audience": {
@@ -116,7 +116,7 @@
         },
         "alerts": {
           "title": "Mis nooit het moment dat telt",
-          "body": "Een follow, sub of raid start de alert, speelt de overlay af en plaatst de shoutout op het moment zelf. Je hoeft het nooit eerst in de chat te zien."
+          "body": "Een follow, Twitch-sub of raid start de alert, speelt de overlay af en plaatst de shoutout op het moment zelf. Je hoeft het nooit eerst in de chat te zien."
         },
         "platforms": {
           "title": "Elk platform waarop je streamt, één dashboard",

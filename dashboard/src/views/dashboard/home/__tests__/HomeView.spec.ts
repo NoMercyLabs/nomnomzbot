@@ -403,12 +403,12 @@ describe('HomeView', () => {
     const lines = rows.map((row) => row.textContent ?? '');
 
     expect(lines[0]).toContain('night_light90');
-    expect(lines[0]).toContain('Gift sub ended · tier 1');
+    expect(lines[0]).toContain('Twitch gift sub ended · Tier 1');
     expect(lines[0]).toMatch(/Sat,? 21:15/);
     expect(lines[1]).toContain('Raided JeroenLabs');
     expect(lines[1]).toContain('16 viewers went along');
     expect(lines[2]).toContain('Raided with 6 viewers');
-    expect(lines[3]).toContain('Gifted 5 subs · tier 1');
+    expect(lines[3]).toContain('Gifted 5 Twitch subs · Tier 1');
     expect(lines[4]).toContain('Channel event');
     expect(lines.join(' ')).not.toContain('channel.');
 

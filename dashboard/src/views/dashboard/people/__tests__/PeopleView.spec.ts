@@ -671,7 +671,7 @@ describe('PeopleView', () => {
 
   it('gives the Subscribers and Regulars tabs an honest reason instead of a list', async () => {
     await open('/app/people?view=subscriber');
-    expect(text()).toContain('The bot has no list of subscribers yet.');
+    expect(text()).toContain('The bot has no list of Twitch subscribers yet.');
     expect(rows()).toHaveLength(0);
 
     await router.push('/app/people?view=regular');

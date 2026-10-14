@@ -99,7 +99,7 @@
       "alerts": {
         "raidTitle": "crumb_tv raided with 214 viewers",
         "raidDetail": "shoutout posted to chat · overlay played on stream",
-        "subTitle": "crumb_tv resubscribed for month 6",
+        "subTitle": "crumb_tv resubscribed on Twitch for month 6",
         "subDetail": "overlay played · TTS read the message"
       },
       "audience": {
@@ -116,7 +116,7 @@
         },
         "alerts": {
           "title": "Never miss the moment that matters",
-          "body": "A follow, sub, or raid fires the alert, plays the overlay, and posts the shoutout the instant it happens. You never have to spot it in chat first."
+          "body": "A follow, Twitch sub, or raid fires the alert, plays the overlay, and posts the shoutout the instant it happens. You never have to spot it in chat first."
         },
         "platforms": {
           "title": "Every platform you stream to, one dashboard",
