@@ -54,8 +54,24 @@ const currentUser = useCurrentUser();
 const me = computed<string | null>(() => currentUser.data.value?.username ?? null);
 const banTarget = ref<ChatLineData | null>(null);
 const banFailed = ref(false);
+const replyTo = ref<ChatLineData | null>(null);
 
 const lines = computed<ChatLineData[]>(() => history.data.value ?? []);
+const linesById = computed(() =>
+  new Map(lines.value.map((line) =>
+    [line.id, line])));
+
+// The names "@" offers in the composer: everyone in the loaded chat, the latest speaker first.
+const chatters = computed<string[]>(() =>
+  [...new Set([...lines.value].reverse().map((line) =>
+    line.displayName))]);
+
+function parentOf(line: ChatLineData): ChatLineData | null {
+  return line.replyToMessageId
+    ? linesById.value.get(line.replyToMessageId) ?? null
+    : null;
+}
+
 const visible = computed<ChatLineData[]>(() =>
   lines.value.filter(
     (line: ChatLineData) =>
@@ -245,8 +261,10 @@ async function confirmBan(): Promise<void> {
                 :index="index"
                 :me="me"
                 :focus="focusOf(item)"
+                :parent="parentOf(item)"
                 @ban="askBan"
                 @focus="pickChatter"
+                @reply="replyTo = $event"
               />
             </template>
           </VirtualList>
@@ -267,7 +285,12 @@ async function confirmBan(): Promise<void> {
               {{ $t('dashboard.chat.search.end') }}
             </p>
           </template>
-          <ChatComposer v-else :channel-id="channelId" />
+          <ChatComposer
+            v-else
+            v-model:reply-to="replyTo"
+            :channel-id="channelId"
+            :chatters="chatters"
+          />
         </template>
       </PanelCard>
       <aside v-if="focusedUserId !== null" data-viewer-panel class="w-80 flex-none">

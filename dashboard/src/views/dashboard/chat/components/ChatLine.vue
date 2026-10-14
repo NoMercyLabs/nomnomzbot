@@ -9,12 +9,13 @@
 -->
 <script setup lang="ts">
 // One chat line. The action tray floats over the line on hover or focus and never moves it.
-// Timeout picks its length in a menu, Delete runs at once, Ban asks the page for its confirm
-// dialog, and Profile opens the one profile dialog of the frame.
+// Reply hands the line to the composer, Timeout picks its length in a menu, Delete runs at once,
+// Ban asks the page for its confirm dialog, and Profile opens the one profile dialog of the frame.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import Clock from '~icons/nnz/clock';
+import EmailReply from '~icons/nnz/email-reply';
 import StopSign from '~icons/nnz/stop-sign';
 import Trash from '~icons/nnz/trash';
 import UserCircle from '~icons/nnz/user-circle';
@@ -36,7 +37,9 @@ import { purifyChatHtml } from '@/lib/html';
 import { formatLength } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
+import { badgeCard as cardOfBadge, emoteCard, type AssetCard } from '../chatAssets';
 import { emoteHeights, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
+import ChatAssetCard from './ChatAssetCard.vue';
 
 const LENGTHS: readonly number[] = [60, 600, 3600, 86400];
 
@@ -47,11 +50,13 @@ const props = defineProps<{
   index: number;
   me: string | null;
   focus?: 'on' | 'dim';
+  parent?: ChatLine | null;
 }>();
 
 const emit = defineEmits<{
   ban: [line: ChatLine];
   focus: [line: ChatLine];
+  reply: [line: ChatLine];
 }>();
 
 const { t, locale } = useI18n();
@@ -139,15 +144,21 @@ function badgeUrl(urls: Record<string, string>): string | undefined {
 const badges = computed(() =>
   props.line.badges.flatMap((badge) => {
     const src = badgeUrl(badge.urls);
+    const card = cardOfBadge(badge, t);
 
-    return src
+    return src && card
       ? [{
           key: badge.setId + badge.id,
           src,
-          alt: badge.setId,
+          card,
         }]
       : [];
   }));
+
+// One card per emote fragment, by its place in the line; a fragment with no emote image has none.
+const emoteCards = computed<(AssetCard | null)[]>(() =>
+  props.line.fragments.map((fragment) =>
+    emoteCard(fragment, t)));
 
 // Every part of a line centers on one line height: the emote height on a line with emotes, else 1.5rem.
 const lineStyle = computed(() => {
@@ -160,6 +171,21 @@ const lineStyle = computed(() => {
       ? `max(1.5rem, ${emoteHeight})`
       : '1.5rem',
   };
+});
+
+// What a reply answers: the parent Twitch named on the message, else the parent line still loaded here.
+const replyParent = computed<string | null>(() => {
+  const { replyToMessageId, replyParentUserName, replyParentMessageBody } = props.line;
+
+  if (!replyToMessageId)
+    return null;
+
+  const name = replyParentUserName ?? props.parent?.displayName;
+  const message = replyParentMessageBody ?? props.parent?.message;
+
+  return name && message
+    ? t('dashboard.chat.reply.parent', { name, message })
+    : t('dashboard.chat.reply.earlier');
 });
 
 // A timeout or ban says what happened, with the timeout's length; other removals only strike the line.
@@ -247,6 +273,14 @@ function pick(event: MouseEvent): void {
     </span>
     <div class="min-w-0 flex-1">
       <p
+        v-if="replyParent"
+        data-reply-parent
+        class="flex items-center gap-1 truncate text-xs leading-5 text-muted-foreground"
+      >
+        <EmailReply class="size-3.5 flex-none" aria-hidden="true" />
+        <span class="truncate">{{ replyParent }}</span>
+      </p>
+      <p
         class="wrap-break-word"
         :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
       >
@@ -263,14 +297,17 @@ function pick(event: MouseEvent): void {
               class="size-4 flex-none"
             />
             <template v-if="display.badges">
-              <img
+              <ChatAssetCard
                 v-for="badge in badges"
                 :key="badge.key"
-                data-badge
-                :src="badge.src"
-                :alt="badge.alt"
-                class="size-4 flex-none"
-              />
+                :label="$t('dashboard.chat.asset.badgeLabel', { name: badge.card.title })"
+                :title="badge.card.title"
+                :image="badge.card.image"
+                :facts="badge.card.facts"
+                :link="badge.card.link"
+              >
+                <img data-badge :src="badge.src" alt="" class="size-4 flex-none" />
+              </ChatAssetCard>
             </template>
           </span>
           <UserName
@@ -280,13 +317,22 @@ function pick(event: MouseEvent): void {
           />
         </span>
         <template v-for="(fragment, at) in line.fragments" :key="at">
-          <img
-            v-if="fragment.emote && emoteUrl(fragment.emote.urls)"
-            data-emote
-            :src="emoteUrl(fragment.emote.urls)"
-            :alt="fragment.text"
-            class="mx-0.5 my-[calc((var(--line-h)-var(--emote-h))/2)] inline-block h-(--emote-h) align-top"
-          />
+          <ChatAssetCard
+            v-if="fragment.emote && emoteUrl(fragment.emote.urls) && emoteCards[at]"
+            :label="$t('dashboard.chat.asset.emoteLabel', { name: fragment.text })"
+            :title="emoteCards[at]!.title"
+            :image="emoteCards[at]!.image"
+            :facts="emoteCards[at]!.facts"
+            :link="emoteCards[at]!.link"
+            class="mx-0.5 my-[calc((var(--line-h)-var(--emote-h))/2)]"
+          >
+            <img
+              data-emote
+              :src="emoteUrl(fragment.emote.urls)"
+              :alt="fragment.text"
+              class="inline-block h-(--emote-h)"
+            />
+          </ChatAssetCard>
           <span
             v-else-if="fragment.type === 'html'"
             data-html
@@ -320,6 +366,20 @@ function pick(event: MouseEvent): void {
         role="group"
         :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"
       >
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              data-line-action="reply"
+              variant="ghost"
+              size="icon"
+              :aria-label="$t('dashboard.chat.reply.label', { name: line.displayName })"
+              @click="emit('reply', line)"
+            >
+              <EmailReply class="size-5" aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ $t('dashboard.chat.reply.tip') }}</TooltipContent>
+        </Tooltip>
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger as-child>

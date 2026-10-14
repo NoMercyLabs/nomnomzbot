@@ -109,6 +109,38 @@
         "profile": "Open profiel van {name}",
         "profileTip": "Open profiel"
       },
+      "asset": {
+        "emoteLabel": "Toon emote {name}",
+        "badgeLabel": "Toon badge {name}",
+        "provider": "Van",
+        "providers": {
+          "Twitch": "Twitch",
+          "SevenTv": "7TV",
+          "Bttv": "BetterTTV",
+          "Ffz": "FrankerFaceZ"
+        },
+        "kind": "Soort",
+        "animated": "Bewegend",
+        "still": "Stilstaand beeld",
+        "layer": "Laag",
+        "zeroWidth": "Ligt over de emote ervoor",
+        "open": {
+          "SevenTv": "Open op 7TV",
+          "Bttv": "Open op BetterTTV",
+          "Ffz": "Open op FrankerFaceZ"
+        },
+        "set": "Badge",
+        "version": "Versie",
+        "info": "Detail"
+      },
+      "reply": {
+        "label": "Antwoord {name}",
+        "tip": "Antwoord",
+        "to": "Antwoord aan {name}",
+        "cancel": "Antwoord annuleren",
+        "parent": "Antwoord aan {name}: {message}",
+        "earlier": "Antwoord op een eerder bericht"
+      },
       "timeout": {
         "label": "Time-out voor {name}",
         "tip": "Time-out",
@@ -133,10 +165,41 @@
       "composer": {
         "label": "Bericht",
         "placeholder": "Stuur een bericht als jezelf",
+        "suggestions": "Suggesties",
+        "kind": {
+          "emoji": "Emoji",
+          "chatter": "Chatter"
+        },
         "send": "Stuur",
         "count": "{count}/{max}",
         "tooLong": "Een bericht is maximaal {max} tekens.",
         "failed": "Het bericht is niet verstuurd."
+      },
+      "picker": {
+        "open": "Emotes en emoji",
+        "search": "Zoek emotes en emoji",
+        "jump": "Spring naar een sectie",
+        "recent": "Recent",
+        "results": "Resultaten",
+        "none": "Niets gevonden.",
+        "hint": "Wijs er een aan om de naam te zien.",
+        "short": {
+          "Twitch": "Twitch",
+          "SevenTv": "7TV",
+          "Bttv": "BTTV",
+          "Ffz": "FFZ"
+        },
+        "groups": {
+          "smileys": "Smileys",
+          "people": "Mensen",
+          "animals": "Dieren en natuur",
+          "food": "Eten en drinken",
+          "travel": "Reizen en plaatsen",
+          "activities": "Activiteiten",
+          "objects": "Voorwerpen",
+          "symbols": "Symbolen",
+          "flags": "Vlaggen"
+        }
       }
     }
   }

@@ -109,6 +109,38 @@
         "profile": "Open profile of {name}",
         "profileTip": "Open profile"
       },
+      "asset": {
+        "emoteLabel": "Show emote {name}",
+        "badgeLabel": "Show badge {name}",
+        "provider": "From",
+        "providers": {
+          "Twitch": "Twitch",
+          "SevenTv": "7TV",
+          "Bttv": "BetterTTV",
+          "Ffz": "FrankerFaceZ"
+        },
+        "kind": "Kind",
+        "animated": "Animated",
+        "still": "Still image",
+        "layer": "Layer",
+        "zeroWidth": "Sits on top of the emote before it",
+        "open": {
+          "SevenTv": "Open on 7TV",
+          "Bttv": "Open on BetterTTV",
+          "Ffz": "Open on FrankerFaceZ"
+        },
+        "set": "Badge",
+        "version": "Version",
+        "info": "Detail"
+      },
+      "reply": {
+        "label": "Reply to {name}",
+        "tip": "Reply",
+        "to": "Replying to {name}",
+        "cancel": "Cancel reply",
+        "parent": "Replying to {name}: {message}",
+        "earlier": "Replying to an earlier message"
+      },
       "timeout": {
         "label": "Timeout {name}",
         "tip": "Timeout",
@@ -133,10 +165,41 @@
       "composer": {
         "label": "Message",
         "placeholder": "Send a message as you",
+        "suggestions": "Suggestions",
+        "kind": {
+          "emoji": "Emoji",
+          "chatter": "Chatter"
+        },
         "send": "Send",
         "count": "{count}/{max}",
         "tooLong": "A message is at most {max} characters.",
         "failed": "The message was not sent."
+      },
+      "picker": {
+        "open": "Emotes and emoji",
+        "search": "Search emotes and emoji",
+        "jump": "Jump to a section",
+        "recent": "Recent",
+        "results": "Results",
+        "none": "Nothing matches.",
+        "hint": "Point at one to see its name.",
+        "short": {
+          "Twitch": "Twitch",
+          "SevenTv": "7TV",
+          "Bttv": "BTTV",
+          "Ffz": "FFZ"
+        },
+        "groups": {
+          "smileys": "Smileys",
+          "people": "People",
+          "animals": "Animals and nature",
+          "food": "Food and drink",
+          "travel": "Travel and places",
+          "activities": "Activities",
+          "objects": "Objects",
+          "symbols": "Symbols",
+          "flags": "Flags"
+        }
       }
     }
   }

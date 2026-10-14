@@ -44,6 +44,15 @@ let sendOk: boolean = true;
 // The search answer per `before` cursor; the first page has no cursor. A cursor with no page fails.
 let searchPages: Record<string, SearchPage> = {};
 
+const emoteList = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code) => ({
+  code,
+  provider: 'SevenTv',
+  urls: { 1: `https://cdn.test/${code}-1.webp`, 2: `https://cdn.test/${code}-2.webp` },
+  animated: false,
+  zeroWidth: false,
+  setId: null,
+}));
+
 const searchAnswer = (options?: Options): Answer => {
   const page = searchPages[String(options?.params?.query?.before ?? '')];
 
@@ -100,6 +109,9 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/chat/search'))
         return searchAnswer(options);
+
+      if (path.endsWith('/chat/emotes'))
+        return { data: { data: emoteList }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/auth/me')) {
         return { data: { data: { username: 'stoney_eagle' } }, response: { status: 200, ok: true } };
@@ -427,19 +439,19 @@ describe('ChatView', () => {
     expect(writes()).toEqual([expect.objectContaining({ method: 'DELETE', messageId: 'm2' })]);
   });
 
-  it('shows four tray buttons in order: timeout, delete, ban, profile', async () => {
+  it('shows five tray buttons in order: reply, timeout, delete, ban, profile', async () => {
     await open();
     const names = [...rowOf('m2').querySelectorAll<HTMLElement>('[data-line-action]')].map(
       (button) => button.dataset.lineAction,
     );
 
-    expect(names).toEqual(['timeout', 'delete', 'ban', 'profile']);
+    expect(names).toEqual(['reply', 'timeout', 'delete', 'ban', 'profile']);
   });
 
   it('keeps every tray button a plain ghost icon with a 20px icon, harm only in the ban confirm', async () => {
     await open();
 
-    for (const name of ['timeout', 'delete', 'ban', 'profile']) {
+    for (const name of ['reply', 'timeout', 'delete', 'ban', 'profile']) {
       const button = action('m2', name);
 
       expect(button.dataset.variant).toBe('ghost');
@@ -1090,5 +1102,420 @@ describe('ChatView display drawer', () => {
       await settle();
       expect(viewer()).toBeNull();
     });
+  });
+});
+
+describe('ChatView emote and badge cards', () => {
+  const sevenTv = {
+    id: '01F6ME',
+    setId: null,
+    provider: 'SevenTv',
+    format: 'animated',
+    animated: true,
+    zeroWidth: true,
+    urls: {
+      1: 'https://cdn.test/catjam-1.webp',
+      4: 'https://cdn.test/catjam-4.webp',
+      2: 'https://cdn.test/catjam-2.webp',
+    },
+  };
+  const twitch = {
+    id: '25',
+    setId: '0',
+    provider: 'Twitch',
+    format: 'static',
+    animated: false,
+    zeroWidth: false,
+    urls: { 1: 'https://cdn.test/kappa-1.png', 3: 'https://cdn.test/kappa-3.png' },
+  };
+
+  beforeEach(() => {
+    history = [
+      line('m1', 'u1', 'Alice', 'catJAM Kappa', {
+        badges: [
+          {
+            setId: 'subscriber',
+            id: '12',
+            info: '14',
+            urls: { 1: 'https://cdn.test/sub-1.png', 2: 'https://cdn.test/sub-2.png' },
+          },
+        ],
+        fragments: [
+          {
+            type: 'emote',
+            text: 'catJAM',
+            emote: sevenTv,
+          },
+          { type: 'text', text: ' ' },
+          {
+            type: 'emote',
+            text: 'Kappa',
+            emote: twitch,
+          },
+        ],
+      }),
+    ];
+  });
+
+  const card = (): HTMLElement | null => document.body.querySelector<HTMLElement>('[data-asset-card]');
+  const factsOf = (shown: HTMLElement): string[] =>
+    [...shown.querySelectorAll('dt, dd')].map((cell) => cell.textContent?.trim() ?? '');
+  const asset = en.dashboard.chat.asset;
+
+  async function press(selector: string): Promise<void> {
+    rowOf('m1').querySelector(selector)!.closest('button')!.click();
+    await settle();
+  }
+
+  it('opens a 7TV emote at its largest size with its name, source, kind, layer and its 7TV page', async () => {
+    await open();
+    await press('img[alt="catJAM"]');
+
+    const shown = card()!;
+
+    expect(shown.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/catjam-4.webp');
+    expect(shown.textContent).toContain('catJAM');
+
+    expect(factsOf(shown)).toEqual([
+      asset.provider, '7TV',
+      asset.kind, asset.animated,
+      asset.layer, asset.zeroWidth,
+    ]);
+
+    const link = shown.querySelector<HTMLAnchorElement>('a')!;
+
+    expect(link.href).toBe('https://7tv.app/emotes/01F6ME');
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toContain('noopener');
+  });
+
+  it('offers no outside page for a Twitch emote, and says it is a still image', async () => {
+    await open();
+    await press('img[alt="Kappa"]');
+
+    const shown = card()!;
+
+    expect(shown.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/kappa-3.png');
+    expect(factsOf(shown)).toEqual([asset.provider, 'Twitch', asset.kind, asset.still]);
+    expect(shown.querySelector('a')).toBeNull();
+  });
+
+  it('opens a badge with its set, version and the detail Twitch sent, at the larger image', async () => {
+    await open();
+    await press('img[data-badge]');
+
+    const shown = card()!;
+
+    expect(shown.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/sub-2.png');
+    expect(factsOf(shown)).toEqual([asset.set, 'subscriber', asset.version, '12', asset.info, '14']);
+  });
+
+  it('keeps the line small: the line shows the smallest image and a click on an emote picks no chatter', async () => {
+    await open();
+    expect(rowOf('m1').querySelector('img[alt="catJAM"]')!.getAttribute('src')).toBe('https://cdn.test/catjam-1.webp');
+
+    await press('img[alt="catJAM"]');
+
+    expect(rowOf('m1').dataset.focus).toBeUndefined();
+    expect(document.body.querySelector('[data-viewer-panel]')).toBeNull();
+  });
+});
+
+// Stoney 2026-10-14: "i need more twitch native features like reply". A reply names the line it answers in
+// the composer, travels as replyToMessageId, and a reply line shows what it answers, as Twitch does.
+describe('ChatView reply', () => {
+  const reply = en.dashboard.chat.reply;
+  const banner = (): HTMLElement | null => document.body.querySelector('[data-reply-banner]');
+
+  async function replyTo(id: string): Promise<void> {
+    action(id, 'reply').click();
+    await settle();
+  }
+
+  it('names the answered line above the composer and moves the cursor into the box', async () => {
+    await open();
+    await replyTo('m2');
+
+    expect(banner()!.textContent).toContain('Bob');
+    expect(banner()!.textContent).toContain('second words');
+    expect(document.activeElement).toBe(input());
+  });
+
+  it('sends the reply with the answered message id, then drops the banner', async () => {
+    await open();
+    await replyTo('m2');
+    await type('hi bob');
+    await send();
+
+    expect(writes()[0]!.body).toEqual({
+      message: 'hi bob',
+      senderIdentity: 'you',
+      replyToMessageId: 'm2',
+    });
+
+    expect(banner()).toBeNull();
+  });
+
+  it('cancels the reply with its button, so the next message is a plain one', async () => {
+    await open();
+    await replyTo('m2');
+    document.body.querySelector<HTMLButtonElement>('[data-reply-cancel]')!.click();
+    await settle();
+    expect(banner()).toBeNull();
+
+    await type('plain');
+    await send();
+    expect(writes()[0]!.body).toEqual(expect.objectContaining({ replyToMessageId: null }));
+  });
+
+  it('cancels the reply with Escape in the box', async () => {
+    await open();
+    await replyTo('m2');
+    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+    expect(banner()).toBeNull();
+  });
+
+  it('shows the parent a reply line answers, from the names Twitch sent', async () => {
+    history = [
+      line('m4', 'u2', 'Bob', '@Alice yes', {
+        replyToMessageId: 'gone',
+        replyParentUserName: 'Alice',
+        replyParentMessageBody: 'is it live?',
+      }),
+    ];
+
+    await open();
+
+    const parent = rowOf('m4').querySelector('[data-reply-parent]')!;
+
+    expect(parent.textContent).toContain('Alice');
+    expect(parent.textContent).toContain('is it live?');
+  });
+
+  it('falls back to the loaded parent line when Twitch sent no parent names', async () => {
+    history = [line('m1', 'u1', 'Alice', 'first words'), line('m5', 'u2', 'Bob', 'agreed', { replyToMessageId: 'm1' })];
+    await open();
+
+    const parent = rowOf('m5').querySelector('[data-reply-parent]')!;
+
+    expect(parent.textContent).toContain('Alice');
+    expect(parent.textContent).toContain('first words');
+  });
+
+  it('says it answers an earlier message when the parent is neither sent nor loaded', async () => {
+    history = [line('m6', 'u2', 'Bob', 'agreed', { replyToMessageId: 'old' })];
+    await open();
+    expect(rowOf('m6').querySelector('[data-reply-parent]')!.textContent).toContain(reply.earlier);
+  });
+
+  it('shows no parent on a line that answers nothing', async () => {
+    await open();
+    expect(rowOf('m2').querySelector('[data-reply-parent]')).toBeNull();
+  });
+});
+
+// Stoney 2026-10-14: "pick what the kmp version already does better and take it, like an emote picker and
+// autocomplete". As in KMP and Twitch: ":" + 2 letters offers emotes and emoji, "@" offers the chatters here,
+// the arrows move, Tab or Enter puts the pick in, Escape closes the list.
+describe('ChatView composer suggestions', () => {
+  const options = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-suggestion]')];
+  const offered = (): string[] => options().map((option) => option.dataset.suggestion ?? '');
+
+  const key = async (name: string): Promise<void> => {
+    input().dispatchEvent(new KeyboardEvent('keydown', {
+      key: name,
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    await settle();
+  };
+
+  it('offers the emotes holding the letters, starts first, then shorter, after a colon and two letters', async () => {
+    await open();
+    await type('hi :ca');
+    expect(offered().slice(0, 3)).toEqual(['catJAM', 'catKISS', 'bigCat']);
+    expect(options()[0]!.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/catJAM-2.webp');
+  });
+
+  it('offers nothing after a colon and only one letter', async () => {
+    await open();
+    await type('hi :c');
+    expect(options()).toEqual([]);
+  });
+
+  it('puts the chosen emote in with a space after the arrows and Tab, and sends nothing', async () => {
+    await open();
+    await type('hi :ca');
+    await key('ArrowDown');
+    expect(options()[1]!.getAttribute('aria-selected')).toBe('true');
+
+    await key('Tab');
+    expect(input().value).toBe('hi catKISS ');
+    expect(options()).toEqual([]);
+    expect(writes()).toEqual([]);
+  });
+
+  it('takes the highlighted pick on Enter instead of sending', async () => {
+    await open();
+    await type(':kap');
+    await key('Enter');
+    expect(input().value).toBe('Kappa ');
+    expect(writes()).toEqual([]);
+  });
+
+  it('offers emoji by their short code and puts the emoji itself in', async () => {
+    await open();
+    await type(':smile');
+    expect(offered()).toContain('😄');
+
+    options().find((option) => option.dataset.suggestion === '😄')!.click();
+    await settle();
+    expect(input().value).toBe('😄 ');
+  });
+
+  it('offers the chatters in this chat after an at sign and puts the name in', async () => {
+    await open();
+    await type('thanks @al');
+    expect(offered()).toEqual(['@Alice']);
+
+    await key('Tab');
+    expect(input().value).toBe('thanks @Alice ');
+  });
+
+  it('closes the list on Escape and keeps the reply that is open', async () => {
+    await open();
+    action('m2', 'reply').click();
+    await settle();
+    await type(':ca');
+    await key('Escape');
+    expect(options()).toEqual([]);
+    expect(document.body.querySelector('[data-reply-banner]')).not.toBeNull();
+  });
+
+  // Stoney 2026-10-14: "no speak as bot option, can be abused to get mine banned".
+  it('speaks only as you: no sender choice, and the emote list is yours', async () => {
+    await open();
+    expect(document.body.querySelector('[data-segmented]')).toBeNull();
+
+    await type('hello');
+    await send();
+    expect(writes()[0]!.body).toEqual(expect.objectContaining({ senderIdentity: 'you' }));
+
+    const asked = calls
+      .filter((call) =>
+        call.path.endsWith('/chat/emotes'))
+      .map((call) =>
+        call.query?.senderIdentity);
+
+    expect(asked).toEqual(['you']);
+  });
+});
+
+describe('ChatView emote picker', () => {
+  const picker = (): HTMLElement | null => document.body.querySelector('[data-picker]');
+  const sections = (): string[] => [...document.body.querySelectorAll<HTMLElement>('[data-picker-section]')]
+    .map((section) =>
+      section.dataset.pickerSection ?? '');
+  const itemsOf = (id: string): string[] => [
+    ...document.body.querySelectorAll<HTMLElement>(`[data-picker-section="${id}"] [data-picker-item]`),
+  ].map((item) =>
+    item.dataset.pickerItem ?? '');
+  const item = (insert: string): HTMLElement =>
+    document.body.querySelector(`[data-picker-item="${insert}"]`) as HTMLElement;
+
+  beforeEach(() => {
+    localStorage.removeItem('nnz.chat.recent-picks');
+  });
+
+  async function openPicker(): Promise<void> {
+    (document.body.querySelector('[data-emote-picker]') as HTMLElement).click();
+    await settle();
+    await vi.dynamicImportSettled();
+    await settle();
+  }
+
+  async function searchPicker(value: string): Promise<void> {
+    const field = picker()!.querySelector('input') as HTMLInputElement;
+
+    field.value = value;
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+  }
+
+  it('shows the emotes per source, then the emoji per group, with a jump bar to each', async () => {
+    await open();
+    await openPicker();
+
+    expect(sections()).toEqual([
+      'SevenTv', 'emoji-smileys', 'emoji-people', 'emoji-animals', 'emoji-food', 'emoji-travel',
+      'emoji-activities', 'emoji-objects', 'emoji-symbols', 'emoji-flags',
+    ]);
+
+    expect(itemsOf('SevenTv')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
+    expect(item('bigCat').querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/bigCat-2.webp');
+
+    const jumps = [...picker()!.querySelectorAll<HTMLElement>('[data-picker-jump]')].map((jump) =>
+      jump.dataset.pickerJump);
+
+    expect(jumps).toEqual(sections());
+  });
+
+  it('puts a pick in at the cursor as its own word, stays open, and sends nothing', async () => {
+    await open();
+    await type('hi there');
+    input().setSelectionRange(2, 2);
+    input().dispatchEvent(new Event('click', { bubbles: true }));
+    await openPicker();
+    item('catJAM').click();
+    await settle();
+    expect(input().value).toBe('hi catJAM there');
+    expect(picker()).not.toBeNull();
+
+    item('Kappa').click();
+    await settle();
+    expect(input().value).toBe('hi catJAM Kappa there');
+    expect(writes()).toEqual([]);
+  });
+
+  it('keeps the recent picks first, newest first, across a reopen', async () => {
+    await open();
+    await openPicker();
+    item('Kappa').click();
+    await settle();
+    item('bigCat').click();
+    await settle();
+    expect(sections()[0]).toBe('recent');
+    expect(itemsOf('recent')).toEqual(['bigCat', 'Kappa']);
+    expect(JSON.parse(localStorage.getItem('nnz.chat.recent-picks')!)).toEqual(['bigCat', 'Kappa']);
+  });
+
+  it('searches emotes, emoji short codes and emoji tags in one list', async () => {
+    await open();
+    await openPicker();
+    await searchPicker('cat');
+    expect(sections()).toEqual(['results']);
+    expect(itemsOf('results').slice(0, 3)).toEqual(['catJAM', 'catKISS', 'bigCat']);
+    expect(itemsOf('results')).toContain('🐱');
+
+    await searchPicker('love');
+    expect(itemsOf('results')).toContain('😍');
+  });
+
+  it('says so when nothing matches', async () => {
+    await open();
+    await openPicker();
+    await searchPicker('zzqqxx');
+    expect(picker()!.textContent).toContain('Nothing matches.');
+  });
+
+  it('names the item under the pointer and its source below the grid', async () => {
+    await open();
+    await openPicker();
+    item('catKISS').dispatchEvent(new MouseEvent('mouseenter'));
+    await settle();
+    expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('catKISS');
+    expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('7TV');
   });
 });

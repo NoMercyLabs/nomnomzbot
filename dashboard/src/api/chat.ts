@@ -24,6 +24,7 @@ import { merge } from '@/lib/array';
 import type { ChatMessagePayload } from '@/realtime/payloads';
 
 import { client } from './client';
+import type { paths } from './schema';
 
 // The live feed of one channel, oldest line first. The hub appends to it; the page seeds it from the history call.
 export const chatKey = (channelId: string | null): unknown[] => ['channels', channelId, 'chat'];
@@ -92,6 +93,37 @@ export function useChatHistory(
     },
     enabled: computed(() => toValue(channelId) !== null),
     staleTime: Infinity,
+  });
+}
+
+// Read from the endpoint, so the server's British DTO name stays out of our code.
+type ChatEmotesGet = paths['/api/v{version}/channels/{channelId}/chat/emotes']['get'];
+type ChatEmotesBody = ChatEmotesGet['responses'][200]['content']['application/json'];
+
+export type ChatEmoteEntry = NonNullable<ChatEmotesBody['data']>[number];
+
+// The emotes you can use here, your own cross-channel emotes included. The dashboard only ever speaks as you:
+// a "send as the bot" choice would let anyone with dashboard access get the owner's bot banned (Stoney 2026-10-14).
+export function useChatEmotes(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<ChatEmoteEntry[], Error> {
+  return useQuery({
+    queryKey: computed(() => [...chatKey(toValue(channelId)), 'emotes']),
+    queryFn: async (): Promise<ChatEmoteEntry[]> => {
+      const { data, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/emotes', {
+        params: {
+          path: { version: '1', channelId: toValue(channelId) as string },
+          query: { senderIdentity: 'you' },
+        },
+      });
+
+      ensureOk(response, 'emotes');
+
+      return [...(data?.data ?? [])];
+    },
+    enabled: computed(() =>
+      toValue(channelId) !== null),
+    staleTime: 5 * 60_000,
   });
 }
 
