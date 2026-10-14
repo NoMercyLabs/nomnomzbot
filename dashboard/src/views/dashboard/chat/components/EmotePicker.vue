@@ -30,7 +30,7 @@ import { pickerSections, remember, type PickerSection } from '../emotePicker';
 
 const props = defineProps<{ emotes: readonly ChatEmoteEntry[] }>();
 
-const emit = defineEmits<{ pick: [insert: string] }>();
+const emit = defineEmits<{ pick: [insert: string]; closed: [] }>();
 
 const { t } = useI18n();
 const open = ref(false);
@@ -119,6 +119,16 @@ function focusSearch(event: Event): void {
   document.querySelector<HTMLInputElement>('[data-picker-query]')?.focus();
 }
 
+// Focus handed back to the smile button draws a ring on it. The box takes it back instead; on a phone nothing
+// does, so the keyboard stays down.
+function returnFocus(event: Event): void {
+  event.preventDefault();
+
+  if (phone.value) return;
+
+  emit('closed');
+}
+
 function pick(item: Suggestion): void {
   recent.value = remember(recent.value, item.insert);
   emit('pick', item.insert);
@@ -133,7 +143,7 @@ function pick(item: Suggestion): void {
         type="button"
         variant="ghost"
         size="icon-sm"
-        class="rounded-[calc(var(--radius-md)-2px)]"
+        class="rounded-[calc(var(--radius-md)-2px)] focus-visible:ring-inset"
         :aria-label="$t('dashboard.chat.picker.open')"
       >
         <Smile class="size-5" aria-hidden="true" />
@@ -146,6 +156,7 @@ function pick(item: Suggestion): void {
       :collision-padding="phone ? 0 : 8"
       class="flex w-120 flex-col gap-2 p-2 max-md:w-screen max-md:rounded-none max-md:border-x-0"
       @open-auto-focus="focusSearch"
+      @close-auto-focus="returnFocus"
     >
       <div class="flex h-80 gap-2 max-md:flex-col-reverse">
         <nav

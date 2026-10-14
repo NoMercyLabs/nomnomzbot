@@ -1654,5 +1654,29 @@ describe('ChatView emote picker', () => {
       expect(picker()!.contains(document.activeElement)).toBe(false);
       expect(itemsOf('SevenTv')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
     });
+
+    // A closed tray that hands the focus back to its button draws a focus ring there, and a focus in the box
+    // would pull the keyboard up. The focus goes nowhere.
+    it('leaves the focus off the smile button and the box when it closes', async () => {
+      await open();
+      await openPicker();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await settle();
+
+      expect(picker()).toBeNull();
+      expect(document.activeElement?.closest('[data-emote-picker], [data-composer]') ?? null).toBeNull();
+    });
+  });
+
+  // Stoney 2026-10-14 sent a phone shot of the smile button with a focus ring after the picker closed. The
+  // focus goes back to the box, where the person was typing.
+  it('puts the focus back in the box when it closes', async () => {
+    await open();
+    await openPicker();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+
+    expect(picker()).toBeNull();
+    expect(document.activeElement?.closest('[data-composer]')).not.toBeNull();
   });
 });

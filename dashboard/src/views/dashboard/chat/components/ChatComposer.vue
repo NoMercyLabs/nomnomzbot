@@ -146,6 +146,13 @@ function pickFromPicker(insert: string): void {
   box.commands.insertContentAt(at, merge(gap, word));
 }
 
+// The closed picker hands the focus back here. When the chat page is leaving, the box is already gone.
+function focusBox(): void {
+  if (!editor.value || editor.value.isDestroyed) return;
+
+  editor.value.commands.focus('end');
+}
+
 watch(replyTo, async (line) => {
   if (!line) return;
 
@@ -306,7 +313,11 @@ async function submit(): Promise<void> {
           {{ $t('dashboard.chat.composer.placeholder') }}
         </span>
         <div class="absolute end-0.5 bottom-0.5">
-          <EmotePicker :emotes="emotes.data.value ?? []" @pick="pickFromPicker" />
+          <EmotePicker
+            :emotes="emotes.data.value ?? []"
+            @pick="pickFromPicker"
+            @closed="focusBox"
+          />
         </div>
       </div>
       <span
