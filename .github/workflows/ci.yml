@@ -18,6 +18,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Stoney 2026-10-14: "a deploy for c# code only should be fast". The KMP contract test only runs when the
+  # app or the API contract it guards changed.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      kmp: ${{ steps.filter.outputs.kmp }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            kmp:
+              - 'app/**'
+              - 'server/openapi/**'
+
   test:
     name: Test (backend)
     runs-on: ubuntu-latest
@@ -70,6 +93,8 @@ jobs:
 
   contract:
     name: Contract test (frontend)
+    needs: changes
+    if: needs.changes.outputs.kmp == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -134,6 +159,11 @@ jobs:
   build:
     name: Build & push image
     needs: [test, contract]
+    # A skipped contract test (no KMP change) still lets the image build.
+    if: >
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      (needs.contract.result == 'success' || needs.contract.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -191,10 +221,15 @@ jobs:
           # stale one — the deploy job going green is not evidence the box is running that commit.
           build-args: |
             GIT_SHA=${{ github.sha }}
-          # GHA layer cache — the wasm-build stage is only re-run when Kotlin source changes.
-          # On backend-only commits the 25-minute Wasm compile is a cache hit.
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # The wasm-build stage only re-runs when app/ changes. The GHA cache alone is capped at 10 GB and
+          # evicted the big Wasm layers, so C#-only commits recompiled Kotlin for 25 minutes; the registry
+          # cache in GHCR is not evicted.
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ env.IMAGE_NAME }}:buildcache
+            type=gha
+          cache-to: |
+            ${{ github.event_name == 'push' && format('type=registry,ref=ghcr.io/{0}:buildcache,mode=max', env.IMAGE_NAME) || '' }}
+            type=gha,mode=max
 
   deploy:
     name: Deploy to server
@@ -209,6 +244,8 @@ jobs:
     # To enable: add DEPLOY_HOST (server IP/hostname) and DEPLOY_SSH_KEY (private key) as
     # repository secrets, and make sure the server can pull from ghcr.io/nomercylabs/nomnomzbot.
     if: >
+      !cancelled() &&
+      needs.build.result == 'success' &&
       github.ref == 'refs/heads/master' &&
       github.event_name == 'push' &&
       vars.DEPLOY_ENABLED == 'true'
