@@ -8,14 +8,73 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { UseQueryReturnType } from '@tanstack/vue-query';
-import type { MaybeRefOrGetter } from 'vue';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationReturnType,
+  type UseQueryReturnType,
+} from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import { channelQuery, failed } from './channelQuery';
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
+
+import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 
 export type PipelineListItem = components['schemas']['PipelineListItemDto'];
+export type PipelineBlastRadius = components['schemas']['PipelineBlastRadiusDto'];
+// cspell:disable-next-line -- the server names this DTO.
+export type PipelineCatalog = components['schemas']['PipelineCatalogueDto'];
+export type PipelineActionDescriptor = components['schemas']['PipelineActionDescriptorDto'];
+export type PipelineActionField = components['schemas']['PipelineActionFieldDto'];
+export type PipelineTestRun = components['schemas']['TestRunResultDto'];
+export type PipelineTraceStep = components['schemas']['PipelineTraceStepDto'];
+
+// The graph is a JsonElement on the wire, so its shape is typed here from the server's
+// PipelineStepDefinition (Abstractions/Pipeline). A step with a null id is new; the save gives it one.
+export const BLOCK_KINDS = [
+  'if',
+  'switch',
+  'switch_case',
+  'loop',
+  'random_branch',
+  'random_case',
+  'try',
+  'detached_step',
+] as const satisfies string[];
+
+export type BlockKind = (typeof BLOCK_KINDS)[number];
+
+export type PipelineAction = { type: string } & Record<string, unknown>;
+
+export type PipelineCondition = {
+  type: string;
+  operator: string;
+  left: string;
+  right: string;
+  negate: boolean;
+};
+
+export type PipelineStep = {
+  id: string | null;
+  parent_step_id: string | null;
+  branch: string | null;
+  block_kind: BlockKind | null;
+  block_config: Record<string, unknown> | null;
+  order: number;
+  action: PipelineAction;
+  condition: PipelineCondition | null;
+  continue_on_error: boolean;
+};
+
+export type PipelineGraph = { steps: PipelineStep[] };
+
+export type Pipeline = Omit<components['schemas']['PipelineDto'], 'graph' | 'triggerCount'> & {
+  triggerCount: number;
+  graph: PipelineGraph;
+};
 
 const version = '1';
 const pageSize = 100;
@@ -53,4 +112,201 @@ export function usePipelines(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<PipelineListItem[], Error> {
   return channelQuery(channelId, pipelinesKey, readPipelines);
+}
+
+export const pipelineKey = (channelId: string | null, id: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'pipeline',
+  id,
+];
+
+type WireStep = Partial<PipelineStep> & { action?: PipelineAction; order?: number | string };
+
+// The API leaves nulls out, so every optional part of a step is filled back in here.
+function parseStep(step: WireStep): PipelineStep {
+  return {
+    id: step.id ?? null,
+    parent_step_id: step.parent_step_id ?? null,
+    branch: step.branch ?? null,
+    block_kind: step.block_kind ?? null,
+    block_config: step.block_config ?? null,
+    order: Number(step.order ?? 0),
+    action: step.action ?? { type: '' },
+    condition: step.condition ?? null,
+    continue_on_error: step.continue_on_error ?? false,
+  };
+}
+
+function parseGraph(graph: unknown): PipelineGraph {
+  const steps = (graph as { steps?: WireStep[] } | null)?.steps ?? [];
+
+  return { steps: steps.map(parseStep) };
+}
+
+function parsePipeline(dto: components['schemas']['PipelineDto']): Pipeline {
+  return {
+    ...dto,
+    triggerCount: Number(dto.triggerCount),
+    graph: parseGraph(dto.graph),
+  };
+}
+
+async function readPipeline(channelId: string, id: string): Promise<Pipeline> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/pipelines/{id}',
+    { params: { path: {
+      version,
+      channelId,
+      id,
+    } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw failed('pipeline', response.status);
+
+  return parsePipeline(data.data);
+}
+
+export function usePipeline(
+  channelId: MaybeRefOrGetter<string | null>,
+  id: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<Pipeline, Error> {
+  return useQuery({
+    queryKey: computed(() => pipelineKey(toValue(channelId), toValue(id))),
+    queryFn: () => readPipeline(toValue(channelId) as string, toValue(id) as string),
+    enabled: computed(() => toValue(channelId) !== null && toValue(id) !== null),
+  });
+}
+
+// Only the parts named change; the graph goes whole, so new steps come back with their ids.
+export type PipelineChange = {
+  id: string;
+  name?: string;
+  description?: string | null;
+  isEnabled?: boolean;
+  graph?: PipelineGraph;
+};
+
+async function writePipeline(
+  channelId: string,
+  { id, ...change }: PipelineChange,
+): Promise<Pipeline> {
+  const { data, error, response } = await client.PUT(
+    '/api/v{version}/channels/{channelId}/pipelines/{id}',
+    {
+      params: { path: {
+        version,
+        channelId,
+        id,
+      } },
+      body: change,
+    },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw refusal('pipeline', error, response.status);
+
+  return parsePipeline(data.data);
+}
+
+export function useSavePipeline(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Pipeline, Error, PipelineChange, number> {
+  const queries = useQueryClient();
+
+  return useOptimisticSave<Pipeline, PipelineChange>({
+    queryKey: ({ id }: PipelineChange) => pipelineKey(toValue(channelId), id),
+    mutationFn: async (change: PipelineChange): Promise<Pipeline> => {
+      const saved = await writePipeline(toValue(channelId) as string, change);
+
+      void queries.invalidateQueries({ queryKey: pipelinesKey(toValue(channelId)) });
+
+      return saved;
+    },
+    // The workbench saves only a pipeline it has loaded, so the cached one is always there.
+    apply: (current: Pipeline | undefined, change: PipelineChange): Pipeline =>
+      ({ ...(current as Pipeline), ...change }),
+  });
+}
+
+async function readBlastRadius(channelId: string, id: string): Promise<PipelineBlastRadius> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/pipelines/{id}/blast-radius',
+    { params: { path: {
+      version,
+      channelId,
+      id,
+    } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw failed('pipeline blast radius', response.status);
+
+  return data.data;
+}
+
+// What runs this pipeline: the commands, chat triggers, timers and event responses that point at it.
+export function useBlastRadius(
+  channelId: MaybeRefOrGetter<string | null>,
+  id: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PipelineBlastRadius, Error> {
+  return useQuery({
+    queryKey: computed(() => [...pipelineKey(toValue(channelId), toValue(id)), 'blast-radius']),
+    queryFn: () => readBlastRadius(toValue(channelId) as string, toValue(id) as string),
+    enabled: computed(() => toValue(channelId) !== null && toValue(id) !== null),
+  });
+}
+
+export const catalogKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'pipeline-catalog',
+];
+
+async function readCatalog(channelId: string): Promise<PipelineCatalog> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/pipelines/actions',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw failed('pipeline catalog', response.status);
+
+  return data.data;
+}
+
+// Every action a step can run, with the fields its form needs.
+export function usePipelineCatalog(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PipelineCatalog, Error> {
+  return channelQuery(channelId, catalogKey, readCatalog);
+}
+
+export type TestRunRequest = { id: string; variables: Record<string, string> };
+
+// The bot runs the SAVED graph without real side effects and returns what each step did.
+export function useTestRunPipeline(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<PipelineTestRun, Error, TestRunRequest, unknown> {
+  return useMutation({
+    mutationFn: async ({ id, variables }: TestRunRequest): Promise<PipelineTestRun> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/pipelines/{id}/test-run',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            id,
+          } },
+          body: { variables },
+        },
+      );
+
+      if (error !== undefined || !data?.data)
+        throw refusal('pipeline test run', error, response.status);
+
+      return data.data;
+    },
+  });
 }
