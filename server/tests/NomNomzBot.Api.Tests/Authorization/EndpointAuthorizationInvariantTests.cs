@@ -106,6 +106,10 @@ public sealed class EndpointAuthorizationInvariantTests
             "self-scoped: the caller's own pronoun state (subject = JWT sub)",
         ["CurrencyController.GetMyAccount"] =
             "self-bound: only ever returns the CALLER's wallet (economy.md §5 accounts/me, community / Everyone)",
+        ["ViewerSelfController.GetWatchedChannels"] =
+            "self-bound: lists only channels where the CALLER has viewer activity (user id from the token, never the route)",
+        ["ViewerSelfController.GetMySummary"] =
+            "self-bound: returns only the CALLER's own tiles in the channel (user id from the token, never the route)",
         ["TtsConfigController.GetOwnVoice"] =
             "self-scoped in body: resolves the caller's OWN on-provider external id (JWT sub → UserIdentity) — a viewer reads only their own voice (tts.md §5 /tts/me/voice)",
         ["TtsConfigController.SetOwnVoice"] =
