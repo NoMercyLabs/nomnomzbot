@@ -437,6 +437,120 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
         return Result.Success<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>(breakdown);
     }
 
+    public async Task<Result<ChannelChatHoursDto>> GetChatHoursAsync(
+        Guid broadcasterId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken ct = default
+    )
+    {
+        if (!IsValidRange(from, to))
+            return Result.Failure<ChannelChatHoursDto>(
+                "from must be on or before to and the range must not exceed 366 days.",
+                "VALIDATION_FAILED"
+            );
+
+        string? savedZone = await db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.User.Timezone)
+            .FirstOrDefaultAsync(ct);
+        TimeZoneInfo zone = ResolveZone(savedZone);
+
+        // The range is local dates in the channel zone: local midnight of `from` up to local midnight after `to`.
+        DateTime windowStart = LocalMidnightToUtc(from, zone);
+        DateTime windowEnd = LocalMidnightToUtc(to.AddDays(1), zone);
+
+        // Set-based in SQL: count per (UTC quarter hour, chatter). Quarter hours keep every real-world zone
+        // offset (whole, half and 45-minute) exact, and the per-chatter rows let the in-memory shift union
+        // distinct chatters when quarter hours of one local hour merge. The zone shift runs in memory
+        // because SQL time-zone conversion is not available on both Postgres and SQLite.
+        var quarters = await db
+            .ChatMessages.Where(m =>
+                m.BroadcasterId == broadcasterId
+                && m.CreatedAt >= windowStart
+                && m.CreatedAt < windowEnd
+            )
+            .GroupBy(m => new
+            {
+                m.CreatedAt.Year,
+                m.CreatedAt.Month,
+                m.CreatedAt.Day,
+                m.CreatedAt.Hour,
+                Quarter = m.CreatedAt.Minute / 15,
+                m.UserId,
+            })
+            .Select(g => new
+            {
+                g.Key.Year,
+                g.Key.Month,
+                g.Key.Day,
+                g.Key.Hour,
+                g.Key.Quarter,
+                g.Key.UserId,
+                Messages = g.Count(),
+            })
+            .ToListAsync(ct);
+
+        Dictionary<(int Day, int Hour), (long Messages, HashSet<string> Chatters)> cells = [];
+        foreach (var row in quarters)
+        {
+            DateTime utc = new(
+                row.Year,
+                row.Month,
+                row.Day,
+                row.Hour,
+                row.Quarter * 15,
+                0,
+                DateTimeKind.Utc
+            );
+            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(utc, zone);
+            (int Day, int Hour) key = ((int)local.DayOfWeek, local.Hour);
+            (long Messages, HashSet<string> Chatters) cell = cells.GetValueOrDefault(
+                key,
+                (0, new HashSet<string>(StringComparer.Ordinal))
+            );
+            cell.Chatters.Add(row.UserId);
+            cells[key] = (cell.Messages + row.Messages, cell.Chatters);
+        }
+
+        List<ChatHourCellDto> result =
+        [
+            .. cells
+                .OrderBy(c => c.Key.Day)
+                .ThenBy(c => c.Key.Hour)
+                .Select(c => new ChatHourCellDto(
+                    c.Key.Day,
+                    c.Key.Hour,
+                    c.Value.Messages,
+                    c.Value.Chatters.Count
+                )),
+        ];
+        return Result.Success(new ChannelChatHoursDto(zone.Id, result));
+    }
+
+    private static TimeZoneInfo ResolveZone(string? zoneId)
+    {
+        if (string.IsNullOrWhiteSpace(zoneId))
+            return TimeZoneInfo.Utc;
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.Utc;
+        }
+    }
+
+    // Local midnight as a UTC instant; a zone whose clock skips midnight (DST gap) starts at the first valid hour.
+    private static DateTime LocalMidnightToUtc(DateOnly date, TimeZoneInfo zone)
+    {
+        DateTime local = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+        while (zone.IsInvalidTime(local))
+            local = local.AddHours(1);
+        return TimeZoneInfo.ConvertTimeToUtc(local, zone);
+    }
+
     private static string ExtractProvider(string? data)
     {
         if (string.IsNullOrEmpty(data))
