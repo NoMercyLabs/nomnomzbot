@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
 
-import { actionRows, blockRows, type FieldRow } from '../components/stepFields';
+import { actionRows, blockRows, type FieldRow, itemText, listItem } from '../components/stepFields';
 
 function step(over: Partial<PipelineStep>): PipelineStep {
   return {
@@ -92,8 +92,8 @@ describe('the step form rows', () => {
       'seconds:number:3',
       'quiet:switch:false',
       'color:choice:blue',
-      'args:fixed:undefined',
-      'headers:fixed:undefined',
+      'args:list:undefined',
+      'headers:map:undefined',
       'user_id:pick:undefined',
       'voice:pick:undefined',
       'code_script_id:line:undefined',
@@ -110,6 +110,16 @@ describe('the step form rows', () => {
 
     expect(rows.every((row: FieldRow) =>
       row.target === 'action')).toBe(true);
+  });
+
+  it('saves a list item as an object only when it is a whole JSON object', () => {
+    expect(listItem('{"requestType":"GetVersion"}')).toEqual({ requestType: 'GetVersion' });
+    expect(listItem('{user}')).toBe('{user}');
+    expect(listItem('[1, 2]')).toBe('[1, 2]');
+    expect(listItem('hi')).toBe('hi');
+
+    expect(itemText({ requestType: 'GetVersion' })).toBe('{\n  "requestType": "GetVersion"\n}');
+    expect(itemText(3)).toBe('3');
   });
 
   it('lets a case pick how it compares, from the comparisons the engine runs', () => {

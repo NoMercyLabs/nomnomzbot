@@ -3158,7 +3158,7 @@
     <string name="pipelines_field_mode">Mode</string>
     <string name="pipelines_field_wait">Wait for the run to finish</string>
     <string name="pipelines_field_args">Arguments (in order, {args.1}, {args.2}, …)</string>
-    <string name="pipelines_field_named_args">Arguments</string>
+    <string name="pipelines_field_named_args">Arguments by name</string>
     <string name="pipelines_run_pipeline_named_arg_label">Argument “%1$s”</string>
     <string name="pipelines_run_pipeline_no_target_hint">Pick a target pipeline to configure its arguments.</string>
     <string name="pipelines_run_pipeline_args_add">Add argument</string>

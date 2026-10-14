@@ -3153,7 +3153,7 @@
     <string name="pipelines_field_mode">Modus</string>
     <string name="pipelines_field_wait">Wacht tot de run klaar is</string>
     <string name="pipelines_field_args">Argumenten (op volgorde, {args.1}, {args.2}, …)</string>
-    <string name="pipelines_field_named_args">Argumenten</string>
+    <string name="pipelines_field_named_args">Argumenten op naam</string>
     <string name="pipelines_run_pipeline_named_arg_label">Argument “%1$s”</string>
     <string name="pipelines_run_pipeline_no_target_hint">Kies een doelpipeline om de argumenten in te stellen.</string>
     <string name="pipelines_run_pipeline_args_add">Argument toevoegen</string>

@@ -1828,7 +1828,7 @@
     "move_x": "X",
     "move_y": "Y",
     "muted": "Muted",
-    "named_args": "Arguments",
+    "named_args": "Arguments by name",
     "payload_json": "Payload (JSON)",
     "percent": "Percent",
     "pick_variable": "Store pick in variable (optional)",

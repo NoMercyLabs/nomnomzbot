@@ -14,12 +14,14 @@
 import { computed, useId } from 'vue';
 
 import type { PickerKind } from '@/api/pipelines';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldContent, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
+import ListField from './ListField.vue';
+import MapField from './MapField.vue';
 import type { FieldRow } from './stepFields';
 import StepPicker from './StepPicker.vue';
 import { valueText } from './stepWords';
@@ -46,19 +48,21 @@ function typed(event: Event): void {
 
 <template>
   <Field
+    v-if="row.control === 'switch'"
     :data-step-field="row.name"
-    :orientation="row.control === 'switch' ? 'horizontal' : 'vertical'"
-    class="gap-1.5"
+    orientation="horizontal"
+    class="gap-3"
   >
+    <FieldContent>
+      <FieldLabel :for="id">{{ row.label }}</FieldLabel>
+      <FieldDescription v-if="row.help" class="text-xs">{{ row.help }}</FieldDescription>
+    </FieldContent>
+    <Switch :id="id" :model-value="row.value === true" @update:model-value="emit('change', $event)" />
+  </Field>
+  <Field v-else :data-step-field="row.name" class="gap-1.5">
     <FieldLabel :for="id">{{ row.label }}</FieldLabel>
-    <Switch
-      v-if="row.control === 'switch'"
-      :id="id"
-      :model-value="row.value === true"
-      @update:model-value="emit('change', $event)"
-    />
     <Select
-      v-else-if="row.control === 'choice'"
+      v-if="row.control === 'choice'"
       :model-value="text"
       @update:model-value="emit('change', $event)"
     >
@@ -77,6 +81,18 @@ function typed(event: Event): void {
       :kind="row.kind as PickerKind"
       :value="text"
       :required="row.required"
+      @change="emit('change', $event)"
+    />
+    <ListField
+      v-else-if="row.control === 'list'"
+      :id="id"
+      :value="row.value"
+      @change="emit('change', $event)"
+    />
+    <MapField
+      v-else-if="row.control === 'map'"
+      :id="id"
+      :value="row.value"
       @change="emit('change', $event)"
     />
     <Textarea

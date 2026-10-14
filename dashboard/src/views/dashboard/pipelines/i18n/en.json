@@ -157,6 +157,20 @@
           "useTyped": "Use \"{text}\"",
           "clear": "Clear this setting"
         },
+        "list": {
+          "item": "Item {number}",
+          "remove": "Remove item {number}",
+          "add": "Add an item"
+        },
+        "map": {
+          "name": "Name {number}",
+          "value": "Value {number}",
+          "namePlaceholder": "Name",
+          "valuePlaceholder": "Value",
+          "remove": "Remove row {number}",
+          "add": "Add a name and value",
+          "twice": "The name {name} is used twice. Change one, then it saves."
+        },
         "palette": {
           "label": "Steps to add",
           "find": "Find a step",

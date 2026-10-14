@@ -22,9 +22,18 @@ import { humanize } from '@/lib/text';
 
 import { fieldHelp, fieldLabel, type Words } from './stepWords';
 
-// line and lines are text, choice is a fixed list, pick searches what the bot lists for the kind; fixed shows
-// the value and is not edited here yet.
-export type FieldControl = 'line' | 'lines' | 'number' | 'switch' | 'choice' | 'pick' | 'fixed';
+// line and lines are text, choice is a fixed list, pick searches what the bot lists for the kind, list is a
+// setting with many items, map is names with values; fixed shows the value and is not edited here.
+export type FieldControl =
+  | 'line' |
+  'lines' |
+  'number' |
+  'switch' |
+  'choice' |
+  'pick' |
+  'list' |
+  'map' |
+  'fixed';
 
 export type FieldChoice = { value: string; label: string };
 
@@ -54,8 +63,11 @@ export function isPickerKind(kind: string): kind is PickerKind {
 }
 
 function controlOf(field: PipelineActionField): FieldControl {
-  if (field.repeatable || field.kind === 'key_value_map')
-    return 'fixed';
+  if (field.kind === 'key_value_map')
+    return 'map';
+
+  if (field.repeatable)
+    return 'list';
 
   if (field.kind === 'boolean')
     return 'switch';
@@ -72,6 +84,34 @@ function controlOf(field: PipelineActionField): FieldControl {
   return field.templated
     ? 'lines'
     : 'line';
+}
+
+// A list item is text, unless it is a whole JSON object (an OBS request is one): then it saves as that object.
+// Text with braces such as {user} is not valid JSON, so it stays text.
+export function listItem(text: string): unknown {
+  if (!text.trim().startsWith('{'))
+    return text;
+
+  try {
+    const parsed: unknown = JSON.parse(text);
+
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? parsed
+      : text;
+  } catch {
+    return text;
+  }
+}
+
+// A setting's value as text to compare, with no value as its own word.
+export function jsonOf(value: unknown): string {
+  return JSON.stringify(value) ?? 'none';
+}
+
+export function itemText(item: unknown): string {
+  return typeof item === 'object' && item !== null
+    ? JSON.stringify(item, null, 2)
+    : String(item ?? '');
 }
 
 export function actionRows(

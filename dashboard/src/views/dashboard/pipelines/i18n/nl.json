@@ -157,6 +157,20 @@
           "useTyped": "\"{text}\" gebruiken",
           "clear": "Deze instelling leegmaken"
         },
+        "list": {
+          "item": "Item {number}",
+          "remove": "Item {number} verwijderen",
+          "add": "Een item toevoegen"
+        },
+        "map": {
+          "name": "Naam {number}",
+          "value": "Waarde {number}",
+          "namePlaceholder": "Naam",
+          "valuePlaceholder": "Waarde",
+          "remove": "Rij {number} verwijderen",
+          "add": "Een naam en waarde toevoegen",
+          "twice": "De naam {name} staat er twee keer. Verander er een, dan wordt het opgeslagen."
+        },
         "palette": {
           "label": "Stappen om toe te voegen",
           "find": "Zoek een stap",

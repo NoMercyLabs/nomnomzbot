@@ -121,6 +121,31 @@ const catalog = {
       ],
     },
     {
+      type: 'run_pipeline',
+      category: { key: 'pipeline.category.flow' },
+      description: { key: 'pipeline.run_pipeline.description' },
+      fields: [
+        {
+          name: 'args',
+          kind: 'text',
+          required: false,
+          repeatable: true,
+          description: null,
+          templated: true,
+          declaresVariable: false,
+        },
+        {
+          name: 'named_args',
+          kind: 'key_value_map',
+          required: false,
+          repeatable: false,
+          description: null,
+          templated: true,
+          declaresVariable: false,
+        },
+      ],
+    },
+    {
       type: 'wait',
       category: { key: 'pipeline.category.flow' },
       description: { key: 'pipeline.wait.description' },
@@ -390,6 +415,16 @@ async function type(name: string, value: string): Promise<void> {
   await flushPromises();
 }
 
+// Types into one input found by selector and leaves it.
+async function typeInto(selector: string, value: string): Promise<void> {
+  const input = document.body.querySelector<HTMLInputElement>(selector)!;
+
+  input.value = value;
+  input.dispatchEvent(new Event('input'));
+  input.dispatchEvent(new Event('change'));
+  await flushPromises();
+}
+
 // Searches in the open picker and waits past its pause, so the bot is asked.
 async function find(text: string): Promise<void> {
   const search = document.body.querySelector<HTMLInputElement>('[data-slot="popover-content"] input')!;
@@ -605,6 +640,52 @@ describe('changing the steps', () => {
 
     expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.block_config)
       .toEqual({ mode: 'repeat', count: 3 });
+  });
+
+  it('builds a list setting item by item, keeps a JSON object whole, and removes one item', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="run_pipeline"]');
+    await press('[data-step-field="args"] [data-list-add]');
+    await press('[data-step-field="args"] [data-list-add]');
+    await press('[data-step-field="args"] [data-list-add]');
+    await typeInto('[data-step-field="args"] [data-list-item]:nth-child(1) input', '{user}');
+    await typeInto('[data-step-field="args"] [data-list-item]:nth-child(3) input', '{"level": 2}');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action)
+      .toEqual({ type: 'run_pipeline', args: ['{user}', { level: 2 }] });
+
+    await press('[data-step-field="args"] [data-list-remove]');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[1]?.[0].graph?.steps[3]?.action)
+      .toEqual({ type: 'run_pipeline', args: [{ level: 2 }] });
+  });
+
+  it('saves names with values, and holds a name used twice until it is changed', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="run_pipeline"]');
+    await press('[data-step-field="named_args"] [data-map-add]');
+    await typeInto('[data-map-row]:nth-child(1) [data-map-value]', '{user}');
+    await typeInto('[data-map-row]:nth-child(1) [data-map-name]', 'who');
+    await press('[data-step-field="named_args"] [data-map-add]');
+    await typeInto('[data-map-row]:nth-child(2) [data-map-name]', 'who');
+
+    expect(document.body.querySelector('[data-map-twice]')?.textContent).toContain('who');
+
+    await typeInto('[data-map-row]:nth-child(2) [data-map-value]', 'loud');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action)
+      .toEqual({ type: 'run_pipeline', named_args: { who: '{user}' } });
+
+    await typeInto('[data-map-row]:nth-child(2) [data-map-name]', 'mood');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[1]?.[0].graph?.steps[3]?.action)
+      .toEqual({ type: 'run_pipeline', named_args: { who: '{user}', mood: 'loud' } });
   });
 
   it('picks a voice the bot lists, and says why one it cannot use is off', async () => {
