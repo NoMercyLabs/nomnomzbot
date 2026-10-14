@@ -382,9 +382,21 @@ describe('MusicView', () => {
     expect(
       panel('Thanks for the music').querySelector('[data-slot="panel-empty"]')?.textContent,
     ).toContain('Not recorded yet');
+  });
 
-    expect(
-      panel('Request rules').querySelector('[data-slot="panel-empty"]')?.textContent,
-    ).toContain('Not available yet');
+  // Owner 2026-10-14: "make the rules a slide in / pop over". The board keeps no rules column.
+  it('keeps the rules off the board and slides them in from the header button', async () => {
+    await open();
+
+    expect(panel('Request rules')).toBeUndefined();
+
+    buttonIn(document.body, 'Request rules').click();
+    await flushPromises();
+
+    const sheet = document.body.querySelector<HTMLElement>('[data-slot="sheet-content"]');
+
+    expect(sheet?.querySelector('[data-slot="panel-empty"]')?.textContent).toContain(
+      'Not available yet',
+    );
   });
 });

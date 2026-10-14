@@ -26,6 +26,8 @@ const props = withDefaults(
     description?: string;
     tier?: 'lead' | 'default' | 'quiet';
     pad?: boolean;
+    // Inside a sheet or dialog the surface already frames it, so the card drops its own border.
+    flush?: boolean;
     state?: PanelState;
     emptyText?: string;
     errorText?: string;
@@ -34,6 +36,7 @@ const props = withDefaults(
     description: undefined,
     tier: 'default',
     pad: false,
+    flush: false,
     state: 'ready',
     emptyText: undefined,
     errorText: undefined,
@@ -70,7 +73,8 @@ watch(
   <section
     data-slot="panel-card"
     :data-state="state"
-    class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
+    class="flex min-h-0 min-w-0 flex-col overflow-hidden text-card-foreground"
+    :class="flush ? 'h-full' : 'rounded-lg border border-border bg-card'"
   >
     <!-- Actions share the title row; the description runs the full width below, never squeezed beside them. -->
     <header

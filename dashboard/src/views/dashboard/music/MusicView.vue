@@ -13,6 +13,7 @@ import Music from '~icons/nnz/note-eighth-pair';
 import { useSortable } from '@vueuse/integrations/useSortable';
 import type { SortableEvent } from 'sortablejs';
 import Grip from '~icons/nnz/hamburger';
+import IconRules from '~icons/nnz/settings-fader';
 import Trash2 from '~icons/nnz/trash';
 import { computed, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -38,6 +39,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -119,10 +121,11 @@ function confirmRemove(): void {
   removing.value = null;
 }
 
+const rulesOpen = ref(false);
+
 const panels = computed(() => [
   { id: 'now', label: t('dashboard.music.now.title') },
   { id: 'queue', label: t('dashboard.music.queue.title') },
-  { id: 'rules', label: t('dashboard.music.rules.title') },
   { id: 'history', label: t('dashboard.music.history.title') },
   { id: 'thanks', label: t('dashboard.music.thanks.title') },
 ] as const satisfies readonly BoardPanel[]);
@@ -133,9 +136,24 @@ const panels = computed(() => [
     <template #status>
       <StatusBadge :tone="spotify.tone" :label="$t(`dashboard.music.spotify.${spotify.key}`)" />
     </template>
+    <!-- The rules are set once and seldom touched, so they slide in on demand instead of taking a column. -->
+    <template #actions>
+      <Sheet v-model:open="rulesOpen">
+        <SheetTrigger as-child>
+          <Button variant="outline">
+            <IconRules aria-hidden="true" />
+            {{ $t('dashboard.music.rules.title') }}
+          </Button>
+        </SheetTrigger>
+        <SheetContent class="gap-0 p-0" :aria-describedby="undefined">
+          <SheetTitle class="sr-only">{{ $t('dashboard.music.rules.title') }}</SheetTitle>
+          <RulesPanel flush />
+        </SheetContent>
+      </Sheet>
+    </template>
   </PageHeader>
   <BoardGrid :panels="panels" :rows="2">
-    <BoardCell panel="now" :span="5">
+    <BoardCell panel="now" :span="6">
       <PanelCard
         tier="lead"
         :title="$t('dashboard.music.now.title')"
@@ -154,7 +172,7 @@ const panels = computed(() => [
         />
       </PanelCard>
     </BoardCell>
-    <BoardCell panel="queue" :span="4">
+    <BoardCell panel="queue" :span="6">
       <PanelCard
         :title="$t('dashboard.music.queue.title')"
         :description="
@@ -221,17 +239,14 @@ const panels = computed(() => [
         </div>
       </PanelCard>
     </BoardCell>
-    <BoardCell panel="rules" :span="3" :rows="2">
-      <RulesPanel />
-    </BoardCell>
-    <BoardCell panel="history" :span="5">
+    <BoardCell panel="history" :span="6">
       <PanelCard
         :title="$t('dashboard.music.history.title')"
         state="empty"
         :empty-text="$t('dashboard.music.history.empty')"
       />
     </BoardCell>
-    <BoardCell panel="thanks" :span="4">
+    <BoardCell panel="thanks" :span="6">
       <PanelCard
         :title="$t('dashboard.music.thanks.title')"
         state="empty"
