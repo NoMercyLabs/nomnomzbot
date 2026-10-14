@@ -416,11 +416,23 @@ describe('ChatView', () => {
     popup.mockRestore();
   });
 
-  it('offers no Pop out inside the popped-out window', async () => {
+  it('copies the full dock address for an OBS browser dock', async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
+
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await open();
+    document.body.querySelector<HTMLButtonElement>('[data-copy-link]')!.click();
+    await flushPromises();
+
+    expect(writeText).toHaveBeenCalledWith(`${location.origin}/popout/chat`);
+  });
+
+  it('offers no Pop out and no dock link inside the popped-out window', async () => {
     await open('/popout/chat');
 
     expect(rows().length).toBeGreaterThan(0);
     expect(document.body.querySelector('[data-chat-popout]')).toBeNull();
+    expect(document.body.querySelector('[data-copy-link]')).toBeNull();
   });
 
   it('packs the popped-out rows and tray tight so the tray fits a 320px window', async () => {

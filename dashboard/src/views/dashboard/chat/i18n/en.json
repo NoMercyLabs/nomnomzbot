@@ -11,6 +11,7 @@
         "offline": "Offline"
       },
       "popout": "Pop out",
+      "copyDockLink": "Copy dock link",
       "display": {
         "toggle": "Display",
         "title": "Display",

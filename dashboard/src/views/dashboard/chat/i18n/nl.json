@@ -11,6 +11,7 @@
         "offline": "Offline"
       },
       "popout": "Los venster",
+      "copyDockLink": "Docklink kopiëren",
       "display": {
         "toggle": "Weergave",
         "title": "Weergave",

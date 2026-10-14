@@ -36,6 +36,7 @@ import SidePanel from '@/components/layout/SidePanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -57,6 +58,9 @@ const banner = useBanUser(channelId);
 const route = useRoute();
 const router = useRouter();
 const poppedOut = computed(() => route.meta.popout === true);
+
+// The full address an OBS Custom Browser Dock opens.
+const dockUrl = computed(() => location.origin + router.resolve({ name: 'popout-chat' }).href);
 
 function popOut(): void {
   window.open(router.resolve({ name: 'popout-chat' }).href, 'nnz-chat', 'popup,width=440,height=760');
@@ -381,6 +385,7 @@ async function confirmBan(): Promise<void> {
           <SettingsFader class="size-4" aria-hidden="true" />
           {{ $t('dashboard.chat.display.toggle') }}
         </Button>
+        <CopyLinkButton v-if="!poppedOut" :url="dockUrl" :label="$t('dashboard.chat.copyDockLink')" />
         <Button data-chat-popout variant="outline" size="sm" @click="popOut">
           <ArrowUpRight class="size-4" aria-hidden="true" />
           {{ $t('dashboard.chat.popout') }}
