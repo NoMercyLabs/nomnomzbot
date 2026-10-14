@@ -1,0 +1,132 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+// The workbench edits on the flat step list. Each returns a new list and leaves the given one as it was, so
+// every edit is one undo step. The bot treats step ids as link keys only (save reinserts every row), so the
+// workbench may mint its own.
+import type { PipelineStep } from '@/api/pipelines';
+import { merge } from '@/lib/array';
+
+export type MintId = () => string;
+
+// Two steps in the same lane: same parent, same branch.
+function sameLane(left: PipelineStep, right: PipelineStep): boolean {
+  return laneOf(left) === laneOf(right);
+}
+
+// The step and every step inside it, at any depth.
+function subtreeIds(steps: PipelineStep[], id: string): Set<string> {
+  const ids = new Set([id]);
+  let grew = true;
+
+  while (grew) {
+    grew = false;
+
+    for (const step of steps) {
+      if (step.id !== null && !ids.has(step.id) && ids.has(step.parent_step_id ?? '')) {
+        ids.add(step.id);
+        grew = true;
+      }
+    }
+  }
+
+  return ids;
+}
+
+function laneOf(step: PipelineStep): string {
+  return `${step.parent_step_id ?? ''}|${step.branch ?? ''}`;
+}
+
+// Each lane numbered 0, 1, 2 in the order the engine runs it. A graph saved without orders reads them all as
+// 0, and the bot then runs the lane in list order, so the list position breaks a tie.
+export function numberLanes(steps: PipelineStep[]): PipelineStep[] {
+  const ranked = steps
+    .map((step: PipelineStep, index: number) =>
+      ({ step, index }))
+    .sort((left, right) =>
+      left.step.order - right.step.order || left.index - right.index);
+  const next = new Map<string, number>();
+  const orders = new Map<number, number>();
+
+  for (const { step, index } of ranked) {
+    const order = next.get(laneOf(step)) ?? 0;
+
+    orders.set(index, order);
+    next.set(laneOf(step), order + 1);
+  }
+
+  return steps.map((step: PipelineStep, index: number) =>
+    ({ ...step, order: orders.get(index) ?? step.order }));
+}
+
+export function withIds(steps: PipelineStep[], mint: MintId): PipelineStep[] {
+  return steps.map((step: PipelineStep) =>
+    step.id === null
+      ? { ...step, id: mint() }
+      : step);
+}
+
+export function removeStep(steps: PipelineStep[], id: string): PipelineStep[] {
+  const target = steps.find((step: PipelineStep) =>
+    step.id === id);
+
+  if (!target)
+    return steps;
+
+  const gone = subtreeIds(steps, id);
+
+  return steps
+    .filter((step: PipelineStep) =>
+      !gone.has(step.id ?? ''))
+    .map((step: PipelineStep) =>
+      sameLane(step, target) && step.order > target.order
+        ? { ...step, order: step.order - 1 }
+        : step);
+}
+
+// A step is plain JSON; a JSON copy also reads through the reactive proxy the draft holds it in, which
+// structuredClone refuses.
+function copyOf(step: PipelineStep, target: PipelineStep, ids: Map<string, string>): PipelineStep {
+  const root = step.id === target.id;
+
+  return {
+    ...(JSON.parse(JSON.stringify(step)) as PipelineStep),
+    id: ids.get(step.id ?? '') ?? null,
+    parent_step_id: root
+      ? step.parent_step_id
+      : (ids.get(step.parent_step_id ?? '') ?? null),
+    order: root
+      ? target.order + 1
+      : step.order,
+  };
+}
+
+// A copy of the step, inner steps included, placed right after it under new ids.
+export function duplicateStep(steps: PipelineStep[], id: string, mint: MintId): PipelineStep[] {
+  const target = steps.find((step: PipelineStep) =>
+    step.id === id);
+
+  if (!target)
+    return steps;
+
+  const copied = subtreeIds(steps, id);
+  const inside = steps.filter((step: PipelineStep) =>
+    copied.has(step.id ?? ''));
+  const ids = new Map(inside.map((step: PipelineStep) =>
+    [step.id ?? '', mint()]));
+  const shifted = steps.map((step: PipelineStep) =>
+    sameLane(step, target) && step.order > target.order
+      ? { ...step, order: step.order + 1 }
+      : step);
+  const copies = inside.map((step: PipelineStep) =>
+    copyOf(step, target, ids));
+
+  return [...merge(shifted, copies)];
+}

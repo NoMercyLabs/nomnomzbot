@@ -9,12 +9,17 @@
 -->
 <script setup lang="ts">
 // The picked step in detail (5-workbench.html:344-379): Settings lists every field the bot's catalog gives the
-// action, with its saved value; In plain words says what the step does from the same facts.
+// action, with its saved value; In plain words says what the step does from the same facts. Duplicate and
+// Remove change the draft; a role that cannot change pipelines sees them locked.
+import FileCopy from '~icons/nnz/file-copy';
+import Trash from '~icons/nnz/trash';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
+import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 import { humanize } from '@/lib/text';
@@ -25,7 +30,10 @@ const props = defineProps<{
   step: PipelineStep;
   number: string;
   descriptor: PipelineActionDescriptor | undefined;
+  readOnly: boolean;
 }>();
+
+defineEmits<{ duplicate: []; remove: [] }>();
 
 const { t, te } = useI18n();
 const text = useLocalizedText();
@@ -33,7 +41,7 @@ const page = 'dashboard.pipelines.workbench';
 
 const tab = ref('settings');
 
-watch(() => props.step, () => {
+watch(() => props.step.id, () => {
   tab.value = 'settings';
 });
 
@@ -134,5 +142,30 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
         </p>
       </TabsContent>
     </Tabs>
+    <ReadOnlyScope
+      :read-only="readOnly"
+      :reason="$t('dashboard.pipelines.noWrite')"
+      class="flex flex-wrap gap-2 border-t pt-3"
+    >
+      <Button data-step-duplicate
+              type="button"
+              variant="outline"
+              size="sm"
+              @click="$emit('duplicate')"
+      >
+        <FileCopy aria-hidden="true" />
+        {{ $t('dashboard.pipelines.workbench.inspector.duplicate') }}
+      </Button>
+      <Button
+        data-step-remove
+        type="button"
+        variant="destructive"
+        size="sm"
+        @click="$emit('remove')"
+      >
+        <Trash aria-hidden="true" />
+        {{ $t('dashboard.pipelines.workbench.inspector.remove') }}
+      </Button>
+    </ReadOnlyScope>
   </section>
 </template>

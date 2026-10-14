@@ -89,7 +89,25 @@
           "plainGoesOn": "Als het mislukt, gaat de pipeline door.",
           "plainStops": "Als het mislukt, stopt de pipeline.",
           "declares": "Latere stappen kunnen het gebruiken.",
-          "number": "Stap {number}"
+          "number": "Stap {number}",
+          "duplicate": "Dupliceren",
+          "remove": "Verwijderen"
+        },
+        "save": "Opslaan",
+        "saved": "Pipeline opgeslagen.",
+        "saveFailed": "De bot heeft de pipeline niet opgeslagen.",
+        "undo": "Ongedaan maken",
+        "redo": "Opnieuw",
+        "removed": "Stap verwijderd.",
+        "shortcuts": {
+          "undo": "De laatste wijziging ongedaan maken",
+          "redo": "De wijziging opnieuw doen",
+          "save": "De pipeline opslaan"
+        },
+        "leave": {
+          "title": "Weggaan zonder opslaan?",
+          "description": "Je wijzigingen aan deze pipeline zijn nog niet opgeslagen. Ze gaan verloren als je weggaat.",
+          "action": "Weggaan zonder opslaan"
         }
       }
     }

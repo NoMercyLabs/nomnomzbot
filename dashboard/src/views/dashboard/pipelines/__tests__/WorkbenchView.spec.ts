@@ -10,8 +10,8 @@
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref, type Ref } from 'vue';
-import { createMemoryHistory, createRouter } from 'vue-router';
+import { computed, ref, type Ref } from 'vue';
+import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router';
 
 import type {
   Pipeline,
@@ -136,11 +136,27 @@ function query<T>(data: T): {
   };
 }
 
+const held = ref<string[]>([]);
+
+type SaveChange = { id: string; graph?: { steps: PipelineStep[] } };
+
+const save = vi.hoisted(() => ({
+  mutateAsync: vi.fn<(change: SaveChange) => Promise<unknown>>(),
+}));
+
 vi.mock('@/api/pipelines', async (original) => ({
   ...(await original<typeof import('@/api/pipelines')>()),
   usePipeline: () => query(pipeline),
   usePipelineCatalog: () => query(catalog),
   useBlastRadius: () => query(radius),
+  useSavePipeline: () => ({ mutateAsync: save.mutateAsync, isPending: ref(false) }),
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: computed(() => true),
+    can: (key: string) => held.value.includes(key),
+  }),
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
@@ -152,6 +168,9 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   i18n.global.mergeLocaleMessage('en', schemaEn);
+  held.value = ['pipelines:write'];
+  save.mutateAsync.mockReset();
+  save.mutateAsync.mockResolvedValue({});
 });
 
 afterEach(() => {
@@ -160,9 +179,12 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+let router: Router;
+
 async function open(): Promise<void> {
   const blank = { template: '<div />' };
-  const router = createRouter({
+
+  router = createRouter({
     history: createMemoryHistory(),
     routes: [
       {
@@ -173,13 +195,14 @@ async function open(): Promise<void> {
       {
         path: '/app/pipelines/:id',
         name: 'dashboard-pipeline',
-        component: blank,
+        component: WorkbenchView,
       },
     ],
   });
 
   await router.push('/app/pipelines/p1');
-  mounted = mount(WorkbenchView, { attachTo: document.body, global: { plugins: [i18n, router] } });
+  // Routed as in the app: the leave guard only binds inside a RouterView.
+  mounted = mount(RouterView, { attachTo: document.body, global: { plugins: [i18n, router] } });
   await flushPromises();
 }
 
@@ -262,5 +285,86 @@ describe('the step inspector', () => {
     await flushPromises();
 
     expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
+  });
+});
+
+async function press(selector: string): Promise<void> {
+  document.body.querySelector<HTMLButtonElement>(selector)!.click();
+  await flushPromises();
+}
+
+const saveButton = (): HTMLButtonElement =>
+  document.body.querySelector<HTMLButtonElement>('[data-workbench-save]')!;
+const numbers = (): (string | undefined)[] =>
+  cards().map((item: HTMLElement) =>
+    item.dataset.stepNumber);
+
+describe('changing the steps', () => {
+  it('removes the picked step and brings it back on Undo', async () => {
+    await open();
+    await press('[data-step-id="pause"] button');
+    await press('[data-step-remove]');
+
+    expect(document.body.querySelector('[data-step-id="pause"]')).toBeNull();
+    expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
+
+    await press('[data-workbench-undo]');
+
+    expect(numbers()).toEqual(['1', '1.1', '2']);
+  });
+
+  it('duplicates the picked step right after it, inside its lane', async () => {
+    await open();
+    await press('[data-step-id="hi"] button');
+    await press('[data-step-duplicate]');
+
+    expect(numbers()).toEqual(['1', '1.1', '1.2', '2']);
+  });
+
+  it('saves the changed steps as the whole graph, and only once something changed', async () => {
+    await open();
+
+    expect(saveButton().disabled).toBe(true);
+
+    await press('[data-step-id="pause"] button');
+    await press('[data-step-remove]');
+    await press('[data-workbench-save]');
+
+    const sent = save.mutateAsync.mock.calls[0]?.[0];
+
+    expect(sent?.id).toBe('p1');
+
+    expect(sent?.graph?.steps.map((item: PipelineStep) =>
+      item.id)).toEqual(['check', 'hi']);
+  });
+
+  it('holds the way out while changes are unsaved, until the person leaves without them', async () => {
+    await open();
+    await press('[data-step-id="pause"] button');
+    await press('[data-step-remove]');
+    await router.push('/app/pipelines');
+    await flushPromises();
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/pipelines/p1');
+
+    const leave = [...document.body.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button: HTMLButtonElement) =>
+        button.textContent?.trim() === 'Leave without saving');
+
+    leave!.click();
+    await flushPromises();
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/pipelines');
+  });
+
+  it('locks every change for a role that cannot change pipelines', async () => {
+    held.value = [];
+    await open();
+    await press('[data-step-id="hi"] button');
+
+    expect(saveButton().disabled).toBe(true);
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-step-remove]')?.closest('fieldset')?.disabled)
+      .toBe(true);
   });
 });

@@ -89,7 +89,25 @@
           "plainGoesOn": "If it fails, the pipeline goes on.",
           "plainStops": "If it fails, the pipeline stops.",
           "declares": "Later steps can use it.",
-          "number": "Step {number}"
+          "number": "Step {number}",
+          "duplicate": "Duplicate",
+          "remove": "Remove"
+        },
+        "save": "Save",
+        "saved": "Pipeline saved.",
+        "saveFailed": "The bot did not save the pipeline.",
+        "undo": "Undo",
+        "redo": "Redo",
+        "removed": "Step removed.",
+        "shortcuts": {
+          "undo": "Undo the last change",
+          "redo": "Redo the change",
+          "save": "Save the pipeline"
+        },
+        "leave": {
+          "title": "Leave without saving?",
+          "description": "Your changes to this pipeline are not saved yet. They are lost when you leave.",
+          "action": "Leave without saving"
         }
       }
     }
