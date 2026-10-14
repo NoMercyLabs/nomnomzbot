@@ -30,7 +30,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
 </script>
 
 <template>
-  <!-- A narrow pane drops the quiet text first (meta, then the crumb); past that the actions wrap to their own line. -->
+  <!-- A narrow pane drops the quiet text first (meta, then the crumb); past that the actions wrap to their own full-width line, starting at the left. -->
   <header class="@container flex-none">
     <div
       class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-6 py-3 @2xl:flex-nowrap @2xl:py-0"
@@ -44,7 +44,10 @@ const frameActions: Component | null = inject(frameActionsKey, null);
       </span>
       <h1 class="min-w-0 truncate text-xl font-semibold tracking-tight">{{ title }}</h1>
       <slot name="status" />
-      <div class="ml-auto flex shrink-0 items-center gap-3">
+      <div
+        data-slot="page-actions"
+        class="flex w-full flex-wrap items-center gap-3 @2xl:ml-auto @2xl:w-auto @2xl:shrink-0 @2xl:flex-nowrap"
+      >
         <span v-if="$slots.meta"
               class="hidden text-muted-foreground @4xl:inline"
         ><slot name="meta" /></span>
