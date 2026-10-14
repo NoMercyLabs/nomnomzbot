@@ -16,6 +16,13 @@ import { merge } from '@/lib/array';
 
 export type MintId = () => string;
 
+// A place in one lane: the parent block and branch, and the order the step takes there.
+export type Spot = {
+  parentId: string | null;
+  branch: string | null;
+  order: number;
+};
+
 // Two steps in the same lane: same parent, same branch.
 function sameLane(left: PipelineStep, right: PipelineStep): boolean {
   return laneOf(left) === laneOf(right);
@@ -40,7 +47,7 @@ function subtreeIds(steps: PipelineStep[], id: string): Set<string> {
   return ids;
 }
 
-function laneOf(step: PipelineStep): string {
+function laneOf(step: Pick<PipelineStep, 'parent_step_id' | 'branch'>): string {
   return `${step.parent_step_id ?? ''}|${step.branch ?? ''}`;
 }
 
@@ -89,6 +96,52 @@ export function removeStep(steps: PipelineStep[], id: string): PipelineStep[] {
       sameLane(step, target) && step.order > target.order
         ? { ...step, order: step.order - 1 }
         : step);
+}
+
+// The place after the last step of a lane.
+export function laneEnd(
+  steps: PipelineStep[],
+  parentId: string | null,
+  branch: string | null,
+): Spot {
+  const lane = laneOf({ parent_step_id: parentId, branch });
+  const orders = steps
+    .filter((step: PipelineStep) =>
+      laneOf(step) === lane)
+    .map((step: PipelineStep) =>
+      step.order);
+
+  return {
+    parentId,
+    branch,
+    order: Math.max(-1, ...orders) + 1,
+  };
+}
+
+// New steps placed at the spot: the first is the step itself, the rest sit inside it. The later steps of the
+// lane move down one.
+export function insertSteps(
+  steps: PipelineStep[],
+  added: PipelineStep[],
+  spot: Spot,
+): PipelineStep[] {
+  const [root, ...inner] = added;
+
+  if (!root)
+    return steps;
+
+  const placed = {
+    ...root,
+    parent_step_id: spot.parentId,
+    branch: spot.branch,
+    order: spot.order,
+  };
+  const shifted = steps.map((step: PipelineStep) =>
+    sameLane(step, placed) && step.order >= spot.order
+      ? { ...step, order: step.order + 1 }
+      : step);
+
+  return [...merge(shifted, [placed], inner)];
 }
 
 // A step is plain JSON; a JSON copy also reads through the reactive proxy the draft holds it in, which

@@ -9,12 +9,15 @@
 -->
 <script setup lang="ts">
 // One step on the canvas (5-workbench.html:58-108). The shape says what it is: a circle runs an action, a
-// diamond is a check that splits the flow into lanes. A check's lanes hold their own numbered steps (3.1, 3.2).
+// diamond is a check that splits the flow into lanes. A check's lanes hold their own numbered steps (3.1, 3.2),
+// and each lane ends in a button that adds a step to it.
+import Add from '~icons/nnz/add';
 import CornerDownRight from '~icons/nnz/arrow-forward-down';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PipelineActionDescriptor } from '@/api/pipelines';
+import { Button } from '@/components/ui/button';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 
 import { actionIcon, blockIcon } from './stepIcons';
@@ -31,9 +34,11 @@ const props = defineProps<{
   node: StepNode;
   selectedKey: string | null;
   descriptors: ReadonlyMap<string, PipelineActionDescriptor>;
+  readOnly: boolean;
 }>();
 
-const emit = defineEmits<{ select: [key: string] }>();
+// addTo names the lane in words, so the palette can say where the step goes.
+const emit = defineEmits<{ select: [key: string]; addTo: [lane: StepLane, label: string] }>();
 
 const { t, te } = useI18n();
 const text = useLocalizedText();
@@ -61,6 +66,13 @@ const selected = computed(() => props.node.key === props.selectedKey);
 
 function laneName(lane: StepLane, index: number): string {
   return laneTitle(lane, index, { t, te });
+}
+
+function addTo(lane: StepLane, index: number): void {
+  emit('addTo', lane, t('dashboard.pipelines.workbench.palette.target', {
+    lane: laneName(lane, index),
+    number: props.node.number,
+  }));
 }
 </script>
 
@@ -115,13 +127,27 @@ function laneName(lane: StepLane, index: number): string {
           :node="child"
           :selected-key="selectedKey"
           :descriptors="descriptors"
+          :read-only="readOnly"
           @select="emit('select', $event)"
+          @add-to="(lane, label) => emit('addTo', lane, label)"
         />
       </ol>
       <p v-else class="flex items-center gap-2 text-xs text-muted-foreground">
         <CornerDownRight class="size-4" aria-hidden="true" />
         {{ $t('dashboard.pipelines.workbench.lane.empty') }}
       </p>
+      <Button
+        data-lane-add
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="w-fit"
+        :disabled="readOnly"
+        @click="addTo(lane, index)"
+      >
+        <Add aria-hidden="true" />
+        {{ $t('dashboard.pipelines.workbench.palette.addTo', { lane: laneName(lane, index) }) }}
+      </Button>
     </div>
   </li>
 </template>

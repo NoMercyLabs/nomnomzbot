@@ -257,6 +257,16 @@ a:not([data-slot]):hover {
   background: var(--destructive);
 }
 
+/* A command list group heading is a small quiet label above its rows. The CLI group styles it through a
+   cmdk-group-heading attribute the reka label never carries, so it rendered at body size. */
+[data-slot='command-group-heading'] {
+  padding: var(--s1_5) var(--s2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
 /* Hit areas (owner 2026-10-12, tester THINDAL: "too small, easier to hit"). The look stays compact. A
    transparent ::before grows the press target to --hit (24px minimum), --hit-icon (32px) for an icon-only
    control, and 44px on a touch screen. It never changes the visible size or the layout. */

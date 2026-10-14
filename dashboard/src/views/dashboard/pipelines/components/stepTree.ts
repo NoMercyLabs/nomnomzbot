@@ -20,6 +20,9 @@ export type StepLane = {
   // The case step of a switch or random lane: it carries the match or the weight.
   head: PipelineStep | null;
   nodes: StepNode[];
+  // Where a step added to this lane goes: under the block or its case step, on the block's branch.
+  parentId: string | null;
+  branch: string | null;
 };
 
 export type StepNode = {
@@ -96,6 +99,8 @@ function lanesOf(step: PipelineStep, groups: Siblings, place: Place): StepLane[]
         kind,
         head: null,
         nodes: nodesOf(inLane, groups, laneStart(place, lane)),
+        parentId: step.id,
+        branch: BRANCH_OF[kind],
       };
     });
   }
@@ -109,6 +114,8 @@ function lanesOf(step: PipelineStep, groups: Siblings, place: Place): StepLane[]
       kind,
       head,
       nodes: nodesOf(childrenOf(head, groups), groups, laneStart(place, lane)),
+      parentId: head.id,
+      branch: null,
     }));
   }
 
@@ -121,6 +128,8 @@ function lanesOf(step: PipelineStep, groups: Siblings, place: Place): StepLane[]
       kind,
       head: null,
       nodes: nodesOf(children, groups, laneStart(place, 0)),
+      parentId: step.id,
+      branch: null,
     }];
   }
 
@@ -141,17 +150,27 @@ export function buildStepTree(steps: PipelineStep[]): StepNode[] {
   return nodesOf(groups.get(null) ?? [], groups, { number: '', key: '' });
 }
 
-// The node with this key anywhere in the tree, lanes included.
-export function findNode(nodes: StepNode[], key: string): StepNode | undefined {
+function findWhere(nodes: StepNode[], test: (node: StepNode) => boolean): StepNode | undefined {
   for (const node of nodes) {
-    if (node.key === key)
+    if (test(node))
       return node;
 
-    const inner = findNode(node.lanes.flatMap((lane: StepLane) => lane.nodes), key);
+    const inner = findWhere(node.lanes.flatMap((lane: StepLane) => lane.nodes), test);
 
     if (inner)
       return inner;
   }
 
   return undefined;
+}
+
+// The node with this key anywhere in the tree, lanes included.
+export function findNode(nodes: StepNode[], key: string): StepNode | undefined {
+  return findWhere(nodes, (node: StepNode) =>
+    node.key === key);
+}
+
+export function findStepNode(nodes: StepNode[], id: string): StepNode | undefined {
+  return findWhere(nodes, (node: StepNode) =>
+    node.step.id === id);
 }

@@ -8,15 +8,16 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// One pipeline on the workbench (5-workbench.html): what starts it, its steps in the order the engine walks
-// them with every check split into lanes, and the picked step in detail beside the canvas. Narrower than a
-// laptop the details slide in as a drawer, and the back button closes it.
+// One pipeline on the workbench (5-workbench.html): the steps to add, what starts it, its steps in the order
+// the engine walks them with every check split into lanes, and the picked step in detail beside the canvas.
+// Narrower than a laptop the palette and the details slide in as drawers, and the back button closes them.
+import Add from '~icons/nnz/add';
 import Undo from '~icons/nnz/arrow-back-up';
 import Redo from '~icons/nnz/arrow-forward-up';
 import Flag from '~icons/nnz/flag';
 import Lightning from '~icons/nnz/lightning';
 import { toast } from 'vue-sonner';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 
@@ -27,6 +28,7 @@ import {
   usePipelineCatalog,
   useSavePipeline,
   type PipelineActionDescriptor,
+  type PipelineStep,
 } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -38,9 +40,12 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useShortcut } from '@/composables/useShortcut';
 
+import { newAction, newBlock, type AddableBlock } from './components/newSteps';
 import StepCard from './components/StepCard.vue';
 import StepInspector from './components/StepInspector.vue';
-import { buildStepTree, findNode } from './components/stepTree';
+import { laneEnd, type MintId, type Spot } from './components/stepEdits';
+import StepPalette from './components/StepPalette.vue';
+import { buildStepTree, findNode, findStepNode, type StepLane } from './components/stepTree';
 import { startSources, type StartSource } from './components/stepWords';
 import { useStepDraft } from './useStepDraft';
 
@@ -119,6 +124,64 @@ function remove(): void {
   toast(t(`${page}.removed`), { action: { label: t(`${page}.undo`), onClick: draft.undo } });
 }
 
+const paletteOpen = ref(false);
+const palette = useTemplateRef<InstanceType<typeof StepPalette>>('palette');
+
+// The lane the person chose to add to, with its words; none adds at the end of the top level.
+const target = ref<{ lane: StepLane; label: string } | null>(null);
+
+watch(paletteOpen, (open: boolean) => {
+  if (!open) {
+    target.value = null;
+  }
+});
+
+async function openPalette(): Promise<void> {
+  paletteOpen.value = true;
+  await nextTick();
+  palette.value?.focus();
+}
+
+function addTo(lane: StepLane, label: string): void {
+  target.value = { lane, label };
+  void openPalette();
+}
+
+function spot(): Spot | undefined {
+  const lane = target.value?.lane;
+
+  return lane
+    ? laneEnd(draft.steps.value, lane.parentId, lane.branch)
+    : undefined;
+}
+
+// A new step opens in the details at once, so it is clear where to set it up.
+function added(id: string | null): void {
+  const node = id === null
+    ? undefined
+    : findStepNode(tree.value, id);
+
+  paletteOpen.value = false;
+  target.value = null;
+  selectedKey.value = node?.key ?? null;
+}
+
+function addAction(type: string): void {
+  const make = (mint: MintId): PipelineStep[] =>
+    newAction(type, mint);
+  const id = draft.add(make, spot());
+
+  added(id);
+}
+
+function addBlock(kind: AddableBlock): void {
+  const make = (mint: MintId): PipelineStep[] =>
+    newBlock(kind, mint);
+  const id = draft.add(make, spot());
+
+  added(id);
+}
+
 async function save(): Promise<void> {
   if (!draft.dirty.value || !canWrite.value) return;
 
@@ -149,6 +212,15 @@ useShortcut({
   mod: true,
   label: `${page}.shortcuts.redo`,
 }, draft.redo);
+
+useShortcut({
+  key: 'a',
+  label: `${page}.shortcuts.add`,
+}, () => {
+  if (canWrite.value) {
+    void openPalette();
+  }
+});
 
 useShortcut({
   key: 's',
@@ -237,6 +309,23 @@ const leaveOpen = computed<boolean>({
     </template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 flex-1 gap-3 p-6 max-md:py-0">
+    <SidePanel
+      v-model:open="paletteOpen"
+      side="left"
+      pinned
+      :label="$t('dashboard.pipelines.workbench.palette.label')"
+    >
+      <StepPalette
+        ref="palette"
+        class="xl:w-64"
+        :actions="catalog.data.value?.actions ?? []"
+        :read-only="!canWrite"
+        :target="target?.label ?? null"
+        @action="addAction"
+        @block="addBlock"
+        @release="target = null"
+      />
+    </SidePanel>
     <PanelCard
       class="min-w-0 flex-1"
       :title="$t('dashboard.pipelines.workbench.steps', { count: stepCount }, stepCount)"
@@ -256,12 +345,27 @@ const leaveOpen = computed<boolean>({
             :node="node"
             :selected-key="selectedKey"
             :descriptors="descriptors"
+            :read-only="!canWrite"
             @select="pick"
+            @add-to="addTo"
           />
         </ol>
         <p v-else class="text-sm text-muted-foreground">
           {{ $t('dashboard.pipelines.workbench.empty') }}
         </p>
+        <Button
+          data-workbench-add
+          type="button"
+          variant="outline"
+          size="sm"
+          class="w-fit"
+          :disabled="!canWrite"
+          :title="canWrite ? undefined : $t('dashboard.pipelines.noWrite')"
+          @click="openPalette"
+        >
+          <Add aria-hidden="true" />
+          {{ $t('dashboard.pipelines.workbench.palette.addEnd') }}
+        </Button>
         <p class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm">
           <Flag class="size-4 shrink-0" aria-hidden="true" />
           {{ $t('dashboard.pipelines.workbench.end') }}

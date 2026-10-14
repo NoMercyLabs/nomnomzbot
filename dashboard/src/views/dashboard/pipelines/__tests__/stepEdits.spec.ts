@@ -12,7 +12,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { PipelineStep } from '@/api/pipelines';
 
-import { duplicateStep, numberLanes, removeStep, withIds } from '../components/stepEdits';
+import {
+  duplicateStep,
+  insertSteps,
+  laneEnd,
+  numberLanes,
+  removeStep,
+  withIds,
+} from '../components/stepEdits';
 
 function step(over: Partial<PipelineStep>): PipelineStep {
   return {
@@ -110,9 +117,35 @@ describe('the step edits', () => {
       item.id === 'new2')?.branch).toBe('then');
   });
 
+  it('adds a new step with its inner steps at the end of the lane it is given', () => {
+    const block = [
+      step({ id: 'pick', block_kind: 'random_branch' }),
+      step({
+        id: 'path',
+        parent_step_id: 'pick',
+        block_kind: 'random_case',
+      }),
+    ];
+    const steps = insertSteps(graph, block, laneEnd(graph, 'check', 'then'));
+
+    expect(shape(steps).slice(4)).toEqual(['pick@check:1', 'path@pick:0']);
+    expect(steps[4]?.branch).toBe('then');
+  });
+
+  it('adds a new step at a place inside a lane and moves the later steps down', () => {
+    const steps = insertSteps(graph, [step({ id: 'new' })], {
+      parentId: null,
+      branch: null,
+      order: 1,
+    });
+
+    expect(shape(steps)).toEqual(['say@-:0', 'check@-:2', 'inner@check:0', 'wait@-:3', 'new@-:1']);
+  });
+
   it('leaves the saved list as it was', () => {
     removeStep(graph, 'say');
     duplicateStep(graph, 'wait', counter());
+    insertSteps(graph, [step({ id: 'new' })], laneEnd(graph, null, null));
 
     expect(shape(graph)).toEqual(['say@-:0', 'check@-:1', 'inner@check:0', 'wait@-:2']);
   });

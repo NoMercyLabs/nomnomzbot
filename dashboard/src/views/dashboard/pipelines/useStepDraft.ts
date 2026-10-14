@@ -15,7 +15,19 @@ import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
 
 import type { Pipeline, PipelineStep } from '@/api/pipelines';
 
-import { duplicateStep, numberLanes, removeStep, withIds } from './components/stepEdits';
+import {
+  duplicateStep,
+  insertSteps,
+  laneEnd,
+  numberLanes,
+  removeStep,
+  withIds,
+  type MintId,
+  type Spot,
+} from './components/stepEdits';
+
+// Makes the new step, with the steps inside it, from fresh ids.
+export type MakeSteps = (mint: MintId) => PipelineStep[];
 
 export type StepDraft = {
   steps: Ref<PipelineStep[]>;
@@ -26,6 +38,8 @@ export type StepDraft = {
   redo: () => void;
   remove: (id: string) => void;
   duplicate: (id: string) => void;
+  // Adds at the spot, or at the end of the top level; gives the new step's id.
+  add: (make: MakeSteps, spot?: Spot) => string | null;
 };
 
 const mint = (): string =>
@@ -34,7 +48,8 @@ const mint = (): string =>
 export function useStepDraft(saved: Ref<Pipeline | undefined>): StepDraft {
   const steps = ref<PipelineStep[]>([]);
   const baseline = ref('[]');
-  const history = useRefHistory(steps, { capacity: 50 });
+  // Recorded at once: a deferred record of the load would land after clear() and let Undo empty the list.
+  const history = useRefHistory(steps, { capacity: 50, flush: 'sync' });
 
   watch(saved, (pipeline: Pipeline | undefined) => {
     if (!pipeline) return;
@@ -56,6 +71,13 @@ export function useStepDraft(saved: Ref<Pipeline | undefined>): StepDraft {
     },
     duplicate: (id: string) => {
       steps.value = duplicateStep(steps.value, id, mint);
+    },
+    add: (make: MakeSteps, spot?: Spot) => {
+      const added = make(mint);
+
+      steps.value = insertSteps(steps.value, added, spot ?? laneEnd(steps.value, null, null));
+
+      return added[0]?.id ?? null;
     },
   };
 }

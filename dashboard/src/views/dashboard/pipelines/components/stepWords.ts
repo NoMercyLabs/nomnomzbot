@@ -33,15 +33,18 @@ export type StartSource = { kind: 'command' | 'chat' | 'timer' | 'event'; name: 
 
 const page = 'dashboard.pipelines.workbench';
 
-export function stepTitle(step: PipelineStep, { t, te }: Words): string {
-  if (step.block_kind !== null)
-    return t(`${page}.block.${step.block_kind}`);
-
-  const key = `pipelineBlock.${step.action.type}`;
+export function actionTitle(type: string, { t, te }: Words): string {
+  const key = `pipelineBlock.${type}`;
 
   return te(key)
     ? t(key)
-    : humanize(step.action.type);
+    : humanize(type);
+}
+
+export function stepTitle(step: PipelineStep, words: Words): string {
+  return step.block_kind === null
+    ? actionTitle(step.action.type, words)
+    : words.t(`${page}.block.${step.block_kind}`);
 }
 
 export function stepSentence(

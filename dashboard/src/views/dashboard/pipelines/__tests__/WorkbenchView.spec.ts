@@ -88,6 +88,7 @@ const catalog = {
           required: true,
           repeatable: false,
           description: null,
+          templated: false,
           declaresVariable: false,
         },
       ],
@@ -103,6 +104,7 @@ const catalog = {
           required: true,
           repeatable: false,
           description: null,
+          templated: false,
           declaresVariable: false,
         },
       ],
@@ -300,6 +302,19 @@ const numbers = (): (string | undefined)[] =>
     item.dataset.stepNumber);
 
 describe('changing the steps', () => {
+  it('has nothing to undo right after the pipeline loads', async () => {
+    await open();
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(true);
+
+    await press('[data-step-id="pause"] button');
+    await press('[data-step-remove]');
+    await press('[data-workbench-undo]');
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(true);
+    expect(numbers()).toEqual(['1', '1.1', '2']);
+  });
+
   it('removes the picked step and brings it back on Undo', async () => {
     await open();
     await press('[data-step-id="pause"] button');
@@ -357,6 +372,77 @@ describe('changing the steps', () => {
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines');
   });
 
+  it('adds a picked action from the palette at the end and opens it to set it up', async () => {
+    await open();
+    await press('[data-workbench-add]');
+
+    const item = document.body.querySelector<HTMLElement>('[data-palette-action="wait"]')!;
+
+    item.click();
+    await flushPromises();
+
+    expect(numbers()).toEqual(['1', '1.1', '2', '3']);
+
+    const inspector = document.body.querySelector<HTMLElement>('[data-step-inspector]')!;
+
+    expect(inspector.textContent).toContain('Step 3');
+    expect(inspector.textContent).toContain('Wait');
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it('adds a check from the palette with the lanes it needs', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-block="random_branch"]');
+
+    const added = cards().at(-1)!;
+
+    expect(added.dataset.stepNumber).toBe('3');
+
+    expect([...added.querySelectorAll<HTMLElement>('[data-step-lane]')].map((lane: HTMLElement) =>
+      lane.dataset.laneKind)).toEqual(['path', 'path']);
+  });
+
+  it('adds a step into the lane the person picked, and says where it goes', async () => {
+    await open();
+    await press('[data-step-id="check"] [data-lane-kind="no"] [data-lane-add]');
+
+    expect(document.body.querySelector('[data-palette-target]')?.textContent?.trim())
+      .toBe('Adds to No of step 1');
+
+    await press('[data-palette-action="wait"]');
+
+    const lanes = [...card('check').querySelectorAll<HTMLElement>('[data-step-lane]')];
+    const added = lanes[1]?.querySelector<HTMLElement>('[data-step]');
+
+    expect(added?.dataset.stepNumber).toBe('1.1');
+    expect(added?.querySelector('[data-step-title]')?.textContent?.trim()).toBe('Wait');
+    expect(numbers()).toEqual(['1', '1.1', '1.1', '2']);
+  });
+
+  it('adds at the end again once the person lets go of the lane', async () => {
+    await open();
+    await press('[data-step-id="check"] [data-lane-kind="no"] [data-lane-add]');
+    await press('[data-palette-target] button');
+
+    expect(document.body.querySelector('[data-palette-target]')).toBeNull();
+
+    await press('[data-palette-action="wait"]');
+
+    expect(numbers()).toEqual(['1', '1.1', '2', '3']);
+  });
+
+  it('groups the palette actions under their category words', async () => {
+    await open();
+    await press('[data-workbench-add]');
+
+    const groups = [...document.body.querySelectorAll<HTMLElement>('[data-palette-group]')]
+      .map((group: HTMLElement) =>
+        group.dataset.paletteGroup);
+
+    expect(groups).toEqual(['blocks', 'pipeline.category.chat', 'pipeline.category.flow']);
+  });
+
   it('locks every change for a role that cannot change pipelines', async () => {
     held.value = [];
     await open();
@@ -366,5 +452,7 @@ describe('changing the steps', () => {
 
     expect(document.body.querySelector<HTMLButtonElement>('[data-step-remove]')?.closest('fieldset')?.disabled)
       .toBe(true);
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-add]')?.disabled).toBe(true);
   });
 });
