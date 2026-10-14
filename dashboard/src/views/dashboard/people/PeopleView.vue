@@ -119,7 +119,11 @@ const activeQuery = computed<typeof everyone | null>(() => {
   return everyone;
 });
 
+// Someone the bot never observed has no first-seen moment, so they are not new.
 function isNew(row: CommunityRow): boolean {
+  if (!row.firstSeen)
+    return false;
+
   return Date.now() - new Date(row.firstSeen).getTime() <= NEW_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 }
 

@@ -35,6 +35,7 @@
         "error": "De lijst met mensen kon niet laden.",
         "more": "Meer mensen laden",
         "lastSeen": "Laatst gezien {ago}",
+        "neverSeen": "Nog niet gezien",
         "notInChannel": "Niet in dit kanaal",
         "banned": "Verbannen",
         "roles": {

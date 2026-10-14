@@ -190,6 +190,19 @@ public partial class CommunityController : BaseController
         return lastChatAt > profileSeen ? lastChatAt : profileSeen;
     }
 
+    /// <summary>
+    /// The earliest moment a viewer was observed in the channel: their first chat message or the profile's
+    /// FirstSeenAt, whichever is earlier; null when the bot never observed them (never the user-record date).
+    /// </summary>
+    private static DateTime? EarliestSeen(DateTime? firstChatAt, ViewerProfile? profile)
+    {
+        DateTime? profileSeen = profile?.FirstSeenAt;
+        if (firstChatAt is null || profileSeen is null)
+            return firstChatAt ?? profileSeen;
+
+        return firstChatAt < profileSeen ? firstChatAt : profileSeen;
+    }
+
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
     public record CommunityUserDto(
@@ -207,8 +220,9 @@ public partial class CommunityController : BaseController
         int CommandsUsed,
         string TrustLevel,
         bool IsBanned,
-        DateTime FirstSeen,
-        DateTime LastSeen
+        // Real sightings only: null when the bot never observed the viewer (never the user-record date).
+        DateTime? FirstSeen,
+        DateTime? LastSeen
     );
 
     public record UserDetailDto(
@@ -224,8 +238,8 @@ public partial class CommunityController : BaseController
         int CommandsUsed,
         string TrustLevel,
         bool IsBanned,
-        DateTime FirstSeen,
-        DateTime LastSeen,
+        DateTime? FirstSeen,
+        DateTime? LastSeen,
         List<ActivityDto> RecentActivity,
         List<BanRecordDto> BanHistory,
         // Asked of Twitch for this one user: true/false when Twitch answered, null when it could not
@@ -613,12 +627,8 @@ public partial class CommunityController : BaseController
                         profile is null ? 0 : (int)profile.TotalCommandsUsed,
                         "vip",
                         false,
-                        stats?.FirstSeen
-                            ?? user?.CreatedAt
-                            ?? _timeProvider.GetUtcNow().UtcDateTime,
+                        EarliestSeen(stats?.FirstSeen, profile),
                         NewestSeen(stats?.LastSeen, profile)
-                            ?? user?.CreatedAt
-                            ?? _timeProvider.GetUtcNow().UtcDateTime
                     );
                 }),
             ];
@@ -748,12 +758,8 @@ public partial class CommunityController : BaseController
                         profile is null ? 0 : (int)profile.TotalCommandsUsed,
                         trustLevel,
                         isBanned,
-                        stats?.FirstSeen
-                            ?? user?.CreatedAt
-                            ?? _timeProvider.GetUtcNow().UtcDateTime,
+                        EarliestSeen(stats?.FirstSeen, profile),
                         NewestSeen(stats?.LastSeen, profile)
-                            ?? user?.CreatedAt
-                            ?? _timeProvider.GetUtcNow().UtcDateTime
                     );
                 }),
         ];
@@ -1053,8 +1059,8 @@ public partial class CommunityController : BaseController
             profile is null ? 0 : (int)profile.TotalCommandsUsed,
             trustLevel,
             isBanned,
-            messageStats?.FirstSeen ?? user.CreatedAt,
-            NewestSeen(messageStats?.LastSeen, profile) ?? user.CreatedAt,
+            EarliestSeen(messageStats?.FirstSeen, profile),
+            NewestSeen(messageStats?.LastSeen, profile),
             recentMessages,
             banHistory,
             await AskTwitchIsVipAsync(broadcasterId, userId, ct),

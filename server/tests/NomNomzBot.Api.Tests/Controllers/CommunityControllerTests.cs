@@ -1477,6 +1477,71 @@ public sealed class CommunityControllerTests
         detail.LastSeen.Should().Be(PresenceAt);
     }
 
+    [Fact]
+    public async Task ListMembers_moderator_never_seen_in_chat_has_no_first_or_last_seen()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-mod", "quietmod", "QuietMod");
+        Guid modUserId = db.Users.Local.Single().Id;
+        db.ChannelModerators.Add(new() { ChannelId = Broadcaster, UserId = modUserId });
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: "moderator",
+            cursor: null,
+            CancellationToken.None
+        );
+
+        CommunityController.CommunityUserDto mod = Data(result).Single(m => m.Id == "twitch-mod");
+        mod.LastSeen.Should().BeNull();
+        mod.FirstSeen.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetUserDetail_without_chat_or_presence_has_no_seen_dates()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-ghost", "ghost", "Ghost");
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: moderators
+        );
+
+        IActionResult result = await controller.GetUserDetail(
+            Broadcaster.ToString(),
+            "twitch-ghost",
+            CancellationToken.None
+        );
+
+        CommunityController.UserDetailDto detail = (
+            (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
+        ).Data!;
+        detail.LastSeen.Should().BeNull();
+        detail.FirstSeen.Should().BeNull();
+    }
+
     private static string BanEntryJson(string userId, string bannedBy) =>
         $$"""
             {"userId":"{{userId}}","username":"{{userId}}","displayName":"{{userId}}","profileImageUrl":null,"reason":"spamming","bannedBy":"{{bannedBy}}","bannedAt":"2026-09-01T00:00:00Z"}
