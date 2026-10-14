@@ -15,7 +15,6 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Check from '~icons/nnz/check';
 import Clock from '~icons/nnz/clock';
-import Cross from '~icons/nnz/cross';
 import StopSign from '~icons/nnz/stop-sign';
 
 import { useCurrentUser } from '@/api/auth';
@@ -46,8 +45,6 @@ const props = defineProps<{
   lines: ChatLine[];
   hour12: boolean;
 }>();
-
-const emit = defineEmits<{ close: [] }>();
 
 const { t, n, locale } = useI18n();
 const profile = useProfileDialogStore();
@@ -210,15 +207,6 @@ async function undo(): Promise<void> {
         @click="openProfile"
       >
         {{ $t('dashboard.chat.viewer.profile') }}
-      </Button>
-      <Button
-        data-viewer-close
-        variant="ghost"
-        size="icon"
-        :aria-label="$t('dashboard.chat.viewer.close')"
-        @click="emit('close')"
-      >
-        <Cross class="size-5" aria-hidden="true" />
       </Button>
     </template>
     <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-7">

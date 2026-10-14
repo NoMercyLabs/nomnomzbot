@@ -48,11 +48,12 @@ const roomy = computed(() =>
 useFrameRail(computed(() =>
   folds.value && open.value));
 
-// As a drawer it covers the button that opened it, so its top panel carries a close button.
+// Its top panel carries the one close button, beside the content and in the drawer; a pinned panel beside the
+// content never closes.
 provideDrawerClose(() => {
   open.value = false;
 }, computed(() =>
-  !roomy.value));
+  !roomy.value || !props.pinned));
 
 // The drawer opens without picking a control: focus on its first button (often Reset) would arm Enter.
 function keepFocusOff(event: Event): void {

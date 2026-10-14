@@ -363,12 +363,10 @@ describe('ViewerPanel', () => {
     expect(button('Timeout')).toBeDefined();
   });
 
-  it('asks the page to close when the close button is pressed', async () => {
-    const wrapper = await show('u1');
+  // Owner 2026-10-14 ("i definitely needed 2 here lol"): the side panel draws the one close button.
+  it('draws no close button of its own', async () => {
+    await show('u1');
 
-    document.body.querySelector<HTMLElement>('[data-viewer-close]')?.click();
-    await flushPromises();
-
-    expect(wrapper.emitted('close')).toHaveLength(1);
+    expect(document.body.querySelector('[data-viewer-close]')).toBeNull();
   });
 });

@@ -1318,7 +1318,7 @@ describe('ChatView display drawer', () => {
 
       rowOf('m2').click();
       await settle();
-      viewer()?.querySelector<HTMLElement>('[data-viewer-close]')?.click();
+      viewer()?.querySelector<HTMLElement>('[data-drawer-close]')?.click();
       await settle();
 
       expect(viewer()).toBeNull();

@@ -11,7 +11,6 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
-import Cross from '~icons/nnz/cross';
 
 import { useChannelAccess } from '@/api/access';
 import {
@@ -29,7 +28,6 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 
 const props = defineProps<{ channelId: string | null; channelName: string }>();
-const emit = defineEmits<{ close: [] }>();
 
 const { t } = useI18n();
 const access = useChannelAccess(() => props.channelId);
@@ -50,9 +48,10 @@ const raids = useRaidAssessments(() =>
 const ban = useMassBanRaiders(() => props.channelId);
 const clear = useClearChat(() => props.channelId);
 
+// The plain switches first, then the ones that carry a number.
 const modeKeys = [
-  'slowMode', 'followersOnly', 'emotesOnly', 'subscriberOnly',
-  'uniqueChatMode', 'nonModeratorChatDelay',
+  'emotesOnly', 'subscriberOnly', 'uniqueChatMode',
+  'slowMode', 'followersOnly', 'nonModeratorChatDelay',
 ] as const satisfies (keyof ChatSettings)[];
 
 type Mode = (typeof modeKeys)[number];
@@ -197,9 +196,6 @@ async function confirm(): Promise<void> {
   <PanelCard class="h-full" pad :title="$t('dashboard.chat.modTools.title')">
     <template #actions>
       <span class="text-sm text-muted-foreground">{{ $t('dashboard.chat.modTools.for', { name: channelName }) }}</span>
-      <Button variant="ghost" size="icon" :aria-label="$t('dashboard.chat.modTools.close')" @click="emit('close')">
-        <Cross class="size-4" aria-hidden="true" />
-      </Button>
     </template>
     <div class="grid gap-6">
       <p v-if="failed" role="alert" class="text-sm text-destructive">{{ $t('dashboard.chat.modTools.failed') }}</p>
@@ -212,32 +208,31 @@ async function confirm(): Promise<void> {
           {{ $t('dashboard.chat.modTools.loadFailed') }}
         </p>
         <template v-else-if="settings.data.value">
-          <div v-for="mode in modeKeys" :key="mode" class="grid gap-1">
-            <div class="flex items-center justify-between gap-3">
+          <!-- One row per mode: name and hint at the left; the number and the switch in fixed columns at the right,
+               so every switch lines up (owner 2026-10-14: "sort these so they are visually better aligned"). -->
+          <div
+            v-for="mode in modeKeys"
+            :key="mode"
+            class="grid grid-cols-[minmax(0,1fr)_4.5rem_auto] items-center gap-x-3 gap-y-1"
+          >
+            <div class="min-w-0">
               <label :for="`mode-${mode}`" class="text-sm font-medium">
                 {{ $t(`dashboard.chat.modTools.mode.${mode}`) }}
               </label>
-              <Switch
-                :id="`mode-${mode}`"
-                :data-mode="mode"
-                :model-value="settings.data.value[mode]"
-                :disabled="!canWrite || save.isPending.value"
-                @update:model-value="toggle(mode, $event)"
-              />
+              <p class="text-xs text-muted-foreground">
+                {{ $t(`dashboard.chat.modTools.hint.${mode}`, {
+                  value: mode === 'slowMode' ? settings.data.value.slowModeDelay
+                    : mode === 'followersOnly' ? settings.data.value.followersOnlyDuration
+                      : settings.data.value.nonModeratorChatDelayDuration,
+                }) }}
+              </p>
             </div>
-            <p class="text-xs text-muted-foreground">
-              {{ $t(`dashboard.chat.modTools.hint.${mode}`, {
-                value: mode === 'slowMode' ? settings.data.value.slowModeDelay
-                  : mode === 'followersOnly' ? settings.data.value.followersOnlyDuration
-                    : settings.data.value.nonModeratorChatDelayDuration,
-              }) }}
-            </p>
             <Input
               v-if="mode === 'slowMode' || mode === 'followersOnly' || mode === 'nonModeratorChatDelay'"
               :data-duration="mode"
               type="number"
               :min="mode === 'followersOnly' ? 0 : 1"
-              class="w-24"
+              class="col-start-2 w-full"
               :aria-invalid="rangeError === mode"
               :aria-label="$t(`dashboard.chat.modTools.duration.${mode}`)"
               :model-value="mode === 'slowMode' ? settings.data.value.slowModeDelay
@@ -246,7 +241,20 @@ async function confirm(): Promise<void> {
               :disabled="!canWrite || save.isPending.value"
               @change="setDuration(mode, $event)"
             />
-            <p v-if="rangeError === mode" role="alert" :data-duration-error="mode" class="text-xs text-destructive">
+            <Switch
+              :id="`mode-${mode}`"
+              :data-mode="mode"
+              class="col-start-3"
+              :model-value="settings.data.value[mode]"
+              :disabled="!canWrite || save.isPending.value"
+              @update:model-value="toggle(mode, $event)"
+            />
+            <p
+              v-if="rangeError === mode"
+              role="alert"
+              :data-duration-error="mode"
+              class="col-span-3 text-xs text-destructive"
+            >
               {{ $t(`dashboard.chat.modTools.range.${mode}`) }}
             </p>
           </div>

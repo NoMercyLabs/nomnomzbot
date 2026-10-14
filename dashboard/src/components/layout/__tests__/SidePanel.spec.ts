@@ -116,10 +116,16 @@ describe('the side panel', () => {
       expect(wrapper.props('open')).toBe(false);
     });
 
-    it('is absent beside the content, where the button that opened it stays in view', async () => {
-      await panelsAt(1440);
+    // Owner 2026-10-14 ("i definitely needed 2 here lol"): panels drew their own X too. One X, from the side
+    // panel, in both places; the panels draw none.
+    it('also closes the panel beside the content', async () => {
+      const wrapper = await panelsAt(1440);
+      const closes = document.body.querySelectorAll<HTMLElement>('[data-drawer-close]');
 
-      expect(document.body.querySelector('[data-drawer-close]')).toBeNull();
+      expect(closes).toHaveLength(1);
+      closes[0]!.click();
+      await flushPromises();
+      expect(wrapper.props('open')).toBe(false);
     });
   });
 

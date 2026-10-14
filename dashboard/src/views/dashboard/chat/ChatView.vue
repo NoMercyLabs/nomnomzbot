@@ -476,14 +476,13 @@ async function confirmBan(): Promise<void> {
           :channel-login="current?.login ?? null"
           :lines="visible"
           :hour12="display.timestamps === '12'"
-          @close="closeViewer"
         />
       </SidePanel>
       <SidePanel v-model:open="displayOpen" see-through data-display-panel :label="$t('dashboard.chat.display.title')">
         <ChatDisplayPanel v-model="display" />
       </SidePanel>
       <SidePanel v-model:open="modToolsOpen" data-mod-tools-panel :label="$t('dashboard.chat.modTools.title')">
-        <ModToolsPanel :channel-id="channelId" :channel-name="current?.login ?? ''" @close="modToolsOpen = false" />
+        <ModToolsPanel :channel-id="channelId" :channel-name="current?.login ?? ''" />
       </SidePanel>
     </div>
   </div>
