@@ -14,7 +14,7 @@ import { defineComponent, h, ref } from 'vue';
 import { createRouter, createWebHistory, type Router } from 'vue-router';
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { useBackCloses } from '@/composables/useBackCloses';
+import { useBackCloses, useBackLayer } from '@/composables/useBackCloses';
 
 let router: Router;
 let page: VueWrapper | undefined;
@@ -175,6 +175,38 @@ describe('a menu on a phone', () => {
     expect(window.history.state?.backLayers).toBe(1);
 
     Reflect.deleteProperty(navigator, 'userActivation');
+  });
+
+  // The chat suggestion list, the reply bar and the code editor are not reka layers; they sign up instead.
+  it('closes a panel that is not a reka layer, and only that panel', async () => {
+    setWidth(400);
+
+    const panel = ref(false);
+
+    page = mount(defineComponent({
+      setup() {
+        useBackCloses();
+
+        useBackLayer(panel, () => {
+          panel.value = false;
+        });
+
+        return () =>
+          panel.value
+            ? h('div', { 'data-panel': '' })
+            : null;
+      },
+    }), { attachTo: document.body, global: { plugins: [router] } });
+
+    await router.isReady();
+
+    panel.value = true;
+    await settle();
+    expect(window.history.state?.backLayers).toBe(1);
+
+    await goBack();
+    expect(panel.value).toBe(false);
+    expect(router.currentRoute.value.fullPath).toBe('/chat');
   });
 });
 

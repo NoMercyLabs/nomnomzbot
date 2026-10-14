@@ -29,6 +29,7 @@ import EmailReply from '~icons/nnz/email-reply';
 import { chatMessageMaxLength, useChatEmotes, useSendChat, type ChatLine } from '@/api/chat';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { useBackLayer } from '@/composables/useBackCloses';
 import { merge } from '@/lib/array';
 
 import { ChatInput, EmoteNode, type EmoteImage } from '../chatEditor';
@@ -54,6 +55,13 @@ const emotes = useChatEmotes(() => props.channelId);
 const list = useComposerSuggestions(text, caret, () => emotes.data.value ?? [], () =>
   props.chatters);
 const listOpen = computed(() => list.suggestions.value.length > 0);
+
+// On a phone the back button closes the suggestion list first, then the reply, like a native app.
+useBackLayer(computed(() => replyTo.value !== null), () => {
+  replyTo.value = null;
+});
+
+useBackLayer(listOpen, list.dismiss);
 
 // Every emote this sender can use, by code, with the image the box shows for it.
 const images = computed(() =>

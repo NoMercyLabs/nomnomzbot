@@ -30,6 +30,7 @@ import {
   type TestTrigger,
   type VersionsPage,
 } from '@/composables/useEditorBridge';
+import { useBackLayer } from '@/composables/useBackCloses';
 import { useEditorLabels } from '@/composables/useEditorLabels';
 
 const props = withDefaults(
@@ -79,7 +80,7 @@ const payload = computed<EditorOpenPayload>(() => ({
   labels: labels.value,
 }));
 
-useEditorBridge({
+const bridge = useEditorBridge({
   origin: window.location.origin,
   target: () => frame.value?.contentWindow ?? null,
   payload: () => payload.value,
@@ -93,6 +94,10 @@ useEditorBridge({
     ? (request) => props.previewAction!(request)
     : undefined,
 });
+
+// The phone back button asks the editor to close, the same as its own close button, so unsaved work is asked
+// about instead of lost.
+useBackLayer(ref(true), bridge.requestClose);
 
 const opener = ref<HTMLElement | null>(null);
 

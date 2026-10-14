@@ -23,13 +23,42 @@ import {
   useMediaQuery,
   useMutationObserver,
 } from '@vueuse/core';
+import { watch, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const openLayers = '[data-dismissable-layer]:not([data-state="closed"])';
 
-function layerCount(): number {
+// Panels that are not reka layers (a suggestion list, a reply bar, a full-screen editor), newest last.
+const panels: (() => void)[] = [];
+
+// A panel that is not a reka layer signs up here while it is open, so back closes it like any menu.
+export function useBackLayer(open: Readonly<Ref<boolean>>, close: () => void): void {
+  function leave(): void {
+    const index = panels.indexOf(close);
+
+    if (index >= 0) {
+      panels.splice(index, 1);
+    }
+  }
+
+  watch(open, (isOpen: boolean) => {
+    leave();
+
+    if (isOpen) {
+      panels.push(close);
+    }
+  }, { immediate: true });
+
+  tryOnScopeDispose(leave);
+}
+
+function rekaLayerCount(): number {
   return [...document.querySelectorAll(openLayers)].filter((layer) =>
     layer.querySelector('[role="tooltip"]') === null).length;
+}
+
+function layerCount(): number {
+  return rekaLayerCount() + panels.length;
 }
 
 // How many layer steps the current history entry stands on.
@@ -51,8 +80,15 @@ function gesture(): boolean {
   return navigator.userActivation?.isActive ?? true;
 }
 
+// A reka layer opens over the page, so it is above any panel and closes first.
 function closeTopLayer(): void {
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  if (rekaLayerCount() > 0) {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    return;
+  }
+
+  panels.at(-1)?.();
 }
 
 export function useBackCloses(): void {
