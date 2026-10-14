@@ -169,9 +169,9 @@ function historyPage(options: Options | undefined): unknown {
   };
 }
 
-// A person's own channel emotes by Twitch id (what GET community/{userId}/emotes answers).
+// A person's own channel emotes by internal id (the route only takes the internal Guid).
 const emotes: Record<string, Record<string, unknown>[]> = {
-  u1: [
+  g1: [
     {
       code: 'adaHi',
       provider: 'Twitch',
@@ -1476,6 +1476,34 @@ describe('the profile header', () => {
     expect(document.body.querySelector('[data-profile-ban]')).not.toBeNull();
   });
 
+  it('shows the Twitch channel standing with the Twitch logo', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const standing = header().querySelector('[data-profile-standing]');
+
+    expect(standing?.textContent?.trim()).toBe('Affiliate');
+    expect(standing?.querySelector('[data-profile-platform]')).not.toBeNull();
+  });
+
+  it('calls a channel without a Twitch status regular', async () => {
+    (profiles.g1 as { identity: { broadcasterType: string } }).identity.broadcasterType = '';
+    await openPage();
+    await openUser('u1');
+
+    expect(header().querySelector('[data-profile-standing]')?.textContent?.trim()).toBe('Regular');
+  });
+
+  it('claims no standing before the bot has read the account from Twitch', async () => {
+    (profiles.g1 as { identity: { accountCreatedAtUtc: string | null } }).identity
+      .accountCreatedAtUtc = null;
+
+    await openPage();
+    await openUser('u1');
+
+    expect(header().querySelector('[data-profile-standing]')).toBeNull();
+  });
+
   it('marks the subscriber role with the Twitch logo alone', async () => {
     await openPage();
     await openUser('u1');
@@ -1771,7 +1799,7 @@ describe('the Emotes tab', () => {
     await openTab('Emotes');
 
     expect(calls.some((c: Call) =>
-      c.path.endsWith('/community/{userId}/emotes') && userIdOf({ params: c.params } as Options) === 'u1'))
+      c.path.endsWith('/community/{userId}/emotes') && userIdOf({ params: c.params } as Options) === 'g1'))
       .toBe(true);
 
     expect(groups()).toEqual(['Twitch', 'SevenTv']);
@@ -1808,6 +1836,19 @@ describe('the Emotes tab', () => {
 
     expect(link?.href).toBe('https://7tv.app/emotes/7d');
     expect(link?.textContent).toContain('Open on 7TV');
+  });
+
+  // Only an affiliate or a partner can have Twitch emotes; 7TV, BTTV and FFZ sets belong to anyone.
+  it('shows no Twitch emotes for a regular channel and says why', async () => {
+    (profiles.g1 as { identity: { broadcasterType: string } }).identity.broadcasterType = '';
+    await openPage();
+    await openUser('u1');
+    await openTab('Emotes');
+
+    const active = dialogs()[0]!.querySelector('[role="tabpanel"][data-state="active"]');
+
+    expect(groups()).toEqual(['SevenTv']);
+    expect(active?.textContent).toContain('A regular Twitch channel has no Twitch emotes.');
   });
 
   it('says the person has no channel emotes when the bot finds none', async () => {

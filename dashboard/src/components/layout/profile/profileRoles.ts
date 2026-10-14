@@ -77,3 +77,19 @@ export function roleKeys(
 
   return roles;
 }
+
+export type TwitchStanding = 'regular' | 'affiliate' | 'partner';
+
+const standings = ['affiliate', 'partner'] as const satisfies TwitchStanding[];
+
+// The person's Twitch channel standing. Twitch sends "" for a regular channel, and the bot reads it together
+// with the account age, so without an account age the bot does not know yet.
+export function twitchStanding(profile: PersonProfile | null): TwitchStanding | null {
+  const identity = profile?.identity;
+
+  if (!identity?.accountCreatedAtUtc)
+    return null;
+
+  return standings.find((standing: TwitchStanding) =>
+    standing === identity.broadcasterType) ?? 'regular';
+}

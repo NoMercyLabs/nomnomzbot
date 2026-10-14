@@ -283,7 +283,13 @@
     "emotes": {
       "title": "Hun kanaal-emotes",
       "empty": "Geen kanaal-emotes gevonden voor deze persoon.",
-      "error": "Hun emotes konden niet laden."
+      "error": "Hun emotes konden niet laden.",
+      "regular": "Een gewoon Twitch-kanaal heeft geen Twitch-emotes."
+    },
+    "twitchStanding": {
+      "regular": "Gewoon",
+      "affiliate": "Affiliate",
+      "partner": "Partner"
     },
     "lastSeen": "Laatst gezien {ago}",
     "age": {

@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 import { usePersonEmotes, type PersonEmote } from '@/api/community';
 import AssetCardPopover from '@/components/layout/AssetCard.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import type { TwitchStanding } from '@/components/layout/profile/profileRoles';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import {
@@ -25,7 +26,11 @@ import {
   type AssetCard,
 } from '@/lib/assetCards';
 
-const props = defineProps<{ userId: string }>();
+const props = defineProps<{
+  // The internal user id: the emotes route takes the Guid, not the Twitch id.
+  userId: string | null;
+  standing: TwitchStanding | null;
+}>();
 
 const PROVIDERS = ['Twitch', 'SevenTv', 'Bttv', 'Ffz'] as const;
 
@@ -43,8 +48,15 @@ const emotes = usePersonEmotes(channelId, () =>
 const state = usePanelState(emotes, (list: PersonEmote[]) =>
   list.length === 0);
 
+// Only an affiliate or a partner can have Twitch emotes; 7TV, BTTV and FFZ sets belong to anyone.
+const regular = computed(() =>
+  props.standing === 'regular');
+const providers = computed(() =>
+  PROVIDERS.filter((provider) =>
+    !regular.value || provider !== 'Twitch'));
+
 const groups = computed(() =>
-  PROVIDERS.map((provider) => ({ provider, emotes: shown(provider) }))
+  providers.value.map((provider) => ({ provider, emotes: shown(provider) }))
     .filter((group) =>
       group.emotes.length > 0));
 
@@ -79,6 +91,9 @@ function shown(provider: string): ShownEmote[] {
     @retry="emotes.refetch()"
   >
     <div class="grid gap-4">
+      <p v-if="regular" data-profile-emotes-regular class="text-sm text-muted-foreground">
+        {{ $t('profile.emotes.regular') }}
+      </p>
       <section
         v-for="group in groups"
         :key="group.provider"

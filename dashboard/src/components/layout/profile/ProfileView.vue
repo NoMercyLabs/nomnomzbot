@@ -40,7 +40,11 @@ import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
 import ProfileStanding from '@/components/layout/profile/ProfileStanding.vue';
 import ProfileVoice from '@/components/layout/profile/ProfileVoice.vue';
 import ProfileWarn from '@/components/layout/profile/ProfileWarn.vue';
-import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
+import {
+  roleKeys,
+  type RoleKey,
+  twitchStanding,
+} from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -310,7 +314,10 @@ async function banNow(): Promise<void> {
           </TabsContent>
 
           <TabsContent value="emotes" force-mount :class="PANEL_CLASS">
-            <ProfileEmotes :user-id="userId" />
+            <ProfileEmotes
+              :user-id="person?.internalUserId ?? null"
+              :standing="twitchStanding(viewerProfile)"
+            />
           </TabsContent>
 
           <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-4']">

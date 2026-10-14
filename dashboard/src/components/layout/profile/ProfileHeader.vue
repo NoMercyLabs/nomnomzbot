@@ -18,7 +18,11 @@ import { useI18n } from 'vue-i18n';
 import type { CommunityMember } from '@/api/community';
 import type { PersonProfile } from '@/api/people';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
-import { roleIcons, type RoleKey } from '@/components/layout/profile/profileRoles';
+import {
+  roleIcons,
+  type RoleKey,
+  twitchStanding,
+} from '@/components/layout/profile/profileRoles';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +53,8 @@ const inDialog = injectDialogRootContext(null) !== null;
 const who = computed<ProfilePreview | null>(() => props.person ?? props.preview ?? null);
 const title = computed<string>(() => who.value?.displayName ?? t('profile.title'));
 const pronouns = computed<string | null>(() => props.profile?.identity.pronoun ?? null);
+const standing = computed(() =>
+  twitchStanding(props.profile));
 const lastSeen = computed<string>(() =>
   agoText(props.person?.lastSeen ?? undefined, new Date(), locale.value));
 
@@ -155,6 +161,15 @@ const stats = computed<Stat[]>(() => {
             {{ $t(role === 'subscriber'
               ? 'profile.roles.subscriberBadge'
               : `profile.roles.${role}`) }}
+          </Badge>
+          <Badge
+            v-if="standing"
+            data-profile-standing
+            variant="secondary"
+            class="bg-muted text-muted-foreground"
+          >
+            <PlatformLogo data-profile-platform platform="twitch" mono />
+            {{ $t(`profile.twitchStanding.${standing}`) }}
           </Badge>
           <span v-if="lastSeen" class="text-xs text-muted-foreground">{{
             $t('profile.lastSeen', { ago: lastSeen })

@@ -283,7 +283,13 @@
     "emotes": {
       "title": "Their channel emotes",
       "empty": "No channel emotes found for this person.",
-      "error": "Their emotes could not load."
+      "error": "Their emotes could not load.",
+      "regular": "A regular Twitch channel has no Twitch emotes."
+    },
+    "twitchStanding": {
+      "regular": "Regular",
+      "affiliate": "Affiliate",
+      "partner": "Partner"
     },
     "lastSeen": "Last seen {ago}",
     "age": {
