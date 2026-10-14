@@ -36,23 +36,27 @@ internal sealed class WidgetOptionProvider : IPipelineOptionProvider
 
     public async Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     )
     {
         IQueryable<Widget> query = _db.Widgets.Where(w => w.BroadcasterId == broadcasterId);
-        if (!string.IsNullOrWhiteSpace(search))
+        if (request.IsValueLookup)
         {
-            string term = search.ToLowerInvariant();
+            Guid valueId = request.ValueAsGuid ?? Guid.Empty;
+            query = query.Where(w => w.Id == valueId);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            string term = request.Search.ToLowerInvariant();
             query = query.Where(w => w.Name.ToLower().Contains(term));
         }
 
         int total = await query.CountAsync(ct);
         List<Widget> page = await query
             .OrderBy(w => w.Name)
-            .Skip((pagination.Page - 1) * pagination.PageSize)
-            .Take(pagination.PageSize)
+            .Skip((request.Pagination.Page - 1) * request.Pagination.PageSize)
+            .Take(request.Pagination.PageSize)
             .ToListAsync(ct);
 
         List<PipelineOption> options = [.. page.Select(ToOption)];

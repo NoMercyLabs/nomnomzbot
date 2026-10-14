@@ -41,8 +41,7 @@ internal sealed class DiscordRoleOptionProvider
 
     public async Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     )
     {
@@ -68,9 +67,13 @@ internal sealed class DiscordRoleOptionProvider
             );
 
         IEnumerable<DiscordGuildRoleDto> filtered = roles.Value;
-        if (!string.IsNullOrWhiteSpace(search))
+        if (request.IsValueLookup)
             filtered = filtered.Where(r =>
-                r.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                string.Equals(r.Id, request.Value, StringComparison.Ordinal)
+            );
+        else if (!string.IsNullOrWhiteSpace(request.Search))
+            filtered = filtered.Where(r =>
+                r.Name.Contains(request.Search, StringComparison.OrdinalIgnoreCase)
             );
 
         List<DiscordGuildRoleDto> ordered = [.. filtered.OrderByDescending(r => r.Position)];
@@ -78,8 +81,8 @@ internal sealed class DiscordRoleOptionProvider
         List<PipelineOption> page =
         [
             .. ordered
-                .Skip((pagination.Page - 1) * pagination.PageSize)
-                .Take(pagination.PageSize)
+                .Skip((request.Pagination.Page - 1) * request.Pagination.PageSize)
+                .Take(request.Pagination.PageSize)
                 .Select(ToOption),
         ];
 

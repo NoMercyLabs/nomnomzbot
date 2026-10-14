@@ -125,8 +125,7 @@ public sealed class PipelineOptionProviderGuardTests
         Result<PipelineOptionListResult> result = await registry.GetOptionsAsync(
             PipelineActionFieldKind.Reward,
             Guid.NewGuid(),
-            search: null,
-            new PaginationParams(),
+            new PipelineOptionQuery(Search: null, Value: null, new PaginationParams()),
             CancellationToken.None
         );
 
@@ -142,8 +141,7 @@ public sealed class PipelineOptionProviderGuardTests
 
         public Task<Result<PipelineOptionListResult>> GetOptionsAsync(
             Guid broadcasterId,
-            string? search,
-            PaginationParams pagination,
+            PipelineOptionQuery request,
             CancellationToken ct = default
         ) => Task.FromResult(Result.Success(PipelineOptionListResult.Of([], 0)));
     }

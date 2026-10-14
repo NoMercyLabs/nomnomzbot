@@ -67,6 +67,30 @@ public sealed record PipelineOptionListResult(
 }
 
 /// <summary>
+/// What a caller asks of a picker kind's option list.
+/// </summary>
+/// <param name="Search">Filters by label/secondary text when the source supports it; null/empty is unfiltered.</param>
+/// <param name="Value">
+/// When set, the list holds only the option whose <see cref="PipelineOption.Value"/> equals this exactly
+/// (ordinal) and <paramref name="Search"/> is ignored — how the dashboard resolves the label for a value saved
+/// in a step even when that option is not on the first page. For <c>twitch_user</c> it is the Twitch user id.
+/// </param>
+/// <param name="Pagination">Page window for the search-filtered list.</param>
+public sealed record PipelineOptionQuery(string? Search, string? Value, PaginationParams Pagination)
+{
+    /// <summary>True when the caller asks for one option by its saved value.</summary>
+    public bool IsValueLookup => !string.IsNullOrEmpty(Value);
+
+    /// <summary>
+    /// <see cref="Value"/> as a canonical lower-case Guid, for kinds whose option value is a Guid id. Null when
+    /// it is not exactly the text <see cref="Guid.ToString()"/> yields (no braces, no upper case), so only a
+    /// stored value can match.
+    /// </summary>
+    public Guid? ValueAsGuid =>
+        Guid.TryParseExact(Value, "D", out Guid id) && id.ToString() == Value ? id : null;
+}
+
+/// <summary>
 /// Resolves the option list for ONE <see cref="PipelineActionFieldKind"/> resource-picker kind — the supply
 /// side of the S045 field schema (which declares WHAT to pick; this supplies the recognisable list to pick
 /// FROM). One implementation per picker kind, registered generically via the assembly scan
@@ -79,13 +103,12 @@ public interface IPipelineOptionProvider
     PipelineActionFieldKind Kind { get; }
 
     /// <summary>
-    /// Resolves the tenant-scoped option page. <paramref name="search"/> filters by label/secondary text when
-    /// the source supports it; null/empty returns the unfiltered page.
+    /// Resolves the tenant-scoped option page described by <paramref name="request"/>: a search-filtered page, or
+    /// the one option a saved value points at when <see cref="PipelineOptionQuery.Value"/> is set.
     /// </summary>
     Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     );
 }
@@ -100,8 +123,7 @@ public interface IPipelineOptionRegistry
     Task<Result<PipelineOptionListResult>> GetOptionsAsync(
         PipelineActionFieldKind kind,
         Guid broadcasterId,
-        string? search,
-        PaginationParams pagination,
+        PipelineOptionQuery request,
         CancellationToken ct = default
     );
 }
