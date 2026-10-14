@@ -69,7 +69,6 @@
         "noMatch": "Geen runs gevonden.",
         "line": "{time} · {trigger}",
         "ms": "{ms} ms",
-        "close": "Sluiten",
         "filter": {
           "label": "Runs tonen",
           "all": "Alle",

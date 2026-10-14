@@ -26,8 +26,6 @@ import { Button } from '@/components/ui/button';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
 
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-
 import FailedRunDialog from './components/FailedRunDialog.vue';
 import NewScriptDialog from './components/NewScriptDialog.vue';
 import ScriptDetail from './components/ScriptDetail.vue';
@@ -170,7 +168,11 @@ function opened(id: string | null): void {
     </template>
   </PageHeader>
   <NewScriptDialog v-model:open="newOpen" @created="opened" />
-  <ListDetail :show-detail="asked !== ''">
+  <ListDetail
+    v-model:aside-open="runsOpen"
+    :show-detail="asked !== ''"
+    :aside-label="$t('dashboard.scripts.runs.title')"
+  >
     <template #list>
       <div class="mb-3 grid gap-2">
         <SearchField
@@ -221,13 +223,4 @@ function opened(id: string | null): void {
     </template>
   </ListDetail>
   <FailedRunDialog :run="failedRun" @close="failedRun = null" />
-  <Dialog v-model:open="runsOpen">
-    <DialogContent :show-close-button="false" class="flex max-h-[90vh] flex-col p-0 sm:max-w-115">
-      <DialogTitle class="sr-only">{{ $t('dashboard.scripts.runs.title') }}</DialogTitle>
-      <ScriptRunsPanel :runs="runs" @open="failedRun = $event" />
-      <Button variant="outline" class="m-2" @click="runsOpen = false">
-        {{ $t('dashboard.scripts.runs.close') }}
-      </Button>
-    </DialogContent>
-  </Dialog>
 </template>

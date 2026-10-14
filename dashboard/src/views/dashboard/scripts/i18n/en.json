@@ -69,7 +69,6 @@
         "noMatch": "No runs match.",
         "line": "{time} · {trigger}",
         "ms": "{ms} ms",
-        "close": "Close",
         "filter": {
           "label": "Show runs",
           "all": "All",

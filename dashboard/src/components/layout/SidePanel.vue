@@ -18,7 +18,16 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 // Data hooks and attributes from the page land on the panel itself, beside the content or in the drawer.
 defineOptions({ inheritAttrs: false });
 
-withDefaults(defineProps<{ label: string; side?: 'left' | 'right' }>(), { side: 'right' });
+// A pinned panel always sits in the row where it fits and fills the column its layout gives it; open then
+// drives only the drawer.
+withDefaults(defineProps<{
+  label: string;
+  side?: 'left' | 'right';
+  pinned?: boolean;
+}>(), {
+  side: 'right',
+  pinned: false,
+});
 
 const open = defineModel<boolean>('open', { required: true });
 const roomy = useMediaQuery('(min-width: 1280px)');
@@ -31,22 +40,23 @@ function keepFocusOff(event: Event): void {
 
 <template>
   <aside
-    v-if="roomy && open"
-    v-bind="$attrs"
+    v-if="roomy && (open || pinned)"
     data-slot="side-panel"
-    class="flex w-80 min-h-0 flex-none flex-col *:flex-1"
+    class="flex min-h-0 flex-col *:flex-1"
+    :class="pinned ? 'min-w-0' : 'w-80 flex-none'"
+    v-bind="$attrs"
   >
     <slot />
   </aside>
   <Sheet v-else-if="!roomy" v-model:open="open">
     <SheetContent
-      v-bind="$attrs"
       data-slot="side-panel"
       data-drawer
       :side="side"
       :show-close-button="false"
       @open-auto-focus="keepFocusOff"
       class="w-88 max-w-[90vw] gap-0 p-0 sm:max-w-none *:flex-1 *:rounded-none *:border-0"
+      v-bind="$attrs"
     >
       <SheetTitle class="sr-only">{{ label }}</SheetTitle>
       <SheetDescription class="sr-only">{{ label }}</SheetDescription>

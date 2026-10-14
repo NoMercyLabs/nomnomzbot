@@ -585,6 +585,12 @@ describe('ScriptsView', () => {
     (document.body.querySelector('[data-close]') as HTMLElement).click();
     await settle();
 
+    // Below laptop width the runs are a drawer that the Runs button opens.
+    byText('button', 'Runs')!.click();
+    await settle();
+
+    expect(document.body.querySelector('[role="dialog"][data-slot="list-detail-aside"]')).not.toBeNull();
+
     const runNames = (): string[] =>
       [...document.body.querySelectorAll<HTMLElement>('[data-run-row] [data-run-name]')].map(
         (node) => node.textContent?.trim() ?? '',

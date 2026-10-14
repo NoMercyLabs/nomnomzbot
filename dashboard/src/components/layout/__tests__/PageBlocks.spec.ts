@@ -8,8 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { mount, type VueWrapper } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { frameActionsKey } from '@/components/layout/frameActions';
@@ -73,14 +73,80 @@ describe('the list and detail layout', () => {
     );
   });
 
-  it('adds the aside column only when an aside is given', () => {
-    expect(mount(ListDetail, { slots }).find('[data-slot="list-detail-aside"]').exists()).toBe(
-      false,
-    );
+  describe('the aside', () => {
+    const realMatchMedia = window.matchMedia;
+    let mounted: VueWrapper | undefined;
 
-    const withAside: VueWrapper = mount(ListDetail, { slots: { ...slots, aside: '<p>aside</p>' } });
+    // A window of the given width: matchMedia answers min-width queries against it.
+    function setWidth(width: number): void {
+      window.matchMedia = ((query: string): MediaQueryList => {
+        const min = query.match(/min-width:\s*(\d+)px/);
 
-    expect(withAside.find('[data-slot="list-detail-aside"]').text()).toBe('aside');
+        return {
+          matches: min
+            ? width >= Number(min[1])
+            : false,
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          dispatchEvent: () => false,
+          onchange: null,
+        } as MediaQueryList;
+      }) as typeof window.matchMedia;
+    }
+
+    async function withAside(width: number, asideOpen = false): Promise<VueWrapper> {
+      setWidth(width);
+
+      mounted = mount(ListDetail, {
+        attachTo: document.body,
+        props: { asideLabel: 'Runs', asideOpen },
+        slots: { ...slots, aside: '<p>aside</p>' },
+      });
+
+      await flushPromises();
+
+      return mounted;
+    }
+
+    afterEach(() => {
+      mounted?.unmount();
+      mounted = undefined;
+      window.matchMedia = realMatchMedia;
+      document.body.innerHTML = '';
+    });
+
+    it('adds the aside column only when an aside is given, always shown where it fits', async () => {
+      setWidth(1440);
+      expect(mount(ListDetail, { slots }).find('[data-slot="list-detail-aside"]').exists()).toBe(false);
+
+      const wrapper = await withAside(1440);
+
+      expect(wrapper.find('aside[data-slot="list-detail-aside"]').text()).toBe('aside');
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    });
+
+    // Stoney 2026-10-14: "Make sure you overlay what no longer fits with a drawer from left or right". The aside
+    // vanished below laptop width with no way to reach it on most pages.
+    it('turns the aside into a drawer from the right where it no longer fits, opened on demand', async () => {
+      const closed = await withAside(1024);
+
+      expect(closed.find('aside').exists()).toBe(false);
+      expect(document.body.textContent).not.toContain('aside');
+
+      closed.unmount();
+      document.body.innerHTML = '';
+
+      await withAside(1024, true);
+
+      const drawer = document.body.querySelector<HTMLElement>('[role="dialog"][data-slot="list-detail-aside"]');
+
+      expect(drawer).not.toBeNull();
+      expect(drawer!.dataset.side).toBe('right');
+      expect(drawer!.textContent).toContain('aside');
+    });
   });
 });
 

@@ -10,7 +10,15 @@
 <script setup lang="ts">
 // The list and detail layout: a list column, the detail beside it, and an optional aside.
 // On a phone only one shows: the list, or the detail over the list once showDetail is true.
-withDefaults(defineProps<{ showDetail?: boolean }>(), { showDetail: false });
+// The aside sits in the row where it fits; narrower, it is a drawer from the right that asideOpen opens.
+import SidePanel from '@/components/layout/SidePanel.vue';
+
+withDefaults(defineProps<{ showDetail?: boolean; asideLabel?: string }>(), {
+  showDetail: false,
+  asideLabel: '',
+});
+
+const asideOpen = defineModel<boolean>('asideOpen', { default: false });
 </script>
 
 <template>
@@ -35,12 +43,14 @@ withDefaults(defineProps<{ showDetail?: boolean }>(), { showDetail: false });
     >
       <slot name="detail" />
     </div>
-    <div
+    <SidePanel
       v-if="$slots.aside"
+      v-model:open="asideOpen"
+      pinned
       data-slot="list-detail-aside"
-      class="flex min-h-0 min-w-0 flex-col max-xl:hidden"
+      :label="asideLabel"
     >
       <slot name="aside" />
-    </div>
+    </SidePanel>
   </section>
 </template>
