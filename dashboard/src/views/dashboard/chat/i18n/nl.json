@@ -187,6 +187,57 @@
           "symbols": "Symbolen",
           "flags": "Vlaggen"
         }
+      },
+      "modTools": {
+        "title": "Moderatietools",
+        "for": "voor {name}",
+        "close": "Moderatietools sluiten",
+        "failed": "De moderatieactie is mislukt. Probeer het opnieuw.",
+        "modes": "Chatmodi",
+        "loading": "Chatmodi laden...",
+        "loadFailed": "Chatmodi konden niet worden geladen.",
+        "mode": {
+          "slowMode": "Trage modus",
+          "followersOnly": "Alleen volgers",
+          "emotesOnly": "Alleen emotes",
+          "subscriberOnly": "Alleen abonnees",
+          "uniqueChatMode": "Unieke chat",
+          "nonModeratorChatDelay": "Vertraging voor niet-moderators"
+        },
+        "hint": {
+          "slowMode": "Eén bericht per {value} seconden per persoon.",
+          "followersOnly": "Alleen mensen die minstens {value} minuten geleden volgden, kunnen chatten.",
+          "emotesOnly": "Alleen emotes kunnen worden verzonden.",
+          "subscriberOnly": "Alleen abonnees kunnen chatten.",
+          "uniqueChatMode": "Dubbele berichten worden geblokkeerd.",
+          "nonModeratorChatDelay": "Berichten van niet-moderators wachten {value} seconden."
+        },
+        "shieldNote": "Schildmodus houdt nieuwe accounts tegen en schakelt in één keer alleen volgers in.",
+        "raids": "Raidaccounts",
+        "raidCount": "{count} vijandige raidaccounts beoordeeld en nog niet verbannen.",
+        "massBan": "Massaal verbannen...",
+        "cleanup": "Opruimen",
+        "clearHint": "Verwijdert alle berichten in de chat van {name} voor iedereen.",
+        "clear": "Chat wissen",
+        "confirm": {
+          "ban": {
+            "title": "Raidaccounts massaal verbannen?",
+            "description": "{count} beoordeelde vijandige accounts verbannen in deelnemende kanalen?",
+            "action": "Massaal verbannen"
+          },
+          "clear": {
+            "title": "Chat wissen?",
+            "description": "Alle berichten in de chat van {name} voor iedereen verwijderen?",
+            "action": "Chat wissen"
+          }
+        },
+        "duration": {
+          "slowMode": "Seconden trage modus",
+          "followersOnly": "Minuten alleen volgers",
+          "nonModeratorChatDelay": "Seconden vertraging niet-moderators"
+        },
+        "loadingRaids": "Raidbeoordelingen laden...",
+        "raidsFailed": "Raidbeoordelingen konden niet worden geladen."
       }
     }
   }

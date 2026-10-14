@@ -187,6 +187,57 @@
           "symbols": "Symbols",
           "flags": "Flags"
         }
+      },
+      "modTools": {
+        "title": "Mod tools",
+        "for": "for {name}",
+        "close": "Close mod tools",
+        "failed": "The moderation action failed. Try again.",
+        "modes": "Chat modes",
+        "loading": "Loading chat modes...",
+        "loadFailed": "Could not load chat modes.",
+        "mode": {
+          "slowMode": "Slow mode",
+          "followersOnly": "Followers-only",
+          "emotesOnly": "Emote-only",
+          "subscriberOnly": "Twitch subscriber-only",
+          "uniqueChatMode": "Unique chat",
+          "nonModeratorChatDelay": "Non-moderator delay"
+        },
+        "hint": {
+          "slowMode": "One message every {value} seconds per person.",
+          "followersOnly": "Only people who followed at least {value} minutes ago can chat.",
+          "emotesOnly": "Only emotes can be sent.",
+          "subscriberOnly": "Only Twitch subscribers can chat.",
+          "uniqueChatMode": "Duplicate messages are blocked.",
+          "nonModeratorChatDelay": "Messages from non-moderators wait {value} seconds."
+        },
+        "shieldNote": "Shield mode holds new accounts and turns on followers-only in one press.",
+        "raids": "Raid accounts",
+        "raidCount": "{count} hostile raid accounts assessed and not yet banned.",
+        "massBan": "Mass ban...",
+        "cleanup": "Clean up",
+        "clearHint": "Removes every message in {name}'s chat for everyone.",
+        "clear": "Clear chat",
+        "confirm": {
+          "ban": {
+            "title": "Mass ban raid accounts?",
+            "description": "Ban {count} assessed hostile accounts across participating channels?",
+            "action": "Mass ban"
+          },
+          "clear": {
+            "title": "Clear chat?",
+            "description": "Remove every message in {name}'s chat for everyone?",
+            "action": "Clear chat"
+          }
+        },
+        "duration": {
+          "slowMode": "Slow mode seconds",
+          "followersOnly": "Followers-only minutes",
+          "nonModeratorChatDelay": "Non-moderator delay seconds"
+        },
+        "loadingRaids": "Loading raid assessments...",
+        "raidsFailed": "Could not load raid assessments."
       }
     }
   }

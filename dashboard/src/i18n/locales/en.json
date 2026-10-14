@@ -688,7 +688,8 @@
         "clearPersonVoice": "Clear voice for user {userId}",
         "turnOnWidget": "Turn on widget {id}",
         "turnOffWidget": "Turn off widget {id}",
-        "saveWidgetSettings": "Save settings for widget {id}"
+        "saveWidgetSettings": "Save settings for widget {id}",
+        "saveChatModes": "Save chat modes"
       },
       "dismiss": "Dismiss",
       "attention": {

@@ -688,7 +688,8 @@
         "clearPersonVoice": "Stem voor gebruiker {userId} wissen",
         "turnOnWidget": "Widget {id} inschakelen",
         "turnOffWidget": "Widget {id} uitschakelen",
-        "saveWidgetSettings": "Instellingen voor widget {id} opslaan"
+        "saveWidgetSettings": "Instellingen voor widget {id} opslaan",
+        "saveChatModes": "Chatmodi opslaan"
       },
       "dismiss": "Sluiten",
       "attention": {

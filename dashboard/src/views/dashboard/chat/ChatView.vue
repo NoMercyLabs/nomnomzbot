@@ -16,6 +16,7 @@ import { computed, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
+import Moderator from '~icons/nnz/moderator';
 
 import { useCurrentUser } from '@/api/auth';
 import {
@@ -40,6 +41,7 @@ import { useChatDisplay } from './chatDisplay';
 import ChatComposer from './components/ChatComposer.vue';
 import ChatDisplayPanel from './components/ChatDisplayPanel.vue';
 import ChatLine from './components/ChatLine.vue';
+import ModToolsPanel from './components/ModToolsPanel.vue';
 import ViewerPanel from './components/ViewerPanel.vue';
 
 const { t } = useI18n();
@@ -50,6 +52,7 @@ const banner = useBanUser(channelId);
 
 const display = useChatDisplay();
 const displayOpen = ref(false);
+const modToolsOpen = ref(false);
 const focusedUserId = ref<string | null>(null);
 const currentUser = useCurrentUser();
 const me = computed<string | null>(() => currentUser.data.value?.username ?? null);
@@ -227,6 +230,16 @@ async function confirmBan(): Promise<void> {
       <div data-chat-controls class="ml-auto flex items-center gap-2">
         <SearchField v-model="search" class="w-64" :placeholder="$t('dashboard.chat.search.placeholder')" />
         <Button
+          data-mod-tools-toggle
+          variant="outline"
+          size="sm"
+          :aria-pressed="modToolsOpen"
+          @click="modToolsOpen = !modToolsOpen"
+        >
+          <Moderator class="size-4" aria-hidden="true" />
+          {{ $t('dashboard.chat.modTools.title') }}
+        </Button>
+        <Button
           data-display-toggle
           variant="outline"
           size="sm"
@@ -318,6 +331,9 @@ async function confirmBan(): Promise<void> {
       </SidePanel>
       <SidePanel v-model:open="displayOpen" see-through data-display-panel :label="$t('dashboard.chat.display.title')">
         <ChatDisplayPanel v-model="display" />
+      </SidePanel>
+      <SidePanel v-model:open="modToolsOpen" data-mod-tools-panel :label="$t('dashboard.chat.modTools.title')">
+        <ModToolsPanel :channel-id="channelId" :channel-name="current?.login ?? ''" @close="modToolsOpen = false" />
       </SidePanel>
     </div>
   </div>
