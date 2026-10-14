@@ -331,11 +331,10 @@ public sealed class CommunityControllerTests
     {
         CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
         ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
-        TwitchPageRequest? seen = null;
         moderators
             .GetVipsAsync(
                 Arg.Any<Guid>(),
-                Arg.Do<TwitchPageRequest>(p => seen = p),
+                Arg.Is<TwitchPageRequest>(p => p.After == "cursor-after-2" && p.PageSize == 2),
                 Arg.Any<CancellationToken>()
             )
             .Returns(
@@ -346,6 +345,26 @@ public sealed class CommunityControllerTests
                             new("vip-4", "Vip_Four", "vip_four"),
                         ],
                         NextCursor: "cursor-after-4",
+                        Total: 0
+                    )
+                )
+            );
+        moderators
+            .GetVipsAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<TwitchPageRequest>(p => p.After == null && p.PageSize == 100),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchVip>(
+                        [
+                            new("vip-1", "Vip_One", "vip_one"),
+                            new("vip-2", "Vip_Two", "vip_two"),
+                            new("vip-3", "Vip_Three", "vip_three"),
+                            new("vip-4", "Vip_Four", "vip_four"),
+                        ],
+                        NextCursor: null,
                         Total: 0
                     )
                 )
@@ -365,17 +384,107 @@ public sealed class CommunityControllerTests
             CancellationToken.None
         );
 
-        TwitchPageRequest sent =
-            seen ?? throw new InvalidOperationException("GetVipsAsync was never called.");
-        sent.After.Should().Be("cursor-after-2");
-        sent.PageSize.Should().Be(2);
-
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         PaginatedResponse<CommunityController.CommunityUserDto> body =
             (PaginatedResponse<CommunityController.CommunityUserDto>)ok.Value!;
         body.Data.Select(m => m.Id).Should().Equal("vip-3", "vip-4");
+        body.Total.Should().Be(4);
         body.HasMore.Should().BeTrue();
         body.NextCursor.Should().Be("cursor-after-4");
+    }
+
+    [Fact]
+    public async Task ListMembers_vip_total_is_the_real_vip_count_though_helix_sends_no_total()
+    {
+        CommunityController controller = Build(
+            CommunityControllerTestDbContext.New(),
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: TwoVipPages()
+        );
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 3 },
+            role: "vip",
+            cursor: null,
+            CancellationToken.None
+        );
+
+        PaginatedResponse<CommunityController.CommunityUserDto> body = Page(result);
+        body.Data.Select(m => m.Id).Should().Equal("v1", "v2", "v3");
+        body.Total.Should().Be(5);
+        body.HasMore.Should().BeTrue();
+        body.NextPage.Should().Be(2);
+        body.NextCursor.Should().Be("page-2");
+    }
+
+    [Fact]
+    public async Task ListMembers_vip_page_two_by_page_number_returns_the_second_helix_page()
+    {
+        CommunityController controller = Build(
+            CommunityControllerTestDbContext.New(),
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: TwoVipPages()
+        );
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Page = 2, Take = 3 },
+            role: "vip",
+            cursor: null,
+            CancellationToken.None
+        );
+
+        PaginatedResponse<CommunityController.CommunityUserDto> body = Page(result);
+        body.Data.Select(m => m.Id).Should().Equal("v4", "v5");
+        body.Total.Should().Be(5);
+        body.HasMore.Should().BeFalse();
+        body.NextPage.Should().BeNull();
+        body.NextCursor.Should().BeNull();
+    }
+
+    private static PaginatedResponse<CommunityController.CommunityUserDto> Page(
+        IActionResult result
+    )
+    {
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        return (PaginatedResponse<CommunityController.CommunityUserDto>)ok.Value!;
+    }
+
+    private static ITwitchModeratorsApi TwoVipPages()
+    {
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<TwitchPageRequest>(p => p.After == null),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchVip>(
+                        [new("v1", "V1", "v1"), new("v2", "V2", "v2"), new("v3", "V3", "v3")],
+                        NextCursor: "page-2",
+                        Total: 0
+                    )
+                )
+            );
+        moderators
+            .GetVipsAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<TwitchPageRequest>(p => p.After == "page-2"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchVip>(
+                        [new("v4", "V4", "v4"), new("v5", "V5", "v5")],
+                        NextCursor: null,
+                        Total: 0
+                    )
+                )
+            );
+        return moderators;
     }
 
     [Fact]
