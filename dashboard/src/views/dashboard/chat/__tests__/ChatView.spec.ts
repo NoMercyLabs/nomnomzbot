@@ -53,7 +53,11 @@ let sendOk: boolean = true;
 // The search answer per `before` cursor; the first page has no cursor. A cursor with no page fails.
 let searchPages: Record<string, SearchPage> = {};
 
+let favoriteList: Record<string, unknown>[] = [];
+
 const emoteList = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code) => ({
+  id: `id-${code}`,
+  origin: 'channel',
   code,
   provider: 'SevenTv',
   urls: { 1: `https://cdn.test/${code}-1.webp`, 2: `https://cdn.test/${code}-2.webp` },
@@ -122,6 +126,9 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/chat/emotes'))
         return { data: { data: emoteList }, response: { status: 200, ok: true } };
 
+      if (path.endsWith('/favorite-emotes'))
+        return { data: { data: [...favoriteList] }, response: { status: 200, ok: true } };
+
       if (path.endsWith('/auth/me')) {
         return { data: { data: { username: 'stoney_eagle' } }, response: { status: 200, ok: true } };
       }
@@ -141,6 +148,18 @@ vi.mock('@/api/client', () => ({
       return { data: { data: null }, response: { status: ok
         ? 200
         : 500, ok } };
+    },
+    PUT: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({
+        method: 'PUT',
+        path,
+        body: options?.body,
+        messageId: '',
+      });
+
+      favoriteList.unshift({ ...(options?.body as object), createdAt: '2026-10-14T00:00:00Z' });
+
+      return { data: { data: null }, response: { status: 200, ok: true } };
     },
     DELETE: async (path: string, options?: Options): Promise<Answer> => {
       const messageId = String(options?.params?.path?.messageId);
@@ -1510,6 +1529,7 @@ describe('ChatView emote picker', () => {
 
   beforeEach(() => {
     localStorage.removeItem('nnz.chat.recent-picks');
+    favoriteList = [];
   });
 
   async function openPicker(): Promise<void> {
@@ -1527,16 +1547,16 @@ describe('ChatView emote picker', () => {
     await settle();
   }
 
-  it('shows the emotes per source, then the emoji per group, with a jump bar to each', async () => {
+  it('shows this channel\'s emotes, then the emoji per group, with a jump bar to each', async () => {
     await open();
     await openPicker();
 
     expect(sections()).toEqual([
-      'SevenTv', 'emoji-smileys', 'emoji-people', 'emoji-animals', 'emoji-food', 'emoji-travel',
+      'channel', 'emoji-smileys', 'emoji-people', 'emoji-animals', 'emoji-food', 'emoji-travel',
       'emoji-activities', 'emoji-objects', 'emoji-symbols', 'emoji-flags',
     ]);
 
-    expect(itemsOf('SevenTv')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
+    expect(itemsOf('channel')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
     expect(item('bigCat').querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/bigCat-2.webp');
 
     const jumps = [...picker()!.querySelectorAll<HTMLElement>('[data-picker-jump]')].map((jump) =>
@@ -1563,8 +1583,33 @@ describe('ChatView emote picker', () => {
       jump.textContent.trim() === '' || jump.textContent.trim().length <= 2)).toBe(true);
 
     expect(rail[0]!.querySelector('img')!.getAttribute('src')).toBe('https://cdn.test/bigCat-2.webp');
-    expect(rail[0]!.getAttribute('aria-label')).toBe('7TV');
+    expect(rail[0]!.getAttribute('aria-label')).toBe('Stoney_Eagle');
     expect(rail[0]!.getAttribute('aria-current')).toBe('true');
+  });
+
+  // Stoney 2026-10-14: "allow for favorites". Right-click, or a long press on a phone, stars an emote; the star
+  // is saved for the person, and the starred emote leads the picker.
+  it('stars an emote on a right-click, saves it, and lists it first under Favorites', async () => {
+    await open();
+    await openPicker();
+
+    item('catJAM').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await settle();
+
+    const saved = calls.filter((call) =>
+      call.method === 'PUT' && call.path.endsWith('/favorite-emotes'));
+
+    expect(saved.map((call) =>
+      call.body)).toEqual([{
+      provider: 'SevenTv',
+      emoteId: 'id-catJAM',
+      code: 'catJAM',
+      imageUrl: 'https://cdn.test/catJAM-2.webp',
+    }]);
+
+    expect(sections()[0]).toBe('favorites');
+    expect(itemsOf('favorites')).toEqual(['catJAM']);
+    expect(typed()).toBe('');
   });
 
   it('puts a pick in at the cursor as its own word, stays open, and sends nothing', async () => {
@@ -1652,7 +1697,7 @@ describe('ChatView emote picker', () => {
       expect(picker()!.querySelector('[data-picker-query]')).toBeNull();
       expect(picker()!.querySelector('[data-picker-preview]')).toBeNull();
       expect(picker()!.contains(document.activeElement)).toBe(false);
-      expect(itemsOf('SevenTv')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
+      expect(itemsOf('channel')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
     });
 
     // A closed tray that hands the focus back to its button draws a focus ring there, and a focus in the box

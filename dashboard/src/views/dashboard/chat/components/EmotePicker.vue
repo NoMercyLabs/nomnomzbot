@@ -18,15 +18,18 @@ import { useI18n } from 'vue-i18n';
 import ClockBackward from '~icons/nnz/clock-backward';
 import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 import Smile from '~icons/nnz/smile';
+import StarFilled from '~icons/nnz/star-filled';
 
 import type { ChatEmoteEntry } from '@/api/chat';
+import { useFavoriteEmoteChange, useFavoriteEmotes, type FavoriteEmote } from '@/api/favoriteEmotes';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import type { Suggestion } from '../composerSuggest';
 import { loadEmoji, type EmojiEntry } from '../emojiCatalog';
-import { pickerSections, remember, type PickerSection } from '../emotePicker';
+import { favoriteKey, pickerSections, remember, type PickerSection } from '../emotePicker';
 
 const props = defineProps<{ emotes: readonly ChatEmoteEntry[] }>();
 
@@ -38,6 +41,9 @@ const query = ref('');
 const emoji = shallowRef<EmojiEntry[]>([]);
 const recent = useLocalStorage<string[]>('nnz.chat.recent-picks', []);
 const shown = ref<Suggestion | null>(null);
+const { current: channel } = useCurrentChannel();
+const favorites = useFavoriteEmotes();
+const favoriteChange = useFavoriteEmoteChange();
 
 async function fillEmoji(): Promise<void> {
   emoji.value = await loadEmoji();
@@ -49,17 +55,61 @@ watch(open, (isOpen) => {
   }
 });
 
+const favoriteKeys = computed(() =>
+  (favorites.data.value ?? []).map((favorite: FavoriteEmote) =>
+    favoriteKey(favorite.provider, favorite.emoteId)));
+
 const sections = computed(() =>
-  pickerSections(props.emotes, emoji.value, recent.value, query.value));
+  pickerSections(props.emotes, emoji.value, recent.value, query.value, {
+    channelName: channel.value?.displayName ?? null,
+    favorites: favoriteKeys.value,
+  }));
 
 function title(section: PickerSection): string {
+  if (section.name)
+    return section.name;
+
   if (section.id.startsWith('emoji-'))
     return t(`dashboard.chat.picker.groups.${section.id.slice('emoji-'.length)}`);
 
-  if (section.id === 'recent' || section.id === 'results')
-    return t(`dashboard.chat.picker.${section.id}`);
+  return t(`dashboard.chat.picker.${section.id}`);
+}
 
-  return t(`dashboard.chat.asset.providers.${section.id}`);
+// An emote is starred by its provider and id; the picker lists it by its code.
+const emoteByCode = computed(() =>
+  new Map(props.emotes.map((emote) =>
+    [emote.code, emote])));
+
+// The emote behind a picker item, when it is one the server can star (an emoji or an id-less emote is not).
+function starrable(item: Suggestion): (ChatEmoteEntry & { id: string }) | null {
+  const emote = emoteByCode.value.get(item.insert);
+
+  return item.kind === 'emote' && emote?.id
+    ? { ...emote, id: emote.id }
+    : null;
+}
+
+function isFavorite(item: Suggestion): boolean {
+  const emote = starrable(item);
+
+  return emote !== null && favoriteKeys.value.includes(favoriteKey(emote.provider, emote.id));
+}
+
+// Right-click, or a long press on a phone, stars an emote or takes the star off, as in FrankerFaceZ.
+function toggleFavorite(item: Suggestion): void {
+  const emote = starrable(item);
+
+  if (!emote) return;
+
+  favoriteChange.mutate({
+    emote: {
+      provider: emote.provider,
+      emoteId: emote.id,
+      code: emote.code,
+      imageUrl: item.image,
+    },
+    favorite: !isFavorite(item),
+  });
 }
 
 // The jump rail beside the list, as in Discord: one icon per section. An emote source shows its first emote,
@@ -178,7 +228,8 @@ function pick(item: Suggestion): void {
               aria-[current]:text-foreground"
             @click="jump(section.id)"
           >
-            <ClockBackward v-if="section.id === 'recent'" class="size-5" aria-hidden="true" />
+            <StarFilled v-if="section.id === 'favorites'" class="size-5" aria-hidden="true" />
+            <ClockBackward v-else-if="section.id === 'recent'" class="size-5" aria-hidden="true" />
             <span v-else-if="isEmojiGroup(section)" class="text-xl leading-none" aria-hidden="true">
               {{ mark(section) }}
             </span>
@@ -209,12 +260,14 @@ function pick(item: Suggestion): void {
                 :key="item.kind + item.insert"
                 type="button"
                 :data-picker-item="item.insert"
-                :aria-label="item.label"
+                :data-favorite="isFavorite(item) || undefined"
+                :aria-label="isFavorite(item) ? $t('dashboard.chat.picker.starred', { name: item.label }) : item.label"
                 class="flex aspect-square cursor-pointer items-center justify-center
                 rounded-[calc(var(--radius-md)-8px)] hover:bg-muted focus-visible:bg-muted"
                 @mouseenter="shown = item"
                 @focus="shown = item"
                 @click="pick(item)"
+                @contextmenu.prevent="toggleFavorite(item)"
               >
                 <img
                   v-if="item.image"
@@ -237,6 +290,7 @@ function pick(item: Suggestion): void {
         aria-live="polite"
       >
         <template v-if="shown">
+          <StarFilled v-if="isFavorite(shown)" class="size-4 flex-none" :aria-label="$t('dashboard.chat.picker.favorites')" />
           <span class="truncate font-medium">{{ shown.label }}</span>
           <span class="text-xs text-muted-foreground">{{
             shown.provider
