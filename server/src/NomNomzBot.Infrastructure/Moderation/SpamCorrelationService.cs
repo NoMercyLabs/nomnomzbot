@@ -30,7 +30,9 @@ public sealed record CohortObservation(
     CohortVerdict Verdict,
     bool MayActOnSender,
     CampaignReversal? Reversal,
-    CampaignRestorationOutcome? Restoration = null
+    CampaignRestorationOutcome? Restoration = null,
+    int DistinctAccounts = 0,
+    DateTimeOffset? ExpiresAt = null
 );
 
 /// <summary>
@@ -135,7 +137,14 @@ public sealed class SpamCorrelationService
         await SyncSignatureAsync(cohort, now, reversal is not null, ct);
         await _db.SaveChangesAsync(ct);
 
-        return new CohortObservation(verdict, mayAct, reversal, restoration);
+        return new CohortObservation(
+            verdict,
+            mayAct,
+            reversal,
+            restoration,
+            cohort.QualificationSet.Count,
+            cohort.ExpiresAt
+        );
     }
 
     /// <summary>
