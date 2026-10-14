@@ -59,7 +59,7 @@ public sealed class PipelineTestRunServiceTests
             .ValidateGraphAsync(Arg.Any<object?>(), Arg.Any<CancellationToken>())
             .Returns(ci =>
                 Task.FromResult(
-                    Result.Success<string?>(
+                    Result.Success(
                         ci.ArgAt<object?>(0) is null
                             ? null
                             : JsonSerializer.Serialize(ci.ArgAt<object?>(0))
