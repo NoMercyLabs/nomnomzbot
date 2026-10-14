@@ -72,7 +72,9 @@ public sealed record ViewerIdentityDto(
     string? Timezone,
     bool IsLurking,
     // True when a person (not the pronoun API) chose the pronoun.
-    bool PronounIsManualOverride
+    bool PronounIsManualOverride,
+    // When this person followed THIS channel on Twitch. Null when they do not follow or the platform could not say.
+    DateTime? FollowedAtUtc
 );
 
 public sealed record LinkedIdentityDto(
