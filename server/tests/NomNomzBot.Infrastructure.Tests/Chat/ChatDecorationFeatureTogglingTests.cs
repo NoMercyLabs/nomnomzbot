@@ -224,7 +224,7 @@ public sealed class ChatDecorationFeatureTogglingTests
         [
             new ExplodeTextAdapter(),
             new ThirdPartyEmoteAdapter(cache),
-            new TwitchEmoteUrlAdapter(),
+            new TwitchEmoteUrlAdapter(cache),
             new ImplodeTextAdapter(),
         ];
 

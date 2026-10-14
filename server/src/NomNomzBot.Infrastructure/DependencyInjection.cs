@@ -352,6 +352,7 @@ public static class DependencyInjection
         // Warms the Helix badge + cheermote caches; scoped (they use the scoped Helix client — resolved per worker scope).
         services.AddScoped<Chat.Jobs.ChatBadgeCacheWarmer>();
         services.AddScoped<Chat.Jobs.ChatCheermoteCacheWarmer>();
+        services.AddScoped<Chat.Jobs.ChatTwitchEmoteCacheWarmer>();
 
         // Chat-decoration pipeline: the ordered adapters (multi-binding, discovered) + the thin orchestrator that runs
         // them per message. Scoped to match the per-message orchestrator and the scoped services some adapters use

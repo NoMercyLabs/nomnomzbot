@@ -34,6 +34,13 @@ internal static class ChatEmoteCacheKeys
     public static string TwitchUser(string twitchUserId) =>
         $"chat:emotes:twitch:user:{twitchUserId}";
 
+    /// <summary>
+    /// <c>chat:emotes:twitch:owner:{twitchUserId}</c> — a Twitch emote owner's login and display name, fetched once per
+    /// owner by the warm path so chat decoration never calls Helix.
+    /// </summary>
+    public static string TwitchOwner(string twitchUserId) =>
+        $"chat:emotes:twitch:owner:{twitchUserId}";
+
     /// <summary>The stable lowercase token a provider is cached under (7TV is "7tv", matching the provider's own naming).</summary>
     public static string Token(EmoteProvider provider) =>
         provider switch
