@@ -73,6 +73,23 @@ describe('the emote picker sections', () => {
     ]);
   });
 
+  // Stoney 2026-10-14: "why is only half of the emotes grouped under their own channel name?"
+  it('groups an emote of another channel by its owner id when the server could not name the owner', () => {
+    const unnamed = [
+      { ...emote('ghostA', 'Twitch', 'other'), ownerId: '555' },
+      { ...emote('ghostB', 'Twitch', 'other'), ownerId: '555' },
+      { ...emote('zedHi', 'Twitch', 'other', 'Zed'), ownerId: '777' },
+    ];
+    const found = pickerSections(unnamed, [], [], '', context).map((section) =>
+      [section.id, section.items.map((item) =>
+        item.insert)]);
+
+    expect(found).toEqual([
+      ['owner-555', ['ghostA', 'ghostB']],
+      ['owner-zed', ['zedHi']],
+    ]);
+  });
+
   // Stoney 2026-10-14: "where did you leave the frankerfacez and the other tabs?"
   it('keeps a section per source when the server does not say whose an emote is', () => {
     const unowned = [emote('Kappa', 'Twitch', null), emote('LULW', 'Ffz', null)];

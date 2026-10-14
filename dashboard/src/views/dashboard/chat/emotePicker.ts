@@ -69,8 +69,10 @@ function sectionOf(emote: ChatEmoteEntry): string {
   if (emote.origin === 'global')
     return `global-${emote.provider}`;
 
-  return emote.origin === 'other' && emote.ownerLogin
-    ? `owner-${emote.ownerLogin.toLowerCase()}`
+  const owner = emote.ownerLogin ?? emote.ownerId;
+
+  return emote.origin === 'other' && owner
+    ? `owner-${owner.toLowerCase()}`
     : `others-${emote.provider}`;
 }
 
@@ -94,7 +96,7 @@ function ownerSections(
       id,
       items: [],
       name: owned
-        ? emote.ownerName ?? emote.ownerLogin ?? undefined
+        ? emote.ownerName ?? emote.ownerLogin ?? emote.ownerId ?? undefined
         : undefined,
       avatar: owned
         ? emote.ownerAvatarUrl ?? undefined
