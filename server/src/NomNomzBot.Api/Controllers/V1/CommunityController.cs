@@ -549,14 +549,24 @@ public partial class CommunityController : BaseController
         // VIP tab: cursor-based pagination directly from Twitch, like the follower tab.
         if (string.Equals(role, "vip", StringComparison.OrdinalIgnoreCase))
         {
-            Result<TwitchPage<TwitchVip>> vipPage = await _moderators.GetVipsAsync(
+            // Twitch pages by cursor only. A client that sends a page number instead of the cursor gets the
+            // cursor found by walking the pages before it; an explicit cursor always wins.
+            (string? vipAfter, bool pastTheEnd) = await ResolveVipCursorAsync(
                 broadcasterId,
-                new(After: cursor, PageSize: request.Take),
+                request,
+                cursor,
                 ct
             );
+            Result<TwitchPage<TwitchVip>> vipPage = pastTheEnd
+                ? Result.Success(new TwitchPage<TwitchVip>([], null, 0))
+                : await _moderators.GetVipsAsync(
+                    broadcasterId,
+                    new(After: vipAfter, PageSize: request.Take),
+                    ct
+                );
             IReadOnlyList<TwitchVip> pagedVips = vipPage.IsSuccess ? vipPage.Value.Items : [];
             string? vipNextCursor = vipPage.IsSuccess ? vipPage.Value.NextCursor : null;
-            int vipTotal = vipPage.IsSuccess ? vipPage.Value.Total : 0;
+            int vipTotal = await CountVipsAsync(broadcasterId, ct);
 
             // VIP ids are Twitch user string ids — join on User.TwitchUserId.
             List<string> vipIds = [.. pagedVips.Select(v => v.UserId)];
@@ -618,6 +628,7 @@ public partial class CommunityController : BaseController
                 {
                     Data = vipItems,
                     HasMore = vipNextCursor is not null,
+                    NextPage = vipNextCursor is not null ? request.Page + 1 : null,
                     NextCursor = vipNextCursor,
                     Total = vipTotal,
                 }
@@ -801,6 +812,38 @@ public partial class CommunityController : BaseController
                 Data = new(followers, subscribers, vipCount, moderatorCount),
             }
         );
+    }
+
+    /// <summary>
+    /// The Twitch cursor that starts the requested VIP page. The request cursor wins; with none, page 1
+    /// starts at the beginning and page N walks N-1 pages. A walk that runs out of pages, or fails, means
+    /// the page is past the end.
+    /// </summary>
+    private async Task<(string? After, bool PastTheEnd)> ResolveVipCursorAsync(
+        Guid broadcasterId,
+        PageRequestDto request,
+        string? cursor,
+        CancellationToken ct
+    )
+    {
+        if (cursor is not null || request.Page <= 1)
+            return (cursor, false);
+
+        string? after = null;
+        for (int skipped = 1; skipped < request.Page; skipped++)
+        {
+            Result<TwitchPage<TwitchVip>> page = await _moderators.GetVipsAsync(
+                broadcasterId,
+                new(After: after, PageSize: request.Take),
+                ct
+            );
+            if (page.IsFailure || page.Value.NextCursor is null)
+                return (null, true);
+
+            after = page.Value.NextCursor;
+        }
+
+        return (after, false);
     }
 
     /// <summary>
