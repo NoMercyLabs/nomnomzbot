@@ -140117,14 +140117,17 @@
       },
       "TtsTestRequestDto": {
         "required": [
-          "text",
           "voiceId"
         ],
         "type": "object",
         "properties": {
           "text": {
             "maxLength": 500,
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The line to speak. When null or blank, the server speaks the voice's own introduction."
           },
           "voiceId": {
             "maxLength": 255,

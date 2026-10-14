@@ -509,9 +509,12 @@ public class TtsConfigService : ITtsConfigService
     {
         try
         {
+            string text = string.IsNullOrWhiteSpace(request.Text)
+                ? await ComposeSampleAsync(request.VoiceId, cancellationToken)
+                : request.Text;
             TtsResult result = await _ttsService.SynthesizeAsync(
                 _spokenNames.ApplyToText(
-                    await _lexicon.ApplyAsync(broadcasterId, request.Text, cancellationToken),
+                    await _lexicon.ApplyAsync(broadcasterId, text, cancellationToken),
                     []
                 ),
                 request.VoiceId,
@@ -526,6 +529,26 @@ public class TtsConfigService : ITtsConfigService
         {
             return Errors.ExternalServiceUnavailable("TTS").ToTyped<TtsTestResultDto>();
         }
+    }
+
+    // The voice introduces itself by name; a voice missing from the catalogue speaks its id in English.
+    private async Task<string> ComposeSampleAsync(
+        string voiceId,
+        CancellationToken cancellationToken
+    )
+    {
+        string idLower = voiceId.ToLower();
+        TtsVoice? voice = await _db.TtsVoices.FirstOrDefaultAsync(
+            v => v.Id.ToLower() == idLower,
+            cancellationToken
+        );
+        return voice is null
+            ? TtsVoiceSampleComposer.Compose(voiceId, string.Empty, false)
+            : TtsVoiceSampleComposer.Compose(
+                voice.Name,
+                voice.Locale,
+                TtsVoiceSampleComposer.IsMultilingual(voice.Name, voice.Provider)
+            );
     }
 
     public async Task<Result<UserTtsVoiceDto>> GetUserVoiceAsync(

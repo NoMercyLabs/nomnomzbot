@@ -46,8 +46,9 @@ public sealed record TtsVoiceQuery(
 /// <summary>Request to test a TTS voice.</summary>
 public sealed record TtsTestRequestDto
 {
-    [Required, MaxLength(500)]
-    public required string Text { get; init; }
+    /// <summary>The line to speak. When null or blank, the server speaks the voice's own introduction.</summary>
+    [MaxLength(500)]
+    public string? Text { get; init; }
 
     [Required, MaxLength(255)]
     public required string VoiceId { get; init; }
