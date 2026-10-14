@@ -477,6 +477,21 @@
       "delete": "Notitie verwijderen",
       "deleteTitle": "Deze notitie verwijderen?"
     },
+    "voice": {
+      "title": "TTS-stem",
+      "error": "De stem kon niet laden.",
+      "noAccess": "Jouw rol kan de TTS-stemmen niet zien.",
+      "noWrite": "Jouw rol kan de TTS-stem van iemand niet wijzigen.",
+      "channel": "Kanaalstem",
+      "channelDetail": "Hun berichten gebruiken de stem die het kanaal koos.",
+      "gone": "Deze stem wordt niet meer aangeboden.",
+      "change": "Stem wijzigen",
+      "editTitle": "TTS-stem voor {name}",
+      "editDescription": "Tekst-naar-spraak leest hun berichten met deze stem.",
+      "save": "Stem opslaan",
+      "search": "Stemmen zoeken",
+      "more": "Meer stemmen tonen"
+    },
     "botStanding": {
       "title": "Status bij de bot",
       "error": "De status bij de bot kon niet laden.",

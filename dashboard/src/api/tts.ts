@@ -11,6 +11,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   type InfiniteData,
   type UseInfiniteQueryReturnType,
   type UseMutationReturnType,
@@ -199,6 +200,97 @@ export function useSetTtsVoice(
             defaultProvider: provider,
             followsPlatformDefaultVoice: false,
           }
+        : null,
+  });
+}
+
+// A person's own voice, with the catalog entry that names it. null means they use the channel voice.
+export type PersonVoice = { voiceId: string; voice: TtsVoice | null };
+
+export const personVoiceKey = (channelId: string | null, userId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'tts-person-voice',
+  userId,
+];
+
+async function readPersonVoice(channelId: string, userId: string): Promise<PersonVoice | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/tts/users/{userId}/voice',
+    { params: { path: {
+      version,
+      channelId,
+      userId,
+    } } },
+  );
+
+  // The bot answers 404 for a person without their own voice.
+  if (response.status === 404)
+    return null;
+
+  if (error !== undefined || !data?.data)
+    throw failed('person voice', response.status);
+
+  const voiceId = data.data.voiceId;
+  const matches = await readVoicePage(channelId, voiceId, firstVoicePage);
+  const voice = matches.voices.find((entry: TtsVoice) =>
+    entry.id === voiceId) ?? null;
+
+  return { voiceId, voice };
+}
+
+// The id is the Twitch user id; null (a caller without the read right) reads nothing.
+export function usePersonVoice(
+  channelId: MaybeRefOrGetter<string | null>,
+  userId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PersonVoice | null, Error> {
+  return useQuery({
+    queryKey: computed(() => personVoiceKey(toValue(channelId), toValue(userId))),
+    queryFn: () => readPersonVoice(toValue(channelId) as string, toValue(userId) as string),
+    enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
+  });
+}
+
+// voice null puts the person back on the channel voice.
+export type PersonVoiceChange = { userId: string; voice: TtsVoice | null };
+
+async function writePersonVoice(
+  channelId: string,
+  { userId, voice }: PersonVoiceChange,
+): Promise<void> {
+  const path = {
+    version,
+    channelId,
+    userId,
+  };
+  const { error, response } = voice === null
+    ? await client.DELETE('/api/v{version}/channels/{channelId}/tts/users/{userId}/voice', {
+        params: { path },
+      })
+    : await client.PUT('/api/v{version}/channels/{channelId}/tts/users/{userId}/voice', {
+        params: { path },
+        body: { voiceId: voice.id },
+      });
+
+  if (error !== undefined)
+    throw refusal('person voice', error, response.status);
+}
+
+export function useSetPersonVoice(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<PersonVoice | null, Error, PersonVoiceChange, number> {
+  return useOptimisticSave<PersonVoice | null, PersonVoiceChange>({
+    queryKey: ({ userId }: PersonVoiceChange) => personVoiceKey(toValue(channelId), userId),
+    mutationFn: async (change: PersonVoiceChange): Promise<PersonVoice | null> => {
+      await writePersonVoice(toValue(channelId) as string, change);
+
+      return change.voice
+        ? { voiceId: change.voice.id, voice: change.voice }
+        : null;
+    },
+    apply: (_current: unknown, { voice }: PersonVoiceChange): PersonVoice | null =>
+      voice
+        ? { voiceId: voice.id, voice }
         : null,
   });
 }

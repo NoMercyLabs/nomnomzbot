@@ -18,6 +18,7 @@ import { onTheWire } from '@/api/__tests__/wire';
 import ProfileDialog from '@/components/layout/ProfileDialog.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { i18n } from '@/i18n';
+import { merge } from '@/lib/array';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
@@ -340,6 +341,46 @@ function noteStanding(userId: string, text: string): void {
   ];
 }
 
+// A person's own TTS voice id by Twitch id; a person without one gets the 404 the bot sends.
+let personVoices: Record<string, string | undefined> = {};
+
+const voiceOf = (id: string, displayName: string): Record<string, unknown> => ({
+  id,
+  name: id,
+  displayName,
+  locale: 'en-US',
+  gender: 'Female',
+  provider: 'Edge',
+  isDefault: false,
+  styles: [],
+  tags: [],
+});
+
+const catalog = [voiceOf('en-US-AvaNeural', 'Ava'), voiceOf('en-US-EmmaNeural', 'Emma')];
+
+function voicesPage(options: Options | undefined): unknown {
+  const q = String((options?.params?.query as Record<string, unknown> | undefined)?.q ?? '');
+  const found = catalog.filter((voice: Record<string, unknown>) =>
+    String(voice.id).includes(q) || String(voice.displayName).includes(q));
+
+  return {
+    data: { data: onTheWire(found), total: found.length },
+    response: { ok: true, status: 200 },
+  };
+}
+
+function personVoice(options: Options | undefined): unknown {
+  const voiceId = personVoices[userIdOf(options)];
+
+  if (voiceId === undefined)
+    return { error: { status: 'not_found' }, response: { ok: false, status: 404 } };
+
+  return {
+    data: { data: { userId: userIdOf(options), voiceId } },
+    response: { ok: true, status: 200 },
+  };
+}
+
 let held: string[] = [];
 
 // The emotes usable in the channel, as the chat emote list sends them.
@@ -396,6 +437,12 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/history/{userId}'))
         return { data: historyPage(options), response: { ok: true } };
+
+      if (path.endsWith('/tts/users/{userId}/voice'))
+        return personVoice(options);
+
+      if (path.endsWith('/tts/voices'))
+        return voicesPage(options);
 
       if (path.endsWith('/context')) {
         const standing = standings[userIdOf(options)];
@@ -466,6 +513,14 @@ vi.mock('@/api/client', () => ({
     PUT: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options);
 
+      if (path.endsWith('/voice')) {
+        const body = options?.body as { voiceId?: string } | undefined;
+
+        personVoices[userIdOf(options)] = body?.voiceId;
+
+        return { data: { data: null }, response: { ok: true, status: 200 } };
+      }
+
       const id = noteIdOf(options);
       const change = options?.body as { content: string; pinned: boolean };
 
@@ -486,6 +541,12 @@ vi.mock('@/api/client', () => ({
           [user, list.filter((note: Record<string, unknown>) => note.id !== id)]));
 
         return { response: { ok: true } };
+      }
+
+      if (path.endsWith('/voice')) {
+        personVoices[userIdOf(options)] = undefined;
+
+        return { response: { ok: true, status: 200 } };
       }
 
       if (path.endsWith('/standing')) {
@@ -526,6 +587,7 @@ beforeEach(() => {
   profiles = freshProfiles();
   notes = freshNotes();
   standings = {};
+  personVoices = {};
   held = [...MODERATOR_KEYS];
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-04T10:00:00Z'));
@@ -1484,6 +1546,91 @@ describe('the Overview tab', () => {
     expect(chatLines()).toEqual([]);
     expect(overview().textContent).toContain('No chat lines stored yet.');
     expect(document.body.querySelector('[data-profile-all-chat]')).toBeNull();
+  });
+});
+
+describe('the TTS voice panel', () => {
+  const VOICE_KEYS = ['tts:voice:read', 'tts:uservoice:write'];
+  const panel = (): Element => document.body.querySelector('[data-slot="profile-voice"]')!;
+  const voiceWrites = (): Call[] =>
+    calls.filter((c: Call) => c.path.endsWith('/tts/users/{userId}/voice') && c.body !== undefined);
+
+  beforeEach(() => {
+    held = [...merge(held, VOICE_KEYS)];
+  });
+
+  it('says a person without their own voice uses the channel voice', async () => {
+    await openPage();
+    await openUser('u1');
+
+    expect(panel().querySelector('[data-profile-voice-name]')!.textContent).toBe('Channel voice');
+  });
+
+  it('names the person\'s own voice from the catalog', async () => {
+    personVoices = { u1: 'en-US-AvaNeural' };
+    await openPage();
+    await openUser('u1');
+
+    expect(panel().querySelector('[data-profile-voice-name]')!.textContent).toBe('Ava');
+  });
+
+  it('saves the picked voice for the person and shows it at once', async () => {
+    await openPage();
+    await openUser('u1');
+
+    button('[data-profile-voice-change]').click();
+    await settle();
+    button('[data-profile-voice-option="en-US-EmmaNeural"]').click();
+    await settle();
+    button('[data-form-action]').click();
+    await settle();
+
+    expect(voiceWrites().map((c: Call) => [userIdOf(c), c.body])).toEqual([
+      ['u1', { voiceId: 'en-US-EmmaNeural' }],
+    ]);
+
+    expect(personVoices.u1).toBe('en-US-EmmaNeural');
+    expect(panel().querySelector('[data-profile-voice-name]')!.textContent).toBe('Emma');
+  });
+
+  it('puts the person back on the channel voice by clearing their own', async () => {
+    personVoices = { u1: 'en-US-AvaNeural' };
+    await openPage();
+    await openUser('u1');
+
+    button('[data-profile-voice-change]').click();
+    await settle();
+
+    expect(button('[data-profile-voice-option="en-US-AvaNeural"]').getAttribute('aria-checked')).toBe('true');
+
+    button('[data-profile-voice-option="channel"]').click();
+    await settle();
+    button('[data-form-action]').click();
+    await settle();
+
+    expect(voiceWrites()).toEqual([]);
+    expect(personVoices.u1).toBeUndefined();
+    expect(panel().querySelector('[data-profile-voice-name]')!.textContent).toBe('Channel voice');
+  });
+
+  it('locks the voice change for a caller without the voice right', async () => {
+    held = held.filter((key: string) => key !== 'tts:uservoice:write');
+    await openPage();
+    await openUser('u1');
+
+    const change = button('[data-profile-voice-change]');
+
+    expect(change.disabled).toBe(true);
+    expect(change.title).toBe('Your role cannot change a person\'s TTS voice.');
+  });
+
+  it('does not ask for the voice when the caller may not see the voices', async () => {
+    held = held.filter((key: string) => !VOICE_KEYS.includes(key));
+    await openPage();
+    await openUser('u1');
+
+    expect(calls.some((c: Call) => c.path.includes('/tts/'))).toBe(false);
+    expect(panel().textContent).toContain('Your role cannot see the TTS voices.');
   });
 });
 

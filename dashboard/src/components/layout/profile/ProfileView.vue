@@ -38,6 +38,7 @@ import ProfileNotes from '@/components/layout/profile/ProfileNotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
 import ProfileStanding from '@/components/layout/profile/ProfileStanding.vue';
+import ProfileVoice from '@/components/layout/profile/ProfileVoice.vue';
 import ProfileWarn from '@/components/layout/profile/ProfileWarn.vue';
 import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
@@ -276,6 +277,7 @@ async function banNow(): Promise<void> {
               :roles="roles"
               @show-chat="tab = 'chat'"
             />
+            <ProfileVoice :user-id="userId" :name="title" />
           </TabsContent>
 
           <TabsContent value="chat" force-mount :class="PANEL_CLASS">

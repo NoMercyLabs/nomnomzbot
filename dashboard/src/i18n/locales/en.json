@@ -477,6 +477,21 @@
       "delete": "Delete note",
       "deleteTitle": "Delete this note?"
     },
+    "voice": {
+      "title": "TTS voice",
+      "error": "The voice could not load.",
+      "noAccess": "Your role cannot see the TTS voices.",
+      "noWrite": "Your role cannot change a person's TTS voice.",
+      "channel": "Channel voice",
+      "channelDetail": "Their messages use the voice the channel picked.",
+      "gone": "This voice is no longer offered.",
+      "change": "Change voice",
+      "editTitle": "TTS voice for {name}",
+      "editDescription": "Text to speech reads their messages with this voice.",
+      "save": "Save voice",
+      "search": "Search voices",
+      "more": "Show more voices"
+    },
     "botStanding": {
       "title": "Bot standing",
       "error": "The bot standing could not load.",
