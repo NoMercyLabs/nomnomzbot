@@ -8,30 +8,41 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Infrastructure.Chat.Jobs;
 
 namespace NomNomzBot.Infrastructure.Chat;
 
 /// <summary>
 /// Resolves a message's badges to image urls from the cached Helix badge sets (chat-decoration spec §3.3). It builds a
 /// (set id, version id) → urls lookup from the global set then the channel set — so a channel's own version overrides the
-/// global on a collision — and maps each badge through it. Cache-only: an un-warmed badge resolves to empty urls (the
-/// client falls back), never dropped.
+/// global on a collision — and maps each badge through it. A missing channel set is warmed once on demand (read-through),
+/// so an offline channel, which the refresh worker no longer covers, still resolves its own badges. A failed warm is not
+/// retried for <see cref="RetryAfter"/> and concurrent callers share one in-flight warm. An un-warmed badge resolves to
+/// empty urls (the client falls back), never dropped.
 /// </summary>
 public sealed class ChatBadgeResolver : IChatBadgeResolver
 {
     private static readonly IReadOnlyDictionary<string, string> NoUrls =
         new Dictionary<string, string>();
 
-    private readonly ICacheService _cache;
+    private static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(1);
 
-    public ChatBadgeResolver(ICacheService cache)
+    private readonly ICacheService _cache;
+    private readonly IServiceScopeFactory _scopes;
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _failedUntil = new();
+    private readonly ConcurrentDictionary<Guid, Task> _inFlight = new();
+
+    public ChatBadgeResolver(ICacheService cache, IServiceScopeFactory scopes)
     {
         _cache = cache;
+        _scopes = scopes;
     }
 
     public async Task<IReadOnlyList<ResolvedChatBadge>> ResolveAsync(
@@ -45,6 +56,7 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
 
         Dictionary<(string Set, string Version), IReadOnlyDictionary<string, string>> index = new();
         await IndexSetsAsync(index, ChatBadgeCacheKeys.Global, ct);
+        await EnsureChannelSetAsync(broadcasterId, ct);
         await IndexSetsAsync(index, ChatBadgeCacheKeys.Channel(broadcasterId), ct);
 
         List<ResolvedChatBadge> resolved = new(badges.Count);
@@ -60,6 +72,42 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
         }
 
         return resolved;
+    }
+
+    private async Task EnsureChannelSetAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        if (await _cache.ExistsAsync(ChatBadgeCacheKeys.Channel(broadcasterId), ct))
+            return;
+        if (
+            _failedUntil.TryGetValue(broadcasterId, out DateTimeOffset until)
+            && until > DateTimeOffset.UtcNow
+        )
+            return;
+
+        Task warm = _inFlight.GetOrAdd(broadcasterId, WarmChannelAsync);
+        await warm.WaitAsync(ct);
+        _inFlight.TryRemove(new KeyValuePair<Guid, Task>(broadcasterId, warm));
+    }
+
+    private async Task WarmChannelAsync(Guid broadcasterId)
+    {
+        bool warmed;
+        try
+        {
+            await using AsyncServiceScope scope = _scopes.CreateAsyncScope();
+            ChatBadgeCacheWarmer warmer =
+                scope.ServiceProvider.GetRequiredService<ChatBadgeCacheWarmer>();
+            warmed = await warmer.WarmChannelAsync(broadcasterId);
+        }
+        catch (Exception)
+        {
+            warmed = false;
+        }
+
+        if (warmed)
+            _failedUntil.TryRemove(broadcasterId, out _);
+        else
+            _failedUntil[broadcasterId] = DateTimeOffset.UtcNow + RetryAfter;
     }
 
     private async Task IndexSetsAsync(
