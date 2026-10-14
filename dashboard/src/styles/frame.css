@@ -39,6 +39,12 @@
   width: var(--btn-h-sm);
   height: var(--btn-h-sm);
 }
+/* An icon alone on a text-sized button keeps its shape: square, never stretched flat by text padding. */
+.group\/button[data-size='sm']:has(> svg:only-child),
+.group\/button[data-size='default']:has(> svg:only-child) {
+  aspect-ratio: 1;
+  padding: 0;
+}
 .group\/button[data-variant='default']:hover {
   background: color-mix(in oklab, var(--primary) 88%, var(--foreground));
 }
