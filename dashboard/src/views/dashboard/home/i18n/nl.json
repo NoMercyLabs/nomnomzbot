@@ -6,8 +6,12 @@
       "offline": "Offline",
       "openChat": "Chat openen",
       "editStream": "Streaminfo bewerken",
-      "liveLine": "Live sinds {uptime} · {viewers} kijkers · {followers} volgers",
-      "liveLineCategory": "Live sinds {uptime} · {viewers} kijkers · {followers} volgers · {category}",
+      "liveStats": {
+        "uptime": "live",
+        "viewers": "kijkers",
+        "followers": "volgers",
+        "category": "Categorie"
+      },
       "lastStream": "Laatste stream eindigde {date} · {length}",
       "queue": {
         "title": "Te beoordelen",

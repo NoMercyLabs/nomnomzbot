@@ -11,6 +11,10 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import IconClock from '~icons/nnz/clock';
+import IconController from '~icons/nnz/controller';
+import IconUserAdd from '~icons/nnz/user-add';
+import IconUsers from '~icons/nnz/users';
 
 import { useHomeStats, type HomeStats } from '@/api/home';
 import { useStreamHistory } from '@/api/stream';
@@ -20,6 +24,7 @@ import type { BoardPanel } from '@/components/layout/board';
 import { formatCountdown } from '@/components/layout/formatCountdown';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useProviderName } from '@/composables/useProviderName';
@@ -53,12 +58,26 @@ const statusLabel = computed<string>(() =>
 );
 
 const category = computed(() => stats.value?.gameName ?? '');
-const liveLineKey = computed<string>(() =>
-  category.value
-    ? 'dashboard.home.liveLineCategory'
-    : 'dashboard.home.liveLine',
-);
 const uptime = computed(() => formatCountdown(Number(stats.value?.uptime ?? 0)));
+
+// Each number stands on its own with an icon, so the eye finds it without reading a sentence.
+const liveStats = computed(() => [
+  {
+    key: 'uptime',
+    icon: IconClock,
+    value: uptime.value,
+  },
+  {
+    key: 'viewers',
+    icon: IconUsers,
+    value: stats.value?.viewerCount,
+  },
+  {
+    key: 'followers',
+    icon: IconUserAdd,
+    value: stats.value?.followerCount,
+  },
+] as const);
 
 // A stream the bot never closed has no end or length, so offline shows nothing rather than a guess.
 const lastStream = computed(() =>
@@ -121,21 +140,20 @@ const panels = computed(() => [
     </template>
     <!-- The header's second row holds the stream line, as the mockup's head-bar does. -->
     <template v-if="hasStreamLine" #bar>
-      <span data-slot="stream-line" class="text-muted-foreground">
-        <i18n-t v-if="live" :keypath="liveLineKey" scope="global" tag="span">
-          <template #uptime>
-            <b class="font-semibold text-foreground">{{ uptime }}</b>
-          </template>
-          <template #viewers>
-            <b class="font-semibold text-foreground">{{ stats?.viewerCount }}</b>
-          </template>
-          <template #followers>
-            <b class="font-semibold text-foreground">{{ stats?.followerCount }}</b>
-          </template>
-          <template #category>{{ category }}</template>
-        </i18n-t>
-        <template v-else>{{ lastStreamLine }}</template>
-      </span>
+      <ul v-if="live" data-slot="stream-line" class="flex items-center gap-6 text-muted-foreground">
+        <li v-for="stat in liveStats" :key="stat.key" class="flex items-center gap-1.5">
+          <component :is="stat.icon" class="size-4" aria-hidden="true" />
+          <b class="font-semibold tabular-nums text-foreground">{{ stat.value }}</b>
+          <span>{{ t(`dashboard.home.liveStats.${stat.key}`) }}</span>
+        </li>
+        <li v-if="category" class="min-w-0">
+          <Badge variant="outline" :title="t('dashboard.home.liveStats.category')" class="gap-1.5 truncate">
+            <IconController class="size-3.5" aria-hidden="true" />
+            {{ category }}
+          </Badge>
+        </li>
+      </ul>
+      <span v-else data-slot="stream-line" class="text-muted-foreground">{{ lastStreamLine }}</span>
     </template>
     <template v-if="primaryRoute" #actions>
       <Button as-child>

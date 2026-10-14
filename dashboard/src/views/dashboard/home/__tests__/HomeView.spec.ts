@@ -282,8 +282,8 @@ describe('HomeView', () => {
     await open();
 
     expect(text()).toContain('Live on Twitch');
-    expect(text()).toContain('20 viewers');
-    expect(text()).toContain('346 followers');
+    expect(text()).toContain('20viewers');
+    expect(text()).toContain('346followers');
     expect(panel('Review queue').textContent).toContain('2 waiting');
     expect(rowOf('sample_viewer').textContent).toContain('what the heck');
     expect(rowOf('DukaSoft').textContent).toContain('buy followers here');
@@ -302,9 +302,16 @@ describe('HomeView', () => {
     expect(title?.textContent).toBe('Home');
     expect(text()).not.toContain('Hi,');
 
-    expect(line?.textContent).toBe(
-      'Live for 1:02:05 · 20 viewers · 346 followers · Software and Game Development',
-    );
+    const items = [...(line?.querySelectorAll('li') ?? [])].map((item) =>
+      [...item.children].map((part) =>
+        part.textContent?.trim()).filter(Boolean).join(' '));
+
+    expect(items).toEqual([
+      '1:02:05 live',
+      '20 viewers',
+      '346 followers',
+      'Software and Game Development',
+    ]);
 
     expect(bold).toEqual(['1:02:05', '20', '346']);
 
@@ -319,7 +326,8 @@ describe('HomeView', () => {
 
     const line = document.body.querySelector('[data-slot="stream-line"]');
 
-    expect(line?.textContent).toBe('Live for 1:02:05 · 20 viewers · 346 followers');
+    expect(line?.querySelectorAll('li')).toHaveLength(3);
+    expect(line?.textContent).not.toContain('Software');
   });
 
   it('shows when the last stream ended and how long it ran while offline', async () => {

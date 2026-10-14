@@ -6,8 +6,12 @@
       "offline": "Offline",
       "openChat": "Open chat",
       "editStream": "Edit stream info",
-      "liveLine": "Live for {uptime} · {viewers} viewers · {followers} followers",
-      "liveLineCategory": "Live for {uptime} · {viewers} viewers · {followers} followers · {category}",
+      "liveStats": {
+        "uptime": "live",
+        "viewers": "viewers",
+        "followers": "followers",
+        "category": "Category"
+      },
       "lastStream": "Last stream ended {date} · {length}",
       "queue": {
         "title": "Review queue",
