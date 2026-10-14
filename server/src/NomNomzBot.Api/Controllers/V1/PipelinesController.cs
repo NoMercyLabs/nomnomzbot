@@ -153,6 +153,7 @@ public class PipelinesController : BaseController
                             f.Repeatable,
                             f.Options,
                             f.Description,
+                            f.Templated,
                             f.DeclaresVariable,
                             f.DeclaredVariableDefault
                         )),
