@@ -161,8 +161,8 @@
         "starred": "{name}, starred",
         "own": "Your emotes",
         "channel": "This channel",
-        "others": "Other channels",
-        "global": "Global",
+        "others": "Other {source} emotes",
+        "global": "{source} global",
         "groups": {
           "smileys": "Smileys",
           "people": "People",

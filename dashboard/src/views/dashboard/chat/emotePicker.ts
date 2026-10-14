@@ -49,14 +49,22 @@ function providerRank(emote: ChatEmoteEntry): number {
 }
 
 // The server says whose an emote is (own, channel, other or global); another channel's emotes group by it.
+// The global ones and the ones without an owner keep a section per source (Twitch, 7TV, BTTV, FFZ).
 function sectionOf(emote: ChatEmoteEntry): string {
-  if (emote.origin === 'own' || emote.origin === 'channel' || emote.origin === 'global')
+  if (emote.origin === 'own' || emote.origin === 'channel')
     return emote.origin;
+
+  if (emote.origin === 'global')
+    return `global-${emote.provider}`;
 
   return emote.origin === 'other' && emote.ownerLogin
     ? `owner-${emote.ownerLogin.toLowerCase()}`
-    : 'others';
+    : `others-${emote.provider}`;
 }
+
+const bySource = (prefix: string): string[] =>
+  providerOrder.map((provider) =>
+    `${prefix}-${provider}`);
 
 function ownerSections(
   emotes: readonly ChatEmoteEntry[],
@@ -93,15 +101,19 @@ function ownerSections(
     .sort((a, b) =>
       (a.name ?? a.id).localeCompare(b.name ?? b.id));
 
-  const fixed = (id: string): PickerSection[] => {
-    const section = groups.get(id);
+  const fixed = (ids: readonly string[]): PickerSection[] =>
+    ids.flatMap((id: string) => {
+      const section = groups.get(id);
 
-    return section
-      ? [section]
-      : [];
-  };
+      return section
+        ? [section]
+        : [];
+    });
 
-  return merge(fixed('own'), fixed('channel'), others, fixed('others'), fixed('global'));
+  const unowned = fixed(bySource('others'));
+  const global = fixed(bySource('global'));
+
+  return merge(fixed(['own', 'channel']), others, unowned, global);
 }
 
 // The favorites that are usable here, in the order given.

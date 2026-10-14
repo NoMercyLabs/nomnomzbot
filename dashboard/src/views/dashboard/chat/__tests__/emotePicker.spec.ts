@@ -44,6 +44,8 @@ const emotes = [
   emote('myOwn', 'Twitch', 'own', 'Viewer1'),
   emote('OMEGALUL', 'Bttv', 'global', 'Uploader2'),
   emote('ghostly', 'Twitch', 'other'),
+  emote('LULW', 'Ffz', 'global'),
+  emote('PepeLaugh', 'SevenTv', 'global'),
 ];
 
 const context: PickerContext = { channelName: 'Stoney_Eagle', favorites: [] };
@@ -63,9 +65,21 @@ describe('the emote picker sections', () => {
       ['channel', ['stoneyWave', 'catJAM'], 'Stoney_Eagle'],
       ['owner-ada', ['adaHype'], 'Ada'],
       ['owner-zed', ['zedHi'], 'Zed'],
-      ['others', ['ghostly'], undefined],
-      ['global', ['Kappa', 'OMEGALUL'], undefined],
+      ['others-Twitch', ['ghostly'], undefined],
+      ['global-Twitch', ['Kappa'], undefined],
+      ['global-SevenTv', ['PepeLaugh'], undefined],
+      ['global-Bttv', ['OMEGALUL'], undefined],
+      ['global-Ffz', ['LULW'], undefined],
     ]);
+  });
+
+  // Stoney 2026-10-14: "where did you leave the frankerfacez and the other tabs?"
+  it('keeps a section per source when the server does not say whose an emote is', () => {
+    const unowned = [emote('Kappa', 'Twitch', null), emote('LULW', 'Ffz', null)];
+    const ids = pickerSections(unowned, [], [], '', context).map((section) =>
+      section.id);
+
+    expect(ids).toEqual(['others-Twitch', 'others-Ffz']);
   });
 
   it('shows the favorites above everything, in the order given, and only the ones usable here', () => {

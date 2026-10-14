@@ -1678,6 +1678,29 @@ describe('ChatView emote picker', () => {
     expect(rail[0]!.getAttribute('aria-current')).toBe('true');
   });
 
+  // Stoney 2026-10-14: "where did you leave the frankerfacez and the other tabs?"
+  it('gives the FrankerFaceZ global emotes their own named section on the rail', async () => {
+    emoteList.push({
+      ...emoteList[0]!,
+      id: 'id-LULW',
+      code: 'LULW',
+      provider: 'Ffz',
+      origin: 'global',
+    });
+
+    try {
+      await open();
+      await openPicker();
+
+      const jump = picker()!.querySelector('[data-picker-jump="global-Ffz"]');
+
+      expect(itemsOf('global-Ffz')).toEqual(['LULW']);
+      expect(jump?.getAttribute('aria-label')).toBe('FrankerFaceZ global');
+    } finally {
+      emoteList.pop();
+    }
+  });
+
   // Stoney 2026-10-14: "allow for favorites". Right-click, or a long press on a phone, stars an emote; the star
   // is saved for the person, and the starred emote leads the picker.
   it('stars an emote on a right-click, saves it, and lists it first under Favorites', async () => {

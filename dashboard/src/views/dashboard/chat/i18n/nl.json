@@ -161,8 +161,8 @@
         "starred": "{name}, met ster",
         "own": "Jouw emotes",
         "channel": "Dit kanaal",
-        "others": "Andere kanalen",
-        "global": "Algemeen",
+        "others": "Andere {source}-emotes",
+        "global": "{source} algemeen",
         "groups": {
           "smileys": "Smileys",
           "people": "Mensen",

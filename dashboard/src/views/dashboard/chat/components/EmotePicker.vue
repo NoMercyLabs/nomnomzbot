@@ -72,7 +72,12 @@ function title(section: PickerSection): string {
   if (section.id.startsWith('emoji-'))
     return t(`dashboard.chat.picker.groups.${section.id.slice('emoji-'.length)}`);
 
-  return t(`dashboard.chat.picker.${section.id}`);
+  // "global-Ffz": the kind of section, then the source it comes from.
+  const [kind, source] = section.id.split('-');
+
+  return source
+    ? t(`dashboard.chat.picker.${kind}`, { source: t(`asset.providers.${source}`) })
+    : t(`dashboard.chat.picker.${section.id}`);
 }
 
 // An emote is starred by its provider and id; the picker lists it by its code.
