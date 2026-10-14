@@ -74,6 +74,9 @@ async function mountPage(): Promise<{ open: ReturnType<typeof ref<boolean>> }> {
 }
 
 beforeEach(async () => {
+  // Each test starts on a clean entry: a push to the same page keeps the last test's layer steps.
+  window.history.replaceState(null, '', '/');
+
   router = createRouter({
     history: createWebHistory(),
     routes: [{ path: '/:any(.*)*', component: { render: () => null } }],
@@ -170,6 +173,29 @@ describe('a menu on a phone', () => {
 
     activation.isActive = true;
     window.dispatchEvent(new Event('pointerup'));
+    await settle();
+    expect(window.history.state?.position).toBe(position + 1);
+    expect(window.history.state?.backLayers).toBe(1);
+
+    Reflect.deleteProperty(navigator, 'userActivation');
+  });
+
+  // A long press (the emote tone picker) ends in pointercancel, with no pointerup; the lift is a touchend.
+  it('adds its step when a long press lifts', async () => {
+    setWidth(400);
+
+    const activation = { isActive: false };
+
+    Object.defineProperty(navigator, 'userActivation', { value: activation, configurable: true });
+
+    const { open } = await mountPage();
+    const position = window.history.state?.position;
+
+    open.value = true;
+    await settle();
+    window.dispatchEvent(new Event('pointercancel'));
+    activation.isActive = true;
+    window.dispatchEvent(new Event('touchend'));
     await settle();
     expect(window.history.state?.position).toBe(position + 1);
     expect(window.history.state?.backLayers).toBe(1);

@@ -80,6 +80,22 @@ function gesture(): boolean {
   return navigator.userActivation?.isActive ?? true;
 }
 
+// Runs once when the finger lifts: a pointerup, or a touchend alone after a long press. Whichever comes first
+// removes both, so no stale listener runs on a later touch.
+function afterLift(run: () => void): AbortController {
+  const lifted = new AbortController();
+
+  const once = (): void => {
+    lifted.abort();
+    run();
+  };
+
+  window.addEventListener('pointerup', once, { capture: true, signal: lifted.signal });
+  window.addEventListener('touchend', once, { capture: true, signal: lifted.signal });
+
+  return lifted;
+}
+
 // A reka layer opens over the page, so it is above any panel and closes first.
 function closeTopLayer(): void {
   if (rekaLayerCount() > 0) {
@@ -129,9 +145,13 @@ export function useBackCloses(): void {
     setTimeout(remember, 0);
   });
 
+  // The wait for the finger to lift, while a layer opened before the tap counted.
+  let lift: AbortController | null = null;
+
   tryOnScopeDispose(() => {
     stopBefore();
     stopAfter();
+    lift?.abort();
   });
 
   const reconcile = useDebounceFn(async (): Promise<void> => {
@@ -145,9 +165,11 @@ export function useBackCloses(): void {
     if (open <= current) return;
 
     // A select or a message menu opens on the finger going down, before the tap counts as a gesture. The
-    // back button skips a step added without one, so the step waits for the finger to lift.
+    // back button skips a step added without one, so the step waits for the finger to lift. A long press
+    // (the emote tone picker) lifts with a touchend only: the browser cancels its pointer.
     if (!gesture()) {
-      window.addEventListener('pointerup', reconcile, { once: true, capture: true });
+      lift?.abort();
+      lift = afterLift(reconcile);
 
       return;
     }
