@@ -12,6 +12,7 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
 
+import { setWidth } from '@/__tests__/viewport';
 import SidePanel from '@/components/layout/SidePanel.vue';
 
 let mounted: VueWrapper | undefined;
@@ -20,26 +21,6 @@ afterEach(() => {
   mounted?.unmount();
   document.body.innerHTML = '';
 });
-
-// A window of the given width: matchMedia answers min-width queries against it.
-function setWidth(width: number): void {
-  window.matchMedia = ((query: string): MediaQueryList => {
-    const min = query.match(/min-width:\s*(\d+)px/);
-
-    return {
-      matches: min
-        ? width >= Number(min[1])
-        : false,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-      onchange: null,
-    } as MediaQueryList;
-  }) as typeof window.matchMedia;
-}
 
 async function panelAt(width: number, open = true): Promise<VueWrapper> {
   setWidth(width);

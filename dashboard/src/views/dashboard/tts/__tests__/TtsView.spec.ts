@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import { laptopWidth, setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -76,6 +77,7 @@ let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  setWidth(laptopWidth);
   calls.length = 0;
 
   answers = {

@@ -63,6 +63,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     private readonly ITwitchChatAssetsApi _assets;
     private readonly ITwitchIdentityResolver _identity;
     private readonly ChatEmoteOwnerDirectory _owners;
+    private readonly IThirdPartyEmoteProviderRegistry _providers;
     private readonly ILogger<ChatEmoteCatalogue> _logger;
 
     public ChatEmoteCatalogue(
@@ -70,6 +71,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         ITwitchChatAssetsApi assets,
         ITwitchIdentityResolver identity,
         ChatEmoteOwnerDirectory owners,
+        IThirdPartyEmoteProviderRegistry providers,
         ILogger<ChatEmoteCatalogue> logger
     )
     {
@@ -77,6 +79,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         _assets = assets;
         _identity = identity;
         _owners = owners;
+        _providers = providers;
         _logger = logger;
     }
 
@@ -138,6 +141,101 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
             all.AddRange(TagGlobal(await CachedAsync(ChatEmoteCacheKeys.Global(provider), ct)));
 
         return Result.Success(await WithOwnerChannelsAsync(Dedup(all), ct));
+    }
+
+    public async Task<Result<IReadOnlyList<ChatEmote>>> GetForPersonAsync(
+        Guid personUserId,
+        CancellationToken ct = default
+    )
+    {
+        string? twitchId = await _identity.GetTwitchUserIdAsync(personUserId, ct);
+        if (string.IsNullOrEmpty(twitchId))
+            return Result.Success<IReadOnlyList<ChatEmote>>([]);
+
+        IReadOnlyDictionary<string, ChatEmoteOwner> owners = await _owners.ResolveAsync(
+            [twitchId],
+            ct
+        );
+        string login = owners.TryGetValue(twitchId, out ChatEmoteOwner? person)
+            ? person.Login ?? string.Empty
+            : string.Empty;
+
+        List<ChatEmote> all =
+        [
+            .. TagTwitch(await TwitchChannelByIdAsync(twitchId, ct), twitchId, null),
+        ];
+        foreach (EmoteProvider provider in ThirdParty)
+            all.AddRange(
+                TagChannelSet(await ThirdPartyChannelAsync(provider, twitchId, login, ct), twitchId)
+            );
+
+        return Result.Success(await WithOwnerChannelsAsync(Dedup(all), ct));
+    }
+
+    // The 7TV/BTTV/FFZ channel set of a person who may not be an onboarded channel (so the warmer never filled it):
+    // the cache first, else one fetch through the provider adapter, cached under the same key the warmer writes.
+    private async Task<IReadOnlyList<ChatEmote>> ThirdPartyChannelAsync(
+        EmoteProvider provider,
+        string twitchId,
+        string login,
+        CancellationToken ct
+    )
+    {
+        string key = ChatEmoteCacheKeys.Channel(provider, twitchId);
+        IReadOnlyList<ChatEmote>? cached = await _cache.GetAsync<IReadOnlyList<ChatEmote>>(key, ct);
+        if (cached is not null)
+            return cached;
+
+        IThirdPartyEmoteProvider? adapter = _providers.Get(provider);
+        if (adapter is null)
+            return [];
+
+        Result<IReadOnlyList<ChatEmote>> fetched = await adapter.GetChannelAsync(
+            twitchId,
+            login,
+            ct
+        );
+        if (fetched.IsFailure)
+        {
+            _logger.LogDebug(
+                "ChatEmoteCatalogue: {Provider} channel set fetch failed for {TwitchId}, omitting",
+                provider,
+                twitchId
+            );
+            return [];
+        }
+
+        await _cache.SetAsync(key, fetched.Value, TwitchChannelTtl, ct);
+        return fetched.Value;
+    }
+
+    private async Task<IReadOnlyList<ChatEmote>> TwitchChannelByIdAsync(
+        string twitchId,
+        CancellationToken ct
+    )
+    {
+        string key = ChatEmoteCacheKeys.Channel(EmoteProvider.Twitch, twitchId);
+        IReadOnlyList<ChatEmote>? cached = await _cache.GetAsync<IReadOnlyList<ChatEmote>>(key, ct);
+        if (cached is not null)
+            return cached;
+
+        Result<IReadOnlyList<TwitchChannelEmote>> fetched =
+            await _assets.GetChannelEmotesByTwitchIdAsync(twitchId, ct);
+        if (fetched.IsFailure)
+        {
+            _logger.LogDebug(
+                "ChatEmoteCatalogue: Twitch channel emotes fetch failed for {TwitchId}, omitting",
+                twitchId
+            );
+            return [];
+        }
+
+        List<ChatEmote> mapped =
+        [
+            .. fetched.Value.Select(e => TwitchEmoteMapper.FromChannel(e, twitchId, null)),
+        ];
+        await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchChannelTtl, ct);
+        return mapped;
     }
 
     private static IEnumerable<ChatEmote> TagGlobal(IEnumerable<ChatEmote> emotes) =>

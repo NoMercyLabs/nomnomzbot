@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import { setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 import DashboardLayout from '@/layouts/DashboardLayout.vue';
 import ProfileMenu from '@/layouts/dashboard/ProfileMenu.vue';
@@ -46,26 +47,6 @@ vi.mock('@/composables/useCurrentChannel', () => ({
     choose: vi.fn<() => Promise<void>>(),
   }),
 }));
-
-// A window of the given width: matchMedia answers min-width queries against it.
-function setWidth(width: number): void {
-  window.matchMedia = ((query: string): MediaQueryList => {
-    const min = query.match(/min-width:\s*(\d+)px/);
-
-    return {
-      matches: min
-        ? width >= Number(min[1])
-        : false,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-      onchange: null,
-    } as MediaQueryList;
-  }) as typeof window.matchMedia;
-}
 
 const stub = (slot: string) => defineComponent({ render: () => h('div', { 'data-stub': slot }) });
 

@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -22,6 +23,8 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Chat.Enums;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -43,7 +46,8 @@ public sealed class CommunityControllerTests
         ITwitchUsersApi? users = null,
         ITwitchModeratorsApi? moderators = null,
         ITwitchSubscriptionsApi? subscriptions = null,
-        IUserService? userService = null
+        IUserService? userService = null,
+        IChatEmoteCatalogue? emoteCatalogue = null
     )
     {
         CommunityController controller = new(
@@ -57,7 +61,8 @@ public sealed class CommunityControllerTests
             Substitute.For<ICurrentUserService>(),
             Substitute.For<IViewerProfileService>(),
             users ?? Substitute.For<ITwitchUsersApi>(),
-            userService ?? Substitute.For<IUserService>()
+            userService ?? Substitute.For<IUserService>(),
+            emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>()
         )
         {
             ControllerContext = new()
@@ -74,6 +79,81 @@ public sealed class CommunityControllerTests
             },
         };
         return controller;
+    }
+
+    [Fact]
+    public async Task GetPersonEmotes_returns_the_persons_channel_emotes_flattened_with_origin_owner_and_tier()
+    {
+        Guid person = Guid.CreateVersion7();
+        IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
+        catalogue
+            .GetForPersonAsync(person, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ChatEmote>>([
+                    new(
+                        EmoteProvider.Twitch,
+                        "e-1",
+                        "personSub",
+                        new Dictionary<string, string> { ["1"] = "https://cdn/e-1" },
+                        Animated: false,
+                        ZeroWidth: false,
+                        SetId: "30",
+                        OwnerId: "555",
+                        Type: "subscriptions",
+                        Tier: 2,
+                        Origin: ChatEmoteOrigin.Channel,
+                        OwnerChannel: new ChatEmoteOwner("555", "personchan", "PersonChan")
+                    ),
+                ])
+            );
+        CommunityController controller = Build(
+            CommunityControllerTestDbContext.New(),
+            Substitute.For<ITwitchChannelsApi>(),
+            emoteCatalogue: catalogue
+        );
+
+        IActionResult result = await controller.GetPersonEmotes(
+            Broadcaster.ToString(),
+            person,
+            default
+        );
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>> body =
+            (StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>>)ok.Value!;
+        ChatController.ChatEmoteCatalogueDto emote = body.Data!.Should().ContainSingle().Subject;
+        emote.Code.Should().Be("personSub");
+        emote.Origin.Should().Be("channel");
+        emote.OwnerId.Should().Be("555");
+        emote.OwnerLogin.Should().Be("personchan");
+        emote.Type.Should().Be("subscriptions");
+        emote.Tier.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetPersonEmotes_returns_an_empty_list_for_a_person_without_emotes()
+    {
+        Guid person = Guid.CreateVersion7();
+        IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
+        catalogue
+            .GetForPersonAsync(person, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<ChatEmote>>([]));
+        CommunityController controller = Build(
+            CommunityControllerTestDbContext.New(),
+            Substitute.For<ITwitchChannelsApi>(),
+            emoteCatalogue: catalogue
+        );
+
+        IActionResult result = await controller.GetPersonEmotes(
+            Broadcaster.ToString(),
+            person,
+            default
+        );
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>> body =
+            (StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>>)ok.Value!;
+        body.Data.Should().BeEmpty();
     }
 
     [Fact]

@@ -16,6 +16,7 @@ import { useHomeStats, type HomeStats } from '@/api/home';
 import { useStreamHistory } from '@/api/stream';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
+import type { BoardPanel } from '@/components/layout/board';
 import { formatCountdown } from '@/components/layout/formatCountdown';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -98,6 +99,19 @@ const primaryRoute = computed<{ name: string; label: string } | null>(() => {
     ? next
     : null;
 });
+
+const panels = computed(() => [
+  { id: 'queue', label: t('dashboard.home.queue.title') },
+  { id: 'attention', label: t('dashboard.home.attention.title') },
+  { id: 'connections', label: t('dashboard.home.connections.title') },
+  { id: 'quick', label: t('dashboard.home.quick.title') },
+  {
+    id: 'happening',
+    label: live.value
+      ? t('dashboard.home.activity.live')
+      : t('dashboard.home.activity.offline'),
+  },
+] as const satisfies readonly BoardPanel[]);
 </script>
 
 <template>
@@ -130,24 +144,24 @@ const primaryRoute = computed<{ name: string; label: string } | null>(() => {
     </template>
   </PageHeader>
 
-  <BoardGrid :rows="2">
-    <BoardCell :span="5">
+  <BoardGrid :panels="panels" :rows="2">
+    <BoardCell panel="queue" :span="5">
       <ReviewQueuePanel :live="live" />
     </BoardCell>
 
-    <BoardCell :span="4">
+    <BoardCell panel="attention" :span="4">
       <NeedsAttentionPanel />
     </BoardCell>
 
-    <BoardCell :span="3" :rows="2">
+    <BoardCell panel="connections" :span="3" :rows="2">
       <ConnectionsPanel />
     </BoardCell>
 
-    <BoardCell :span="5">
+    <BoardCell panel="quick" :span="5">
       <QuickActionsPanel />
     </BoardCell>
 
-    <BoardCell :span="4">
+    <BoardCell panel="happening" :span="4">
       <HappeningPanel :live="live" />
     </BoardCell>
   </BoardGrid>

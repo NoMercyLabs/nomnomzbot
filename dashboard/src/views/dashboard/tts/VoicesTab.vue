@@ -25,6 +25,7 @@ import {
 } from '@/api/tts';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
+import type { BoardPanel } from '@/components/layout/board';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -168,11 +169,16 @@ function choose(voice: TtsVoice): void {
     pick.mutate({ voiceId: voice.id, provider: voice.provider });
   }
 }
+
+const panels = computed(() => [
+  { id: 'voices', label: t('dashboard.tts.voices.title') },
+  { id: 'detection', label: t('dashboard.tts.voices.detection.title') },
+] as const satisfies readonly BoardPanel[]);
 </script>
 
 <template>
-  <BoardGrid :rows="2">
-    <BoardCell :span="7" :rows="2">
+  <BoardGrid :panels="panels" :rows="2">
+    <BoardCell panel="voices" :span="7" :rows="2">
       <PanelCard
         :title="$t('dashboard.tts.voices.title')"
         :description="subtitle"
@@ -313,7 +319,7 @@ function choose(voice: TtsVoice): void {
         </template>
       </PanelCard>
     </BoardCell>
-    <BoardCell :span="5">
+    <BoardCell panel="detection" :span="5">
       <PanelCard :title="$t('dashboard.tts.voices.detection.title')" tier="quiet" pad>
         <p class="text-sm text-muted-foreground">{{ $t('dashboard.tts.voices.detection.body') }}</p>
       </PanelCard>

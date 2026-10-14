@@ -41,4 +41,15 @@ public interface IChatEmoteCatalogue
         ChatEmoteSender sender = ChatEmoteSender.Operator,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The emotes one person's OWN Twitch channel offers, for the asset-inspection section of their profile: their
+    /// Twitch channel emotes (subscription tiers, follower, bits tier) plus their 7TV, BTTV and FFZ channel sets, all
+    /// tagged <see cref="ChatEmoteOrigin.Channel"/> and owned by that person. A person with no linked Twitch identity,
+    /// or with no emotes, yields an empty list; a failed source is left out, never an error.
+    /// </summary>
+    Task<Result<IReadOnlyList<ChatEmote>>> GetForPersonAsync(
+        Guid personUserId,
+        CancellationToken ct = default
+    );
 }

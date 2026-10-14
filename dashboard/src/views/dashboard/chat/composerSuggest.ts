@@ -20,6 +20,8 @@ export type Suggestion = {
   insert: string;
   image: string | null;
   provider: string | null;
+  // An emoji's five skin-tone versions, light to dark; empty for anything without them.
+  skins: readonly string[];
 };
 
 // The word being typed at the caret: ":" + 2 letters asks for emotes and emoji, "@" + 1 letter for a chatter.
@@ -70,6 +72,7 @@ export function emoteSuggestion(emote: ChatEmoteEntry): Suggestion {
     insert: emote.code,
     image: emote.urls['2'] ?? emote.urls['1'] ?? Object.values(emote.urls)[0] ?? null,
     provider: emote.provider,
+    skins: [],
   };
 }
 
@@ -80,6 +83,7 @@ export function emojiSuggestion(entry: EmojiEntry, code = entry.shortcodes[0]): 
     insert: entry.glyph,
     image: null,
     provider: null,
+    skins: entry.skins,
   };
 }
 
@@ -151,5 +155,6 @@ export function chatterSuggestions(names: readonly string[], query: string): Sug
       insert: `@${name}`,
       image: null,
       provider: null,
+      skins: [],
     }));
 }

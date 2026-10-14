@@ -24,7 +24,7 @@ import type { ChatEmoteEntry } from '@/api/chat';
 import { useFavoriteEmoteChange, useFavoriteEmotes, type FavoriteEmote } from '@/api/favoriteEmotes';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import type { Suggestion } from '../composerSuggest';
@@ -179,9 +179,66 @@ function returnFocus(event: Event): void {
   emit('closed');
 }
 
-function pick(item: Suggestion): void {
+// The recent picks keep the yellow emoji, so the list finds it; the box gets the chosen version.
+function pick(item: Suggestion, glyph = item.insert): void {
   recent.value = remember(recent.value, item.insert);
-  emit('pick', item.insert);
+  emit('pick', glyph);
+}
+
+// Stoney 2026-10-14: "make variant emotes yellow and give the user the choice of which and make long press clear
+// the choice and the user pick a new version". The choice is kept per emoji on this device.
+const skinChoices = useLocalStorage<Record<string, string>>('nnz.chat.skin-tones', {});
+const toning = ref<Suggestion | null>(null);
+const toneAnchor = shallowRef<HTMLElement | null>(null);
+const toneOptions = computed(() =>
+  toning.value
+    ? [toning.value.insert, ...toning.value.skins]
+    : []);
+
+function askTone(item: Suggestion, event: Event): void {
+  toneAnchor.value = event.currentTarget as HTMLElement;
+  toning.value = item;
+}
+
+function choose(item: Suggestion, event: Event): void {
+  const chosen = skinChoices.value[item.insert];
+
+  if (item.skins.length === 0 || chosen) {
+    pick(item, chosen);
+
+    return;
+  }
+
+  askTone(item, event);
+}
+
+function chooseTone(glyph: string): void {
+  if (!toning.value) return;
+
+  skinChoices.value = { ...skinChoices.value, [toning.value.insert]: glyph };
+  pick(toning.value, glyph);
+  toning.value = null;
+}
+
+// Right-click, or a long press on a phone: an emoji with skin tones forgets its tone and asks again; an emote
+// gets its star toggled.
+function secondary(item: Suggestion, event: Event): void {
+  if (item.skins.length === 0) {
+    toggleFavorite(item);
+
+    return;
+  }
+
+  const { [item.insert]: _forgotten, ...kept } = skinChoices.value;
+
+  skinChoices.value = kept;
+  askTone(item, event);
+}
+
+function closeTones(isOpen: boolean): void {
+  if (!isOpen) {
+    toning.value = null;
+  }
 }
 </script>
 
@@ -261,14 +318,21 @@ function pick(item: Suggestion): void {
                 type="button"
                 :data-picker-item="item.insert"
                 :data-favorite="isFavorite(item) || undefined"
+                :data-skins="item.skins.length || undefined"
+                :aria-haspopup="item.skins.length > 0 && !skinChoices[item.insert] ? 'dialog' : undefined"
                 :aria-label="isFavorite(item) ? $t('dashboard.chat.picker.starred', { name: item.label }) : item.label"
-                class="flex aspect-square cursor-pointer items-center justify-center
+                class="relative flex aspect-square cursor-pointer items-center justify-center
                 rounded-[calc(var(--radius-md)-8px)] hover:bg-muted focus-visible:bg-muted"
                 @mouseenter="shown = item"
                 @focus="shown = item"
-                @click="pick(item)"
-                @contextmenu.prevent="toggleFavorite(item)"
+                @click="choose(item, $event)"
+                @contextmenu.prevent="secondary(item, $event)"
               >
+                <span
+                  v-if="item.skins.length > 0"
+                  class="absolute right-0.5 bottom-0.5 size-1 rounded-full bg-muted-foreground/40"
+                  aria-hidden="true"
+                />
                 <img
                   v-if="item.image"
                   :src="item.image"
@@ -282,6 +346,27 @@ function pick(item: Suggestion): void {
           </section>
         </div>
       </div>
+      <Popover :open="toning !== null" @update:open="closeTones">
+        <PopoverAnchor :reference="toneAnchor ?? undefined" />
+        <PopoverContent
+          data-skin-tones
+          side="top"
+          class="w-auto flex-row gap-0.5 p-1"
+          :aria-label="$t('dashboard.chat.picker.tones')"
+        >
+          <button
+            v-for="glyph in toneOptions"
+            :key="glyph"
+            type="button"
+            :data-skin-option="glyph"
+            class="flex size-10 cursor-pointer items-center justify-center rounded-[calc(var(--radius-md)-4px)]
+              text-2xl leading-none hover:bg-muted focus-visible:bg-muted"
+            @click="chooseTone(glyph)"
+          >
+            {{ glyph }}
+          </button>
+        </PopoverContent>
+      </Popover>
       <!-- A phone has no pointer to point with and a search box would raise the keyboard over the tray. -->
       <p
         v-if="!phone"
