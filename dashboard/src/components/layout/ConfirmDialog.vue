@@ -13,6 +13,7 @@
 // Cancel is outline on the left; the red button names the action. Pressing it emits confirm and
 // leaves the dialog open: the owner closes it (v-model:open) when the work is done, so pending can show.
 import BlastList from '@/components/layout/BlastList.vue';
+import { useReadOnly } from '@/components/layout/readOnly';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -41,6 +42,9 @@ withDefaults(
 );
 
 defineEmits<{ 'update:open': [open: boolean]; confirm: [] }>();
+
+// The dialog renders in a portal, so it reads the lock of the scope that opened it.
+const locked = useReadOnly();
 </script>
 
 <template>
@@ -62,7 +66,7 @@ defineEmits<{ 'update:open': [open: boolean]; confirm: [] }>();
         <Button
           data-confirm-action
           variant="destructive"
-          :disabled="pending"
+          :disabled="pending || locked"
           @click="$emit('confirm')"
         >
           <Spinner v-if="pending" />

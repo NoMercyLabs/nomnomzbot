@@ -4,6 +4,7 @@
     "language": "Language",
     "close": "Close",
     "cancel": "Cancel",
+    "readOnly": "You can view this, but your role cannot change it.",
     "provider": {
       "twitch": "Twitch",
       "twitch_bot": "Twitch bot account",
@@ -238,14 +239,41 @@
       "activity": "Activity",
       "moderation": "Moderation"
     },
+    "lastSeen": "Last seen {ago}",
+    "handle": "{'@'}{name}",
+    "tier": "Tier {tier}",
     "stats": {
       "messages": "Chat lines",
       "watchHours": "Hours watched",
-      "commands": "Commands used"
+      "commands": "Commands used",
+      "redemptions": "Rewards redeemed",
+      "streak": "Watch streak"
+    },
+    "sections": {
+      "identity": "Identity",
+      "relationship": "Relationship"
+    },
+    "roles": {
+      "broadcaster": "Broadcaster",
+      "moderator": "Moderator",
+      "vip": "VIP",
+      "subscriber": "Subscriber",
+      "viewer": "Viewer"
+    },
+    "following": {
+      "true": "Yes",
+      "false": "No"
     },
     "facts": {
       "username": "Login",
       "trust": "Standing",
+      "name": "Name",
+      "pronouns": "Pronouns",
+      "roleSince": "Role since",
+      "following": "Following",
+      "twitchId": "Twitch ID",
+      "roles": "Roles",
+      "subscription": "Twitch subscription",
       "firstSeen": "First seen",
       "lastSeen": "Last seen"
     },
@@ -256,6 +284,7 @@
     },
     "chat": {
       "title": "Latest in chat",
+      "all": "All chat",
       "empty": "No chat lines stored yet."
     },
     "moderation": {

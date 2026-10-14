@@ -4,6 +4,7 @@
     "language": "Taal",
     "close": "Sluiten",
     "cancel": "Annuleren",
+    "readOnly": "Je kunt dit bekijken, maar je rol kan het niet wijzigen.",
     "provider": {
       "twitch": "Twitch",
       "twitch_bot": "Twitch-botaccount",
@@ -238,14 +239,41 @@
       "activity": "Activiteit",
       "moderation": "Moderatie"
     },
+    "lastSeen": "Laatst gezien {ago}",
+    "handle": "{'@'}{name}",
+    "tier": "Tier {tier}",
     "stats": {
       "messages": "Chatregels",
       "watchHours": "Uren gekeken",
-      "commands": "Commando's gebruikt"
+      "commands": "Commando's gebruikt",
+      "redemptions": "Beloningen ingewisseld",
+      "streak": "Kijkreeks"
+    },
+    "sections": {
+      "identity": "Identiteit",
+      "relationship": "Relatie"
+    },
+    "roles": {
+      "broadcaster": "Streamer",
+      "moderator": "Moderator",
+      "vip": "VIP",
+      "subscriber": "Abonnee",
+      "viewer": "Kijker"
+    },
+    "following": {
+      "true": "Ja",
+      "false": "Nee"
     },
     "facts": {
       "username": "Inlognaam",
       "trust": "Status",
+      "name": "Naam",
+      "pronouns": "Voornaamwoorden",
+      "roleSince": "Rol sinds",
+      "following": "Volgt",
+      "twitchId": "Twitch-ID",
+      "roles": "Rollen",
+      "subscription": "Twitch-abonnement",
       "firstSeen": "Eerst gezien",
       "lastSeen": "Laatst gezien"
     },
@@ -256,6 +284,7 @@
     },
     "chat": {
       "title": "Laatst in de chat",
+      "all": "Alle chat",
       "empty": "Nog geen chatregels bewaard."
     },
     "moderation": {

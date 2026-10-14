@@ -10,9 +10,10 @@
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { h } from 'vue';
+import { defineComponent, h } from 'vue';
 
 import FormDialog from '@/components/layout/FormDialog.vue';
+import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { i18n } from '@/i18n';
 
 let mounted: VueWrapper | null = null;
@@ -158,6 +159,41 @@ describe('the form dialog', () => {
     expect(alert.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(field('name').value).toBe('so');
     expect(field('response').value).toBe('Go follow them');
+  });
+
+  it('disables the fields and the submit inside a locked scope, so nothing can fire', async () => {
+    const wrapper = mount(
+      defineComponent({
+        render: () =>
+          h(ReadOnlyScope, { readOnly: true }, () =>
+            h(FormDialog, {
+              open: true,
+              title: 'New command',
+              action: 'Create command',
+            }, () => [
+              h('input', { 'data-testid': 'name', name: 'name' }),
+            ]),
+          ),
+      }),
+      { attachTo: document.body, global: { plugins: [i18n] } },
+    );
+
+    mounted = wrapper;
+    await flushPromises();
+
+    const submits: Event[] = [];
+
+    document.body.addEventListener('submit', (event: Event) =>
+      submits.push(event));
+
+    primary().click();
+    press(field('name'), 'Enter');
+    await flushPromises();
+
+    expect(primary().disabled).toBe(true);
+    expect(field('name').matches(':disabled')).toBe(true);
+    expect(submits).toHaveLength(0);
+    expect(wrapper.findComponent(FormDialog).emitted('submit')).toBeUndefined();
   });
 
   it('shows no error area when there is no error', async () => {

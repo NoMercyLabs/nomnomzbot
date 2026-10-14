@@ -10,8 +10,10 @@
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
+import { defineComponent, h } from 'vue';
 
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { i18n } from '@/i18n';
 
 let mounted: VueWrapper | null = null;
@@ -131,6 +133,29 @@ describe('the confirm dialog', () => {
     await flushPromises();
 
     expect(wrapper.emitted('confirm')).toBeUndefined();
+  });
+
+  it('disables the action inside a locked scope, so a press cannot confirm', async () => {
+    mounted = mount(
+      defineComponent({
+        render: () =>
+          h(ReadOnlyScope, { readOnly: true }, () =>
+            h(ConfirmDialog, {
+              open: true,
+              title: 'Delete !so?',
+              action: 'Delete command',
+            }),
+          ),
+      }),
+      { attachTo: document.body, global: { plugins: [i18n] } },
+    );
+
+    await flushPromises();
+    actionButton().click();
+    await flushPromises();
+
+    expect(actionButton().disabled).toBe(true);
+    expect(mounted.findComponent(ConfirmDialog).emitted('confirm')).toBeUndefined();
   });
 
   it('shows no spinner when not pending', async () => {
