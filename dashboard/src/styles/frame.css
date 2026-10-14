@@ -83,7 +83,6 @@
   padding: 3px;
   gap: 2px;
   background: var(--muted);
-  border-radius: var(--radius-sm);
   box-shadow: none;
 }
 /* Every segmented control spans its container, as the kit's Segmented Controls do (owner 2026-10-14: "please
@@ -99,24 +98,34 @@
   height: var(--tab-h);
   padding: 0 var(--s3);
   border: 0;
-  border-radius: calc(var(--radius-sm) - 3px);
+  border-radius: 9999px;
   gap: var(--s1_5);
+}
+
+/* The kit's Segmented Controls (owner 2026-10-14, kit screenshot): a pill track, the chosen option a lighter
+   pill with a hairline ring, the others muted text. Pills nest concentrically at any padding. */
+[data-slot='tabs-list'],
+[data-segmented] {
+  border-radius: 9999px;
+}
+[data-slot='tabs-trigger'],
+[data-segment] {
+  color: var(--muted-foreground);
 }
 [data-slot='tabs-trigger'][data-state='active'],
 [data-segment][data-state='on'] {
-  background: var(--background);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  color: var(--foreground);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
-/* A segmented choice inside a panel is the mockup's .seg (frame.css:158-160): radius 8 with 2px padding,
-   so each option is 6; the options share the row. The 1px ring keeps the track visible on a muted
-   group, where a muted track alone vanished (owner 2026-10-14: "no it does not look right"). */
+/* A segmented choice inside a panel keeps its compact height; the 1px ring keeps the track visible on a
+   muted group, where a muted track alone vanished (owner 2026-10-14: "no it does not look right"). */
 [data-segmented] {
   display: flex;
   padding: 2px;
   gap: 2px;
   background: var(--muted);
-  border-radius: 8px;
   box-shadow: inset 0 0 0 1px var(--border);
 }
 [data-segment] {
@@ -124,7 +133,7 @@
   height: var(--seg-h);
   padding: 0 var(--s2);
   border: 0;
-  border-radius: 6px;
+  border-radius: 9999px;
 }
 
 /* The mockup switch size (frame.css:151-155): 36 x 20 with a 14px thumb 2px from each edge. Its colors are the
