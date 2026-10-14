@@ -229,6 +229,7 @@ const missing = computed<KeyValueItem[]>(() =>
               <Button
                 variant="outline"
                 size="sm"
+                class="border-border"
                 :aria-label="$t('dashboard.music.rules.allowRow', { title: track.title })"
                 @click="allow(track)"
               >

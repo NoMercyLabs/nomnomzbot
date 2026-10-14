@@ -146,7 +146,12 @@ const panels = computed(() => [
             {{ $t('dashboard.music.rules.title') }}
           </Button>
         </SheetTrigger>
-        <SheetContent class="gap-0 p-0" :show-close-button="false" :aria-describedby="undefined">
+        <!-- h-dvh: a phone's browser bars change the visible height, so the footer must follow it. -->
+        <SheetContent
+          class="gap-0 p-0 data-[side=right]:h-dvh data-[side=right]:max-h-dvh"
+          :show-close-button="false"
+          :aria-describedby="undefined"
+        >
           <SheetTitle class="sr-only">{{ $t('dashboard.music.rules.title') }}</SheetTitle>
           <SheetClose as-child>
             <Button
