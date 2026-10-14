@@ -42,6 +42,20 @@ const sameHostOrigin: NonNullable<ProxyOptions['configure']> = (proxy) => {
   });
 };
 
+// A browser that carries the nnz_read_only=1 cookie (a test browser checking against the live box) cannot
+// change it: every write stops here with a 404, and only sign-in passes. Other browsers are not touched.
+// An audit script once clicked 37 "Delete message" buttons through this proxy.
+const blockWrites: NonNullable<ProxyOptions['bypass']> = (req) => {
+  const reads: boolean = req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS';
+  const readOnly: boolean = /(?:^|;\s*)nnz_read_only=1(?:;|$)/.test(req.headers.cookie ?? '');
+
+  if (!readOnly || reads || req.url?.startsWith('/api/v1/auth/')) return;
+
+  console.warn(`read only: refused ${req.method} ${req.url}`);
+
+  return false;
+};
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -59,7 +73,7 @@ export default defineConfig({
     // The https tunnel to this dev server, so a phone signs in by redirect.
     allowedHosts: ['vue.nomnomz.bot'],
     proxy: {
-      '/api': { target: api, xfwd: true, configure: sameHostOrigin },
+      '/api': { target: api, xfwd: true, configure: sameHostOrigin, bypass: blockWrites },
       '/hubs': { target: api, ws: true, xfwd: true },
       // The code editor page is an iframe that must share the dashboard's origin (both sides check it).
       '/editor': { target: api, xfwd: true },
