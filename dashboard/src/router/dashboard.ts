@@ -19,6 +19,7 @@ import { dashboardHomeRoute } from '@/views/dashboard/home/route';
 import { dashboardMusicRoute } from '@/views/dashboard/music/route';
 import { dashboardOverlaysRoute } from '@/views/dashboard/overlays/route';
 import { dashboardPeopleRoute } from '@/views/dashboard/people/route';
+import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboard/pipelines/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
 import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
 import { dashboardStreamRoute } from '@/views/dashboard/stream/route';
@@ -37,6 +38,8 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardTtsRoute,
         dashboardPeopleRoute,
         dashboardOverlaysRoute,
+        dashboardPipelinesRoute,
+        dashboardPipelineRoute,
         dashboardScriptsRoute,
         dashboardStreamRoute,
         dashboardAnalyticsRoute,
@@ -52,6 +55,8 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardTtsRoute,
         dashboardPeopleRoute,
         dashboardOverlaysRoute,
+        dashboardPipelinesRoute,
+        dashboardPipelineRoute,
         dashboardScriptsRoute,
         dashboardStreamRoute,
         dashboardAnalyticsRoute,

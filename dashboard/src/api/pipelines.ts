@@ -179,6 +179,34 @@ export function usePipeline(
   });
 }
 
+export type NewPipeline = { name: string };
+
+// A new pipeline starts empty and on; the list reloads so the new row shows.
+export function useCreatePipeline(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Pipeline, Error, NewPipeline, unknown> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ name }: NewPipeline): Promise<Pipeline> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/pipelines',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { name, graph: { steps: [] } },
+        },
+      );
+
+      if (error !== undefined || !data?.data)
+        throw refusal('create pipeline', error, response.status);
+
+      return parsePipeline(data.data);
+    },
+    onSuccess: () =>
+      queries.invalidateQueries({ queryKey: pipelinesKey(toValue(channelId)) }),
+  });
+}
+
 // Only the parts named change; the graph goes whole, so new steps come back with their ids.
 export type PipelineChange = {
   id: string;

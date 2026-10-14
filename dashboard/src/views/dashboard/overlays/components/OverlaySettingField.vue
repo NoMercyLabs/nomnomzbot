@@ -27,8 +27,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useLocalizedText } from '@/composables/useLocalizedText';
+import { humanize } from '@/lib/text';
 
-import { clampNumber, humanize, useSettingText } from './settingField';
+import { clampNumber } from './settingField';
 
 const props = defineProps<{
   field: WidgetSettingsField;
@@ -37,7 +39,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ update: [value: unknown]; reset: [] }>();
 
-const text = useSettingText();
+const text = useLocalizedText();
 const titleId = useId();
 
 const label = computed<string>(() => text(props.field.label, humanize(props.field.key)));

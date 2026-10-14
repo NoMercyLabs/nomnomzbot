@@ -1,0 +1,97 @@
+{
+  "dashboard": {
+    "pipelines": {
+      "title": "Pipelines",
+      "crumb": "Bouwen",
+      "new": "Nieuwe pipeline",
+      "noWrite": "Jouw rol kan pipelines niet wijzigen.",
+      "list": {
+        "search": "Pipelines zoeken",
+        "title": "Alle pipelines",
+        "error": "De pipelines zijn niet geladen.",
+        "empty": "Dit kanaal heeft nog geen pipelines.",
+        "makeFirst": "Maak de eerste pipeline",
+        "noMatch": "Geen pipeline past bij je zoekopdracht.",
+        "runs": "Nooit gedraaid | Eén keer gedraaid | {count} keer gedraaid",
+        "ranLast": "{runs}, laatst {ago}",
+        "readyMade": "Kant-en-klaar",
+        "off": "Uit"
+      },
+      "newDialog": {
+        "title": "Nieuwe pipeline",
+        "description": "Geef hem een naam. Daarna voeg je de stappen toe.",
+        "action": "Pipeline maken",
+        "name": "Naam",
+        "namePlaceholder": "Iemand roasten"
+      },
+      "workbench": {
+        "error": "Deze pipeline is niet geladen.",
+        "off": "Uit",
+        "steps": "Geen stappen | 1 stap | {count} stappen",
+        "starts": {
+          "sentence": "Start als {sources}",
+          "command": "iemand !{name} typt",
+          "chat": "een chatbericht past bij {name}",
+          "timer": "de timer {name} afgaat",
+          "event": "{name} gebeurt",
+          "none": "Nog niets start deze pipeline."
+        },
+        "end": "Klaar. De pipeline stopt hier.",
+        "empty": "Deze pipeline heeft nog geen stappen.",
+        "block": {
+          "if": "Als, anders",
+          "switch": "Kies op een waarde",
+          "switch_case": "Geval",
+          "loop": "Herhalen",
+          "random_branch": "Kies er willekeurig één",
+          "random_case": "Pad",
+          "try": "Vang een fout op",
+          "detached_step": "Los uitvoeren"
+        },
+        "lane": {
+          "yes": "Ja",
+          "no": "Nee",
+          "works": "Het lukt",
+          "fails": "Het mislukt",
+          "each": "Elke keer",
+          "alone": "Los",
+          "case": "Als het {match} is",
+          "otherwise": "Anders",
+          "path": "Pad {letter}",
+          "empty": "Niets extra. Gaat door naar de volgende stap."
+        },
+        "onlyIf": "Alleen als {left} {operator} {right}",
+        "onlyIfNot": "Alleen als niet: {left} {operator} {right}",
+        "operator": {
+          "eq": "is",
+          "ne": "is niet",
+          "gt": "is meer dan",
+          "lt": "is minder dan",
+          "gte": "is minstens",
+          "lte": "is hooguit",
+          "contains": "bevat",
+          "starts_with": "begint met",
+          "ends_with": "eindigt op"
+        },
+        "notSetUp": "Nog niet ingesteld: {fields} is leeg. | Nog niet ingesteld: {fields} zijn leeg.",
+        "inspector": {
+          "label": "Stapdetails",
+          "settings": "Instellingen",
+          "plain": "In gewone woorden",
+          "pick": "Kies een stap om te zien wat hij doet.",
+          "notSet": "Niet ingesteld",
+          "noFields": "Deze stap heeft geen instellingen.",
+          "condition": "Alleen uitvoeren als",
+          "always": "Draait altijd.",
+          "onError": "Als het mislukt",
+          "goesOn": "De pipeline gaat door.",
+          "stops": "De pipeline stopt.",
+          "plainGoesOn": "Als het mislukt, gaat de pipeline door.",
+          "plainStops": "Als het mislukt, stopt de pipeline.",
+          "declares": "Latere stappen kunnen het gebruiken.",
+          "number": "Stap {number}"
+        }
+      }
+    }
+  }
+}

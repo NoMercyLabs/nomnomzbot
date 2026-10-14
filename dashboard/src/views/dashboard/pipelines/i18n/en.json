@@ -1,0 +1,97 @@
+{
+  "dashboard": {
+    "pipelines": {
+      "title": "Pipelines",
+      "crumb": "Build",
+      "new": "New pipeline",
+      "noWrite": "Your role cannot change pipelines.",
+      "list": {
+        "search": "Search pipelines",
+        "title": "All pipelines",
+        "error": "The pipelines did not load.",
+        "empty": "This channel has no pipelines yet.",
+        "makeFirst": "Make the first pipeline",
+        "noMatch": "No pipeline matches your search.",
+        "runs": "Never ran | Ran once | Ran {count} times",
+        "ranLast": "{runs}, last {ago}",
+        "readyMade": "Ready-made",
+        "off": "Off"
+      },
+      "newDialog": {
+        "title": "New pipeline",
+        "description": "Give it a name. You add its steps next.",
+        "action": "Make pipeline",
+        "name": "Name",
+        "namePlaceholder": "Roast someone"
+      },
+      "workbench": {
+        "error": "This pipeline did not load.",
+        "off": "Off",
+        "steps": "No steps | 1 step | {count} steps",
+        "starts": {
+          "sentence": "Starts when {sources}",
+          "command": "someone types !{name}",
+          "chat": "a chat message matches {name}",
+          "timer": "the timer {name} runs",
+          "event": "{name} happens",
+          "none": "Nothing starts this pipeline yet."
+        },
+        "end": "Done. The pipeline ends here.",
+        "empty": "This pipeline has no steps yet.",
+        "block": {
+          "if": "If, otherwise",
+          "switch": "Switch on a value",
+          "switch_case": "Case",
+          "loop": "Repeat",
+          "random_branch": "Pick one at random",
+          "random_case": "Path",
+          "try": "Catch a failure",
+          "detached_step": "Run on its own"
+        },
+        "lane": {
+          "yes": "Yes",
+          "no": "No",
+          "works": "It works",
+          "fails": "It fails",
+          "each": "Each time",
+          "alone": "On its own",
+          "case": "When it is {match}",
+          "otherwise": "Otherwise",
+          "path": "Path {letter}",
+          "empty": "Nothing extra. Goes on to the next step."
+        },
+        "onlyIf": "Only if {left} {operator} {right}",
+        "onlyIfNot": "Only if not: {left} {operator} {right}",
+        "operator": {
+          "eq": "is",
+          "ne": "is not",
+          "gt": "is more than",
+          "lt": "is less than",
+          "gte": "is at least",
+          "lte": "is at most",
+          "contains": "contains",
+          "starts_with": "starts with",
+          "ends_with": "ends with"
+        },
+        "notSetUp": "Not set up yet: {fields} is empty. | Not set up yet: {fields} are empty.",
+        "inspector": {
+          "label": "Step details",
+          "settings": "Settings",
+          "plain": "In plain words",
+          "pick": "Pick a step to see what it does.",
+          "notSet": "Not set",
+          "noFields": "This step has no settings.",
+          "condition": "Only run if",
+          "always": "Always runs.",
+          "onError": "If it fails",
+          "goesOn": "The pipeline goes on.",
+          "stops": "The pipeline stops.",
+          "plainGoesOn": "If it fails, the pipeline goes on.",
+          "plainStops": "If it fails, the pipeline stops.",
+          "declares": "Later steps can use it.",
+          "number": "Step {number}"
+        }
+      }
+    }
+  }
+}

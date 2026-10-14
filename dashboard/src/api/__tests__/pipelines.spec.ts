@@ -18,6 +18,7 @@ import { useSaveErrorsStore } from '@/stores/saveErrors';
 import {
   pipelineKey,
   pipelinesKey,
+  useCreatePipeline,
   usePipeline,
   useSavePipeline,
   useTestRunPipeline,
@@ -237,6 +238,39 @@ describe('useSavePipeline', () => {
     expect(inbox.items.map((item: { titleKey: string }) => item.titleKey)).toEqual([
       'frame.inbox.saveFailedTitle',
     ]);
+  });
+});
+
+describe('useCreatePipeline', () => {
+  it('makes an empty pipeline by name and refreshes the list', async () => {
+    http.POST.mockResolvedValue({ data: { data: onTheWire(dto([])) }, response: ok });
+
+    const { queries, hook } = mount(() => useCreatePipeline(channel));
+    const list = vi.spyOn(queries, 'invalidateQueries');
+    const made = await hook.mutateAsync({ name: 'Shout' });
+
+    expect(http.POST.mock.calls[0]).toEqual([
+      '/api/v{version}/channels/{channelId}/pipelines',
+      {
+        params: { path: { version: '1', channelId: channel } },
+        body: { name: 'Shout', graph: { steps: [] } },
+      },
+    ]);
+
+    expect(made.id).toBe('p1');
+    expect(made.graph.steps).toEqual([]);
+    expect(list).toHaveBeenCalledWith({ queryKey: pipelinesKey(channel) });
+  });
+
+  it('throws the bot\'s reason when it refuses', async () => {
+    http.POST.mockResolvedValue({
+      error: { message: 'A pipeline with this name already exists.' },
+      response: { ok: false, status: 409 },
+    });
+
+    const { hook } = mount(() => useCreatePipeline(channel));
+
+    await expect(hook.mutateAsync({ name: 'Shout' })).rejects.toThrow('A pipeline with this name already exists.');
   });
 });
 

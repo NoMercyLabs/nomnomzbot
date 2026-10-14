@@ -28,9 +28,11 @@ import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useLocalizedText } from '@/composables/useLocalizedText';
+import { humanize } from '@/lib/text';
 
 import OverlaySettingField from './OverlaySettingField.vue';
-import { humanize, sameValue, useSettingText } from './settingField';
+import { sameValue } from './settingField';
 
 type Values = Record<string, unknown>;
 type SaveResult = 'none' | 'saved' | 'failed';
@@ -38,7 +40,7 @@ type SaveResult = 'none' | 'saved' | 'failed';
 const props = defineProps<{ widget: Widget }>();
 
 const { t } = useI18n();
-const text = useSettingText();
+const text = useLocalizedText();
 const { channelId } = useCurrentChannel();
 const schema = useWidgetSchema(channelId, () =>
   props.widget.id);

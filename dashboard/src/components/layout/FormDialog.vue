@@ -30,6 +30,9 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 
+// Dialog renders no element of its own, so hooks such as data-* from the owner land on the visible content.
+defineOptions({ inheritAttrs: false });
+
 const props = withDefaults(
   defineProps<{
     open: boolean;
@@ -92,6 +95,7 @@ function focusFirstField(event: Event): void {
 <template>
   <Dialog :open="open" @update:open="setOpen">
     <DialogContent
+      v-bind="$attrs"
       :show-close-button="false"
       class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-115"
       @open-auto-focus="focusFirstField"
