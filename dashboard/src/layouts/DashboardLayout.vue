@@ -25,6 +25,7 @@ import DashboardSidebar from './dashboard/DashboardSidebar.vue';
 import FrameActions from './dashboard/FrameActions.vue';
 import NavRail from './dashboard/NavRail.vue';
 import ProfileMenu from './dashboard/ProfileMenu.vue';
+import ShortcutsDialog from './dashboard/ShortcutsDialog.vue';
 
 // Three frames (spec frontend-vue-components.md section 2): sidebar from 840 px, icon rail from 600 px, bottom bar below.
 const wide = useMediaQuery('(min-width: 840px)');
@@ -67,6 +68,7 @@ useRealtime();
       </div>
       <!-- The one profile dialog of the frame; every UserName opens it. -->
       <ProfileDialog v-if="channelId" :key="channelId" />
+      <ShortcutsDialog />
     </div>
     <Toaster />
   </TooltipProvider>
