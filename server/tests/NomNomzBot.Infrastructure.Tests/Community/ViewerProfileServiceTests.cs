@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Application.Contracts.Analytics;
@@ -18,6 +19,7 @@ using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Giveaways.Entities;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Infrastructure.Community;
@@ -539,5 +541,106 @@ public sealed class ViewerProfileServiceTests
         result
             .Value.ModerationHistory.Should()
             .BeNull("that history belongs to a different channel");
+    }
+
+    private static readonly DateTime ImportedAt = new(2026, 8, 27, 0, 0, 0, DateTimeKind.Utc);
+
+    private static async Task SeedImportedSubjectAsync(ViewerProfileServiceTestDbContext db)
+    {
+        await SeedSubjectAsync(db);
+        User user = await db.Users.SingleAsync(u => u.Id == Subject);
+        user.CreatedAt = ImportedAt;
+        await db.SaveChangesAsync();
+    }
+
+    private static ChatMessage ChatLine(Guid channel, DateTime at, string id)
+    {
+        return new()
+        {
+            Id = id,
+            BroadcasterId = channel,
+            UserId = "subject-twitch",
+            Username = "subject",
+            DisplayName = "Subject",
+            UserType = "viewer",
+            Message = "hi",
+            CreatedAt = at,
+        };
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_FirstSeen_IsTheFirstChatLineInThisChannel_WhenOlderThanTheUserRow()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedImportedSubjectAsync(db);
+        DateTime first = new(2025, 3, 1, 12, 0, 0, DateTimeKind.Utc);
+        db.ChatMessages.Add(ChatLine(Broadcaster, first.AddDays(30), "m2"));
+        db.ChatMessages.Add(ChatLine(Broadcaster, first, "m1"));
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Identity.FirstSeenUtc.Should().Be(first);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_FirstSeen_IsTheAnalyticsFirstSeen_WhenOlderThanTheFirstChatLine()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedImportedSubjectAsync(db);
+        DateTime analyticsFirst = new(2024, 1, 5, 8, 0, 0, DateTimeKind.Utc);
+        db.ChatMessages.Add(ChatLine(Broadcaster, analyticsFirst.AddYears(1), "m1"));
+        db.ViewerProfiles.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                ViewerUserId = Subject,
+                ViewerTwitchUserId = "subject-twitch",
+                FirstSeenAt = analyticsFirst,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Identity.FirstSeenUtc.Should().Be(analyticsFirst);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_FirstSeen_IgnoresChatAndAnalyticsFromAnotherChannel()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedImportedSubjectAsync(db);
+        Guid otherChannel = Guid.CreateVersion7();
+        DateTime thisChannelLine = new(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+        db.ChatMessages.Add(
+            ChatLine(otherChannel, new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), "o1")
+        );
+        db.ViewerProfiles.Add(
+            new()
+            {
+                BroadcasterId = otherChannel,
+                ViewerUserId = Subject,
+                ViewerTwitchUserId = "subject-twitch",
+                FirstSeenAt = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            }
+        );
+        db.ChatMessages.Add(ChatLine(Broadcaster, thisChannelLine, "t1"));
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Identity.FirstSeenUtc.Should().Be(thisChannelLine);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_FirstSeen_FallsBackToTheUserRow_WhenNoChannelFactExists()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedImportedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Identity.FirstSeenUtc.Should().Be(ImportedAt);
     }
 }

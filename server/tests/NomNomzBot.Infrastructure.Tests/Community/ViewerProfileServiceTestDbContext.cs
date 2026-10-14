@@ -183,6 +183,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
             e.Ignore(m => m.Fragments);
             e.Ignore(m => m.Badges);
         });
+        b.Entity<ViewerProfile>(e => e.HasKey(p => p.Id));
         b.Entity<ChatterAssignedColor>(e => e.HasKey(c => c.Id));
 
         b.Entity<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride>(e => e.HasKey(o => o.Id));
@@ -275,8 +276,9 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
         typeof(NomNomzBot.Domain.Stream.Entities.ShoutoutOverride),
         typeof(NomNomzBot.Domain.ViewerData.Entities.ViewerDatum),
         typeof(CommandUsage),
-        // The cheered-bits total and the assigned chat color the identity/activity groups read.
+        // First seen, the cheered-bits total and the assigned chat color read these.
         typeof(ChatMessage),
+        typeof(ViewerProfile),
         typeof(ChatterAssignedColor),
     ];
 
@@ -355,8 +357,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => Set<ChatterAssignedColor>();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
@@ -513,7 +514,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints =>
         throw new NotSupportedException();
     public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => throw new NotSupportedException();
-    public DbSet<ViewerProfile> ViewerProfiles => throw new NotSupportedException();
+    public DbSet<ViewerProfile> ViewerProfiles => Set<ViewerProfile>();
     public DbSet<WatchSession> WatchSessions => throw new NotSupportedException();
     public DbSet<MessageActivityDaily> MessageActivityDailies => throw new NotSupportedException();
     public DbSet<ViewerEngagementDaily> ViewerEngagementDailies =>
