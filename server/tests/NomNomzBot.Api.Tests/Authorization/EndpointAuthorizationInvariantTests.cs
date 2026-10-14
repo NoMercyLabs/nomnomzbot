@@ -110,6 +110,10 @@ public sealed class EndpointAuthorizationInvariantTests
             "self-bound: lists only channels where the CALLER has viewer activity (user id from the token, never the route)",
         ["ViewerSelfController.GetMySummary"] =
             "self-bound: returns only the CALLER's own tiles in the channel (user id from the token, never the route)",
+        ["ViewerSelfController.GetMyMessages"] =
+            "self-bound: returns only the CALLER's own chat lines in the channel (user id from the token, never the route)",
+        ["ViewerSelfController.GetMyCommands"] =
+            "self-bound: lists commands at or below the CALLER's own level with the CALLER's own last use (user id from the token)",
         ["TtsConfigController.GetOwnVoice"] =
             "self-scoped in body: resolves the caller's OWN on-provider external id (JWT sub → UserIdentity) — a viewer reads only their own voice (tts.md §5 /tts/me/voice)",
         ["TtsConfigController.SetOwnVoice"] =
