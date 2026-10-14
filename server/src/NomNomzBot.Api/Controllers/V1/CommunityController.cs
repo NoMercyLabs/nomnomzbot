@@ -541,8 +541,8 @@ public partial class CommunityController : BaseController
                         profile is null ? 0 : (int)profile.TotalCommandsUsed,
                         "viewer",
                         false,
-                        f.FollowedAt.UtcDateTime,
-                        NewestSeen(stats?.LastSeen, profile) ?? f.FollowedAt.UtcDateTime
+                        EarliestSeen(stats?.FirstSeen, profile),
+                        NewestSeen(stats?.LastSeen, profile)
                     );
                 }),
             ];
@@ -696,10 +696,25 @@ public partial class CommunityController : BaseController
             })
             .ToDictionaryAsync(c => c.UserId, ct);
 
-        // Paginate the candidate list
+        Dictionary<string, ViewerProfile> viewerProfiles = await LoadViewerProfilesAsync(
+            broadcasterId,
+            candidateUserIds,
+            ct
+        );
+
+        // The most recently seen first; the never seen last, in a stable order.
         List<string> pagedIds =
         [
-            .. candidateUserIds.OrderBy(id => id).Skip(skip).Take(request.Take + 1),
+            .. candidateUserIds
+                .OrderByDescending(id =>
+                    NewestSeen(
+                        chatStats2.TryGetValue(id, out var stats) ? stats.LastSeen : null,
+                        viewerProfiles.GetValueOrDefault(id)
+                    )
+                )
+                .ThenBy(id => id, StringComparer.Ordinal)
+                .Skip(skip)
+                .Take(request.Take + 1),
         ];
 
         Dictionary<string, User> users2 = await _db
@@ -723,12 +738,6 @@ public partial class CommunityController : BaseController
             .Configurations.Where(c => c.BroadcasterId == broadcasterId && c.Key.StartsWith("ban:"))
             .Select(c => c.Key.Substring(4))
             .ToHashSetAsync(ct);
-
-        Dictionary<string, ViewerProfile> viewerProfiles = await LoadViewerProfilesAsync(
-            broadcasterId,
-            pagedIds,
-            ct
-        );
 
         List<CommunityUserDto> items =
         [

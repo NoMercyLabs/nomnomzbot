@@ -327,6 +327,52 @@ public sealed class CommunityControllerTests
     }
 
     [Fact]
+    public async Task ListMembers_follower_never_seen_has_no_seen_dates_not_the_follow_date()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelFollowersAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchChannelFollower>(
+                        [
+                            new(
+                                "twitch-999",
+                                "quiet_follow",
+                                "Quiet_Follow",
+                                new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
+                            ),
+                        ],
+                        NextCursor: null,
+                        Total: 1
+                    )
+                )
+            );
+
+        CommunityController controller = Build(db, channels);
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: "follower",
+            cursor: null,
+            CancellationToken.None
+        );
+
+        CommunityController.CommunityUserDto follower = Data(result).Single();
+
+        // A follow is not a sighting: the bot never saw this person, so both dates stay empty.
+        follower.FirstSeen.Should().BeNull();
+        follower.LastSeen.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ListMembers_vip_passes_the_request_cursor_and_page_size_and_returns_the_twitch_cursor()
     {
         CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
@@ -1434,6 +1480,35 @@ public sealed class CommunityControllerTests
         );
 
         Data(result).Single(m => m.Id == "twitch-aaoa").LastSeen.Should().Be(PresenceAt);
+    }
+
+    [Fact]
+    public async Task ListMembers_all_lists_the_most_recently_seen_first_and_the_never_seen_last()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-a-mod", "amod", "AMod");
+        Guid modUserId = db.Users.Local.Single().Id;
+        db.ChannelModerators.Add(new() { ChannelId = Broadcaster, UserId = modUserId });
+        AddUser(db, "twitch-b-old", "old", "Old");
+        AddChat(db, "twitch-b-old", OldChatAt);
+        AddUser(db, "twitch-c-kana", "kana", "Kana");
+        AddProfile(db, "twitch-c-kana", PresenceAt);
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: null,
+            cursor: null,
+            CancellationToken.None
+        );
+
+        Data(result)
+            .Select(m => m.Id)
+            .Should()
+            .Equal("twitch-c-kana", "twitch-b-old", "twitch-a-mod");
     }
 
     [Fact]
