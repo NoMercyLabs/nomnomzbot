@@ -37,7 +37,6 @@ public sealed class AuthServiceStreamerScopesTests
 {
     private static readonly string[] ExpectedMinimalScopes =
     [
-        "user:read:email",
         "user:read:chat",
         "user:write:chat",
         "user:read:moderated_channels",
@@ -157,8 +156,8 @@ public sealed class AuthServiceStreamerScopesTests
     [Fact]
     public async Task StartTwitchDeviceLoginAsync_ForSelfHostLiteWithAnExistingConnection_RequestsOnlyTheMinimalScopes()
     {
-        List<string> storedGrant = [.. new TwitchScopeRegistry().FullCatalogue.Take(70)];
-        storedGrant.Should().HaveCount(70);
+        List<string> storedGrant = [.. new TwitchScopeRegistry().FullCatalogue.Take(60)];
+        storedGrant.Should().HaveCount(60);
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.IntegrationConnections.Add(
             new()

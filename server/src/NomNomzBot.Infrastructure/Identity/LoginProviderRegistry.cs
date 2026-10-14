@@ -36,14 +36,15 @@ public sealed class LoginProviderRegistry : ILoginProviderRegistry
             DisplayName: "Twitch",
             SupportedFlows: LoginFlows.DeviceCode | LoginFlows.AuthCode,
             FeatureFlagKey: "", // always on — the shipped login provider
-            LoginScopes: ["user:read:email"]
+            // Any user token can read its own Get Users row; we never store an email, so we never ask for one.
+            LoginScopes: []
         ),
         new(
             Key: AuthEnums.LoginProvider.YouTube,
             DisplayName: "YouTube",
             SupportedFlows: LoginFlows.DeviceCode | LoginFlows.AuthCode,
             FeatureFlagKey: "use_youtube_login",
-            LoginScopes: ["openid", "email", "profile"]
+            LoginScopes: ["openid", "profile"]
         ),
         new(
             Key: AuthEnums.LoginProvider.Kick,

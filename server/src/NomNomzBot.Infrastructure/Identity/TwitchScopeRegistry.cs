@@ -46,7 +46,6 @@ public sealed class TwitchScopeRegistry
         StringComparer.Ordinal
     )
     {
-        "user:read:email", // account identity claim on login, not a Helix call
         "user:read:chat", // EventSub channel.chat.message (bot's own read topic; also rides here for the
         // single-account self-host fallback where the streamer's account IS the bot)
         "user:write:chat", // HelixChatProvider send (Helix, but no [RequiresTwitchScope] sub-client method)

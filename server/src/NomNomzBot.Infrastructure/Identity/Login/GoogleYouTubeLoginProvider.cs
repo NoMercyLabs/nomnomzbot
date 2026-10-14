@@ -32,7 +32,7 @@ public sealed class GoogleYouTubeLoginProvider : ILoginIdentityProvider
     private const string UserInfoEndpoint = "https://openidconnect.googleapis.com/v1/userinfo";
     private const string DeviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code";
 
-    private static readonly string[] LoginScopes = ["openid", "email", "profile"];
+    private static readonly string[] LoginScopes = ["openid", "profile"];
 
     private readonly HttpClient _http;
     private readonly ISystemCredentialsProvider _credentials;

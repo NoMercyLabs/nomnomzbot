@@ -62,7 +62,7 @@ public sealed class GoogleYouTubeLoginProviderTests
         handler.LastUri(DeviceCodeEndpoint).Should().Be(new Uri(DeviceCodeEndpoint));
         string body = WebUtility.UrlDecode(handler.LastBody(DeviceCodeEndpoint)!);
         body.Should().Contain("client_id=yt-client-id");
-        body.Should().Contain("scope=openid email profile");
+        body.Should().Contain("scope=openid profile");
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class GoogleYouTubeLoginProviderTests
                     && t.AccessExpiresAt == FixedNow.UtcDateTime.AddSeconds(3600)
                 ),
                 Arg.Is<IReadOnlyList<string>>(s =>
-                    s.Contains("openid") && s.Contains("email") && s.Contains("profile")
+                    s.Contains("openid") && !s.Contains("email") && s.Contains("profile")
                 ),
                 Arg.Any<CancellationToken>()
             );

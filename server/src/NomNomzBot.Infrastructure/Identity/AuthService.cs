@@ -88,7 +88,6 @@ public sealed class AuthService : IAuthService
     // (BuildRegrantScopeSetAsync → StartTwitchDeviceLoginForScopesAsync), which never forces a logout.
     private static readonly string[] MinimalLoginScopes =
     [
-        "user:read:email", // account identity claim — the login itself needs it to resolve the Twitch user
         "user:read:chat", // EventSub channel.chat.message — the bot cannot read chat at all without this
         "user:write:chat", // HelixChatProvider send — the bot cannot type in chat at all without this
         // The channel switcher's "channels you moderate" list is part of signing in for a moderator-of-many:
