@@ -186,6 +186,7 @@
         "star": "Star {name}",
         "own": "You",
         "channel": "This channel",
+        "channelExtras": "Channel emotes",
         "others": "{source}",
         "global": "{source} global",
         "groups": {

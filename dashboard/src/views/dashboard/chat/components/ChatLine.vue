@@ -321,12 +321,19 @@ function pick(event: MouseEvent): void {
       class="flex-none text-muted-foreground tabular-nums"
       :datetime="line.timestamp"
     >{{ time }}</time>
-    <span v-if="display.avatars && line.avatarUrl && display.rows === 'one'" class="flex h-(--line-h) flex-none items-center">
+    <!-- Two lines read like Discord's cozy mode: the avatar spans both lines at the left, the message sits under
+         the name (owner 2026-10-14: "this combination looks super bad all combined"). -->
+    <span
+      v-if="display.avatars && line.avatarUrl"
+      class="flex flex-none"
+      :class="display.rows === 'two' ? 'pt-0.5' : 'h-(--line-h) items-center'"
+    >
       <img
         data-avatar
         :src="line.avatarUrl"
         alt=""
-        class="size-6 rounded-full"
+        class="rounded-full"
+        :class="display.rows === 'two' ? 'size-9' : 'size-6'"
       />
     </span>
     <div class="min-w-0 flex-1">
@@ -348,20 +355,6 @@ function pick(event: MouseEvent): void {
           class="h-(--line-h) items-center gap-2 align-top"
           :class="display.rows === 'two' ? 'flex' : 'me-2 inline-flex'"
         >
-          <template v-if="display.rows === 'two'">
-            <img
-              v-if="display.avatars && line.avatarUrl"
-              data-avatar
-              :src="line.avatarUrl"
-              alt=""
-              class="size-6 flex-none rounded-full"
-            />
-            <time
-              v-if="display.timestamps !== 'off'"
-              class="flex-none text-muted-foreground tabular-nums"
-              :datetime="line.timestamp"
-            >{{ time }}</time>
-          </template>
           <span
             v-if="display.platform || (display.badges && badges.length > 0)"
             class="flex items-center gap-1"
@@ -391,6 +384,11 @@ function pick(event: MouseEvent): void {
             :name="line.displayName"
             :style="{ color: nameColor }"
           />
+          <time
+            v-if="display.timestamps !== 'off' && display.rows === 'two'"
+            class="flex-none text-xs text-muted-foreground tabular-nums"
+            :datetime="line.timestamp"
+          >{{ time }}</time>
         </span>
         <template v-for="(fragment, at) in line.fragments" :key="at">
           <AssetCardPopover

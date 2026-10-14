@@ -62,7 +62,13 @@ function providerRank(emote: ChatEmoteEntry): number {
 
 // The server says whose an emote is (own, channel, other or global); another channel's emotes group by it.
 // The global ones and the ones without an owner keep a section per source (Twitch, 7TV, BTTV, FFZ).
+// The channel's 7TV, BTTV and FFZ emotes are nobody's face: one unnamed "Channel emotes" section after the other
+// channels (owner 2026-10-14: "those qualify as generic channel emotes so place them in between the channels and
+// emojis"), so your own avatar never heads two sections.
 function sectionOf(emote: ChatEmoteEntry): string {
+  if (emote.origin === 'channel' && emote.provider !== 'Twitch')
+    return 'channelExtras';
+
   if (emote.origin === 'own' || emote.origin === 'channel')
     return emote.origin;
 
@@ -138,7 +144,7 @@ function ownerSections(
   const unowned = fixed(bySource('others'));
   const global = fixed(bySource('global'));
 
-  return merge(fixed(['own', 'channel']), others, unowned, global);
+  return merge(fixed(['own', 'channel']), others, fixed(['channelExtras']), unowned, global);
 }
 
 // The favorites that are usable here, in the order given.

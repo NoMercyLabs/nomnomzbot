@@ -172,7 +172,7 @@ function toggleFavorite(item: Suggestion): void {
 // A channel's section names the sources its emotes come from in its heading, as the Twitch picker does. A source
 // section already says it in its title.
 function sourceOf(section: PickerSection): string {
-  if (!['own', 'channel'].includes(section.id) && !section.id.startsWith('owner-'))
+  if (!['own', 'channel', 'channelExtras'].includes(section.id) && !section.id.startsWith('owner-'))
     return '';
 
   const providers = new Set(section.items.map((item) =>

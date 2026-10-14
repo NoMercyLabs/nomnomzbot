@@ -186,6 +186,7 @@
         "star": "Ster op {name}",
         "own": "Jij",
         "channel": "Dit kanaal",
+        "channelExtras": "Kanaalemotes",
         "others": "{source}",
         "global": "{source} algemeen",
         "groups": {

@@ -62,9 +62,11 @@ describe('the emote picker sections', () => {
   it('puts your own emotes first, then this channel, then other channels by name, then the global ones', () => {
     expect(layout()).toEqual([
       ['own', ['myOwn'], undefined],
-      ['channel', ['stoneyWave', 'catJAM'], 'Stoney_Eagle'],
+      ['channel', ['stoneyWave'], 'Stoney_Eagle'],
       ['owner-ada', ['adaHype'], 'Ada'],
       ['owner-zed', ['zedHi'], 'Zed'],
+      // Owner 2026-10-14: the channel's 7TV, BTTV and FFZ emotes are generic, unnamed, after the other channels.
+      ['channelExtras', ['catJAM'], undefined],
       ['others-Twitch', ['ghostly'], undefined],
       ['global-Twitch', ['Kappa'], undefined],
       ['global-SevenTv', ['PepeLaugh'], undefined],
@@ -142,6 +144,7 @@ describe('the emote picker sections', () => {
       ['channel', []],
       ['owner-ada', ['adaHype']],
       ['owner-zed', ['zedHi']],
+      ['channelExtras', []],
       ['others-Twitch', ['ghostly']],
       ['global-Twitch', []],
       ['global-SevenTv', ['PepeLaugh']],

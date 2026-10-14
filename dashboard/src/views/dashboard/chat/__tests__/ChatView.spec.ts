@@ -62,7 +62,7 @@ const emoteList = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code): ChatEmote
   id: `id-${code}`,
   origin: 'channel',
   code,
-  provider: 'SevenTv',
+  provider: 'Twitch',
   urls: { 1: `https://cdn.test/${code}-1.webp`, 2: `https://cdn.test/${code}-2.webp` },
   animated: false,
   zeroWidth: false,
@@ -1961,7 +1961,7 @@ describe('ChatView emote picker', () => {
 
     expect(saved.map((call) =>
       call.body)).toEqual([{
-      provider: 'SevenTv',
+      provider: 'Twitch',
       emoteId: 'id-catJAM',
       code: 'catJAM',
       imageUrl: 'https://cdn.test/catJAM-2.webp',
@@ -2209,7 +2209,7 @@ describe('ChatView emote picker', () => {
 
   it('marks a favorite with a star in the grid', async () => {
     favoriteList = [{
-      provider: 'SevenTv',
+      provider: 'Twitch',
       emoteId: 'id-catJAM',
       code: 'catJAM',
       imageUrl: null,
@@ -2237,7 +2237,7 @@ describe('ChatView emote picker', () => {
     item('catKISS').dispatchEvent(new MouseEvent('mouseenter'));
     await settle();
     expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('catKISS');
-    expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('7TV');
+    expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('Twitch');
   });
 
   // Stoney 2026-10-14: "maybe only allow both if there is enough space?"
