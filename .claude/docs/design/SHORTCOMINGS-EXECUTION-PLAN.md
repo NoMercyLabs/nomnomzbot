@@ -21,6 +21,26 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-14: timers wait for an audience; one mod badge per platform; panels open at their final shape
+
+Stoney, verbatim: "you need to wait with the timers a bit longer after the stream started, if there is nobody yet it is a waste of data and cycles. not priority"
+
+Stoney, verbatim: "if this person is known on multiple plaforms and is mod on multiple then show the other platform icons too for a combined mod badge"
+
+Stoney, verbatim: "could you make the pannel data loading more deterministic so the pannel does not layout shift when it opens, this is the same for all lazy loaded menus and pannels"
+
+### S-TIMER-AUDIENCE: a timer starts only once chat has people in it (not priority)
+
+Done when: after go-live, no timer posts until a set warm-up has passed AND chat has had lines from viewers other than the bot; a test proves a fresh stream with an empty chat sends nothing. Also seen on 2026-10-14: a timer's Discord link preview rendered "A network error occured" twice in chat; the preview must fail quietly.
+
+### S-MOD-PER-PLATFORM: the profile knows a person's role on each platform
+
+Done when: the profile API returns roles per platform (filled by each platform connection), and the Moderator badge shows one brand-colored logo per platform where the person is a mod; a test proves no logo appears for a platform the bot cannot prove.
+
+### S-PANEL-NO-SHIFT: every lazy panel and menu opens at its final shape
+
+Done when: the 36 PanelCard loading states, 3 side panels, 2 sheets, 7 dialogs and 12 popovers/menus each show a placeholder with the same layout as their content, a panel that loads in parts reveals once, and hovering a chat name prefetches that viewer's profile; a test per family proves the box size does not change between loading and ready.
+
 ## OWNER REQUEST 2026-10-13 (evening) — row balance, dismissable errors, live updates, chat settings + active users panel
 
 Stoney, verbatim:
