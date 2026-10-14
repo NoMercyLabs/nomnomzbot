@@ -16,7 +16,12 @@ import Check from '~icons/nnz/check';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
-import { usePipelineOptions, type PickerKind, type PipelineOption } from '@/api/pipelines';
+import {
+  usePipelineOption,
+  usePipelineOptions,
+  type PickerKind,
+  type PipelineOption,
+} from '@/api/pipelines';
 import CommandSearch from '@/components/layout/CommandSearch.vue';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -50,9 +55,17 @@ const list = computed(() =>
   options.data.value);
 const items = computed(() =>
   list.value?.items ?? []);
-const chosen = computed(() =>
+const listed = computed(() =>
   items.value.find((option: PipelineOption) =>
     option.value === props.value));
+// A saved choice beyond the first page: the bot looks up that one item, so the button shows its name.
+const named = usePipelineOption(channelId, () =>
+  props.kind, () =>
+  listed.value || options.isPending.value
+    ? null
+    : props.value);
+const chosen = computed(() =>
+  listed.value ?? named.data.value ?? undefined);
 // The bot searches, so the answer decides "nothing matches": the Command only recounts when the text changes,
 // before the bot's rows arrive.
 const noMatch = computed(() =>
@@ -61,8 +74,10 @@ const typedIsOption = computed(() =>
   items.value.some((option: PipelineOption) =>
     option.value === search.value || option.label === search.value));
 
+// The next open starts on the full list again, not on the last search.
 function choose(value: string | undefined): void {
   open.value = false;
+  search.value = '';
   emit('change', value);
 }
 </script>

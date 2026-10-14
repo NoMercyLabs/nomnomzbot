@@ -157,6 +157,42 @@
           "useTyped": "\"{text}\" gebruiken",
           "clear": "Deze instelling leegmaken"
         },
+        "run": {
+          "start": "Testrun",
+          "clear": "Testrun wissen",
+          "again": "Opnieuw draaien",
+          "summary": "Testrun {number}: geen stappen gedraaid. | Testrun {number}: 1 stap gedraaid. | Testrun {number}: {ran} stappen gedraaid.",
+          "input": "Invoer | Invoer (1) | Invoer ({count})",
+          "inputHelp": "Namen met waarden die de stappen lezen als {'{'}name{'}'}, zoals een echte start ze invult. Er wordt niets verstuurd, gezegd of veranderd.",
+          "failedToStart": "De testrun is niet gestart.",
+          "done": "Klaar",
+          "failed": "Mislukt",
+          "skipped": "Niet gedraaid",
+          "took": "Deze run: {lane}",
+          "rounds": "Geen rondes gedraaid | Eén keer gedraaid | {count} keer gedraaid"
+        },
+        "views": {
+          "steps": "Stappen",
+          "runs": "Runs"
+        },
+        "runs": {
+          "title": "Runs",
+          "description": "Elke keer dat chat, een event of een timer deze pipeline startte, nieuwste eerst. Een testrun wordt hier niet bewaard.",
+          "empty": "Deze pipeline heeft nog niet gedraaid.",
+          "error": "De runs konden niet laden.",
+          "older": "Oudere runs tonen",
+          "when": "{ago}, duurde {length}",
+          "steps": "Wat elke stap deed",
+          "noSteps": "Er draaide geen stap.",
+          "stepsError": "De stappen van deze run konden niet laden.",
+          "step": "Stap {number}: {name}",
+          "status": {
+            "success": "Klaar",
+            "failed": "Mislukt",
+            "timeout": "Duurde te lang",
+            "denied": "Niet toegestaan"
+          }
+        },
         "list": {
           "item": "Item {number}",
           "remove": "Item {number} verwijderen",
@@ -185,6 +221,22 @@
           "title": "Weggaan zonder opslaan?",
           "description": "Je wijzigingen aan deze pipeline zijn nog niet opgeslagen. Ze gaan verloren als je weggaat.",
           "action": "Weggaan zonder opslaan"
+        },
+        "more": "Meer acties",
+        "power": {
+          "off": "Uitzetten",
+          "on": "Aanzetten",
+          "turnedOff": "{name} staat uit. Niets start hem tot je hem aanzet.",
+          "turnedOn": "{name} staat aan."
+        },
+        "delete": {
+          "item": "Pipeline verwijderen",
+          "title": "{name} verwijderen?",
+          "description": "De pipeline en zijn stappen zijn voorgoed weg.",
+          "consequence": "Als {source}, draait er niets meer.",
+          "action": "Pipeline verwijderen",
+          "done": "{name} is verwijderd.",
+          "failed": "De pipeline is niet verwijderd."
         }
       }
     }

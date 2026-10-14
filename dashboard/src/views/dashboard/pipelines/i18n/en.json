@@ -157,6 +157,42 @@
           "useTyped": "Use \"{text}\"",
           "clear": "Clear this setting"
         },
+        "run": {
+          "start": "Test run",
+          "clear": "Clear test run",
+          "again": "Run again",
+          "summary": "Test run {number}: no steps ran. | Test run {number}: 1 step ran. | Test run {number}: {ran} steps ran.",
+          "input": "Input | Input (1) | Input ({count})",
+          "inputHelp": "Names with values the steps read as {'{'}name{'}'}, as a real start fills them in. Nothing is sent, said or changed.",
+          "failedToStart": "The test run did not start.",
+          "done": "Done",
+          "failed": "Failed",
+          "skipped": "Did not run",
+          "took": "This run: {lane}",
+          "rounds": "Ran no rounds | Ran once | Ran {count} times"
+        },
+        "views": {
+          "steps": "Steps",
+          "runs": "Runs"
+        },
+        "runs": {
+          "title": "Runs",
+          "description": "Each time chat, an event or a timer started this pipeline, newest first. A test run is not kept here.",
+          "empty": "This pipeline has not run yet.",
+          "error": "The runs could not load.",
+          "older": "Show older runs",
+          "when": "{ago}, took {length}",
+          "steps": "What each step did",
+          "noSteps": "No step ran.",
+          "stepsError": "The steps of this run could not load.",
+          "step": "Step {number}: {name}",
+          "status": {
+            "success": "Done",
+            "failed": "Failed",
+            "timeout": "Took too long",
+            "denied": "Not allowed"
+          }
+        },
         "list": {
           "item": "Item {number}",
           "remove": "Remove item {number}",
@@ -185,6 +221,22 @@
           "title": "Leave without saving?",
           "description": "Your changes to this pipeline are not saved yet. They are lost when you leave.",
           "action": "Leave without saving"
+        },
+        "more": "More actions",
+        "power": {
+          "off": "Turn off",
+          "on": "Turn on",
+          "turnedOff": "{name} is off. Nothing starts it until you turn it on.",
+          "turnedOn": "{name} is on."
+        },
+        "delete": {
+          "item": "Delete pipeline",
+          "title": "Delete {name}?",
+          "description": "The pipeline and its steps are gone for good.",
+          "consequence": "When {source}, nothing runs anymore.",
+          "action": "Delete pipeline",
+          "done": "{name} is deleted.",
+          "failed": "The pipeline was not deleted."
         }
       }
     }

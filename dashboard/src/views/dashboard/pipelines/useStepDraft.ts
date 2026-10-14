@@ -54,7 +54,13 @@ export function useStepDraft(saved: Ref<Pipeline | undefined>): StepDraft {
   // Recorded at once: a deferred record of the load would land after clear() and let Undo empty the list.
   const history = useRefHistory(steps, { capacity: 50, flush: 'sync' });
 
-  watch(saved, (pipeline: Pipeline | undefined) => {
+  // Only other saved steps replace the draft: turning the pipeline off keeps the unsaved edits.
+  const savedSteps = computed(() =>
+    saved.value && JSON.stringify([saved.value.id, saved.value.graph.steps]));
+
+  watch(savedSteps, () => {
+    const pipeline = saved.value;
+
     if (!pipeline) return;
 
     steps.value = numberLanes(withIds(pipeline.graph.steps, mint));

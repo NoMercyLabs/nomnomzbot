@@ -27,6 +27,45 @@ export function formatLength(seconds: number, locale: string): string {
   return format.format(Math.round(seconds / size));
 }
 
+// How long a run or a step took: "350 ms" under a second, "1.2 sec" from there on.
+export function durationText(milliseconds: number, locale: string): string {
+  const short = milliseconds < 1000;
+  const format = new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: short
+      ? 'millisecond'
+      : 'second',
+    unitDisplay: 'short',
+    maximumFractionDigits: short
+      ? 0
+      : 1,
+  });
+
+  return format.format(short
+    ? milliseconds
+    : milliseconds / 1000);
+}
+
+// A stream length in hours and minutes: "6 hr 46 min", "45 min" under an hour.
+export function hoursMinutes(seconds: number, locale: string): string {
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const unit = (value: number, name: 'hour' | 'minute'): string =>
+    new Intl.NumberFormat(locale, {
+      style: 'unit',
+      unit: name,
+      unitDisplay: 'short',
+    }).format(value);
+
+  if (hours === 0)
+    return unit(minutes, 'minute');
+
+  if (minutes % 60 === 0)
+    return unit(hours, 'hour');
+
+  return `${unit(hours, 'hour')} ${unit(minutes % 60, 'minute')}`;
+}
+
 // The timeout lengths every timeout menu offers, in seconds: 1 minute, 10 minutes, 1 hour, 1 day.
 export const TIMEOUT_LENGTHS = [60, 600, 3600, 86400] as const satisfies readonly number[];
 

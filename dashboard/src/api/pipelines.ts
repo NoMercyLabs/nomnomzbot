@@ -259,6 +259,31 @@ export function useSavePipeline(
   });
 }
 
+// Deletes the pipeline for good. What started it (commands, triggers, timers, event responses) stops running it.
+export function useDeletePipeline(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, unknown> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/pipelines/{id}',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          id,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('pipeline delete', error, response.status);
+    },
+    onSuccess: () =>
+      queries.invalidateQueries({ queryKey: pipelinesKey(toValue(channelId)) }),
+  });
+}
+
 async function readBlastRadius(channelId: string, id: string): Promise<PipelineBlastRadius> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/pipelines/{id}/blast-radius',
@@ -331,15 +356,22 @@ export type PickerKind = (typeof PICKER_KINDS)[number];
 
 const optionPage = 50;
 
+// A search narrows the list; a value asks for that one item, so a saved choice shows its name.
+type OptionAsk = { search?: string; value?: string };
+
 async function readOptions(
   channelId: string,
   kind: PickerKind,
-  search: string,
+  ask: OptionAsk,
 ): Promise<PipelineOptionList> {
   const { data, error, response } = await client.GET('/api/v{version}/pipelines/options/{kind}', {
     params: {
       path: { version, kind },
-      query: { PageSize: optionPage, Search: search || undefined },
+      query: {
+        PageSize: optionPage,
+        Search: ask.search || undefined,
+        value: ask.value,
+      },
     },
     // The route carries no channel, so the tenant goes in the header the bot reads it from.
     headers: { 'X-Channel-Id': channelId },
@@ -361,21 +393,47 @@ export function usePipelineOptions(
     queryKey: computed(() =>
       ['channels', toValue(channelId), 'pipeline-options', toValue(kind), toValue(search)]),
     queryFn: () =>
-      readOptions(toValue(channelId) as string, toValue(kind), toValue(search)),
+      readOptions(toValue(channelId) as string, toValue(kind), { search: toValue(search) }),
     enabled: computed(() => toValue(channelId) !== null),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
 }
 
-export type TestRunRequest = { id: string; variables: Record<string, string> };
+// The one item a saved setting names, for a choice beyond the first page of the list.
+export function usePipelineOption(
+  channelId: MaybeRefOrGetter<string | null>,
+  kind: MaybeRefOrGetter<PickerKind>,
+  value: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PipelineOption | null, Error> {
+  return useQuery({
+    queryKey: computed(() =>
+      ['channels', toValue(channelId), 'pipeline-options', toValue(kind), 'value', toValue(value)]),
+    queryFn: async () => {
+      const list = await readOptions(toValue(channelId) as string, toValue(kind), {
+        value: toValue(value) as string,
+      });
 
-// The bot runs the SAVED graph without real side effects and returns what each step did.
+      return list.items[0] ?? null;
+    },
+    enabled: computed(() => toValue(channelId) !== null && !!toValue(value)),
+    staleTime: 60_000,
+  });
+}
+
+export type TestRunRequest = {
+  id: string;
+  variables: Record<string, string>;
+  graph?: PipelineGraph;
+};
+
+// The bot runs the graph without real side effects and returns what each step did: the draft on the canvas
+// when one is sent, the saved graph otherwise.
 export function useTestRunPipeline(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<PipelineTestRun, Error, TestRunRequest, unknown> {
   return useMutation({
-    mutationFn: async ({ id, variables }: TestRunRequest): Promise<PipelineTestRun> => {
+    mutationFn: async ({ id, variables, graph }: TestRunRequest): Promise<PipelineTestRun> => {
       const { data, error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/pipelines/{id}/test-run',
         {
@@ -384,7 +442,7 @@ export function useTestRunPipeline(
             channelId: toValue(channelId) as string,
             id,
           } },
-          body: { variables },
+          body: { variables, graph },
         },
       );
 

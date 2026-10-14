@@ -20,6 +20,7 @@ import type {
   PipelineOption,
   PipelineOptionList,
   PipelineStep,
+  PipelineTestRun,
 } from '@/api/pipelines';
 import { i18n } from '@/i18n';
 import schemaEn from '@/i18n/schema/en.json';
@@ -192,18 +193,68 @@ function query<T>(data: T): {
 
 const held = ref<string[]>([]);
 
-type SaveChange = { id: string; graph?: { steps: PipelineStep[] } };
+type SaveChange = {
+  id: string;
+  graph?: { steps: PipelineStep[] };
+  isEnabled?: boolean;
+};
 
 const save = vi.hoisted(() => ({
   mutateAsync: vi.fn<(change: SaveChange) => Promise<unknown>>(),
+  mutate: vi.fn<(change: SaveChange, options: { onSuccess: () => void }) => void>(),
 }));
+
+const removing = vi.hoisted(() => ({
+  mutateAsync: vi.fn<(id: string) => Promise<void>>(),
+}));
+
+type TestRunAsk = {
+  id: string;
+  variables: Record<string, string>;
+  graph: { steps: PipelineStep[] };
+};
+
+const testing = vi.hoisted(() => ({
+  mutateAsync: vi.fn<(ask: TestRunAsk) => Promise<PipelineTestRun>>(),
+}));
+
+// The check said yes, so "hi" ran inside its lane; the wait step after it was never reached.
+const ran = {
+  success: true,
+  durationMs: 12,
+  hostCallCount: 0,
+  capturedEffects: [],
+  chatOutput: ['hi there'],
+  log: [],
+  timeline: [],
+  trace: [
+    {
+      stepId: 'check',
+      stepType: 'if',
+      branch: 'then',
+      variableChanges: [],
+    },
+    {
+      stepId: 'hi',
+      stepType: 'send_message',
+      variableChanges: [],
+      output: 'Would say: hi there',
+    },
+  ],
+} as unknown as PipelineTestRun;
 
 vi.mock('@/api/pipelines', async (original) => ({
   ...(await original<typeof import('@/api/pipelines')>()),
   usePipeline: () => query(pipeline),
   usePipelineCatalog: () => query(catalog),
   useBlastRadius: () => query(radius),
-  useSavePipeline: () => ({ mutateAsync: save.mutateAsync, isPending: ref(false) }),
+  useSavePipeline: () => ({
+    mutateAsync: save.mutateAsync,
+    mutate: save.mutate,
+    isPending: ref(false),
+  }),
+  useDeletePipeline: () => ({ mutateAsync: removing.mutateAsync, isPending: ref(false) }),
+  useTestRunPipeline: () => ({ mutateAsync: testing.mutateAsync, isPending: ref(false) }),
   usePipelineOptions: (_channel: unknown, kind: () => string, search: Ref<string>) =>
     ({
       ...query(null),
@@ -212,6 +263,16 @@ vi.mock('@/api/pipelines', async (original) => ({
           ? botSearch(search.value)
           : discordDown),
       isFetching: ref(false),
+    }),
+  // The bot finds the one item a saved value names, also beyond its first page.
+  usePipelineOption: (_channel: unknown, kind: () => string, value: () => string | null) =>
+    ({
+      ...query(null),
+      data: computed(() =>
+        kind() === 'voice'
+          ? botSearch('').items.concat(ava).find((option: PipelineOption) =>
+            option.value === value()) ?? null
+          : null),
     }),
 }));
 
@@ -262,6 +323,79 @@ const discordDown: PipelineOptionList = {
   totalCount: 0,
 };
 
+// Two stored runs of p1, newest first; the failed one logs its steps out of order, as the bot may send them.
+const stored = vi.hoisted(() => ({
+  asked: [] as (string | null)[],
+  runs: [
+    {
+      id: 7,
+      pipelineId: 'p1',
+      triggerKind: 'pipeline',
+      status: 'failed',
+      hostCallCount: 2,
+      durationMs: 1250,
+      errorMessage: 'Twitch refused the message',
+      startedAt: '2026-10-14T09:58:00Z',
+      completedAt: '2026-10-14T09:58:01Z',
+    },
+    {
+      id: 6,
+      pipelineId: 'p1',
+      triggerKind: 'pipeline',
+      status: 'success',
+      hostCallCount: 1,
+      durationMs: 340,
+      errorMessage: null,
+      startedAt: '2026-10-13T10:00:00Z',
+      completedAt: '2026-10-13T10:00:00Z',
+    },
+  ],
+  steps: [
+    {
+      stepIndex: 1,
+      actionType: 'send_message',
+      succeeded: false,
+      durationMs: 900,
+      errorMessage: 'Twitch refused the message',
+    },
+    {
+      stepIndex: 0,
+      actionType: 'wait',
+      succeeded: true,
+      durationMs: 300,
+      errorMessage: null,
+    },
+  ],
+}));
+
+vi.mock('@/api/pipelineRuns', () => ({
+  usePipelineRuns: (_channel: unknown, pipelineId: () => string | null) => {
+    stored.asked.push(pipelineId());
+
+    return {
+      data: ref({ pages: [{
+        runs: stored.runs,
+        hasMore: false,
+        nextPage: null,
+      }] }),
+      isPending: ref(false),
+      isError: ref(false),
+      hasNextPage: ref(false),
+      isFetchingNextPage: ref(false),
+      refetch: vi.fn<() => void>(),
+      fetchNextPage: vi.fn<() => void>(),
+    };
+  },
+  usePipelineRun: (_channel: unknown, id: () => string | null) => ({
+    data: computed(() =>
+      id() === '7'
+        ? { ...stored.runs[0], stepLogs: stored.steps }
+        : undefined),
+    isPending: ref(false),
+    isError: ref(false),
+  }),
+}));
+
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
     known: computed(() => true),
@@ -281,6 +415,11 @@ beforeEach(() => {
   held.value = ['pipelines:write'];
   save.mutateAsync.mockReset();
   save.mutateAsync.mockResolvedValue({});
+  save.mutate.mockReset();
+  removing.mutateAsync.mockReset();
+  removing.mutateAsync.mockResolvedValue();
+  testing.mutateAsync.mockReset();
+  testing.mutateAsync.mockResolvedValue(ran);
 });
 
 afterEach(() => {
@@ -726,6 +865,23 @@ describe('changing the steps', () => {
     expect(popover()).toContain(en.dashboard.pipelines.workbench.picker.noMatch);
   });
 
+  it('names a chosen item from beyond the first page, not its id', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="speak"]');
+    await press('[data-step-field="voice"] button');
+    await find('Ava');
+    await press('[data-picker-option="ava"]');
+
+    // The search clears on a choice, so the list falls back to the first page, where Ava is not.
+    await new Promise((resolve) =>
+      setTimeout(resolve, 300));
+
+    await flushPromises();
+
+    expect(document.body.querySelector('[data-step-field="voice"] button')?.textContent?.trim()).toBe('Ava');
+  });
+
   it('keeps typed words as the setting, so it can fill in from the run', async () => {
     await open();
     await press('[data-workbench-add]');
@@ -766,5 +922,173 @@ describe('changing the steps', () => {
 
     expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-add]')?.disabled).toBe(true);
     expect(fieldInput('message').closest('fieldset')?.disabled).toBe(true);
+  });
+});
+
+const mark = (id: string, part: string): string | undefined =>
+  card(id).querySelector<HTMLElement>(`:scope > button [data-run-${part}]`)?.textContent?.trim();
+const stateOf = (id: string): string | undefined =>
+  card(id).querySelector<HTMLElement>(':scope > button [data-run-state]')?.dataset.state;
+
+describe('the More menu', () => {
+  async function openMore(): Promise<void> {
+    const trigger = document.body.querySelector<HTMLButtonElement>('[data-workbench-more]')!;
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await flushPromises();
+  }
+
+  it('turns the pipeline off without sending the steps', async () => {
+    await open();
+    await openMore();
+
+    const power = document.body.querySelector<HTMLElement>('[data-workbench-power]')!;
+
+    expect(power.textContent?.trim()).toBe('Turn off');
+
+    power.click();
+    await flushPromises();
+
+    expect(save.mutate).toHaveBeenCalledTimes(1);
+    expect(save.mutate.mock.calls[0]![0]).toEqual({ id: 'p1', isEnabled: false });
+  });
+
+  it('deletes only after the confirm that names what starts it, then leaves despite unsaved edits', async () => {
+    await open();
+    await press('[data-step-id="pause"] button');
+    await press('[data-step-remove]');
+    await openMore();
+    await press('[data-workbench-delete]');
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"]')!;
+
+    expect(dialog.textContent).toContain('Delete Roast?');
+    expect(dialog.textContent).toContain('When someone types !roast, nothing runs anymore.');
+    expect(removing.mutateAsync).not.toHaveBeenCalled();
+
+    await press('[data-confirm-action]');
+
+    expect(removing.mutateAsync).toHaveBeenCalledWith('p1');
+    expect(router.currentRoute.value.fullPath).toBe('/app/pipelines');
+  });
+
+  it('cannot be opened by a role that cannot change pipelines', async () => {
+    held.value = [];
+    await open();
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-more]')!.disabled).toBe(true);
+  });
+});
+
+describe('the Runs view', () => {
+  async function openRuns(): Promise<void> {
+    await open();
+
+    const runsTab = [...document.body.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab: HTMLElement) => tab.textContent?.trim() === 'Runs');
+
+    runsTab!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    await flushPromises();
+  }
+
+  const runRows = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-run]')];
+
+  it('takes the canvas place and lists the stored runs of this pipeline, with outcome, age, length and error', async () => {
+    stored.asked.length = 0;
+    await openRuns();
+
+    expect(router.currentRoute.value.query.view).toBe('runs');
+    expect(document.body.querySelector('[data-workbench-canvas]')).toBeNull();
+    expect(stored.asked).toContain('p1');
+
+    const rows = runRows().map((row: HTMLElement) => row.textContent?.replace(/\s+/g, ' ').trim());
+
+    expect(rows[0]).toContain('Failed');
+    expect(rows[0]).toContain('took 1.3 sec');
+    expect(rows[0]).toContain('Twitch refused the message');
+    expect(rows[1]).toContain('Done');
+    expect(rows[1]).toContain('took 340 ms');
+  });
+
+  it('opens a run to say what each step did, in the order they ran', async () => {
+    await openRuns();
+
+    runRows()[0]!.querySelector<HTMLElement>('button')!.click();
+    await flushPromises();
+
+    const steps = [...document.body.querySelectorAll<HTMLElement>('[data-run-step]')]
+      .map((step: HTMLElement) => step.textContent?.replace(/\s+/g, ' ').trim());
+
+    expect(steps).toHaveLength(2);
+    expect(steps[0]).toMatch(/^Step 1: Wait\s*300 ms\s*Done$/);
+    expect(steps[1]).toMatch(/^Step 2: Send message\s*900 ms\s*Failed\s*Twitch refused the message$/);
+  });
+});
+
+describe('a test run', () => {
+  it('runs the draft on the canvas and marks what each step did', async () => {
+    await open();
+    await press('[data-workbench-test]');
+
+    const ask = testing.mutateAsync.mock.calls[0]?.[0];
+
+    expect(ask?.id).toBe('p1');
+    expect(ask?.variables).toEqual({});
+
+    expect(ask?.graph.steps.map((item: PipelineStep) =>
+      item.id)).toEqual(['check', 'hi', 'pause']);
+
+    expect([stateOf('check'), stateOf('hi'), stateOf('pause')]).toEqual(['done', 'done', 'skipped']);
+    expect(mark('check', 'taken')).toBe('This run: Yes');
+    expect(mark('hi', 'output')).toBe('Would say: hi there');
+    expect(card('pause').querySelector(':scope > button')?.className).toContain('border-dashed');
+
+    expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim())
+      .toContain('Test run 1: 2 steps ran.');
+  });
+
+  it('says a failed step failed, with the reason', async () => {
+    testing.mutateAsync.mockResolvedValue({
+      ...ran,
+      success: false,
+      trace: [{
+        stepId: 'pause',
+        stepType: 'wait',
+        variableChanges: [],
+        error: 'No seconds set.',
+      }],
+    } as unknown as PipelineTestRun);
+
+    await open();
+    await press('[data-workbench-test]');
+
+    expect(stateOf('pause')).toBe('failed');
+    expect(mark('pause', 'error')).toBe('No seconds set.');
+  });
+
+  it('clears the marks once the draft changes, or on Clear test run', async () => {
+    await open();
+    await press('[data-workbench-test]');
+    await press('[data-workbench-test]');
+
+    expect(stateOf('hi')).toBeUndefined();
+    expect(document.body.querySelector('[data-run-summary]')).toBeNull();
+
+    await press('[data-workbench-test]');
+    await press('[data-step-id="pause"] button');
+    await press('[data-step-remove]');
+
+    expect(stateOf('hi')).toBeUndefined();
+  });
+
+  it('counts each run again in the summary', async () => {
+    await open();
+    await press('[data-workbench-test]');
+    await press('[data-run-again]');
+
+    expect(testing.mutateAsync).toHaveBeenCalledTimes(2);
+
+    expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim())
+      .toContain('Test run 2: 2 steps ran.');
   });
 });
