@@ -89,5 +89,11 @@ export function useFavoriteEmoteChange(): FavoriteSave {
     queryKey: favoriteEmotesKey,
     mutationFn: save,
     apply: applyChange,
+    describe: ({ emote, favorite }) => ({
+      key: favorite
+        ? 'star'
+        : 'unstar',
+      params: { name: emote.code },
+    }),
   });
 }

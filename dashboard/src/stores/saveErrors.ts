@@ -11,10 +11,20 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+// The change a failed save tried to make, in words: a key under frame.inbox.what and its values.
+export type SaveWhat = {
+  key: string;
+  params?: Record<string, string>;
+};
+
 export type SaveError = {
   id: string;
   titleKey: string;
   messageKey: string;
+  // Stoney 2026-10-14: "it does not tell me what and where so this is kinda useless".
+  what: SaveWhat | null;
+  // The page the change was made on, so the inbox can name it and lead back to it.
+  where: string;
   detectedAt: string;
 };
 
@@ -22,11 +32,18 @@ export type SaveError = {
 export const useSaveErrorsStore = defineStore('saveErrors', () => {
   const items = ref<SaveError[]>([]);
 
-  function report(titleKey: string, messageKey: string): void {
+  function report(
+    titleKey: string,
+    messageKey: string,
+    what: SaveWhat | null = null,
+    where = `${location.pathname}${location.search}`,
+  ): void {
     items.value.push({
       id: crypto.randomUUID(),
       titleKey,
       messageKey,
+      what,
+      where,
       detectedAt: new Date().toISOString(),
     });
   }

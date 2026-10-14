@@ -639,6 +639,12 @@
       "open": "Openen",
       "saveFailedTitle": "Een wijziging is niet opgeslagen",
       "saveFailedMessage": "Het scherm is teruggegaan naar de vorige waarde. Probeer de wijziging opnieuw.",
+      "notSaved": "Niet opgeslagen: {what}",
+      "on": "Op {page}",
+      "what": {
+        "star": "Ster op {name}",
+        "unstar": "Ster van {name} halen"
+      },
       "dismiss": "Sluiten",
       "attention": {
         "attention_integration_reauth_title": "{provider} moet opnieuw worden gekoppeld",

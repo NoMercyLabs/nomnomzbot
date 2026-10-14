@@ -639,6 +639,12 @@
       "open": "Open",
       "saveFailedTitle": "A change was not saved",
       "saveFailedMessage": "The screen went back to the earlier value. Try the change again.",
+      "notSaved": "Not saved: {what}",
+      "on": "On {page}",
+      "what": {
+        "star": "Star {name}",
+        "unstar": "Remove the star from {name}"
+      },
       "dismiss": "Dismiss",
       "attention": {
         "attention_integration_reauth_title": "{provider} needs to be reconnected",

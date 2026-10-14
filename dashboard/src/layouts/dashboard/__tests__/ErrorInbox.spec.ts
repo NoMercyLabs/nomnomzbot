@@ -14,7 +14,11 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
+import { createMemoryHistory, createRouter } from 'vue-router';
+
+import { SAVE_FAILED_MESSAGE, SAVE_FAILED_TITLE } from '@/composables/useOptimisticSave';
 import { i18n } from '@/i18n';
+import { useSaveErrorsStore } from '@/stores/saveErrors';
 
 import ErrorInbox from '../ErrorInbox.vue';
 
@@ -58,6 +62,19 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
+const page = { template: '<div />' };
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [
+    {
+      path: '/app/chat',
+      name: 'dashboard-chat',
+      component: page,
+    },
+    { path: '/:rest(.*)', component: page },
+  ],
+});
+
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
@@ -87,12 +104,12 @@ async function openInbox(): Promise<void> {
       plugins: [
         i18n,
         pinia,
+        router,
         [
           VueQueryPlugin,
           { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
         ],
       ],
-      stubs: { RouterLink: { template: '<a><slot /></a>' } },
     },
   });
 
@@ -106,6 +123,29 @@ const dismissIn = (row: HTMLElement): HTMLElement =>
   [...row.querySelectorAll<HTMLElement>('button')].find(
     (button) => button.textContent?.trim() === 'Dismiss',
   ) as HTMLElement;
+
+// Stoney 2026-10-14: "it does not tell me what and where so this is kinda useless".
+describe('a failed save in the inbox', () => {
+  it('names the change, the page it was made on, and leads back there', async () => {
+    held = [];
+
+    useSaveErrorsStore().report(
+      SAVE_FAILED_TITLE,
+      SAVE_FAILED_MESSAGE,
+      { key: 'unstar', params: { name: ':raised_hand:' } },
+      '/app/chat',
+    );
+
+    router.push('/somewhere');
+    await openInbox();
+
+    const row = rows()[0]!;
+
+    expect(row.querySelector('[data-save-what]')?.textContent).toBe('Not saved: Remove the star from :raised_hand:');
+    expect(row.querySelector('[data-save-where]')?.textContent).toBe('On Chat');
+    expect(row.querySelector('a')?.getAttribute('href')).toBe('/app/chat');
+  });
+});
 
 describe('ErrorInbox dismiss', () => {
   it('posts the id of the dismissed item and drops only that item from the list', async () => {

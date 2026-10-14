@@ -15,7 +15,7 @@ import {
   type UseMutationReturnType,
 } from '@tanstack/vue-query';
 
-import { useSaveErrorsStore } from '@/stores/saveErrors';
+import { type SaveWhat, useSaveErrorsStore } from '@/stores/saveErrors';
 
 export interface OptimisticSaveOptions<TData, TVariables> {
   // One cache entry, or the entry each change names (a toggle on one row of many).
@@ -26,10 +26,17 @@ export interface OptimisticSaveOptions<TData, TVariables> {
   apply: (current: TData | undefined, variables: TVariables) => TData;
   titleKey?: string;
   messageKey?: string;
+  // What the change was, in words, for the error inbox when it fails.
+  describe?: (variables: TVariables) => SaveWhat;
 }
 
 export const SAVE_FAILED_TITLE: string = 'frame.inbox.saveFailedTitle';
 export const SAVE_FAILED_MESSAGE: string = 'frame.inbox.saveFailedMessage';
+
+// One save to one cache entry: the entry and the save's ticket.
+function saveId(queryKey: QueryKey, ticket: number | undefined): string {
+  return `${JSON.stringify(queryKey)}#${ticket}`;
+}
 
 type EntryState<TData> = {
   newest: number;
@@ -46,6 +53,7 @@ export function useOptimisticSave<TData, TVariables>(
   const queries = useQueryClient();
   const errors = useSaveErrorsStore();
   const entries = new Map<string, EntryState<TData> | undefined>();
+  const pages = new Map<string, string>();
 
   function keyOf(variables: TVariables): QueryKey {
     return typeof options.queryKey === 'function'
@@ -84,6 +92,8 @@ export function useOptimisticSave<TData, TVariables>(
 
       entry.inFlight += 1;
       entry.newest += 1;
+      // The page is read when the change is made: a failure that lands after a page switch still names it.
+      pages.set(saveId(queryKey, entry.newest), `${location.pathname}${location.search}`);
 
       queries.setQueryData<TData>(queryKey, (current) =>
         options.apply(current, variables));
@@ -108,13 +118,26 @@ export function useOptimisticSave<TData, TVariables>(
         queries.setQueryData<TData>(queryKey, entry.confirmed);
       }
 
+      const what = options.describe?.(variables) ?? null;
+      const where = pages.get(saveId(queryKey, ticket));
+
       errors.report(
         options.titleKey ?? SAVE_FAILED_TITLE,
         options.messageKey ?? SAVE_FAILED_MESSAGE,
+        what,
+        where,
       );
     },
-    onSettled: (_data: TData | undefined, _error: Error | null, variables: TVariables): void => {
-      entryOf(keyOf(variables)).inFlight -= 1;
+    onSettled: (
+      _data: TData | undefined,
+      _error: Error | null,
+      variables: TVariables,
+      ticket: number | undefined,
+    ): void => {
+      const queryKey = keyOf(variables);
+
+      entryOf(queryKey).inFlight -= 1;
+      pages.delete(saveId(queryKey, ticket));
     },
   });
 }

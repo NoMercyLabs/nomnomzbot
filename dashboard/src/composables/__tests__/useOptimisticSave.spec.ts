@@ -110,6 +110,21 @@ describe('useOptimisticSave', () => {
     });
   });
 
+  it('tells the inbox the page the change was made on, even after leaving it', async () => {
+    const pending = deferred();
+    const { save, inbox } = setup(() => pending.promise);
+
+    history.replaceState(null, '', '/app/chat');
+    const result = save.mutateAsync('after').catch<unknown>((error: Error) => error);
+
+    await settle();
+    history.replaceState(null, '', '/app/music');
+    pending.reject(new Error('405'));
+    await result;
+
+    expect(inbox.items[0]).toMatchObject({ where: '/app/chat', what: null });
+  });
+
   it('keeps the value the server returned on success', async () => {
     const { queries, save, inbox } = setup(async (greeting) => ({
       greeting: `${greeting} (server)`,
