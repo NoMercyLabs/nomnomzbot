@@ -174,7 +174,7 @@ function opened(id: string | null): void {
     :aside-label="$t('dashboard.scripts.runs.title')"
   >
     <template #list>
-      <div class="mb-3 grid gap-2">
+      <div data-page-inset class="mb-3 grid gap-2">
         <SearchField
           v-model="search"
           class="w-full"

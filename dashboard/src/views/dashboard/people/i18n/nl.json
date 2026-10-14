@@ -47,50 +47,7 @@
       "detail": {
         "title": "Profiel",
         "pick": "Kies een persoon om het profiel te zien.",
-        "notFound": "Niemand in de geladen lijsten heeft de login \"{login}\".",
-        "openProfile": "Het hele profiel openen",
-        "noProfile": "De bot heeft nog geen profiel van deze persoon. Hij heeft niet gechat sinds de bot profielen bewaart.",
-        "profileError": "Het profiel kon niet laden.",
-        "stats": {
-          "messages": "Chatregels",
-          "watchHours": "Uren gekeken",
-          "commands": "Commando's gebruikt",
-          "streak": "Kijkreeks",
-          "streakContext": "Beste {max}"
-        },
-        "overview": {
-          "title": "Overzicht",
-          "login": "Login",
-          "pronoun": "Voornaamwoord",
-          "pronounUnset": "Niet ingesteld",
-          "twitchId": "Twitch-id",
-          "standing": "Status",
-          "tier": "Abonnementsniveau",
-          "tierLevel": "Niveau {level}",
-          "tierPrime": "Prime",
-          "follower": "Volgt jou",
-          "yes": "Ja",
-          "no": "Nee",
-          "firstSeen": "Eerst gezien",
-          "lastSeen": "Laatst gezien"
-        },
-        "moderation": {
-          "title": "Moderatie",
-          "empty": "Niets vastgelegd.",
-          "timeouts": "Time-outs",
-          "bans": "Bans",
-          "warnings": "Waarschuwingen",
-          "deleted": "Berichten verwijderd",
-          "lastAction": "Laatste actie"
-        },
-        "chat": {
-          "title": "Laatst in de chat",
-          "empty": "De bot kan de chatregels van een persoon nog niet tonen. De chatpagina toont de live stream."
-        },
-        "loyalty": {
-          "title": "Activiteit",
-          "empty": "Aantallen per commando, namen van beloningen en cheers worden nog niet per persoon bewaard."
-        }
+        "notFound": "Niemand in de geladen lijsten heeft de login \"{login}\"."
       }
     }
   }

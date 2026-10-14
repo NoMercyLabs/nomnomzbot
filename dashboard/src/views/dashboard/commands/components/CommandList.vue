@@ -84,7 +84,7 @@ function detailOf(row: CommandListItem): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <SearchField v-model="search" :placeholder="$t('dashboard.commands.list.search')" />
+    <SearchField v-model="search" data-page-inset :placeholder="$t('dashboard.commands.list.search')" />
     <PanelCard
       :title="$t('dashboard.commands.list.title')"
       :state="state"

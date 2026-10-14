@@ -86,11 +86,19 @@ const summary = {
     displayName: 'ALICE',
     profileImageUrl: null,
     pronoun: 'she/her',
-    altPronoun: null,
-    linkedIdentities: [],
-    communityStanding: 'good',
+    altPronoun: 'they/them',
+    linkedIdentities: [
+      {
+        provider: 'kick',
+        providerUsername: 'alice_k',
+        providerDisplayName: 'AliceOnKick',
+        providerAvatarUrl: null,
+        isPrimary: false,
+      },
+    ],
+    communityStanding: 'Vip',
     subTier: '1000',
-    managementRole: null,
+    managementRole: 'LeadModerator',
     memberSinceUtc: null,
     firstSeenUtc: '2026-01-02T10:00:00Z',
   },
@@ -101,6 +109,7 @@ const summary = {
     messagesDeletedCount: 9,
     lastActionAt: null,
     lastActionType: null,
+    lastWarningAt: '2026-09-04T12:00:00Z',
   },
   trust: { trustScore: 777, heatScore: 888 },
   activity: null,
@@ -109,6 +118,43 @@ const summary = {
     maxStreak: 11,
     lastSeenDate: '2026-10-12',
   },
+  economy: {
+    wallet: {
+      id: 'w-alice',
+      viewerUserId: 'u-alice',
+      viewerTwitchUserId: 't-alice',
+      viewerDisplayName: 'ALICE',
+      viewerAvatarUrl: null,
+      balance: 4321,
+      lifetimeEarned: 9000,
+      lifetimeSpent: 4679,
+      isFrozen: true,
+      lastActivityAt: null,
+    },
+    giveawayEntryCount: 6,
+    giveawayWinCount: 1,
+    leaderboardOptedOut: true,
+  },
+  permits: {
+    activePermits: [],
+    ageConsentGranted: null,
+    ageConsentConfirmedUtc: null,
+  },
+  overrides: { shoutoutMessageTemplate: 'Go follow {name}!', ttsVoice: null },
+  commandUsage: { totalCommandsUsed: 14, lastUsedUtc: null },
+  freeFormData: [{ key: 'favorite game', value: 'Celeste' }],
+  recentQuotes: [
+    {
+      id: 'q1',
+      number: 42,
+      text: 'never trust a bot',
+      quotedDisplayName: 'ALICE',
+      contextGame: null,
+      quotedAt: null,
+      createdAt: '2026-08-01T10:00:00Z',
+    },
+  ],
+  totalQuoteCount: 3,
 };
 
 vi.mock('@/api/client', () => ({
@@ -133,13 +179,19 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/community/{userId}')) {
         await memberGate;
 
-        return ok(
-          person('dave', {
+        const listed = everyone.find((row) =>
+          row.id === options?.params?.path?.userId);
+
+        return ok({
+          banHistory: [],
+          recentActivity: [],
+          isVip: false,
+          ...listed ?? person('dave', {
             id: 't-dave',
             messageCount: 321,
             internalUserId: 'u-dave',
           }),
-        );
+        });
       }
 
       if (path.endsWith('/profile'))
@@ -151,7 +203,7 @@ vi.mock('@/api/client', () => ({
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
+  useCurrentChannel: () => ({ channelId: ref('c1'), current: ref({ login: 'owner' }) }),
 }));
 
 const ROW_HEIGHT = 56;
@@ -362,15 +414,48 @@ describe('PeopleView', () => {
     expect(text()).toContain('People who moderate your channel.');
   });
 
-  it('opens the person named in ?u= and reads their profile once', async () => {
+  // Stoney 2026-10-14: "The full profile view page is the old broken version". The person beside the list is the
+  // same profile the dialog shows: header, tabs, the moderation the bot counted, and the actions.
+  it('opens the person named in ?u= in the full profile, and reads their profile once', async () => {
     await open('/app/people?u=alice');
+
+    const detail = document.body.querySelector('[data-person-detail]') as HTMLElement;
 
     expect(profileCalls()).toHaveLength(1);
     expect(profileCalls()[0]!.path).toContain('/community/{userId}/profile');
-    expect(text()).toContain('she/her');
-    expect(text()).toContain('Timeouts');
-    expect(text()).toContain('Watch streak');
+    expect(detail.querySelector('[data-slot="profile-view"]')).not.toBeNull();
+    expect(detail.querySelector('h2')!.textContent).toBe('ALICE');
+    expect(detail.textContent).toContain('she/her');
+    expect(detail.textContent).toContain('VIP');
+    expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Timeouts\s*3/);
+    expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Messages deleted\s*9/);
+    expect(detail.textContent).toContain('Watch streak');
+    expect(detail.querySelector('[data-profile-vip]')).not.toBeNull();
     expect(rows()[0]!.querySelector('button')!.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows every stored fact of the person in words: identity, points and data', async () => {
+    await open('/app/people?u=alice');
+
+    const detail = document.body.querySelector('[data-person-detail]') as HTMLElement;
+    const points = detail.querySelector('[data-slot="profile-points"]')!.textContent;
+    const data = detail.querySelector('[data-slot="profile-data"]')!.textContent;
+
+    expect(detail.textContent).toMatch(/Pronouns\s*she\/her · they\/them/);
+    expect(detail.textContent).toMatch(/Other platforms\s*kick: AliceOnKick/);
+    expect(detail.textContent).toMatch(/Manages the channel as\s*Lead moderator/);
+    expect(detail.textContent).toMatch(/Best watch streak\s*11 streams in a row/);
+    expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Last warning\s*Sep 4, 2026/);
+    expect(points).toMatch(/Balance\s*4,321/);
+    expect(points).toMatch(/Frozen\s*Yes/);
+    expect(points).toMatch(/Giveaways won\s*1/);
+    expect(points).toMatch(/Leaderboard\s*Hidden by their choice/);
+    expect(data).toMatch(/Confirmed 18\+ for games\s*Not asked yet/);
+    expect(data).toMatch(/Own shoutout line\s*Go follow \{name\}!/);
+    expect(data).toMatch(/Commands used\s*14/);
+    expect(data).toMatch(/#42\s*never trust a bot/);
+    expect(data).toContain('2 more quotes');
+    expect(data).toMatch(/favorite game\s*Celeste/);
   });
 
   it('names the subscription tier in words, not the raw Twitch code', async () => {
@@ -400,11 +485,10 @@ describe('PeopleView', () => {
     expect(text()).toContain('@bob');
   });
 
-  it('never reads the profile of a person without an internal id and says why', async () => {
+  it('never reads the profile of a person without an internal id, and still shows what the bot has', async () => {
     await open('/app/people?u=cara');
 
     expect(profileCalls()).toHaveLength(0);
-    expect(text()).toContain('The bot has no profile for this person yet.');
     expect(text()).toContain('@cara');
     expect(text()).toContain('42');
   });
@@ -414,13 +498,6 @@ describe('PeopleView', () => {
 
     expect(text()).not.toContain('777');
     expect(text()).not.toContain('888');
-  });
-
-  it('tells why the chat lines and activity panels are empty', async () => {
-    await open('/app/people?u=alice');
-
-    expect(text()).toContain('The bot cannot list one person');
-    expect(text()).toContain('not stored per person yet');
   });
 
   it('says nobody matches a search that finds no one and offers the Twitch lookup', async () => {
@@ -499,14 +576,14 @@ describe('PeopleView', () => {
     expect(detail.textContent).toContain('DAVE');
     expect(detail.textContent).toContain('@dave');
     expect(detail.textContent).not.toContain('321');
-    expect(detail.querySelector('[data-slot="panel-loading"]')).not.toBeNull();
+    expect(detail.querySelector('[data-profile-loading]')).not.toBeNull();
     expect(profileCalls()).toHaveLength(0);
 
     release();
     await settle();
 
     expect(detail.textContent).toContain('321');
-    expect(detail.querySelector('[data-slot="panel-loading"]')).toBeNull();
+    expect(detail.querySelector('[data-profile-loading]')).toBeNull();
     expect(profileCalls()).toHaveLength(1);
   });
 

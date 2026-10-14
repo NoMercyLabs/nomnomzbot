@@ -8,8 +8,10 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The top of the profile dialog (mockup profile.js .p-head + .stats): who this is, their roles, when they
+// The top of the profile (mockup profile.js .p-head + .stats): who this is, their roles, when they
 // were last seen, and one stat for every number the API really returns. A stat with no data is left out.
+// Inside the dialog the name is the dialog's title; on a page it is a plain heading.
+import { injectDialogRootContext } from 'reka-ui';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -23,6 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { agoText } from '@/lib/time';
 
+export type ProfilePreview = Pick<CommunityMember, 'displayName' | 'username' | 'profileImageUrl'>;
+
 type Stat = {
   key: string;
   label: string;
@@ -33,11 +37,15 @@ const props = defineProps<{
   person: CommunityMember | null;
   profile: PersonProfile | null;
   roles: readonly RoleKey[];
+  preview?: ProfilePreview | null;
 }>();
 
 const { t, n, locale } = useI18n();
+const inDialog = injectDialogRootContext(null) !== null;
 
-const title = computed<string>(() => props.person?.displayName ?? t('profile.title'));
+// The person as far as the header knows them: the full record, or the light preview while it loads.
+const who = computed<ProfilePreview | null>(() => props.person ?? props.preview ?? null);
+const title = computed<string>(() => who.value?.displayName ?? t('profile.title'));
 const pronouns = computed<string | null>(() => props.profile?.identity.pronoun ?? null);
 const lastSeen = computed<string>(() => agoText(props.person?.lastSeen, new Date(), locale.value));
 
@@ -88,17 +96,24 @@ const stats = computed<Stat[]>(() => {
 </script>
 
 <template>
-  <div data-slot="profile-header" class="grid flex-none gap-4 px-6 pt-6 pr-14 pb-4">
+  <div
+    data-slot="profile-header"
+    class="grid flex-none gap-4 px-6 pt-6 pb-4"
+    :class="inDialog && 'pr-14'"
+  >
     <div class="flex items-center gap-3">
       <Avatar class="size-12">
-        <AvatarImage v-if="person?.profileImageUrl" :src="person.profileImageUrl" :alt="title" />
+        <AvatarImage v-if="who?.profileImageUrl" :src="who.profileImageUrl" :alt="title" />
         <AvatarFallback>{{ title.slice(0, 2).toUpperCase() }}</AvatarFallback>
       </Avatar>
       <div class="grid min-w-0 gap-1">
-        <DialogTitle class="truncate text-lg font-semibold">{{ title }}</DialogTitle>
-        <DialogDescription class="sr-only">{{
-          person ? `@${person.username}` : $t('profile.description')
-        }}</DialogDescription>
+        <template v-if="inDialog">
+          <DialogTitle class="truncate text-lg font-semibold">{{ title }}</DialogTitle>
+          <DialogDescription class="sr-only">{{
+            who ? `@${who.username}` : $t('profile.description')
+          }}</DialogDescription>
+        </template>
+        <h2 v-else class="truncate text-lg font-semibold">{{ title }}</h2>
         <div class="flex flex-wrap items-center gap-2">
           <Badge v-if="pronouns" variant="outline">{{ pronouns }}</Badge>
           <Badge
@@ -116,8 +131,8 @@ const stats = computed<Stat[]>(() => {
           <span v-if="lastSeen" class="text-xs text-muted-foreground">{{
             $t('profile.lastSeen', { ago: lastSeen })
           }}</span>
-          <span v-else-if="person" class="text-xs text-muted-foreground">{{
-            $t('profile.handle', { name: person.username })
+          <span v-else-if="who" class="text-xs text-muted-foreground">{{
+            $t('profile.handle', { name: who.username })
           }}</span>
         </div>
       </div>
@@ -126,7 +141,7 @@ const stats = computed<Stat[]>(() => {
 
     <div
       v-if="stats.length > 0"
-      class="grid auto-cols-fr grid-flow-col gap-3 rounded-lg border border-border p-3"
+      class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3 rounded-lg border border-border p-3"
     >
       <div v-for="stat in stats" :key="stat.key" data-profile-stat class="grid min-w-0 content-start gap-1">
         <b class="text-2xl font-semibold tabular-nums">{{
@@ -134,7 +149,7 @@ const stats = computed<Stat[]>(() => {
             ? n(stat.value)
             : stat.value
         }}</b>
-        <span class="text-xs text-muted-foreground">{{ stat.label }}</span>
+        <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
       </div>
     </div>
   </div>

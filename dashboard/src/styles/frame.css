@@ -233,6 +233,10 @@ a:not([data-slot]):hover {
     border-inline-width: 0;
     border-radius: 0;
   }
+  /* A search field or back button outside a panel keeps one panel padding from the edge. */
+  [data-page-body] [data-page-inset] {
+    margin-inline: 1rem;
+  }
 }
 
 /* Status is a dot beside plain text, never a tinted pill (owner 2026-10-13: too many colors). */

@@ -9,7 +9,8 @@
 -->
 <script setup lang="ts">
 // The list and detail layout: a list column, the detail beside it, and an optional aside.
-// On a phone only one shows: the list, or the detail over the list once showDetail is true.
+// On a phone only one shows: the list, or the detail over the list once showDetail is true. There the layout
+// itself is the one scroller, so a detail taller than the screen scrolls with the page.
 // The aside sits in the row where it fits; narrower, it is a drawer from the right that asideOpen opens.
 import SidePanel from '@/components/layout/SidePanel.vue';
 
@@ -24,7 +25,8 @@ const asideOpen = defineModel<boolean>('asideOpen', { default: false });
 <template>
   <section
     data-slot="list-detail"
-    class="grid min-h-0 flex-1 gap-4 px-6 pt-4 pb-6 md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]"
+    data-page-body
+    class="grid min-h-0 flex-1 gap-4 px-6 pt-4 pb-6 max-md:overflow-y-auto md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]"
     :class="
       $slots.aside ? 'xl:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)_minmax(14rem,18rem)]' : ''
     "

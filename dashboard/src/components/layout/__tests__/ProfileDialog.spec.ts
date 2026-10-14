@@ -94,8 +94,29 @@ const freshPeople = (): Record<string, Record<string, unknown>> => ({
 // The viewer profile by internal id (what GET community/{userId}/profile answers).
 let profiles: Record<string, Record<string, unknown> | null> = {};
 
+// The sections the live API always sends, here for a person the bot stored nothing extra about.
+const storedNothing = (): Record<string, unknown> => ({
+  economy: {
+    wallet: null,
+    giveawayEntryCount: 0,
+    giveawayWinCount: 0,
+    leaderboardOptedOut: false,
+  },
+  permits: {
+    activePermits: [],
+    ageConsentGranted: null,
+    ageConsentConfirmedUtc: null,
+  },
+  overrides: { shoutoutMessageTemplate: null, ttsVoice: null },
+  commandUsage: { totalCommandsUsed: 0, lastUsedUtc: null },
+  freeFormData: [],
+  recentQuotes: [],
+  totalQuoteCount: 0,
+});
+
 const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
   g1: {
+    ...storedNothing(),
     identity: {
       userId: 'g1',
       twitchUserId: '90210',
@@ -105,16 +126,17 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
       pronoun: 'she/her',
       altPronoun: null,
       linkedIdentities: [],
-      communityStanding: 'viewer',
+      communityStanding: 'Everyone',
       // The live API sends the Twitch tier code, never a label.
       subTier: '1000',
-      managementRole: 'moderator',
+      managementRole: 'Moderator',
       memberSinceUtc: '2020-03-04T00:00:00Z',
       firstSeenUtc: '2026-01-02T10:00:00Z',
     },
     activity: {
       totalMessages: 1234,
       totalRedemptions: 9,
+      totalSongRequests: 2,
       isFollower: true,
       isSubscriber: true,
       subTier: '1000',
@@ -126,6 +148,7 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
     },
   },
   g2: {
+    ...storedNothing(),
     identity: {
       userId: 'g2',
       twitchUserId: null,
@@ -135,7 +158,7 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
       pronoun: null,
       altPronoun: null,
       linkedIdentities: [],
-      communityStanding: 'viewer',
+      communityStanding: 'Everyone',
       subTier: null,
       managementRole: null,
       memberSinceUtc: null,
@@ -364,6 +387,8 @@ describe('the profile dialog', () => {
       'Overview',
       'Chat',
       'Moderation',
+      'Points',
+      'Data',
     ]);
 
     tabs[1]!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
@@ -380,7 +405,7 @@ describe('the profile dialog', () => {
 
     const panels: HTMLElement[] = Array.from(dialogs()[0]!.querySelectorAll('[role="tabpanel"]'));
 
-    expect(panels).toHaveLength(3);
+    expect(panels).toHaveLength(5);
 
     for (const panel of panels) {
       expect(panel.hidden).toBe(false);

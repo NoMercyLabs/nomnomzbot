@@ -12,16 +12,16 @@
 // Tabs without a list on the bot (Subscribers, Regulars) say so instead of drawing an empty list.
 // The person in view is the login in ?u=, so a link opens them.
 // Typing asks the bot for every known user in any channel and shows name and avatar only. Enter or a
-// click opens the person: the header shows the light row at once and each part fills in as it arrives.
+// click opens the person in the same profile view the dialog shows.
 // A button looks a name up live on Twitch for someone the bot has never seen.
 import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import ArrowLeft from '~icons/nnz/arrow-left';
 
 import {
   TwitchUserNotFoundError,
-  useCommunityMember,
   useTwitchLookup,
   useViewerSearch,
   type ViewerOption,
@@ -30,6 +30,8 @@ import { useCommunityList, type CommunityPage, type CommunityRow } from '@/api/p
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import type { ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
+import ProfileView from '@/components/layout/profile/ProfileView.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
@@ -38,7 +40,6 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
 
-import PersonDetail from './components/PersonDetail.vue';
 import PersonRow from './components/PersonRow.vue';
 import SearchResultRow from './components/SearchResultRow.vue';
 
@@ -213,46 +214,21 @@ const seedInView = computed<Seed | null>(() =>
     ? seed.value
     : null,
 );
-const member = useCommunityMember(channelId, () =>
-  seedInView.value?.id ?? null);
+// The person in view: the profile beside the list is the same ProfileView the dialog shows, and it loads them
+// by id.
+const selectedId = computed<string | null>(() =>
+  loadedRow.value?.id ?? seedInView.value?.id ?? null);
+const preview = computed<ProfilePreview | null>(() => {
+  const from = seedInView.value;
 
-function lightRow(from: Seed): CommunityRow {
-  return {
-    id: from.id,
-    internalUserId: null,
-    username: from.login,
-    displayName: from.displayName,
-    profileImageUrl: from.profileImageUrl,
-    messageCount: 0,
-    watchHours: 0,
-    commandsUsed: 0,
-    trustLevel: 'viewer',
-    isBanned: false,
-    firstSeen: '',
-    lastSeen: '',
-  };
-}
-
-const selected = computed<CommunityRow | null>(() => {
-  if (loadedRow.value)
+  if (loadedRow.value || !from)
     return loadedRow.value;
 
-  if (seedInView.value === null)
-    return null;
-
-  return member.data.value ?? lightRow(seedInView.value);
-});
-
-const detailState = computed<PanelState>(() => {
-  if (seedInView.value === null)
-    return 'ready';
-
-  if (member.isError.value)
-    return 'error';
-
-  return member.data.value
-    ? 'ready'
-    : 'loading';
+  return {
+    displayName: from.displayName,
+    username: from.login,
+    profileImageUrl: from.profileImageUrl,
+  };
 });
 
 function pick(row: CommunityRow): void {
@@ -318,7 +294,7 @@ function back(): void {
   </PageHeader>
   <ListDetail :show-detail="asked !== ''">
     <template #list>
-      <div class="mb-3 grid gap-2">
+      <div data-page-inset class="mb-3 grid gap-2">
         <SearchField
           v-model="search"
           class="w-full"
@@ -385,13 +361,24 @@ function back(): void {
       </PanelCard>
     </template>
     <template #detail>
-      <PersonDetail
-        v-if="selected"
-        :person="selected"
-        :detail-state="detailState"
-        @back="back"
-        @retry="member.refetch()"
-      />
+      <!-- On a phone the profile grows with its content and the page scrolls once; beside the list it scrolls inside
+           its card. -->
+      <div v-if="selectedId" data-person-detail class="flex flex-1 flex-col gap-2 md:min-h-0">
+        <Button data-page-inset
+                variant="ghost"
+                size="sm"
+                class="self-start md:hidden"
+                @click="back"
+        >
+          <ArrowLeft aria-hidden="true" />
+          {{ $t('dashboard.people.back') }}
+        </Button>
+        <div
+          class="flex flex-1 flex-col border-y bg-card md:min-h-0 md:overflow-hidden md:rounded-xl md:border"
+        >
+          <ProfileView :user-id="selectedId" :preview="preview" />
+        </div>
+      </div>
       <PanelCard
         v-else
         class="flex-1"

@@ -243,9 +243,67 @@
       "overview": "Overview",
       "chat": "Chat",
       "activity": "Activity",
-      "moderation": "Moderation"
+      "moderation": "Moderation",
+      "points": "Points",
+      "data": "Data"
     },
     "lastSeen": "Last seen {ago}",
+    "streakDays": "{n} stream | {n} streams in a row",
+    "yesNo": {
+      "true": "Yes",
+      "false": "No"
+    },
+    "standing": {
+      "everyone": "Viewer",
+      "subscriber": "Subscriber",
+      "vip": "VIP",
+      "artist": "Artist",
+      "moderator": "Moderator"
+    },
+    "manager": {
+      "moderator": "Moderator",
+      "leadmoderator": "Lead moderator",
+      "editor": "Editor",
+      "broadcaster": "Broadcaster"
+    },
+    "points": {
+      "wallet": "Wallet",
+      "noWallet": "No points earned in this channel yet.",
+      "balance": "Balance",
+      "earned": "Earned in total",
+      "spent": "Spent in total",
+      "frozen": "Frozen",
+      "lastActivity": "Last change",
+      "games": "Giveaways and leaderboard",
+      "giveawayEntries": "Giveaways entered",
+      "giveawayWins": "Giveaways won",
+      "leaderboard": "Leaderboard",
+      "leaderboardShown": "Shown",
+      "leaderboardHidden": "Hidden by their choice"
+    },
+    "data": {
+      "consent": "Consent and permits",
+      "ageConsent": "Confirmed 18+ for games",
+      "ageConsentOn": "Confirmed on",
+      "notAsked": "Not asked yet",
+      "permits": "Active permits",
+      "analytics": "Viewer statistics",
+      "analyticsOn": "Counted",
+      "analyticsOff": "Turned off by their choice",
+      "commands": "Commands and requests",
+      "commandsUsed": "Commands used",
+      "commandLast": "Last command",
+      "songRequests": "Songs requested",
+      "lines": "Lines the bot uses for them",
+      "shoutout": "Own shoutout line",
+      "ttsVoice": "Text to speech voice",
+      "quotes": "Quotes",
+      "noQuotes": "No quotes of this person saved.",
+      "quoteNumber": "#{number}",
+      "moreQuotes": "{count} more quote | {count} more quotes",
+      "saved": "Saved data",
+      "noSaved": "The channel saved no data for this person."
+    },
     "handle": "{'@'}{name}",
     "tier": "Tier {tier}",
     "stats": {
@@ -278,6 +336,9 @@
       "roleSince": "Role since",
       "following": "Following",
       "twitchId": "Twitch ID",
+      "linked": "Other platforms",
+      "manages": "Manages the channel as",
+      "bestStreak": "Best watch streak",
       "roles": "Roles",
       "subscription": "Twitch subscription",
       "firstSeen": "First seen",
@@ -297,7 +358,15 @@
       "title": "Ban history",
       "empty": "No bans stored for this person.",
       "noReason": "No reason given",
-      "by": "By {name} on {date}"
+      "by": "By {name} on {date}",
+      "counts": "Actions taken",
+      "timeouts": "Timeouts",
+      "bans": "Bans",
+      "warnings": "Warnings",
+      "deleted": "Messages deleted",
+      "lastAction": "Last action",
+      "lastWarning": "Last warning",
+      "warningSeen": "Warning read on"
     },
     "vip": {
       "make": "Make VIP",

@@ -188,6 +188,7 @@ describe('folder layout', () => {
       'views/dashboard/chat/ChatView.vue',
       'views/dashboard/commands/components/BuiltinList.vue',
       'views/dashboard/admin/AdminChannelsView.vue',
+      'components/layout/ListDetail.vue',
     ];
 
     expect(frame).toMatch(
@@ -202,6 +203,25 @@ describe('folder layout', () => {
 
     const unmarked = bodies.filter((path) =>
       !marked(path));
+
+    expect(unmarked).toEqual([]);
+  });
+
+  // A search field or a back button outside a panel would touch the screen edge once the body drops its margin;
+  // it keeps one panel padding instead.
+  it('keeps a loose control of a page body one panel padding from the phone edge', () => {
+    const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8');
+    const loose = [
+      'views/dashboard/people/PeopleView.vue',
+      'views/dashboard/overlays/OverlaysView.vue',
+      'views/dashboard/scripts/ScriptsView.vue',
+      'views/dashboard/commands/components/CommandList.vue',
+    ];
+
+    expect(frame).toMatch(/\[data-page-body\] \[data-page-inset\]\s*\{\s*margin-inline:\s*1rem;/);
+
+    const unmarked = loose.filter((path) =>
+      !readFileSync(join(src, path), 'utf8').includes('data-page-inset'));
 
     expect(unmarked).toEqual([]);
   });

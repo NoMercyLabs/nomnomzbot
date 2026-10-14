@@ -35,8 +35,31 @@ defineEmits<{ showChat: [] }>();
 
 const { t, locale } = useI18n();
 
+type LinkedIdentity = PersonProfile['identity']['linkedIdentities'][number];
+
 function present(item: KeyValueItem): boolean {
   return item.value !== undefined && item.value !== null && item.value !== '';
+}
+
+// A person can set a second pronoun set on pronouns.alejo.io; both show, the main one first.
+function pronouns(main: string | null | undefined, alt: string | null | undefined): string | null {
+  const sets = [main, alt].filter((value): value is string => Boolean(value));
+
+  return sets.length > 0
+    ? sets.join(' · ')
+    : null;
+}
+
+// The other platforms this person signed in with, by name: "Kick: name, YouTube: name".
+function linked(identities: readonly LinkedIdentity[]): string | null {
+  const names = identities
+    .filter((identity: LinkedIdentity) => identity.provider.toLowerCase() !== 'twitch')
+    .map((identity: LinkedIdentity) =>
+      `${identity.provider}: ${identity.providerDisplayName ?? identity.providerUsername}`);
+
+  return names.length > 0
+    ? names.join(', ')
+    : null;
 }
 
 const identity = computed<KeyValueItem[]>(() => {
@@ -46,7 +69,14 @@ const identity = computed<KeyValueItem[]>(() => {
 
   return [
     { label: t('profile.facts.name'), value: `${who.displayName} (@${who.username})` },
-    { label: t('profile.facts.pronouns'), value: known?.pronoun },
+    { label: t('profile.facts.pronouns'), value: pronouns(known?.pronoun, known?.altPronoun) },
+    { label: t('profile.facts.linked'), value: linked(known?.linkedIdentities ?? []) },
+    {
+      label: t('profile.facts.manages'),
+      value: known?.managementRole
+        ? t(`profile.manager.${known.managementRole.toLowerCase()}`)
+        : null,
+    },
     {
       // memberSinceUtc is when this channel gave the person their role (ChannelMembership.GrantedAt).
       label: t('profile.facts.roleSince'),
@@ -59,6 +89,12 @@ const identity = computed<KeyValueItem[]>(() => {
       value: follower === undefined
         ? null
         : t(`profile.following.${follower}`),
+    },
+    {
+      label: t('profile.facts.trust'),
+      value: known
+        ? t(`profile.standing.${known.communityStanding.toLowerCase()}`)
+        : null,
     },
     { label: t('profile.facts.twitchId'), value: known?.twitchUserId },
   ].filter(present);
@@ -85,6 +121,12 @@ const relationship = computed<KeyValueItem[]>(() => {
       value: tier === null
         ? null
         : t('profile.tier', { tier }),
+    },
+    {
+      label: t('profile.facts.bestStreak'),
+      value: props.profile?.streak
+        ? t('profile.streakDays', Number(props.profile.streak.maxStreak))
+        : null,
     },
     { label: t('profile.facts.firstSeen'), value: shortDate(first, locale.value) },
     { label: t('profile.facts.lastSeen'), value: `${shortDate(who.lastSeen, locale.value)} (${ago})` },

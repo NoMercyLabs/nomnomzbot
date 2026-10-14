@@ -243,9 +243,67 @@
       "overview": "Overzicht",
       "chat": "Chat",
       "activity": "Activiteit",
-      "moderation": "Moderatie"
+      "moderation": "Moderatie",
+      "points": "Punten",
+      "data": "Gegevens"
     },
     "lastSeen": "Laatst gezien {ago}",
+    "streakDays": "{n} stream | {n} streams op rij",
+    "yesNo": {
+      "true": "Ja",
+      "false": "Nee"
+    },
+    "standing": {
+      "everyone": "Kijker",
+      "subscriber": "Abonnee",
+      "vip": "VIP",
+      "artist": "Artiest",
+      "moderator": "Moderator"
+    },
+    "manager": {
+      "moderator": "Moderator",
+      "leadmoderator": "Hoofdmoderator",
+      "editor": "Editor",
+      "broadcaster": "Streamer"
+    },
+    "points": {
+      "wallet": "Portemonnee",
+      "noWallet": "Nog geen punten verdiend in dit kanaal.",
+      "balance": "Saldo",
+      "earned": "Totaal verdiend",
+      "spent": "Totaal uitgegeven",
+      "frozen": "Bevroren",
+      "lastActivity": "Laatste wijziging",
+      "games": "Giveaways en ranglijst",
+      "giveawayEntries": "Giveaways meegedaan",
+      "giveawayWins": "Giveaways gewonnen",
+      "leaderboard": "Ranglijst",
+      "leaderboardShown": "Zichtbaar",
+      "leaderboardHidden": "Verborgen op eigen keuze"
+    },
+    "data": {
+      "consent": "Toestemming en vergunningen",
+      "ageConsent": "18+ bevestigd voor spellen",
+      "ageConsentOn": "Bevestigd op",
+      "notAsked": "Nog niet gevraagd",
+      "permits": "Actieve vergunningen",
+      "analytics": "Kijkersstatistieken",
+      "analyticsOn": "Geteld",
+      "analyticsOff": "Uitgezet op eigen keuze",
+      "commands": "Commando's en verzoeken",
+      "commandsUsed": "Commando's gebruikt",
+      "commandLast": "Laatste commando",
+      "songRequests": "Liedjes aangevraagd",
+      "lines": "Regels die de bot voor deze persoon gebruikt",
+      "shoutout": "Eigen shoutout-regel",
+      "ttsVoice": "Tekst-naar-spraakstem",
+      "quotes": "Citaten",
+      "noQuotes": "Geen citaten van deze persoon bewaard.",
+      "quoteNumber": "#{number}",
+      "moreQuotes": "Nog {count} citaat | Nog {count} citaten",
+      "saved": "Bewaarde gegevens",
+      "noSaved": "Het kanaal heeft geen gegevens voor deze persoon bewaard."
+    },
     "handle": "{'@'}{name}",
     "tier": "Tier {tier}",
     "stats": {
@@ -278,6 +336,9 @@
       "roleSince": "Rol sinds",
       "following": "Volgt",
       "twitchId": "Twitch-ID",
+      "linked": "Andere platforms",
+      "manages": "Beheert het kanaal als",
+      "bestStreak": "Langste kijkreeks",
       "roles": "Rollen",
       "subscription": "Twitch-abonnement",
       "firstSeen": "Eerst gezien",
@@ -297,7 +358,15 @@
       "title": "Banhistorie",
       "empty": "Geen bans bewaard voor deze persoon.",
       "noReason": "Geen reden opgegeven",
-      "by": "Door {name} op {date}"
+      "by": "Door {name} op {date}",
+      "counts": "Genomen acties",
+      "timeouts": "Time-outs",
+      "bans": "Bans",
+      "warnings": "Waarschuwingen",
+      "deleted": "Verwijderde berichten",
+      "lastAction": "Laatste actie",
+      "lastWarning": "Laatste waarschuwing",
+      "warningSeen": "Waarschuwing gelezen op"
     },
     "vip": {
       "make": "VIP maken",
