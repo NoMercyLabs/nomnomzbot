@@ -368,3 +368,32 @@ describe('folder layout', () => {
     expect(misplaced).toEqual([]);
   });
 });
+
+// Stoney 2026-10-14: "make sure buttons never get pancaked flat when they should be rounded". A lone icon in a
+// text-sized button gets text padding and draws as a flat oval; it takes an icon size instead.
+const loneIconButton = /<Button\b([^>]*)>\s*<[A-Z]\w*\b[^>]*\/>\s*<\/Button>/g;
+
+function textSized(attributes: string): boolean {
+  return !/\bsize="icon/.test(attributes) && !/:size=/.test(attributes);
+}
+
+describe('button shapes', () => {
+  it('spots a lone icon in a text-sized button', () => {
+    const matches = [...'<Button variant="outline" size="sm"><Inbox aria-hidden="true" /></Button>'
+      .matchAll(loneIconButton)];
+
+    expect(matches.filter((match) =>
+      textSized(match[1] ?? ''))).toHaveLength(1);
+  });
+
+  it('gives every icon-only button an icon size', () => {
+    const flat: string[] = allPaths(src)
+      .filter((path) => path.endsWith('.vue') && !path.includes('components/ui') && !path.includes('components\\ui'))
+      .flatMap((path) =>
+        [...readFileSync(path, 'utf8').matchAll(loneIconButton)]
+          .filter((match) => textSized(match[1] ?? ''))
+          .map((match) => `${relative(src, path).replace(/\\/g, '/')}: ${match[0].split('\n')[0]}`));
+
+    expect(flat).toEqual([]);
+  });
+});
