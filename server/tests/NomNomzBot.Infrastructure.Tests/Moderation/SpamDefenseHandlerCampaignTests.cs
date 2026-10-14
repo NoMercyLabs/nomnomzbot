@@ -155,6 +155,7 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
         services.AddSingleton(Substitute.For<IInboundOriginModerator>());
         services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(_spamDefense);
+        services.AddSingleton<Infrastructure.Moderation.ChatSafety.ChatSafetyMeter>();
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<SpamCampaignReversalExecutor>();

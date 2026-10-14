@@ -23,6 +23,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Enums;
@@ -149,6 +150,25 @@ public class ChatController : BaseController
             SubscriberMode: dto.SubscriberOnly,
             UniqueChatMode: dto.UniqueChatMode
         );
+
+    // ── GET safety-status ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// How safe chat is right now: a level (Calm, Watch, Raid, Over) and four live meters over the last
+    /// 60 seconds. Held in memory; the hub pushes the same shape as <c>chat_safety_status</c>.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("safety-status")]
+    [ProducesResponseType<StatusResponseDto<ChatSafetyStatusDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetSafetyStatus(string channelId, [FromServices] IChatSafetyMeter meter)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return Ok(
+            new StatusResponseDto<ChatSafetyStatusDto> { Data = meter.Snapshot(broadcasterId) }
+        );
+    }
 
     // ── GET messages ──────────────────────────────────────────────────────────
 

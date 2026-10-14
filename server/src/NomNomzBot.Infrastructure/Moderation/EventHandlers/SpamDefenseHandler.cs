@@ -14,6 +14,7 @@ using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Moderation.ChatSafety;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 
@@ -85,6 +86,22 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
                 result.Settings,
                 ct
             );
+
+            ChatSafetyMeter safetyMeter =
+                scope.ServiceProvider.GetRequiredService<ChatSafetyMeter>();
+            if (
+                cohort.ExpiresAt is { } cohortExpiresAt
+                && cohort.Verdict != CohortVerdict.CommunityPattern
+            )
+                safetyMeter.ObserveCohort(
+                    @event.BroadcasterId,
+                    result.Skeleton,
+                    cohort.Verdict,
+                    cohort.DistinctAccounts,
+                    cohortExpiresAt
+                );
+            if (!result.Decision.IsDryRun && result.Decision.Outcome != SpamOutcome.None)
+                safetyMeter.RecordFlaggedLine(@event.BroadcasterId);
 
             // Truthful even when it is bad news: this logs what the platform actually did (Restoration),
             // never just what the cohort intended (Reversal) — the exact gap that let a "reversed"

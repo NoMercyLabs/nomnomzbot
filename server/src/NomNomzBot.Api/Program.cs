@@ -558,6 +558,7 @@ try
 
     // The operator hub's live heartbeat — pushes the real admin system snapshot to AdminHub every 15s.
     builder.Services.AddHostedService<NomNomzBot.Api.Hubs.Broadcasters.AdminHubStatusPublisher>();
+    builder.Services.AddHostedService<NomNomzBot.Api.Hubs.Broadcasters.ChatSafetyStatusBroadcaster>();
     builder.Services.AddSingleton<OverlayTokenSweeper>();
     builder.Services.AddHostedService<OverlayTokenSweepService>();
 

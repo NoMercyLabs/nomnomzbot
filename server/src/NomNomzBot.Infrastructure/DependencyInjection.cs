@@ -1166,6 +1166,12 @@ public static class DependencyInjection
         // memory, so it is a singleton; the sweep reads and writes the DB, so it is scoped. Both are
         // consumed by concrete type from FollowSpikeHandler.
         services.AddSingleton<FollowSpikeTracker>();
+        // The chat safety meter holds each channel's 60-second windows in memory; the handlers that feed
+        // it are found by the IEventHandler<> scan, the reader seam is the same instance.
+        services.AddSingleton<Moderation.ChatSafety.ChatSafetyMeter>();
+        services.AddSingleton<Application.Moderation.Services.IChatSafetyMeter>(sp =>
+            sp.GetRequiredService<Moderation.ChatSafety.ChatSafetyMeter>()
+        );
         services.AddScoped<FollowBotSweepService>();
         // Same split as SpamEnforcementExecutor, one layer further in: SpamCorrelationService decides a
         // reversal is owed, this carries it out. Consumed by concrete type from SpamCorrelationService.
