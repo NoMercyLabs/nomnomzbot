@@ -75,6 +75,26 @@ const searchAnswer = (options?: Options): Answer => {
     : { data: { data: page }, response: { status: 200, ok: true } };
 };
 
+// The community record of the chatter the Viewer panel asks for.
+const memberOf = (options?: Options): Record<string, unknown> => {
+  const id = String(options?.params?.path?.userId ?? '');
+
+  return {
+    id,
+    internalUserId: null,
+    username: `user-${id}`,
+    displayName: `User ${id}`,
+    profileImageUrl: null,
+    messageCount: 1,
+    watchHours: 0,
+    commandsUsed: 0,
+    trustLevel: 'viewer',
+    isBanned: false,
+    firstSeen: null,
+    lastSeen: null,
+  };
+};
+
 const line = (
   id: string,
   userId: string,
@@ -129,6 +149,9 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/favorite-emotes'))
         return { data: { data: [...favoriteList] }, response: { status: 200, ok: true } };
+
+      if (path.endsWith('/community/{userId}'))
+        return { data: { data: memberOf(options) }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/auth/me')) {
         return { data: { data: { username: 'stoney_eagle' } }, response: { status: 200, ok: true } };

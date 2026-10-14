@@ -310,6 +310,7 @@ async function confirmBan(): Promise<void> {
           v-if="focusedUserId !== null"
           :user-id="focusedUserId"
           :channel-id="channelId"
+          :channel-login="current?.login ?? null"
           :lines="visible"
           :hour12="display.timestamps === '12'"
           @close="closeViewer"

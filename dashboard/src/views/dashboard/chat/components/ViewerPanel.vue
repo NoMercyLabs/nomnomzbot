@@ -23,12 +23,11 @@ import { useCommunityMember } from '@/api/community';
 import { useCurrencyConfig } from '@/api/economy';
 import { useViewerProfile } from '@/api/people';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import ProfileHeader from '@/components/layout/profile/ProfileHeader.vue';
+import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import StatTile from '@/components/layout/StatTile.vue';
-import UserName from '@/components/layout/UserName.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { readableNameColor } from '@/lib/accent';
 import { emoteFrames, smallestUrl, type EmoteImages } from '@/lib/assetCards';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
@@ -41,6 +40,8 @@ const LATEST = 6;
 const props = defineProps<{
   userId: string | null;
   channelId: string | null;
+  // The channel's own login: its owner shows as the broadcaster.
+  channelLogin?: string | null;
   lines: ChatLine[];
   hour12: boolean;
 }>();
@@ -87,20 +88,13 @@ const state = computed<PanelState>(() => {
     : 'error';
 });
 
-const nameColor = computed<string | undefined>(() => {
-  const color = theirs.value.at(-1)?.color;
+const viewerProfile = computed(() => wallet.data.value ?? null);
+const roles = computed<RoleKey[]>(() =>
+  person.value
+    ? roleKeys(person.value, viewerProfile.value, props.channelLogin)
+    : []);
 
-  if (!color)
-    return undefined;
-
-  const theme = document.documentElement.classList.contains('light')
-    ? 'light'
-    : 'dark';
-
-  return readableNameColor(color, theme, 4.5) ?? undefined;
-});
-
-const account = computed(() => wallet.data.value?.economy.wallet ?? null);
+const account = computed(() => viewerProfile.value?.economy.wallet ?? null);
 const currencyName = computed<string>(() =>
   currency.data.value?.currencyNamePlural ?? currency.data.value?.currencyName ?? '');
 const showCurrency = computed<boolean>(() =>
@@ -197,6 +191,15 @@ async function undo(): Promise<void> {
   >
     <template #actions>
       <Button
+        v-if="userId !== null"
+        data-viewer-profile
+        variant="ghost"
+        size="sm"
+        @click="openProfile"
+      >
+        {{ $t('dashboard.chat.viewer.profile') }}
+      </Button>
+      <Button
         data-viewer-close
         variant="ghost"
         size="icon"
@@ -207,42 +210,14 @@ async function undo(): Promise<void> {
       </Button>
     </template>
     <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
-      <div class="flex min-w-0 items-center gap-3">
-        <Avatar class="size-10">
-          <AvatarImage v-if="person?.profileImageUrl" :src="person.profileImageUrl" :alt="name" />
-          <AvatarFallback>{{ name.slice(0, 2).toUpperCase() }}</AvatarFallback>
-        </Avatar>
-        <div class="min-w-0 flex-1">
-          <UserName
-            v-if="userId"
-            class="block max-w-full truncate text-base"
-            :user-id="userId"
-            :name="name"
-            :style="{ color: nameColor }"
-          />
-          <p class="truncate text-sm text-muted-foreground">
-            {{ $t('dashboard.chat.viewer.selected') }}
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" @click="openProfile">
-          {{ $t('dashboard.chat.viewer.profile') }}
-        </Button>
-      </div>
-      <div class="grid grid-cols-2 gap-4">
-        <StatTile
-          plain
-          :label="$t('dashboard.chat.viewer.messages')"
-          :value="Number(person?.messageCount ?? 0)"
-          :context="$t('dashboard.chat.viewer.watched', { hours: n(Number(person?.watchHours ?? 0), { maximumFractionDigits: 1 }) })"
-        />
-        <StatTile
-          v-if="showCurrency && account"
-          plain
-          :label="currencyName"
-          :value="Number(account.balance)"
-          :context="$t('dashboard.chat.viewer.earned', { count: n(Number(account.lifetimeEarned)) })"
-        />
-      </div>
+      <ProfileHeader flush :person="person" :profile="viewerProfile" :roles="roles" />
+      <StatTile
+        v-if="showCurrency && account"
+        plain
+        :label="currencyName"
+        :value="Number(account.balance)"
+        :context="$t('dashboard.chat.viewer.earned', { count: n(Number(account.lifetimeEarned)) })"
+      />
       <section class="grid gap-2">
         <h3 class="text-sm font-medium">{{ $t('dashboard.chat.viewer.latest') }}</h3>
         <p v-if="latest.length === 0" class="text-sm text-muted-foreground">

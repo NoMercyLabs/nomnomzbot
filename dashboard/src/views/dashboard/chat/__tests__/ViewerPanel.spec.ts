@@ -58,6 +58,7 @@ const profile = {
     userId: 'g1',
     username: 'dukasoft',
     displayName: 'DukaSoft',
+    accountCreatedAtUtc: '2015-03-01T00:00:00Z',
   },
   economy: {
     wallet: {
@@ -213,14 +214,20 @@ describe('ViewerPanel', () => {
     expect(button('Ban')).toBeUndefined();
   });
 
-  it('shows the chatter with a profile hook and the real totals', async () => {
+  it('shows the chatter on the profile header with a profile hook and the real totals', async () => {
     await show('u1');
 
-    const name = document.body.querySelector('[data-slot="user-name"]');
+    const header = document.body.querySelector('[data-slot="profile-header"]');
+    const stats = [...document.body.querySelectorAll('[data-profile-stat] b')].map((item) =>
+      item.textContent?.trim());
 
-    expect(name?.getAttribute('data-user')).toBe('u1');
-    expect(name?.textContent?.trim()).toBe('DukaSoft');
-    expect(text()).toContain('2,811');
+    expect(header?.querySelector('h2')?.textContent?.trim()).toBe('DukaSoft');
+
+    expect(header?.querySelector('[data-profile-age="account"]')?.textContent)
+      .toMatch(/^Twitch account made .+ ago$/);
+
+    expect(document.body.querySelector('[data-viewer-profile]')).not.toBeNull();
+    expect(stats).toEqual(['2,811', '42', '9']);
     expect(text()).toContain('6,022');
     expect(text()).toContain('6,627');
     expect(text()).toContain('feathers');
