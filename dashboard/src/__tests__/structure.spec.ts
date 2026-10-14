@@ -12,6 +12,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { merge } from '../lib/array';
 import * as utils from '../lib/utils';
 
 const src = join(__dirname, '..');
@@ -267,16 +268,24 @@ describe('folder layout', () => {
 
   // The shadcn parts read --radius and --popover-foreground; neither was defined, so the search key cap and
   // every toast drew square. A token that is read must be defined somewhere. A name built at run time
-  // (`--color-${key}` from a chart config) ends in "-" here and is set by its component.
+  // (`--color-${key}` from a chart config) ends in "-" here and is set by its component. The reka drawer
+  // sets its swipe distance itself, so the names in its own file count as defined.
   it('defines every CSS variable that a style or part reads', () => {
     const files = allPaths(src).filter((path) =>
       /\.(vue|ts|css)$/.test(path) && !path.includes('__tests__'));
     const text: string = files.map((path) =>
       readFileSync(path, 'utf8')).join('\n');
+    const drawer: string = readFileSync(
+      join(src, '..', 'node_modules', 'reka-ui', 'dist', 'Drawer', 'utils.js'),
+      'utf8',
+    );
     const read = new Set([...text.matchAll(/var\((--[\w-]+)/g)].map((found) =>
       found[1]!));
-    const defined = new Set([...text.matchAll(/(--[\w-]+)['"]?\s*:/g)].map((found) =>
-      found[1]!));
+    const declared = [...text.matchAll(/(--[\w-]+)['"]?\s*:/g)].map((found) =>
+      found[1]!);
+    const setByDrawer = [...drawer.matchAll(/"(--[\w-]+)"/g)].map((found) =>
+      found[1]!);
+    const defined = new Set(merge(declared, setByDrawer));
     const missing = [...read].filter((name) =>
       !name.endsWith('-') && !defined.has(name));
 
