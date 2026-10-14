@@ -251,6 +251,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatterAssignedColor> ChatterAssignedColors =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>

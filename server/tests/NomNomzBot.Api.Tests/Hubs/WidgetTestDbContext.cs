@@ -137,6 +137,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
         b.Entity<ChannelAudioMix>(e => e.HasKey(m => m.Id));
 
+        b.Entity<NomNomzBot.Domain.Chat.Entities.FavoriteEmote>(e => e.HasKey(f => f.Id));
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -153,6 +155,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         typeof(AlertQueueEntry),
         typeof(WidgetGalleryItem),
         typeof(ChannelAudioMix),
+        typeof(NomNomzBot.Domain.Chat.Entities.FavoriteEmote),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -418,6 +421,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<ChannelAudioMix> ChannelAudioMixes => Set<ChannelAudioMix>();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
+        Set<NomNomzBot.Domain.Chat.Entities.FavoriteEmote>();
     public DbSet<Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => throw new NotSupportedException();
