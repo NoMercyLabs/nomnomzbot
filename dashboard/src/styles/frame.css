@@ -96,6 +96,12 @@
   flex: 1 1 0;
   width: 100%;
 }
+/* A key cap means nothing without a keyboard: touch screens never show one. */
+@media (pointer: coarse) {
+  [data-slot='kbd'] {
+    display: none;
+  }
+}
 /* Only the strip keeps its options whole; the tabs block also holds the content, which must wrap. */
 [data-slot='tabs-list'],
 [data-segmented] {

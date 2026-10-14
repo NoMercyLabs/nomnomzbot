@@ -357,10 +357,11 @@ async function confirmBan(): Promise<void> {
       />
     </template>
     <template #bar>
-      <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2">
+      <!-- A phone has no second window to dock or pop out into; its toggles keep only their icons. -->
+      <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2 phone:ml-0 phone:flex-1">
         <SearchField
           v-model="search"
-          class="w-64"
+          class="w-64 phone:w-auto phone:min-w-0 phone:flex-1"
           :placeholder="$t('dashboard.chat.search.placeholder')"
         />
         <Button
@@ -372,7 +373,7 @@ async function confirmBan(): Promise<void> {
           @click="modToolsOpen = !modToolsOpen"
         >
           <Moderator class="size-4" aria-hidden="true" />
-          {{ $t('dashboard.chat.modTools.title') }}
+          <span class="phone:sr-only">{{ $t('dashboard.chat.modTools.title') }}</span>
         </Button>
         <Button
           data-display-toggle
@@ -383,10 +384,20 @@ async function confirmBan(): Promise<void> {
           @click="displayOpen = !displayOpen"
         >
           <SettingsFader class="size-4" aria-hidden="true" />
-          {{ $t('dashboard.chat.display.toggle') }}
+          <span class="phone:sr-only">{{ $t('dashboard.chat.display.toggle') }}</span>
         </Button>
-        <CopyLinkButton v-if="!poppedOut" :url="dockUrl" :label="$t('dashboard.chat.copyDockLink')" />
-        <Button data-chat-popout variant="outline" size="sm" @click="popOut">
+        <CopyLinkButton
+          v-if="!poppedOut"
+          class="phone:hidden"
+          :url="dockUrl"
+          :label="$t('dashboard.chat.copyDockLink')"
+        />
+        <Button data-chat-popout
+                class="phone:hidden"
+                variant="outline"
+                size="sm"
+                @click="popOut"
+        >
           <ArrowUpRight class="size-4" aria-hidden="true" />
           {{ $t('dashboard.chat.popout') }}
         </Button>
