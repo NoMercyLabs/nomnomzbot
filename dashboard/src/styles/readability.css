@@ -15,10 +15,11 @@
 
 html[data-rd-font='hyperlegible'] {
   --font:
-    'Atkinson Hyperlegible Next Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    'Atkinson Hyperlegible Next Variable', 'Inter Variable', 'Noto Color Emoji', ui-sans-serif, system-ui,
+    sans-serif;
 }
 html[data-rd-font='lexend'] {
-  --font: 'Lexend Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font: 'Lexend Variable', 'Inter Variable', 'Noto Color Emoji', ui-sans-serif, system-ui, sans-serif;
 }
 
 /* WCAG 1.4.12 text spacing: letters 0.12em, words 0.16em. */
