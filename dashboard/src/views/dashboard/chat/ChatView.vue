@@ -14,6 +14,8 @@
 import { refDebounced, useEventListener, useMediaQuery } from '@vueuse/core';
 import { computed, ref, watch, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
+import ArrowUpRight from '~icons/nnz/arrow-up-right';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
 import Moderator from '~icons/nnz/moderator';
@@ -49,6 +51,15 @@ const { channelId, current } = useCurrentChannel();
 
 const history = useChatHistory(channelId);
 const banner = useBanUser(channelId);
+
+// The chat in its own window, for a second monitor (owner 2026-10-14: "where is the chat popout?").
+const route = useRoute();
+const router = useRouter();
+const poppedOut = computed(() => route.meta.popout === true);
+
+function popOut(): void {
+  window.open(router.resolve({ name: 'popout-chat' }).href, 'nnz-chat', 'popup,width=440,height=760');
+}
 
 const display = useChatDisplay();
 const displayOpen = ref(false);
@@ -298,6 +309,16 @@ async function confirmBan(): Promise<void> {
         >
           <SettingsFader class="size-4" aria-hidden="true" />
           {{ $t('dashboard.chat.display.toggle') }}
+        </Button>
+        <Button
+          v-if="!poppedOut"
+          data-chat-popout
+          variant="outline"
+          size="sm"
+          @click="popOut"
+        >
+          <ArrowUpRight class="size-4" aria-hidden="true" />
+          {{ $t('dashboard.chat.popout') }}
         </Button>
       </div>
     </template>

@@ -12,11 +12,12 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import { dashboardRoutes } from './dashboard';
 import { signInGuard } from './guard';
+import { popoutRoutes } from './popout';
 import { siteRoutes } from './site';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [siteRoutes, dashboardRoutes],
+  routes: [siteRoutes, dashboardRoutes, popoutRoutes],
 });
 
 router.beforeEach(signInGuard);

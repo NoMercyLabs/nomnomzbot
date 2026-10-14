@@ -10,6 +10,7 @@
         "live": "Live",
         "offline": "Offline"
       },
+      "popout": "Pop out",
       "display": {
         "toggle": "Display",
         "title": "Display",

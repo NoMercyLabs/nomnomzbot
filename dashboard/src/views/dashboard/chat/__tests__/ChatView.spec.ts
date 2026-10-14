@@ -318,7 +318,7 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(): Promise<void> {
+async function open(path = '/app/chat'): Promise<void> {
   router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -328,6 +328,12 @@ async function open(): Promise<void> {
         component: { template: '<div />' },
       },
       {
+        path: '/popout/chat',
+        name: 'popout-chat',
+        component: { template: '<div />' },
+        meta: { popout: true },
+      },
+      {
         path: '/app/settings',
         name: 'dashboard-settings',
         component: { template: '<div />' },
@@ -335,7 +341,7 @@ async function open(): Promise<void> {
     ],
   });
 
-  await router.push('/app/chat');
+  await router.push(path);
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   // The page runs inside the frame's tooltip provider and toast host, so the test gives it the same.
   const framed = defineComponent(() => () => h(TooltipProvider, () => [h(ChatView), h(Toaster)]));
@@ -400,6 +406,23 @@ async function send(): Promise<void> {
 }
 
 describe('ChatView', () => {
+  it('pops the chat out into its own window', async () => {
+    const popup = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    await open();
+    document.body.querySelector<HTMLButtonElement>('[data-chat-popout]')!.click();
+
+    expect(popup).toHaveBeenCalledWith('/popout/chat', 'nnz-chat', 'popup,width=440,height=760');
+    popup.mockRestore();
+  });
+
+  it('offers no Pop out inside the popped-out window', async () => {
+    await open('/popout/chat');
+
+    expect(rows().length).toBeGreaterThan(0);
+    expect(document.body.querySelector('[data-chat-popout]')).toBeNull();
+  });
+
   it('renders the history lines in order with their names and messages', async () => {
     await open();
     expect(rowIds()).toEqual(['m1', 'm2', 'm3']);

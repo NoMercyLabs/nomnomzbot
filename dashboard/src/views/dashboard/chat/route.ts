@@ -12,12 +12,22 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage } from '@/i18n';
 
+const chatPage = () =>
+  loadPage(
+    () => import('./ChatView.vue'),
+    (locale) => import(`./i18n/${locale}.json`),
+  );
+
 export const dashboardChatRoute = {
   path: 'chat',
   name: 'dashboard-chat',
-  component: () =>
-    loadPage(
-      () => import('./ChatView.vue'),
-      (locale) => import(`./i18n/${locale}.json`),
-    ),
+  component: chatPage,
+} as const satisfies RouteRecordRaw;
+
+// The same page in its own window, under the popout frame.
+export const popoutChatRoute = {
+  path: 'chat',
+  name: 'popout-chat',
+  component: chatPage,
+  meta: { popout: true },
 } as const satisfies RouteRecordRaw;
