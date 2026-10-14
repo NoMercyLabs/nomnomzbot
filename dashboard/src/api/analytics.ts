@@ -19,6 +19,8 @@ import type { components } from './schema';
 export type AnalyticsSummary = components['schemas']['ChannelAnalyticsSummaryDto'];
 export type AnalyticsDay = components['schemas']['ChannelAnalyticsDailyDto'];
 export type StreamRow = components['schemas']['StreamListItemDto'];
+export type ChatHours = components['schemas']['ChannelChatHoursDto'];
+export type ChatHourCell = components['schemas']['ChatHourCellDto'];
 
 // The ranges the page offers, as the number of days back from today.
 export const ANALYTICS_RANGES = {
@@ -82,6 +84,18 @@ async function readDays(channelId: string, dates: RangeDates): Promise<Analytics
   return [...(data?.data ?? [])];
 }
 
+async function readChatHours(channelId: string, dates: RangeDates): Promise<ChatHours | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/analytics/channel/chat-hours',
+    { params: { path: { version, channelId }, query: dates } },
+  );
+
+  if (error !== undefined)
+    throw failed('analytics chat hours', response.status);
+
+  return data?.data ?? null;
+}
+
 // The list comes newest first, so paging stops at the first page that reaches back past the range.
 async function readStreams(channelId: string, dates: RangeDates): Promise<StreamRow[]> {
   const rows: StreamRow[] = [];
@@ -124,4 +138,12 @@ export function useStreamsInRange(
   range: MaybeRefOrGetter<AnalyticsRange>,
 ): UseQueryReturnType<StreamRow[], Error> {
   return rangeQuery(channelId, range, 'streams', readStreams);
+}
+
+// Chat lines per weekday and hour, in the channel's own time zone; an hour without chat is left out.
+export function useChatHours(
+  channelId: MaybeRefOrGetter<string | null>,
+  range: MaybeRefOrGetter<AnalyticsRange>,
+): UseQueryReturnType<ChatHours | null, Error> {
+  return rangeQuery(channelId, range, 'chat-hours', readChatHours);
 }

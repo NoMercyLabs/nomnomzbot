@@ -54,6 +54,51 @@
         "rewardsLine": "{count} rewards redeemed.",
         "songs": "Song requests",
         "songsLine": "{count} songs requested."
+      },
+      "views": {
+        "overview": "Overview",
+        "streams": "Streams",
+        "chat": "Chat"
+      },
+      "streams": {
+        "title": "Every stream",
+        "count": "No streams | 1 stream | {count} streams",
+        "empty": "No streams in this range.",
+        "unknown": "Not known",
+        "average": "Your average stream ran {length}.",
+        "busiest": "The busiest chat was on {date}, with {count} lines.",
+        "brought": "{chatters} chatters, {follows} new follows",
+        "columns": {
+          "started": "Started",
+          "length": "Length",
+          "category": "Category",
+          "lines": "Chat lines",
+          "chatters": "Chatters",
+          "follows": "New follows",
+          "peak": "Peak viewers"
+        }
+      },
+      "chat": {
+        "empty": "Nobody chatted in this range yet.",
+        "zone": "Times are in {zone}.",
+        "span": "{from} to {to}",
+        "cell": "{day}, {from} to {to}: {count} lines",
+        "fewer": "Fewer",
+        "more": "More",
+        "heat": {
+          "title": "When chat is busy",
+          "takeaway": "Chat is busiest on {day} from {span}."
+        },
+        "busy": {
+          "title": "Busy days and hours",
+          "description": "Chat only happens while you are live, so it follows your stream days.",
+          "takeaway": "{day} has the most chat: {count} lines.",
+          "quiet": "1 day has no chat at all. | {count} days have no chat at all.",
+          "byDay": "By day of the week",
+          "byHour": "Busiest hours",
+          "peak": "busiest at {hour}",
+          "none": "no chat"
+        }
       }
     }
   }

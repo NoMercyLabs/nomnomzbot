@@ -54,6 +54,51 @@
         "rewardsLine": "{count} beloningen ingewisseld.",
         "songs": "Verzoeknummers",
         "songsLine": "{count} nummers aangevraagd."
+      },
+      "views": {
+        "overview": "Overzicht",
+        "streams": "Streams",
+        "chat": "Chat"
+      },
+      "streams": {
+        "title": "Elke stream",
+        "count": "Geen streams | 1 stream | {count} streams",
+        "empty": "Geen streams in deze periode.",
+        "unknown": "Onbekend",
+        "average": "Je gemiddelde stream duurde {length}.",
+        "busiest": "De drukste chat was op {date}, met {count} regels.",
+        "brought": "{chatters} chatters, {follows} nieuwe volgers",
+        "columns": {
+          "started": "Begonnen",
+          "length": "Duur",
+          "category": "Categorie",
+          "lines": "Chatregels",
+          "chatters": "Chatters",
+          "follows": "Nieuwe volgers",
+          "peak": "Meeste kijkers"
+        }
+      },
+      "chat": {
+        "empty": "Nog niemand chatte in deze periode.",
+        "zone": "Tijden zijn in {zone}.",
+        "span": "{from} tot {to}",
+        "cell": "{day}, {from} tot {to}: {count} regels",
+        "fewer": "Minder",
+        "more": "Meer",
+        "heat": {
+          "title": "Wanneer chat druk is",
+          "takeaway": "Chat is het drukst op {day} van {span}."
+        },
+        "busy": {
+          "title": "Drukke dagen en uren",
+          "description": "Chat is er alleen als je live bent, dus het volgt je streamdagen.",
+          "takeaway": "Op {day} is de meeste chat: {count} regels.",
+          "quiet": "1 dag heeft helemaal geen chat. | {count} dagen hebben helemaal geen chat.",
+          "byDay": "Per dag van de week",
+          "byHour": "Drukste uren",
+          "peak": "het drukst om {hour}",
+          "none": "geen chat"
+        }
       }
     }
   }

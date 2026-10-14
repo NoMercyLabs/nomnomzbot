@@ -78,8 +78,38 @@ const stream = (
   startedAt,
   endedAt: startedAt,
   durationSeconds: seconds,
-  peakViewers: 20,
+  peakViewers: id === 's2'
+    ? null
+    : 20,
+  totalMessages: seconds / 10,
+  uniqueChatters: seconds / 300,
+  newFollowers: seconds / 1800,
 });
+
+// Sunday is 0. Tuesday 16:00 is the busiest hour; Thursday only chats at 16:00.
+const chatHours = {
+  timeZone: 'Europe/Amsterdam',
+  cells: [
+    {
+      dayOfWeek: 2,
+      hour: 16,
+      messages: 900,
+      chatters: 20,
+    },
+    {
+      dayOfWeek: 2,
+      hour: 18,
+      messages: 300,
+      chatters: 9,
+    },
+    {
+      dayOfWeek: 4,
+      hour: 16,
+      messages: 600,
+      chatters: 14,
+    },
+  ],
+};
 
 // Newest first, as the server sends them; s3 is older than 30 days, so a 30-day page stops there.
 const streams = [
@@ -93,6 +123,9 @@ function answer(path: string, options: Options | undefined): unknown {
 
   if (path.endsWith('/analytics/channel/summary'))
     return { data: { data: onTheWire(summary) }, response: { ok: true, status: 200 } };
+
+  if (path.endsWith('/analytics/channel/chat-hours'))
+    return { data: { data: onTheWire(chatHours) }, response: { ok: true, status: 200 } };
 
   if (path.endsWith('/analytics/channel/daily')) {
     const days = [day('2026-10-01', 4, 12), day('2026-10-10', 10, 30)];
@@ -158,7 +191,7 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(): Promise<void> {
+async function open(to = '/app/analytics'): Promise<void> {
   const router: Router = createRouter({
     history: createMemoryHistory(),
     routes: [{
@@ -168,7 +201,7 @@ async function open(): Promise<void> {
     }],
   });
 
-  await router.push('/app/analytics');
+  await router.push(to);
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -255,5 +288,74 @@ describe('the Analytics overview', () => {
 
     expect(asked('/analytics/channel/summary').at(-1)?.query).toEqual({ from: '2026-07-17', to: '2026-10-14' });
     expect(localStorage.getItem('nnz.analytics.range')).toBe('r90');
+  });
+});
+
+const textOf = (selector: string): string[] =>
+  [...document.body.querySelectorAll(selector)].map((element: Element) =>
+    element.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+
+// A bar item reads as its parts with a space between: label, detail and number.
+const barsOf = (selector: string): string[] =>
+  [...document.body.querySelectorAll(`${selector} [data-bar-item] > div:first-child`)].map((line: Element) =>
+    [...line.children]
+      .map((part: Element) =>
+        part.textContent?.trim() ?? '')
+      .filter((part: string) =>
+        part !== '')
+      .join(' '));
+
+describe('the Streams tab', () => {
+  it('lists every stream in the range, newest first, with what it brought', async () => {
+    await open('/app/analytics?view=streams');
+
+    const panel = document.body.querySelector('[data-analytics-streams]')?.textContent ?? '';
+
+    expect(panel).toContain('2 streams');
+    expect(panel).toContain('Your average stream ran 2 hr. The busiest chat was on Sat, Oct 10, with 900 lines.');
+
+    const rows = textOf('[data-stream-row]');
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('Sat, Oct 10');
+    expect(rows[0]).toContain('2 hr 30 min');
+    expect(rows[0]).toContain('30 chatters, 5 new follows');
+    expect(rows[1]).toContain('1 hr 30 min');
+    // Twitch sent no peak for this stream, so the cell says so instead of showing 0.
+    expect(rows[1]).toContain('Not known');
+  });
+});
+
+describe('the Chat tab', () => {
+  it('asks for chat by day and hour over the range and names the busiest hour', async () => {
+    await open('/app/analytics?view=chat');
+
+    expect(asked('/analytics/channel/chat-hours').map((call: Call) => call.query)).toEqual([
+      { from: '2026-09-15', to: '2026-10-14' },
+    ]);
+
+    const heat = document.body.querySelector('[data-analytics-heat]')?.textContent ?? '';
+
+    expect(heat).toContain('Times are in Europe/Amsterdam.');
+    expect(heat).toContain('Chat is busiest on Tuesday from 4:00 PM to 5:00 PM.');
+    expect(document.body.querySelectorAll('[data-heat-cell]')).toHaveLength(7 * 24);
+  });
+
+  it('ranks the weekdays from Monday and the busiest hours by their part of all chat', async () => {
+    await open('/app/analytics?view=chat');
+
+    const busy = document.body.querySelector('[data-analytics-busy]')?.textContent ?? '';
+
+    expect(busy).toContain('Tuesday has the most chat: 1,200 lines. 5 days have no chat at all.');
+
+    expect(barsOf('[data-analytics-days]').slice(0, 2)).toEqual([
+      'Monday no chat 0',
+      'Tuesday busiest at 4:00 PM 1,200',
+    ]);
+
+    expect(barsOf('[data-analytics-hours]')).toEqual([
+      '4:00 PM to 5:00 PM 83% 1,500',
+      '6:00 PM to 7:00 PM 17% 300',
+    ]);
   });
 });

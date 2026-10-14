@@ -9,17 +9,27 @@
 -->
 <script setup lang="ts">
 // Analytics: how the channel did over a range the streamer picks; the range is remembered per browser.
+// The tab sits in the address, so a link or the back button lands on the same view.
 import { useLocalStorage } from '@vueuse/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ANALYTICS_RANGES, type AnalyticsRange } from '@/api/analytics';
 import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import { usePageView } from '@/composables/usePageView';
 
+import AnalyticsChat from './AnalyticsChat.vue';
 import AnalyticsOverview from './AnalyticsOverview.vue';
+import AnalyticsStreams from './AnalyticsStreams.vue';
 
 const { t } = useI18n();
+
+const VIEWS = ['overview', 'streams', 'chat'] as const satisfies readonly string[];
+const view = usePageView(VIEWS);
+const views = computed<PageTab[]>(() =>
+  VIEWS.map((value) => ({ value, label: t(`dashboard.analytics.views.${value}`) })));
 
 const range = useLocalStorage<AnalyticsRange>('nnz.analytics.range', 'r30');
 const rangeOptions = computed(() =>
@@ -38,6 +48,9 @@ const rangeOptions = computed(() =>
         :options="rangeOptions"
       />
     </template>
+    <template #bar><PageTabs :tabs="views" /></template>
   </PageHeader>
-  <AnalyticsOverview :range="range" />
+  <AnalyticsStreams v-if="view === 'streams'" :range="range" />
+  <AnalyticsChat v-else-if="view === 'chat'" :range="range" />
+  <AnalyticsOverview v-else :range="range" />
 </template>
