@@ -34,6 +34,13 @@ public class FavoriteEmoteConfiguration : IEntityTypeConfiguration<FavoriteEmote
             .OnDelete(DeleteBehavior.Cascade);
 
         // One row per user and emote; the same index serves the per-user list read.
-        builder.HasIndex(e => new { e.UserId, e.Provider, e.EmoteId }).IsUnique();
+        builder
+            .HasIndex(e => new
+            {
+                e.UserId,
+                e.Provider,
+                e.EmoteId,
+            })
+            .IsUnique();
     }
 }
