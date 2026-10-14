@@ -122,6 +122,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ownerLine.Fragments.Should().ContainSingle(f => f.Type == "text" && f.Text == "hello chat");
         ownerLine.IsBroadcaster.Should().BeTrue();
         ownerLine.OccurredAt.Should().Be(Start); // the API's publishedAt, not "now"
+        ownerLine.ColorHex.Should().Be("assigned-youtube-UCauthor-m-1");
 
         published[1].IsSubscriber.Should().BeTrue("a channel member maps to the subscriber flag");
         published[1].IsBroadcaster.Should().BeFalse();
@@ -828,6 +829,9 @@ public sealed class YouTubeLiveChatPollWorkerTests
         // Sticker-image resolution (S-YT-STICKER-IMAGE) is irrelevant to this worker-seam suite — a no-op
         // stand-in keeps every existing case's DI intact without pulling in the asset-upload machinery.
         services.AddSingleton<IYouTubeSuperStickerAssetResolver>(new NoOpStickerAssetResolver());
+        services.AddSingleton<NomNomzBot.Application.Chat.Services.IChatColorAssignmentService>(
+            new KeyedColorAssignment()
+        );
         if (instanceGate is not null)
             services.AddSingleton(instanceGate);
         ServiceProvider provider = services.BuildServiceProvider();
@@ -969,6 +973,18 @@ public sealed class YouTubeLiveChatPollWorkerTests
     /// This worker-seam suite proves chat-message publishing, not sticker images (S-YT-STICKER-IMAGE
     /// covers that separately) — a stand-in that never resolves keeps the DI graph complete.
     /// </summary>
+    private sealed class KeyedColorAssignment
+        : NomNomzBot.Application.Chat.Services.IChatColorAssignmentService
+    {
+        public Task<string?> ResolveAsync(
+            Guid broadcasterId,
+            string provider,
+            string userId,
+            string? lineColor,
+            CancellationToken ct = default
+        ) => Task.FromResult<string?>($"assigned-{provider}-{userId}");
+    }
+
     private sealed class NoOpStickerAssetResolver : IYouTubeSuperStickerAssetResolver
     {
         public Task<string?> ResolveAssetUrlAsync(

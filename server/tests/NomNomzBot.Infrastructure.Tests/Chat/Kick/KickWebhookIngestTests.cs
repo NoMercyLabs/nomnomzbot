@@ -117,7 +117,7 @@ public sealed class KickWebhookIngestTests
             clock ?? TimeProvider.System,
             NullLogger<KickWebhookIngest>.Instance,
             guard ?? new FakeBotSelfEchoGuard(),
-            NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators.PassThroughChatColors.Create()
+            Platform.Eventing.Translators.PassThroughChatColors.Create()
         );
 
     /// <summary>

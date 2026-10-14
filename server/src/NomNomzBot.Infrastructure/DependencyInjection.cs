@@ -370,7 +370,7 @@ public static class DependencyInjection
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
         services.AddSingleton<
             Application.Chat.Services.IChatColorAssignmentService,
-            Chat.ChatColorAssignmentService
+            ChatColorAssignmentService
         >();
         // Typed @target to login (a display name such as a Korean one is not a login); reads the user table.
         services.AddScoped<

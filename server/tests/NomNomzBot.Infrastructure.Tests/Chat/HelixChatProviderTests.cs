@@ -700,7 +700,7 @@ public sealed class HelixChatProviderTests
                 TimeProvider.System,
                 Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
                 guard,
-                NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators.PassThroughChatColors.Create()
+                Platform.Eventing.Translators.PassThroughChatColors.Create()
             );
 
         string echoedPayload = $$"""
