@@ -106,3 +106,5 @@ flagWords:
 ignoreRegExpList:
   - 'aria-labelledby'
   - 'ariaLabelledby'
+  # The server's schema key widget.group.behaviour, copied into src/i18n/schema; its words are American.
+  - '"behaviour":'

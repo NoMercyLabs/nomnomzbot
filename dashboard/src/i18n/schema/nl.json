@@ -1,0 +1,1779 @@
+{
+  "eventresponse": {
+    "preset": {
+      "channel_ad_break_begin": {
+        "template": "Er is een advertentiepauze begonnen van {'{'}ad.duration{'}'}. Blijf kijken!"
+      },
+      "channel_ad_break_end": {
+        "template": "De advertentiepauze is voorbij. Bedankt voor je geduld!"
+      },
+      "channel_ad_break_upcoming": {
+        "template": "Let op: er komt een advertentiepauze {'{'}ad.when{'}'} ({'{'}ad.seconds{'}'} seconden). Een goed moment om even te strekken of iets te drinken te pakken."
+      },
+      "channel_ban": {
+        "template": "{'{'}user{'}'} is door {'{'}moderator{'}'} de deur gewezen ({'{'}duration{'}'})."
+      },
+      "channel_channel_points_custom_reward_redemption_add": {
+        "template": "{'{'}user{'}'} heeft {'{'}reward{'}'} ingewisseld!"
+      },
+      "channel_cheer": {
+        "template": "{'{'}user{'}'} heeft {'{'}bits{'}'} bits gecheerd. Bedankt!"
+      },
+      "channel_follow": {
+        "template": "Bedankt voor het volgen, {'{'}user{'}'}!"
+      },
+      "channel_moderator_add": {
+        "template": "{'{'}user{'}'} is toegevoegd als moderator in het kanaal."
+      },
+      "channel_moderator_remove": {
+        "template": "{'{'}user{'}'} is verwijderd als moderator in het kanaal."
+      },
+      "channel_poll_end": {
+        "template": "De poll {'{'}poll.title{'}'} is afgelopen - {'{'}poll.winner{'}'} won{'{'}poll.winner.percentage{'}'}!"
+      },
+      "channel_raid": {
+        "template": "{'{'}user{'}'} raidt met {'{'}viewers{'}'} kijkers. Welkom, raiders!"
+      },
+      "channel_raid_out": {
+        "template": "We hebben {'{'}user{'}'} geraid met {'{'}viewers{'}'} kijkers. Bedankt voor het meekijken!"
+      },
+      "channel_raid_start": {
+        "template": "We raiden {'{'}user{'}'} met {'{'}viewers{'}'} kijkers. Geef gas!"
+      },
+      "channel_subscribe": {
+        "template": "Welkom bij de sub-squad, {'{'}user{'}'}!"
+      },
+      "channel_subscription_gift": {
+        "template": "{'{'}user{'}'} heeft {'{'}count{'}'} subs cadeau gegeven. Bedankt!"
+      },
+      "channel_subscription_gift_anonymous": {
+        "template": "Een anonieme gever heeft {'{'}count{'}'} subs aan de community gegeven. Bedankt!"
+      },
+      "channel_subscription_gift_received": {
+        "template": "{'{'}user{'}'} heeft een sub cadeau gekregen van {'{'}gifter{'}'}!"
+      },
+      "channel_subscription_gift_received_anonymous": {
+        "template": "Een anonieme gever heeft {'{'}user{'}'} een sub cadeau gedaan!"
+      },
+      "channel_subscription_message": {
+        "template": "{'{'}user{'}'} heeft opnieuw geabonneerd. Al {'{'}months{'}'} maanden!"
+      },
+      "channel_unban": {
+        "template": "{'{'}user{'}'} is weer toegelaten. Welkom terug."
+      },
+      "engagement_first_time_chatter": {
+        "template": "Welkom bij de stream, {'{'}user{'}'}!"
+      },
+      "engagement_modiversary": {
+        "template": "{'{'}user{'}'} is hier al {'{'}engagement.months{'}'} maanden moderator. Bedankt!"
+      },
+      "engagement_returning_chatter": {
+        "template": "Welkom terug, {'{'}user{'}'}!"
+      },
+      "engagement_session_first_message": {
+        "template": "Kom binnen, {'{'}user{'}'}!"
+      },
+      "engagement_watch_streak": {
+        "template": "{'{'}user{'}'} kijkt al {'{'}engagement.streak{'}'} streams op rij!"
+      },
+      "obs_CurrentProgramSceneChanged": {
+        "template": "Scène gewisseld naar {'{'}obs.event.sceneName{'}'}"
+      },
+      "obs_RecordStateChanged": {
+        "template": "OBS-opnamestatus: {'{'}obs.event.outputState{'}'}"
+      },
+      "obs_ReplayBufferSaved": {
+        "template": "Replay opgeslagen!"
+      },
+      "obs_StreamStateChanged": {
+        "template": "OBS-streamstatus: {'{'}obs.event.outputState{'}'}"
+      },
+      "obs_VendorEvent": {
+        "template": "OBS-leveranciersgebeurtenis van {'{'}obs.event.vendorName{'}'}"
+      },
+      "reward_disabled": {
+        "template": "{'{'}reward{'}'} is uit de roulatie gehaald."
+      },
+      "reward_enabled": {
+        "template": "{'{'}reward{'}'} is nu beschikbaar voor {'{'}cost{'}'} punten!"
+      },
+      "reward_paused": {
+        "template": "{'{'}reward{'}'} is even gepauzeerd. Inwisselen ligt stil."
+      },
+      "reward_resumed": {
+        "template": "{'{'}reward{'}'} is terug. Inwisselen maar!"
+      },
+      "stream_offline": {
+        "template": "De stream zit erop na {'{'}duration{'}'}. Bedankt voor het kijken!"
+      },
+      "stream_online": {
+        "template": "We zijn live: {'{'}title{'}'}. We spelen {'{'}game{'}'}!"
+      },
+      "supporter_any": {
+        "template": "{'{'}user{'}'} heeft de stream gesteund. Bedankt!"
+      },
+      "supporter_charity": {
+        "template": "{'{'}user{'}'} heeft {'{'}supporter.amount{'}'} {'{'}supporter.currency{'}'} aan het goede doel gedoneerd!"
+      },
+      "supporter_membership": {
+        "template": "{'{'}user{'}'} is lid geworden. Bedankt!"
+      },
+      "supporter_merch": {
+        "template": "{'{'}user{'}'} heeft merch gescoord. Bedankt!"
+      },
+      "supporter_tip": {
+        "template": "{'{'}user{'}'} heeft {'{'}supporter.amount{'}'} {'{'}supporter.currency{'}'} gedoneerd. Bedankt!"
+      },
+      "vts_HotkeyTriggeredEvent": {
+        "template": "Sneltoets {'{'}vts.event.hotkeyName{'}'} geactiveerd!"
+      },
+      "vts_ModelClickedEvent": {
+        "template": "Iemand heeft het model aangetikt!"
+      },
+      "vts_ModelLoadedEvent": {
+        "template": "Model {'{'}vts.event.modelName{'}'} geladen!"
+      }
+    }
+  },
+  "pipeline": {
+    "adjust_counter": {
+      "delta": {
+        "help": "Hoeveel er bij de teller wordt opgeteld (gebruik een negatief getal om af te trekken). Standaard 1 als leeg gelaten."
+      },
+      "description": "Verhoog of verlaag een benoemde teller met een bepaalde waarde",
+      "key": {
+        "help": "De naam van de teller. Maakt een nieuwe teller aan die op 0 begint als deze nog niet bestaat."
+      }
+    },
+    "adjust_viewer_data": {
+      "delta": {
+        "help": "Hoeveel er bij de opgeslagen numerieke waarde van de kijker wordt opgeteld (gebruik een negatief getal om af te trekken)."
+      },
+      "description": "Verhoog of verlaag een opgeslagen numerieke waarde op het profiel van een kijker",
+      "key": {
+        "help": "De naam van het per-kijker gegevensveld dat wordt aangepast."
+      },
+      "target": {
+        "help": "Van welke kijker de gegevens worden aangepast. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      }
+    },
+    "announce": {
+      "color": {
+        "help": "De accentkleur van de aankondiging in de chat. Leeg laten voor de standaardkleur."
+      },
+      "description": "Plaats een uitgelichte chataankondiging",
+      "message": {
+        "help": "Het bericht dat als chataankondiging wordt geplaatst. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."
+      }
+    },
+    "ban": {
+      "description": "Ban een kijker uit de chat",
+      "reason": {
+        "help": "Wordt aan de kijker getoond en vastgelegd in de moderatiegeschiedenis."
+      },
+      "user_id": {
+        "help": "De kijker die verbannen wordt. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      }
+    },
+    "break": {
+      "description": "Breek uit de omsluitende lus"
+    },
+    "cancel_live_game": {
+      "description": "Annuleer het momenteel lopende live spel"
+    },
+    "category": {
+      "billing": "Facturering",
+      "chat": "Chat",
+      "code": "Code",
+      "counters": "Tellers",
+      "discord": "Discord",
+      "economy": "Economie",
+      "flow": "Verloop",
+      "games": "Spellen",
+      "giveaways": "Weggeefacties",
+      "identity": "Identiteit",
+      "media": "Media",
+      "moderation": "Moderatie",
+      "music": "Muziek",
+      "obs": "OBS",
+      "pick_lists": "Keuzelijsten",
+      "quotes": "Citaten",
+      "rewards": "Beloningen",
+      "sound": "Geluid",
+      "stream": "Stream",
+      "tts": "Tekst-naar-spraak",
+      "viewer_data": "Kijkersgegevens",
+      "vts": "VTube Studio",
+      "webhooks": "Webhooks",
+      "widgets": "Widgets"
+    },
+    "check_balance": {
+      "description": "Controleer het valutasaldo van een kijker tegen een minimum",
+      "min": {
+        "help": "Het minimale saldo waarop wordt gecontroleerd. Leeg laten om alleen het saldo te lezen zonder te vergelijken."
+      },
+      "set_var": {
+        "help": "De variabelenaam waarin het valutasaldo van de kijker wordt opgeslagen, zodat latere stappen deze kunnen lezen (bijv. {'{'}balance{'}'})."
+      }
+    },
+    "clear_viewer_data": {
+      "description": "Wis een opgeslagen waarde voor alle kijkers in het kanaal",
+      "key": {
+        "help": "Het per-kijker gegevensveld dat voor alle kijkers in het kanaal tegelijk wordt gewist."
+      }
+    },
+    "continue": {
+      "description": "Ga door naar de volgende iteratie van de omsluitende lus"
+    },
+    "deduct_currency": {
+      "amount": {
+        "help": "Hoeveel van de valuta van het kanaal van het saldo van de kijker wordt afgetrokken."
+      },
+      "description": "Trek valuta af van het saldo van een kijker",
+      "reason": {
+        "help": "Wordt getoond in de transactiegeschiedenis van de kijker."
+      }
+    },
+    "delete_message": {
+      "description": "Verwijder een chatbericht",
+      "message_id": {
+        "help": "Het chatbericht dat wordt verwijderd. Leeg verwijdert het bericht dat deze pipeline activeerde."
+      }
+    },
+    "draw_giveaway": {
+      "description": "Trek een winnaar uit een open weggeefactie",
+      "giveaway_id": {
+        "help": "Van welke giveaway een winnaar wordt getrokken. Leeg gebruikt de momenteel actieve giveaway van het kanaal."
+      }
+    },
+    "enter_giveaway": {
+      "description": "Schrijf de kijker die dit activeerde in voor een weggeefactie",
+      "giveaway_id": {
+        "help": "Aan welke giveaway de kijker die dit activeerde deelneemt. Leeg gebruikt de momenteel actieve giveaway van het kanaal."
+      }
+    },
+    "grant_currency": {
+      "amount": {
+        "help": "Hoeveel van de valuta van het kanaal wordt toegevoegd aan het saldo van de kijker."
+      },
+      "description": "Ken valuta toe aan het saldo van een kijker",
+      "reason": {
+        "help": "Wordt getoond in de transactiegeschiedenis van de kijker."
+      }
+    },
+    "jar_contribute": {
+      "amount": {
+        "help": "Hoeveel valuta er van het saldo van de kijker naar de spaarpot wordt overgeboekt."
+      },
+      "description": "Draag valuta bij aan een spaarpot",
+      "jar_id": {
+        "help": "Welke spaarpot de bijdrage ontvangt."
+      }
+    },
+    "music_add_to_playlist": {
+      "description": "Voeg het nu afgespeelde nummer toe aan een gekozen afspeellijst",
+      "playlistId": {
+        "help": "Aan welke afspeellijst het nummer dat nu speelt wordt toegevoegd."
+      }
+    },
+    "music_cycle_repeat": {
+      "description": "Doorloop herhaalmodus: uit, nummer, dan afspeellijst/album"
+    },
+    "music_follow_artist": {
+      "description": "Volg de artiest van het huidige nummer"
+    },
+    "music_next": {
+      "description": "Ga naar het volgende nummer"
+    },
+    "music_pause": {
+      "description": "Pauzeer het afspelen"
+    },
+    "music_play": {
+      "description": "Hervat het afspelen"
+    },
+    "music_play_pause": {
+      "description": "Schakel afspelen om op basis van de huidige status"
+    },
+    "music_previous": {
+      "description": "Ga terug naar het vorige nummer"
+    },
+    "music_remove_from_playlist": {
+      "description": "Verwijder het nu afgespeelde nummer uit een gekozen afspeellijst",
+      "playlistId": {
+        "help": "Uit welke afspeellijst het nummer dat nu speelt wordt verwijderd."
+      }
+    },
+    "music_save_track": {
+      "description": "Voeg het nu afgespeelde nummer toe aan je leukgevonden nummers"
+    },
+    "music_seek": {
+      "description": "Spring naar een specifiek punt in het huidige nummer (seconden)",
+      "positionSeconds": {
+        "help": "Springt het afspelen naar deze positie in het huidige nummer, in seconden vanaf het begin."
+      }
+    },
+    "music_set_repeat": {
+      "description": "Zet herhalen op uit, nummer, of afspeellijst/album",
+      "mode": {
+        "help": "De herhaalmodus waarnaar wordt overgeschakeld: uit, huidig nummer herhalen, of hele afspeellijst/album herhalen."
+      }
+    },
+    "music_set_shuffle": {
+      "description": "Zet shuffle aan of uit",
+      "enabled": {
+        "help": "Zet willekeurig afspelen aan of uit voor de gekoppelde muziekprovider."
+      }
+    },
+    "music_set_volume": {
+      "description": "Zet het afspeelvolume op een vast niveau (0-100)",
+      "volume": {
+        "help": "Het afspeelvolume dat wordt ingesteld, van 0 (stil) tot 100 (volledig volume)."
+      }
+    },
+    "music_toggle_saved": {
+      "description": "Schakel de leuk-status van het nu afgespeelde nummer om"
+    },
+    "music_toggle_shuffle": {
+      "description": "Schakel shuffle aan/uit op basis van de huidige status"
+    },
+    "music_transfer_device": {
+      "description": "Verplaats het afspelen naar een gekozen apparaat",
+      "deviceId": {
+        "help": "Naar welk afspeelapparaat het afspelen van muziek wordt verplaatst."
+      }
+    },
+    "music_unfollow_artist": {
+      "description": "Ontvolg de artiest van het huidige nummer"
+    },
+    "music_unsave_track": {
+      "description": "Verwijder het nu afgespeelde nummer uit je leukgevonden nummers"
+    },
+    "music_volume_down": {
+      "description": "Verlaag het afspeelvolume met een stap (standaard 10)",
+      "step": {
+        "help": "Met hoeveel volumepunten het afspeelvolume wordt verlaagd. Standaard een kleine stap als leeg gelaten."
+      }
+    },
+    "music_volume_mute": {
+      "description": "Dempt het afspelen en onthoudt het volume om te herstellen",
+      "unmuteVolume": {
+        "help": "Het volume dat wordt hersteld wanneer deze stap het afspelen dempt opheft (in plaats van dempen)."
+      }
+    },
+    "music_volume_up": {
+      "description": "Verhoog het afspeelvolume met een stap (standaard 10)",
+      "step": {
+        "help": "Met hoeveel volumepunten het afspeelvolume wordt verhoogd. Standaard een kleine stap als leeg gelaten."
+      }
+    },
+    "obs_call_vendor": {
+      "description": "Roep een leveranciersspecifiek OBS-plugin-verzoek aan",
+      "request_data": {
+        "help": "De JSON-gegevens die met het vendor-verzoek worden meegestuurd. Laat leeg als het vendor-verzoek geen extra gegevens nodig heeft."
+      },
+      "request_type": {
+        "help": "De naam van het verzoektype van de vendor, precies zoals de plugin dit documenteert."
+      },
+      "vendor": {
+        "help": "De naam van de OBS-plugin (vendor) die wordt aangeroepen, zoals geregistreerd bij obs-websocket."
+      }
+    },
+    "obs_filter": {
+      "description": "Schakel een OBS-bronfilter in of uit",
+      "enabled": {
+        "help": "Of het filter aan of uit staat. Standaard wordt het ingeschakeld."
+      },
+      "filter": {
+        "help": "De naam van het filter op de bron dat wordt in- of uitgeschakeld."
+      },
+      "source": {
+        "help": "De OBS-bron waaraan het filter is gekoppeld."
+      }
+    },
+    "obs_hotkey": {
+      "description": "Activeer een OBS-sneltoets op naam",
+      "hotkey_name": {
+        "help": "De OBS-sneltoets die wordt geactiveerd, via de interne sneltoetsnaam."
+      }
+    },
+    "obs_input_mute": {
+      "description": "Dempt, ontdempt of schakelt een OBS-audio-ingang",
+      "input": {
+        "help": "De audio-ingang (microfoon, bureaubladaudio, enz.) die wordt gedempt of gedempt wordt opgeheven."
+      },
+      "muted": {
+        "help": "Of de ingang gedempt of niet gedempt eindigt. Genegeerd wanneer Wisselen aan staat."
+      },
+      "toggle": {
+        "help": "Wisselt de huidige demp-status van de ingang om, in plaats van deze direct in te stellen."
+      }
+    },
+    "obs_input_volume": {
+      "description": "Stel het volume van een OBS-audio-ingang in",
+      "input": {
+        "help": "De audio-ingang waarvan het volume wordt gewijzigd."
+      },
+      "volume_db": {
+        "help": "Stelt het volume van de ingang in decibel in. Gebruik dit of Volume (vermenigvuldiger), niet beide."
+      },
+      "volume_mul": {
+        "help": "Stelt het volume van de ingang in als vermenigvuldiger (1.0 = ongewijzigd, 0.5 = half). Gebruik dit of Volume (dB), niet beide."
+      }
+    },
+    "obs_media": {
+      "action_verb": {
+        "help": "Wat er met de mediabron gebeurt: afspelen, pauzeren, stoppen, opnieuw starten, of naar het volgende/vorige item springen."
+      },
+      "description": "Bedien het afspelen van een OBS-mediabron",
+      "input": {
+        "help": "De mediabron (een video-/audioclip) die wordt bestuurd."
+      }
+    },
+    "obs_recording": {
+      "action_verb": {
+        "help": "Wat er met de opname gebeurt: starten, stoppen, wisselen, pauzeren, hervatten, of het bestand splitsen."
+      },
+      "description": "Start, stop, pauzeer of hervat OBS-opname"
+    },
+    "obs_refresh_browser": {
+      "description": "Vernieuw een OBS-browserbron",
+      "input": {
+        "help": "De browserbron die opnieuw wordt geladen. Gebruik dit na het wijzigen van de instellingen van een overlay, zodat OBS deze direct overneemt."
+      }
+    },
+    "obs_replay_buffer": {
+      "action_verb": {
+        "help": "Wat er met de replaybuffer gebeurt: starten, stoppen, of wisselen."
+      },
+      "description": "Start of stop de OBS-replaybuffer"
+    },
+    "obs_request": {
+      "description": "Stuur een onbewerkt OBS WebSocket-verzoek",
+      "request_data": {
+        "help": "De JSON-gegevens voor het onbewerkte verzoek. Laat leeg voor verzoeken die geen gegevens nodig hebben."
+      },
+      "request_type": {
+        "help": "Het onbewerkte obs-websocket-verzoektype dat wordt verzonden. Bedoeld voor geavanceerde besturing die niet door een specifieke OBS-actie wordt gedekt."
+      }
+    },
+    "obs_request_batch": {
+      "description": "Stuur een reeks onbewerkte OBS WebSocket-verzoeken",
+      "execution": {
+        "help": "Hoe de gebundelde verzoeken worden uitgevoerd: na elkaar in real time, één per gerenderd frame, of allemaal parallel."
+      },
+      "halt_on_failure": {
+        "help": "Stopt met het uitvoeren van de rest van de batch zodra één verzoek daarin mislukt."
+      },
+      "requests": {
+        "help": "De lijst met onbewerkte obs-websocket-verzoeken die samen, in volgorde, worden verzonden."
+      }
+    },
+    "obs_save_replay": {
+      "description": "Sla de huidige OBS-replaybuffer op"
+    },
+    "obs_screenshot": {
+      "description": "Maak een schermafbeelding van een OBS-bron",
+      "format": {
+        "help": "Het bestandsformaat waarin de schermafbeelding wordt opgeslagen."
+      },
+      "source": {
+        "help": "De OBS-bron of scène waarvan een schermafbeelding wordt gemaakt."
+      }
+    },
+    "obs_set_preview_scene": {
+      "description": "Stel de voorvertoningsscene in voor de OBS-studiomodus",
+      "scene": {
+        "help": "De scène die in de voorvertoning van de studiomodus wordt geladen (nog niet zichtbaar op de stream totdat je overgaat)."
+      }
+    },
+    "obs_set_source": {
+      "description": "Toon of verberg een bron binnen een OBS-scene",
+      "scene": {
+        "help": "De scène die de bron bevat die wordt getoond of verborgen."
+      },
+      "source": {
+        "help": "De bron binnen de scène die wordt getoond of verborgen."
+      },
+      "visible": {
+        "help": "Of de bron uiteindelijk zichtbaar of verborgen is. Standaard zichtbaar."
+      }
+    },
+    "obs_streaming": {
+      "action_verb": {
+        "help": "Wat er met de streamuitvoer gebeurt: starten, stoppen, of wisselen."
+      },
+      "description": "Start of stop OBS-streaming"
+    },
+    "obs_switch_scene": {
+      "description": "Wissel de actieve OBS-scene",
+      "scene": {
+        "help": "De scène waarnaar de live programma-uitvoer wordt omgeschakeld."
+      }
+    },
+    "obs_transition": {
+      "description": "Activeer een OBS-sceneovergang",
+      "duration_ms": {
+        "help": "Hoe lang de overgang duurt, in milliseconden. Laat leeg om de eigen standaardduur van de overgang te gebruiken."
+      },
+      "studio": {
+        "help": "Activeert de studiomodus-overgang (voorvertoning → programma) in plaats van alleen het huidige overgangstype in te stellen."
+      },
+      "transition": {
+        "help": "De overgang die als huidig wordt ingesteld. Laat leeg om alleen een studiomodus-overgang te activeren zonder deze te wijzigen."
+      }
+    },
+    "obs_virtual_cam": {
+      "action_verb": {
+        "help": "Wat er met de virtuele camera-uitvoer gebeurt: starten, stoppen, of wisselen."
+      },
+      "description": "Start of stop de virtuele OBS-camera"
+    },
+    "open_giveaway": {
+      "description": "Open een weggeefactie voor deelname",
+      "giveaway_id": {
+        "help": "Welke giveaway wordt geopend voor deelname."
+      }
+    },
+    "permit": {
+      "description": "Geef een kijker een tijdelijke toestemming",
+      "duration_minutes": {
+        "help": "Hoe lang de toestemming geldig is, in minuten. Leeg laten voor een toestemming die nooit vanzelf verloopt."
+      },
+      "role_or_capability": {
+        "help": "De rol of bevoegdheid die aan het doel wordt toegekend."
+      },
+      "target_variable": {
+        "help": "De variabele met de kijker aan wie de toestemming wordt verleend. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      }
+    },
+    "pick_from_list": {
+      "description": "Kies een willekeurig item uit een opgeslagen lijst",
+      "list": {
+        "help": "De keuzelijst waaruit een willekeurig item wordt getrokken."
+      },
+      "variable": {
+        "help": "De variabele waarin het gekozen item wordt opgeslagen. Latere stappen lezen die met accolades: laat dit leeg en gebruik {'{'}pick{'}'}, of zet het op prijs en gebruik {'{'}prijs{'}'}. Het item wordt hier eenmaal getrokken, dus elke stap die het leest ziet hetzelfde item."
+      }
+    },
+    "play_game": {
+      "bet": {
+        "help": "Hoeveel valuta de kijker inzet bij dit spel."
+      },
+      "description": "Speel een geconfigureerd valuta-spel",
+      "game_type": {
+        "help": "Welk geconfigureerd spel wordt gespeeld."
+      }
+    },
+    "play_sound": {
+      "clip": {
+        "help": "Het geluidsfragment dat op de overlay wordt afgespeeld."
+      },
+      "description": "Speel een geluidsclip af",
+      "handle": {
+        "help": "Een naam voor deze afspeelactie, zodat een latere stop_sound-stap dit specifieke fragment kan stoppen in plaats van alle fragmenten."
+      },
+      "synced": {
+        "help": "Start dit geluid bij het visuele moment, buiten de gedeelde audiowachtrij."
+      },
+      "volume": {
+        "help": "Het afspeelvolume voor dit fragment, van 0 (stil) tot 100 (volledig volume). Leeg laten om de eigen standaardwaarde van het fragment te gebruiken."
+      },
+      "wait_for_finish": {
+        "help": "Pauzeert de rest van de pipeline totdat dit fragment klaar is met afspelen, in plaats van direct door te gaan."
+      }
+    },
+    "play_track_once": {
+      "description": "Speel meteen één nummer af en hervat daarna wat er al speelde",
+      "track_uri": {
+        "help": "Het nummer dat nu wordt afgespeeld. Wat er al speelde, wordt automatisch hervat zodra dit nummer afgelopen is."
+      }
+    },
+    "play_tts": {
+      "as": {
+        "help": "Wiens stem de regel spreekt: leeg (of bot/channel) is de eigen stem van de bot voor tekst die de bot zelf schreef. Zet het op viewer (of user) alleen als de regel de eigen woorden van die kijker zijn, zoals een TTS-beloning. broadcaster gebruikt de eigen stem van de streamer, of een platform-gebruikers-id spreekt als hen."
+      },
+      "description": "Spreek tekst uit via tekst-naar-spraak",
+      "rate": {
+        "help": "Hoe snel de regel wordt gesproken, als percentage van de normale snelheid: +30% sneller, -20% langzamer. Leeg houdt de normale snelheid. Waarden zijn beperkt tot -50% tot +50%."
+      },
+      "segments": {
+        "help": "Meerdere stemmen in een fragment. Een JSON-lijst met delen, elk met text en optioneel voice, rate, pitch en breakAfterMs (stilte na het deel, tot 5000 ms). Als dit is ingevuld, vervangt het Tekst. Ondersteunt sjabloonvariabelen."
+      },
+      "text": {
+        "help": "De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."
+      },
+      "voice": {
+        "help": "Leeg gebruikt de standaard TTS-stem van het kanaal."
+      }
+    },
+    "playlist_add": {
+      "already_message": {
+        "help": "Het chatbericht dat wordt verstuurd als het nummer al in de afspeellijst staat. Leeg zegt niets."
+      },
+      "description": "Voeg het huidige (of een opgegeven) nummer toe aan een afspeellijst",
+      "message": {
+        "help": "Het chatbericht dat wordt verstuurd nadat het nummer is toegevoegd. Leeg gebruikt de standaardtekst."
+      },
+      "playlist_id": {
+        "help": "Aan welke afspeellijst het nummer wordt toegevoegd."
+      },
+      "track_uri": {
+        "help": "Het nummer dat wordt toegevoegd. Leeg voegt het nummer toe dat nu speelt."
+      }
+    },
+    "post_quote": {
+      "description": "Plaats een opgeslagen quote in de chat",
+      "number": {
+        "help": "Het citaatnummer dat wordt geplaatst. Leeg plaatst een willekeurig opgeslagen citaat."
+      }
+    },
+    "redemption_fulfill": {
+      "description": "Markeer de activerende inwisseling als vervuld op Twitch"
+    },
+    "redemption_refund": {
+      "description": "Vergoed de activerende inwisseling (punten worden teruggegeven)"
+    },
+    "require_tier": {
+      "denied_message": {
+        "help": "Het bericht dat wordt getoond wanneer de kijker niet aan de tiervereiste voldoet. Leeg laten voor het standaard afwijzingsbericht."
+      },
+      "description": "Vereist minimaal een bepaalde betaalplan-tier om verder te gaan",
+      "min_tier": {
+        "help": "Het minimale supportniveau dat de kijker die dit activeerde moet hebben om de pipeline te laten doorgaan."
+      }
+    },
+    "return_value": {
+      "description": "Retourneer een waarde vanuit een subpipeline",
+      "value": {
+        "help": "De waarde die deze pipeline teruggeeft aan wat hem heeft aangeroepen (beschikbaar als {'{'}call.result{'}'} voor de aanroeper)."
+      }
+    },
+    "run_code": {
+      "code_script_id": {
+        "help": "Het opgeslagen codescript dat wordt uitgevoerd."
+      },
+      "description": "Voer een aangepast gesandboxed script uit"
+    },
+    "run_pipeline": {
+      "args": {
+        "help": "Positionele argumenten die aan de aangeroepen pipeline worden doorgegeven, daar leesbaar als {'{'}args.1{'}'}, {'{'}args.2{'}'}, enz."
+      },
+      "description": "Voer een andere opgeslagen pipeline uit als subpipeline",
+      "mode": {
+        "help": "Inline voert de pipeline uit als onderdeel van deze pipeline en kan een waarde teruggeven; los start hem als een volledig aparte uitvoering."
+      },
+      "named_args": {
+        "help": "Benoemde argumenten die aan de aangeroepen pipeline worden doorgegeven, gekoppeld aan de daar gedeclareerde parameternamen ongeacht de volgorde waarin je ze hier opgeeft. De aangeroepen pipeline kan ze ook positioneel lezen als {'{'}args.1{'}'}, {'{'}args.2{'}'}, enz. wanneer er geen namen zijn gedeclareerd."
+      },
+      "pipeline": {
+        "help": "De pipeline die wordt aangeroepen."
+      },
+      "wait": {
+        "help": "Voor een losse uitvoering wordt gewacht tot deze is voltooid voordat deze pipeline doorgaat, in plaats van hem te starten en verder te gaan."
+      }
+    },
+    "schedule_pipeline": {
+      "dedupe_key": {
+        "help": "Slaat het plannen van een nieuwe uitvoering over als er al een met dezelfde sleutel is gepland. Dit voorkomt dubbele geplande uitvoeringen."
+      },
+      "delay_seconds": {
+        "help": "Over hoeveel seconden vanaf nu de pipeline wordt uitgevoerd."
+      },
+      "description": "Plan een opgeslagen pipeline in om na een vertraging eenmalig te draaien",
+      "pipeline": {
+        "help": "De pipeline die eenmalig wordt uitgevoerd, na de vertraging."
+      }
+    },
+    "send_discord_notification": {
+      "dedupe_key": {
+        "help": "Slaat het verzenden over als er recent al een melding met dezelfde sleutel is verzonden. Dit voorkomt dubbele Discord-berichten."
+      },
+      "description": "Plaats een melding in een geconfigureerd Discord-kanaal",
+      "trigger_type": {
+        "help": "Welke geconfigureerde Discord-melding wordt verzonden."
+      }
+    },
+    "send_message": {
+      "description": "Stuur een bericht naar de chat",
+      "message": {
+        "help": "Het chatbericht om te versturen. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."
+      },
+      "sender": {
+        "help": "Namens wie dit bericht wordt geplaatst. Bot (standaard) gebruikt de identiteit die voor dit kanaal is ingesteld. Broadcaster stuurt altijd als de streamer zelf, ook als er een apart botaccount is gekoppeld. Gebruik dit voor content die alleen de streamer kan plaatsen, zoals een alleen-abonnee-emote waarop het botaccount niet is geabonneerd."
+      }
+    },
+    "send_reply": {
+      "description": "Reageer op het chatbericht dat dit heeft geactiveerd",
+      "message": {
+        "help": "De antwoordtekst, geplaatst als reactie op het triggerende bericht. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."
+      }
+    },
+    "send_webhook": {
+      "description": "Stuur een uitgaand webhookverzoek",
+      "endpoint": {
+        "help": "Het webhook-eindpunt waarnaar deze gebeurtenis wordt afgeleverd."
+      },
+      "event_type": {
+        "help": "De event-type-string waarop het abonnement van het eindpunt matcht. Wordt letterlijk verzonden, niet verwerkt als sjabloon, ook niet als het {'{'}{'{'} {'}'}{'}'} bevat."
+      }
+    },
+    "set_counter": {
+      "description": "Zet een benoemde teller op een vaste waarde",
+      "key": {
+        "help": "De naam van de teller. Maakt een nieuwe teller aan als deze nog niet bestaat."
+      },
+      "value": {
+        "help": "De exacte waarde waarop de teller wordt ingesteld, ter vervanging van de vorige waarde."
+      }
+    },
+    "set_pronoun": {
+      "description": "Stel de voornaamwoorden van een kijker in",
+      "pronoun": {
+        "help": "De voornaamwoordenset die aan de kijker wordt toegewezen."
+      },
+      "username": {
+        "help": "De kijker van wie de voornaamwoorden worden ingesteld."
+      }
+    },
+    "set_variable": {
+      "description": "Stel een pipelinevariabele in",
+      "name": {
+        "help": "De naam van de variabele, door latere stappen gebruikt als {'{'}name{'}'}."
+      },
+      "value": {
+        "help": "De waarde die in de variabele wordt opgeslagen. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."
+      }
+    },
+    "set_viewer_data": {
+      "description": "Stel een opgeslagen waarde in op het profiel van een kijker",
+      "key": {
+        "help": "De naam van het per-kijker gegevensveld dat wordt ingesteld."
+      },
+      "target": {
+        "help": "Van welke kijker de gegevens worden ingesteld. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      },
+      "value": {
+        "help": "De waarde die voor deze kijker wordt opgeslagen. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."
+      }
+    },
+    "shoutout": {
+      "cooldown_minutes": {
+        "help": "Minuten voordat dezelfde kijker opnieuw kan worden uitgelicht. Leeg laten voor geen afkoelperiode per kijker."
+      },
+      "description": "Geef een shoutout aan een ander kanaal",
+      "global_cooldown_minutes": {
+        "help": "Minuten voordat er weer een shoutout kan plaatsvinden, ongeacht de kijker. Leeg laten voor geen kanaalbrede afkoelperiode."
+      },
+      "priority": {
+        "help": "Wacht in de wachtrij met raid-voorrang, vóór handmatige shoutouts, in plaats van overgeslagen te worden tijdens de globale cooldown. Gebruik dit voor een mijlpaal zoals een modiversary."
+      },
+      "template": {
+        "help": "Het chatbericht dat de shoutout plaatst. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'}). Leeg laten voor het standaard shoutout-bericht."
+      },
+      "tts": {
+        "help": "Leest de shoutout ook hardop voor via tekst-naar-spraak. Bij een raid spreekt hij altijd, tenzij dit uit staat."
+      },
+      "user_id": {
+        "help": "De kijker die wordt uitgelicht."
+      }
+    },
+    "song_ban": {
+      "description": "Blokkeer het nu afgespeelde nummer voor verzoeken en sla het over",
+      "reason": {
+        "help": "De reden waarom het nummer wordt geblokkeerd, getoond in de blokkeerlijst. Leeg laten voor geen vastgelegde reden."
+      }
+    },
+    "song_current": {
+      "description": "Toon het nu afgespeelde nummer"
+    },
+    "song_pause": {
+      "description": "Pauzeer het afspelen van muziek"
+    },
+    "song_previous": {
+      "description": "Spring terug naar het vorige nummer"
+    },
+    "song_queue": {
+      "description": "Toon de huidige wachtrij van nummerverzoeken",
+      "max": {
+        "help": "Hoeveel aankomende nummers worden vermeld. Standaard 5."
+      }
+    },
+    "song_request": {
+      "description": "Vraag een nummer aan voor de wachtrij",
+      "query": {
+        "help": "De zoektekst of link van het nummer dat de kijker heeft aangevraagd."
+      }
+    },
+    "song_request_favorite": {
+      "description": "Zet het meest aangevraagde nummer van een kijker in de wachtrij",
+      "user_id": {
+        "help": "Van wie de aanvraaggeschiedenis wordt gelezen. Laat leeg voor de kijker die dit activeerde."
+      }
+    },
+    "song_resume": {
+      "description": "Hervat het afspelen van muziek"
+    },
+    "song_skip": {
+      "description": "Sla het nu afgespeelde nummer over"
+    },
+    "song_volume": {
+      "description": "Toon of wijzig het muziekvolume",
+      "volume": {
+        "help": "Het afspeelvolume dat wordt ingesteld, van 0 (stil) tot 100 (volledig volume)."
+      }
+    },
+    "song_wrong": {
+      "description": "Verwijder het meest recent aangevraagde nummer van de aanvrager"
+    },
+    "start_live_game": {
+      "description": "Start een live interactief spel voor kijkers",
+      "game_type": {
+        "help": "Welk live spel wordt gestart."
+      }
+    },
+    "start_raid": {
+      "delay_seconds": {
+        "help": "Hoeveel seconden wordt gewacht voordat de raid start. Leeg laten om direct te raiden."
+      },
+      "description": "Start een raid naar een ander kanaal",
+      "raid_window_seconds": {
+        "help": "Hoeveel seconden Twitch nodig heeft om de raid automatisch te starten na deze stap. Twitch publiceert dit getal niet. Als een aftelling die hierop is afgestemd te vroeg of te laat uitkomt, pas het hier aan, zonder codewijziging. Leeg laten voor de standaardwaarde."
+      },
+      "target": {
+        "help": "Het kanaal dat wordt geraid."
+      }
+    },
+    "stop": {
+      "description": "Stop de pipeline onmiddellijk"
+    },
+    "stop_sound": {
+      "all": {
+        "help": "Stopt alle op dat moment afspelende geluidsfragmenten in plaats van alleen één handle."
+      },
+      "description": "Stop momenteel afspelende geluidsclips",
+      "handle": {
+        "help": "De handle van de specifieke play_sound-stap die wordt gestopt. Laat leeg samen met Alles uit om het meest recente fragment te stoppen."
+      }
+    },
+    "submit_media": {
+      "description": "Dien een media-item in voor de media-deelwachtrij",
+      "url": {
+        "help": "De media-URL die ter beoordeling wordt ingediend. Ondersteunt sjabloonvariabelen (bijv. {'{'}args.1{'}'})."
+      }
+    },
+    "timeout": {
+      "description": "Zet een kijker tijdelijk in de timeout",
+      "duration": {
+        "help": "Hoe lang de timeout duurt, in seconden."
+      },
+      "reason": {
+        "help": "Wordt aan de kijker getoond en vastgelegd in de moderatiegeschiedenis."
+      },
+      "user_id": {
+        "help": "De kijker die een timeout krijgt. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      }
+    },
+    "tts_synthesize": {
+      "description": "Synthetiseer tekst-naar-spraak-audio zonder het af te spelen",
+      "pitch": {
+        "help": "Toonhoogte als percentage, van -50 (lager) tot 50 (hoger). Leeg laten voor de normale toonhoogte."
+      },
+      "rate": {
+        "help": "Spreeksnelheid als percentage, van -50 (langzamer) tot 50 (sneller). Leeg laten voor de normale snelheid."
+      },
+      "text": {
+        "help": "De tekst die wordt omgezet in spraak, zonder deze meteen af te spelen. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'}). Maakt {'{'}tts.audioUrl{'}'} / {'{'}tts.durationMs{'}'} beschikbaar voor latere stappen."
+      },
+      "voice": {
+        "help": "De TTS-stem die wordt gebruikt. Leeg laten om de standaardstem van het kanaal te gebruiken."
+      }
+    },
+    "unpermit": {
+      "description": "Trek de actieve toestemming van een kijker in",
+      "role_or_capability": {
+        "help": "De rol of bevoegdheid die van het doel wordt ingetrokken. Leeg laten om elke toestemming van het doel in te trekken."
+      },
+      "target_variable": {
+        "help": "De variabele met de kijker van wie de toestemming wordt ingetrokken. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      }
+    },
+    "vts_color_tint": {
+      "a": {
+        "help": "Het alfakanaal (dekking) van de tint, 0-255. Leeg laten voor volledig dekkend."
+      },
+      "art_mesh_tag": {
+        "help": "Beperkt de tint tot art-meshes die overeenkomen met deze tag. Leeg laten om het hele model te tinten."
+      },
+      "b": {
+        "help": "Het blauwkanaal van de tint, 0-255."
+      },
+      "description": "Pas een kleurtint toe op het VTube Studio-model",
+      "g": {
+        "help": "Het groenkanaal van de tint, 0-255."
+      },
+      "r": {
+        "help": "Het roodkanaal van de tint, 0-255."
+      }
+    },
+    "vts_load_model": {
+      "description": "Laad een VTube Studio-model",
+      "model": {
+        "help": "De VTube Studio-model-id die wordt geladen."
+      }
+    },
+    "vts_move_model": {
+      "description": "Verplaats, roteer of schaal het VTube Studio-model",
+      "relative": {
+        "help": "Past x/y/rotatie/grootte toe als verschuivingen ten opzichte van de huidige pose van het model in plaats van absolute waarden."
+      },
+      "rotation": {
+        "help": "De rotatie van het model in graden. Leeg laten om de rotatie ongewijzigd te laten."
+      },
+      "size": {
+        "help": "De schaal van het model. Leeg laten om de grootte ongewijzigd te laten."
+      },
+      "time_seconds": {
+        "help": "Hoe lang de beweging duurt, in seconden. Standaard een korte animatie."
+      },
+      "x": {
+        "help": "De horizontale positie van het model. Leeg laten om de x-positie ongewijzigd te laten."
+      },
+      "y": {
+        "help": "De verticale positie van het model. Leeg laten om de y-positie ongewijzigd te laten."
+      }
+    },
+    "vts_request": {
+      "description": "Stuur een onbewerkt VTube Studio API-verzoek",
+      "payload_json": {
+        "help": "De JSON-gegevens voor het onbewerkte VTube Studio API-verzoek. Laat leeg voor verzoeken die geen gegevens nodig hebben."
+      },
+      "request_type": {
+        "help": "Het onbewerkte VTube Studio API-verzoektype dat wordt verzonden. Bedoeld voor geavanceerde besturing die niet door een specifieke VTS-actie wordt gedekt."
+      }
+    },
+    "vts_set_expression": {
+      "active": {
+        "help": "Of de expressie uiteindelijk actief of inactief is. Standaard wordt deze geactiveerd."
+      },
+      "description": "Activeer of deactiveer een VTube Studio-expressie",
+      "expression": {
+        "help": "Het expressiebestand dat op het model wordt geactiveerd of gedeactiveerd."
+      }
+    },
+    "vts_trigger_hotkey": {
+      "description": "Activeer een VTube Studio-sneltoets",
+      "hotkey": {
+        "help": "De VTube Studio-sneltoets die wordt geactiveerd, via de id of naam."
+      }
+    },
+    "wait": {
+      "description": "Pauzeer de pipeline voor een bepaalde duur",
+      "milliseconds": {
+        "help": "Hoeveel milliseconden er wordt gewacht, opgeteld bij Seconden. Ondersteunt sjabloonvariabelen. Maximaal 30 seconden totaal per stap."
+      },
+      "seconds": {
+        "help": "Hoeveel seconden er wordt gewacht, opgeteld bij Milliseconden. Ondersteunt sjabloonvariabelen. Maximaal 30 seconden totaal per stap."
+      }
+    },
+    "wait_for_event": {
+      "description": "Pauzeer de pipeline totdat een genoemde gebeurtenis plaatsvindt, of een time-out wordt bereikt",
+      "event_name": {
+        "help": "De naam van de gebeurtenis waarop deze stap wacht. Een overeenkomende gebeurtenis hervat de pipeline; elke andere gebeurtenis wordt genegeerd."
+      },
+      "timeout_seconds": {
+        "help": "Hoelang wachten voordat wordt opgegeven, in seconden (standaard 300, maximaal 86400). Bij time-out gaat de pipeline verder met event.timed_out ingesteld op true."
+      }
+    },
+    "wait_until_raid_fires": {
+      "description": "Wacht de resterende tijd af tot een eerdere Start raid-stap daadwerkelijk afgaat, met correctie voor vertraging door de stappen ertussen"
+    },
+    "widget_event": {
+      "data": {
+        "help": "Extra JSON-gegevens die met het evenement worden meegestuurd, zodat de widget deze kan lezen. Laat leeg voor evenementen die geen gegevens nodig hebben."
+      },
+      "description": "Stuur een gebeurtenis naar een widget-overlay",
+      "event_type": {
+        "help": "De evenementnaam waarnaar de widget luistert."
+      },
+      "widget_id": {
+        "help": "De overlay-widget waarnaar dit evenement wordt verzonden."
+      }
+    }
+  },
+  "template": {
+    "helper": {
+      "ad_automatic": "Of de reclamepauze automatisch was (\"true\") of aangevraagd (\"false\")",
+      "ad_duration": "De lengte van de reclamepauze (bijv. \"3 minuten\")",
+      "ad_seconds": "De lengte van de komende reclamepauze in seconden (bijv. \"90\")",
+      "ad_when": "Wanneer de volgende advertentie begint (bijv. \"in ~3 minutes\")",
+      "also_said": "\"Ze zeiden ook: ...\" gevolgd door het resub-bericht, al opgemaakt met inleiding en aanhalingstekens; leeg als de resubscriber niets schreef",
+      "anonymous": "Of de gever anoniem wilde blijven (\"true\"/\"false\")",
+      "args": "Commando-argument N (bijv. {'{'}args.1{'}'} is het eerste woord na het commando)",
+      "args_all": "Alles wat na het commando is getypt, als een tekst",
+      "bits": "Hoeveel bits er zijn gecheerd",
+      "botname": "De weergavenaam van de bot",
+      "broadcaster": "De weergavenaam van de streamer (stream.online/.offline en de Discord go-live seed-alias)",
+      "channel": "De inlognaam van het kanaal",
+      "channel_display": "De weergavenaam van het kanaal",
+      "channel_game": "De huidige game/categorie van de stream (Discord seed-alias)",
+      "channel_id": "Het platform-ID van het kanaal",
+      "channel_name": "De weergavenaam van het kanaal (Discord seed-alias)",
+      "channel_title": "De huidige titel van de stream (Discord seed-alias)",
+      "cost": "De kosten van de kanaalpunten-beloning",
+      "count": "De huidige waarde van een benoemde teller (bijv. {'{'}count.deaths{'}'})",
+      "custom_data": "Een veld uit een aangesloten aangepaste gegevensbron (bijv. {'{'}custom.mysource.field{'}'})",
+      "date": "De datum van vandaag",
+      "engagement_days_since_last_seen": "Dagen sinds deze kijker voor het laatst chatte",
+      "engagement_months": "Hoeveel maanden deze moderator het kanaal al modereert",
+      "engagement_streak": "De huidige kijk-streak van de kijker",
+      "engagement_years": "Hetzelfde jubileum in jaren, afgerond om voor te lezen",
+      "event_count": "Hoeveel er zijn weggegeven (gift-abonnementen)",
+      "event_duration": "\"permanent\" bij een ban, een lengte zoals \"10 minuten\" bij een timeout, of de duur van de afgelopen stream",
+      "followed_at": "Wanneer de follow gebeurde",
+      "game": "De game/categorie van de stream (stream.online en de Discord seed-alias)",
+      "gendered_term": "Een term die past bij de voornaamwoorden van de persoon (bijv. kerel/dame)",
+      "gifter": "Wie deze kijker een sub gaf (\"Anonymous\" als de gever anoniem bleef)",
+      "gifter_id": "Het platform-gebruikers-id van de gever; leeg als de gever anoniem bleef",
+      "input": "De tekstinvoer van de kijker bij de inwisseling, indien aanwezig",
+      "link": "Een profiellink - het {'@'}vermelde doel indien aanwezig, anders de gebruiker die het activeerde",
+      "list_pick": "Een willekeurig item uit een benoemde keuzelijst (bijv. {'{'}list.pick.jokes{'}'})",
+      "message": "Het bericht bij de gebeurtenis (een resub- of cheerbericht)",
+      "moderator": "De weergavenaam van de moderator (valt terug op hun ID)",
+      "months": "Cumulatief aantal maanden geabonneerd",
+      "music_favorite_artist": "De artiest van het meest aangevraagde nummer van de kijker",
+      "music_favorite_count": "Hoe vaak de kijker dat nummer heeft aangevraagd",
+      "music_favorite_outcome": "Wat er gebeurde: queued, none of unavailable",
+      "music_favorite_track": "De naam van het meest aangevraagde nummer van de kijker",
+      "name": "De getoonde naam - het {'@'}vermelde doel indien aanwezig, anders de gebruiker die het activeerde",
+      "object": "Het voornaamwoord in objectvorm (bijv. hen)",
+      "obs_event_field": "Een veld uit de eigen payload van de OBS-gebeurtenis (bijv. {'{'}obs.event.sceneName{'}'})",
+      "playlist_id": "De id van de afspeellijst waaraan het nummer is toegevoegd",
+      "poll_results": "Elke keuze met stemmen en aandeel, gescheiden door {'|'}",
+      "poll_status": "Hoe de poll eindigde (completed, terminated of archived)",
+      "poll_title": "De vraag van de poll",
+      "poll_winner": "De winnende keuze",
+      "poll_winner_percentage": "Het winnende aandeel als tekst, zoals (68%), of niets als niemand stemde",
+      "poll_winner_votes": "Het aantal stemmen van de winnende keuze",
+      "possessive": "Het bezittelijk voornaamwoord (bijv. hun)",
+      "present_tense": "De tegenwoordige tijd van zijn (bijv. is/zijn)",
+      "provider": "Het platform dat de gebeurtenis heeft afgeleverd (bijv. twitch of kick)",
+      "random_number": "Een willekeurig geheel getal van 1 tot en met N (bijv. {'{'}random.number.100{'}'})",
+      "random_number_range": "Een willekeurig geheel getal tussen een minimum en een maximum, met een optionele stap (bijv. {'{'}random.number.50.990.10{'}'})",
+      "random_pick": "Een willekeurige keuze uit een met punten gescheiden lijst (bijv. {'{'}random.pick.a.b.c{'}'})",
+      "random_user": "Een willekeurige chatter die momenteel in het kanaal is",
+      "raw_message": "Het ruwe chatbericht dat de trigger veroorzaakte (Discord pipeline seed-alias)",
+      "reason": "De reden van de moderatie-actie, indien opgegeven",
+      "redemption_id": "Het unieke ID van de inwisseling",
+      "reward": "De titel van de kanaalpunten-beloning",
+      "reward_id": "Het Twitch-ID van de kanaalpunten-beloning",
+      "roll": "Een benoemde willekeurige worp, een keer per bericht getrokken: naam, minimum, maximum en een optionele stap (bijv. {'{'}roll.pct.60.98{'}'})",
+      "roll_complement": "100 min een benoemde worp, voor twee percentages die samen 100 zijn (bijv. {'{'}roll.pct.complement{'}'})",
+      "roll_read": "De waarde van een benoemde worp opnieuw, zodat een worp op meerdere plekken kan staan (bijv. {'{'}roll.pct{'}'})",
+      "status": "De livestatus van de stream (live of offline)",
+      "streak": "Aantal opeenvolgende maanden geabonneerd",
+      "stream_game": "De huidige game/categorie van de stream",
+      "stream_is_live": "Of de stream momenteel live is",
+      "stream_started_at": "Het tijdstip waarop de stream live ging",
+      "stream_title": "De huidige titel van de stream",
+      "stream_uptime": "Hoe lang de stream al live is",
+      "stream_viewers": "Het huidige aantal kijkers",
+      "streamer": "De weergavenaam van de kanaaleigenaar",
+      "subject": "Het voornaamwoord in onderwerpvorm (bijv. zij)",
+      "supporter_amount": "Het supporterbedrag, in grote valuta-eenheden (bijv. \"12,34\")",
+      "supporter_currency": "De valutacode van het supporterbedrag",
+      "supporter_kind": "Het type supporter-gebeurtenis (tip, lidmaatschap, merch, goed doel)",
+      "supporter_message": "Het bericht dat de supporter meegaf, indien aanwezig",
+      "supporter_name": "De weergavenaam van de supporter",
+      "supporter_quantity": "Hoeveel van het item de supporter gaf, indien van toepassing",
+      "supporter_tier": "Het lidmaatschapsniveau van de supporter, indien van toepassing",
+      "target": "De inlognaam van het {'@'}vermelde doel",
+      "target_avgperday": "Het {'@'}vermelde doel: gemiddeld aantal chatberichten per dag sinds de eerste keer gezien",
+      "target_botpercent": "Het {'@'}vermelde doel: aandeel chatberichten dat een commando was, als heel percentage",
+      "target_commands": "Het {'@'}vermelde doel: totaal aantal keer dat een commando is gebruikt",
+      "target_data": "Een gegevensveld per kijker voor het {'@'}vermelde doel (bijv. {'{'}target.data.key{'}'})",
+      "target_days": "Het {'@'}vermelde doel: hele dagen sinds de eerste keer gezien (minimaal 1 zodra gezien)",
+      "target_displayname": "De opgeslagen weergavenaam van het {'@'}vermelde doel, of de getypte tekst als de gebruiker onbekend is",
+      "target_firstseen": "Wanneer het {'@'}vermelde doel voor het eerst in de chat werd gezien",
+      "target_follow_age": "Hoe lang het {'@'}vermelde doel het kanaal al volgt",
+      "target_gendered_term": "Een term die past bij het geslacht van het {'@'}vermelde doel",
+      "target_id": "Het platform-ID van het {'@'}vermelde doel",
+      "target_known": "Of het {'@'}vermelde doel een gebruiker is die de bot kent (true of false)",
+      "target_lastmessage": "Het meest recente chatbericht van het {'@'}vermelde doel",
+      "target_lastmessage_full": "Het meest recente chatbericht van het {'@'}vermelde doel, nooit ingekort",
+      "target_link": "Een profiellink voor het {'@'}vermelde doel",
+      "target_messages": "Het totale aantal chatberichten van het {'@'}vermelde doel",
+      "target_name": "De inlognaam van het {'@'}vermelde doel",
+      "target_object": "Het voornaamwoord in objectvorm voor het {'@'}vermelde doel",
+      "target_possessive": "Het bezittelijk voornaamwoord voor het {'@'}vermelde doel",
+      "target_present_tense": "De tegenwoordige tijd van zijn voor het {'@'}vermelde doel",
+      "target_randommessage": "Een willekeurig ouder chatbericht van het {'@'}vermelde doel, geschikt om te citeren",
+      "target_redemptions": "Het totale aantal kanaalpunt-inwisselingen van het {'@'}vermelde doel",
+      "target_songrequests": "Het totale aantal nummeraanvragen van het {'@'}vermelde doel",
+      "target_subject": "Het voornaamwoord in onderwerpvorm voor het {'@'}vermelde doel",
+      "target_tense": "De op live/offline afgestemde werkwoordstijd voor het {'@'}vermelde doel",
+      "target_verb": "Een werkwoord dat overeenkomt met het {'@'}vermelde doel (bijv. {'{'}target.verb:speelt{'|'}spelen{'}'})",
+      "target_watchtime": "De totale kijktijd van het {'@'}vermelde doel",
+      "tense": "De op live/offline afgestemde werkwoordstijd (is/was)",
+      "tier": "Het abonnementsniveau (bijv. \"Tier 1\")",
+      "time": "De huidige lokale tijd",
+      "time_utc": "De huidige UTC-tijd",
+      "title": "De titel van de stream (stream.online en de Discord seed-alias)",
+      "track_name": "De naam van het toegevoegde nummer",
+      "transform": "Past een tekstbewerking toe (hoofdletters/kleine letters/titel/omgekeerd/etc.) op de omsloten tekst",
+      "tts_audioconnected": "Of er een Audio-widgetpagina open staat voor het kanaal, zodat TTS te horen is (true of false)",
+      "user": "De inlognaam van de gebruiker die dit activeerde",
+      "user_account_age": "Hoe lang geleden het account van de gebruiker is aangemaakt",
+      "user_follow_age": "Hoe lang de gebruiker het kanaal al volgt",
+      "user_gendered_term": "Een term die past bij het geslacht van de gebruiker",
+      "user_id": "Het platform-ID van de gebruiker",
+      "user_lastmessage": "Het meest recente chatbericht van de gebruiker",
+      "user_link": "Een profiellink voor de gebruiker",
+      "user_message_count": "Het totale aantal chatberichten van de gebruiker",
+      "user_name": "De weergavenaam van de gebruiker",
+      "user_object": "Het voornaamwoord in objectvorm voor de gebruiker",
+      "user_possessive": "Het bezittelijk voornaamwoord voor de gebruiker",
+      "user_present_tense": "De tegenwoordige tijd van zijn voor de gebruiker",
+      "user_pronouns": "De geregistreerde voornaamwoorden van de gebruiker",
+      "user_provider": "Het platform van waaruit de gebruiker verbonden is (bijv. twitch)",
+      "user_subject": "Het voornaamwoord in onderwerpvorm voor de gebruiker",
+      "user_tense": "De op live/offline afgestemde werkwoordstijd voor de gebruiker",
+      "user_verb": "Een werkwoord dat overeenkomt met de gebruiker (bijv. {'{'}user.verb:speelt{'|'}spelen{'}'})",
+      "verb": "Een werkwoord dat overeenkomt met het gespiegelde onderwerp (bijv. {'{'}verb:speelt{'|'}spelen{'}'})",
+      "viewer_avgperday": "De activerende gebruiker: gemiddeld aantal chatberichten per dag sinds de eerste keer gezien",
+      "viewer_botpercent": "De activerende gebruiker: aandeel chatberichten dat een commando was, als heel percentage",
+      "viewer_commands": "De activerende gebruiker: totaal aantal keer dat een commando is gebruikt",
+      "viewer_data": "Een gegevensveld per kijker voor de gebruiker (bijv. {'{'}viewer.data.key{'}'})",
+      "viewer_days": "De activerende gebruiker: hele dagen sinds de eerste keer gezien (minimaal 1 zodra gezien)",
+      "viewer_firstseen": "Wanneer de gebruiker voor het eerst in de chat werd gezien",
+      "viewer_messages": "Het totale aantal chatberichten van de gebruiker",
+      "viewer_name": "De weergavenaam van de kijker (engagement-triggers)",
+      "viewer_redemptions": "Het totale aantal kanaalpunt-inwisselingen van de gebruiker",
+      "viewer_songrequests": "Het totale aantal nummeraanvragen van de gebruiker",
+      "viewer_watchtime": "De totale kijktijd van de gebruiker",
+      "viewers": "Het kijkersaantal dat een raid meebrengt",
+      "vts_event_field": "Een veld uit de eigen payload van de VTube Studio-gebeurtenis (bijv. {'{'}vts.event.modelName{'}'})"
+    }
+  },
+  "widget": {
+    "alerts": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "durationMs": {
+        "label": "Weergavetijd (ms)"
+      },
+      "events": {
+        "label": "Waarschuwingstypen"
+      },
+      "minAmount": {
+        "label": "Minimumbedrag van supporter"
+      },
+      "minBits": {
+        "label": "Minimum bits"
+      },
+      "minGiftCount": {
+        "label": "Minimum aantal gift-subs"
+      },
+      "stickerDurationMs": {
+        "label": "Weergavetijd sticker (ms)"
+      },
+      "textTemplate": {
+        "help": "Optionele overschrijving; leeg gebruikt de ingebouwde tekst.",
+        "label": "Tekstsjabloon"
+      }
+    },
+    "audio": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "enableAudio": {
+        "label": "Audio op deze pagina afspelen"
+      },
+      "showIndicator": {
+        "label": "Spreekindicator tonen (alleen instellen)"
+      }
+    },
+    "chat_box": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "background": {
+        "help": "Leeg gebruikt de achtergrond van het thema.",
+        "label": "Achtergrond"
+      },
+      "backgroundOpacity": {
+        "label": "Achtergrondtransparantie"
+      },
+      "fadeAfterMs": {
+        "label": "Vervagen na (ms, 0 = nooit)"
+      },
+      "fontFamily": {
+        "help": "Leeg gebruikt de standaard van de overlay.",
+        "label": "Lettertype"
+      },
+      "fontSize": {
+        "label": "Lettergrootte"
+      },
+      "hideBots": {
+        "label": "Botberichten verbergen"
+      },
+      "hideCommands": {
+        "label": "Commandoberichten verbergen"
+      },
+      "maxMessages": {
+        "label": "Max. aantal berichten"
+      },
+      "showBadges": {
+        "label": "Badges tonen"
+      },
+      "showEmotes": {
+        "label": "Emotes tonen"
+      },
+      "showSevenTvPaints": {
+        "label": "7TV-naamkleuren tonen"
+      },
+      "showTimestamps": {
+        "label": "Tijdstempels tonen"
+      },
+      "theme": {
+        "label": "Thema",
+        "option": {
+          "dark": "Donker",
+          "light": "Licht",
+          "transparent": "Transparant"
+        }
+      }
+    },
+    "countdown_timer": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "durationMs": {
+        "label": "Duur (ms)"
+      },
+      "label": {
+        "label": "Label"
+      },
+      "onCompleteText": {
+        "label": "Tekst bij voltooiing"
+      },
+      "target": {
+        "help": "ISO-datumtijd om naartoe af te tellen; leeg gebruikt de duur.",
+        "label": "Doeltijd"
+      }
+    },
+    "crash": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "hideAfterMs": {
+        "label": "Verbergen na (ms)"
+      }
+    },
+    "custom_data": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "field": {
+        "help": "Het veld binnen de bron, bijv. bpm.",
+        "label": "Veld"
+      },
+      "label": {
+        "label": "Label"
+      },
+      "max": {
+        "label": "Maximum van de meter"
+      },
+      "min": {
+        "label": "Minimum van de meter"
+      },
+      "render": {
+        "label": "Weergeven als",
+        "option": {
+          "gauge": "Meter",
+          "number": "Getal",
+          "text": "Tekst"
+        }
+      },
+      "source": {
+        "help": "De sleutel van de aangepaste databron, bijv. heartrate.",
+        "label": "Bron"
+      }
+    },
+    "drop_game": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "hideAfterMs": {
+        "label": "Verbergen na (ms)"
+      }
+    },
+    "emote_wall": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "animation": {
+        "label": "Animatie",
+        "option": {
+          "float": "Zweef omhoog",
+          "rain": "Regen omlaag"
+        }
+      },
+      "density": {
+        "label": "Dichtheid"
+      },
+      "providers": {
+        "label": "Emote-providers"
+      },
+      "size": {
+        "label": "Emote-grootte (px)"
+      }
+    },
+    "event_ticker": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "count": {
+        "label": "Aantal bewaarde items"
+      },
+      "events": {
+        "label": "Gebeurtenistypen"
+      },
+      "speed": {
+        "label": "Scrollsnelheid"
+      }
+    },
+    "gallery": {
+      "alerts": {
+        "description": "Een wachtrij van geanimeerde meldingskaarten, één tegelijk, voor volgers, subs, resubs, gifted subs, cheers, raids en supporter-events, met drempelbedragen per type en een eigen tekstsjabloon.",
+        "name": "Meldingen"
+      },
+      "audio": {
+        "description": "Alle geluiden en TTS-regels spelen hier af: geluidsclips, beloningsgeluiden en uitgesproken berichten komen allemaal uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft.",
+        "name": "Audio"
+      },
+      "chat_box": {
+        "description": "Live chat uit de opgemaakte berichtenstroom, met emotes, badges, naamkleuren en voornaamwoorden, plus thema’s, instellingen voor lettertype, grootte en achtergrond, tijdstempels, filters voor commando’s en bots, en optioneel vervagen per bericht.",
+        "name": "Chatvenster"
+      },
+      "countdown_timer": {
+        "description": "Een aftelling naar een tijdstip op de klok of voor een vaste duur (zo terug / stream begint zo) met een label en eindtekst. Live te bedienen via de widgetinstellingen in het dashboard.",
+        "name": "Aftelling / Timer"
+      },
+      "crash": {
+        "description": "De lopende crashronde: een grote stijgende multiplier, de uitbetalingsticker zodra chatters !crash typen om hun multiplier vast te zetten, en de onthulling van de crash of het maximum met uitbetalingsbord.",
+        "name": "Crash"
+      },
+      "custom_data": {
+        "description": "De live waarde van een eigen databron als getal, meter of tekst. Een hartslagmeter is deze widget gekoppeld aan heartrate.bpm. Hij koppelt live opnieuw koppelt als de bron wijzigt.",
+        "name": "Eigen data"
+      },
+      "drop_game": {
+        "description": "De lopende dropspel-ronde op een horizontaal spoor: de doelzone, de landingsmarkering van elke chatter zodra die !drop typt, en het uitbetalingsbord als de ronde eindigt.",
+        "name": "Dropspel"
+      },
+      "emote_wall": {
+        "description": "Emotes uit de chat zweven of regenen over het scherm. Ze komen uit de emote- en cheermote-fragmenten van de opgemaakte berichtenstroom, met filters voor dichtheid, grootte en aanbieder.",
+        "name": "Emotemuur"
+      },
+      "event_ticker": {
+        "description": "Een horizontaal scrollende ticker met recente kanaalevents als compacte chips. De nieuwste komt erbij, de oudste verdwijnt boven een ingesteld aantal, op een instelbare snelheid.",
+        "name": "Eventticker"
+      },
+      "goal_bar": {
+        "description": "Een geanimeerde voortgangsbalk richting een doel voor volgers, subs of bits. Leest het officiële totaal uit doel-events en telt live mee bij passende volgers, subs, gifts en cheers.",
+        "name": "Doelbalk"
+      },
+      "heist": {
+        "description": "De lopende overvalronde: de bemanningslijst en de stijgende kans op ontsnappen zodra chatters !heist typen, en de uitkomst en uitbetaling per bemanningslid wanneer de klus is afgelopen.",
+        "name": "Overval"
+      },
+      "labels": {
+        "description": "Eén live statistiek als opgemaakte tekst (laatste volger, laatste sub, topcheerer, aantal volgers of aantal subs) met een optioneel opmaakformaat.",
+        "name": "Labels"
+      },
+      "lucky_feather": {
+        "description": "Toont wie de Lucky Feather vasthoudt en kondigt elke diefstal aan.",
+        "name": "Lucky Feather"
+      },
+      "now_playing": {
+        "description": "Een vaste weergave van het huidige nummer, in pil- of kaartweergave, met optioneel albumhoes en een geanimeerde voortgangsbalk. Het verbergt zichzelf verbergt als er niets speelt. Past zich aan de actieve aanbieder aan: bij Spotify wordt het ook een echt Spotify Connect-apparaat en speelt het audio af via deze OBS-bron (Premium en de streaming-scope vereist, pagina Integraties); bij YouTube kan het optioneel de echte video tonen in plaats van de compacte kaart.",
+        "name": "Nu aan het spelen"
+      },
+      "poll_prediction": {
+        "description": "Live poll- en voorspellingsbalken met keuzes, stempercentages, vergrendelstatus en de winnende uitkomst gemarkeerd bij afronding. Alleen zichtbaar zolang een ronde loopt.",
+        "name": "Poll / Voorspelling"
+      },
+      "raffle": {
+        "description": "De lopende verlotingsronde: de deelnemerslijst en de groeiende pot zodra chatters !raffle typen, en de onthulling van de winnaar met uitbetalingsbord wanneer één deelnemer de hele pot wint.",
+        "name": "Verloting"
+      },
+      "recent_followers": {
+        "description": "Een vast klassement van de meest recente volgers, de nieuwste bovenaan. Het is een altijd zichtbare lijst in plaats van een melding één voor één, met instelbaar aantal en titel.",
+        "name": "Recente volgers"
+      },
+      "redemption_alert": {
+        "description": "Een pop-up voor een ingewisselde kanaalpuntenbeloning. Het toont één kaart tegelijk met de inwisselaar, de beloning, de kosten en hun invoer, en is filterbaar per beloning en met een sjabloon aan te passen.",
+        "name": "Beloningsmelding"
+      },
+      "socials": {
+        "description": "Een rij met wisselende socials-handles die alleen uit instellingen bestaat. De socialmedia-accounts van de streamer lopen in een instelbaar interval in elkaar over. Geen eventstroom; de handles komen uit de widgetinstellingen.",
+        "name": "Socials"
+      },
+      "sr_queue": {
+        "description": "De komende wachtrij met verzoeknummers als compacte lijst met positie, titel en optioneel aanvrager en duur. Gevoed door sr_queue-momentopnames en verborgen zolang de wachtrij leeg is.",
+        "name": "Verzoeknummers-wachtrij"
+      },
+      "sub_train": {
+        "description": "Een hypeteller die piekt bij snelle subs en gifted subs en vanzelf afkoelt. Het toont het aantal subs binnen een lopend tijdvenster (een gift van N telt als N) en is verborgen als de trein stopt.",
+        "name": "Subtrein"
+      },
+      "top_cheerers": {
+        "description": "Een gerangschikt bord van de grootste cheerers van de sessie op bits. Het is het volledige klassement waar de labels-widget met zijn ene topcheerer alleen naar hint, met instelbare diepte en titel.",
+        "name": "Topcheerers"
+      },
+      "tts_caption": {
+        "description": "Een spreekindicator met live ondertitel bij TTS-weergave, met geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel en plaatsing boven of onder. Verborgen zolang er niemand spreekt.",
+        "name": "TTS-ondertitel"
+      }
+    },
+    "goal_bar": {
+      "colors": {
+        "help": "Optionele kleuroverschrijvingen als JSON-object.",
+        "label": "Kleuren"
+      },
+      "labels": {
+        "help": "Optionele labeloverschrijvingen (bijv. een eigen titel) als JSON-object.",
+        "label": "Labels"
+      },
+      "metric": {
+        "label": "Metriek",
+        "option": {
+          "bits": "Bits",
+          "followers": "Volgers",
+          "subs": "Abonnees"
+        }
+      },
+      "resetCadence": {
+        "help": "Wordt naast de balk getoond, bijv. \"deze maand\".",
+        "label": "Label voor resetinterval"
+      },
+      "start": {
+        "label": "Startwaarde"
+      },
+      "startDate": {
+        "help": "Een bitsdoel telt de opgeslagen cheers van dit kanaal vanaf deze datum (bijvoorbeeld 2026-10-01). Laat je dit leeg, dan toont de balk geen bitstotaal.",
+        "label": "Startdatum van het doel"
+      },
+      "target": {
+        "label": "Doel"
+      }
+    },
+    "group": {
+      "appearance": "Uiterlijk",
+      "behaviour": "Gedrag",
+      "content": "Inhoud",
+      "data": "Gegevens"
+    },
+    "heist": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "hideAfterMs": {
+        "label": "Verbergen na (ms)"
+      }
+    },
+    "labels": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "formatString": {
+        "help": "Optioneel; gebruik {'{'}value{'}'} als plaatshouder.",
+        "label": "Opmaakstring"
+      },
+      "label": {
+        "label": "Statistiek",
+        "option": {
+          "follower_count": "Aantal volgers",
+          "latest_follower": "Nieuwste volger",
+          "latest_sub": "Nieuwste abonnee",
+          "sub_count": "Aantal abonnees",
+          "top_cheerer": "Grootste cheerer"
+        }
+      }
+    },
+    "lucky_feather": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "bannerDurationMs": {
+        "label": "Bannertijd (ms)"
+      },
+      "idleText": {
+        "label": "Tekst als niemand hem heeft"
+      },
+      "stolenTemplate": {
+        "help": "Gebruik {'{'}thief{'}'} en {'{'}victim{'}'}. Leeg gebruikt de ingebouwde tekst.",
+        "label": "Tekst van de steelbanner"
+      }
+    },
+    "now_playing": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "layout": {
+        "label": "Lay-out",
+        "option": {
+          "card": "Kaart",
+          "pill": "Pil"
+        }
+      },
+      "provider": {
+        "help": "Leeg toont alle; bijv. spotify.",
+        "label": "Providerfilter"
+      },
+      "showArt": {
+        "label": "Albumhoes tonen"
+      },
+      "showProgressBar": {
+        "label": "Voortgangsbalk tonen"
+      }
+    },
+    "option": {
+      "events": {
+        "cheer": "Cheer",
+        "follow": "Volgen",
+        "gift": "Cadeau-abonnement",
+        "raid": "Raid",
+        "resub": "Herabonnement",
+        "subscription": "Abonnement",
+        "supporter": {
+          "charity": "Goed doel",
+          "membership": "Lidmaatschap",
+          "merch": "Merchandise",
+          "tip": "Fooi"
+        },
+        "voice_trigger": "Spraaktrigger"
+      },
+      "providers": {
+        "7tv": "7TV",
+        "bttv": "BetterTTV",
+        "ffz": "FrankerFaceZ",
+        "twitch": "Twitch"
+      }
+    },
+    "poll_prediction": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "colors": {
+        "help": "Optionele kleuroverschrijvingen per uitkomst als JSON-object.",
+        "label": "Kleuren"
+      },
+      "position": {
+        "label": "Positie",
+        "option": {
+          "left": "Links",
+          "right": "Rechts"
+        }
+      }
+    },
+    "raffle": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "hideAfterMs": {
+        "label": "Verbergen na (ms)"
+      }
+    },
+    "recent_followers": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "count": {
+        "label": "Aantal getoonde volgers"
+      },
+      "title": {
+        "label": "Titel"
+      }
+    },
+    "redemption_alert": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "durationMs": {
+        "label": "Weergavetijd (ms)"
+      },
+      "rewards": {
+        "help": "Optionele lijst met beloning-id's om te tonen (JSON-array); leeg toont alles.",
+        "label": "Beloningsfilter"
+      },
+      "soundClipId": {
+        "help": "Speelt dit fragment uit je Sound Clips-bibliotheek af telkens wanneer de waarschuwing afgaat. Voer de id of naam van het fragment in. Laat leeg en de waarschuwing blijft stil.",
+        "label": "Waarschuwingsgeluid"
+      },
+      "textTemplate": {
+        "help": "Optionele overschrijving voor de pop-uptekst.",
+        "label": "Tekstsjabloon"
+      }
+    },
+    "socials": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "handles": {
+        "help": "De social-accounts om te laten rouleren, als JSON-array van {'{'} label, handle {'}'} objecten, bijvoorbeeld [{'{'}\"label\":\"Twitter\",\"handle\":\"{'@'}you\"{'}'}]. Een item met een lege handle wordt genegeerd.",
+        "label": "Accounts"
+      },
+      "rotateMs": {
+        "label": "Rotatie-interval (ms)"
+      }
+    },
+    "sr_queue": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "count": {
+        "label": "Aantal getoonde items"
+      },
+      "showDuration": {
+        "label": "Duur tonen"
+      },
+      "showRequester": {
+        "label": "Aanvrager tonen"
+      }
+    },
+    "sub_train": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "windowMs": {
+        "label": "Venster (ms)"
+      }
+    },
+    "top_cheerers": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "count": {
+        "label": "Aantal getoonde cheerers"
+      },
+      "range": {
+        "label": "Getelde cheers",
+        "option": {
+          "sinceReset": "Sinds de laatste reset",
+          "stream": "Deze stream"
+        }
+      },
+      "resetAt": {
+        "help": "Het bord telt de opgeslagen cheers van dit kanaal vanaf deze datum en tijd (bijvoorbeeld 2026-10-01). Wordt gebruikt bij \"Sinds de laatste reset\". Laat je dit leeg, dan telt alles mee.",
+        "label": "Laatste reset"
+      },
+      "title": {
+        "label": "Titel"
+      }
+    },
+    "tts_caption": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "position": {
+        "label": "Positie",
+        "option": {
+          "bottom": "Onder",
+          "top": "Boven"
+        }
+      },
+      "showText": {
+        "label": "Ondertiteltekst tonen"
+      },
+      "voiceLabel": {
+        "label": "Stemlabel tonen"
+      }
+    }
+  },
+  "pipelineBlock": {
+    "add_if": "Als / Anders",
+    "add_loop": "Lus",
+    "add_random": "Willekeurig",
+    "add_switch": "Switch",
+    "add_try": "Try / Catch",
+    "ban": "Verbannen",
+    "cancel_live_game": "Live game annuleren",
+    "case_add": "Case toevoegen",
+    "case_add_title": "Case toevoegen",
+    "case_default_label": "Standaard (opvang-case)",
+    "case_edit_title": "Case bewerken",
+    "case_match_label": "Vergelijkingswaarde",
+    "case_operator_label": "Operator",
+    "case_weight_label": "Gewicht",
+    "check_balance": "Saldo controleren",
+    "deduct_currency": "Valuta aftrekken",
+    "delete_message": "Bericht verwijderen",
+    "grant_currency": "Valuta toekennen",
+    "if_title": "Als/Anders-blok toevoegen",
+    "jar_contribute": "Bijdragen aan pot",
+    "lane_catch": "Catch",
+    "lane_else": "Anders",
+    "lane_empty": "Nog geen stappen.",
+    "lane_then": "Dan",
+    "lane_try": "Try",
+    "loop_condition_label": "Voorwaarde",
+    "loop_count_label": "Aantal herhalingen",
+    "loop_edit_condition": "Voorwaarde bewerken",
+    "loop_edit_title": "Lus bewerken",
+    "loop_lane_label": "Lusinhoud",
+    "loop_list_var_label": "Lijstvariabele",
+    "loop_max_iterations_label": "Max. iteraties (optioneel)",
+    "loop_max_runtime_label": "Max. duur in seconden (optioneel)",
+    "loop_mode_foreach": "Voor elk item",
+    "loop_mode_label": "Lusmodus",
+    "loop_mode_repeat": "Aantal herhalingen",
+    "loop_mode_while": "Zolang voorwaarde",
+    "loop_title": "Lusblok toevoegen",
+    "operator_contains": "bevat",
+    "operator_eq": "is gelijk aan",
+    "operator_gt": "groter dan",
+    "operator_gte": "groter dan of gelijk aan",
+    "operator_lt": "kleiner dan",
+    "operator_lte": "kleiner dan of gelijk aan",
+    "operator_ne": "is niet gelijk aan",
+    "pick_from_list": "Kies uit lijst",
+    "play_game": "Spel spelen",
+    "play_sound": "Geluid afspelen",
+    "play_tts": "Voorlezen (TTS)",
+    "playlist_add": "Toevoegen aan afspeellijst",
+    "post_quote": "Citaat plaatsen",
+    "random": "Willekeurige kans",
+    "require_tier": "Tier vereisen",
+    "run_code": "Script uitvoeren",
+    "run_pipeline": "Pipeline uitvoeren",
+    "send_discord_notification": "Discord-melding",
+    "send_message": "Bericht versturen",
+    "send_reply": "Antwoord versturen",
+    "send_webhook": "Webhook versturen",
+    "set_variable": "Variabele instellen",
+    "shoutout": "Shoutout",
+    "song_ban": "Nummer verbannen",
+    "song_current": "Nu bezig",
+    "song_pause": "Nummer pauzeren",
+    "song_previous": "Vorig nummer",
+    "song_queue": "Nummerwachtrij",
+    "song_request": "Nummer aanvragen",
+    "song_resume": "Nummer hervatten",
+    "song_skip": "Nummer overslaan",
+    "song_volume": "Volume instellen",
+    "song_wrong": "Verkeerd nummer (eigen verwijderen)",
+    "start_live_game": "Live game starten",
+    "stop": "Stoppen",
+    "stop_sound": "Geluid stoppen",
+    "switch_edit_title": "Switch-waarde bewerken",
+    "switch_title": "Switch-blok toevoegen",
+    "switch_value_label": "Switch-waarde",
+    "timeout": "Time-out geven",
+    "try_summary": "Try / Catch",
+    "user_role": "Gebruikersrol",
+    "var_compare": "Waarden vergelijken",
+    "wait": "Wachten"
+  }
+}

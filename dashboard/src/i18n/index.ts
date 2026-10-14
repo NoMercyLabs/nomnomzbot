@@ -82,13 +82,23 @@ export function startLocale(): Promise<void> {
     : 'en');
 }
 
+// The labels the bot sends as keys (pipeline actions, widget settings), generated from the KMP strings
+// by scripts/gen-schema-words.mjs. A page that shows them loads this beside its own words.
+export const schemaWords: WordsLoader = (locale) => import(`./schema/${locale}.json`);
+
 // A route's lazy component: the page code and the page's words for the current language, in parallel.
 export async function loadPage(
   view: () => Promise<PageModule>,
-  messages: WordsLoader,
+  ...messages: WordsLoader[]
 ): Promise<PageModule> {
-  openedPages.add(messages);
-  const [page] = await Promise.all([view(), loadWords(messages, targetLocale)]);
+  for (const loader of messages) {
+    openedPages.add(loader);
+  }
+
+  const [page] = await Promise.all([
+    view(),
+    ...messages.map((loader: WordsLoader) => loadWords(loader, targetLocale)),
+  ]);
 
   return page;
 }

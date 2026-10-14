@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { baseCompile } from '@intlify/message-compiler';
+import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
 // Every words file: the shared ones and each page's own.
@@ -19,6 +20,12 @@ const files: Record<string, unknown> = import.meta.glob(
     import: 'default',
   },
 );
+
+// The bot's schema labels, generated from the KMP strings by scripts/gen-schema-words.mjs.
+const schemaFiles: Record<string, unknown> = import.meta.glob('/src/i18n/schema/*.json', {
+  eager: true,
+  import: 'default',
+});
 
 function messages(node: unknown, path: string, out: [string, string][]): [string, string][] {
   if (typeof node === 'string') {
@@ -42,10 +49,20 @@ describe('words files', () => {
     expect(Object.keys(files)).toContain('/src/i18n/locales/nl.json');
   });
 
+  it('carries the schema labels as the KMP strings hold them now', () => {
+    const check = spawnSync(process.execPath, ['scripts/gen-schema-words.mjs', '--check'], {
+      encoding: 'utf8',
+    });
+
+    expect(check.stderr).toBe('');
+    expect(check.status).toBe(0);
+    expect(Object.keys(schemaFiles).sort()).toEqual(['/src/i18n/schema/en.json', '/src/i18n/schema/nl.json']);
+  });
+
   it('holds only messages that vue-i18n can compile', () => {
     const broken: string[] = [];
 
-    for (const [file, words] of Object.entries(files)) {
+    for (const [file, words] of Object.entries({ ...files, ...schemaFiles })) {
       for (const [key, text] of messages(words, '', [])) {
         const errors: string[] = [];
 

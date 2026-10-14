@@ -1,0 +1,1779 @@
+{
+  "eventresponse": {
+    "preset": {
+      "channel_ad_break_begin": {
+        "template": "An ad break has started for {'{'}ad.duration{'}'}. Please stay tuned!"
+      },
+      "channel_ad_break_end": {
+        "template": "The ad break has ended. Thanks for your patience!"
+      },
+      "channel_ad_break_upcoming": {
+        "template": "Heads up: an ad break is coming {'{'}ad.when{'}'} ({'{'}ad.seconds{'}'} seconds long). A good moment to stretch or grab a drink."
+      },
+      "channel_ban": {
+        "template": "{'{'}user{'}'} was shown the door by {'{'}moderator{'}'} ({'{'}duration{'}'})."
+      },
+      "channel_channel_points_custom_reward_redemption_add": {
+        "template": "{'{'}user{'}'} redeemed {'{'}reward{'}'}!"
+      },
+      "channel_cheer": {
+        "template": "{'{'}user{'}'} cheered {'{'}bits{'}'} bits. Thank you!"
+      },
+      "channel_follow": {
+        "template": "Thanks for the follow, {'{'}user{'}'}!"
+      },
+      "channel_moderator_add": {
+        "template": "{'{'}user{'}'} has been added as a moderator in the channel."
+      },
+      "channel_moderator_remove": {
+        "template": "{'{'}user{'}'} has been removed as a moderator in the channel."
+      },
+      "channel_poll_end": {
+        "template": "The poll {'{'}poll.title{'}'} is over - {'{'}poll.winner{'}'} won{'{'}poll.winner.percentage{'}'}!"
+      },
+      "channel_raid": {
+        "template": "{'{'}user{'}'} is raiding with {'{'}viewers{'}'} viewers. Welcome, raiders!"
+      },
+      "channel_raid_out": {
+        "template": "We've raided {'{'}user{'}'} with {'{'}viewers{'}'} viewers. Thanks for hanging out!"
+      },
+      "channel_raid_start": {
+        "template": "We're raiding {'{'}user{'}'} with {'{'}viewers{'}'} viewers. Bring the hype!"
+      },
+      "channel_subscribe": {
+        "template": "Welcome to the sub squad, {'{'}user{'}'}!"
+      },
+      "channel_subscription_gift": {
+        "template": "{'{'}user{'}'} just gifted {'{'}count{'}'} subs. Thank you!"
+      },
+      "channel_subscription_gift_anonymous": {
+        "template": "An anonymous gifter just gave {'{'}count{'}'} subs to the community. Thank you!"
+      },
+      "channel_subscription_gift_received": {
+        "template": "{'{'}user{'}'} was gifted a sub by {'{'}gifter{'}'}!"
+      },
+      "channel_subscription_gift_received_anonymous": {
+        "template": "An anonymous gifter gave a sub to {'{'}user{'}'}!"
+      },
+      "channel_subscription_message": {
+        "template": "{'{'}user{'}'} resubscribed. {'{'}months{'}'} months and counting!"
+      },
+      "channel_unban": {
+        "template": "{'{'}user{'}'} has been unbanned. Welcome back."
+      },
+      "engagement_first_time_chatter": {
+        "template": "Welcome to the stream, {'{'}user{'}'}!"
+      },
+      "engagement_modiversary": {
+        "template": "{'{'}user{'}'} has been a moderator here for {'{'}engagement.months{'}'} months. Thank you!"
+      },
+      "engagement_returning_chatter": {
+        "template": "Welcome back, {'{'}user{'}'}!"
+      },
+      "engagement_session_first_message": {
+        "template": "Welcome in, {'{'}user{'}'}!"
+      },
+      "engagement_watch_streak": {
+        "template": "{'{'}user{'}'} is on a {'{'}engagement.streak{'}'}-stream watch streak!"
+      },
+      "obs_CurrentProgramSceneChanged": {
+        "template": "Scene changed to {'{'}obs.event.sceneName{'}'}"
+      },
+      "obs_RecordStateChanged": {
+        "template": "OBS recording state: {'{'}obs.event.outputState{'}'}"
+      },
+      "obs_ReplayBufferSaved": {
+        "template": "Replay saved!"
+      },
+      "obs_StreamStateChanged": {
+        "template": "OBS stream state: {'{'}obs.event.outputState{'}'}"
+      },
+      "obs_VendorEvent": {
+        "template": "OBS vendor event from {'{'}obs.event.vendorName{'}'}"
+      },
+      "reward_disabled": {
+        "template": "{'{'}reward{'}'} has been retired."
+      },
+      "reward_enabled": {
+        "template": "{'{'}reward{'}'} is now available for {'{'}cost{'}'} points!"
+      },
+      "reward_paused": {
+        "template": "{'{'}reward{'}'} is paused for now. Redemptions are on hold."
+      },
+      "reward_resumed": {
+        "template": "{'{'}reward{'}'} is back. Redeem away!"
+      },
+      "stream_offline": {
+        "template": "Stream's over after {'{'}duration{'}'}. Thanks for watching!"
+      },
+      "stream_online": {
+        "template": "We're live: {'{'}title{'}'}. Playing {'{'}game{'}'}!"
+      },
+      "supporter_any": {
+        "template": "{'{'}user{'}'} just supported the stream. Thank you!"
+      },
+      "supporter_charity": {
+        "template": "{'{'}user{'}'} donated {'{'}supporter.amount{'}'} {'{'}supporter.currency{'}'} to charity!"
+      },
+      "supporter_membership": {
+        "template": "{'{'}user{'}'} just became a member. Thank you!"
+      },
+      "supporter_merch": {
+        "template": "{'{'}user{'}'} grabbed some merch. Thank you!"
+      },
+      "supporter_tip": {
+        "template": "{'{'}user{'}'} tipped {'{'}supporter.amount{'}'} {'{'}supporter.currency{'}'}. Thank you!"
+      },
+      "vts_HotkeyTriggeredEvent": {
+        "template": "Hotkey {'{'}vts.event.hotkeyName{'}'} fired!"
+      },
+      "vts_ModelClickedEvent": {
+        "template": "Someone poked the model!"
+      },
+      "vts_ModelLoadedEvent": {
+        "template": "Model {'{'}vts.event.modelName{'}'} loaded!"
+      }
+    }
+  },
+  "pipeline": {
+    "adjust_counter": {
+      "delta": {
+        "help": "How much to add to the counter (use a negative number to subtract). Defaults to 1 if left blank."
+      },
+      "description": "Increase or decrease a named counter by an amount",
+      "key": {
+        "help": "The counter's name. Creates a new counter starting at 0 if it doesn't exist yet."
+      }
+    },
+    "adjust_viewer_data": {
+      "delta": {
+        "help": "How much to add to the viewer's stored numeric value (use a negative number to subtract)."
+      },
+      "description": "Increase or decrease a stored numeric value on a viewer's profile",
+      "key": {
+        "help": "The name of the per-viewer data field to adjust."
+      },
+      "target": {
+        "help": "Which viewer's data to adjust. Blank targets the user who triggered this pipeline."
+      }
+    },
+    "announce": {
+      "color": {
+        "help": "The announcement's highlight color in chat. Leave blank for the default color."
+      },
+      "description": "Post a highlighted chat announcement",
+      "message": {
+        "help": "The message to post as a chat announcement. Supports template variables (e.g. {'{'}user.name{'}'})."
+      }
+    },
+    "ban": {
+      "description": "Ban a viewer from chat",
+      "reason": {
+        "help": "Shown to the viewer and logged in the moderation history."
+      },
+      "user_id": {
+        "help": "The viewer to ban. Blank targets the user who triggered this pipeline."
+      }
+    },
+    "break": {
+      "description": "Break out of the enclosing loop"
+    },
+    "cancel_live_game": {
+      "description": "Cancel the currently running live game"
+    },
+    "category": {
+      "billing": "Billing",
+      "chat": "Chat",
+      "code": "Code",
+      "counters": "Counters",
+      "discord": "Discord",
+      "economy": "Economy",
+      "flow": "Flow",
+      "games": "Games",
+      "giveaways": "Giveaways",
+      "identity": "Identity",
+      "media": "Media",
+      "moderation": "Moderation",
+      "music": "Music",
+      "obs": "OBS",
+      "pick_lists": "Pick Lists",
+      "quotes": "Quotes",
+      "rewards": "Rewards",
+      "sound": "Sound",
+      "stream": "Stream",
+      "tts": "Text-to-Speech",
+      "viewer_data": "Viewer Data",
+      "vts": "VTube Studio",
+      "webhooks": "Webhooks",
+      "widgets": "Widgets"
+    },
+    "check_balance": {
+      "description": "Check a viewer's currency balance against a minimum",
+      "min": {
+        "help": "The minimum balance the condition checks for. Leave blank to just read the balance without comparing it."
+      },
+      "set_var": {
+        "help": "The variable name the viewer's currency balance is stored in, for later steps to read (e.g. {'{'}balance{'}'})."
+      }
+    },
+    "clear_viewer_data": {
+      "description": "Clear a stored value for every viewer in the channel",
+      "key": {
+        "help": "The per-viewer data field to clear for every viewer in the channel at once."
+      }
+    },
+    "continue": {
+      "description": "Skip to the next iteration of the enclosing loop"
+    },
+    "deduct_currency": {
+      "amount": {
+        "help": "How much of the channel's currency to deduct from the viewer's balance."
+      },
+      "description": "Deduct currency from a viewer's balance",
+      "reason": {
+        "help": "Shown on the viewer's transaction history."
+      }
+    },
+    "delete_message": {
+      "description": "Delete a chat message",
+      "message_id": {
+        "help": "The chat message to delete. Blank deletes the message that triggered this pipeline."
+      }
+    },
+    "draw_giveaway": {
+      "description": "Draw a winner from an open giveaway",
+      "giveaway_id": {
+        "help": "Which giveaway to draw a winner from. Blank uses the channel's currently active giveaway."
+      }
+    },
+    "enter_giveaway": {
+      "description": "Enter the triggering viewer into a giveaway",
+      "giveaway_id": {
+        "help": "Which giveaway the triggering viewer enters. Blank uses the channel's currently active giveaway."
+      }
+    },
+    "grant_currency": {
+      "amount": {
+        "help": "How much of the channel's currency to add to the viewer's balance."
+      },
+      "description": "Grant currency to a viewer's balance",
+      "reason": {
+        "help": "Shown on the viewer's transaction history."
+      }
+    },
+    "jar_contribute": {
+      "amount": {
+        "help": "How much currency to move from the viewer's balance into the savings jar."
+      },
+      "description": "Contribute currency to a savings jar",
+      "jar_id": {
+        "help": "Which savings jar receives the contribution."
+      }
+    },
+    "music_add_to_playlist": {
+      "description": "Add the currently playing track to a chosen playlist",
+      "playlistId": {
+        "help": "Which playlist the currently playing track is added to."
+      }
+    },
+    "music_cycle_repeat": {
+      "description": "Cycle repeat through off, track, then playlist/album"
+    },
+    "music_follow_artist": {
+      "description": "Follow the current track's artist"
+    },
+    "music_next": {
+      "description": "Skip to the next track"
+    },
+    "music_pause": {
+      "description": "Pause playback"
+    },
+    "music_play": {
+      "description": "Resume playback"
+    },
+    "music_play_pause": {
+      "description": "Toggle playback based on the current state"
+    },
+    "music_previous": {
+      "description": "Go back to the previous track"
+    },
+    "music_remove_from_playlist": {
+      "description": "Remove the currently playing track from a chosen playlist",
+      "playlistId": {
+        "help": "Which playlist the currently playing track is removed from."
+      }
+    },
+    "music_save_track": {
+      "description": "Add the currently playing track to your liked songs"
+    },
+    "music_seek": {
+      "description": "Jump to a specific point in the current track (seconds)",
+      "positionSeconds": {
+        "help": "Jumps playback to this position in the current track, in seconds from the start."
+      }
+    },
+    "music_set_repeat": {
+      "description": "Set repeat to off, track, or playlist/album",
+      "mode": {
+        "help": "The repeat mode to switch to: off, repeat the current track, or repeat the whole playlist/album."
+      }
+    },
+    "music_set_shuffle": {
+      "description": "Turn shuffle on or off",
+      "enabled": {
+        "help": "Turns shuffle playback on or off for the connected music provider."
+      }
+    },
+    "music_set_volume": {
+      "description": "Set playback volume to a fixed level (0-100)",
+      "volume": {
+        "help": "The playback volume to set, from 0 (silent) to 100 (full volume)."
+      }
+    },
+    "music_toggle_saved": {
+      "description": "Toggle the currently playing track's liked status"
+    },
+    "music_toggle_shuffle": {
+      "description": "Switch shuffle on/off based on the current state"
+    },
+    "music_transfer_device": {
+      "description": "Move playback to a chosen device",
+      "deviceId": {
+        "help": "Which playback device to move music playback to."
+      }
+    },
+    "music_unfollow_artist": {
+      "description": "Unfollow the current track's artist"
+    },
+    "music_unsave_track": {
+      "description": "Remove the currently playing track from your liked songs"
+    },
+    "music_volume_down": {
+      "description": "Lower playback volume by a step (default 10)",
+      "step": {
+        "help": "How many volume points to lower playback by. Defaults to a small step if left blank."
+      }
+    },
+    "music_volume_mute": {
+      "description": "Mute playback, remembering the volume to restore",
+      "unmuteVolume": {
+        "help": "The volume to restore to when this step un-mutes playback (instead of muting it)."
+      }
+    },
+    "music_volume_up": {
+      "description": "Raise playback volume by a step (default 10)",
+      "step": {
+        "help": "How many volume points to raise playback by. Defaults to a small step if left blank."
+      }
+    },
+    "obs_call_vendor": {
+      "description": "Call a vendor-specific OBS plugin request",
+      "request_data": {
+        "help": "The JSON payload sent with the vendor request. Leave blank if the vendor request needs no extra data."
+      },
+      "request_type": {
+        "help": "The vendor's request type name, exactly as its plugin documents it."
+      },
+      "vendor": {
+        "help": "The name of the OBS plugin (vendor) to call, as registered with obs-websocket."
+      }
+    },
+    "obs_filter": {
+      "description": "Enable or disable an OBS source filter",
+      "enabled": {
+        "help": "Whether the filter is turned on or off. Defaults to enabling it."
+      },
+      "filter": {
+        "help": "The name of the filter on the source to enable or disable."
+      },
+      "source": {
+        "help": "The OBS source the filter is attached to."
+      }
+    },
+    "obs_hotkey": {
+      "description": "Trigger an OBS hotkey by name",
+      "hotkey_name": {
+        "help": "The OBS hotkey to trigger, by its internal hotkey name."
+      }
+    },
+    "obs_input_mute": {
+      "description": "Mute, unmute, or toggle an OBS audio input",
+      "input": {
+        "help": "The audio input (mic, desktop audio, etc.) to mute or unmute."
+      },
+      "muted": {
+        "help": "Whether the input ends up muted or unmuted. Ignored when Toggle is on."
+      },
+      "toggle": {
+        "help": "Flips the input's current mute state instead of setting it directly."
+      }
+    },
+    "obs_input_volume": {
+      "description": "Set an OBS audio input's volume",
+      "input": {
+        "help": "The audio input whose volume is changed."
+      },
+      "volume_db": {
+        "help": "Sets the input's volume in decibels. Use this or Volume (multiplier), not both."
+      },
+      "volume_mul": {
+        "help": "Sets the input's volume as a multiplier (1.0 = unchanged, 0.5 = half). Use this or Volume (dB), not both."
+      }
+    },
+    "obs_media": {
+      "action_verb": {
+        "help": "What to do to the media source: play, pause, stop, restart, or skip to the next/previous item."
+      },
+      "description": "Control playback of an OBS media source",
+      "input": {
+        "help": "The media source (a video/audio clip) to control."
+      }
+    },
+    "obs_recording": {
+      "action_verb": {
+        "help": "What to do to recording: start, stop, toggle, pause, resume, or split the file."
+      },
+      "description": "Start, stop, pause, or resume OBS recording"
+    },
+    "obs_refresh_browser": {
+      "description": "Refresh an OBS browser source",
+      "input": {
+        "help": "The browser source to reload. Use this after changing an overlay's settings so OBS picks them up immediately."
+      }
+    },
+    "obs_replay_buffer": {
+      "action_verb": {
+        "help": "What to do to the replay buffer: start, stop, or toggle it."
+      },
+      "description": "Start or stop the OBS replay buffer"
+    },
+    "obs_request": {
+      "description": "Send a raw OBS WebSocket request",
+      "request_data": {
+        "help": "The JSON payload for the raw request. Leave blank for requests that need no data."
+      },
+      "request_type": {
+        "help": "The raw obs-websocket request type to send. Use it for advanced control not covered by a dedicated OBS action."
+      }
+    },
+    "obs_request_batch": {
+      "description": "Send a batch of raw OBS WebSocket requests",
+      "execution": {
+        "help": "How the batched requests run: one after another in real time, one per rendered frame, or all in parallel."
+      },
+      "halt_on_failure": {
+        "help": "Stops running the rest of the batch as soon as one request in it fails."
+      },
+      "requests": {
+        "help": "The list of raw obs-websocket requests to send together, in order."
+      }
+    },
+    "obs_save_replay": {
+      "description": "Save the current OBS replay buffer"
+    },
+    "obs_screenshot": {
+      "description": "Take a screenshot of an OBS source",
+      "format": {
+        "help": "The image file format the screenshot is saved as."
+      },
+      "source": {
+        "help": "The OBS source or scene to capture a screenshot of."
+      }
+    },
+    "obs_set_preview_scene": {
+      "description": "Set the OBS studio-mode preview scene",
+      "scene": {
+        "help": "The scene to load into studio mode's preview (not yet visible on stream until you transition)."
+      }
+    },
+    "obs_set_source": {
+      "description": "Show or hide a source within an OBS scene",
+      "scene": {
+        "help": "The scene that contains the source being shown or hidden."
+      },
+      "source": {
+        "help": "The source within the scene to show or hide."
+      },
+      "visible": {
+        "help": "Whether the source ends up visible or hidden. Defaults to visible."
+      }
+    },
+    "obs_streaming": {
+      "action_verb": {
+        "help": "What to do to the stream output: start, stop, or toggle it."
+      },
+      "description": "Start or stop OBS streaming"
+    },
+    "obs_switch_scene": {
+      "description": "Switch the active OBS scene",
+      "scene": {
+        "help": "The scene to switch the live program output to."
+      }
+    },
+    "obs_transition": {
+      "description": "Trigger an OBS scene transition",
+      "duration_ms": {
+        "help": "How long the transition takes, in milliseconds. Leave blank to use the transition's own default duration."
+      },
+      "studio": {
+        "help": "Fires the studio-mode transition (preview → program) instead of just setting the current transition type."
+      },
+      "transition": {
+        "help": "The transition to set as current. Leave blank to only fire a studio-mode transition without changing it."
+      }
+    },
+    "obs_virtual_cam": {
+      "action_verb": {
+        "help": "What to do to the virtual camera output: start, stop, or toggle it."
+      },
+      "description": "Start or stop the OBS virtual camera"
+    },
+    "open_giveaway": {
+      "description": "Open a giveaway for entries",
+      "giveaway_id": {
+        "help": "Which giveaway to open for entries."
+      }
+    },
+    "permit": {
+      "description": "Grant a viewer a temporary permit",
+      "duration_minutes": {
+        "help": "How long the permit lasts, in minutes. Leave blank for a permit that never expires on its own."
+      },
+      "role_or_capability": {
+        "help": "The role or capability being granted to the target."
+      },
+      "target_variable": {
+        "help": "The variable holding the viewer to grant the permit to. Blank targets the user who triggered this pipeline."
+      }
+    },
+    "pick_from_list": {
+      "description": "Pick a random entry from a saved list",
+      "list": {
+        "help": "The pick-list to draw a random entry from."
+      },
+      "variable": {
+        "help": "The variable the picked entry is stored in. Later steps read it in curly braces: leave this empty and use {'{'}pick{'}'}, or set it to prize and use {'{'}prize{'}'}. The pick is rolled once here, so every step that reads it sees the same entry."
+      }
+    },
+    "play_game": {
+      "bet": {
+        "help": "How much currency the viewer wagers on this play."
+      },
+      "description": "Play a configured currency game",
+      "game_type": {
+        "help": "Which configured game to play."
+      }
+    },
+    "play_sound": {
+      "clip": {
+        "help": "The sound clip to play on the overlay."
+      },
+      "description": "Play a sound clip",
+      "handle": {
+        "help": "A name for this playback, so a later stop_sound step can stop this specific clip instead of all clips."
+      },
+      "synced": {
+        "help": "Start this sound at the visual cue, outside the shared audio queue."
+      },
+      "volume": {
+        "help": "The playback volume for this clip, from 0 (silent) to 100 (full volume). Leave blank to use the clip's own default."
+      },
+      "wait_for_finish": {
+        "help": "Pauses the rest of the pipeline until this clip finishes playing, instead of continuing immediately."
+      }
+    },
+    "play_track_once": {
+      "description": "Play one track right now, then resume whatever was already playing",
+      "track_uri": {
+        "help": "The track to play right now. Whatever was already playing resumes automatically once this one ends."
+      }
+    },
+    "play_tts": {
+      "as": {
+        "help": "Whose voice speaks the line: blank (or bot/channel) is the bot's own voice for text the bot wrote. Set it to viewer (or user) only when the line is that viewer's own words, such as a TTS reward. broadcaster uses the broadcaster's own voice, or a platform user id speaks as them."
+      },
+      "description": "Speak text through text-to-speech",
+      "rate": {
+        "help": "How fast the line is spoken, as a percent of normal speed: +30% faster, -20% slower. Blank keeps the normal speed. Values are limited to -50% to +50%."
+      },
+      "segments": {
+        "help": "Several voices in one clip. A JSON list of parts, each with text, and optionally voice, rate, pitch and breakAfterMs (silence after the part, up to 5000 ms). When set, it replaces Text. Supports template variables."
+      },
+      "text": {
+        "help": "The text to speak. Supports template variables (e.g. {'{'}user.name{'}'})."
+      },
+      "voice": {
+        "help": "Blank uses the channel's default TTS voice."
+      }
+    },
+    "playlist_add": {
+      "already_message": {
+        "help": "The chat message sent when the track is already in the playlist. Blank says nothing."
+      },
+      "description": "Add the current (or a given) track to a playlist",
+      "message": {
+        "help": "The chat message sent after the track is added. Blank uses the default."
+      },
+      "playlist_id": {
+        "help": "Which playlist the track is added to."
+      },
+      "track_uri": {
+        "help": "The track to add. Blank adds the currently playing track."
+      }
+    },
+    "post_quote": {
+      "description": "Post a saved quote to chat",
+      "number": {
+        "help": "The quote number to post. Blank posts a random saved quote."
+      }
+    },
+    "redemption_fulfill": {
+      "description": "Mark the triggering redemption fulfilled on Twitch"
+    },
+    "redemption_refund": {
+      "description": "Refund the triggering redemption (points returned)"
+    },
+    "require_tier": {
+      "denied_message": {
+        "help": "The message shown when the viewer doesn't meet the tier requirement. Leave blank for the default denial message."
+      },
+      "description": "Require a minimum billing tier before continuing",
+      "min_tier": {
+        "help": "The minimum support tier the triggering viewer must have for the pipeline to continue."
+      }
+    },
+    "return_value": {
+      "description": "Return a value from a sub-pipeline",
+      "value": {
+        "help": "The value this pipeline hands back to whatever called it (available as {'{'}call.result{'}'} to the caller)."
+      }
+    },
+    "run_code": {
+      "code_script_id": {
+        "help": "The saved code script to run."
+      },
+      "description": "Run a custom sandboxed script"
+    },
+    "run_pipeline": {
+      "args": {
+        "help": "Positional arguments passed to the called pipeline, readable there as {'{'}args.1{'}'}, {'{'}args.2{'}'}, etc."
+      },
+      "description": "Run another saved pipeline as a sub-pipeline",
+      "mode": {
+        "help": "Inline runs the pipeline as part of this one and can return a value; detached starts it as a fully separate run."
+      },
+      "named_args": {
+        "help": "Named arguments passed to the called pipeline, matched to its declared parameter names regardless of the order you list them here. The called pipeline can also read them positionally as {'{'}args.1{'}'}, {'{'}args.2{'}'}, etc. when it declares no names."
+      },
+      "pipeline": {
+        "help": "The pipeline to invoke."
+      },
+      "wait": {
+        "help": "For a detached run, waits for it to finish before continuing this pipeline instead of firing it and moving on."
+      }
+    },
+    "schedule_pipeline": {
+      "dedupe_key": {
+        "help": "Skips scheduling a new run if one with the same key is already scheduled. This prevents duplicate scheduled runs."
+      },
+      "delay_seconds": {
+        "help": "How many seconds from now the pipeline runs."
+      },
+      "description": "Schedule a saved pipeline to run once after a delay",
+      "pipeline": {
+        "help": "The pipeline to run once, after the delay."
+      }
+    },
+    "send_discord_notification": {
+      "dedupe_key": {
+        "help": "Skips sending if a notification with the same key was already sent recently. This prevents duplicate Discord posts."
+      },
+      "description": "Post a notification to a configured Discord channel",
+      "trigger_type": {
+        "help": "Which configured Discord notification to send."
+      }
+    },
+    "send_message": {
+      "description": "Send a message to chat",
+      "message": {
+        "help": "The chat message to send. Supports template variables (e.g. {'{'}user.name{'}'})."
+      },
+      "sender": {
+        "help": "Who this message is posted as. Bot (default) uses whichever identity the channel is already configured with. Broadcaster always sends as the streamer, even when a separate bot account is connected. Use it for content only the streamer can post, like a subscriber-only emote the bot account is not subscribed to."
+      }
+    },
+    "send_reply": {
+      "description": "Reply to the triggering chat message",
+      "message": {
+        "help": "The reply text, threaded under the triggering message. Supports template variables (e.g. {'{'}user.name{'}'})."
+      }
+    },
+    "send_webhook": {
+      "description": "Send an outbound webhook request",
+      "endpoint": {
+        "help": "The webhook endpoint to deliver this event to."
+      },
+      "event_type": {
+        "help": "The event type string the endpoint's subscription matches. Sent verbatim, not resolved as a template, even if it contains {'{'}{'{'} {'}'}{'}'}."
+      }
+    },
+    "set_counter": {
+      "description": "Set a named counter to a fixed value",
+      "key": {
+        "help": "The counter's name. Creates a new counter if it doesn't exist yet."
+      },
+      "value": {
+        "help": "The exact value to set the counter to, replacing whatever it held before."
+      }
+    },
+    "set_pronoun": {
+      "description": "Set a viewer's pronouns",
+      "pronoun": {
+        "help": "The pronoun set to assign to the viewer."
+      },
+      "username": {
+        "help": "The viewer whose pronouns are being set."
+      }
+    },
+    "set_variable": {
+      "description": "Set a pipeline variable",
+      "name": {
+        "help": "The variable's name, used by later steps as {'{'}name{'}'}."
+      },
+      "value": {
+        "help": "The value stored in the variable. Supports template variables (e.g. {'{'}user.name{'}'})."
+      }
+    },
+    "set_viewer_data": {
+      "description": "Set a stored value on a viewer's profile",
+      "key": {
+        "help": "The name of the per-viewer data field to set."
+      },
+      "target": {
+        "help": "Which viewer's data is set. Blank targets the user who triggered this pipeline."
+      },
+      "value": {
+        "help": "The value stored for this viewer. Supports template variables (e.g. {'{'}user.name{'}'})."
+      }
+    },
+    "shoutout": {
+      "cooldown_minutes": {
+        "help": "Minutes before this same viewer can be shouted out again. Leave blank for no per-viewer cooldown."
+      },
+      "description": "Give another channel a shoutout",
+      "global_cooldown_minutes": {
+        "help": "Minutes before any shoutout can run again, regardless of viewer. Leave blank for no channel-wide cooldown."
+      },
+      "priority": {
+        "help": "Waits in the queue with raid priority, ahead of manual shoutouts, instead of being skipped while the global cooldown runs. Use it for a milestone such as a modiversary."
+      },
+      "template": {
+        "help": "The chat message the shoutout posts. Supports template variables (e.g. {'{'}user.name{'}'}). Leave blank for the default shoutout message."
+      },
+      "tts": {
+        "help": "Also reads the shoutout out loud through text-to-speech. On a raid it speaks unless this is turned off."
+      },
+      "user_id": {
+        "help": "The viewer to shout out."
+      }
+    },
+    "song_ban": {
+      "description": "Block the currently playing track from requests and skip it",
+      "reason": {
+        "help": "The reason the track is blocked, shown in the block list. Leave blank for no reason recorded."
+      }
+    },
+    "song_current": {
+      "description": "Show the currently playing track"
+    },
+    "song_pause": {
+      "description": "Pause music playback"
+    },
+    "song_previous": {
+      "description": "Jump back to the previous track"
+    },
+    "song_queue": {
+      "description": "Show the current song request queue",
+      "max": {
+        "help": "How many upcoming tracks to list. Defaults to 5."
+      }
+    },
+    "song_request": {
+      "description": "Request a song to be queued",
+      "query": {
+        "help": "The song search text or link the viewer requested."
+      }
+    },
+    "song_request_favorite": {
+      "description": "Queue a viewer’s most-requested song",
+      "user_id": {
+        "help": "Whose request history to read. Leave empty for the viewer who triggered this."
+      }
+    },
+    "song_resume": {
+      "description": "Resume music playback"
+    },
+    "song_skip": {
+      "description": "Skip the currently playing track"
+    },
+    "song_volume": {
+      "description": "Show or change the music volume",
+      "volume": {
+        "help": "The playback volume to set, from 0 (silent) to 100 (full volume)."
+      }
+    },
+    "song_wrong": {
+      "description": "Remove the requester's most recent queued song"
+    },
+    "start_live_game": {
+      "description": "Start a live interactive game for viewers",
+      "game_type": {
+        "help": "Which live game to start."
+      }
+    },
+    "start_raid": {
+      "delay_seconds": {
+        "help": "How many seconds to wait before starting the raid. Leave blank to raid immediately."
+      },
+      "description": "Start a raid to another channel",
+      "raid_window_seconds": {
+        "help": "How many seconds Twitch takes to auto-fire the raid after this step runs. Twitch doesn't publish this number, so if a countdown timed against it lands early or late, adjust it here. No code change is needed. Leave blank for the default."
+      },
+      "target": {
+        "help": "The channel to raid."
+      }
+    },
+    "stop": {
+      "description": "Stop the pipeline immediately"
+    },
+    "stop_sound": {
+      "all": {
+        "help": "Stops every currently playing sound clip instead of just one handle."
+      },
+      "description": "Stop currently playing sound clips",
+      "handle": {
+        "help": "The handle of the specific play_sound step to stop. Leave blank together with All off to stop the most recent clip."
+      }
+    },
+    "submit_media": {
+      "description": "Submit a media item for the media-share queue",
+      "url": {
+        "help": "The media URL submitted for review. Supports template variables (e.g. {'{'}args.1{'}'})."
+      }
+    },
+    "timeout": {
+      "description": "Time out a viewer in chat",
+      "duration": {
+        "help": "How long the timeout lasts, in seconds."
+      },
+      "reason": {
+        "help": "Shown to the viewer and logged in the moderation history."
+      },
+      "user_id": {
+        "help": "The viewer to time out. Blank targets the user who triggered this pipeline."
+      }
+    },
+    "tts_synthesize": {
+      "description": "Synthesize text-to-speech audio without playing it",
+      "pitch": {
+        "help": "Voice pitch as a percentage, from -50 (lower) to 50 (higher). Leave blank for the normal pitch."
+      },
+      "rate": {
+        "help": "Speaking speed as a percentage, from -50 (slower) to 50 (faster). Leave blank for normal speed."
+      },
+      "text": {
+        "help": "The text to synthesize into speech, without playing it yet. Supports template variables (e.g. {'{'}user.name{'}'}). Exposes {'{'}tts.audioUrl{'}'} / {'{'}tts.durationMs{'}'} to later steps."
+      },
+      "voice": {
+        "help": "The TTS voice to use. Leave blank to use the channel's default voice."
+      }
+    },
+    "unpermit": {
+      "description": "Revoke a viewer's active permit",
+      "role_or_capability": {
+        "help": "The role or capability being revoked from the target. Leave blank to revoke every permit the target holds."
+      },
+      "target_variable": {
+        "help": "The variable holding the viewer to revoke the permit from. Blank targets the user who triggered this pipeline."
+      }
+    },
+    "vts_color_tint": {
+      "a": {
+        "help": "The tint's alpha (opacity) channel, 0-255. Leave blank for fully opaque."
+      },
+      "art_mesh_tag": {
+        "help": "Limits the tint to art meshes matching this tag. Leave blank to tint the whole model."
+      },
+      "b": {
+        "help": "The tint's blue channel, 0-255."
+      },
+      "description": "Apply a color tint to the VTube Studio model",
+      "g": {
+        "help": "The tint's green channel, 0-255."
+      },
+      "r": {
+        "help": "The tint's red channel, 0-255."
+      }
+    },
+    "vts_load_model": {
+      "description": "Load a VTube Studio model",
+      "model": {
+        "help": "The VTube Studio model id to load."
+      }
+    },
+    "vts_move_model": {
+      "description": "Move, rotate, or resize the VTube Studio model",
+      "relative": {
+        "help": "Applies x/y/rotation/size as offsets from the model's current pose instead of absolute values."
+      },
+      "rotation": {
+        "help": "The model's rotation in degrees. Leave blank to leave rotation unchanged."
+      },
+      "size": {
+        "help": "The model's scale. Leave blank to leave the size unchanged."
+      },
+      "time_seconds": {
+        "help": "How long the move animates over, in seconds. Defaults to a short animation."
+      },
+      "x": {
+        "help": "The model's horizontal position. Leave blank to leave the x position unchanged."
+      },
+      "y": {
+        "help": "The model's vertical position. Leave blank to leave the y position unchanged."
+      }
+    },
+    "vts_request": {
+      "description": "Send a raw VTube Studio API request",
+      "payload_json": {
+        "help": "The JSON payload for the raw VTube Studio API request. Leave blank for requests that need no data."
+      },
+      "request_type": {
+        "help": "The raw VTube Studio API request type to send. Use it for advanced control not covered by a dedicated VTS action."
+      }
+    },
+    "vts_set_expression": {
+      "active": {
+        "help": "Whether the expression ends up active or inactive. Defaults to activating it."
+      },
+      "description": "Activate or deactivate a VTube Studio expression",
+      "expression": {
+        "help": "The expression file to activate or deactivate on the model."
+      }
+    },
+    "vts_trigger_hotkey": {
+      "description": "Trigger a VTube Studio hotkey",
+      "hotkey": {
+        "help": "The VTube Studio hotkey to trigger, by its id or name."
+      }
+    },
+    "wait": {
+      "description": "Pause the pipeline for a duration",
+      "milliseconds": {
+        "help": "How many milliseconds to wait, added to Seconds. Supports template variables. Capped at 30 seconds total per step."
+      },
+      "seconds": {
+        "help": "How many seconds to wait, added to Milliseconds. Supports template variables. Capped at 30 seconds total per step."
+      }
+    },
+    "wait_for_event": {
+      "description": "Pause the pipeline until a named event happens, or a timeout is reached",
+      "event_name": {
+        "help": "The name of the event this step waits for. A matching event resumes the pipeline; any other event is ignored."
+      },
+      "timeout_seconds": {
+        "help": "How long to wait before giving up, in seconds (default 300, max 86400). On timeout the pipeline continues with event.timed_out set to true."
+      }
+    },
+    "wait_until_raid_fires": {
+      "description": "Wait for whatever time remains until a prior Start raid step actually fires, correcting for any delay from the steps in between"
+    },
+    "widget_event": {
+      "data": {
+        "help": "Extra JSON data sent along with the event, for the widget to read. Leave blank for events that need no data."
+      },
+      "description": "Push an event to a widget overlay",
+      "event_type": {
+        "help": "The event name the widget listens for."
+      },
+      "widget_id": {
+        "help": "The overlay widget to send this event to."
+      }
+    }
+  },
+  "template": {
+    "helper": {
+      "ad_automatic": "Whether the ad break was automatic (\"true\") or requester-triggered (\"false\")",
+      "ad_duration": "The ad break length (e.g. \"3 minutes\")",
+      "ad_seconds": "The length of the coming ad break in seconds (e.g. \"90\")",
+      "ad_when": "When the next ad starts (e.g. \"in ~3 minutes\")",
+      "also_said": "\"They also said: ...\" followed by the resub message, pre-formatted with a lead-in and quotes; empty when the resubscriber didn't write one",
+      "anonymous": "Whether the sender chose to stay anonymous (\"true\"/\"false\")",
+      "args": "Command argument N (e.g. {'{'}args.1{'}'} is the first word after the command)",
+      "args_all": "Everything typed after the command, as one text",
+      "bits": "How many bits were cheered",
+      "botname": "The bot display name",
+      "broadcaster": "The broadcaster display name (stream.online/.offline and the Discord go-live seed alias)",
+      "channel": "The channel login name",
+      "channel_display": "The channel display name",
+      "channel_game": "The stream current game/category (Discord seed alias)",
+      "channel_id": "The channel platform ID",
+      "channel_name": "The channel display name (Discord seed alias)",
+      "channel_title": "The stream current title (Discord seed alias)",
+      "cost": "The channel-points reward's cost",
+      "count": "A named counter current value (e.g. {'{'}count.deaths{'}'})",
+      "custom_data": "A field from an ingested custom data source (e.g. {'{'}custom.mysource.field{'}'})",
+      "date": "Today date",
+      "engagement_days_since_last_seen": "Days since this viewer was last seen chatting",
+      "engagement_months": "How many months this moderator has moderated the channel",
+      "engagement_streak": "The viewer's current watch-streak count",
+      "engagement_years": "The same anniversary in years, rounded for reading aloud",
+      "event_count": "How many were gifted (gift subscriptions)",
+      "event_duration": "\"permanent\" for a ban, a length like \"10 minutes\" for a timeout, or the finished stream's length",
+      "followed_at": "When the follow happened",
+      "game": "The stream game/category (stream.online and the Discord seed alias)",
+      "gendered_term": "A gendered term matching the person pronouns (e.g. guy/gal)",
+      "gifter": "Who gifted the sub to this viewer (\"Anonymous\" when the gifter stayed anonymous)",
+      "gifter_id": "The gifter's platform user id; empty when the gifter stayed anonymous",
+      "input": "The viewer's text input on the redemption, if any",
+      "link": "A profile link - the {'@'}mention target if present, otherwise the triggering user",
+      "list_pick": "A random entry from a named pick-list (e.g. {'{'}list.pick.jokes{'}'})",
+      "message": "The message attached to the event (a resub or cheer message)",
+      "moderator": "The moderator's display name (falls back to their ID)",
+      "months": "Cumulative months subscribed",
+      "music_favorite_artist": "The artist of the viewer’s most-requested track",
+      "music_favorite_count": "How many times the viewer has requested that track",
+      "music_favorite_outcome": "What happened: queued, none, or unavailable",
+      "music_favorite_track": "The name of the viewer’s most-requested track",
+      "name": "The name shown - the {'@'}mention target if present, otherwise the triggering user",
+      "object": "The object-case pronoun (e.g. them)",
+      "obs_event_field": "A field from the OBS event's own payload (e.g. {'{'}obs.event.sceneName{'}'})",
+      "playlist_id": "The id of the playlist the track was added to",
+      "poll_results": "Every choice with its votes and share, separated by {'|'}",
+      "poll_status": "How the poll ended (completed, terminated or archived)",
+      "poll_title": "The poll question",
+      "poll_winner": "The winning choice",
+      "poll_winner_percentage": "The winning share as text, like (68%), or nothing when no one voted",
+      "poll_winner_votes": "The number of votes the winning choice got",
+      "possessive": "The possessive pronoun (e.g. their)",
+      "present_tense": "The present-tense to-be form (e.g. is/are)",
+      "provider": "The platform that delivered the event (e.g. twitch or kick)",
+      "random_number": "A random whole number from 1 up to N (e.g. {'{'}random.number.100{'}'})",
+      "random_number_range": "A random whole number between a minimum and a maximum, with an optional step (e.g. {'{'}random.number.50.990.10{'}'})",
+      "random_pick": "A random pick from a dot-separated list (e.g. {'{'}random.pick.a.b.c{'}'})",
+      "random_user": "A random chatter currently in the channel",
+      "raw_message": "The raw triggering chat message (Discord pipeline seed alias)",
+      "reason": "The moderation action's reason, if one was given",
+      "redemption_id": "The redemption's unique ID",
+      "reward": "The channel-points reward's title",
+      "reward_id": "The channel-points reward's Twitch ID",
+      "roll": "A named random roll, drawn once per message: name, minimum, maximum and an optional step (e.g. {'{'}roll.pct.60.98{'}'})",
+      "roll_complement": "100 minus a named roll, for two percentages that add up to 100 (e.g. {'{'}roll.pct.complement{'}'})",
+      "roll_read": "The value of a named roll again, so one roll can show in many places (e.g. {'{'}roll.pct{'}'})",
+      "status": "The stream live status (live or offline)",
+      "streak": "Consecutive months subscribed",
+      "stream_game": "The stream current game/category",
+      "stream_is_live": "Whether the stream is currently live",
+      "stream_started_at": "The timestamp the stream went live",
+      "stream_title": "The stream current title",
+      "stream_uptime": "How long the stream has been live",
+      "stream_viewers": "The current viewer count",
+      "streamer": "The channel owner display name",
+      "subject": "The subject-case pronoun (e.g. they)",
+      "supporter_amount": "The supporter amount, in major currency units (e.g. \"12.34\")",
+      "supporter_currency": "The supporter amount's currency code",
+      "supporter_kind": "The kind of supporter event (tip, membership, merch, charity)",
+      "supporter_message": "The message the supporter attached, if any",
+      "supporter_name": "The supporter's display name",
+      "supporter_quantity": "How many of the item the supporter gave, if applicable",
+      "supporter_tier": "The supporter's membership tier, if any",
+      "target": "The {'@'}mention target login name",
+      "target_avgperday": "The {'@'}mention target average chat messages per day since first seen",
+      "target_botpercent": "The {'@'}mention target share of chat messages that were commands, as a whole percent",
+      "target_commands": "The {'@'}mention target total commands used",
+      "target_data": "A per-viewer data field for the {'@'}mention target (e.g. {'{'}target.data.key{'}'})",
+      "target_days": "The {'@'}mention target whole days since first seen (at least 1 once seen)",
+      "target_displayname": "The {'@'}mention target's stored display name, or the typed text when the user is unknown",
+      "target_firstseen": "When the {'@'}mention target was first seen in chat",
+      "target_follow_age": "How long the {'@'}mention target has followed the channel",
+      "target_gendered_term": "A gendered term for the {'@'}mention target",
+      "target_id": "The {'@'}mention target platform ID",
+      "target_known": "Whether the {'@'}mention target matches a user the bot knows (true or false)",
+      "target_lastmessage": "The {'@'}mention target most recent chat message",
+      "target_lastmessage_full": "The {'@'}mention target most recent chat message, never cut short",
+      "target_link": "A profile link for the {'@'}mention target",
+      "target_messages": "The {'@'}mention target total chat message count",
+      "target_name": "The {'@'}mention target login name",
+      "target_object": "The object-case pronoun for the {'@'}mention target",
+      "target_possessive": "The possessive pronoun for the {'@'}mention target",
+      "target_present_tense": "The present-tense to-be form for the {'@'}mention target",
+      "target_randommessage": "A random older chat message of the {'@'}mention target, fit to quote",
+      "target_redemptions": "The {'@'}mention target total channel point redemption count",
+      "target_songrequests": "The {'@'}mention target total song request count",
+      "target_subject": "The subject-case pronoun for the {'@'}mention target",
+      "target_tense": "The live/offline-aware tense for the {'@'}mention target",
+      "target_verb": "A singular/plural verb agreeing with the {'@'}mention target (e.g. {'{'}target.verb:plays{'|'}play{'}'})",
+      "target_watchtime": "The {'@'}mention target total watch time",
+      "tense": "The live/offline-aware tense (is/was)",
+      "tier": "The subscription tier (e.g. \"Tier 1\")",
+      "time": "The current local time",
+      "time_utc": "The current UTC time",
+      "title": "The stream title (stream.online and the Discord seed alias)",
+      "track_name": "The name of the track that was added",
+      "transform": "Applies a text transform (upper/lower/title/reverse/etc.) to the wrapped text",
+      "tts_audioconnected": "Whether an Audio widget page is open for the channel, so TTS can be heard (true or false)",
+      "user": "The triggering user login name",
+      "user_account_age": "How long ago the triggering user account was created",
+      "user_follow_age": "How long the triggering user has followed the channel",
+      "user_gendered_term": "A gendered term for the triggering user",
+      "user_id": "The triggering user platform ID",
+      "user_lastmessage": "The triggering user most recent chat message",
+      "user_link": "A profile link for the triggering user",
+      "user_message_count": "The triggering user total chat message count",
+      "user_name": "The triggering user display name",
+      "user_object": "The object-case pronoun for the triggering user",
+      "user_possessive": "The possessive pronoun for the triggering user",
+      "user_present_tense": "The present-tense to-be form for the triggering user",
+      "user_pronouns": "The triggering user recorded pronouns",
+      "user_provider": "The platform the triggering user connected from (e.g. twitch)",
+      "user_subject": "The subject-case pronoun for the triggering user",
+      "user_tense": "The live/offline-aware tense for the triggering user",
+      "user_verb": "A singular/plural verb agreeing with the triggering user (e.g. {'{'}user.verb:plays{'|'}play{'}'})",
+      "verb": "A singular/plural verb agreeing with the mirrored subject (e.g. {'{'}verb:plays{'|'}play{'}'})",
+      "viewer_avgperday": "The triggering user average chat messages per day since first seen",
+      "viewer_botpercent": "The triggering user share of chat messages that were commands, as a whole percent",
+      "viewer_commands": "The triggering user total commands used",
+      "viewer_data": "A per-viewer data field for the triggering user (e.g. {'{'}viewer.data.key{'}'})",
+      "viewer_days": "The triggering user whole days since first seen (at least 1 once seen)",
+      "viewer_firstseen": "When the triggering user was first seen in chat",
+      "viewer_messages": "The triggering user total chat message count",
+      "viewer_name": "The viewer's display name (engagement triggers)",
+      "viewer_redemptions": "The triggering user total channel point redemption count",
+      "viewer_songrequests": "The triggering user total song request count",
+      "viewer_watchtime": "The triggering user total watch time",
+      "viewers": "The viewer count carried over by a raid",
+      "vts_event_field": "A field from the VTube Studio event's own payload (e.g. {'{'}vts.event.modelName{'}'})"
+    }
+  },
+  "widget": {
+    "alerts": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "durationMs": {
+        "label": "On-screen time (ms)"
+      },
+      "events": {
+        "label": "Alert types"
+      },
+      "minAmount": {
+        "label": "Minimum supporter amount"
+      },
+      "minBits": {
+        "label": "Minimum bits"
+      },
+      "minGiftCount": {
+        "label": "Minimum gift count"
+      },
+      "stickerDurationMs": {
+        "label": "Sticker on-screen time (ms)"
+      },
+      "textTemplate": {
+        "help": "Optional override; blank uses the built-in copy.",
+        "label": "Text template"
+      }
+    },
+    "audio": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "enableAudio": {
+        "label": "Play audio on this page"
+      },
+      "showIndicator": {
+        "label": "Show a speaking dot (setup only)"
+      }
+    },
+    "chat_box": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "background": {
+        "help": "Blank uses the theme background.",
+        "label": "Background"
+      },
+      "backgroundOpacity": {
+        "label": "Background opacity"
+      },
+      "fadeAfterMs": {
+        "label": "Fade after (ms, 0 = never)"
+      },
+      "fontFamily": {
+        "help": "Blank uses the overlay default.",
+        "label": "Font family"
+      },
+      "fontSize": {
+        "label": "Font size"
+      },
+      "hideBots": {
+        "label": "Hide bot messages"
+      },
+      "hideCommands": {
+        "label": "Hide command messages"
+      },
+      "maxMessages": {
+        "label": "Max messages"
+      },
+      "showBadges": {
+        "label": "Show badges"
+      },
+      "showEmotes": {
+        "label": "Show emotes"
+      },
+      "showSevenTvPaints": {
+        "label": "Show 7TV name colors"
+      },
+      "showTimestamps": {
+        "label": "Show timestamps"
+      },
+      "theme": {
+        "label": "Theme",
+        "option": {
+          "dark": "Dark",
+          "light": "Light",
+          "transparent": "Transparent"
+        }
+      }
+    },
+    "countdown_timer": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "durationMs": {
+        "label": "Duration (ms)"
+      },
+      "label": {
+        "label": "Label"
+      },
+      "onCompleteText": {
+        "label": "On-complete text"
+      },
+      "target": {
+        "help": "ISO date-time to count down to; blank uses the duration.",
+        "label": "Target time"
+      }
+    },
+    "crash": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "hideAfterMs": {
+        "label": "Hide after (ms)"
+      }
+    },
+    "custom_data": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "field": {
+        "help": "The field within the source, e.g. bpm.",
+        "label": "Field"
+      },
+      "label": {
+        "label": "Label"
+      },
+      "max": {
+        "label": "Gauge maximum"
+      },
+      "min": {
+        "label": "Gauge minimum"
+      },
+      "render": {
+        "label": "Render as",
+        "option": {
+          "gauge": "Gauge",
+          "number": "Number",
+          "text": "Text"
+        }
+      },
+      "source": {
+        "help": "The custom data source key, e.g. heartrate.",
+        "label": "Source"
+      }
+    },
+    "drop_game": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "hideAfterMs": {
+        "label": "Hide after (ms)"
+      }
+    },
+    "emote_wall": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "animation": {
+        "label": "Animation",
+        "option": {
+          "float": "Float up",
+          "rain": "Rain down"
+        }
+      },
+      "density": {
+        "label": "Density"
+      },
+      "providers": {
+        "label": "Emote providers"
+      },
+      "size": {
+        "label": "Emote size (px)"
+      }
+    },
+    "event_ticker": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "count": {
+        "label": "Items kept"
+      },
+      "events": {
+        "label": "Event types"
+      },
+      "speed": {
+        "label": "Scroll speed"
+      }
+    },
+    "gallery": {
+      "alerts": {
+        "description": "A one-at-a-time queue of animated alert cards for follows, subs, resubs, gift subs, cheers, raids, and supporter events, with per-type amount thresholds and a custom text template.",
+        "name": "Alerts"
+      },
+      "audio": {
+        "description": "Every sound and TTS line plays here: sound clips, redemption sounds and spoken messages all come out of this one browser source. Add it once, size it 1x1, and leave it. Keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup.",
+        "name": "Audio"
+      },
+      "chat_box": {
+        "description": "Live chat rendered from the decorated message feed, with resolved emotes, badges, name colors, and pronouns, plus theming, font/size/background controls, timestamps, command/bot filtering, and optional per-message fade.",
+        "name": "Chat Box"
+      },
+      "countdown_timer": {
+        "description": "A countdown to a wall-clock target or for a fixed duration (BRB / starting soon) with a label and completion text. The dashboard controls it live through its widget settings.",
+        "name": "Countdown / Timer"
+      },
+      "crash": {
+        "description": "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type !crash to lock in their multiplier, and the bust/max reveal + payout board.",
+        "name": "Crash"
+      },
+      "custom_data": {
+        "description": "The live value of a custom data source rendered as a number, gauge, or text. A heart-rate gauge is this widget bound to heartrate.bpm. It re-binds live when the source changes.",
+        "name": "Custom Data"
+      },
+      "drop_game": {
+        "description": "The live drop-game round on a horizontal track: the target zone, every chatter’s landing marker as they type !drop, and the payout scoreboard when the round resolves.",
+        "name": "Drop Game"
+      },
+      "emote_wall": {
+        "description": "Emotes from chat float or rain across the screen. They are harvested from the decorated message feed’s emote and cheermote fragments, with density, size, and provider filters.",
+        "name": "Emote Wall"
+      },
+      "event_ticker": {
+        "description": "A horizontal scrolling ticker of recent channel events as compact chips, newest appended and the oldest retired past a retained count, at a configurable speed.",
+        "name": "Event Ticker"
+      },
+      "goal_bar": {
+        "description": "An animated progress bar toward a follower, sub, or bits goal. Reads the authoritative total from goal events and live-increments on matching follows, subs, gifts, and cheers.",
+        "name": "Goal Bar"
+      },
+      "heist": {
+        "description": "The live heist round: the crew roster and rising escape odds as chatters type !heist, and each member’s getaway outcome + payout when the job resolves.",
+        "name": "Heist"
+      },
+      "labels": {
+        "description": "A single live stat rendered as styled text (latest follower, latest sub, top cheerer, follower count, or sub count) with an optional format string.",
+        "name": "Labels"
+      },
+      "lucky_feather": {
+        "description": "Shows who holds the Lucky Feather and announces every steal.",
+        "name": "Lucky Feather"
+      },
+      "now_playing": {
+        "description": "A standing display of the current track, in a pill or card layout, with optional album art and an animated progress sweep. It hides itself while nothing plays. Adapts to whichever provider is playing: for Spotify it also becomes a real Spotify Connect device and streams audio through this OBS source (Premium + the streaming scope required, Integrations page); for YouTube it can optionally render the actual video instead of the compact card.",
+        "name": "Now Playing"
+      },
+      "poll_prediction": {
+        "description": "Live poll and prediction bars with choices, vote percentages, lock state, and the winning outcome highlighted on resolve. Shown only while a round runs.",
+        "name": "Poll / Prediction"
+      },
+      "raffle": {
+        "description": "The live raffle round: the entrant roster and climbing pot as chatters type !raffle, and the winner reveal + payout board when one entrant takes the whole pot.",
+        "name": "Raffle"
+      },
+      "recent_followers": {
+        "description": "A persistent standings panel of the most recent followers, newest on top. It is an always-on list rather than a one-at-a-time alert, with a configurable count and title.",
+        "name": "Recent Followers"
+      },
+      "redemption_alert": {
+        "description": "A channel-point redemption popup. It shows one card at a time with the redeemer, reward, cost, and their input, and it is filterable per reward and templatable.",
+        "name": "Redemption Alert"
+      },
+      "socials": {
+        "description": "A config-only rotating handles bar. The streamer’s social accounts cross-faded through at a configurable interval. No event feed; the handles come from the widget settings.",
+        "name": "Socials"
+      },
+      "sr_queue": {
+        "description": "The upcoming song-request queue as a compact list with position, title, and optional requester and duration. It is fed by sr_queue snapshot events and hidden while the queue is empty.",
+        "name": "SR Queue"
+      },
+      "sub_train": {
+        "description": "A hype counter that spikes on rapid subs and gift subs and cools down on its own. It shows the count of subs still inside a rolling window (a gift of N counts as N) and is hidden when the train stops.",
+        "name": "Sub Train"
+      },
+      "top_cheerers": {
+        "description": "A ranked board of the session’s biggest cheerers by bits. It is the full leaderboard the labels widget only hints at with its single top cheerer, with a configurable depth and title.",
+        "name": "Top Cheerers"
+      },
+      "tts_caption": {
+        "description": "A speaking indicator with a live caption for TTS playback, with animated voice bars, the speaker’s name, an optional voice label, and top or bottom placement. Hidden while nothing speaks.",
+        "name": "TTS Caption"
+      }
+    },
+    "goal_bar": {
+      "colors": {
+        "help": "Optional color overrides as a JSON object.",
+        "label": "Colors"
+      },
+      "labels": {
+        "help": "Optional label overrides (e.g. a custom title) as a JSON object.",
+        "label": "Labels"
+      },
+      "metric": {
+        "label": "Metric",
+        "option": {
+          "bits": "Bits",
+          "followers": "Followers",
+          "subs": "Subscribers"
+        }
+      },
+      "resetCadence": {
+        "help": "Shown beside the bar, e.g. \"this month\".",
+        "label": "Reset cadence label"
+      },
+      "start": {
+        "label": "Starting value"
+      },
+      "startDate": {
+        "help": "A bits goal counts the cheers stored for this channel from this date (for example 2026-10-01). Leave it empty and the bar shows no bits total.",
+        "label": "Goal start date"
+      },
+      "target": {
+        "label": "Target"
+      }
+    },
+    "group": {
+      "appearance": "Appearance",
+      "behaviour": "Behavior",
+      "content": "Content",
+      "data": "Data"
+    },
+    "heist": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "hideAfterMs": {
+        "label": "Hide after (ms)"
+      }
+    },
+    "labels": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "formatString": {
+        "help": "Optional; use {'{'}value{'}'} as the placeholder.",
+        "label": "Format string"
+      },
+      "label": {
+        "label": "Stat",
+        "option": {
+          "follower_count": "Follower count",
+          "latest_follower": "Latest follower",
+          "latest_sub": "Latest subscriber",
+          "sub_count": "Subscriber count",
+          "top_cheerer": "Top cheerer"
+        }
+      }
+    },
+    "lucky_feather": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "bannerDurationMs": {
+        "label": "Banner time (ms)"
+      },
+      "idleText": {
+        "label": "Text while nobody holds it"
+      },
+      "stolenTemplate": {
+        "help": "Use {'{'}thief{'}'} and {'{'}victim{'}'}. Blank uses the built-in text.",
+        "label": "Steal banner text"
+      }
+    },
+    "now_playing": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "layout": {
+        "label": "Layout",
+        "option": {
+          "card": "Card",
+          "pill": "Pill"
+        }
+      },
+      "provider": {
+        "help": "Blank shows any; e.g. spotify.",
+        "label": "Provider filter"
+      },
+      "showArt": {
+        "label": "Show album art"
+      },
+      "showProgressBar": {
+        "label": "Show progress bar"
+      }
+    },
+    "option": {
+      "events": {
+        "cheer": "Cheer",
+        "follow": "Follow",
+        "gift": "Gift sub",
+        "raid": "Raid",
+        "resub": "Resub",
+        "subscription": "Subscription",
+        "supporter": {
+          "charity": "Charity",
+          "membership": "Membership",
+          "merch": "Merch",
+          "tip": "Tip"
+        },
+        "voice_trigger": "Voice trigger"
+      },
+      "providers": {
+        "7tv": "7TV",
+        "bttv": "BetterTTV",
+        "ffz": "FrankerFaceZ",
+        "twitch": "Twitch"
+      }
+    },
+    "poll_prediction": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "colors": {
+        "help": "Optional per-outcome color overrides as a JSON object.",
+        "label": "Colors"
+      },
+      "position": {
+        "label": "Position",
+        "option": {
+          "left": "Left",
+          "right": "Right"
+        }
+      }
+    },
+    "raffle": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "hideAfterMs": {
+        "label": "Hide after (ms)"
+      }
+    },
+    "recent_followers": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "count": {
+        "label": "Followers shown"
+      },
+      "title": {
+        "label": "Title"
+      }
+    },
+    "redemption_alert": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "durationMs": {
+        "label": "On-screen time (ms)"
+      },
+      "rewards": {
+        "help": "Optional list of reward ids to show (JSON array); blank shows all.",
+        "label": "Reward filter"
+      },
+      "soundClipId": {
+        "help": "Plays this clip from your Sound Clips library every time the alert fires. Enter the clip's id or name. Leave blank and the alert stays silent.",
+        "label": "Alert sound"
+      },
+      "textTemplate": {
+        "help": "Optional override for the popup copy.",
+        "label": "Text template"
+      }
+    },
+    "socials": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "handles": {
+        "help": "The social accounts to rotate, as a JSON array of {'{'} label, handle {'}'} objects, for example [{'{'}\"label\":\"Twitter\",\"handle\":\"{'@'}you\"{'}'}]. An entry with a blank handle is dropped.",
+        "label": "Handles"
+      },
+      "rotateMs": {
+        "label": "Rotate interval (ms)"
+      }
+    },
+    "sr_queue": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "count": {
+        "label": "Items shown"
+      },
+      "showDuration": {
+        "label": "Show duration"
+      },
+      "showRequester": {
+        "label": "Show requester"
+      }
+    },
+    "sub_train": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "windowMs": {
+        "label": "Window (ms)"
+      }
+    },
+    "top_cheerers": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "count": {
+        "label": "Cheerers shown"
+      },
+      "range": {
+        "label": "Cheers counted",
+        "option": {
+          "sinceReset": "Since the last reset",
+          "stream": "This stream"
+        }
+      },
+      "resetAt": {
+        "help": "The board counts the cheers stored for this channel from this date and time (for example 2026-10-01). Used by \"Since the last reset\". Leave it empty to count all time.",
+        "label": "Last reset"
+      },
+      "title": {
+        "label": "Title"
+      }
+    },
+    "tts_caption": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "position": {
+        "label": "Position",
+        "option": {
+          "bottom": "Bottom",
+          "top": "Top"
+        }
+      },
+      "showText": {
+        "label": "Show caption text"
+      },
+      "voiceLabel": {
+        "label": "Show voice label"
+      }
+    }
+  },
+  "pipelineBlock": {
+    "add_if": "If / Else",
+    "add_loop": "Loop",
+    "add_random": "Random",
+    "add_switch": "Switch",
+    "add_try": "Try / Catch",
+    "ban": "Ban",
+    "cancel_live_game": "Cancel live game",
+    "case_add": "Add case",
+    "case_add_title": "Add case",
+    "case_default_label": "Default (catch-all)",
+    "case_edit_title": "Edit case",
+    "case_match_label": "Match value",
+    "case_operator_label": "Operator",
+    "case_weight_label": "Weight",
+    "check_balance": "Check balance",
+    "deduct_currency": "Deduct currency",
+    "delete_message": "Delete message",
+    "grant_currency": "Grant currency",
+    "if_title": "Add If / Else block",
+    "jar_contribute": "Contribute to jar",
+    "lane_catch": "Catch",
+    "lane_else": "Else",
+    "lane_empty": "No steps yet.",
+    "lane_then": "Then",
+    "lane_try": "Try",
+    "loop_condition_label": "Condition",
+    "loop_count_label": "Repeat count",
+    "loop_edit_condition": "Edit condition",
+    "loop_edit_title": "Edit Loop",
+    "loop_lane_label": "Loop body",
+    "loop_list_var_label": "List variable",
+    "loop_max_iterations_label": "Max iterations (optional)",
+    "loop_max_runtime_label": "Max runtime seconds (optional)",
+    "loop_mode_foreach": "For each item",
+    "loop_mode_label": "Loop mode",
+    "loop_mode_repeat": "Repeat count",
+    "loop_mode_while": "While condition",
+    "loop_title": "Add Loop block",
+    "operator_contains": "contains",
+    "operator_eq": "equals",
+    "operator_gt": "greater than",
+    "operator_gte": "greater or equal",
+    "operator_lt": "less than",
+    "operator_lte": "less or equal",
+    "operator_ne": "not equals",
+    "pick_from_list": "Pick from list",
+    "play_game": "Play game",
+    "play_sound": "Play sound",
+    "play_tts": "Read aloud (TTS)",
+    "playlist_add": "Add to playlist",
+    "post_quote": "Post quote",
+    "random": "Random chance",
+    "require_tier": "Require tier",
+    "run_code": "Run script",
+    "run_pipeline": "Run pipeline",
+    "send_discord_notification": "Discord notification",
+    "send_message": "Send message",
+    "send_reply": "Send reply",
+    "send_webhook": "Send webhook",
+    "set_variable": "Set variable",
+    "shoutout": "Shoutout",
+    "song_ban": "Ban song",
+    "song_current": "Now playing",
+    "song_pause": "Pause song",
+    "song_previous": "Previous song",
+    "song_queue": "Song queue",
+    "song_request": "Request song",
+    "song_resume": "Resume song",
+    "song_skip": "Skip song",
+    "song_volume": "Set song volume",
+    "song_wrong": "Wrong song (remove own)",
+    "start_live_game": "Start live game",
+    "stop": "Stop",
+    "stop_sound": "Stop sound",
+    "switch_edit_title": "Edit Switch value",
+    "switch_title": "Add Switch block",
+    "switch_value_label": "Switch value",
+    "timeout": "Time out",
+    "try_summary": "Try / Catch",
+    "user_role": "User role",
+    "var_compare": "Compare values",
+    "wait": "Wait"
+  }
+}

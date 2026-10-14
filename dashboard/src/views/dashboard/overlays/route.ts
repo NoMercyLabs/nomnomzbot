@@ -10,8 +10,9 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
-import { loadPage } from '@/i18n';
+import { loadPage, schemaWords } from '@/i18n';
 
+// The widget settings name their fields with the bot's schema labels.
 export const dashboardOverlaysRoute = {
   path: 'overlays',
   name: 'dashboard-overlays',
@@ -19,5 +20,6 @@ export const dashboardOverlaysRoute = {
     loadPage(
       () => import('./OverlaysView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
+      schemaWords,
     ),
 } as const satisfies RouteRecordRaw;
