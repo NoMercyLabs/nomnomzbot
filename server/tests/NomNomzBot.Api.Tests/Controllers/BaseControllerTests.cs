@@ -141,6 +141,19 @@ public class BaseControllerTests
         result!.StatusCode.Should().Be(401);
     }
 
+    // A refresh cookie that was already spent signs the person out; it is not a server fault.
+    [Fact]
+    public void ResultResponseT_TokenReuse_Returns401()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(
+                Result.Failure<string>("Refresh token reuse detected.", "TOKEN_REUSE")
+            ) as ObjectResult;
+
+        result!.StatusCode.Should().Be(401);
+    }
+
     [Fact]
     public void ResultResponseT_NotFound_Returns404()
     {
