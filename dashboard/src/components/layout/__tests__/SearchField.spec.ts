@@ -42,6 +42,19 @@ function press(key: string, target: EventTarget = document.body): KeyboardEvent 
 }
 
 describe('the search field', () => {
+  // Stoney 2026-10-14, the 4th time: "expand like the others". A list search fills its row on every page;
+  // only a page that puts it inline sets its own width.
+  it('fills the width of its row unless the page sets one', () => {
+    field();
+    expect(mounted!.element.classList).toContain('w-full');
+    mounted!.unmount();
+
+    mounted = mount(SearchField, { props: { placeholder: 'Search chat', class: 'w-64' } });
+
+    expect([...mounted.element.classList].filter((name) =>
+      name.startsWith('w-'))).toEqual(['w-64']);
+  });
+
   it('focuses on the key "/" and keeps the slash out of the box', () => {
     const input = field();
 

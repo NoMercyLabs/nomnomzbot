@@ -11,13 +11,15 @@
 // The search box of a list. The key "/" focuses it from anywhere on the page, unless
 // the person is already typing in a field.
 import { useEventListener } from '@vueuse/core';
-import { useTemplateRef } from 'vue';
+import { useTemplateRef, type HTMLAttributes } from 'vue';
 import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Kbd } from '@/components/ui/kbd';
+import { cn } from '@/lib/utils';
 
-defineProps<{ placeholder: string }>();
+// A list search fills its row; only a page that puts it inline (a header bar) passes its own width.
+const props = defineProps<{ placeholder: string; class?: HTMLAttributes['class'] }>();
 
 const query = defineModel<string>({ default: '' });
 const input = useTemplateRef<{ $el: HTMLInputElement }>('input');
@@ -45,7 +47,7 @@ useEventListener(document, 'keydown', (event: KeyboardEvent): void => {
 </script>
 
 <template>
-  <InputGroup data-slot="search-field" class="w-56">
+  <InputGroup data-slot="search-field" :class="cn('w-full', props.class)">
     <InputGroupAddon>
       <SearchMagnifyingGlass />
     </InputGroupAddon>

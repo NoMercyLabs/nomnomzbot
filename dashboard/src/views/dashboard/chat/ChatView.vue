@@ -213,7 +213,7 @@ async function confirmBan(): Promise<void> {
     </template>
     <template #bar>
       <div data-chat-controls class="ml-auto flex items-center gap-2">
-        <SearchField v-model="search" :placeholder="$t('dashboard.chat.search.placeholder')" />
+        <SearchField v-model="search" class="w-64" :placeholder="$t('dashboard.chat.search.placeholder')" />
         <Button
           data-display-toggle
           variant="outline"
