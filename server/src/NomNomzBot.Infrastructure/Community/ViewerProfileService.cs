@@ -22,6 +22,7 @@ using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 
 namespace NomNomzBot.Infrastructure.Community;
@@ -124,7 +125,12 @@ public sealed class ViewerProfileService(
                 identity,
                 historySummary,
                 trust,
-                activityResult.IsSuccess ? activityResult.Value : null,
+                activityResult.IsSuccess
+                    ? activityResult.Value with
+                    {
+                        TotalBitsCheered = await SumCheeredBitsAsync(broadcasterId, user, ct),
+                    }
+                    : null,
                 streakResult.IsSuccess ? streakResult.Value : null,
                 economy,
                 viewerPermits,
@@ -151,7 +157,9 @@ public sealed class ViewerProfileService(
                 i.ProviderUsername,
                 i.ProviderDisplayName,
                 i.ProviderAvatarUrl,
-                i.IsPrimary
+                i.IsPrimary,
+                i.LinkedAt,
+                i.LastLoginAt
             ))
             .ToListAsync(ct);
 
@@ -178,9 +186,53 @@ public sealed class ViewerProfileService(
             standing?.SubTier,
             membership?.ManagementRole.ToString(),
             membership?.GrantedAt,
-            await ResolveFirstSeenAsync(broadcasterId, user, ct)
+            await ResolveFirstSeenAsync(broadcasterId, user, ct),
+            user.AccountCreatedAt,
+            user.Description,
+            user.BroadcasterType,
+            user.Type,
+            await ResolveChatColorAsync(broadcasterId, user, ct),
+            user.NickName,
+            user.Timezone,
+            user.IsLurking,
+            user.PronounManualOverride
         );
     }
+
+    // The person's own color wins; without one, the color the bot assigned them in THIS channel.
+    private async Task<string?> ResolveChatColorAsync(
+        Guid broadcasterId,
+        User user,
+        CancellationToken ct
+    )
+    {
+        if (user.Color is not null || user.TwitchUserId is null)
+            return user.Color;
+
+        return await db
+            .ChatterAssignedColors.Where(c =>
+                c.BroadcasterId == broadcasterId
+                && c.Provider == AuthEnums.Platform.Twitch
+                && c.UserId == user.TwitchUserId
+            )
+            .Select(c => c.ColorHex)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    private async Task<long> SumCheeredBitsAsync(
+        Guid broadcasterId,
+        User user,
+        CancellationToken ct
+    ) =>
+        user.TwitchUserId is null
+            ? 0
+            : await db
+                .ChatMessages.Where(m =>
+                    m.BroadcasterId == broadcasterId
+                    && m.Provider == AuthEnums.Platform.Twitch
+                    && m.UserId == user.TwitchUserId
+                )
+                .SumAsync(m => (long)(m.BitsAmount ?? 0), ct);
 
     // User.CreatedAt is when the bot first stored the person (often an import), a cross-channel date. It
     // is only the answer when this channel holds no fact of its own.
@@ -202,22 +254,22 @@ public sealed class ViewerProfileService(
         {
             firstChat = await db
                 .ChatMessages.Where(m =>
-                    m.BroadcasterId == broadcasterId && m.UserId == user.TwitchUserId
+                    m.BroadcasterId == broadcasterId
+                    && m.Provider == AuthEnums.Platform.Twitch
+                    && m.UserId == user.TwitchUserId
                 )
                 .OrderBy(m => m.CreatedAt)
                 .Select(m => (DateTime?)m.CreatedAt)
                 .FirstOrDefaultAsync(ct);
         }
 
-        if (analyticsFirst is null && firstChat is null)
-            return user.CreatedAt;
-
         if (analyticsFirst is null)
-            return firstChat!.Value;
+            return firstChat ?? user.CreatedAt;
 
-        return firstChat is null || analyticsFirst < firstChat
-            ? analyticsFirst.Value
-            : firstChat.Value;
+        if (firstChat is null)
+            return analyticsFirst.Value;
+
+        return analyticsFirst < firstChat ? analyticsFirst.Value : firstChat.Value;
     }
 
     private async Task<ViewerEconomyDto> BuildEconomyAsync(

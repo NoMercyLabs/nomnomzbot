@@ -9,13 +9,13 @@
 -->
 <script setup lang="ts">
 // The four "what you get" blocks: copy on one side, a small sample on the other, alternating.
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
-import DemoRows from './DemoRows.vue'
-import PlatformTabs from './PlatformTabs.vue'
+import DemoRows from './DemoRows.vue';
+import PlatformTabs from './PlatformTabs.vue';
 
-const blocks: string[] = ['chat', 'moderation', 'alerts', 'platforms']
-const { t } = useI18n()
+const blocks: string[] = ['chat', 'moderation', 'alerts', 'platforms'];
+const { t } = useI18n();
 </script>
 
 <template>

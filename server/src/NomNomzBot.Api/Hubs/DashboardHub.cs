@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -125,12 +126,15 @@ public class DashboardHub : Hub<IDashboardClient>
         if (userId == null)
             return new(false, "Not authenticated", null);
 
+        if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
+            return new(false, "Access denied", null);
+
+        // Every push targets the dashed-Guid group name, whichever form the client joined with.
+        broadcasterId = tenantId.ToString();
         if (!await _access.CanResolveTenantAsync(userId, broadcasterId))
             return new(false, "Access denied", null);
 
-        ChannelContext? ctx = Guid.TryParse(broadcasterId, out Guid tenantId)
-            ? _registry.Get(tenantId)
-            : null;
+        ChannelContext? ctx = _registry.Get(tenantId);
         eventClasses = await GrantedClassesAsync(userId, tenantId, eventClasses);
 
         ConcurrentDictionary<string, IReadOnlyList<string>> channels = _connectionChannels.GetOrAdd(
@@ -213,6 +217,10 @@ public class DashboardHub : Hub<IDashboardClient>
 
     public async Task LeaveChannel(string broadcasterId)
     {
+        if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
+            return;
+
+        broadcasterId = tenantId.ToString();
         IReadOnlyList<string> joinedClasses = DashboardEventClasses.All;
         if (
             _connectionChannels.TryGetValue(
@@ -228,8 +236,7 @@ public class DashboardHub : Hub<IDashboardClient>
         }
 
         await RemoveFromChannelGroupsAsync(broadcasterId, joinedClasses);
-        if (Guid.TryParse(broadcasterId, out Guid tenantId))
-            _registry.ReleaseMusicDemand(tenantId, Context.ConnectionId);
+        _registry.ReleaseMusicDemand(tenantId, Context.ConnectionId);
     }
 
     private async Task RemoveFromChannelGroupsAsync(
@@ -257,8 +264,10 @@ public class DashboardHub : Hub<IDashboardClient>
         if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
             return new(false, "Message too long or empty", null);
 
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+        if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
             return new(false, "Invalid channel", null);
+
+        broadcasterId = tenantId.ToString();
 
         // Hubs cannot carry [RequireAction], so this enforces the SAME two gates the REST send path
         // (ChatController POST messages) gets from the middleware + attribute: Gate 1 entry

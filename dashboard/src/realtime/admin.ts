@@ -15,39 +15,39 @@ import {
   type AdminTenant,
   type AdminTenantDetail,
   type AdminTenantsPage,
-} from '@/api/admin'
+} from '@/api/admin';
 
-import type { HubEventContext, HubEventHandler } from './hubEvent'
-import type { AdminChannelRegistryPayload, AdminSystemStatusPayload } from './payloads'
+import type { HubEventContext, HubEventHandler } from './hubEvent';
+import type { AdminChannelRegistryPayload, AdminSystemStatusPayload } from './payloads';
 
 // What a registry push says about one row. Absent fields stay as they are.
 function patchOf(update: AdminChannelRegistryPayload): Partial<AdminTenant> {
-  const patch: Partial<AdminTenant> = {}
+  const patch: Partial<AdminTenant> = {};
 
   if (update.isLive !== undefined) {
-    patch.isLive = update.isLive
+    patch.isLive = update.isLive;
   }
 
   if (update.status !== undefined) {
-    patch.status = update.status
+    patch.status = update.status;
   }
 
-  return patch
+  return patch;
 }
 
 function applyRegistryUpdate(
   { queries }: HubEventContext,
   update: AdminChannelRegistryPayload,
 ): void {
-  const patch = patchOf(update)
-  let found = false
+  const patch = patchOf(update);
+  let found = false;
 
   for (const [key, page] of queries.getQueriesData<AdminTenantsPage>({
     queryKey: adminTenantsPrefix,
   })) {
-    if (!page?.data?.some((row: AdminTenant) => row.id === update.broadcasterId)) continue
+    if (!page?.data?.some((row: AdminTenant) => row.id === update.broadcasterId)) continue;
 
-    found = true
+    found = true;
 
     queries.setQueryData<AdminTenantsPage>(key, {
       ...page,
@@ -56,7 +56,7 @@ function applyRegistryUpdate(
           ? { ...row, ...patch }
           : row,
       ),
-    })
+    });
   }
 
   if (update.status !== undefined) {
@@ -66,12 +66,12 @@ function applyRegistryUpdate(
         detail
           ? { ...detail, status: update.status! }
           : detail,
-    )
+    );
   }
 
   // A channel that is on no cached page cannot be patched, and it may belong on one: refetch the lists.
   if (!found) {
-    void queries.invalidateQueries({ queryKey: adminTenantsPrefix })
+    void queries.invalidateQueries({ queryKey: adminTenantsPrefix });
   }
 }
 
@@ -83,11 +83,11 @@ export const adminHandlers: [
   {
     event: 'ReceiveSystemStatus',
     handle: ({ queries }, snapshot) => {
-      queries.setQueryData<AdminSystemStatusPayload>(adminSystemStatusKey, snapshot)
+      queries.setQueryData<AdminSystemStatusPayload>(adminSystemStatusKey, snapshot);
     },
   },
   {
     event: 'ReceiveChannelRegistryUpdate',
     handle: applyRegistryUpdate,
   },
-]
+];

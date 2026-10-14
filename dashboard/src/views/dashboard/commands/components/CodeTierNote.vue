@@ -9,9 +9,9 @@
 -->
 <script setup lang="ts">
 // A code command has no field to edit here: no endpoint links a script to a command yet.
-import { useCodeScripts } from '@/api/codeScripts'
+import { useCodeScripts } from '@/api/codeScripts';
 
-const scripts = useCodeScripts()
+const scripts = useCodeScripts();
 </script>
 
 <template>

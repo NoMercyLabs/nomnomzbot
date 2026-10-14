@@ -140,8 +140,198 @@ public sealed class ChatEmoteCatalogueTests
     private static ChatEmoteCatalogue Build(
         ICacheService cache,
         ITwitchChatAssetsApi assets,
-        ITwitchIdentityResolver identity
-    ) => new(cache, assets, identity, NullLogger<ChatEmoteCatalogue>.Instance);
+        ITwitchIdentityResolver identity,
+        ITwitchUsersApi? users = null
+    )
+    {
+        if (users is null)
+        {
+            users = Substitute.For<ITwitchUsersApi>();
+            users
+                .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+                .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
+        }
+
+        ChatEmoteOwnerDirectory owners = new(
+            cache,
+            users,
+            NullLogger<ChatEmoteOwnerDirectory>.Instance
+        );
+        return new(cache, assets, identity, owners, NullLogger<ChatEmoteCatalogue>.Instance);
+    }
+
+    private static TwitchUser User(string id, string login, string displayName) =>
+        new(
+            id,
+            login,
+            displayName,
+            "",
+            "affiliate",
+            "",
+            $"https://img/{login}.png",
+            "",
+            0,
+            DateTimeOffset.UnixEpoch
+        );
+
+    // One batched Get Users answer for every owner the origin tests name.
+    private static ITwitchUsersApi UsersApi()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    User(TwitchId, "viewedchan", "ViewedChan"),
+                    User(OperatorTwitchId, "stoney_eagle", "Stoney_Eagle"),
+                    User("999", "thirdchan", "ThirdChan"),
+                ])
+            );
+        return users;
+    }
+
+    private static ITwitchChatAssetsApi OriginAssets(string channelOwner)
+    {
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([Global("Kappa")]));
+        assets
+            .GetChannelEmotesAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([Channel("chanSub", "42")]));
+        assets
+            .GetChannelEmotesByTwitchIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+        assets
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [
+                            UserEmoteOwned("myOwn", "7", channelOwner, "subscriptions"),
+                            UserEmoteOwned("thirdSub", "8", "999", "subscriptions"),
+                            UserEmoteOwned("twitchGlobal", "9", "twitch", "globals"),
+                        ],
+                        NextCursor: null,
+                        Total: 3
+                    )
+                )
+            );
+        return assets;
+    }
+
+    [Fact]
+    public async Task Viewing_another_channel_tags_channel_own_other_and_global_with_owner_names()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, TwitchId),
+            [SevenTv("catJAM")]
+        );
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Global(EmoteProvider.SevenTv),
+            [SevenTv("peepoHappy")]
+        );
+        ITwitchUsersApi users = UsersApi();
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(
+                cache,
+                OriginAssets(OperatorTwitchId),
+                Identity(),
+                users
+            )
+            .GetForChannelAsync(Broadcaster, Operator);
+
+        IReadOnlyList<ChatEmote> emotes = result.Value;
+
+        // The viewed channel's own Twitch emote: "channel", named after that channel, provider id kept.
+        ChatEmote sub = emotes.Single(e => e.Code == "chanSub");
+        sub.Origin.Should().Be(ChatEmoteOrigin.Channel);
+        sub.Id.Should().Be("chanSub-id");
+        sub.OwnerChannel!.Id.Should().Be(TwitchId);
+        sub.OwnerChannel.Login.Should().Be("viewedchan");
+        sub.OwnerChannel.DisplayName.Should().Be("ViewedChan");
+        sub.OwnerChannel.AvatarUrl.Should().Be("https://img/viewedchan.png");
+
+        // A 7TV channel set belongs to the viewed channel too; the uploader stays untouched.
+        ChatEmote seventv = emotes.Single(e => e.Code == "catJAM");
+        seventv.Origin.Should().Be(ChatEmoteOrigin.Channel);
+        seventv.OwnerChannel!.DisplayName.Should().Be("ViewedChan");
+        seventv.OwnerChannel.AvatarUrl.Should().Be("https://img/viewedchan.png");
+
+        // The operator's own emote is "own"; a third channel's sub emote is "other" with that owner's name.
+        ChatEmote mine = emotes.Single(e => e.Code == "myOwn");
+        mine.Origin.Should().Be(ChatEmoteOrigin.Own);
+        mine.OwnerChannel!.DisplayName.Should().Be("Stoney_Eagle");
+        mine.OwnerChannel.AvatarUrl.Should().Be("https://img/stoney_eagle.png");
+        ChatEmote other = emotes.Single(e => e.Code == "thirdSub");
+        other.Origin.Should().Be(ChatEmoteOrigin.Other);
+        other.OwnerChannel!.Login.Should().Be("thirdchan");
+
+        // Globals carry no owner channel.
+        foreach (string code in new[] { "Kappa", "peepoHappy", "twitchGlobal" })
+        {
+            ChatEmote global = emotes.Single(e => e.Code == code);
+            global.Origin.Should().Be(ChatEmoteOrigin.Global);
+            global.OwnerChannel.Should().BeNull();
+        }
+
+        // Every owner is named in ONE batched Get Users call, never one per emote.
+        await users
+            .Received(1)
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Viewing_your_own_channel_tags_your_twitch_emotes_own()
+    {
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity
+            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(OperatorTwitchId);
+        identity
+            .GetTwitchUserIdAsync(Operator, Arg.Any<CancellationToken>())
+            .Returns(OperatorTwitchId);
+        ITwitchChatAssetsApi assets = OriginAssets(OperatorTwitchId);
+        assets
+            .GetChannelEmotesAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([Channel("ownSub", "42")]));
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(
+                new FakeCache(),
+                assets,
+                identity,
+                UsersApi()
+            )
+            .GetForChannelAsync(Broadcaster, Operator);
+
+        foreach (string code in new[] { "ownSub", "myOwn" })
+        {
+            ChatEmote emote = result.Value.Single(e => e.Code == code);
+            emote.Origin.Should().Be(ChatEmoteOrigin.Own);
+            emote.OwnerChannel!.DisplayName.Should().Be("Stoney_Eagle");
+        }
+    }
+
+    [Fact]
+    public async Task The_bot_catalogue_never_has_own_emotes()
+    {
+        Result<IReadOnlyList<ChatEmote>> result = await Build(
+                new FakeCache(),
+                OriginAssets(OperatorTwitchId),
+                Identity(),
+                UsersApi()
+            )
+            .GetForChannelAsync(Broadcaster, Operator, ChatEmoteSender.Bot);
+
+        result.Value.Should().NotContain(e => e.Origin == ChatEmoteOrigin.Own);
+        result.Value.Should().OnlyContain(e => e.Origin == ChatEmoteOrigin.Global);
+    }
 
     [Fact]
     public async Task Assembles_all_sources_deduped_channel_over_global_and_twitch_over_third_party()

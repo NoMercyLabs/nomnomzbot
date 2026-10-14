@@ -7,7 +7,11 @@
 
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { useBackCloses } from '@/composables/useBackCloses';
+
+useBackCloses();
+</script>
 
 <template>
   <RouterView />

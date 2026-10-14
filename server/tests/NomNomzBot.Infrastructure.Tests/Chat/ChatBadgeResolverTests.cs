@@ -9,10 +9,17 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Infrastructure.Chat;
+using NomNomzBot.Infrastructure.Chat.Jobs;
+using NSubstitute;
+using NSubstitute.Core;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
 
@@ -42,6 +49,112 @@ public sealed class ChatBadgeResolverTests
             ]
         );
 
+    private static ChatBadgeResolver Resolver(
+        ICacheService cache,
+        ITwitchChatAssetsApi? assets = null
+    )
+    {
+        ITwitchChatAssetsApi api = assets ?? FailingAssets();
+        ITwitchHelixClient helix = Substitute.For<ITwitchHelixClient>();
+        helix.ChatAssets.Returns(api);
+        ServiceCollection services = new();
+        services.AddSingleton(helix);
+        services.AddSingleton(cache);
+        services.AddSingleton<ILogger<ChatBadgeCacheWarmer>>(
+            NullLogger<ChatBadgeCacheWarmer>.Instance
+        );
+        services.AddScoped<ChatBadgeCacheWarmer>();
+        ServiceProvider provider = services.BuildServiceProvider();
+        return new(cache, provider.GetRequiredService<IServiceScopeFactory>());
+    }
+
+    private static ITwitchChatAssetsApi FailingAssets()
+    {
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetChannelChatBadgesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(
+                    Result.Failure<IReadOnlyList<TwitchChatBadgeSet>>("helix down", "TWITCH_ERROR")
+                )
+            );
+        return assets;
+    }
+
+    [Fact]
+    public async Task An_unwarmed_channel_resolves_its_own_badge_not_the_global_one()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
+            ChatBadgeCacheKeys.Global,
+            [Set("subscriber", "0", "https://badge/global-sub")]
+        );
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetChannelChatBadgesAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(
+                    Result.Success<IReadOnlyList<TwitchChatBadgeSet>>([
+                        Set("subscriber", "0", "https://badge/channel-sub"),
+                    ])
+                )
+            );
+
+        IReadOnlyList<ResolvedChatBadge> resolved = await Resolver(cache, assets)
+            .ResolveAsync(Broadcaster, [new("subscriber", "0")]);
+
+        IReadOnlyDictionary<string, string> urls = resolved.Should().ContainSingle().Subject.Urls;
+        urls["1"].Should().Be("https://badge/channel-sub/1");
+        urls["4"].Should().Be("https://badge/channel-sub/4");
+    }
+
+    [Fact]
+    public async Task A_failed_channel_warm_is_not_repeated_per_message_and_global_still_resolves()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
+            ChatBadgeCacheKeys.Global,
+            [Set("subscriber", "0", "https://badge/global-sub")]
+        );
+        ITwitchChatAssetsApi assets = FailingAssets();
+        ChatBadgeResolver resolver = Resolver(cache, assets);
+
+        IReadOnlyList<ResolvedChatBadge> first = await resolver.ResolveAsync(
+            Broadcaster,
+            [new("subscriber", "0")]
+        );
+        await resolver.ResolveAsync(Broadcaster, [new("subscriber", "0")]);
+        await resolver.ResolveAsync(Broadcaster, [new("subscriber", "0")]);
+
+        first.Should().ContainSingle().Which.Urls["1"].Should().Be("https://badge/global-sub/1");
+        IEnumerable<ICall> helixCalls = assets
+            .ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(assets.GetChannelChatBadgesAsync));
+        helixCalls.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task A_warmed_channel_is_not_fetched_again()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
+            ChatBadgeCacheKeys.Channel(Broadcaster),
+            [Set("subscriber", "0", "https://badge/channel-sub")]
+        );
+        ITwitchChatAssetsApi assets = FailingAssets();
+
+        IReadOnlyList<ResolvedChatBadge> resolved = await Resolver(cache, assets)
+            .ResolveAsync(Broadcaster, [new("subscriber", "0")]);
+
+        resolved
+            .Should()
+            .ContainSingle()
+            .Which.Urls["1"]
+            .Should()
+            .Be("https://badge/channel-sub/1");
+        assets.ReceivedCalls().Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Resolves_badge_urls_from_the_global_set()
     {
@@ -51,10 +164,8 @@ public sealed class ChatBadgeResolverTests
             [Set("moderator", "1", "https://badge/mod")]
         );
 
-        IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
-            Broadcaster,
-            [new("moderator", "1")]
-        );
+        IReadOnlyList<ResolvedChatBadge> resolved = await Resolver(cache)
+            .ResolveAsync(Broadcaster, [new("moderator", "1")]);
 
         ResolvedChatBadge badge = resolved.Should().ContainSingle().Subject;
         badge.SetId.Should().Be("moderator");
@@ -76,10 +187,8 @@ public sealed class ChatBadgeResolverTests
             [Set("subscriber", "0", "https://badge/channel-sub")]
         );
 
-        IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
-            Broadcaster,
-            [new("subscriber", "0")]
-        );
+        IReadOnlyList<ResolvedChatBadge> resolved = await Resolver(cache)
+            .ResolveAsync(Broadcaster, [new("subscriber", "0")]);
 
         resolved
             .Should()
@@ -92,9 +201,8 @@ public sealed class ChatBadgeResolverTests
     [Fact]
     public async Task An_unwarmed_badge_resolves_to_empty_urls_but_is_still_emitted()
     {
-        IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(
-            new FakeCache()
-        ).ResolveAsync(Broadcaster, [new("vip", "1", "info")]);
+        IReadOnlyList<ResolvedChatBadge> resolved = await Resolver(new FakeCache())
+            .ResolveAsync(Broadcaster, [new("vip", "1", "info")]);
 
         ResolvedChatBadge badge = resolved.Should().ContainSingle().Subject;
         badge.SetId.Should().Be("vip");
@@ -114,10 +222,8 @@ public sealed class ChatBadgeResolverTests
             [new("moderator", [new("1", null!, null!, null!, "Title", "Desc", "", "")])]
         );
 
-        IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
-            Broadcaster,
-            [new("moderator", "1")]
-        );
+        IReadOnlyList<ResolvedChatBadge> resolved = await Resolver(cache)
+            .ResolveAsync(Broadcaster, [new("moderator", "1")]);
 
         ResolvedChatBadge badge = resolved.Should().ContainSingle().Subject;
         badge.Urls.Should().BeEmpty();
@@ -133,10 +239,8 @@ public sealed class ChatBadgeResolverTests
             [new("subscriber", [new("0", "https://badge/sub/1", null!, "", "T", "D", "", "")])]
         );
 
-        IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
-            Broadcaster,
-            [new("subscriber", "0")]
-        );
+        IReadOnlyList<ResolvedChatBadge> resolved = await Resolver(cache)
+            .ResolveAsync(Broadcaster, [new("subscriber", "0")]);
 
         IReadOnlyDictionary<string, string> urls = resolved.Should().ContainSingle().Subject.Urls;
         urls.Should().ContainKey("1").WhoseValue.Should().Be("https://badge/sub/1");

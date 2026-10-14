@@ -10,21 +10,21 @@
 <script setup lang="ts">
 // The one tab row of a page (C2). The open tab is the route query ?view= (usePageView);
 // the page reads the same composable to choose what to show under the header.
-import { computed } from 'vue'
+import { computed } from 'vue';
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { usePageView } from '@/composables/usePageView'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { usePageView } from '@/composables/usePageView';
 
 export interface PageTab {
-  value: string
-  label: string
-  count?: number
+  value: string;
+  label: string;
+  count?: number;
 }
 
-const props = defineProps<{ tabs: readonly PageTab[] }>()
+const props = defineProps<{ tabs: readonly PageTab[] }>();
 
-const values = computed<string[]>(() => props.tabs.map((tab: PageTab) => tab.value))
-const view = usePageView(values)
+const values = computed<string[]>(() => props.tabs.map((tab: PageTab) => tab.value));
+const view = usePageView(values);
 </script>
 
 <template>

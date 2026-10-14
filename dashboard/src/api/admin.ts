@@ -16,32 +16,32 @@ import {
   type QueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
-} from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+} from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import { client } from './client'
-import type { components } from './schema'
+import { client } from './client';
+import type { components } from './schema';
 
-export type AdminTenant = components['schemas']['AdminTenantDto']
-export type AdminTenantDetail = components['schemas']['AdminTenantDetailDto']
-export type AdminTenantsPage = components['schemas']['PaginatedResponseOfAdminTenantDto']
-export type AdminAccessGrant = components['schemas']['TenantAccessGrantDto']
-export type AdminImpersonationToken = components['schemas']['ImpersonationTokenDto']
+export type AdminTenant = components['schemas']['AdminTenantDto'];
+export type AdminTenantDetail = components['schemas']['AdminTenantDetailDto'];
+export type AdminTenantsPage = components['schemas']['PaginatedResponseOfAdminTenantDto'];
+export type AdminAccessGrant = components['schemas']['TenantAccessGrantDto'];
+export type AdminImpersonationToken = components['schemas']['ImpersonationTokenDto'];
 
 export type AdminTenantsParams = {
-  search?: string
-  status?: string
-  isLive?: boolean
-  page: number
-  take: number
-}
+  search?: string;
+  status?: string;
+  isLive?: boolean;
+  page: number;
+  take: number;
+};
 
-const version = '1'
+const version = '1';
 
-export const adminSystemStatusKey: unknown[] = ['admin', 'system-status']
+export const adminSystemStatusKey: unknown[] = ['admin', 'system-status'];
 
 // Every cached list page starts with this prefix, whatever its filters.
-export const adminTenantsPrefix: unknown[] = ['admin', 'tenants']
+export const adminTenantsPrefix: unknown[] = ['admin', 'tenants'];
 
 export const adminTenantsKey = ({
   search,
@@ -49,9 +49,18 @@ export const adminTenantsKey = ({
   isLive,
   page,
   take,
-}: AdminTenantsParams): unknown[] => [...adminTenantsPrefix, { search, status, isLive, page, take }]
+}: AdminTenantsParams): unknown[] => [
+  ...adminTenantsPrefix,
+  {
+    search,
+    status,
+    isLive,
+    page,
+    take,
+  },
+];
 
-export const adminTenantKey = (id: string | null): unknown[] => ['admin', 'tenant', id]
+export const adminTenantKey = (id: string | null): unknown[] => ['admin', 'tenant', id];
 
 // An empty filter is left out of the request, not sent as an empty string.
 function listQuery({
@@ -61,21 +70,21 @@ function listQuery({
   page,
   take,
 }: AdminTenantsParams): Record<string, string | boolean | number> {
-  const query: Record<string, string | boolean | number> = { Page: page, Take: take }
+  const query: Record<string, string | boolean | number> = { Page: page, Take: take };
 
   if (search) {
-    query.search = search
+    query.search = search;
   }
 
   if (status) {
-    query.status = status
+    query.status = status;
   }
 
   if (isLive !== undefined) {
-    query.isLive = isLive
+    query.isLive = isLive;
   }
 
-  return query
+  return query;
 }
 
 export function useAdminTenants(
@@ -86,16 +95,16 @@ export function useAdminTenants(
     queryFn: async (): Promise<AdminTenantsPage> => {
       const { data, error, response } = await client.GET('/api/v{version}/admin/tenants', {
         params: { path: { version }, query: listQuery(toValue(params)) },
-      })
+      });
 
       // A refusal is an error state, not an empty registry.
       if (error !== undefined)
-        throw new Error(`admin tenants ${response.status}`)
+        throw new Error(`admin tenants ${response.status}`);
 
-      return data ?? {}
+      return data ?? {};
     },
     placeholderData: keepPreviousData,
-  })
+  });
 }
 
 export function useAdminTenant(
@@ -109,15 +118,15 @@ export function useAdminTenant(
         {
           params: { path: { version, broadcasterId: toValue(id)! } },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw new Error(`admin tenant ${response.status}`)
+        throw new Error(`admin tenant ${response.status}`);
 
-      return data?.data ?? null
+      return data?.data ?? null;
     },
     enabled: computed(() => toValue(id) !== null),
-  })
+  });
 }
 
 // A changed tenant changes its detail and the position of its row in every list page.
@@ -125,37 +134,37 @@ function refreshTenant(queries: QueryClient, broadcasterId: string): Promise<unk
   return Promise.all([
     queries.invalidateQueries({ queryKey: adminTenantKey(broadcasterId) }),
     queries.invalidateQueries({ queryKey: adminTenantsPrefix }),
-  ])
+  ]);
 }
 
 export type SuspendInput = {
-  broadcasterId: string
-  newStatus: string
-  reason: string
-}
+  broadcasterId: string;
+  newStatus: string;
+  reason: string;
+};
 
 export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInput, unknown> {
-  const queries = useQueryClient()
+  const queries = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ broadcasterId, newStatus, reason }: SuspendInput): Promise<void> => {
       const { error } = await client.POST('/api/v{version}/admin/tenants/{broadcasterId}/suspend', {
         params: { path: { version, broadcasterId } },
         body: { newStatus, reason },
-      })
+      });
 
       if (error !== undefined)
-        throw new Error('suspend failed')
+        throw new Error('suspend failed');
     },
     onSuccess: (_data: void, { broadcasterId }: SuspendInput) =>
       refreshTenant(queries, broadcasterId),
-  })
+  });
 }
 
-export type ReinstateInput = { broadcasterId: string; justification: string }
+export type ReinstateInput = { broadcasterId: string; justification: string };
 
 export function useAdminReinstate(): UseMutationReturnType<void, Error, ReinstateInput, unknown> {
-  const queries = useQueryClient()
+  const queries = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ broadcasterId, justification }: ReinstateInput): Promise<void> => {
@@ -165,22 +174,22 @@ export function useAdminReinstate(): UseMutationReturnType<void, Error, Reinstat
           params: { path: { version, broadcasterId } },
           body: { justification },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw new Error('reinstate failed')
+        throw new Error('reinstate failed');
     },
     onSuccess: (_data: void, { broadcasterId }: ReinstateInput) =>
       refreshTenant(queries, broadcasterId),
-  })
+  });
 }
 
 export type BeginAccessInput = {
-  broadcasterId: string
-  justification: string
-  breakGlass: boolean
-  expiresAt: string | null
-}
+  broadcasterId: string;
+  justification: string;
+  breakGlass: boolean;
+  expiresAt: string | null;
+};
 
 export function useAdminBeginAccess(): UseMutationReturnType<
   AdminAccessGrant,
@@ -199,23 +208,27 @@ export function useAdminBeginAccess(): UseMutationReturnType<
         '/api/v{version}/admin/tenants/{broadcasterId}/access',
         {
           params: { path: { version, broadcasterId } },
-          body: { justification, breakGlass, expiresAt },
+          body: {
+            justification,
+            breakGlass,
+            expiresAt,
+          },
         },
-      )
+      );
 
       if (error !== undefined || !data?.data)
-        throw new Error('begin access failed')
+        throw new Error('begin access failed');
 
-      return data.data
+      return data.data;
     },
-  })
+  });
 }
 
 export type ImpersonateInput = {
-  userId: string
-  accessGrantId: string
-  justification: string
-}
+  userId: string;
+  accessGrantId: string;
+  justification: string;
+};
 
 export function useAdminImpersonate(): UseMutationReturnType<
   AdminImpersonationToken,
@@ -235,12 +248,12 @@ export function useAdminImpersonate(): UseMutationReturnType<
           params: { path: { version, userId } },
           body: { accessGrantId, justification },
         },
-      )
+      );
 
       if (error !== undefined || !data?.data)
-        throw new Error('impersonate failed')
+        throw new Error('impersonate failed');
 
-      return data.data
+      return data.data;
     },
-  })
+  });
 }

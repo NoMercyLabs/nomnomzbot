@@ -10,26 +10,26 @@
 <script setup lang="ts" generic="T extends string">
 // One choice from 2 to 4 named options. One option is always chosen: pressing the open one again,
 // which would clear it in the library, changes nothing.
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-defineProps<{ label: string; options: readonly { value: T; label: string }[] }>()
+defineProps<{ label: string; options: readonly { value: T; label: string }[] }>();
 
-const chosen = defineModel<T>({ required: true })
+const chosen = defineModel<T>({ required: true });
 
 function choose(next: unknown): void {
   if (typeof next === 'string' && next !== '') {
-    chosen.value = next as T
+    chosen.value = next as T;
   }
 }
 </script>
 
 <template>
-  <!-- The mockup segment (frame.css:158-160): a muted track of radius 8 with 2 px padding,
-       so each item is 8 - 2 = 6; the open item is raised on the background. -->
+  <!-- frame.css [data-segmented]: in the page control bar it wears the page tab track; inside a panel it is
+       the mockup's compact segment, the options sharing the row. No option shrinks below its label. -->
   <ToggleGroup
     type="single"
     :spacing="1"
-    class="gap-0.5 rounded-[8px] bg-muted p-0.5"
+    data-segmented
     :aria-label="label"
     :model-value="chosen"
     @update:model-value="choose"
@@ -38,7 +38,8 @@ function choose(next: unknown): void {
       v-for="option in options"
       :key="option.value"
       :value="option.value"
-      class="h-(--seg-h) min-w-0 rounded-[6px] px-2 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+      data-segment
+      class="shrink-0 text-muted-foreground hover:bg-transparent data-[state=on]:text-foreground"
     >
       {{ option.label }}
     </ToggleGroupItem>

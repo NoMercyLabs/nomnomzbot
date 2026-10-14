@@ -102,8 +102,12 @@ public sealed class ChatDecorationRefreshService : BackgroundService
         }
 
         await InScopeAsync(
-            services => services.GetRequiredService<ChatBadgeCacheWarmer>().WarmGlobalAsync(ct),
-            "global badges",
+            async services =>
+            {
+                await services.GetRequiredService<ChatBadgeCacheWarmer>().WarmGlobalAsync(ct);
+                await services.GetRequiredService<ChatTwitchEmoteCacheWarmer>().WarmGlobalAsync(ct);
+            },
+            "global badges + Twitch emotes",
             ct
         );
     }
@@ -142,13 +146,20 @@ public sealed class ChatDecorationRefreshService : BackgroundService
                 ChatBadgeCacheWarmer badges = services.GetRequiredService<ChatBadgeCacheWarmer>();
                 ChatCheermoteCacheWarmer cheermotes =
                     services.GetRequiredService<ChatCheermoteCacheWarmer>();
+                ChatTwitchEmoteCacheWarmer twitchEmotes =
+                    services.GetRequiredService<ChatTwitchEmoteCacheWarmer>();
                 foreach (ChannelContext channel in active)
                 {
                     await badges.WarmChannelAsync(channel.BroadcasterId, ct);
                     await cheermotes.WarmChannelAsync(channel.BroadcasterId, ct);
+                    await twitchEmotes.WarmChannelAsync(
+                        channel.BroadcasterId,
+                        channel.TwitchChannelId,
+                        ct
+                    );
                 }
             },
-            "active-channel badges + cheermotes",
+            "active-channel badges + cheermotes + Twitch emotes",
             ct
         );
     }

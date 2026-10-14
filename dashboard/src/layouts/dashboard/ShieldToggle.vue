@@ -8,18 +8,18 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import Shield from '~icons/nnz/shield'
-import ShieldCheck from '~icons/nnz/shield-check'
+import { useI18n } from 'vue-i18n';
+import Shield from '~icons/nnz/shield';
+import ShieldCheck from '~icons/nnz/shield-check';
 
-import { useSetShieldMode, useShieldMode } from '@/api/shield'
-import { Toggle } from '@/components/ui/toggle'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { useSetShieldMode, useShieldMode } from '@/api/shield';
+import { Toggle } from '@/components/ui/toggle';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-const { t } = useI18n()
-const { channelId, current } = useCurrentChannel()
-const shield = useShieldMode(channelId)
-const setShield = useSetShieldMode(channelId)
+const { t } = useI18n();
+const { channelId, current } = useCurrentChannel();
+const shield = useShieldMode(channelId);
+const setShield = useSetShieldMode(channelId);
 </script>
 
 <template>

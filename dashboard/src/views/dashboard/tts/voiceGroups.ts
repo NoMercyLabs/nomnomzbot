@@ -8,34 +8,34 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { voiceFamily, voiceFamilyOrder, type TtsVoice } from '@/api/tts'
+import { voiceFamily, voiceFamilyOrder, type TtsVoice } from '@/api/tts';
 
 export type VoiceListItem =
   | {
-    kind: 'heading'
-    key: string
-    label: string
+    kind: 'heading';
+    key: string;
+    label: string;
   } |
   {
-    kind: 'voice'
-    key: string
-    voice: TtsVoice
-  }
+    kind: 'voice';
+    key: string;
+    voice: TtsVoice;
+  };
 
-const FIRST_LOCALE = 'en-US'
+const FIRST_LOCALE = 'en-US';
 
 // "en-US" in words, in the dashboard language: "English (United States)". A code the runtime cannot name stays as it is.
 export function localeLabel(locale: string, language: string): string {
-  const code: string = locale.replace('_', '-')
+  const code: string = locale.replace('_', '-');
 
   try {
     return (
       new Intl.DisplayNames([language], { type: 'language', languageDisplay: 'standard' }).of(
         code,
       ) ?? locale
-    )
+    );
   } catch {
-    return locale
+    return locale;
   }
 }
 
@@ -43,34 +43,38 @@ function localeOrder(a: string, b: string): number {
   if (a === FIRST_LOCALE)
     return b === FIRST_LOCALE
       ? 0
-      : -1
+      : -1;
 
   if (b === FIRST_LOCALE)
-    return 1
+    return 1;
 
-  return a.localeCompare(b)
+  return a.localeCompare(b);
 }
 
 // Voices grouped by locale: language families in the chip order, the United States first, then by locale.
 export function groupVoices(voices: readonly TtsVoice[], language: string): VoiceListItem[] {
-  const byLocale = new Map<string, TtsVoice[]>()
+  const byLocale = new Map<string, TtsVoice[]>();
 
   for (const voice of voices) {
-    byLocale.set(voice.locale, [...(byLocale.get(voice.locale) ?? []), voice])
+    byLocale.set(voice.locale, [...(byLocale.get(voice.locale) ?? []), voice]);
   }
 
   const locales = [...byLocale.keys()].sort(
     (a: string, b: string) =>
       voiceFamilyOrder.indexOf(voiceFamily(a)) - voiceFamilyOrder.indexOf(voiceFamily(b)) ||
       localeOrder(a, b),
-  )
+  );
 
   return locales.flatMap((locale: string): VoiceListItem[] => [
-    { kind: 'heading', key: `group:${locale}`, label: localeLabel(locale, language) },
+    {
+      kind: 'heading',
+      key: `group:${locale}`,
+      label: localeLabel(locale, language),
+    },
     ...(byLocale.get(locale) ?? []).map((voice: TtsVoice): VoiceListItem => ({
       kind: 'voice',
       key: voice.id,
       voice,
     })),
-  ])
+  ]);
 }

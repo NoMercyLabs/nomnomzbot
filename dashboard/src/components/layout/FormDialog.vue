@@ -14,69 +14,78 @@
 // Pressing the primary button, or Enter in a field, emits submit once and leaves the dialog open:
 // the owner closes it (v-model:open) on success, or sets error, so the typed values survive a failure.
 // While pending the primary is disabled and Esc, Cancel and a click outside do not close it.
-import { nextTick, ref, type Ref } from 'vue'
+// The dialog renders in a portal, so it reads the lock from the scope that opened it: locked, the
+// fields are disabled (own ReadOnlyScope) and the primary cannot submit.
+import { nextTick, ref } from 'vue';
 
-import { Button } from '@/components/ui/button'
+import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
+import { useReadOnly } from '@/components/layout/readOnly';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Spinner } from '@/components/ui/spinner'
+} from '@/components/ui/dialog';
+import { Spinner } from '@/components/ui/spinner';
 
 const props = withDefaults(
   defineProps<{
-    open: boolean
-    title: string
-    description?: string
-    action: string
-    pending?: boolean
-    error?: string
+    open: boolean;
+    title: string;
+    description?: string;
+    action: string;
+    pending?: boolean;
+    error?: string;
   }>(),
-  { description: undefined, pending: false, error: undefined },
-)
+  {
+    description: undefined,
+    pending: false,
+    error: undefined,
+  },
+);
 
-const emit = defineEmits<{ 'update:open': [open: boolean]; submit: [] }>()
+const emit = defineEmits<{ 'update:open': [open: boolean]; submit: [] }>();
 
-const body: Ref<HTMLElement | null> = ref(null)
+const body = ref<HTMLElement | null>(null);
+const locked = useReadOnly();
 
 function setOpen(open: boolean): void {
-  if (!open && props.pending) return
+  if (!open && props.pending) return;
 
-  emit('update:open', open)
+  emit('update:open', open);
 }
 
 function submit(): void {
-  if (props.pending) return
+  if (props.pending || locked.value) return;
 
-  emit('submit')
+  emit('submit');
 }
 
 function submitFromField(event: KeyboardEvent): void {
-  const target = event.target
+  const target = event.target;
 
-  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
 
-  event.preventDefault()
-  submit()
+  event.preventDefault();
+  submit();
 }
 
 function keepOpenWhilePending(event: Event): void {
   if (props.pending) {
-    event.preventDefault()
+    event.preventDefault();
   }
 }
 
 function focusFirstField(event: Event): void {
-  event.preventDefault()
+  event.preventDefault();
 
   void nextTick(() => {
     body.value
       ?.querySelector<HTMLElement>('input, select, textarea, [tabindex]:not([tabindex="-1"])')
-      ?.focus()
-  })
+      ?.focus();
+  });
 }
 </script>
 
@@ -102,8 +111,10 @@ function focusFirstField(event: Event): void {
             {{ description }}
           </DialogDescription>
         </div>
-        <div ref="body" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-4">
-          <slot />
+        <div ref="body" class="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
+          <ReadOnlyScope :read-only="false" class="flex flex-col gap-4">
+            <slot />
+          </ReadOnlyScope>
         </div>
         <div
           v-if="error"
@@ -123,7 +134,7 @@ function focusFirstField(event: Event): void {
           >
             {{ $t('common.cancel') }}
           </Button>
-          <Button data-form-action type="submit" :disabled="pending">
+          <Button data-form-action type="submit" :disabled="pending || locked">
             <Spinner v-if="pending" />
             {{ action }}
           </Button>

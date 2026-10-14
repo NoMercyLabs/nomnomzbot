@@ -8,14 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { fileURLToPath, URL } from 'node:url'
+import { fileURLToPath, URL } from 'node:url';
 
-import { defineConfig, type ProxyOptions } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
-import tailwindcss from '@tailwindcss/vite'
-import Icons from 'unplugin-icons/vite'
-import { FileSystemIconLoader } from 'unplugin-icons/loaders'
+import { defineConfig, type ProxyOptions } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import vueDevTools from 'vite-plugin-vue-devtools';
+import tailwindcss from '@tailwindcss/vite';
+import Icons from 'unplugin-icons/vite';
+import { FileSystemIconLoader } from 'unplugin-icons/loaders';
 
 // The designer's icon pack (Line style), imported as `~icons/nnz/<name>`. The files carry a baked stroke
 // color; it becomes currentColor so an icon takes the text color like any other glyph.
@@ -24,23 +24,23 @@ const designerIcons = FileSystemIconLoader('./src/assets/icons/line', (svg: stri
     .replace(/\sstyle="[^"]*"/g, '')
     .replace(/stroke="#11181C"/gi, 'stroke="currentColor"')
     .replace(/fill="#11181C"/gi, 'fill="currentColor"'),
-)
+);
 
 // The bot the dev server talks to. NNZ_API points it at another bot, such as the live box, for real data:
 // every save then changes that bot.
-const api: string = process.env.NNZ_API ?? 'http://localhost:5080'
+const api: string = process.env.NNZ_API ?? 'http://localhost:5080';
 
 // The bot checks a refresh's Origin against the address it sees, and it sees this hop's scheme (http).
 // Behind the https tunnel the browser sends https://, so every refresh was refused and each load asked
 // for sign-in. A same-host origin is passed on with the hop's scheme; any other origin is left as it is.
 const sameHostOrigin: NonNullable<ProxyOptions['configure']> = (proxy) => {
   proxy.on('proxyReq', (proxyReq, req) => {
-    const origin: string | undefined = req.headers.origin
-    const host: string | undefined = req.headers.host
-    if (!origin || !host || !URL.canParse(origin) || new URL(origin).host !== host) return
-    proxyReq.setHeader('origin', `${new URL(api).protocol}//${host}`)
-  })
-}
+    const origin: string | undefined = req.headers.origin;
+    const host: string | undefined = req.headers.host;
+    if (!origin || !host || !URL.canParse(origin) || new URL(origin).host !== host) return;
+    proxyReq.setHeader('origin', `${new URL(api).protocol}//${host}`);
+  });
+};
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -71,4 +71,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-})
+});

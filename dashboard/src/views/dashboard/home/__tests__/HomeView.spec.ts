@@ -8,38 +8,41 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { createPinia, setActivePinia, type Pinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow'
-import { i18n } from '@/i18n'
-import { useSaveErrorsStore } from '@/stores/saveErrors'
+import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
+import { i18n } from '@/i18n';
+import { useSaveErrorsStore } from '@/stores/saveErrors';
 
-import en from '../i18n/en.json'
-import HomeView from '../HomeView.vue'
+import en from '../i18n/en.json';
+import HomeView from '../HomeView.vue';
 
-type Options = { params?: { path?: Record<string, unknown> }; body?: unknown }
+type Options = { params?: { path?: Record<string, unknown> }; body?: unknown };
 type Call = {
-  method: string
-  path: string
-  body: unknown
-}
+  method: string;
+  path: string;
+  body: unknown;
+};
 type Answer = {
-  data?: unknown
-  error?: unknown
-  response: { status: number; ok: boolean }
-}
+  data?: unknown;
+  error?: unknown;
+  response: { status: number; ok: boolean };
+};
 
-const calls: Call[] = []
-let answers: Record<string, () => Answer | Promise<Answer>> = {}
-let resolveFails = false
+const calls: Call[] = [];
+let answers: Record<string, () => Answer | Promise<Answer>> = {};
+let resolveFails = false;
 
-const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } })
-const refused = (): Answer => ({ error: { status: 'error' }, response: { status: 403, ok: false } })
+const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
+const refused = (): Answer => ({
+  error: { status: 'error' },
+  response: { status: 403, ok: false },
+});
 
 const liveStats = {
   isLive: true,
@@ -50,9 +53,9 @@ const liveStats = {
   subscriberCount: 12,
   platformsLive: ['twitch'],
   uptime: 3725,
-}
+};
 
-let queue: Record<string, unknown>[] = []
+let queue: Record<string, unknown>[] = [];
 
 const heldMessage = (id: string, name: string, message: string): Record<string, unknown> => ({
   id,
@@ -66,7 +69,7 @@ const heldMessage = (id: string, name: string, message: string): Record<string, 
   resolvedAt: null,
   resolvedByName: null,
   resolutionAction: null,
-})
+});
 
 function freshAnswers(): Record<string, () => Answer | Promise<Answer>> {
   return {
@@ -131,7 +134,7 @@ function freshAnswers(): Record<string, () => Answer | Promise<Answer>> {
         },
       ]),
     '/moderation/shield': () => ok({ enabled: false }),
-  }
+  };
 }
 
 function answer(
@@ -139,12 +142,17 @@ function answer(
   path: string,
   options: Options | undefined,
 ): Answer | Promise<Answer> {
-  calls.push({ method, path, body: options?.body })
-  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+  calls.push({
+    method,
+    path,
+    body: options?.body,
+  });
+
+  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix));
 
   return match
     ? answers[match]!()
-    : ok(null)
+    : ok(null);
 }
 
 vi.mock('@/api/client', () => ({
@@ -152,66 +160,82 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string, options?: Options) => answer('GET', path, options),
     POST: async (path: string, options?: Options) => {
-      calls.push({ method: 'POST', path, body: options?.body })
+      calls.push({
+        method: 'POST',
+        path,
+        body: options?.body,
+      });
 
       if (resolveFails)
-        return refused()
+        return refused();
 
-      const itemId: unknown = options?.params?.path?.queueItemId
+      const itemId: unknown = options?.params?.path?.queueItemId;
 
-      queue = queue.filter((item) => item.id !== itemId)
+      queue = queue.filter((item) => item.id !== itemId);
 
-      return { response: { status: 200, ok: true } }
+      return { response: { status: 200, ok: true } };
     },
   },
-}))
+}));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+}));
 
-let mounted: VueWrapper | null = null
-let pinia: Pinia
+let mounted: VueWrapper | null = null;
+let pinia: Pinia;
 
 beforeEach(() => {
-  calls.length = 0
+  calls.length = 0;
 
   queue = [
     heldMessage('q1', 'sample_viewer', 'what the heck'),
     heldMessage('q2', 'DukaSoft', 'buy followers here'),
-  ]
+  ];
 
-  answers = freshAnswers()
-  resolveFails = false
-  pinia = createPinia()
-  setActivePinia(pinia)
-  i18n.global.mergeLocaleMessage('en', en)
-})
+  answers = freshAnswers();
+  resolveFails = false;
+  pinia = createPinia();
+  setActivePinia(pinia);
+  i18n.global.mergeLocaleMessage('en', en);
+});
 
 afterEach(() => {
-  mounted?.unmount()
-  mounted = null
-  document.body.innerHTML = ''
-  vi.useRealTimers()
-})
+  mounted?.unmount();
+  mounted = null;
+  document.body.innerHTML = '';
+  vi.useRealTimers();
+});
 
 function makeRouter(): Router {
-  const blank = { template: '<div />' }
+  const blank = { template: '<div />' };
 
   return createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/app', name: 'dashboard-home', component: blank },
-      { path: '/app/chat', name: 'dashboard-chat', component: blank },
-      { path: '/app/stream', name: 'dashboard-stream', component: blank },
+      {
+        path: '/app',
+        name: 'dashboard-home',
+        component: blank,
+      },
+      {
+        path: '/app/chat',
+        name: 'dashboard-chat',
+        component: blank,
+      },
+      {
+        path: '/app/stream',
+        name: 'dashboard-stream',
+        component: blank,
+      },
     ],
-  })
+  });
 }
 
 async function open(): Promise<void> {
-  const router = makeRouter()
+  const router = makeRouter();
 
-  await router.push('/app')
+  await router.push('/app');
 
   mounted = mount(HomeView, {
     attachTo: document.body,
@@ -226,80 +250,86 @@ async function open(): Promise<void> {
         ],
       ],
     },
-  })
+  });
 
-  await settle()
+  await settle();
 }
 
 const settle = async (): Promise<void> => {
-  await flushPromises()
-  await new Promise((done) => setTimeout(done, 0))
-  await flushPromises()
-}
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
+};
 
-const text = (): string => document.body.textContent ?? ''
+const text = (): string => document.body.textContent ?? '';
 const panel = (title: string): HTMLElement =>
   [...document.body.querySelectorAll<HTMLElement>('[data-slot="panel-card"]')].find((card) =>
     card.querySelector('h2')?.textContent?.includes(title),
-  ) as HTMLElement
+  ) as HTMLElement;
 const rowOf = (name: string): HTMLElement =>
   [...panel('Review queue').querySelectorAll<HTMLElement>('[data-queue-item]')].find((row) =>
     row.textContent?.includes(name),
-  ) as HTMLElement
+  ) as HTMLElement;
 const buttonIn = (root: HTMLElement, label: string): HTMLButtonElement =>
   [...root.querySelectorAll<HTMLButtonElement>('button')].find(
     (b) => b.textContent?.trim() === label,
-  ) as HTMLButtonElement
+  ) as HTMLButtonElement;
 const resolves = (): Call[] =>
-  calls.filter((call) => call.method === 'POST' && call.path.endsWith('/resolve'))
+  calls.filter((call) => call.method === 'POST' && call.path.endsWith('/resolve'));
 
 describe('HomeView', () => {
   it('shows a live stream: the live badge, the stream line and the held messages to review', async () => {
-    await open()
+    await open();
 
-    expect(text()).toContain('Live on Twitch')
-    expect(text()).toContain('20 viewers')
-    expect(text()).toContain('346 followers')
-    expect(panel('Review queue').textContent).toContain('2 waiting')
-    expect(rowOf('sample_viewer').textContent).toContain('what the heck')
-    expect(rowOf('DukaSoft').textContent).toContain('buy followers here')
-    expect(panel('Happening now').textContent).toContain('StanLeFresh')
-    expect(panel('Happening now').textContent).toContain('Followed')
-    expect(document.body.querySelector('a[href="/app/chat"]')?.textContent).toContain('Open chat')
-  })
+    expect(text()).toContain('Live on Twitch');
+    expect(text()).toContain('20 viewers');
+    expect(text()).toContain('346 followers');
+    expect(panel('Review queue').textContent).toContain('2 waiting');
+    expect(rowOf('sample_viewer').textContent).toContain('what the heck');
+    expect(rowOf('DukaSoft').textContent).toContain('buy followers here');
+    expect(panel('Happening now').textContent).toContain('StanLeFresh');
+    expect(panel('Happening now').textContent).toContain('Followed');
+    expect(document.body.querySelector('a[href="/app/chat"]')?.textContent).toContain('Open chat');
+  });
 
   it('titles the page Home and puts the live stream line on its own row under the title', async () => {
-    await open()
+    await open();
 
-    const title = document.body.querySelector('h1')
-    const line = document.body.querySelector('[data-slot="stream-line"]')
-    const bold = [...(line?.querySelectorAll('b') ?? [])].map((item) => item.textContent)
+    const title = document.body.querySelector('h1');
+    const line = document.body.querySelector('[data-slot="stream-line"]');
+    const bold = [...(line?.querySelectorAll('b') ?? [])].map((item) => item.textContent);
 
-    expect(title?.textContent).toBe('Home')
-    expect(text()).not.toContain('Hi,')
+    expect(title?.textContent).toBe('Home');
+    expect(text()).not.toContain('Hi,');
 
     expect(line?.textContent).toBe(
       'Live for 1:02:05 · 20 viewers · 346 followers · Software and Game Development',
-    )
+    );
 
-    expect(bold).toEqual(['1:02:05', '20', '346'])
+    expect(bold).toEqual(['1:02:05', '20', '346']);
 
     expect(document.body.querySelector('header h1')?.parentElement?.contains(line ?? null)).toBe(
       false,
-    )
-  })
+    );
+  });
 
   it('leaves the category out of the live line when the bot returns none', async () => {
-    answers['/stats'] = () => ok({ ...liveStats, gameName: null })
-    await open()
+    answers['/stats'] = () => ok({ ...liveStats, gameName: null });
+    await open();
 
-    const line = document.body.querySelector('[data-slot="stream-line"]')
+    const line = document.body.querySelector('[data-slot="stream-line"]');
 
-    expect(line?.textContent).toBe('Live for 1:02:05 · 20 viewers · 346 followers')
-  })
+    expect(line?.textContent).toBe('Live for 1:02:05 · 20 viewers · 346 followers');
+  });
 
   it('shows when the last stream ended and how long it ran while offline', async () => {
-    answers['/stats'] = () => ok({ ...liveStats, isLive: false, uptime: null, platformsLive: [] })
+    answers['/stats'] = () =>
+      ok({
+        ...liveStats,
+        isLive: false,
+        uptime: null,
+        platformsLive: [],
+      });
 
     answers['/analytics/streams'] = () =>
       ok([
@@ -312,32 +342,39 @@ describe('HomeView', () => {
           durationSeconds: 15120,
           peakViewers: 20,
         },
-      ])
+      ]);
 
-    await open()
+    await open();
 
-    const line = document.body.querySelector('[data-slot="stream-line"]')
+    const line = document.body.querySelector('[data-slot="stream-line"]');
 
-    expect(line?.textContent).toMatch(/^Last stream ended .+ · 4h 12m$/)
-    expect(line?.textContent).not.toContain('viewers')
-  })
+    expect(line?.textContent).toMatch(/^Last stream ended .+ · 4h 12m$/);
+    expect(line?.textContent).not.toContain('viewers');
+  });
 
   it('claims neither live nor offline until the stream stats arrive', async () => {
-    answers['/stats'] = () => new Promise<Answer>(() => undefined)
-    await open()
+    answers['/stats'] = () => new Promise<Answer>(() => undefined);
+    await open();
 
-    expect(document.body.textContent).not.toContain('Offline')
-    expect(document.body.textContent).not.toContain('Live on')
-    expect(document.body.querySelector('[data-slot="stream-line"]')).toBeNull()
-  })
+    expect(document.body.textContent).not.toContain('Offline');
+    expect(document.body.textContent).not.toContain('Live on');
+    expect(document.body.querySelector('[data-slot="stream-line"]')).toBeNull();
+  });
 
   it('shows no stream line while offline when the bot has no finished stream to report', async () => {
-    answers['/stats'] = () => ok({ ...liveStats, isLive: false, uptime: null, platformsLive: [] })
-    answers['/analytics/streams'] = () => ok([])
-    await open()
+    answers['/stats'] = () =>
+      ok({
+        ...liveStats,
+        isLive: false,
+        uptime: null,
+        platformsLive: [],
+      });
 
-    expect(document.body.querySelector('[data-slot="stream-line"]')).toBeNull()
-  })
+    answers['/analytics/streams'] = () => ok([]);
+    await open();
+
+    expect(document.body.querySelector('[data-slot="stream-line"]')).toBeNull();
+  });
 
   it('shows each happening row with its icon, readable detail and weekday plus 24h time', async () => {
     const at = (type: string, username: string | null, data: unknown): Record<string, unknown> => ({
@@ -347,7 +384,7 @@ describe('HomeView', () => {
       username,
       data: JSON.stringify(data),
       timestamp: '2026-10-10T21:15:00',
-    })
+    });
 
     answers['/activity'] = () =>
       ok([
@@ -356,121 +393,128 @@ describe('HomeView', () => {
         at('channel.raid', 'CptTree', { viewers: 6 }),
         at('channel.subscription.gift', 'Gifter', { giftCount: 5, tier: '1000' }),
         at('channel.something.new', 'Odd', null),
-      ])
+      ]);
 
-    await open()
+    await open();
 
     const rows: HTMLElement[] = [
       ...panel('Happening now').querySelectorAll<HTMLElement>('[data-activity-row]'),
-    ]
-    const lines = rows.map((row) => row.textContent ?? '')
+    ];
+    const lines = rows.map((row) => row.textContent ?? '');
 
-    expect(lines[0]).toContain('night_light90')
-    expect(lines[0]).toContain('Gift sub ended · tier 1')
-    expect(lines[0]).toMatch(/Sat,? 21:15/)
-    expect(lines[1]).toContain('Raided JeroenLabs')
-    expect(lines[1]).toContain('16 viewers went along')
-    expect(lines[2]).toContain('Raided with 6 viewers')
-    expect(lines[3]).toContain('Gifted 5 subs · tier 1')
-    expect(lines[4]).toContain('Channel event')
-    expect(lines.join(' ')).not.toContain('channel.')
+    expect(lines[0]).toContain('night_light90');
+    expect(lines[0]).toContain('Gift sub ended · tier 1');
+    expect(lines[0]).toMatch(/Sat,? 21:15/);
+    expect(lines[1]).toContain('Raided JeroenLabs');
+    expect(lines[1]).toContain('16 viewers went along');
+    expect(lines[2]).toContain('Raided with 6 viewers');
+    expect(lines[3]).toContain('Gifted 5 subs · tier 1');
+    expect(lines[4]).toContain('Channel event');
+    expect(lines.join(' ')).not.toContain('channel.');
 
     for (const row of rows) {
-      expect(row.querySelector('svg')).not.toBeNull()
+      expect(row.querySelector('svg')).not.toBeNull();
     }
 
     // No events page exists yet, so no "All events" link points somewhere else.
-    expect(panel('Happening now').textContent).not.toContain('All events')
-  })
+    expect(panel('Happening now').textContent).not.toContain('All events');
+  });
 
   it('shows an offline stream: no live badge, the offline reason in the queue and the last stream', async () => {
-    answers['/stats'] = () => ok({ ...liveStats, isLive: false, uptime: null, platformsLive: [] })
-    queue = []
-    await open()
+    answers['/stats'] = () =>
+      ok({
+        ...liveStats,
+        isLive: false,
+        uptime: null,
+        platformsLive: [],
+      });
 
-    expect(text()).toContain('Offline')
-    expect(text()).not.toContain('Live on')
+    queue = [];
+    await open();
+
+    expect(text()).toContain('Offline');
+    expect(text()).not.toContain('Live on');
 
     expect(panel('Review queue').textContent).toContain(
       'Held messages and spam checks show up here during a stream.',
-    )
+    );
 
-    expect(panel('Last stream').textContent).toContain('StanLeFresh')
-  })
+    expect(panel('Last stream').textContent).toContain('StanLeFresh');
+  });
 
   it('allows a held message at once: it leaves the queue and the server gets approve', async () => {
-    await open()
+    await open();
 
-    buttonIn(rowOf('sample_viewer'), 'Allow').click()
-    await settle()
+    buttonIn(rowOf('sample_viewer'), 'Allow').click();
+    await settle();
 
-    expect(resolves()).toHaveLength(1)
-    expect(resolves()[0]!.body).toEqual({ action: 'approve' })
-    expect(rowOf('sample_viewer')).toBeUndefined()
-    expect(panel('Review queue').textContent).toContain('1 waiting')
-  })
+    expect(resolves()).toHaveLength(1);
+    expect(resolves()[0]!.body).toEqual({ action: 'approve' });
+    expect(rowOf('sample_viewer')).toBeUndefined();
+    expect(panel('Review queue').textContent).toContain('1 waiting');
+  });
 
   it('holds a deny for the undo time, so Undo means nothing reached Twitch', async () => {
-    await open()
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await open();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 
-    buttonIn(rowOf('DukaSoft'), 'Deny').click()
-    await flushPromises()
-    expect(resolves()).toHaveLength(0)
-    expect(text()).toContain('Denied')
+    buttonIn(rowOf('DukaSoft'), 'Deny').click();
+    await flushPromises();
+    expect(resolves()).toHaveLength(0);
+    expect(text()).toContain('Denied');
 
-    buttonIn(panel('Review queue'), 'Undo').click()
-    await flushPromises()
-    vi.advanceTimersByTime(DEFAULT_UNDO_MS + 1000)
-    await flushPromises()
+    buttonIn(panel('Review queue'), 'Undo').click();
+    await flushPromises();
+    vi.advanceTimersByTime(DEFAULT_UNDO_MS + 1000);
+    await flushPromises();
 
-    expect(resolves()).toHaveLength(0)
-    expect(rowOf('DukaSoft')).toBeDefined()
-  })
+    expect(resolves()).toHaveLength(0);
+    expect(rowOf('DukaSoft')).toBeDefined();
+  });
 
   it('sends a deny once the undo time has passed, and the message leaves the queue', async () => {
-    await open()
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await open();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 
-    buttonIn(rowOf('DukaSoft'), 'Deny').click()
-    await flushPromises()
-    vi.advanceTimersByTime(DEFAULT_UNDO_MS)
-    await flushPromises()
-    vi.useRealTimers()
-    await settle()
+    buttonIn(rowOf('DukaSoft'), 'Deny').click();
+    await flushPromises();
+    vi.advanceTimersByTime(DEFAULT_UNDO_MS);
+    await flushPromises();
+    vi.useRealTimers();
+    await settle();
 
-    expect(resolves()).toHaveLength(1)
-    expect(resolves()[0]!.body).toEqual({ action: 'deny' })
-    expect(rowOf('DukaSoft')).toBeUndefined()
-  })
+    expect(resolves()).toHaveLength(1);
+    expect(resolves()[0]!.body).toEqual({ action: 'deny' });
+    expect(rowOf('DukaSoft')).toBeUndefined();
+  });
 
   it('puts a message back and reports it when the server refuses the resolve', async () => {
-    resolveFails = true
-    await open()
+    resolveFails = true;
+    await open();
 
-    buttonIn(rowOf('sample_viewer'), 'Allow').click()
-    await settle()
+    buttonIn(rowOf('sample_viewer'), 'Allow').click();
+    await settle();
 
-    expect(rowOf('sample_viewer')).toBeDefined()
-    expect(useSaveErrorsStore().items).toHaveLength(1)
-  })
+    expect(rowOf('sample_viewer')).toBeDefined();
+    expect(useSaveErrorsStore().items).toHaveLength(1);
+  });
 
   it('says why the review queue is missing when the server refuses it', async () => {
-    answers['/automod/queue'] = refused
-    await open()
+    answers['/automod/queue'] = refused;
+    await open();
 
     expect(panel('Review queue').querySelector('[data-slot="panel-error"]')?.textContent).toContain(
       'The review queue could not load.',
-    )
-  })
+    );
+  });
 
   it('shows each connection as it is: connected, not connected, or needing a new sign-in', async () => {
-    await open()
-    const connections = panel('Connections').textContent ?? ''
+    await open();
+    const connections = panel('Connections').textContent ?? '';
 
-    expect(connections).toContain('Stoney_Eagle')
-    expect(connections).toContain('Not connected')
-    expect(connections).toContain('Sign in again')
-    expect(connections).toContain('NoMercyBot_')
-  })
-})
+    expect(connections).toContain('Stoney_Eagle');
+    expect(connections).toContain('Not connected');
+    expect(connections).toContain('Sign in again');
+    expect(connections).toContain('NoMercyBot_');
+  });
+});

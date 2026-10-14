@@ -8,19 +8,19 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteLocationRaw, RouteRecordRaw } from 'vue-router'
+import type { RouteLocationRaw, RouteRecordRaw } from 'vue-router';
 
-import { currentUserQuery } from '@/api/auth'
-import { queryClient } from '@/api/queryClient'
-import { loadPage } from '@/i18n'
+import { currentUserQuery } from '@/api/auth';
+import { queryClient } from '@/api/queryClient';
+import { loadPage } from '@/i18n';
 
 // Only a platform admin opens the page; anyone else goes to the home page.
 async function adminOnly(): Promise<true | RouteLocationRaw> {
-  const user = await queryClient.ensureQueryData(currentUserQuery)
+  const user = await queryClient.ensureQueryData(currentUserQuery);
 
   return user?.isAdmin === true
     ? true
-    : { name: 'dashboard-home' }
+    : { name: 'dashboard-home' };
 }
 
 export const dashboardAdminChannelsRoute = {
@@ -32,4 +32,4 @@ export const dashboardAdminChannelsRoute = {
       () => import('./AdminChannelsView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
-} as const satisfies RouteRecordRaw
+} as const satisfies RouteRecordRaw;

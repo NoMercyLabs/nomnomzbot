@@ -10,8 +10,8 @@
 
 // m:ss for a song position.
 export function formatClock(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const seconds = total % 60
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const seconds = total % 60;
 
-  return `${Math.floor(total / 60)}:${seconds.toString().padStart(2, '0')}`
+  return `${Math.floor(total / 60)}:${seconds.toString().padStart(2, '0')}`;
 }

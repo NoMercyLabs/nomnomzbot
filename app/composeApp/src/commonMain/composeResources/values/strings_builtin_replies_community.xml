@@ -164,6 +164,10 @@
     <string name="builtin_reply_permit_capabilitydenied_description">The right does not exist, cannot be shared, or the person does not have it.</string>
     <string name="builtin_reply_permit_grantfailed_label">Grant failed</string>
     <string name="builtin_reply_permit_grantfailed_description">The permit could not be given.</string>
+    <string name="builtin_reply_permit_grantedsongrequest_label">Song request queued</string>
+    <string name="builtin_reply_permit_grantedsongrequest_description">A moderator replied !permit and the held song request was queued.</string>
+    <string name="builtin_reply_permit_nopendingrequest_label">No request waiting</string>
+    <string name="builtin_reply_permit_nopendingrequest_description">The viewer replied to has no song request waiting for permission.</string>
     <string name="builtin_reply_unpermit_revokedall_label">All revoked</string>
     <string name="builtin_reply_unpermit_revokedall_description">All permits of a user are removed.</string>
     <string name="builtin_reply_unpermit_revoked_label">Permit revoked</string>

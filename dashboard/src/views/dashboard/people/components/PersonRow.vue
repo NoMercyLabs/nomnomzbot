@@ -10,30 +10,30 @@
 <script setup lang="ts">
 // One person in the People list: avatar, name, last seen, and a role icon for moderators and VIPs.
 // The list DTO carries only a trust level, so no other role badge can be shown yet.
-import Gem from '~icons/nnz/gem'
-import Shield from '~icons/nnz/shield'
-import { useTimeAgoIntl } from '@vueuse/core'
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import Gem from '~icons/nnz/gem';
+import Shield from '~icons/nnz/shield';
+import { useTimeAgoIntl } from '@vueuse/core';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import type { CommunityRow } from '@/api/people'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import type { CommunityRow } from '@/api/people';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-const props = defineProps<{ person: CommunityRow; selected: boolean }>()
+const props = defineProps<{ person: CommunityRow; selected: boolean }>();
 
-defineEmits<{ pick: [] }>()
+defineEmits<{ pick: [] }>();
 
-const { t, locale } = useI18n()
-const ago = useTimeAgoIntl(() => props.person.lastSeen, { locale: locale.value })
+const { t, locale } = useI18n();
+const ago = useTimeAgoIntl(() => props.person.lastSeen, { locale: locale.value });
 
-const lastSeen: ComputedRef<string> = computed<string>(() =>
+const lastSeen = computed<string>(() =>
   t('dashboard.people.list.lastSeen', { ago: ago.value }),
-)
-const initials: ComputedRef<string> = computed<string>(() =>
+);
+const initials = computed<string>(() =>
   props.person.displayName.slice(0, 2).toUpperCase(),
-)
+);
 </script>
 
 <template>

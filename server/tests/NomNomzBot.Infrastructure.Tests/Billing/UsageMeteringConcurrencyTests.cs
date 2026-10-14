@@ -79,7 +79,13 @@ public sealed class UsageMeteringConcurrencyTests : IDisposable
     }
 
     private static UsageMeteringService NewService(EventStoreTestDbContext db) =>
-        new(db, TestTiers.WithLimit(MetricKey, 1_000_000), new NoOpEventBus(), Clock);
+        new(
+            db,
+            TestTiers.WithLimit(MetricKey, 1_000_000),
+            new NoOpEventBus(),
+            Clock,
+            TestConfiguration.Empty()
+        );
 
     [Fact]
     public async Task Concurrent_metering_calls_for_a_cold_start_period_record_exactly_N_units()

@@ -288,7 +288,23 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         // EF discovers entity types from every DbSet<T> property (an IApplicationDbContext requirement) and
         // would try to map their jsonb-of-complex-type columns (unsupported on SQLite). Ignore every entity
         // these tests do not exercise so the model stays minimal and provider-agnostic.
-        modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.Channel>();
+        // Channel is mapped minimally for the usage-metering owner lookup (Channel.OwnerUserId -> Users) —
+        // its navs point at ignored entities and its List<string> columns are jsonb, so drop them.
+        modelBuilder.Entity<NomNomzBot.Domain.Identity.Entities.Channel>(b =>
+        {
+            b.Ignore(c => c.User);
+            b.Ignore(c => c.Moderators);
+            b.Ignore(c => c.Streams);
+            b.Ignore(c => c.Events);
+            b.Ignore(c => c.PlatformConnections);
+            b.Ignore(c => c.Tags);
+            b.Ignore(c => c.ContentLabels);
+        });
+        // Mapping Channel made VtsConnection.Channel a real FK; the soft-delete tests write a connection
+        // without a channel row, so drop the nav like the others.
+        modelBuilder.Entity<NomNomzBot.Domain.Vts.Entities.VtsConnection>(b =>
+            b.Ignore(v => v.Channel)
+        );
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelModerator>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Service>();
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
@@ -374,7 +390,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.Channel> Channels =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Identity.Entities.Channel>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
@@ -416,6 +432,10 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
         Set<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.ChatterAssignedColor> ChatterAssignedColors =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
         throw new NotSupportedException();

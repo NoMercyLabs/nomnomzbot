@@ -8,26 +8,31 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { defineStore } from 'pinia'
-import { ref, type Ref } from 'vue'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
 // Which person the one profile dialog shows. A name anywhere in the dashboard calls open();
 // a second call swaps the person, it never makes a second dialog. The opener gets the focus back on close.
 export const useProfileDialogStore = defineStore('profileDialog', () => {
-  const userId: Ref<string | null> = ref(null)
-  const opener: Ref<HTMLElement | null> = ref(null)
+  const userId = ref<string | null>(null);
+  const opener = ref<HTMLElement | null>(null);
 
   function open(id: string, from: HTMLElement | null = null): void {
-    userId.value = id
+    userId.value = id;
 
     if (from) {
-      opener.value = from
+      opener.value = from;
     }
   }
 
   function close(): void {
-    userId.value = null
+    userId.value = null;
   }
 
-  return { userId, opener, open, close }
-})
+  return {
+    userId,
+    opener,
+    open,
+    close,
+  };
+});

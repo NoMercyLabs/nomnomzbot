@@ -8,27 +8,32 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Inbox from '~icons/nnz/inbox'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Inbox from '~icons/nnz/inbox';
 
-import { useActionRequired } from '@/api/actionRequired'
-import { attentionWords } from '@/api/actionRequiredText'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { useSaveErrorsStore } from '@/stores/saveErrors'
+import { useActionRequired, useDismissActionRequired } from '@/api/actionRequired';
+import { attentionWords } from '@/api/actionRequiredText';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useSaveErrorsStore } from '@/stores/saveErrors';
 
-const { t, te } = useI18n()
-const { channelId } = useCurrentChannel()
-const { data: items } = useActionRequired(channelId)
-const saveErrors = useSaveErrorsStore()
-const open = ref(false)
-const count = computed(() => (items.value?.length ?? 0) + saveErrors.items.length)
+const { t, te, locale } = useI18n();
+const { channelId } = useCurrentChannel();
+const { data: items } = useActionRequired(channelId);
+const { mutate: dismissItem } = useDismissActionRequired(channelId);
+const saveErrors = useSaveErrorsStore();
+const open = ref(false);
+const count = computed(() => (items.value?.length ?? 0) + saveErrors.items.length);
 const attention = computed(() =>
-  (items.value ?? []).map((item) => ({ id: item.id, ...attentionWords(item, { t, te }) })),
-)
+  (items.value ?? []).map((item) => ({ id: item.id, ...attentionWords(item, {
+    t,
+    te,
+    locale,
+  }) })),
+);
 </script>
 
 <template>
@@ -70,11 +75,16 @@ const attention = computed(() =>
         >
           <span class="text-sm font-medium">{{ item.title }}</span>
           <span v-if="item.message" class="text-sm text-muted-foreground">{{ item.message }}</span>
-          <Button v-if="item.route" variant="outline" size="sm" class="mt-1 self-start" as-child>
-            <RouterLink :to="item.route" @click="open = false">{{
-              t('frame.inbox.open')
-            }}</RouterLink>
-          </Button>
+          <div class="mt-1 flex items-center gap-1 self-start">
+            <Button v-if="item.route" variant="outline" size="sm" as-child>
+              <RouterLink :to="item.route" @click="open = false">{{
+                t('frame.inbox.open')
+              }}</RouterLink>
+            </Button>
+            <Button variant="ghost" size="sm" @click="dismissItem(item.id)">
+              {{ t('frame.inbox.dismiss') }}
+            </Button>
+          </div>
         </li>
       </ul>
     </PopoverContent>

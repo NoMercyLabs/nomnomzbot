@@ -12,7 +12,7 @@
 // kind: line and area use time on the x axis when the x values are dates; bar stacks its series, groupedBar puts them side by side.
 // Series use the chart tokens (--chart-1 to --chart-5), never a color of their own.
 // The drawing is aria-hidden. A visually hidden table carries the same numbers for screen readers.
-import { GroupedBar, StackedBar } from '@unovis/ts'
+import { GroupedBar, StackedBar } from '@unovis/ts';
 import {
   VisArea,
   VisAxis,
@@ -20,41 +20,41 @@ import {
   VisLine,
   VisStackedBar,
   VisXYContainer,
-} from '@unovis/vue'
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+} from '@unovis/vue';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
+import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import {
   ChartContainer,
   ChartCrosshair,
   ChartLegendContent,
   ChartTooltip,
   type ChartConfig,
-} from '@/components/ui/chart'
+} from '@/components/ui/chart';
 
-export type ChartKind = 'line' | 'area' | 'bar' | 'groupedBar'
-export type ChartToken = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5'
-export type ChartRow = Record<string, string | number | Date>
+export type ChartKind = 'line' | 'area' | 'bar' | 'groupedBar';
+export type ChartToken = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5';
+export type ChartRow = Record<string, string | number | Date>;
 export interface ChartSeries {
-  key: string
-  labelKey: string
-  color: ChartToken
+  key: string;
+  labelKey: string;
+  color: ChartToken;
 }
 
 const props = withDefaults(
   defineProps<{
-    title: string
-    description?: string
-    kind: ChartKind
-    data: ChartRow[]
-    x: string
-    series: ChartSeries[]
-    takeaway: string
-    state?: PanelState
-    emptyText?: string
-    errorText?: string
-    tier?: 'lead' | 'default' | 'quiet'
+    title: string;
+    description?: string;
+    kind: ChartKind;
+    data: ChartRow[];
+    x: string;
+    series: ChartSeries[];
+    takeaway: string;
+    state?: PanelState;
+    emptyText?: string;
+    errorText?: string;
+    tier?: 'lead' | 'default' | 'quiet';
   }>(),
   {
     description: undefined,
@@ -63,57 +63,57 @@ const props = withDefaults(
     errorText: undefined,
     tier: 'default',
   },
-)
+);
 
-defineEmits<{ retry: [] }>()
+defineEmits<{ retry: [] }>();
 
-const { t, locale } = useI18n()
+const { t, locale } = useI18n();
 
 const panelState = computed(() =>
   props.state === 'ready' && props.data.length === 0
     ? 'empty'
     : props.state,
-)
+);
 
-const config: ComputedRef<ChartConfig> = computed(() =>
+const config = computed<ChartConfig>(() =>
   Object.fromEntries(
     props.series.map((entry: ChartSeries) => [
       entry.key,
       { label: t(entry.labelKey), color: `var(--${entry.color})` },
     ]),
   ),
-)
+);
 
-const numbers = computed(() => new Intl.NumberFormat(locale.value))
-const compactNumbers: ComputedRef<Intl.NumberFormat> = computed(
+const numbers = computed(() => new Intl.NumberFormat(locale.value));
+const compactNumbers = computed<Intl.NumberFormat>(
   () => new Intl.NumberFormat(locale.value, { notation: 'compact' }),
-)
-const fullDates: ComputedRef<Intl.DateTimeFormat> = computed(
+);
+const fullDates = computed<Intl.DateTimeFormat>(
   () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-)
-const shortDates: ComputedRef<Intl.DateTimeFormat> = computed(
+);
+const shortDates = computed<Intl.DateTimeFormat>(
   () => new Intl.DateTimeFormat(locale.value, { day: 'numeric', month: 'short' }),
-)
+);
 
 const isTime = computed(
   () =>
     (props.kind === 'line' || props.kind === 'area') && props.data[0]?.[props.x] instanceof Date,
-)
-const isBar = computed(() => props.kind === 'bar' || props.kind === 'groupedBar')
+);
+const isBar = computed(() => props.kind === 'bar' || props.kind === 'groupedBar');
 
 function label(value: string | number | Date | undefined, formatter: Intl.DateTimeFormat): string {
   return value instanceof Date
     ? formatter.format(value)
-    : String(value ?? '')
+    : String(value ?? '');
 }
 
 const xAccessor = (row: ChartRow, index: number): number => {
-  const value = row[props.x]
+  const value = row[props.x];
 
   return isTime.value && value instanceof Date
     ? value.getTime()
-    : index
-}
+    : index;
+};
 
 const yAccessors = computed(() =>
   props.series.map(
@@ -121,31 +121,33 @@ const yAccessors = computed(() =>
       (row: ChartRow): number =>
         Number(row[entry.key] ?? 0),
   ),
-)
-const colors = computed(() => props.series.map((entry: ChartSeries) => `var(--color-${entry.key})`))
+);
+const colors = computed(() =>
+  props.series.map((entry: ChartSeries) => `var(--color-${entry.key})`),
+);
 
 function xTick(tick: number | Date): string {
   const at = tick instanceof Date
     ? tick.getTime()
-    : tick
+    : tick;
 
   if (isTime.value)
-    return shortDates.value.format(new Date(at))
+    return shortDates.value.format(new Date(at));
 
   return Number.isInteger(at)
     ? label(props.data[at]?.[props.x], shortDates.value)
-    : ''
+    : '';
 }
 
 function yTick(tick: number | Date): string {
   return compactNumbers.value.format(tick instanceof Date
     ? tick.getTime()
-    : tick)
+    : tick);
 }
 
 function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (char: string) =>
-    `&#${char.charCodeAt(0)};`)
+    `&#${char.charCodeAt(0)};`);
 }
 
 // Unovis wants the tooltip as an HTML string. The look matches ChartTooltipContent.
@@ -160,24 +162,24 @@ function tooltip(row: ChartRow): string {
         `<span class="font-medium tabular-nums text-foreground">${numbers.value.format(Number(row[entry.key] ?? 0))}</span>` +
         `</div>`,
     )
-    .join('')
+    .join('');
 
   return (
     `<div class="grid min-w-32 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">` +
     `<div class="font-medium">${escapeHtml(label(row[props.x], fullDates.value))}</div>${lines}</div>`
-  )
+  );
 }
 
-const barTriggers: ComputedRef<Record<string, (row: ChartRow) => string>> = computed(() => ({
+const barTriggers = computed<Record<string, (row: ChartRow) => string>>(() => ({
   [props.kind === 'bar'
     ? StackedBar.selectors.bar
     : GroupedBar.selectors.bar]: tooltip,
-}))
-const yDomain: ComputedRef<[number | undefined, number | undefined]> = computed(() =>
+}));
+const yDomain = computed<[number | undefined, number | undefined]>(() =>
   props.kind === 'line'
     ? [undefined, undefined]
     : [0, undefined],
-)
+);
 </script>
 
 <template>

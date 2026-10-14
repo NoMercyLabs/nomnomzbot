@@ -276,6 +276,12 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The grant failed for another reason.</summary>
         public const string GrantFailed = "grantfailed";
+
+        /// <summary>A held song request was admitted by a reply.</summary>
+        public const string GrantedSongRequest = "grantedsongrequest";
+
+        /// <summary>The reply target has no song request waiting for permission.</summary>
+        public const string NoPendingRequest = "nopendingrequest";
     }
 
     /// <summary><c>!unpermit</c> — revoke temporary grants.</summary>

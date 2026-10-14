@@ -26,6 +26,7 @@
         "by": "{artist} · requested by {name}",
         "unknownRequester": "{artist}",
         "next": "Play next",
+        "drag": "Drag to move this song",
         "nextRow": "Play next {title}",
         "remove": "Remove {title}",
         "confirmTitle": "Remove this song?",

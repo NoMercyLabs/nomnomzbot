@@ -12,105 +12,154 @@ using FluentAssertions;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Chat.Adapters;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
 
 /// <summary>
-/// Proves the Twitch emote step (chat-decoration spec §0/§4/§9·13): it fills a Twitch emote fragment's unified
-/// <see cref="ChatEmote"/> from the deterministic CDN template (static vs animated, the three scales), leaves a
-/// fragment the third-party step already resolved untouched, and ignores non-emote fragments.
+/// Proves a Twitch emote in chat carries its type, tier and owner from the cached emote sets (cache only, no Helix
+/// call): a subscription emote, a follower emote, a global emote with no owner, and an emote from a channel the
+/// cache has no set for, where only the owner id (and a cached owner name) can be known.
 /// </summary>
 public sealed class TwitchEmoteUrlAdapterTests
 {
-    private static readonly TwitchEmoteUrlAdapter Adapter = new();
+    private const string Channel = "100";
 
-    private static ChatDecorationContext Context(params ChatMessageFragment[] fragments) =>
-        new() { Fragments = [.. fragments] };
+    private static readonly ChatEmoteOwner ChannelOwner = new(
+        "100",
+        "streamer",
+        "Streamer",
+        "https://www.twitch.tv/streamer"
+    );
 
-    [Fact]
-    public async Task Builds_a_static_twitch_emote_with_all_three_scales()
-    {
-        ChatDecorationContext context = Context(
-            new ChatMessageFragment
-            {
-                Type = "emote",
-                Text = "Kappa",
-                EmoteId = "25",
-                EmoteFormats = ["static"],
-            }
+    private static ChatEmote Cached(
+        string id,
+        string code,
+        string type,
+        int? tier,
+        ChatEmoteOwner? owner
+    ) =>
+        new(
+            EmoteProvider.Twitch,
+            id,
+            code,
+            new Dictionary<string, string>(),
+            Animated: false,
+            ZeroWidth: false,
+            SetId: "set-1",
+            OwnerId: owner?.Id,
+            Formats: ["static"],
+            Type: type,
+            Tier: tier,
+            Owner: owner
         );
 
-        await Adapter.DecorateAsync(context);
+    private static async Task<EmoteTestCache> SeededCacheAsync()
+    {
+        EmoteTestCache cache = new();
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.Twitch, Channel),
+            [
+                Cached("300", "streamerSub", "subscriptions", 1, ChannelOwner),
+                Cached("301", "streamerFollow", "follower", null, ChannelOwner),
+            ]
+        );
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Global(EmoteProvider.Twitch),
+            [Cached("25", "Kappa", "globals", null, null)]
+        );
+        return cache;
+    }
 
-        ChatEmote emote = context.Fragments.Should().ContainSingle().Subject.Emote!;
-        emote.Provider.Should().Be(EmoteProvider.Twitch);
-        emote.Id.Should().Be("25");
+    private static async Task<ChatEmote> DecorateAsync(
+        EmoteTestCache cache,
+        string emoteId,
+        string text,
+        string? ownerId
+    )
+    {
+        ChatMessageFragment fragment = new()
+        {
+            Type = "emote",
+            Text = text,
+            EmoteId = emoteId,
+            EmoteOwnerId = ownerId,
+            EmoteFormats = ["static"],
+        };
+        ChatDecorationContext context = new()
+        {
+            TwitchBroadcasterId = Channel,
+            Fragments = [fragment],
+        };
+
+        await new TwitchEmoteUrlAdapter(cache).DecorateAsync(context);
+
+        return context.Fragments[0].Emote!;
+    }
+
+    [Fact]
+    public async Task A_subscription_emote_carries_its_type_tier_and_owning_channel()
+    {
+        ChatEmote emote = await DecorateAsync(
+            await SeededCacheAsync(),
+            "300",
+            "streamerSub",
+            "100"
+        );
+
+        emote.Code.Should().Be("streamerSub");
+        emote.Type.Should().Be("subscriptions");
+        emote.Tier.Should().Be(1);
+        emote.Owner.Should().Be(ChannelOwner);
+    }
+
+    [Fact]
+    public async Task A_follower_emote_has_no_tier()
+    {
+        ChatEmote emote = await DecorateAsync(
+            await SeededCacheAsync(),
+            "301",
+            "streamerFollow",
+            "100"
+        );
+
+        emote.Type.Should().Be("follower");
+        emote.Tier.Should().BeNull();
+        emote.Owner!.Login.Should().Be("streamer");
+    }
+
+    [Fact]
+    public async Task A_global_emote_has_a_globals_type_and_no_owner()
+    {
+        ChatEmote emote = await DecorateAsync(await SeededCacheAsync(), "25", "Kappa", null);
+
         emote.Code.Should().Be("Kappa");
-        emote.Animated.Should().BeFalse();
-        emote.Urls["1"].Should().Be("https://static-cdn.jtvnw.net/emoticons/v2/25/static/dark/1.0");
-        emote.Urls["2"].Should().Be("https://static-cdn.jtvnw.net/emoticons/v2/25/static/dark/2.0");
-        emote.Urls["3"].Should().Be("https://static-cdn.jtvnw.net/emoticons/v2/25/static/dark/3.0");
+        emote.Type.Should().Be("globals");
+        emote.Tier.Should().BeNull();
+        emote.Owner.Should().BeNull();
     }
 
     [Fact]
-    public async Task Uses_the_animated_format_when_the_payload_offers_it()
+    public async Task An_emote_from_another_channel_takes_its_owner_name_from_the_owner_cache()
     {
-        ChatDecorationContext context = Context(
-            new ChatMessageFragment
-            {
-                Type = "emote",
-                Text = "PartyParrot",
-                EmoteId = "99",
-                EmoteFormats = ["static", "animated"],
-            }
-        );
+        EmoteTestCache cache = await SeededCacheAsync();
+        ChatEmoteOwner other = new("555", "other", "Other", "https://www.twitch.tv/other");
+        await cache.SetAsync(ChatEmoteCacheKeys.TwitchOwner("555"), other);
 
-        await Adapter.DecorateAsync(context);
+        ChatEmote emote = await DecorateAsync(cache, "900", "otherSub", "555");
 
-        ChatEmote emote = context.Fragments[0].Emote!;
-        emote.Animated.Should().BeTrue();
-        emote
-            .Urls["1"]
-            .Should()
-            .Be("https://static-cdn.jtvnw.net/emoticons/v2/99/animated/dark/1.0");
+        emote.Type.Should().BeNull();
+        emote.Owner.Should().Be(other);
     }
 
     [Fact]
-    public async Task Leaves_a_third_party_resolved_emote_untouched()
+    public async Task An_emote_the_cache_does_not_know_keeps_only_the_owner_id()
     {
-        ChatEmote sevenTv = new(
-            EmoteProvider.SevenTv,
-            "7tv-1",
-            "PepeLaugh",
-            new Dictionary<string, string> { ["1"] = "https://cdn.7tv/1x" },
-            Animated: true,
-            ZeroWidth: false
-        );
-        ChatDecorationContext context = Context(
-            new ChatMessageFragment
-            {
-                Type = "emote",
-                Text = "PepeLaugh",
-                Emote = sevenTv,
-            }
-        );
+        ChatEmote emote = await DecorateAsync(await SeededCacheAsync(), "900", "otherSub", "555");
 
-        await Adapter.DecorateAsync(context);
-
-        context.Fragments[0].Emote.Should().BeSameAs(sevenTv);
-    }
-
-    [Fact]
-    public async Task Ignores_non_emote_fragments()
-    {
-        ChatDecorationContext context = Context(
-            new ChatMessageFragment { Type = "text", Text = "hello" },
-            new ChatMessageFragment { Type = "mention", Text = "@stoney" }
-        );
-
-        await Adapter.DecorateAsync(context);
-
-        context.Fragments.Should().OnlyContain(fragment => fragment.Emote == null);
+        emote.Type.Should().BeNull();
+        emote.Tier.Should().BeNull();
+        emote.Owner.Should().Be(new ChatEmoteOwner("555", null, null));
     }
 }

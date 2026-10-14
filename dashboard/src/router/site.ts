@@ -8,13 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router';
 
-import { homeRoute } from '@/views/site/home/route'
-import { loginRoute } from '@/views/site/login/route'
+import { homeRoute } from '@/views/site/home/route';
+import { loginRoute } from '@/views/site/login/route';
 
 export const siteRoutes: RouteRecordRaw = {
   path: '/',
   component: () => import('@/layouts/SiteLayout.vue'),
   children: [homeRoute, loginRoute],
-}
+};

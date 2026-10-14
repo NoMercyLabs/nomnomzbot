@@ -8,23 +8,23 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { Component } from 'vue'
-import BellNotification from '~icons/nnz/bell-notification'
-import BellRing from '~icons/nnz/bell-ring'
-import ChatMessages from '~icons/nnz/chat-messages'
-import ClosedCaption from '~icons/nnz/closed-caption'
-import Medal from '~icons/nnz/medal'
-import Monitor from '~icons/nnz/monitor'
-import NoteEighthPair from '~icons/nnz/note-eighth-pair'
-import PictureInPicture from '~icons/nnz/picture-in-picture'
-import Speaker from '~icons/nnz/speaker'
-import Trophy from '~icons/nnz/trophy'
-import WaveForm from '~icons/nnz/wave-form'
+import type { Component } from 'vue';
+import BellNotification from '~icons/nnz/bell-notification';
+import BellRing from '~icons/nnz/bell-ring';
+import ChatMessages from '~icons/nnz/chat-messages';
+import ClosedCaption from '~icons/nnz/closed-caption';
+import Medal from '~icons/nnz/medal';
+import Monitor from '~icons/nnz/monitor';
+import NoteEighthPair from '~icons/nnz/note-eighth-pair';
+import PictureInPicture from '~icons/nnz/picture-in-picture';
+import Speaker from '~icons/nnz/speaker';
+import Trophy from '~icons/nnz/trophy';
+import WaveForm from '~icons/nnz/wave-form';
 
 export interface OverlayKind {
   /** Key under dashboard.overlays.kinds. */
-  key: string
-  icon: Component
+  key: string;
+  icon: Component;
 }
 
 // The bot stores no kind for an overlay, so the kind is read from its name; an unknown name is a plain overlay.
@@ -39,26 +39,26 @@ const KINDS: Readonly<Record<string, OverlayKind>> = {
   'TTS Caption': { key: 'caption', icon: ClosedCaption },
   Alerts: { key: 'alerts', icon: BellRing },
   Audio: { key: 'audio', icon: Speaker },
-}
+};
 
-const FALLBACK: OverlayKind = { key: 'overlay', icon: PictureInPicture }
+const FALLBACK: OverlayKind = { key: 'overlay', icon: PictureInPicture };
 
 export function overlayKind(name: string): OverlayKind {
-  return KINDS[name] ?? FALLBACK
+  return KINDS[name] ?? FALLBACK;
 }
 
 // "channel.subscription.gift" reads as "subscription gift".
 export function plainEvent(key: string): string {
-  return key.replace(/^(twitch|channel|overlay|spotify)\./, '').replace(/[._]/g, ' ')
+  return key.replace(/^(twitch|channel|overlay|spotify)\./, '').replace(/[._]/g, ' ');
 }
 
 // The address with its query cut off: the token travels in the query and must never be shown.
 export function maskedAddress(url: string): string {
   try {
-    const parsed = new URL(url)
+    const parsed = new URL(url);
 
-    return `${parsed.origin}${parsed.pathname}`
+    return `${parsed.origin}${parsed.pathname}`;
   } catch {
-    return url.split('?')[0] ?? ''
+    return url.split('?')[0] ?? '';
   }
 }

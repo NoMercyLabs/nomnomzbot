@@ -8,33 +8,33 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useStorage } from '@vueuse/core'
-import { computed, watch, type ComputedRef, type Ref } from 'vue'
+import { useStorage } from '@vueuse/core';
+import { computed, watch, type ComputedRef, type Ref } from 'vue';
 
-import { keysOf } from '@/lib/array'
+import { keysOf } from '@/lib/array';
 
 // How text looks for one person on one device. No server endpoint exists for it, so the options live in
 // this browser (localStorage) and reach the page as attributes and custom properties on <html>.
-export type ReadabilityFont = 'system' | 'hyperlegible' | 'lexend'
-export type ReadabilityLineSpacing = 'normal' | 'wide' | 'wider'
-export type ReadabilitySpacing = 'normal' | 'wide'
-export type ReadabilityMotion = 'system' | 'reduce'
-export type ReadabilityDensity = 'compact' | 'comfortable' | 'touch'
-export type ReadabilityPreset = 'default' | 'dyslexia' | 'contrast'
+export type ReadabilityFont = 'system' | 'hyperlegible' | 'lexend';
+export type ReadabilityLineSpacing = 'normal' | 'wide' | 'wider';
+export type ReadabilitySpacing = 'normal' | 'wide';
+export type ReadabilityMotion = 'system' | 'reduce';
+export type ReadabilityDensity = 'compact' | 'comfortable' | 'touch';
+export type ReadabilityPreset = 'default' | 'dyslexia' | 'contrast';
 
 export interface Readability {
-  font: ReadabilityFont
-  size: number
-  lh: ReadabilityLineSpacing
-  spacing: ReadabilitySpacing
-  contrast: boolean
-  motion: ReadabilityMotion
-  density: ReadabilityDensity
+  font: ReadabilityFont;
+  size: number;
+  lh: ReadabilityLineSpacing;
+  spacing: ReadabilitySpacing;
+  contrast: boolean;
+  motion: ReadabilityMotion;
+  density: ReadabilityDensity;
 }
 
-export const readabilityStorageKey = 'nzb:readability'
-export const readabilitySizeMin = 12
-export const readabilitySizeMax = 20
+export const readabilityStorageKey = 'nzb:readability';
+export const readabilitySizeMin = 12;
+export const readabilitySizeMax = 20;
 
 export const readabilityDefaults = {
   font: 'system',
@@ -44,7 +44,7 @@ export const readabilityDefaults = {
   contrast: false,
   motion: 'system',
   density: 'compact',
-} as const satisfies Readability
+} as const satisfies Readability;
 
 export const readabilityPresets = {
   default: readabilityDefaults,
@@ -66,10 +66,11 @@ export const readabilityPresets = {
     motion: 'system',
     density: 'comfortable',
   },
-} as const satisfies Record<ReadabilityPreset, Readability>
+} as const satisfies Record<ReadabilityPreset, Readability>;
 
 // The design tokens are px values at the 14 px body size; a text size scales all of them by the same factor.
-const baseSizePx = 14
+const baseSizePx = 14;
+
 const textTokens = {
   xs: { size: 12, lh: 16 },
   sm: { size: 14, lh: 20 },
@@ -77,20 +78,21 @@ const textTokens = {
   lg: { size: 18, lh: 28 },
   xl: { size: 20, lh: 28 },
   '2xl': { size: 24, lh: 32 },
-} as const satisfies Record<string, { size: number; lh: number }>
-const lineFactor = { normal: 1, wide: 1.15, wider: 1.3 } as const satisfies Record<
-  ReadabilityLineSpacing,
-  number
->
+} as const satisfies Record<string, { size: number; lh: number }>;
 
-const px = (value: number): string => `${Math.round(value * 100) / 100}px`
+const lineFactor = {
+  normal: 1,
+  wide: 1.15,
+  wider: 1.3,
+} as const satisfies Record<ReadabilityLineSpacing, number>;
+
+const px = (value: number): string => `${Math.round(value * 100) / 100}px`;
 
 function setFlag(root: HTMLElement, name: string, on: boolean, value: string): void {
   if (on) {
-    root.setAttribute(name, value)
-  }
-  else {
-    root.removeAttribute(name)
+    root.setAttribute(name, value);
+  } else {
+    root.removeAttribute(name);
   }
 }
 
@@ -98,25 +100,25 @@ export function applyReadability(
   settings: Readability,
   root: HTMLElement = document.documentElement,
 ): void {
-  const scale = settings.size / baseSizePx
+  const scale = settings.size / baseSizePx;
 
   for (const [name, token] of Object.entries(textTokens)) {
-    root.style.setProperty(`--text-${name}`, px(token.size * scale))
-    root.style.setProperty(`--lh-${name}`, px(token.lh * scale * lineFactor[settings.lh]))
+    root.style.setProperty(`--text-${name}`, px(token.size * scale));
+    root.style.setProperty(`--lh-${name}`, px(token.lh * scale * lineFactor[settings.lh]));
   }
 
-  setFlag(root, 'data-rd-font', settings.font !== 'system', settings.font)
-  setFlag(root, 'data-rd-lh', settings.lh !== 'normal', settings.lh)
-  setFlag(root, 'data-rd-spacing', settings.spacing !== 'normal', settings.spacing)
-  setFlag(root, 'data-rd-contrast', settings.contrast, 'on')
-  setFlag(root, 'data-rd-motion', settings.motion !== 'system', settings.motion)
-  root.setAttribute('data-density', settings.density)
+  setFlag(root, 'data-rd-font', settings.font !== 'system', settings.font);
+  setFlag(root, 'data-rd-lh', settings.lh !== 'normal', settings.lh);
+  setFlag(root, 'data-rd-spacing', settings.spacing !== 'normal', settings.spacing);
+  setFlag(root, 'data-rd-contrast', settings.contrast, 'on');
+  setFlag(root, 'data-rd-motion', settings.motion !== 'system', settings.motion);
+  root.setAttribute('data-density', settings.density);
 }
 
 export interface UseReadability {
-  settings: Ref<Readability>
-  activePreset: ComputedRef<ReadabilityPreset | null>
-  applyPreset: (preset: ReadabilityPreset) => void
+  settings: Ref<Readability>;
+  activePreset: ComputedRef<ReadabilityPreset | null>;
+  applyPreset: (preset: ReadabilityPreset) => void;
 }
 
 export function useReadability(): UseReadability {
@@ -127,30 +129,34 @@ export function useReadability(): UseReadability {
     {
       mergeDefaults: true,
     },
-  )
+  );
 
   watch(settings, (next: Readability): void => applyReadability(next), {
     deep: true,
     immediate: true,
     flush: 'sync',
-  })
+  });
 
-  const activePreset: ComputedRef<ReadabilityPreset | null> = computed<ReadabilityPreset | null>(
+  const activePreset = computed<ReadabilityPreset | null>(
     () => {
-      const names = keysOf(readabilityPresets)
+      const names = keysOf(readabilityPresets);
       const match = names.find((name: ReadabilityPreset) =>
         keysOf(readabilityDefaults).every(
           (key: keyof Readability) => settings.value[key] === readabilityPresets[name][key],
         ),
-      )
+      );
 
-      return match ?? null
+      return match ?? null;
     },
-  )
+  );
 
   function applyPreset(preset: ReadabilityPreset): void {
-    settings.value = { ...readabilityPresets[preset] }
+    settings.value = { ...readabilityPresets[preset] };
   }
 
-  return { settings, activePreset, applyPreset }
+  return {
+    settings,
+    activePreset,
+    applyPreset,
+  };
 }

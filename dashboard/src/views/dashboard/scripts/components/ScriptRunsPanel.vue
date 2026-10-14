@@ -10,45 +10,49 @@
 <script setup lang="ts">
 // The test runs made on this page since it opened, newest first. The bot keeps no run table, so a reload clears them.
 // A failed run opens its dialog; a run that worked is only listed.
-import { useLocalStorage, type RemovableRef } from '@vueuse/core'
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useLocalStorage } from '@vueuse/core';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
+import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 
-import { matchesRunFilter, type RunFilter, type SessionRun } from './sessionRun'
+import { matchesRunFilter, type RunFilter, type SessionRun } from './sessionRun';
 
-const props = defineProps<{ runs: SessionRun[] }>()
+const props = defineProps<{ runs: SessionRun[] }>();
 
-defineEmits<{ open: [run: SessionRun] }>()
+defineEmits<{ open: [run: SessionRun] }>();
 
-const { t } = useI18n()
-const filter: RemovableRef<RunFilter> = useLocalStorage<RunFilter>('nnz.scripts.runFilter', 'all')
+const { t } = useI18n();
+const filter = useLocalStorage<RunFilter>('nnz.scripts.runFilter', 'all');
 
 const options = computed<FilterOption[]>(() =>
   (['all', 'failed', 'tests'] as const).map((value: RunFilter): FilterOption => ({
     value,
     label: t(`dashboard.scripts.runs.filter.${value}`),
   })),
-)
+);
 const shown = computed<SessionRun[]>(() =>
   props.runs.filter((run: SessionRun) => matchesRunFilter(run, filter.value)),
-)
-const state: ComputedRef<'ready' | 'empty'> = computed(() =>
+);
+const state = computed<'ready' | 'empty'>(() =>
   shown.value.length > 0
     ? 'ready'
     : 'empty',
-)
-const emptyText: ComputedRef<string> = computed<string>(() =>
+);
+const emptyText = computed<string>(() =>
   t(props.runs.length === 0
     ? 'dashboard.scripts.runs.empty'
     : 'dashboard.scripts.runs.noMatch'),
-)
+);
 
 function timeOf(run: SessionRun): string {
-  return run.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return run.at.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 </script>
 

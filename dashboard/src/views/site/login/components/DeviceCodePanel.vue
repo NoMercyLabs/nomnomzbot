@@ -8,9 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useMutation, useQuery } from '@tanstack/vue-query'
-import { computed, onMounted, watch, type ComputedRef } from 'vue'
-import { useRouter } from 'vue-router'
+import { useMutation, useQuery } from '@tanstack/vue-query';
+import { computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 import {
   deviceApprovalQuery,
@@ -18,46 +18,46 @@ import {
   type DeviceCode,
   type DeviceOutcome,
   type LoginProvider,
-} from '@/api/signIn'
-import { Button } from '@/components/ui/button'
+} from '@/api/signIn';
+import { Button } from '@/components/ui/button';
 
-const props = defineProps<{ provider: LoginProvider; returnTo: string }>()
-const emit = defineEmits<{ cancel: [] }>()
+const props = defineProps<{ provider: LoginProvider; returnTo: string }>();
+const emit = defineEmits<{ cancel: [] }>();
 
-const router = useRouter()
-const start = useMutation({ mutationFn: () => startDeviceSignIn(props.provider.key) })
-const code: ComputedRef<DeviceCode | null> = computed(() => start.data.value ?? null)
+const router = useRouter();
+const start = useMutation({ mutationFn: () => startDeviceSignIn(props.provider.key) });
+const code = computed<DeviceCode | null>(() => start.data.value ?? null);
 const site = computed(() =>
   code.value
     ? new URL(code.value.verificationUri).host
-    : '')
+    : '');
 
-const approval = useQuery(computed(() => deviceApprovalQuery(props.provider.key, code.value)))
+const approval = useQuery(computed(() => deviceApprovalQuery(props.provider.key, code.value)));
 
-const outcome: ComputedRef<DeviceOutcome | 'failed' | null> = computed(() => {
+const outcome = computed<DeviceOutcome | 'failed' | null>(() => {
   if (start.isError.value || (start.isSuccess.value && !code.value))
-    return 'failed'
+    return 'failed';
 
   if (approval.isError.value)
-    return 'error'
+    return 'error';
 
-  const status: string | undefined = approval.data.value?.status
+  const status: string | undefined = approval.data.value?.status;
 
   return status === 'authorized' ||
     status === 'expired' ||
     status === 'denied' ||
     status === 'error'
     ? status
-    : null
-})
+    : null;
+});
 
 watch(outcome, async (now) => {
   if (now === 'authorized') {
-    await router.replace(props.returnTo)
+    await router.replace(props.returnTo);
   }
-})
+});
 
-onMounted(() => start.mutate())
+onMounted(() => start.mutate());
 </script>
 
 <template>
@@ -74,7 +74,12 @@ onMounted(() => start.mutate())
         >
           {{ code.userCode }}
         </p>
-        <Button as="a" :href="code.verificationUri" target="_blank" rel="noopener" class="w-full">
+        <Button as="a"
+                :href="code.verificationUri"
+                target="_blank"
+                rel="noopener"
+                class="w-full"
+        >
           {{ $t('site.login.device.open', { site }) }}
         </Button>
         <p class="text-sm text-muted-foreground" role="status">

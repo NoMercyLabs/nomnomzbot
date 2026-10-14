@@ -8,14 +8,14 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { useNavigation } from './useNavigation'
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { useNavigation } from './useNavigation';
 
-const { t } = useI18n()
-const { groups, isCurrent } = useNavigation()
+const { t } = useI18n();
+const { groups, isCurrent } = useNavigation();
 </script>
 
 <template>

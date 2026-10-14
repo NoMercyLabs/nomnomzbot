@@ -10,8 +10,8 @@
 <script setup lang="ts">
 // The form behind "What viewers see". The page shows the server's values with the person's edits laid over them.
 // A refused save keeps the edits, so nothing typed is lost.
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   useSaveStreamInfo,
@@ -20,21 +20,21 @@ import {
   type PastStream,
   type StreamInfo,
   type StreamInfoDraft,
-} from '@/api/stream'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SettingRow from '@/components/layout/SettingRow.vue'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+} from '@/api/stream';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
-import CategoryPicker from './CategoryPicker.vue'
-import TagInput from './TagInput.vue'
+import CategoryPicker from './CategoryPicker.vue';
+import TagInput from './TagInput.vue';
 
 // Twitch cuts a title at 140 characters.
-const TITLE_MAX: number = 140
-const RECENT_TITLES: number = 5
+const TITLE_MAX: number = 140;
+const RECENT_TITLES: number = 5;
 const CONTENT_LABELS: readonly string[] = [
   'mature',
   'language',
@@ -43,75 +43,75 @@ const CONTENT_LABELS: readonly string[] = [
   'drugs',
   'sexual',
   'promotion',
-]
+];
 
-const { t, locale } = useI18n()
-const { channelId } = useCurrentChannel()
-const infoQuery = useStreamInfo(channelId)
-const historyQuery = useStreamHistory(channelId)
-const save = useSaveStreamInfo(channelId)
+const { t, locale } = useI18n();
+const { channelId } = useCurrentChannel();
+const infoQuery = useStreamInfo(channelId);
+const historyQuery = useStreamHistory(channelId);
+const save = useSaveStreamInfo(channelId);
 
-const draft: Ref<Partial<StreamInfoDraft>> = ref({})
-const info: ComputedRef<StreamInfo | null> = computed(() => infoQuery.data.value ?? null)
+const draft = ref<Partial<StreamInfoDraft>>({});
+const info = computed<StreamInfo | null>(() => infoQuery.data.value ?? null);
 const state = usePanelState(infoQuery, (data: StreamInfo | null) =>
-  data === null)
+  data === null);
 
-const form: ComputedRef<StreamInfoDraft> = computed(() => ({
+const form = computed<StreamInfoDraft>(() => ({
   title: draft.value.title ?? info.value?.title ?? '',
   gameName: draft.value.gameName ?? info.value?.gameName ?? '',
   tags: draft.value.tags ?? [...(info.value?.tags ?? [])],
-}))
+}));
 
-const dirty: ComputedRef<boolean> = computed(
+const dirty = computed<boolean>(
   () =>
     form.value.title !== (info.value?.title ?? '') ||
     form.value.gameName !== (info.value?.gameName ?? '') ||
     JSON.stringify(form.value.tags) !== JSON.stringify(info.value?.tags ?? []),
-)
+);
 
-const history: ComputedRef<PastStream[]> = computed(() => historyQuery.data.value ?? [])
+const history = computed<PastStream[]>(() => historyQuery.data.value ?? []);
 
-const recentTitles: ComputedRef<string[]> = computed(() => {
-  const current = info.value?.title ?? ''
+const recentTitles = computed<string[]>(() => {
+  const current = info.value?.title ?? '';
   const past = history.value
     .map((stream: PastStream) => stream.title ?? '')
-    .filter((title: string) => title !== '' && title !== current)
+    .filter((title: string) => title !== '' && title !== current);
 
-  return [...new Set(past)].slice(0, RECENT_TITLES)
-})
+  return [...new Set(past)].slice(0, RECENT_TITLES);
+});
 
-const recentCategories: ComputedRef<string[]> = computed(() => [
+const recentCategories = computed<string[]>(() => [
   ...new Set(
     history.value
       .map((stream: PastStream) => stream.gameName ?? '')
       .filter((name: string) => name !== ''),
   ),
-])
+]);
 
-const language: ComputedRef<string> = computed(() => {
-  const code = info.value?.language ?? ''
+const language = computed<string>(() => {
+  const code = info.value?.language ?? '';
 
-  return new Intl.DisplayNames([locale.value], { type: 'language' }).of(code) ?? code
-})
+  return new Intl.DisplayNames([locale.value], { type: 'language' }).of(code) ?? code;
+});
 
 function setTitle(value: string | number): void {
-  draft.value = { ...draft.value, title: String(value).slice(0, TITLE_MAX) }
+  draft.value = { ...draft.value, title: String(value).slice(0, TITLE_MAX) };
 }
 
 function setGame(value: string): void {
-  draft.value = { ...draft.value, gameName: value }
+  draft.value = { ...draft.value, gameName: value };
 }
 
 function setTags(value: string[]): void {
-  draft.value = { ...draft.value, tags: value }
+  draft.value = { ...draft.value, tags: value };
 }
 
 function submit(): void {
   save.mutate(form.value, {
     onSuccess: () => {
-      draft.value = {}
+      draft.value = {};
     },
-  })
+  });
 }
 </script>
 

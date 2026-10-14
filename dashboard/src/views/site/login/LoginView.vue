@@ -8,85 +8,85 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useQuery } from '@tanstack/vue-query';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
-import { activeBot } from '@/api/activeBot'
-import { providersQuery, signInUrl, type LoginProvider } from '@/api/signIn'
-import AppMark from '@/components/layout/AppMark.vue'
-import LanguagePicker from '@/components/layout/LanguagePicker.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import PlatformLogo from '@/components/layout/PlatformLogo.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { officialOrigin, servedOrigin } from '@/lib/botAddress'
-import { returnPath } from '@/router/guard'
+import { activeBot } from '@/api/activeBot';
+import { providersQuery, signInUrl, type LoginProvider } from '@/api/signIn';
+import AppMark from '@/components/layout/AppMark.vue';
+import LanguagePicker from '@/components/layout/LanguagePicker.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import PlatformLogo from '@/components/layout/PlatformLogo.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { officialOrigin, servedOrigin } from '@/lib/botAddress';
+import { returnPath } from '@/router/guard';
 
-import BotChooser from './components/BotChooser.vue'
-import DeviceCodePanel from './components/DeviceCodePanel.vue'
+import BotChooser from './components/BotChooser.vue';
+import DeviceCodePanel from './components/DeviceCodePanel.vue';
 
-const route = useRoute()
-const { t, locale } = useI18n()
-const providers = useQuery(providersQuery)
-const mode: Ref<'options' | 'device' | 'bots'> = ref('options')
-const botHost = computed(() => new URL(activeBot.value).host)
-const botDetail: ComputedRef<string> = computed(() => {
+const route = useRoute();
+const { t, locale } = useI18n();
+const providers = useQuery(providersQuery);
+const mode = ref<'options' | 'device' | 'bots'>('options');
+const botHost = computed(() => new URL(activeBot.value).host);
+const botDetail = computed<string>(() => {
   if (activeBot.value === officialOrigin)
-    return 'site.login.official'
+    return 'site.login.official';
 
   return activeBot.value === servedOrigin
     ? 'site.login.thisBot'
-    : 'site.login.used'
-})
+    : 'site.login.used';
+});
 // A browser sign-in comes back to the bot's own site, so for another bot this page uses a code.
 // Platforms return only to https or localhost (a secure context), so a plain http network address uses one too.
-const otherBot = computed(() => activeBot.value !== servedOrigin)
-const codeOnly = computed(() => otherBot.value || !window.isSecureContext)
+const otherBot = computed(() => activeBot.value !== servedOrigin);
+const codeOnly = computed(() => otherBot.value || !window.isSecureContext);
 
-const returnTo = computed(() => returnPath(route.query.return_to))
-const enabled: ComputedRef<LoginProvider[]> = computed(() =>
+const returnTo = computed(() => returnPath(route.query.return_to));
+const enabled = computed<LoginProvider[]>(() =>
   (providers.data.value ?? []).filter((p) => p.enabled),
-)
-const switchedOff: ComputedRef<string[]> = computed(() =>
+);
+const switchedOff = computed<string[]>(() =>
   (providers.data.value ?? []).filter((p) => !p.enabled).map((p) => p.displayName),
-)
-const switchedOffLine: ComputedRef<string> = computed(() =>
+);
+const switchedOffLine = computed<string>(() =>
   t(
     'site.login.switchedOff',
     { providers: new Intl.ListFormat(locale.value).format(switchedOff.value) },
     switchedOff.value.length,
   ),
-)
+);
 // A code is a second way to sign in, not a second provider: one link for all of them, and the
 // provider question comes only when more than one offers a code.
-const codeProviders = computed(() => enabled.value.filter((p) => p.flows.includes('device_code')))
-const deviceProvider: Ref<LoginProvider | null> = ref(null)
+const codeProviders = computed(() => enabled.value.filter((p) => p.flows.includes('device_code')));
+const deviceProvider = ref<LoginProvider | null>(null);
 
 function useCode(): void {
   deviceProvider.value = codeProviders.value.length === 1
     ? codeProviders.value[0]!
-    : null
+    : null;
 
-  mode.value = 'device'
+  mode.value = 'device';
 }
 
 const shown = computed(() =>
   codeOnly.value
     ? codeProviders.value
-    : enabled.value)
+    : enabled.value);
 
 function signIn(provider: LoginProvider): void {
   if (!codeOnly.value) {
-    window.location.assign(signInUrl(provider.key, returnTo.value))
+    window.location.assign(signInUrl(provider.key, returnTo.value));
 
-    return
+    return;
   }
 
-  deviceProvider.value = provider
-  mode.value = 'device'
+  deviceProvider.value = provider;
+  mode.value = 'device';
 }
 </script>
 

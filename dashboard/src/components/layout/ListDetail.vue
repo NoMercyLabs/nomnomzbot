@@ -9,14 +9,24 @@
 -->
 <script setup lang="ts">
 // The list and detail layout: a list column, the detail beside it, and an optional aside.
-// On a phone only one shows: the list, or the detail over the list once showDetail is true.
-withDefaults(defineProps<{ showDetail?: boolean }>(), { showDetail: false })
+// On a phone only one shows: the list, or the detail over the list once showDetail is true. There the layout
+// itself is the one scroller, so a detail taller than the screen scrolls with the page.
+// The aside sits in the row where it fits; narrower, it is a drawer from the right that asideOpen opens.
+import SidePanel from '@/components/layout/SidePanel.vue';
+
+withDefaults(defineProps<{ showDetail?: boolean; asideLabel?: string }>(), {
+  showDetail: false,
+  asideLabel: '',
+});
+
+const asideOpen = defineModel<boolean>('asideOpen', { default: false });
 </script>
 
 <template>
   <section
     data-slot="list-detail"
-    class="grid min-h-0 flex-1 gap-4 px-6 pt-4 pb-6 md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]"
+    data-page-body
+    class="grid min-h-0 flex-1 gap-4 px-6 pt-4 pb-6 max-md:overflow-y-auto md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]"
     :class="
       $slots.aside ? 'xl:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)_minmax(14rem,18rem)]' : ''
     "
@@ -35,12 +45,14 @@ withDefaults(defineProps<{ showDetail?: boolean }>(), { showDetail: false })
     >
       <slot name="detail" />
     </div>
-    <div
+    <SidePanel
       v-if="$slots.aside"
+      v-model:open="asideOpen"
+      pinned
       data-slot="list-detail-aside"
-      class="flex min-h-0 min-w-0 flex-col max-xl:hidden"
+      :label="asideLabel"
     >
       <slot name="aside" />
-    </div>
+    </SidePanel>
   </section>
 </template>

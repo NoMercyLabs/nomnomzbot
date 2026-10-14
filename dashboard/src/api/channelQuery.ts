@@ -8,20 +8,20 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 export function failed(what: string, status: number): Error {
-  return new Error(`${what} ${status}`)
+  return new Error(`${what} ${status}`);
 }
 
 // A refusal carries the bot's own reason in `message`; without one, the status stands in.
 export function refusal(what: string, error: unknown, status: number): Error {
-  const reason = (error as { message?: string | null } | undefined)?.message
+  const reason = (error as { message?: string | null } | undefined)?.message;
 
   return reason
     ? new Error(reason)
-    : failed(what, status)
+    : failed(what, status);
 }
 
 // A query that waits for a channel id and keeps one cache entry per channel.
@@ -34,5 +34,5 @@ export function channelQuery<T>(
     queryKey: computed(() => key(toValue(channelId))),
     queryFn: () => fetch(toValue(channelId) as string),
     enabled: computed(() => toValue(channelId) !== null),
-  })
+  });
 }

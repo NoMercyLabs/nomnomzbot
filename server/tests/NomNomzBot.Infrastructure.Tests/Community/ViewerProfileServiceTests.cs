@@ -156,6 +156,160 @@ public sealed class ViewerProfileServiceTests
     }
 
     [Fact]
+    public async Task GetProfileAsync_CarriesEveryStoredIdentityFact_WithTheStoredValues()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        DateTime created = new(2014, 3, 9, 12, 30, 0, DateTimeKind.Utc);
+        DateTime linked = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        DateTime login = new(2026, 9, 30, 8, 0, 0, DateTimeKind.Utc);
+        db.Users.Add(
+            new()
+            {
+                Id = Subject,
+                TwitchUserId = "subject-twitch",
+                Username = "subject",
+                UsernameNormalized = "subject",
+                DisplayName = "Subject",
+                AccountCreatedAt = created,
+                Description = "I play platformers.",
+                BroadcasterType = "affiliate",
+                Type = "global_mod",
+                Color = "#FF4500",
+                NickName = "Subby",
+                Timezone = "Europe/Amsterdam",
+                IsLurking = true,
+                PronounManualOverride = true,
+            }
+        );
+        db.UserIdentities.Add(
+            new()
+            {
+                UserId = Subject,
+                Provider = "twitch",
+                ProviderUserId = "subject-twitch",
+                ProviderUsername = "subject",
+                IsPrimary = true,
+                LinkedAt = linked,
+                LastLoginAt = login,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        ViewerIdentityDto identity = result.Value.Identity;
+        identity.AccountCreatedAtUtc.Should().Be(created);
+        identity.Description.Should().Be("I play platformers.");
+        identity.BroadcasterType.Should().Be("affiliate");
+        identity.UserType.Should().Be("global_mod");
+        identity.ChatColor.Should().Be("#FF4500");
+        identity.Nickname.Should().Be("Subby");
+        identity.Timezone.Should().Be("Europe/Amsterdam");
+        identity.IsLurking.Should().BeTrue();
+        identity.PronounIsManualOverride.Should().BeTrue();
+        LinkedIdentityDto link = identity.LinkedIdentities.Should().ContainSingle().Subject;
+        link.LinkedAtUtc.Should().Be(linked);
+        link.LastLoginAtUtc.Should().Be(login);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_ChatColor_FallsBackToThisChannelsAssignedColor_WhenThePersonHasNone()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedSubjectAsync(db);
+        db.ChatterAssignedColors.AddRange(
+            new ChatterAssignedColor
+            {
+                BroadcasterId = Broadcaster,
+                Provider = "twitch",
+                UserId = "subject-twitch",
+                ColorHex = "#1E90FF",
+            },
+            new ChatterAssignedColor
+            {
+                BroadcasterId = Guid.CreateVersion7(),
+                Provider = "twitch",
+                UserId = "subject-twitch",
+                ColorHex = "#00FF7F",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Identity.ChatColor.Should().Be("#1E90FF");
+        result.Value.Identity.AccountCreatedAtUtc.Should().BeNull();
+        result.Value.Identity.Nickname.Should().BeNull();
+        result.Value.Identity.IsLurking.Should().BeFalse();
+        result.Value.Identity.PronounIsManualOverride.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_Activity_SumsTheBitsThisPersonCheeredInThisChannelOnly()
+    {
+        (
+            ViewerProfileService sut,
+            ViewerProfileServiceTestDbContext db,
+            IViewerAnalyticsService analytics,
+            _,
+            _,
+            _
+        ) = Build();
+        await SeedSubjectAsync(db);
+        analytics
+            .GetProfileAsync(Broadcaster, Subject, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new ViewerProfileDto(
+                        Subject,
+                        "subject-twitch",
+                        "Subject",
+                        null,
+                        null,
+                        0,
+                        7,
+                        0,
+                        0,
+                        0,
+                        false,
+                        false,
+                        null,
+                        false
+                    )
+                )
+            );
+        Guid otherChannel = Guid.CreateVersion7();
+        db.ChatMessages.AddRange(
+            CheerLine("m1", Broadcaster, "subject-twitch", 100),
+            CheerLine("m2", Broadcaster, "subject-twitch", 250),
+            CheerLine("m3", Broadcaster, "subject-twitch", null),
+            CheerLine("m4", Broadcaster, "someone-else", 5000),
+            CheerLine("m5", otherChannel, "subject-twitch", 9000)
+        );
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Activity.Should().NotBeNull();
+        result.Value.Activity!.TotalBitsCheered.Should().Be(350);
+        result.Value.Activity.TotalMessages.Should().Be(7);
+    }
+
+    private static ChatMessage CheerLine(string id, Guid broadcaster, string userId, int? bits) =>
+        new()
+        {
+            Id = id,
+            BroadcasterId = broadcaster,
+            UserId = userId,
+            Username = userId,
+            DisplayName = userId,
+            UserType = "",
+            Message = "cheer",
+            IsCheer = bits is not null,
+            BitsAmount = bits,
+        };
+
+    [Fact]
     public async Task GetProfileAsync_ModerationHistory_IsNull_ForAPersonWithNoProjectedHistoryYet()
     {
         (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();

@@ -164,6 +164,7 @@ public abstract class BaseController : ControllerBase
             or "TOKEN_EXPIRED"
             or "INVALID_TOKEN"
             or "TOKEN_REVOKED"
+            or "TOKEN_REUSE"
             or "SESSION_INVALID"
             or "SESSION_NOT_ACTIVE"
             or "UNAUTHENTICATED"

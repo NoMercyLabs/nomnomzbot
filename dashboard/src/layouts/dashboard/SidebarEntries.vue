@@ -8,21 +8,21 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
 import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from '@/components/ui/sidebar'
-import type { NavEntry } from './navigation'
-import { useNavigation } from './useNavigation'
+} from '@/components/ui/sidebar';
+import type { NavEntry } from './navigation';
+import { useNavigation } from './useNavigation';
 
-defineProps<{ entries: readonly NavEntry[] }>()
+defineProps<{ entries: readonly NavEntry[] }>();
 
-const { t } = useI18n()
-const { isCurrent } = useNavigation()
+const { t } = useI18n();
+const { isCurrent } = useNavigation();
 </script>
 
 <template>

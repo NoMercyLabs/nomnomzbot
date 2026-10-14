@@ -8,52 +8,51 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { watch } from 'vue'
+import { watch } from 'vue';
 
-import { queryClient } from '@/api/queryClient'
-import { useCurrentUser, useSignedIn } from '@/api/auth'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { queryClient } from '@/api/queryClient';
+import { useCurrentUser, useSignedIn } from '@/api/auth';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import { startAdminHub, stopAdminHub } from './adminHub'
-import { startDashboardHub, stopDashboardHub, watchChannel } from './dashboardHub'
+import { startAdminHub, stopAdminHub } from './adminHub';
+import { startDashboardHub, stopDashboardHub, watchChannel } from './dashboardHub';
 
 // Called once by the dashboard frame: both hubs run while the person is signed in, and stop at sign-out.
 export function useRealtime(): void {
-  const signedIn = useSignedIn()
-  const user = useCurrentUser()
-  const { channelId } = useCurrentChannel()
+  const signedIn = useSignedIn();
+  const user = useCurrentUser();
+  const { channelId } = useCurrentChannel();
 
   watch(
     signedIn,
     (on: boolean) => {
       if (!on) {
-        void stopDashboardHub()
+        void stopDashboardHub();
 
-        return
+        return;
       }
 
-      void watchChannel(channelId.value)
-      void startDashboardHub(queryClient)
+      void watchChannel(channelId.value);
+      void startDashboardHub(queryClient);
     },
     { immediate: true },
-  )
+  );
 
   watch(channelId, (id: string | null) => {
     if (signedIn.value) {
-      void watchChannel(id)
+      void watchChannel(id);
     }
-  })
+  });
 
   watch(
     () => signedIn.value && user.data.value?.isAdmin === true,
     (operator: boolean) => {
       if (operator) {
-        void startAdminHub(queryClient)
-      }
-      else {
-        void stopAdminHub()
+        void startAdminHub(queryClient);
+      } else {
+        void stopAdminHub();
       }
     },
     { immediate: true },
-  )
+  );
 }

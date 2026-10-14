@@ -184,6 +184,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
             e.Ignore(m => m.Badges);
         });
         b.Entity<ViewerProfile>(e => e.HasKey(p => p.Id));
+        b.Entity<ChatterAssignedColor>(e => e.HasKey(c => c.Id));
 
         b.Entity<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride>(e => e.HasKey(o => o.Id));
         b.Entity<ChannelCommunityStanding>(e => e.HasKey(s => s.Id));
@@ -275,9 +276,10 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
         typeof(NomNomzBot.Domain.Stream.Entities.ShoutoutOverride),
         typeof(NomNomzBot.Domain.ViewerData.Entities.ViewerDatum),
         typeof(CommandUsage),
-        // The first-seen lookup reads the channel's own chat history and analytics profile.
+        // First seen, the cheered-bits total and the assigned chat color read these.
         typeof(ChatMessage),
         typeof(ViewerProfile),
+        typeof(ChatterAssignedColor),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -355,6 +357,8 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
+    public DbSet<ChatterAssignedColor> ChatterAssignedColors => Set<ChatterAssignedColor>();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();

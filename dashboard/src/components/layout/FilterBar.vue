@@ -8,41 +8,44 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// One filter for the page header bar. A short choice (2 to 4 options) is a segmented control;
-// a longer one is a select with its label inside. The default slot holds a SearchField beside it.
-import { computed } from 'vue'
+// One filter for the page control bar. A short choice (2 to 4 options) is a segmented control;
+// a longer one is a select with its label inside. The search stays above the list, never in the
+// bar (owner 2026-10-14: "only th controls, keep the search above").
+import { computed } from 'vue';
 
-import SegmentedControl from '@/components/layout/SegmentedControl.vue'
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/components/ui/select';
 
 export interface FilterOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
-const props = defineProps<{ label: string; options: readonly FilterOption[] }>()
+const props = defineProps<{ label: string; options: readonly FilterOption[] }>();
 
-const selected = defineModel<string>({ required: true })
+// No slots: a page that puts a search in here fails the type check.
+defineSlots<Record<string, never>>();
 
-const segmented = computed<boolean>(() => props.options.length <= 4)
+const selected = defineModel<string>({ required: true });
+
+const segmented = computed<boolean>(() => props.options.length <= 4);
 
 // The select can send an empty value; a filter always keeps one.
 function choose(value: unknown): void {
   if (typeof value === 'string' && value !== '') {
-    selected.value = value
+    selected.value = value;
   }
 }
 </script>
 
 <template>
   <div data-slot="filter-bar" class="flex flex-wrap items-center gap-2">
-    <slot />
     <SegmentedControl v-if="segmented" v-model="selected" :label="label" :options="options" />
     <Select v-else :model-value="selected" @update:model-value="choose">
       <SelectTrigger :aria-label="label">

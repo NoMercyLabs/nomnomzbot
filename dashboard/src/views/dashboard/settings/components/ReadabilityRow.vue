@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // One option of the Readability view: title and help on the left, the control on the right.
-defineProps<{ title: string; description?: string }>()
+defineProps<{ title: string; description?: string }>();
 </script>
 
 <template>

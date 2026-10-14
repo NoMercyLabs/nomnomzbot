@@ -8,28 +8,28 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { computed, toValue, type MaybeRefOrGetter, type WritableComputedRef } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, toValue, type MaybeRefOrGetter, type WritableComputedRef } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 // The open tab of a page lives in the route query (?view=), so a link opens a tab and Back returns to the last one.
 // A missing or unknown value falls back to the first tab; the query stays clean until a person picks another tab.
 export function usePageView(
   values: MaybeRefOrGetter<readonly string[]>,
 ): WritableComputedRef<string> {
-  const route = useRoute()
-  const router = useRouter()
+  const route = useRoute();
+  const router = useRouter();
 
   return computed<string>({
     get: (): string => {
-      const known = toValue(values)
-      const asked: unknown = route.query.view
+      const known = toValue(values);
+      const asked: unknown = route.query.view;
 
       return typeof asked === 'string' && known.includes(asked)
         ? asked
-        : (known[0] ?? '')
+        : (known[0] ?? '');
     },
     set: (view: string): void => {
-      void router.push({ query: { ...route.query, view } })
+      void router.push({ query: { ...route.query, view } });
     },
-  })
+  });
 }

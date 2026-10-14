@@ -12,23 +12,23 @@
 // tier: lead = the one panel the page is for; quiet = status the eye may skip, so its title is muted.
 // state (C7): the panel keeps its size in every state. A skeleton shows only after 150 ms,
 // so a fast answer never flashes one. The default slot shows only in the ready state.
-import { useTimeoutFn } from '@vueuse/core'
-import { ref, watch } from 'vue'
+import { useTimeoutFn } from '@vueuse/core';
+import { ref, watch } from 'vue';
 
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export type PanelState = 'ready' | 'loading' | 'empty' | 'error'
+export type PanelState = 'ready' | 'loading' | 'empty' | 'error';
 
 const props = withDefaults(
   defineProps<{
-    title: string
-    description?: string
-    tier?: 'lead' | 'default' | 'quiet'
-    pad?: boolean
-    state?: PanelState
-    emptyText?: string
-    errorText?: string
+    title: string;
+    description?: string;
+    tier?: 'lead' | 'default' | 'quiet';
+    pad?: boolean;
+    state?: PanelState;
+    emptyText?: string;
+    errorText?: string;
   }>(),
   {
     description: undefined,
@@ -38,33 +38,32 @@ const props = withDefaults(
     emptyText: undefined,
     errorText: undefined,
   },
-)
+);
 
-defineEmits<{ retry: [] }>()
+defineEmits<{ retry: [] }>();
 
-const skeletonShown = ref(false)
+const skeletonShown = ref(false);
 const { start, stop } = useTimeoutFn(
   () => {
-    skeletonShown.value = true
+    skeletonShown.value = true;
   },
   150,
   { immediate: false },
-)
+);
 
 watch(
   () => props.state,
   (state: PanelState) => {
-    skeletonShown.value = false
+    skeletonShown.value = false;
 
     if (state === 'loading') {
-      start()
-    }
-    else {
-      stop()
+      start();
+    } else {
+      stop();
     }
   },
   { immediate: true },
-)
+);
 </script>
 
 <template>
@@ -73,17 +72,24 @@ watch(
     :data-state="state"
     class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
   >
-    <header class="flex min-h-13 flex-none items-center gap-2 border-b border-border px-4 py-2">
-      <div class="min-w-0 flex-1">
-        <h2
-          class="text-base"
-          :class="tier === 'quiet' ? 'font-medium text-muted-foreground' : 'font-semibold'"
-        >
-          {{ title }}
-        </h2>
-        <p v-if="description" class="text-sm text-muted-foreground">{{ description }}</p>
+    <!-- Actions share the title row; the description runs the full width below, never squeezed beside them. -->
+    <header
+      class="grid min-h-13 flex-none grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-2 border-b border-border px-4 py-2"
+    >
+      <h2
+        class="min-w-0 text-base"
+        :class="tier === 'quiet' ? 'font-medium text-muted-foreground' : 'font-semibold'"
+      >
+        {{ title }}
+      </h2>
+      <div
+        v-if="$slots.actions"
+        data-slot="panel-actions"
+        class="col-start-2 row-start-1 flex items-center gap-2"
+      >
+        <slot name="actions" />
       </div>
-      <slot name="actions" />
+      <p v-if="description" class="col-span-2 text-sm text-muted-foreground">{{ description }}</p>
     </header>
     <div class="min-h-0 flex-1 overflow-y-auto" :class="pad ? 'p-4' : 'p-2'">
       <slot v-if="state === 'ready'" />

@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The blast box of a destructive confirm (mockup .blast): what happens when the user presses the red button.
 // It is absent with no items. The 12px radius sits inside the dialog body, which has no padding of its own.
-defineProps<{ items: string[] }>()
+defineProps<{ items: string[] }>();
 </script>
 
 <template>

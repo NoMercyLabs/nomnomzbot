@@ -10,50 +10,50 @@
 <script setup lang="ts">
 // The New script dialog: one name field. The bot gets the name, an empty description and the starter code.
 // The dialog stays open on a refusal and shows the bot's reason; on success it closes and tells the page the new id.
-import { ref, watch, type Ref } from 'vue'
+import { ref, watch } from 'vue';
 
-import { useCreateCodeScript } from '@/api/codeScripts'
-import FormDialog from '@/components/layout/FormDialog.vue'
-import { Input } from '@/components/ui/input'
+import { useCreateCodeScript } from '@/api/codeScripts';
+import FormDialog from '@/components/layout/FormDialog.vue';
+import { Input } from '@/components/ui/input';
 
-import { STARTER_SOURCE } from './starterSource'
+import { STARTER_SOURCE } from './starterSource';
 
-const props = defineProps<{ open: boolean }>()
-const emit = defineEmits<{ 'update:open': [open: boolean]; created: [id: string | null] }>()
+const props = defineProps<{ open: boolean }>();
+const emit = defineEmits<{ 'update:open': [open: boolean]; created: [id: string | null] }>();
 
-const create = useCreateCodeScript()
-const name = ref('')
-const error: Ref<string | undefined> = ref(undefined)
+const create = useCreateCodeScript();
+const name = ref('');
+const error = ref<string | undefined>(undefined);
 
 // A reopened dialog starts clean.
 watch(
   () => props.open,
   (open: boolean): void => {
-    if (!open) return
+    if (!open) return;
 
-    name.value = ''
-    error.value = undefined
+    name.value = '';
+    error.value = undefined;
   },
-)
+);
 
 async function submit(): Promise<void> {
-  const trimmed = name.value.trim()
+  const trimmed = name.value.trim();
 
-  if (trimmed === '') return
+  if (trimmed === '') return;
 
-  error.value = undefined
+  error.value = undefined;
 
   try {
     const id: string | null = await create.mutateAsync({
       name: trimmed,
       description: '',
       sourceCode: STARTER_SOURCE,
-    })
+    });
 
-    emit('update:open', false)
-    emit('created', id)
+    emit('update:open', false);
+    emit('created', id);
   } catch (failure) {
-    error.value = (failure as Error).message
+    error.value = (failure as Error).message;
   }
 }
 </script>

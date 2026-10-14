@@ -15,4 +15,4 @@ const sides: number = Number(bot.args[0]) || 6;
 
 // Pick a whole number from 1 to sides. Add nnz.api.chat.send(...) to post it in chat.
 const roll: number = nnz.random.int(1, sides);
-`
+`;

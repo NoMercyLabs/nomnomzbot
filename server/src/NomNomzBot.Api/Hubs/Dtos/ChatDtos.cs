@@ -100,8 +100,19 @@ public record ChatEmoteDto(
     string Provider,
     IReadOnlyDictionary<string, string> Urls,
     bool Animated,
-    bool ZeroWidth
+    bool ZeroWidth,
+    string Code = "",
+    string? Type = null,
+    int? Tier = null,
+    ChatEmoteOwnerDto? Owner = null,
+    ChatEmoteOwnerDto? Artist = null
 );
+
+/// <summary>
+/// Who owns an emote: the channel for a Twitch emote, the uploader for a 7TV, BTTV or FFZ emote. A field the
+/// provider or cache does not have is null.
+/// </summary>
+public record ChatEmoteOwnerDto(string? Id, string? Login, string? DisplayName, string? ProfileUrl);
 
 /// <summary>
 /// Cheermote fragment data — the raw prefix/bits/tier plus the resolved tier image (chat-decoration spec §3.4):

@@ -8,72 +8,78 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useTimeoutFn } from '@vueuse/core'
-import { ref, type Ref } from 'vue'
+import { useTimeoutFn } from '@vueuse/core';
+import { ref, type Ref } from 'vue';
 
-import { runScriptTest, type TestRunOutcome } from '@/api/codeScripts'
-import type { TestRunResult, TestTrigger } from '@/composables/useEditorBridge'
+import { runScriptTest, type TestRunOutcome } from '@/api/codeScripts';
+import type { TestRunResult, TestTrigger } from '@/composables/useEditorBridge';
 
-const FALLBACK_WAIT_SECONDS = 10
+const FALLBACK_WAIT_SECONDS = 10;
 
 export interface ScriptTester {
-  running: Ref<boolean>
+  running: Ref<boolean>;
   // True while the bot asked us to wait; Run test stays disabled until the window ends.
-  limited: Ref<boolean>
-  last: Ref<TestRunResult | null>
-  failure: Ref<string | undefined>
+  limited: Ref<boolean>;
+  last: Ref<TestRunResult | null>;
+  failure: Ref<string | undefined>;
   run: (
     trigger: TestTrigger | null,
-  ) => Promise<{ result: TestRunResult; trigger: string | null } | null>
+  ) => Promise<{ result: TestRunResult; trigger: string | null } | null>;
 }
 
 // A dry run of one script: nothing it does reaches chat. A refusal shows its reason; a 429 starts a wait.
 export function useScriptTester(scriptId: () => string): ScriptTester {
-  const running = ref(false)
-  const limited = ref(false)
-  const last: Ref<TestRunResult | null> = ref(null)
-  const failure: Ref<string | undefined> = ref(undefined)
-  const waitMs = ref(FALLBACK_WAIT_SECONDS * 1000)
+  const running = ref(false);
+  const limited = ref(false);
+  const last = ref<TestRunResult | null>(null);
+  const failure = ref<string | undefined>(undefined);
+  const waitMs = ref(FALLBACK_WAIT_SECONDS * 1000);
   const wait = useTimeoutFn(
     () => {
-      limited.value = false
+      limited.value = false;
     },
     waitMs,
     { immediate: false },
-  )
+  );
 
   async function run(
     trigger: TestTrigger | null,
   ): Promise<{ result: TestRunResult; trigger: string | null } | null> {
-    running.value = true
-    failure.value = undefined
+    running.value = true;
+    failure.value = undefined;
 
     try {
       const outcome: TestRunOutcome = await runScriptTest(scriptId(), {
         variables: trigger?.variables ?? {},
         args: [],
         trigger: trigger?.id ?? null,
-      })
+      });
 
       if (outcome.kind === 'rateLimited') {
-        waitMs.value = (outcome.retryAfterSeconds ?? FALLBACK_WAIT_SECONDS) * 1000
-        limited.value = true
-        wait.start()
+        waitMs.value = (outcome.retryAfterSeconds ?? FALLBACK_WAIT_SECONDS) * 1000;
+        limited.value = true;
+        wait.start();
 
-        return null
+        return null;
       }
 
-      last.value = outcome.result
+      last.value = outcome.result;
 
-      return { result: outcome.result, trigger: trigger?.label ?? null }
+      return { result: outcome.result, trigger: trigger?.label ?? null };
     } catch (error) {
-      failure.value = (error as Error).message
+      failure.value = (error as Error).message;
 
-      return null
+      return null;
     } finally {
-      running.value = false
+      running.value = false;
     }
   }
 
-  return { running, limited, last, failure, run }
+  return {
+    running,
+    limited,
+    last,
+    failure,
+    run,
+  };
 }

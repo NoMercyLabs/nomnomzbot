@@ -8,16 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
-import type { TemplateHelper } from '@/api/templates'
+import type { TemplateHelper } from '@/api/templates';
 
 // The bot sends a translation key for each helper, never the sentence. A key this dashboard has no words for shows nothing.
 export function useHelperText(): {
-  describe: (helper: TemplateHelper) => string
-  groupLabel: (group: string) => string
+  describe: (helper: TemplateHelper) => string;
+  groupLabel: (group: string) => string;
 } {
-  const { t, te } = useI18n()
+  const { t, te } = useI18n();
 
   return {
     describe: (helper: TemplateHelper): string =>
@@ -28,5 +28,5 @@ export function useHelperText(): {
       te(`template.group.${group}`)
         ? t(`template.group.${group}`)
         : group,
-  }
+  };
 }

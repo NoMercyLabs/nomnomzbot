@@ -8,18 +8,18 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { createPinia, setActivePinia, type Pinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { i18n } from '@/i18n'
+import { i18n } from '@/i18n';
 
-import FilterBar from '@/components/layout/FilterBar.vue'
+import FilterBar from '@/components/layout/FilterBar.vue';
 
-import CatalogView from '../CatalogView.vue'
-import en from '../i18n/en.json'
+import CatalogView from '../CatalogView.vue';
+import en from '../i18n/en.json';
 
 vi.mock('@/api/community', () => ({
   useCommunityFirstPage: () => ({
@@ -28,45 +28,51 @@ vi.mock('@/api/community', () => ({
     isPending: ref(false),
     refetch: async (): Promise<void> => undefined,
   }),
-}))
+}));
 
 vi.mock('@/api/codeScripts', () => ({
   useCodeScripts: () => ({ data: ref([]), error: ref(null) }),
   fetchScriptProject: async () => null,
   fetchScriptSdkTypes: async () => null,
   saveScriptProject: async () => ({ ok: true }),
-}))
+}));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+}));
 
-let mounted: VueWrapper | null = null
-let pinia: Pinia
-let router: Router
+let mounted: VueWrapper | null = null;
+let pinia: Pinia;
+let router: Router;
 
 beforeEach(() => {
-  localStorage.clear()
-  pinia = createPinia()
-  setActivePinia(pinia)
-  i18n.global.mergeLocaleMessage('en', en)
-})
+  localStorage.clear();
+  pinia = createPinia();
+  setActivePinia(pinia);
+  i18n.global.mergeLocaleMessage('en', en);
+});
 
 afterEach(() => {
-  mounted?.unmount()
-  mounted = null
-  document.body.innerHTML = ''
-})
+  mounted?.unmount();
+  mounted = null;
+  document.body.innerHTML = '';
+});
 
 async function open(): Promise<void> {
-  const blank = { template: '<div />' }
+  const blank = { template: '<div />' };
 
   router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/app/catalog', name: 'dashboard-catalog', component: blank }],
-  })
+    routes: [
+      {
+        path: '/app/catalog',
+        name: 'dashboard-catalog',
+        component: blank,
+      },
+    ],
+  });
 
-  await router.push('/app/catalog?view=blocks')
+  await router.push('/app/catalog?view=blocks');
 
   mounted = mount(CatalogView, {
     attachTo: document.body,
@@ -81,33 +87,33 @@ async function open(): Promise<void> {
         HelperPanel: { props: ['target', 'context'], template: '<div />' },
       },
     },
-  })
+  });
 
-  await flushPromises()
+  await flushPromises();
 }
 
 // The page has two FilterBars; each one's value is the v-model the page remembers.
 const bar = (label: string): VueWrapper =>
   mounted!
     .findAllComponents(FilterBar)
-    .find((found) => found.props('label') === label) as VueWrapper
+    .find((found) => found.props('label') === label) as VueWrapper;
 
 describe('CatalogView', () => {
   it('keeps the state and since choices after the page is opened again', async () => {
-    await open()
-    bar(en.dashboard.catalog.filter.state).vm.$emit('update:modelValue', 'on')
-    bar(en.dashboard.catalog.filter.since).vm.$emit('update:modelValue', 'month')
-    await flushPromises()
-    mounted!.unmount()
-    mounted = null
-    document.body.innerHTML = ''
+    await open();
+    bar(en.dashboard.catalog.filter.state).vm.$emit('update:modelValue', 'on');
+    bar(en.dashboard.catalog.filter.since).vm.$emit('update:modelValue', 'month');
+    await flushPromises();
+    mounted!.unmount();
+    mounted = null;
+    document.body.innerHTML = '';
 
-    await open()
+    await open();
 
     const chosen = (label: string): unknown =>
-      (bar(label).props() as { modelValue: unknown }).modelValue
+      (bar(label).props() as { modelValue: unknown }).modelValue;
 
-    expect(chosen(en.dashboard.catalog.filter.state)).toBe('on')
-    expect(chosen(en.dashboard.catalog.filter.since)).toBe('month')
-  })
-})
+    expect(chosen(en.dashboard.catalog.filter.state)).toBe('on');
+    expect(chosen(en.dashboard.catalog.filter.since)).toBe('month');
+  });
+});

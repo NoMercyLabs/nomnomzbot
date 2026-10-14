@@ -1123,6 +1123,30 @@ public static partial class ToneTemplateCatalog
             hype: ["THE PERMIT FAILED! TRY AGAIN!"],
             chill: ["couldn't grant that permit."]
         );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Permit.GrantedSongRequest,
+            variables: ["user", "track.name"],
+            informative: ["Queued {track.name} for {user}."],
+            friendly: ["{user}'s request {track.name} is in the queue now!"],
+            sassy: ["Fine, {track.name} for {user} goes in the queue."],
+            hype: ["{track.name} FOR {user} IS QUEUED! LET'S GO!"],
+            chill: ["queued {track.name} for {user}."]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Permit.NoPendingRequest,
+            variables: ["user"],
+            informative: ["No song request from {user} is waiting for permission."],
+            friendly: ["I'm not holding a song request from {user} right now."],
+            sassy: ["{user} has nothing waiting on a permit."],
+            hype: ["NO REQUEST FROM {user} TO PERMIT!"],
+            chill: ["nothing held for {user}."]
+        );
     }
 
     // ── !unpermit ────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
@@ -29,7 +30,8 @@ public sealed class UsageMeteringService(
     IApplicationDbContext db,
     IBillingTierService tiers,
     IEventBus eventBus,
-    TimeProvider clock
+    TimeProvider clock,
+    IConfiguration configuration
 ) : IUsageMeteringService
 {
     public async Task<Result> RecordAsync(
@@ -161,7 +163,10 @@ public sealed class UsageMeteringService(
         CancellationToken ct = default
     )
     {
-        long limit = (await tiers.GetLimitAsync(broadcasterId, metricKey, ct)).Value;
+        bool ownerUncapped = await IsOwnedByInstanceOwnerAsync(broadcasterId, ct);
+        long limit = ownerUncapped
+            ? -1
+            : (await tiers.GetLimitAsync(broadcasterId, metricKey, ct)).Value;
         (DateTime periodStart, _) = CurrentMonth();
         long used = await db
             .UsageRecords.Where(u =>
@@ -175,6 +180,35 @@ public sealed class UsageMeteringService(
         bool allowed = limit == -1 || used + requestedQuantity <= limit;
         long remaining = limit == -1 ? long.MaxValue : Math.Max(0, limit - used);
         return Result.Success(new QuotaCheckDto(allowed, metricKey, used, limit, remaining));
+    }
+
+    // The instance owner never hits a usage cap on their own channel. The owner is the user matching
+    // App:InitialAdminTwitchId when set, else the earliest platform principal (the self-host first-owner
+    // bootstrap, see AdminBootstrap). Other platform principals stay on their tier caps.
+    private async Task<bool> IsOwnedByInstanceOwnerAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        Guid? channelOwnerId = await db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => (Guid?)c.OwnerUserId)
+            .FirstOrDefaultAsync(ct);
+        if (channelOwnerId is null)
+            return false;
+
+        string? configuredAdminId = configuration["App:InitialAdminTwitchId"];
+        if (!string.IsNullOrWhiteSpace(configuredAdminId))
+            return await db.Users.AnyAsync(
+                u => u.Id == channelOwnerId && u.TwitchUserId == configuredAdminId,
+                ct
+            );
+
+        Guid? earliestPrincipalId = await db
+            .Users.AsNoTracking()
+            .Where(u => u.IsPlatformPrincipal)
+            .OrderBy(u => u.CreatedAt)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefaultAsync(ct);
+        return earliestPrincipalId == channelOwnerId;
     }
 
     public async Task<Result<IReadOnlyList<UsageMetricDto>>> GetCurrentUsageAsync(

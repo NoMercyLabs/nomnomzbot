@@ -21,6 +21,32 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-13 (evening) — row balance, dismissable errors, live updates, chat settings + active users panel
+
+Stoney, verbatim:
+
+> the card items need to have a visual balance because the padding on the right does not match with the visual space of the left with the icon, this must be properly handled for start icon, end icon, start button, end button, no icon and no button.
+> i can't dismiss an error.
+> the dashboard is not getting its live updates or does not reflect them and requires a navigation to make the change showing.
+> i would like my chat settings and user active sidepannel to be made now.
+
+- **S-VUE-LIVE-UPDATES** — server pushes update the open page without a navigation. Done when a test pushes an event and the panel changes without a route change.
+- **S-USER-CHAT-PREFERENCES** — a per-user GET/PUT for chat display preferences, so the Display
+  drawer saves to the account on every device (the mockup's promise). Until it lands the drawer keeps
+  its choices on the device and says so. Then the five options with no data yet: animated emotes
+  (a still-image URL per emote), read aloud, match language, voice and speed (per-user TTS choice).
+
+Stoney, verbatim (later the same evening):
+
+> i want to be able to drag songs up and down in the list and the server reordering the queue, i requested my end song but i also get bumped, so i need to be able to drag mine to the end haha, not prority but important
+
+- **S-SR-DRAG-REORDER** — the dashboard song queue rows can be dragged up and down; the server moves the entry to that place in the fair queue and every surface (overlays, `!queue`, the Spotify hand-over) follows. Done when a drag in the dashboard changes the server order and a test asserts the new order.
+Stoney, verbatim: "do i have the ability yet to play a song directly, skipping the queue in my code scripts yet? i want to add my song to the start and end of the stream. i asked you a while ago but i don't know if you actually made it"
+
+- **S-SDK-MUSIC-PLAYNOW** — code scripts get `bot.music.playNow(uri)` over `IMusicService.PlayTrackOnceAsync` (the call behind the `play_track_once` pipeline action), with its grant, typings in the SDK surface, and a test that a script run plays the track without touching the song-request queue.
+
+  Stoney, verbatim, correcting a misread: "not what i asked for, my song SHOULD be bumped... i just want to be able to move it". The bump is correct behavior; the only ask is moving a song.
+
 ## OWNER REQUEST 2026-10-13 — the broadcaster and mods are never blocked; `!permit` queues a held song request
 
 Owner, verbatim: "another case for permission settings, i need to be able to reply a sr command that is held for lenght and be able to use !permit so it is queued with my permission, and mods should never be blocked using any commands just like they don't have cooldowns they should also be able to use any command that follows their permission role"
@@ -30,6 +56,51 @@ Seen live 2026-10-13 18:43: Stoney_Eagle (the broadcaster) sent `!sr arkona - na
 ### S-SR-PERMIT — mods and up skip command limits; a reply `!permit` queues a held request
 - **Input:** the song-request builtin and its length/limit checks, the cooldown bypass for mods, the reply-parent handling (`QuoteBuiltin.AddFromBareReplyOrReadAsync` pattern), the permission ladder.
 - **Done-when:** a test proves the broadcaster and a mod pass every song-request limit (length and the others) while a viewer is still refused; a reply `!permit` from a mod or the broadcaster to a refused `!sr` queues that song for its original requester; live, the broadcaster's own over-length `!sr` is queued.
+
+## OWNER REQUEST 2026-10-14 — scripts and widgets subscribe to their events; test values come from a declared schema
+
+Owner words, verbatim: "these really need their test value declaration schema defined and implemented, having all of them there is too much and not realistic. remember i said that widgets should subscribe to events they want??? this is why... you can use their description needs to do this. you can use my stream donation timer as idea, its in my own github profile folder" / "it is streamer.bot schema" / "yea, lets talk about it"
+
+Reference: `C:/Projects/StoneyEagle/donation-stream-timer/script.js:252-265` sends a Streamer.bot `{ request: "Subscribe", events: { Kofi: [...], Twitch: [...] } }`. Status: in discussion — no code until settled.
+
+Owner answers, verbatim: "1. i don't know for scripts, they usually get what they get when they are added to a pipeline, so this also needs extra thought. 2/ i want one uniform system that people can rely on so lets not change any event names and stick with our scheme. 3. reset, and maybe make something green, or change to test again is maybe better."
+
+Settled: our event names stay as they are (one uniform scheme). Test values reset to the sample after each run; the done state shows green with "Test again". Owner: "and retry on error?" — a failed run shows its reason with "Retry". Open: how a script declares or derives its events.
+
+## OWNER REQUEST 2026-10-14 — a modded channel that is not onboarded shows the mod view; no control that cannot save
+
+Owner, verbatim: "if i switch to a channel that i mod but is not onboarded, the view should switch to mod only view and remove what is not possible and also don't throw any issues. there are a lot of items that are half finished and barely matching so please do better" / "and if i don't have permission to change something then don't let me change it in the ui when saving that change can't work" / "probably everything needs a readonly flag that turns the underlying items off from interactoion"
+
+- **Decided by Arc:** the dashboard reads what the person may do from the server, never from a hard-coded role: `GET channels/{id}/roles/effective/me` returns `heldActionKeys` (the broadcaster's overrides folded in). One composable `useChannelAccess()` answers `can(key)`.
+- **S-ACCESS-READONLY** — one read-only flag. A `ReadOnlyScope` (provide/inject) switches every shared control under it off: switch, input, textarea, select, checkbox, segmented control, multi choice, template field, code editor, setting row, and form dialog submit. A switched-off control says why on hover ("You can't change this in {channel}"). Done when a test puts each control under a read-only scope and proves it cannot change and saves nothing.
+- **S-ACCESS-NAV** — every route names the action key it needs to read (`meta.reads`); the sidebar shows only pages the person can read, and a page opened by link without access shows one explanation, never a 403 error. A channel that is not onboarded shows the mod view: only pages whose features run without the bot set up (chat, people, stream, the Home moderation rows). Needs `isOnboarded` on the channel summary (additive). Done when a test with a moderator's keys and an un-onboarded channel shows only those pages and no failed call.
+- **S-ACCESS-PAGES** — page by page (Home, Chat, Stream, Commands, Overlays, Scripts, People, Music, TTS, Settings: 10 pages), each write section sits in a `ReadOnlyScope` keyed to its write key, and each read panel the person cannot read is left out. Done per page when a test with a moderator's keys proves every write it lacks is switched off and no call is refused.
+
+## OWNER REQUEST 2026-10-14 — every moderated channel is listened to from the moment a moderator onboards
+
+Owner, verbatim (with a screenshot of the channel dropdown, where moderated channels that are not set up show initials only and no live state): "these need to filled and we need to start listening to events the moderator should be able to show like chat and mod actions and so on on every channel from the moment a mod onboards, other wise the tool would be useless"
+
+- **S-MOD-CHANNEL-FILL** — the moderated channels list carries each channel's avatar and live state (Helix users and streams, batched), so no row in the channel dropdown shows bare initials or a missing live dot.
+- **S-MOD-LISTEN** — when a moderator signs in or onboards, every channel they moderate is entered in moderator mode and its chat and moderation events are subscribed with the moderator's token (the scopes it holds); chat lines and moderation actions are stored as for any channel, so the dashboard chat and mod history are filled before the moderator first opens the channel.
+  - **Decided by Arc (from the code map 2026-10-14):** today `enter` only creates the channel row and the Moderator membership (`ChannelsController.cs:231-311`, `ChannelService.EnsureModeratedTenantAsync`), `BotLifecycleService.SyncChannelsAsync` skips channels with `IsOnboarded = false`, and every non-chat topic needs the broadcaster's token. Proposal, not settled: (1) at moderator sign-in, and on each moderated-list refresh, every moderated channel is entered (no new row kind; the un-onboarded tenant plus membership is the moderator mode). (2) One listener per moderated channel: a moderator whose token holds the needed scopes; topics are created on that moderator's own WebSocket session with `user_id` / `moderator_user_id` = the moderator. When that token fails, the next moderator of the channel takes over; when the broadcaster onboards, the broadcaster's own subscriptions replace these and the moderator ones are deleted. (3) A separate, small topic list for moderated channels: `channel.chat.message`, `channel.chat.notification`, `channel.chat.message_delete`, `channel.chat.clear`, `channel.chat.clear_user_messages`, `channel.moderate` v2, `automod.message.hold` v2, `channel.suspicious_user.message`, `channel.shield_mode.begin`/`end`, `channel.follow` v2, `stream.online`/`offline`, `channel.raid` (to). Each one's scope and condition are re-checked against the live Twitch EventSub docs before code; a topic the moderator's token cannot hold is skipped with a reason, never faked. (4) The 5-minute sweep reconciles moderated channels too, with that list.
+  - Done when a test signs in a moderator of N channels and proves N channels entered, their subscriptions requested, and a chat line and a ban on one of them stored and shown.
+
+## OWNER REQUEST 2026-10-13 — one safety status header on the chat page
+
+Owner, verbatim: "mod tools, follow and hate monitoring header should be made and contain a generic status with the number of messages or something so we can get rid of the current card header"
+
+### S-CHAT-SAFETY-STATUS — the chat page shows how safe chat is right now
+- **Decided by Arc:** one status per channel: a level and four meters, from the mockup (`3-live-split.html` lines 268-281). The meters are sliding 60-second windows held in memory per channel: messages a second (all chat lines / 60), follows a minute, new accounts a minute (first line of the stream from an account younger than 7 days, the `AccountRisk` young threshold), flagged lines a minute (non-dry-run `SpamDetection` rows plus AutoMod-held lines). Level: **Raid** while a `Campaign` cohort is open, a lockdown is engaged, shield mode is on, or follows spike (`ChannelBaseline`); **Watch** while a `Watching` cohort is open or any meter is over twice its baseline; **Over** for 5 minutes after Raid ends; else **Calm**. The status only reports, it never acts.
+- **Contract:** `GET channels/{channelId}/chat/safety-status` returns the snapshot; the hub pushes `chat_safety_status` on a level change and at most once every 2 seconds while a meter moves.
+- **Done-when:** a test drives chat, follows and a campaign through Calm → Watch → Raid → Over and asserts the snapshot and the pushed events; the chat feed card header gives way to the status strip on the dashboard.
+
+## OWNER REQUEST 2026-10-14 — a chatter without a chat color gets the least-used one
+
+Owner, verbatim: "someone without a fixed chat collor should get one asigned that is least used by the chatters in the last 2 weeks of streaming, once they set one they take president"
+
+### S-CHAT-ASSIGNED-COLOR — assign the least-used color to a chatter who has none
+- **Decided by Arc:** the palette is Twitch's 15 standard chat colors; "least used" counts distinct chatters per color in this channel's chat during its streams of the last 14 days; the assignment is stored per channel and chatter so it stays stable; a color the chatter sets on Twitch always wins.
+- **Done-when:** a chat line from a chatter with no color carries the assigned color to the dashboard and overlays; a chatter who sets a color shows that color from their next line; tests prove the least-used pick, the stable reuse, and the precedence.
 
 ## OWNER REQUEST 2026-10-12 — suggest a shoutout for a chatter who streams seriously
 
@@ -172,6 +243,30 @@ Done already: `QuoteBuiltin.AddFromBareReplyOrReadAsync` stores the parent line 
 
 Arc's reading (not settled):
 - Every command and pipeline can read the reply parent (message, user, id), and a command target defaults to the reply parent.
+
+## OWNER REQUEST 2026-10-13 — fair queueing definitions
+
+Owner, verbatim: "the fair queueing system needs some definitions, when someone requests their first song of the stream they should be fairly bumped to the top without pushing away other first songs that have been bumped already. when bumping a song it should be directly reflected in spotify's queue by removing the queue and pushing the bumped song. bumping a song sshould be possible by a reward created by the user as a pipeline/single action, it should be a setting for the music system to enable or disable the auto bump for first requests while upholding any rules set on who is allowed to play what so the channel stays safe. removing a song should also directly reflect and be removed, starting it and then removing it defeats the purpose of the faur queueing system, its the same as for chat messages or tts speeches, something removed should ALWAYS take president over permissive actions. so the reply to the !sr command should also allow for !bump. everything should always be available across all features like code scripts, overlays, chat and everywhere a user may want to trigger this."
+
+Owner, verbatim: "and i mean reply with !bump, lets set the terminology in the rules, "a reply command""
+
+Owner, verbatim: "lets also make the next song be put in the queue when the current song is at 10 seconds to the end so we can bump to the very last moment and respond to removals quicker"
+
+Owner, verbatim: "still handle the skip as a fallback removal"
+
+Term set: **reply command** (PRODUCT-ALIGNMENT glossary). Hand-over window: **10 seconds** before the current song ends. A removal of a song already handed to Spotify is still skipped (fallback removal).
+
+### S-SR-FIRST-BUMP — a first request of the stream goes up fairly
+- **Input:** `FairQueue<T>`, `MusicService`, the music settings.
+- **Done-when:** with the setting on, a viewer's first request of the stream lands after the other first requests already bumped and before every later request; the setting off keeps plain fair order; every request rule (who may play what) still holds.
+
+### S-SR-SPOTIFY-MIRROR — a bump or a removal shows in Spotify at once
+- **Input:** `MusicService`, the Spotify player client.
+- **Done-when:** live, after a bump Spotify's queue holds the bumped song next; a removed song never starts; removal wins over any permissive action (same rule as chat and TTS).
+
+### S-SR-BUMP-EVERYWHERE — bump is one action every surface can call
+- **Input:** `MusicActions.cs`, the reward and pipeline action catalogue, the script SDK, the overlay API.
+- **Done-when:** a reward can bump (single action or pipeline); `!bump` works as a reply command to the bot's `!sr` answer; scripts and overlays reach the same bump.
 
 ### S-REPLY-COMMANDS — commands act on the message you reply to
 - **Input:** `ChatMessageReceivedEvent` reply fields, the command context and pipeline variables.

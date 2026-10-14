@@ -8,51 +8,51 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
-import Music from '~icons/nnz/note-eighth-pair'
-import Pause from '~icons/nnz/pause'
-import Play from '~icons/nnz/play'
-import SkipForward from '~icons/nnz/next'
-import { computed, ref } from 'vue'
+import { useIntervalFn } from '@vueuse/core';
+import Music from '~icons/nnz/note-eighth-pair';
+import Pause from '~icons/nnz/pause';
+import Play from '~icons/nnz/play';
+import SkipForward from '~icons/nnz/next';
+import { computed, ref } from 'vue';
 
-import type { NowPlaying } from '@/api/music'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
+import type { NowPlaying } from '@/api/music';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 
-import { formatClock } from './formatClock'
+import { formatClock } from './formatClock';
 
 const props = defineProps<{
-  track: NowPlaying
+  track: NowPlaying;
   // The moment the bot last reported the position; the bar moves on from there while the song plays.
-  observedAt: number
-}>()
+  observedAt: number;
+}>();
 
 defineEmits<{
-  pause: []
-  resume: []
-  skip: []
-}>()
+  pause: [];
+  resume: [];
+  skip: [];
+}>();
 
-const now = ref(Date.now())
+const now = ref(Date.now());
 
 useIntervalFn(() => {
-  now.value = Date.now()
-}, 1000)
+  now.value = Date.now();
+}, 1000);
 
-const durationMs = computed<number>(() => Number(props.track.durationMs))
+const durationMs = computed<number>(() => Number(props.track.durationMs));
 const positionMs = computed<number>(() => {
-  const reported = Number(props.track.progressMs)
+  const reported = Number(props.track.progressMs);
   const elapsed = props.track.isPlaying
     ? Math.max(0, now.value - props.observedAt)
-    : 0
+    : 0;
 
-  return Math.min(durationMs.value, reported + elapsed)
-})
+  return Math.min(durationMs.value, reported + elapsed);
+});
 const percent = computed<number>(() =>
   durationMs.value > 0
     ? (positionMs.value / durationMs.value) * 100
     : 0,
-)
+);
 </script>
 
 <template>

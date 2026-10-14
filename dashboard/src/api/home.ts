@@ -8,49 +8,49 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query'
-import { toValue, type MaybeRefOrGetter } from 'vue'
+import { type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query';
+import { toValue, type MaybeRefOrGetter } from 'vue';
 
-import { useOptimisticSave } from '@/composables/useOptimisticSave'
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed } from './channelQuery'
-import { client } from './client'
-import type { components } from './schema'
+import { channelQuery, failed } from './channelQuery';
+import { client } from './client';
+import type { components } from './schema';
 
-export type HomeStats = components['schemas']['DashboardStatsDto']
-export type ReviewQueueItem = components['schemas']['ModerationQueueItemDto']
-export type IntegrationStatus = components['schemas']['IntegrationStatusDto']
-export type BotStatus = components['schemas']['BotStatusDto']
-export type ActivityEvent = components['schemas']['ActivityEventDto']
+export type HomeStats = components['schemas']['DashboardStatsDto'];
+export type ReviewQueueItem = components['schemas']['ModerationQueueItemDto'];
+export type IntegrationStatus = components['schemas']['IntegrationStatusDto'];
+export type BotStatus = components['schemas']['BotStatusDto'];
+export type ActivityEvent = components['schemas']['ActivityEventDto'];
 
-const version = '1'
+const version = '1';
 
 // The realtime layer writes into these entries, so the keys are part of the module's surface.
 export const homeStatsKey = (channelId: string | null): unknown[] => [
   'dashboard',
   channelId,
   'stats',
-]
+];
 export const reviewQueueKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'automod-queue',
-]
+];
 export const connectionsKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'integrations-status',
-]
+];
 export const botStatusKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'bot-status',
-]
+];
 export const activityKey = (channelId: string | null): unknown[] => [
   'dashboard',
   channelId,
   'activity',
-]
+];
 
 export function useHomeStats(
   channelId: MaybeRefOrGetter<string | null>,
@@ -61,13 +61,13 @@ export function useHomeStats(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('stats', response.status)
+      throw failed('stats', response.status);
 
-    return data?.data ?? null
-  })
+    return data?.data ?? null;
+  });
 }
 
 export function useReviewQueue(
@@ -79,13 +79,13 @@ export function useReviewQueue(
       {
         params: { path: { version, channelId: id }, query: { status: 'pending' } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('review queue', response.status)
+      throw failed('review queue', response.status);
 
-    return data?.data ?? []
-  })
+    return data?.data ?? [];
+  });
 }
 
 export function useConnections(
@@ -100,14 +100,14 @@ export function useConnections(
         {
           params: { path: { version, channelId: id } },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('connections', response.status)
+        throw failed('connections', response.status);
 
-      return [...(data?.data ?? [])]
+      return [...(data?.data ?? [])];
     },
-  )
+  );
 }
 
 export function useBotStatus(
@@ -119,13 +119,13 @@ export function useBotStatus(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('bot status', response.status)
+      throw failed('bot status', response.status);
 
-    return data?.data ?? null
-  })
+    return data?.data ?? null;
+  });
 }
 
 export function useActivity(
@@ -137,16 +137,16 @@ export function useActivity(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('activity', response.status)
+      throw failed('activity', response.status);
 
-    return data?.data ?? []
-  })
+    return data?.data ?? [];
+  });
 }
 
-export type QueueResolution = { queueItemId: string; action: 'approve' | 'deny' }
+export type QueueResolution = { queueItemId: string; action: 'approve' | 'deny' };
 
 // A resolved message leaves the queue at once; a refused resolve puts it back and reaches the error inbox.
 export function useResolveQueueItem(
@@ -155,28 +155,37 @@ export function useResolveQueueItem(
   return useOptimisticSave<ReviewQueueItem[], QueueResolution>({
     queryKey: () => reviewQueueKey(toValue(channelId)),
     mutationFn: async ({ queueItemId, action }: QueueResolution): Promise<ReviewQueueItem[]> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/moderation/automod/queue/{queueItemId}/resolve',
-        { params: { path: { version, channelId: id, queueItemId } }, body: { action } },
-      )
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              queueItemId,
+            },
+          },
+          body: { action },
+        },
+      );
 
       if (error !== undefined)
-        throw failed('resolve', response.status)
+        throw failed('resolve', response.status);
 
       const { data } = await client.GET(
         '/api/v{version}/channels/{channelId}/moderation/automod/queue',
         {
           params: { path: { version, channelId: id }, query: { status: 'pending' } },
         },
-      )
+      );
 
-      return data?.data ?? []
+      return data?.data ?? [];
     },
     apply: (
       current: ReviewQueueItem[] | undefined,
       { queueItemId }: QueueResolution,
     ): ReviewQueueItem[] =>
       (current ?? []).filter((item: ReviewQueueItem) => item.id !== queueItemId),
-  })
+  });
 }

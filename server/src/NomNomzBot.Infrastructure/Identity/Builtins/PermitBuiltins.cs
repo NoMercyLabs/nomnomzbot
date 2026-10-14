@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Identity.PipelineActions;
@@ -228,6 +229,7 @@ public sealed class PermitBuiltin : IBuiltinCommand
     private readonly IMentionTargetResolver _mentionTargets;
     private readonly TimeProvider _clock;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IMusicService _music;
 
     public PermitBuiltin(
         IPermitService permits,
@@ -236,9 +238,11 @@ public sealed class PermitBuiltin : IBuiltinCommand
         ITwitchUsersApi twitchUsers,
         TimeProvider clock,
         IBuiltinResponseComposer composer,
-        IMentionTargetResolver mentionTargets
+        IMentionTargetResolver mentionTargets,
+        IMusicService music
     )
     {
+        _music = music;
         _mentionTargets = mentionTargets;
         _permits = permits;
         _users = users;
@@ -258,6 +262,9 @@ public sealed class PermitBuiltin : IBuiltinCommand
     )
     {
         string[] args = context.Args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (args.Length == 0 && IsReply(context))
+            return await AdmitHeldSongRequestAsync(context, ct);
+
         if (args.Length < 2)
             return await ReplyAsync(
                 context,
@@ -370,6 +377,61 @@ public sealed class PermitBuiltin : IBuiltinCommand
             BuiltinResponseSlots.Permit.GrantedCapability,
             "Granted {permit.capability} to {user}.",
             capabilityVars,
+            ct
+        );
+    }
+
+    private static bool IsReply(BuiltinCommandContext context) =>
+        !string.IsNullOrWhiteSpace(context.ReplyParentUserName)
+        || !string.IsNullOrWhiteSpace(context.ReplyThreadUserName);
+
+    /// <summary>
+    /// A moderator's bare <c>!permit</c> reply admits the song request held for the viewer it answers: the viewer
+    /// whose line was replied to, else the viewer who started the thread (the reply was to the bot's refusal).
+    /// </summary>
+    private async Task<Result<string>> AdmitHeldSongRequestAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    )
+    {
+        if (context.RoleLevel < DefaultMinPermissionLevel)
+            return Result.Failure<string>("Only a moderator can permit a request.", "FORBIDDEN");
+
+        string broadcasterId = context.BroadcasterId.ToString();
+        string[] candidates = new[] { context.ReplyParentUserName, context.ReplyThreadUserName }
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (string viewer in candidates)
+        {
+            Result<MusicTrack> admitted = await _music.AdmitPermittedRequestAsync(
+                broadcasterId,
+                viewer,
+                ct
+            );
+            if (admitted.IsSuccess)
+                return await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Permit.GrantedSongRequest,
+                    "Queued {track.name} for {user}.",
+                    PermitBuiltinSupport.Vars(
+                        ("user", viewer),
+                        ("track.name", admitted.Value.Name)
+                    ),
+                    ct
+                );
+
+            if (admitted.ErrorCode != "NO_PENDING_REQUEST")
+                return await GrantFailedAsync(context, ct);
+        }
+
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Permit.NoPendingRequest,
+            "No song request from {user} is waiting for permission.",
+            PermitBuiltinSupport.Vars(("user", candidates[^1])),
             ct
         );
     }

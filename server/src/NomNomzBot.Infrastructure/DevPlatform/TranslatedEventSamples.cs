@@ -120,6 +120,11 @@ internal sealed class TranslatedEventSamples
                 arguments.Add(bus);
             else if (parameter.ParameterType == typeof(TimeProvider))
                 arguments.Add(new FixedTimeProvider());
+            else if (
+                parameter.ParameterType
+                == typeof(Application.Chat.Services.IChatColorAssignmentService)
+            )
+                arguments.Add(new SampleChatColors());
             else if (parameter.ParameterType.IsInterface)
                 arguments.Add(
                     DispatchProxy.Create(parameter.ParameterType, typeof(NoStateStandIn))

@@ -95,4 +95,7 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
 
     /// <summary>Login of the user being replied to; Twitch prefixes a reply's text with "@" plus this or the display name.</summary>
     public string? ReplyParentUserLogin { get; init; }
+
+    /// <summary>Display name of the user who started the reply thread (Twitch <c>thread_user_name</c>). For a reply to the bot's own answer, this is the viewer the bot answered.</summary>
+    public string? ReplyThreadUserName { get; init; }
 }

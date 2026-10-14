@@ -16,7 +16,7 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// <summary>
 /// The single hardened sanitiser for the opt-in subscriber chat-HTML fragment (<c>HtmlFragmentAdapter</c>). Rendering
 /// viewer-authored HTML in chat is powerful, so every such fragment passes through here first: a curated allow-list of
-/// formatting, block, table, and media tags — plus <c>marquee</c> and <c>img</c> — while everything outside the list is
+/// formatting, block, and table tags — no video and no audio — plus <c>marquee</c> and <c>img</c> — while everything outside the list is
 /// dropped. It keeps HtmlSanitizer's inherent defences (<c>&lt;script&gt;</c> and its subtree removed, every
 /// <c>on*</c> event handler stripped), lets inline CSS through only for sizing, text and colour (capped by
 /// <see cref="ChatHtmlSizeLimits"/>), and hardens the URL surface to <b>https only</b>, so <c>javascript:</c>,
@@ -26,7 +26,7 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// </summary>
 public static class ChatHtmlSanitizer
 {
-    // Formatting / inline, block, table, and the two "fun" media tags (marquee + img) the legacy bot rendered. Anything
+    // Formatting / inline, block, table, and the two "fun" tags (marquee + img) the legacy bot rendered. Anything
     // not listed here is removed by the sanitiser — the allow-list IS the security boundary, so it stays deliberately tight.
     private static readonly string[] AllowedTags =
     [
@@ -93,17 +93,11 @@ public static class ChatHtmlSanitizer
         // media / fun
         "img",
         "marquee",
-        // audio + video playback (the sender's clips). Their url attributes (src/poster/srcset) are still
-        // https-only via AllowedSchemes, and every on* handler is still stripped, so "sanitised" media = a plain
-        // <video>/<audio> the browser plays, never a scripting surface.
-        "audio",
-        "video",
-        "source",
-        "track",
+        // No video and no audio: audio, video, source and track are not allowed (owner, 2026-10-14).
     ];
 
     // Attributes allowed on any tag. Deliberately excludes every "on*" handler and "id" (DOM-clobbering surface).
-    // "href"/"src"/"poster"/"srcset" carry URLs, guarded to https by AllowedSchemes; "style" is held to
+    // "href"/"src"/"srcset" carry URLs, guarded to https by AllowedSchemes; "style" is held to
     // AllowedCssProperties.
     private static readonly string[] AllowedAttributes =
     [
@@ -119,19 +113,8 @@ public static class ChatHtmlSanitizer
         "style",
         "title",
         "width",
-        // <audio>/<video>/<source>/<track> attributes — DISPLAY ONLY. Deliberately excludes "autoplay", "loop",
-        // "preload", and "muted": on an OBS browser-source there is no viewer to click, so autoplay/loop would let a
-        // sender force disruptive media (loud audio, endless clips) onto the stream. The media renders as a player;
-        // nothing plays until the streamer chooses to. "controls"/"poster"/"src" are the safe presentational surface.
-        "controls",
-        "default",
-        "kind",
-        "label",
-        "playsinline",
-        "poster",
-        "srclang",
+        // img srcset. No media attributes: video and audio are not allowed.
         "srcset",
-        "type",
         // <marquee> presentational attributes, so the sender's scrolling text keeps its motion/colour (the effects
         // their current-bot messages actually used) — none of these carry script.
         "behavior",
@@ -191,32 +174,23 @@ public static class ChatHtmlSanitizer
         sanitizer.AllowedSchemes.Clear();
         sanitizer.AllowedSchemes.Add("https");
 
-        // The scheme check only runs on attributes HtmlSanitizer treats as URLs. src/href are defaults, but the media
-        // attributes we allow (poster, srcset) are NOT — register them so an http:/javascript: poster can't slip past.
-        sanitizer.UriAttributes.Add("poster");
+        // The scheme check only runs on attributes HtmlSanitizer treats as URLs. src/href are defaults, but srcset
+        // is NOT — register it so an http:/javascript: srcset can't slip past.
         sanitizer.UriAttributes.Add("srcset");
 
         // A disallowed element takes its whole subtree with it, so <script>alert(1)</script> leaves nothing behind
         // rather than an orphaned "alert(1)" text node.
         sanitizer.KeepChildNodes = false;
 
-        // A media element whose only useful attribute is its URL (img src, audio/video/source src, video poster)
-        // must not survive with that attribute stripped: an http:// (or other disallowed-scheme) GIF/clip URL from
-        // a viewer's paste is dropped by AllowedSchemes above, but HtmlSanitizer's default behaviour is to remove
-        // only the offending attribute and keep the now-src-less tag — which the widget then renders as a broken
-        // image/player under a caption that still reads correctly (the exact "caption resolved, media didn't" bug:
-        // a truthful renderer must never show a captioned placeholder for media that was never actually attached).
-        // Track every element that just lost its src/poster here, and drop the whole element once sanitisation of
-        // that node finishes. The one sanitiser serves every channel's chat at once, so the record is thread-safe, and
-        // weak so a finished message's DOM is not kept alive by it.
+        // An img whose src is stripped (http:// or another disallowed scheme) must not survive as a blank image under
+        // a caption: HtmlSanitizer removes only the attribute and keeps the src-less tag. Track every img that just
+        // lost its src here, and drop the whole element once sanitisation of that node finishes. The one sanitiser
+        // serves every channel's chat at once, so the record is thread-safe, and weak so a finished message's DOM is
+        // not kept alive by it.
         ConditionalWeakTable<AngleSharp.Dom.IElement, object> elementsWithDroppedUrl = new();
         sanitizer.RemovingAttribute += (_, e) =>
         {
-            bool isSrcOnMediaTag =
-                e.Attribute.Name == "src"
-                && e.Tag.TagName is "IMG" or "SOURCE" or "VIDEO" or "AUDIO";
-            bool isPosterOnVideo = e.Attribute.Name == "poster" && e.Tag.TagName is "VIDEO";
-            if (isSrcOnMediaTag || isPosterOnVideo)
+            if (e.Attribute.Name == "src" && e.Tag.TagName == "IMG")
                 elementsWithDroppedUrl.AddOrUpdate(e.Tag, e.Tag);
         };
         sanitizer.PostProcessNode += (_, e) =>

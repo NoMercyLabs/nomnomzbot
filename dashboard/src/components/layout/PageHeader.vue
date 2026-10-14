@@ -8,16 +8,25 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The fixed page header (C2): a 64px title row, then an optional 48px row for the one tab row of the page.
+// The fixed page header (C2): a 64px title row, then an optional 48px control bar for the page's tabs,
+// filters and page-wide controls (the chat page's Display and Viewer), never inside a card header.
 // actions holds the one primary action; meta is quiet text beside it (for example "Updated 2 min ago").
 // The frame's controls follow the page's actions, so the page has one header row.
-import { inject, type Component } from 'vue'
+import { inject, type Component } from 'vue';
 
-import { frameActionsKey } from './frameActions'
+import { frameActionsKey } from './frameActions';
 
-defineProps<{ title: string; crumb?: string }>()
+defineProps<{ title: string; crumb?: string }>();
 
-const frameActions: Component | null = inject(frameActionsKey, null)
+// Typed slots: a page that fills a slot name this header does not have fails the type check.
+defineSlots<{
+  status?: () => unknown;
+  meta?: () => unknown;
+  actions?: () => unknown;
+  bar?: () => unknown;
+}>();
+
+const frameActions: Component | null = inject(frameActionsKey, null);
 </script>
 
 <template>
@@ -36,15 +45,19 @@ const frameActions: Component | null = inject(frameActionsKey, null)
       <h1 class="min-w-0 truncate text-xl font-semibold tracking-tight">{{ title }}</h1>
       <slot name="status" />
       <div class="ml-auto flex shrink-0 items-center gap-3">
-        <span v-if="$slots.meta" class="hidden text-muted-foreground @4xl:inline"
-          ><slot name="meta"
-        /></span>
+        <span v-if="$slots.meta"
+              class="hidden text-muted-foreground @4xl:inline"
+        ><slot name="meta" /></span>
         <slot name="actions" />
         <component :is="frameActions" v-if="frameActions" />
       </div>
     </div>
-    <div v-if="$slots.tabs" class="flex h-12 items-center border-b border-border px-6">
-      <slot name="tabs" />
+    <div
+      v-if="$slots.bar"
+      data-slot="page-bar"
+      class="flex h-12 items-center gap-3 border-b border-border px-6"
+    >
+      <slot name="bar" />
     </div>
   </header>
 </template>

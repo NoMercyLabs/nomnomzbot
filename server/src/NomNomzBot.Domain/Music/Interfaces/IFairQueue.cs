@@ -64,6 +64,14 @@ public interface IFairQueue<T>
     /// </summary>
     bool MoveToFront(int position);
 
+    /// <summary>
+    /// Places the item at <paramref name="from"/> exactly at index <paramref name="to"/> (the index it
+    /// has after the move) — a moderator's drag-and-drop. Ranks are re-derived from the new order, so
+    /// the fair-ranking rule for later enqueues is unchanged. Returns false when either index is out
+    /// of range; moving an item onto its own index returns true and changes nothing.
+    /// </summary>
+    bool MoveTo(int from, int to);
+
     /// <summary>Returns a snapshot of all items in fair-schedule order.</summary>
     IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot();
 }

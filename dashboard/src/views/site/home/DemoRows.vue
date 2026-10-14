@@ -10,29 +10,29 @@
 <script setup lang="ts">
 // The sample rows the home page shows in its demo and in its feature blocks: chat lines,
 // moderation queue rows and alerts. They are fixed sample words, never live data.
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 
-type Kind = 'requests' | 'commands' | 'queue' | 'alerts' | 'sub'
+type Kind = 'requests' | 'commands' | 'queue' | 'alerts' | 'sub';
 type Row = {
-  title: string
-  detail: string
-  action?: string
-  harm?: boolean
-}
+  title: string;
+  detail: string;
+  action?: string;
+  harm?: boolean;
+};
 
-const props = defineProps<{ kind: Kind }>()
-const { t } = useI18n()
+const props = defineProps<{ kind: Kind }>();
+const { t } = useI18n();
 
 function line(user: string, text: string): Row {
-  return { title: t(`site.home.chatLines.${user}`), detail: t(`site.home.chatLines.${text}`) }
+  return { title: t(`site.home.chatLines.${user}`), detail: t(`site.home.chatLines.${text}`) };
 }
 
 function bot(reply: string): Row {
-  return { title: t('site.home.chatLines.botName'), detail: t(`site.home.chatLines.${reply}`) }
+  return { title: t('site.home.chatLines.botName'), detail: t(`site.home.chatLines.${reply}`) };
 }
 
 function queued(n: 1 | 2 | 3): Row {
@@ -41,39 +41,39 @@ function queued(n: 1 | 2 | 3): Row {
     detail: t(`site.home.queue.reason${n}`),
     action: t(`site.home.queue.action${n}`),
     harm: n === 1,
-  }
+  };
 }
 
 function alert(which: 'raid' | 'sub'): Row {
   return {
     title: t(`site.home.alerts.${which}Title`),
     detail: t(`site.home.alerts.${which}Detail`),
-  }
+  };
 }
 
-const rows: ComputedRef<Row[]> = computed(() => {
+const rows = computed<Row[]>(() => {
   switch (props.kind) {
     case 'requests':
       return [
         line('songrequestUser', 'songrequestText'),
         bot('songrequestReply'),
         line('raidUser', 'raidText'),
-      ]
+      ];
     case 'commands':
       return [
         line('socialsUser', 'socialsText'),
         bot('socialsReply'),
         line('uptimeUser', 'uptimeText'),
         bot('uptimeReply'),
-      ]
+      ];
     case 'queue':
-      return [queued(1), queued(2), queued(3)]
+      return [queued(1), queued(2), queued(3)];
     case 'alerts':
-      return [alert('raid'), alert('sub')]
+      return [alert('raid'), alert('sub')];
     default:
-      return [alert('sub')]
+      return [alert('sub')];
   }
-})
+});
 </script>
 
 <template>

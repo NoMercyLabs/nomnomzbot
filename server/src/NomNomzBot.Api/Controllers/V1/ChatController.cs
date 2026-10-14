@@ -23,6 +23,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Enums;
@@ -51,6 +52,7 @@ public class ChatController : BaseController
     private readonly IOperatorMessageDeleter _operatorDeleter;
     private readonly IChatEmoteCatalogue _emoteCatalogue;
     private readonly IHubUserEnricher _enricher;
+    private readonly IChatSearchService _search;
 
     public ChatController(
         IApplicationDbContext db,
@@ -61,7 +63,8 @@ public class ChatController : BaseController
         IOperatorChatSender operatorSender,
         IOperatorMessageDeleter operatorDeleter,
         IChatEmoteCatalogue emoteCatalogue,
-        IHubUserEnricher enricher
+        IHubUserEnricher enricher,
+        IChatSearchService search
     )
     {
         _db = db;
@@ -73,6 +76,7 @@ public class ChatController : BaseController
         _operatorDeleter = operatorDeleter;
         _emoteCatalogue = emoteCatalogue;
         _enricher = enricher;
+        _search = search;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -80,6 +84,10 @@ public class ChatController : BaseController
     // Chat history (GET messages) returns the SAME DashboardChatMessageDto the live DashboardHub broadcast emits
     // (chat-client.md §3.6 / §9·9) — one decorated + enriched shape (fragments, badges, pronouns, avatar, real
     // timestamp), so scrollback and the live feed render identically with no drift.
+
+    // One page of a chat-history search: matches newest first, plus the opaque cursor to continue further back
+    // (null once the scan has reached the channel's first stored message).
+    public record ChatSearchResultDto(List<DashboardChatMessageDto> Messages, string? NextCursor);
 
     // SenderIdentity ∈ "you" (default — the logged-in operator's own Twitch account) | "bot" (the bot account).
     public record SendChatMessageRequest(
@@ -96,7 +104,15 @@ public class ChatController : BaseController
         IReadOnlyDictionary<string, string> Urls,
         bool Animated,
         bool ZeroWidth,
-        string? SetId
+        string? SetId,
+        string? Id = null,
+        string? Type = null,
+        int? Tier = null,
+        string? Origin = null,
+        string? OwnerId = null,
+        string? OwnerLogin = null,
+        string? OwnerName = null,
+        string? OwnerAvatarUrl = null
     );
 
     // Mirrors Twitch's real Helix chat-settings surface (twitch-helix.md §3.2 / ITwitchChatApi) — every
@@ -143,6 +159,25 @@ public class ChatController : BaseController
             UniqueChatMode: dto.UniqueChatMode
         );
 
+    // ── GET safety-status ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// How safe chat is right now: a level (Calm, Watch, Raid, Over) and four live meters over the last
+    /// 60 seconds. Held in memory; the hub pushes the same shape as <c>chat_safety_status</c>.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("safety-status")]
+    [ProducesResponseType<StatusResponseDto<ChatSafetyStatusDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetSafetyStatus(string channelId, [FromServices] IChatSafetyMeter meter)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return Ok(
+            new StatusResponseDto<ChatSafetyStatusDto> { Data = meter.Snapshot(broadcasterId) }
+        );
+    }
+
     // ── GET messages ──────────────────────────────────────────────────────────
 
     /// <summary>Get recent chat messages for the dashboard's chat feed, returned oldest first.</summary>
@@ -171,6 +206,72 @@ public class ChatController : BaseController
         // Chronological order (oldest first), matching the hub's live-append order.
         rows.Reverse();
 
+        List<DashboardChatMessageDto> messages = await MapToDtosAsync(
+            broadcasterId,
+            channelId,
+            rows,
+            ct
+        );
+
+        return Ok(new StatusResponseDto<List<DashboardChatMessageDto>> { Data = messages });
+    }
+
+    // ── GET search ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fuzzy-search the channel's whole stored chat history, newest first. A page may come back short with a
+    /// <c>nextCursor</c> (the scan is bounded per request); pass it as <c>before</c> to continue until it is null.
+    /// </summary>
+    [RequireAction("chat:read")]
+    [HttpGet("search")]
+    [ProducesResponseType<StatusResponseDto<ChatSearchResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchMessages(
+        string channelId,
+        [FromQuery] string? q = null,
+        [FromQuery] int limit = 50,
+        [FromQuery] string? before = null,
+        CancellationToken ct = default
+    )
+    {
+        limit = Math.Clamp(limit, 1, 200);
+
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<ChatSearchPage> result = await _search.SearchAsync(
+            broadcasterId,
+            q ?? string.Empty,
+            limit,
+            before,
+            ct
+        );
+        if (result.IsFailure)
+            return BadRequestResponse(result.ErrorMessage, result.ErrorCode);
+
+        List<DashboardChatMessageDto> messages = await MapToDtosAsync(
+            broadcasterId,
+            channelId,
+            result.Value.Messages,
+            ct
+        );
+
+        return Ok(
+            new StatusResponseDto<ChatSearchResultDto>
+            {
+                Data = new(messages, result.Value.NextCursor),
+            }
+        );
+    }
+
+    // Maps persisted rows (in the order given) to the SAME DashboardChatMessageDto the live hub emits. Shared by
+    // chat history (GET messages) and chat search so both return one shape.
+    private async Task<List<DashboardChatMessageDto>> MapToDtosAsync(
+        Guid broadcasterId,
+        string channelId,
+        IReadOnlyList<ChatMessage> rows,
+        CancellationToken ct
+    )
+    {
         // One extra lookup for the channel's Twitch id (once per request, not once per message) so the
         // third-party emote adapters can match this channel's OWN emote set, not just the global ones
         // (chat-decoration spec §3.2). Empty when the channel row is somehow missing — decoration then simply
@@ -234,7 +335,7 @@ public class ChatController : BaseController
             );
         }
 
-        return Ok(new StatusResponseDto<List<DashboardChatMessageDto>> { Data = messages });
+        return messages;
     }
 
     // Rebuilds the minimal ChatMessageReceivedEvent the decorator needs from a persisted (raw, un-enriched)
@@ -401,7 +502,15 @@ public class ChatController : BaseController
                 e.Urls,
                 e.Animated,
                 e.ZeroWidth,
-                e.SetId
+                e.SetId,
+                e.Id,
+                e.Type,
+                e.Tier,
+                e.Origin?.ToString().ToLowerInvariant(),
+                e.OwnerChannel?.Id,
+                e.OwnerChannel?.Login,
+                e.OwnerChannel?.DisplayName,
+                e.OwnerChannel?.AvatarUrl
             )),
         ];
         return Ok(new StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>> { Data = emotes });

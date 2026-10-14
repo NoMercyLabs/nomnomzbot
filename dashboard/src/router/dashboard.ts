@@ -8,20 +8,20 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router';
 
-import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route'
-import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route'
-import { dashboardChatRoute } from '@/views/dashboard/chat/route'
-import { dashboardCommandsRoute } from '@/views/dashboard/commands/route'
-import { dashboardHomeRoute } from '@/views/dashboard/home/route'
-import { dashboardMusicRoute } from '@/views/dashboard/music/route'
-import { dashboardOverlaysRoute } from '@/views/dashboard/overlays/route'
-import { dashboardPeopleRoute } from '@/views/dashboard/people/route'
-import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route'
-import { dashboardSettingsRoute } from '@/views/dashboard/settings/route'
-import { dashboardStreamRoute } from '@/views/dashboard/stream/route'
-import { dashboardTtsRoute } from '@/views/dashboard/tts/route'
+import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route';
+import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route';
+import { dashboardChatRoute } from '@/views/dashboard/chat/route';
+import { dashboardCommandsRoute } from '@/views/dashboard/commands/route';
+import { dashboardHomeRoute } from '@/views/dashboard/home/route';
+import { dashboardMusicRoute } from '@/views/dashboard/music/route';
+import { dashboardOverlaysRoute } from '@/views/dashboard/overlays/route';
+import { dashboardPeopleRoute } from '@/views/dashboard/people/route';
+import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
+import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
+import { dashboardStreamRoute } from '@/views/dashboard/stream/route';
+import { dashboardTtsRoute } from '@/views/dashboard/tts/route';
 
 export const dashboardRoutes: RouteRecordRaw = {
   path: '/app',
@@ -55,4 +55,4 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardSettingsRoute,
         dashboardAdminChannelsRoute,
       ],
-}
+};

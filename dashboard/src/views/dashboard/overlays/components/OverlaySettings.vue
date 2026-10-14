@@ -13,146 +13,146 @@
 // successful save, so a refused save leaves the change in place and Save stays on.
 // "Changed" means the value differs from the default; Save is on when the form differs from what is saved.
 // Without schema fields the saved keys show read-only.
-import Save from '~icons/nnz/floppy-disk'
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import Save from '~icons/nnz/floppy-disk';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   useSaveWidgetSettings,
   useWidgetSchema,
   type Widget,
   type WidgetSettingsField,
-} from '@/api/widgets'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+} from '@/api/widgets';
+import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import OverlaySettingField from './OverlaySettingField.vue'
-import { humanize, sameValue, useSettingText } from './settingField'
+import OverlaySettingField from './OverlaySettingField.vue';
+import { humanize, sameValue, useSettingText } from './settingField';
 
-type Values = Record<string, unknown>
-type SaveResult = 'none' | 'saved' | 'failed'
+type Values = Record<string, unknown>;
+type SaveResult = 'none' | 'saved' | 'failed';
 
-const props = defineProps<{ widget: Widget }>()
+const props = defineProps<{ widget: Widget }>();
 
-const { t } = useI18n()
-const text = useSettingText()
-const { channelId } = useCurrentChannel()
+const { t } = useI18n();
+const text = useSettingText();
+const { channelId } = useCurrentChannel();
 const schema = useWidgetSchema(channelId, () =>
-  props.widget.id)
-const save = useSaveWidgetSettings(channelId)
+  props.widget.id);
+const save = useSaveWidgetSettings(channelId);
 
-const fields: ComputedRef<WidgetSettingsField[]> = computed<WidgetSettingsField[]>(
+const fields = computed<WidgetSettingsField[]>(
   () => schema.data.value?.fields ?? [],
-)
-const saved: ComputedRef<Values> = computed<Values>(() => props.widget.settings ?? {})
+);
+const saved = computed<Values>(() => props.widget.settings ?? {});
 
 function savedValue(field: WidgetSettingsField): unknown {
   return field.key in saved.value
     ? saved.value[field.key]
-    : field.default
+    : field.default;
 }
 
-const draft: Ref<Values> = ref({})
-const result: Ref<SaveResult> = ref('none')
+const draft = ref<Values>({});
+const result = ref<SaveResult>('none');
 
 function takeSaved(): void {
-  draft.value = Object.fromEntries(fields.value.map((field) => [field.key, savedValue(field)]))
+  draft.value = Object.fromEntries(fields.value.map((field) => [field.key, savedValue(field)]));
 }
 
-watch([() => props.widget.id, fields], takeSaved, { immediate: true })
+watch([() => props.widget.id, fields], takeSaved, { immediate: true });
 
 watch(
   () => props.widget.id,
   () => {
-    result.value = 'none'
+    result.value = 'none';
   },
-)
+);
 
 const edited = computed<WidgetSettingsField[]>(() =>
   fields.value.filter((field) => !sameValue(draft.value[field.key], savedValue(field))),
-)
-const dirty = computed<boolean>(() => edited.value.length > 0)
+);
+const dirty = computed<boolean>(() => edited.value.length > 0);
 
 function isChanged(field: WidgetSettingsField): boolean {
-  return !sameValue(draft.value[field.key], field.default)
+  return !sameValue(draft.value[field.key], field.default);
 }
 
 function set(key: string, value: unknown): void {
-  draft.value = { ...draft.value, [key]: value }
-  result.value = 'none'
+  draft.value = { ...draft.value, [key]: value };
+  result.value = 'none';
 }
 
 interface Group {
-  name: string
-  fields: WidgetSettingsField[]
+  name: string;
+  fields: WidgetSettingsField[];
 }
-const groups: ComputedRef<Group[]> = computed<Group[]>(() => {
-  const byName = new Map()
+const groups = computed<Group[]>(() => {
+  const byName = new Map();
 
   for (const field of fields.value) {
-    const lastKeyPart = field.group.key.split('.').pop() ?? ''
-    const name = text(field.group, humanize(lastKeyPart))
+    const lastKeyPart = field.group.key.split('.').pop() ?? '';
+    const name = text(field.group, humanize(lastKeyPart));
 
-    byName.set(name, [...(byName.get(name) ?? []), field])
+    byName.set(name, [...(byName.get(name) ?? []), field]);
   }
 
-  return [...byName].map(([name, list]): Group => ({ name, fields: list }))
-})
+  return [...byName].map(([name, list]): Group => ({ name, fields: list }));
+});
 
 const rawKeys = computed<KeyValueItem[]>(() =>
   Object.entries(saved.value).map(([key, value]): KeyValueItem => ({
     label: key,
     value: JSON.stringify(value),
   })),
-)
+);
 
 const state = computed<PanelState>(() => {
   if (schema.isPending.value)
-    return 'loading'
+    return 'loading';
 
   if (schema.isError.value)
-    return 'error'
+    return 'error';
 
   return fields.value.length === 0 && rawKeys.value.length === 0
     ? 'empty'
-    : 'ready'
-})
+    : 'ready';
+});
 
 const hint = computed<string>(() => {
-  const base: string = 'dashboard.overlays.detail.settings'
+  const base: string = 'dashboard.overlays.detail.settings';
 
   if (result.value === 'failed')
-    return t(`${base}.failed`)
+    return t(`${base}.failed`);
 
   if (dirty.value)
-    return t(`${base}.unsaved`)
+    return t(`${base}.unsaved`);
 
   return t(result.value === 'saved'
     ? `${base}.saved`
-    : `${base}.allSaved`)
-})
+    : `${base}.allSaved`);
+});
 
 // Only the edited values travel over the saved map, so keys the schema does not list are kept.
 function submit(): void {
   const changes: Values = Object.fromEntries(
     edited.value.map((field) => [field.key, draft.value[field.key]]),
-  )
+  );
 
   save.mutate(
     { widgetId: props.widget.id, settings: { ...saved.value, ...changes } },
     {
       onSuccess: (): void => {
-        takeSaved()
-        result.value = 'saved'
+        takeSaved();
+        result.value = 'saved';
       },
       onError: (): void => {
-        result.value = 'failed'
+        result.value = 'failed';
       },
     },
-  )
+  );
 }
 </script>
 
@@ -194,8 +194,7 @@ function submit(): void {
         :class="result === 'failed' ? 'text-destructive' : 'text-muted-foreground'"
         role="status"
         aria-live="polite"
-        >{{ hint }}</span
-      >
+      >{{ hint }}</span>
       <Button
         data-save
         variant="outline"

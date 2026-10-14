@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity.Builtins;
 using NomNomzBot.Infrastructure.Tests.Chat;
@@ -141,7 +142,8 @@ public sealed class PermitBuiltinsTests
                 twitchUsers,
                 clock,
                 TestBuiltinComposer.Create(channelReplies),
-                TestMentionTargets.LoginsOnly()
+                TestMentionTargets.LoginsOnly(),
+                Substitute.For<IMusicService>()
             ),
             new(
                 permits,

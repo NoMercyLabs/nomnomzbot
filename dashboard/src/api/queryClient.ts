@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient } from '@tanstack/vue-query'
+import { QueryClient } from '@tanstack/vue-query';
 
 // Cache first (V6): a page shows the last known data at once and refreshes it in the background.
 export const queryClient = new QueryClient({
@@ -19,4 +19,4 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: true,
     },
   },
-})
+});

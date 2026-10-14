@@ -1275,9 +1275,22 @@ public sealed class MusicStatePollingServiceTests
             string? requesterUserId = null
         ) => throw new NotSupportedException();
 
+        public Task<Result<MusicTrack>> AdmitPermittedRequestAsync(
+            string broadcasterId,
+            string requestedBy,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<bool> PromoteToTopAsync(
             string broadcasterId,
             int position,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> MoveAsync(
+            string broadcasterId,
+            int fromPosition,
+            int toPosition,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 

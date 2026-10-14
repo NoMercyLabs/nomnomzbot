@@ -8,12 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { createPinia, setActivePinia } from 'pinia'
-import { createApp, type App } from 'vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import { createPinia, setActivePinia } from 'pinia';
+import { createApp, type App } from 'vue';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useSaveErrorsStore } from '@/stores/saveErrors'
+import { useSaveErrorsStore } from '@/stores/saveErrors';
 
 import {
   useSaveWidgetSettings,
@@ -24,24 +24,24 @@ import {
   widgetSchemaKey,
   widgetsKey,
   type Widget,
-} from '../widgets'
+} from '../widgets';
 
 type Answer = {
-  data?: unknown
-  error?: unknown
-  response: { ok: boolean; status: number }
-}
+  data?: unknown;
+  error?: unknown;
+  response: { ok: boolean; status: number };
+};
 
 const http = vi.hoisted(() => ({
   GET: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
   POST: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
   PUT: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
-}))
+}));
 
-vi.mock('../client', () => ({ client: http }))
+vi.mock('../client', () => ({ client: http }));
 
-const ok = { ok: true, status: 200 } as const satisfies Answer['response']
-const channel = 'c1'
+const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
+const channel = 'c1';
 
 function widget(id: string, extra: Partial<Widget> = {}): Widget {
   return {
@@ -64,233 +64,282 @@ function widget(id: string, extra: Partial<Widget> = {}): Widget {
     isAttached: false,
     isCustomized: false,
     ...extra,
-  } as Widget
+  } as Widget;
 }
 
-const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
+const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 
 async function until(check: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 50 && !check(); attempt += 1) {
-    await settle()
+    await settle();
   }
 }
 
 function mount<T>(use: () => T): {
-  queries: QueryClient
-  hook: T
-  inbox: ReturnType<typeof useSaveErrorsStore>
+  queries: QueryClient;
+  hook: T;
+  inbox: ReturnType<typeof useSaveErrorsStore>;
 } {
-  const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const pinia = createPinia()
+  const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const pinia = createPinia();
 
-  setActivePinia(pinia)
-  let hook!: T
+  setActivePinia(pinia);
+  let hook!: T;
   const app: App = createApp({
     setup() {
-      hook = use()
+      hook = use();
 
-      return () => null
+      return () => null;
     },
-  })
+  });
 
-  app.use(pinia)
-  app.use(VueQueryPlugin, { queryClient: queries })
-  app.mount(document.createElement('div'))
+  app.use(pinia);
+  app.use(VueQueryPlugin, { queryClient: queries });
+  app.mount(document.createElement('div'));
 
-  return { queries, hook, inbox: useSaveErrorsStore() }
+  return {
+    queries,
+    hook,
+    inbox: useSaveErrorsStore(),
+  };
 }
 
 beforeEach(() => {
-  http.GET.mockReset()
-  http.POST.mockReset()
-  http.PUT.mockReset()
-})
+  http.GET.mockReset();
+  http.POST.mockReset();
+  http.PUT.mockReset();
+});
 
 describe('useWidgets', () => {
   it('asks for the next page while the bot says there are more and merges the pages in order', async () => {
     http.GET.mockImplementation((_path: string, init: unknown): Promise<Answer> => {
-      const page = Number((init as { params: { query: { Page: number } } }).params.query.Page)
+      const page = Number((init as { params: { query: { Page: number } } }).params.query.Page);
 
       return Promise.resolve(
         page === 1
-          ? { data: { data: [widget('a'), widget('b')], hasMore: true, nextPage: 2 }, response: ok }
-          : { data: { data: [widget('c')], hasMore: false, nextPage: null }, response: ok },
-      )
-    })
+          ? {
+              data: {
+                data: [widget('a'), widget('b')],
+                hasMore: true,
+                nextPage: 2,
+              },
+              response: ok,
+            }
+          : {
+              data: {
+                data: [widget('c')],
+                hasMore: false,
+                nextPage: null,
+              },
+              response: ok,
+            },
+      );
+    });
 
-    const { hook } = mount(() => useWidgets(channel))
+    const { hook } = mount(() => useWidgets(channel));
 
-    await until(() => hook.data.value !== undefined)
+    await until(() => hook.data.value !== undefined);
 
-    expect(hook.data.value?.map((row: Widget) => row.id)).toEqual(['a', 'b', 'c'])
-    expect(http.GET).toHaveBeenCalledTimes(2)
+    expect(hook.data.value?.map((row: Widget) => row.id)).toEqual(['a', 'b', 'c']);
+    expect(http.GET).toHaveBeenCalledTimes(2);
     const pages = http.GET.mock.calls.map(([, init]) =>
       Number((init as { params: { query: { Page: number } } }).params.query.Page),
-    )
+    );
 
-    expect(pages).toEqual([1, 2])
-  })
+    expect(pages).toEqual([1, 2]);
+  });
 
   it('turns a refused list into an error state instead of an empty list', async () => {
-    http.GET.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 403 } })
-    const { hook } = mount(() => useWidgets(channel))
+    http.GET.mockResolvedValue({
+      error: { status: 'error' },
+      response: { ok: false, status: 403 },
+    });
 
-    await until(() => hook.isError.value)
+    const { hook } = mount(() => useWidgets(channel));
 
-    expect(hook.isError.value).toBe(true)
-    expect(hook.error.value?.message).toBe('widgets 403')
-  })
-})
+    await until(() => hook.isError.value);
+
+    expect(hook.isError.value).toBe(true);
+    expect(hook.error.value?.message).toBe('widgets 403');
+  });
+});
 
 describe('useWidgetSchema', () => {
   it('reads the schema of one widget and caches it under the schema key', async () => {
-    const schema = { widgetKey: 'k', name: 'N', fields: [], eventSubscriptions: ['chat.message'] }
+    const schema = {
+      widgetKey: 'k',
+      name: 'N',
+      fields: [],
+      eventSubscriptions: ['chat.message'],
+    };
 
-    http.GET.mockResolvedValue({ data: { data: schema }, response: ok })
-    const { queries, hook } = mount(() => useWidgetSchema(channel, 'w1'))
+    http.GET.mockResolvedValue({ data: { data: schema }, response: ok });
+    const { queries, hook } = mount(() => useWidgetSchema(channel, 'w1'));
 
-    await until(() => hook.data.value !== undefined)
+    await until(() => hook.data.value !== undefined);
 
     const [path, init] = http.GET.mock.calls[0] as [
       string,
       { params: { path: Record<string, unknown> } },
-    ]
+    ];
 
-    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}/settings-schema')
-    expect(init.params.path).toEqual({ version: '1', channelId: channel, widgetId: 'w1' })
-    expect(queries.getQueryData(widgetSchemaKey(channel, 'w1'))).toEqual(schema)
-  })
-})
+    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}/settings-schema');
+
+    expect(init.params.path).toEqual({
+      version: '1',
+      channelId: channel,
+      widgetId: 'w1',
+    });
+
+    expect(queries.getQueryData(widgetSchemaKey(channel, 'w1'))).toEqual(schema);
+  });
+});
 
 describe('useSetWidgetEnabled', () => {
   it('flips the row at once and sends only isEnabled in the PUT body', async () => {
-    let finish: (answer: Answer) => void = () => {}
+    let finish: (answer: Answer) => void = () => {};
 
-    http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
+    http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)));
 
     http.GET.mockResolvedValue({
       data: { data: [widget('a', { isEnabled: false }), widget('b')], hasMore: false },
       response: ok,
-    })
+    });
 
-    const { queries, hook } = mount(() => useSetWidgetEnabled(channel))
+    const { queries, hook } = mount(() => useSetWidgetEnabled(channel));
 
-    queries.setQueryData(widgetsKey(channel), [widget('a'), widget('b')])
+    queries.setQueryData(widgetsKey(channel), [widget('a'), widget('b')]);
 
-    const sent: Promise<unknown> = hook.mutateAsync({ widgetId: 'a', isEnabled: false })
+    const sent: Promise<unknown> = hook.mutateAsync({ widgetId: 'a', isEnabled: false });
 
-    await settle()
+    await settle();
 
-    const during = queries.getQueryData<Widget[]>(widgetsKey(channel))
+    const during = queries.getQueryData<Widget[]>(widgetsKey(channel));
 
     expect(during?.map((row: Widget) => [row.id, row.isEnabled])).toEqual([
       ['a', false],
       ['b', true],
-    ])
+    ]);
 
-    const [path, init] = http.PUT.mock.calls[0] as [string, unknown]
+    const [path, init] = http.PUT.mock.calls[0] as [string, unknown];
 
-    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}')
+    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}');
 
     expect(init).toEqual({
-      params: { path: { version: '1', channelId: channel, widgetId: 'a' } },
+      params: {
+        path: {
+          version: '1',
+          channelId: channel,
+          widgetId: 'a',
+        },
+      },
       body: { isEnabled: false },
-    })
+    });
 
-    finish({ response: ok })
-    await sent
-  })
+    finish({ response: ok });
+    await sent;
+  });
 
   it('puts the exact earlier list back and reports to the inbox when the bot refuses', async () => {
     http.PUT.mockResolvedValue({
       error: { status: 'error', message: 'no' },
       response: { ok: false, status: 403 },
-    })
+    });
 
-    const before: Widget[] = [widget('a'), widget('b')]
-    const { queries, hook, inbox } = mount(() => useSetWidgetEnabled(channel))
+    const before: Widget[] = [widget('a'), widget('b')];
+    const { queries, hook, inbox } = mount(() => useSetWidgetEnabled(channel));
 
-    queries.setQueryData(widgetsKey(channel), before)
+    queries.setQueryData(widgetsKey(channel), before);
 
-    await hook.mutateAsync({ widgetId: 'a', isEnabled: false }).catch(() => undefined)
-    await settle()
+    await hook.mutateAsync({ widgetId: 'a', isEnabled: false }).catch(() => undefined);
+    await settle();
 
-    expect(queries.getQueryData<Widget[]>(widgetsKey(channel))).toEqual(before)
-    expect(inbox.items).toHaveLength(1)
-  })
-})
+    expect(queries.getQueryData<Widget[]>(widgetsKey(channel))).toEqual(before);
+    expect(inbox.items).toHaveLength(1);
+  });
+});
 
 describe('useSaveWidgetSettings', () => {
   it('sends the full settings map as the only PUT field and shows it in the row at once', async () => {
-    let finish: (answer: Answer) => void = () => {}
+    let finish: (answer: Answer) => void = () => {};
 
-    http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
-    http.GET.mockResolvedValue({ data: { data: [], hasMore: false }, response: ok })
-    const { queries, hook } = mount(() => useSaveWidgetSettings(channel))
+    http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)));
+    http.GET.mockResolvedValue({ data: { data: [], hasMore: false }, response: ok });
+    const { queries, hook } = mount(() => useSaveWidgetSettings(channel));
 
-    queries.setQueryData(widgetsKey(channel), [widget('a', { settings: { size: 1 } })])
+    queries.setQueryData(widgetsKey(channel), [widget('a', { settings: { size: 1 } })]);
 
     const sent: Promise<unknown> = hook.mutateAsync({
       widgetId: 'a',
       settings: { size: 2, color: '#fff' },
-    })
+    });
 
-    await settle()
+    await settle();
 
     expect(queries.getQueryData<Widget[]>(widgetsKey(channel))?.[0]?.settings).toEqual({
       size: 2,
       color: '#fff',
-    })
+    });
 
-    const [, init] = http.PUT.mock.calls[0] as [string, unknown]
+    const [, init] = http.PUT.mock.calls[0] as [string, unknown];
 
     expect(init).toEqual({
-      params: { path: { version: '1', channelId: channel, widgetId: 'a' } },
+      params: {
+        path: {
+          version: '1',
+          channelId: channel,
+          widgetId: 'a',
+        },
+      },
       body: { settings: { size: 2, color: '#fff' } },
-    })
+    });
 
-    finish({ response: ok })
-    await sent
-  })
+    finish({ response: ok });
+    await sent;
+  });
 
   it('restores the saved settings and reports to the inbox when the save fails', async () => {
-    http.PUT.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 500 } })
-    const before: Widget[] = [widget('a', { settings: { size: 1 } })]
-    const { queries, hook, inbox } = mount(() => useSaveWidgetSettings(channel))
+    http.PUT.mockResolvedValue({
+      error: { status: 'error' },
+      response: { ok: false, status: 500 },
+    });
 
-    queries.setQueryData(widgetsKey(channel), before)
+    const before: Widget[] = [widget('a', { settings: { size: 1 } })];
+    const { queries, hook, inbox } = mount(() => useSaveWidgetSettings(channel));
 
-    await hook.mutateAsync({ widgetId: 'a', settings: { size: 9 } }).catch(() => undefined)
-    await settle()
+    queries.setQueryData(widgetsKey(channel), before);
 
-    expect(queries.getQueryData<Widget[]>(widgetsKey(channel))).toEqual(before)
-    expect(inbox.items).toHaveLength(1)
-  })
-})
+    await hook.mutateAsync({ widgetId: 'a', settings: { size: 9 } }).catch(() => undefined);
+    await settle();
+
+    expect(queries.getQueryData<Widget[]>(widgetsKey(channel))).toEqual(before);
+    expect(inbox.items).toHaveLength(1);
+  });
+});
 
 describe('useTestWidgetEvent', () => {
   it('sends the event type without data and resolves to the text the bot answers', async () => {
-    http.POST.mockResolvedValue({ data: { data: 'Sent to 1 overlay' }, response: ok })
-    const { hook } = mount(() => useTestWidgetEvent(channel))
+    http.POST.mockResolvedValue({ data: { data: 'Sent to 1 overlay' }, response: ok });
+    const { hook } = mount(() => useTestWidgetEvent(channel));
 
-    const result: string = await hook.mutateAsync({ eventType: 'channel.follow' })
+    const result: string = await hook.mutateAsync({ eventType: 'channel.follow' });
 
-    expect(result).toBe('Sent to 1 overlay')
-    const [path, init] = http.POST.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect(result).toBe('Sent to 1 overlay');
+    const [path, init] = http.POST.mock.calls[0] as [string, { body: Record<string, unknown> }];
 
-    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/test-event')
-    expect(init.body).toEqual({ eventType: 'channel.follow' })
-    expect('data' in init.body).toBe(false)
-  })
+    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/test-event');
+    expect(init.body).toEqual({ eventType: 'channel.follow' });
+    expect('data' in init.body).toBe(false);
+  });
 
   it('surfaces a 400 as an error carrying the bot reason', async () => {
     http.POST.mockResolvedValue({
       error: { status: 'error', message: 'eventType is required' },
       response: { ok: false, status: 400 },
-    })
+    });
 
-    const { hook } = mount(() => useTestWidgetEvent(channel))
+    const { hook } = mount(() => useTestWidgetEvent(channel));
 
-    await expect(hook.mutateAsync({ eventType: '' })).rejects.toThrow('eventType is required')
-  })
-})
+    await expect(hook.mutateAsync({ eventType: '' })).rejects.toThrow('eventType is required');
+  });
+});

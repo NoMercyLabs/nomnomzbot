@@ -11,137 +11,149 @@
 // The head of one overlay: name and badges, the On/Off switch, the one primary action (copy the
 // browser source address), Health, what it reacts to, and the module facts.
 // The address holds a secret token. Copy sends the full address to the clipboard; the page only ever shows it cut.
-import ArrowLeft from '~icons/nnz/arrow-left'
-import Check from '~icons/nnz/check'
-import Copy from '~icons/nnz/file-copy'
-import Play from '~icons/nnz/play'
-import { useTimeAgoIntl, useTimeoutFn } from '@vueuse/core'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import ArrowLeft from '~icons/nnz/arrow-left';
+import Check from '~icons/nnz/check';
+import Copy from '~icons/nnz/file-copy';
+import Play from '~icons/nnz/play';
+import { useTimeAgoIntl, useTimeoutFn } from '@vueuse/core';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useSetWidgetEnabled, useTestWidgetEvent, type Widget } from '@/api/widgets'
-import DetailPane from '@/components/layout/DetailPane.vue'
-import InlineFlow from '@/components/layout/InlineFlow.vue'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { useSetWidgetEnabled, useTestWidgetEvent, type Widget } from '@/api/widgets';
+import DetailPane from '@/components/layout/DetailPane.vue';
+import InlineFlow from '@/components/layout/InlineFlow.vue';
+import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import OverlaySettings from './OverlaySettings.vue'
-import { maskedAddress, overlayKind, plainEvent, type OverlayKind } from './overlayKind'
-import { numberOrNull } from './settingField'
+import OverlaySettings from './OverlaySettings.vue';
+import { maskedAddress, overlayKind, plainEvent, type OverlayKind } from './overlayKind';
+import { numberOrNull } from './settingField';
 
-const COPIED_MS = 2000
+const COPIED_MS = 2000;
 
-const props = defineProps<{ widget: Widget }>()
+const props = defineProps<{ widget: Widget }>();
 
-defineEmits<{ back: [] }>()
+defineEmits<{ back: [] }>();
 
-const { t, locale } = useI18n()
-const { channelId } = useCurrentChannel()
-const setEnabled = useSetWidgetEnabled(channelId)
+const { t, locale } = useI18n();
+const { channelId } = useCurrentChannel();
+const setEnabled = useSetWidgetEnabled(channelId);
 
-const kind = computed<OverlayKind>(() => overlayKind(props.widget.name))
-const builtIn = computed<boolean>(() => props.widget.source === 'first_party')
-const ago = useTimeAgoIntl(() => props.widget.lastRanAt ?? new Date(0), { locale: locale.value })
+const kind = computed<OverlayKind>(() => overlayKind(props.widget.name));
+const builtIn = computed<boolean>(() => props.widget.source === 'first_party');
+const ago = useTimeAgoIntl(() => props.widget.lastRanAt ?? new Date(0), { locale: locale.value });
 
-const copied = ref(false)
+const copied = ref(false);
 const { start: resetCopied } = useTimeoutFn(
   () => {
-    copied.value = false
+    copied.value = false;
   },
   COPIED_MS,
   { immediate: false },
-)
+);
 
 async function copyAddress(): Promise<void> {
-  if (!props.widget.overlayUrl) return
+  if (!props.widget.overlayUrl) return;
 
-  await navigator.clipboard.writeText(props.widget.overlayUrl)
-  copied.value = true
-  resetCopied()
+  await navigator.clipboard.writeText(props.widget.overlayUrl);
+  copied.value = true;
+  resetCopied();
 }
 
 function toggle(isEnabled: boolean): void {
-  setEnabled.mutate({ widgetId: props.widget.id, isEnabled })
+  setEnabled.mutate({ widgetId: props.widget.id, isEnabled });
 }
 
 const runTone = computed<StatusTone>(() =>
   props.widget.lastRuntimeError
     ? 'bad'
-    : 'ok')
-const runTitle: ComputedRef<string> = computed<string>(() =>
+    : 'ok');
+const runTitle = computed<string>(() =>
   t(
     props.widget.lastRuntimeError
       ? 'dashboard.overlays.detail.health.failed'
       : 'dashboard.overlays.detail.health.works',
   ),
-)
-const runNote: ComputedRef<string> = computed<string>(() => {
+);
+const runNote = computed<string>(() => {
   if (props.widget.lastRuntimeError)
-    return props.widget.lastRuntimeError
+    return props.widget.lastRuntimeError;
 
   if (!props.widget.lastRanAt)
-    return t('dashboard.overlays.detail.health.neverRan')
+    return t('dashboard.overlays.detail.health.neverRan');
 
-  return t('dashboard.overlays.detail.health.worksRan', { ago: ago.value })
-})
+  return t('dashboard.overlays.detail.health.worksRan', { ago: ago.value });
+});
 
 interface HealthLine {
-  tone: StatusTone
-  title: string
-  note: string
+  tone: StatusTone;
+  title: string;
+  note: string;
 }
-const attachLine: ComputedRef<HealthLine> = computed<HealthLine>(() => {
-  const base: string = 'dashboard.overlays.detail.health'
+const attachLine = computed<HealthLine>(() => {
+  const base: string = 'dashboard.overlays.detail.health';
 
   if (!props.widget.isEnabled)
-    return { tone: 'off', title: t(`${base}.switchedOff`), note: t(`${base}.switchedOffNote`) }
+    return {
+      tone: 'off',
+      title: t(`${base}.switchedOff`),
+      note: t(`${base}.switchedOffNote`),
+    };
 
   if (props.widget.isAttached)
-    return { tone: 'ok', title: t(`${base}.attached`), note: t(`${base}.attachedNote`) }
+    return {
+      tone: 'ok',
+      title: t(`${base}.attached`),
+      note: t(`${base}.attachedNote`),
+    };
 
-  return { tone: 'off', title: t(`${base}.detached`), note: t(`${base}.detachedNote`) }
-})
+  return {
+    tone: 'off',
+    title: t(`${base}.detached`),
+    note: t(`${base}.detachedNote`),
+  };
+});
 
-const events = computed<string[]>(() => props.widget.eventSubscriptions)
+const events = computed<string[]>(() => props.widget.eventSubscriptions);
 
 // Test sends the event type alone, so the bot fills in its own sample; each row shows what the bot said.
-const testEvent = useTestWidgetEvent(channelId)
-const testResults: Ref<Record<string, string>> = ref({})
-const testFailures: Ref<Record<string, string>> = ref({})
+const testEvent = useTestWidgetEvent(channelId);
+const testResults = ref<Record<string, string>>({});
+const testFailures = ref<Record<string, string>>({});
 
 async function sendTest(eventType: string): Promise<void> {
   try {
-    const answer: string = await testEvent.mutateAsync({ eventType })
+    const answer: string = await testEvent.mutateAsync({ eventType });
 
-    testResults.value = { ...testResults.value, [eventType]: answer }
+    testResults.value = { ...testResults.value, [eventType]: answer };
   } catch (error) {
-    testFailures.value = { ...testFailures.value, [eventType]: (error as Error).message }
-    throw error
+    testFailures.value = { ...testFailures.value, [eventType]: (error as Error).message };
+    throw error;
   }
 }
 
 // The preview cannot render the overlay yet; it names the size the overlay is set to when it has one.
-const size: ComputedRef<string | null> = computed<string | null>(() => {
-  const width = numberOrNull(props.widget.settings?.width as number | string | undefined)
-  const height = numberOrNull(props.widget.settings?.height as number | string | undefined)
+const size = computed<string | null>(() => {
+  const width = numberOrNull(props.widget.settings?.width as number | string | undefined);
+  const height = numberOrNull(props.widget.settings?.height as number | string | undefined);
 
   return width === null || height === null
     ? null
-    : `${width} × ${height}`
-})
+    : `${width} × ${height}`;
+});
 
-const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
-  const base: string = 'dashboard.overlays.detail.module'
+const module = computed<KeyValueItem[]>(() => {
+  const base: string = 'dashboard.overlays.detail.module';
   const address: string | null = props.widget.overlayUrl
     ? maskedAddress(props.widget.overlayUrl)
-    : null
+    : null;
 
   return [
     { label: t(`${base}.what`), value: props.widget.description || t(`${base}.noDescription`) },
@@ -154,8 +166,8 @@ const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
           ? t(`${base}.noAddress`)
           : t(`${base}.addressNote`, { path: address }),
     },
-  ]
-})
+  ];
+});
 </script>
 
 <template>

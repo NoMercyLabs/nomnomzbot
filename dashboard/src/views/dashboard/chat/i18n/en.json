@@ -7,20 +7,99 @@
         "live": "Live",
         "offline": "Offline"
       },
-      "hideCommands": "Hide commands",
+      "display": {
+        "toggle": "Display",
+        "title": "Display",
+        "reset": "Reset",
+        "kept": "Kept on this device",
+        "readability": "Font and readability",
+        "readabilityHelp": "Text size and font for the whole dashboard",
+        "change": "Change",
+        "section": {
+          "show": "Show",
+          "layout": "Layout",
+          "emotes": "Emotes",
+          "deleted": "Mentions and deleted messages"
+        },
+        "option": {
+          "badges": "Badges",
+          "avatars": "Avatars",
+          "platform": "Platform icons",
+          "commands": "Commands",
+          "timestamps": "Timestamps",
+          "nameColors": "Name colors",
+          "alternating": "Alternating rows",
+          "narrow": "Narrow lines",
+          "spacing": "Message spacing",
+          "emoteSize": "Emote size",
+          "mentions": "Highlight mentions of me",
+          "deleted": "Deleted messages"
+        },
+        "off": "Off",
+        "hour24": "24-hour",
+        "hour12": "12-hour",
+        "asSent": "As sent",
+        "readable": "Readable",
+        "tight": "Tight",
+        "normal": "Normal",
+        "roomy": "Roomy",
+        "small": "Small",
+        "medium": "Medium",
+        "large": "Large",
+        "hide": "Hide",
+        "strike": "Strike",
+        "show": "Show",
+        "deletedTag": "(deleted)"
+      },
       "lengths": {
         "60": "1 min",
         "600": "10 min",
         "3600": "1 hour",
         "86400": "1 day"
       },
+      "viewer": {
+        "title": "Viewer",
+        "close": "Close viewer",
+        "clearFocus": "Clear focus on {name}",
+        "empty": "Select a chatter in the feed to see them here.",
+        "error": "Could not load this chatter.",
+        "selected": "Selected from chat",
+        "profile": "Profile",
+        "messages": "Messages",
+        "watched": "{hours} hours watched",
+        "earned": "{count} earned",
+        "latest": "Latest messages here",
+        "noMessages": "No messages from them in the loaded chat.",
+        "other": "In other channels you moderate",
+        "otherUnavailable": "The bot does not report what this person said in your other channels yet.",
+        "timeout": "Timeout",
+        "ban": "Ban",
+        "cancel": "Cancel",
+        "length": "Timeout length",
+        "banAsk": "Ban {name}?",
+        "timedOut": "{name} timed out for {length}.",
+        "banned": "{name} is banned.",
+        "undo": "Undo",
+        "unban": "Unban",
+        "failed": "That did not go through. Nothing changed."
+      },
       "feed": {
         "title": "Chat feed",
         "label": "Chat messages",
         "count": "{count} messages",
         "empty": "No messages yet.",
-        "emptyCommands": "Only commands so far. Switch off Hide commands to see them.",
+        "emptyCommands": "Only commands so far. Switch on Commands in Display to see them.",
         "error": "The chat could not load."
+      },
+      "search": {
+        "placeholder": "Search chat",
+        "title": "Search results",
+        "label": "Matching chat messages",
+        "count": "{count} messages match \"{query}\"",
+        "empty": "No message matches \"{query}\". Searched back to the first message.",
+        "error": "The search did not work.",
+        "more": "Search further back",
+        "end": "Searched back to the first message."
       },
       "line": {
         "actions": "Actions for {name}",
@@ -29,6 +108,38 @@
         "banned": "Banned",
         "profile": "Open profile of {name}",
         "profileTip": "Open profile"
+      },
+      "asset": {
+        "emoteLabel": "Show emote {name}",
+        "badgeLabel": "Show badge {name}",
+        "provider": "From",
+        "providers": {
+          "Twitch": "Twitch",
+          "SevenTv": "7TV",
+          "Bttv": "BetterTTV",
+          "Ffz": "FrankerFaceZ"
+        },
+        "kind": "Kind",
+        "animated": "Animated",
+        "still": "Still image",
+        "layer": "Layer",
+        "zeroWidth": "Sits on top of the emote before it",
+        "open": {
+          "SevenTv": "Open on 7TV",
+          "Bttv": "Open on BetterTTV",
+          "Ffz": "Open on FrankerFaceZ"
+        },
+        "set": "Badge",
+        "version": "Version",
+        "info": "Detail"
+      },
+      "reply": {
+        "label": "Reply to {name}",
+        "tip": "Reply",
+        "to": "Replying to {name}",
+        "cancel": "Cancel reply",
+        "parent": "Replying to {name}: {message}",
+        "earlier": "Replying to an earlier message"
       },
       "timeout": {
         "label": "Timeout {name}",
@@ -54,10 +165,35 @@
       "composer": {
         "label": "Message",
         "placeholder": "Send a message as you",
+        "suggestions": "Suggestions",
+        "kind": {
+          "emoji": "Emoji",
+          "chatter": "Chatter"
+        },
         "send": "Send",
         "count": "{count}/{max}",
         "tooLong": "A message is at most {max} characters.",
         "failed": "The message was not sent."
+      },
+      "picker": {
+        "open": "Emotes and emoji",
+        "search": "Search emotes and emoji",
+        "jump": "Jump to a section",
+        "recent": "Recent",
+        "results": "Results",
+        "none": "Nothing matches.",
+        "hint": "Point at one to see its name.",
+        "groups": {
+          "smileys": "Smileys",
+          "people": "People",
+          "animals": "Animals and nature",
+          "food": "Food and drink",
+          "travel": "Travel and places",
+          "activities": "Activities",
+          "objects": "Objects",
+          "symbols": "Symbols",
+          "flags": "Flags"
+        }
       }
     }
   }

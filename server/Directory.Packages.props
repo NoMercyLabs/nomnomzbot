@@ -3,6 +3,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="EF Core">
+    <PackageVersion Include="FuzzySharp" Version="2.0.2" />
     <PackageVersion Include="Jint" Version="4.10.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8" />

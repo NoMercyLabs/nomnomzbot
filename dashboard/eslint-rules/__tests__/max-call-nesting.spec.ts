@@ -8,35 +8,35 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { RuleTester } from '@typescript-eslint/rule-tester'
-import { afterAll, describe, it } from 'vitest'
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import { afterAll, describe, it } from 'vitest';
 
-import { maxCallNesting } from '../max-call-nesting'
+import { maxCallNesting } from '../max-call-nesting';
 
-RuleTester.afterAll = afterAll
-RuleTester.describe = describe
-RuleTester.it = it
-RuleTester.itOnly = it.only
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
-const tester = new RuleTester()
+const tester = new RuleTester();
 
 tester.run('max-call-nesting', maxCallNesting, {
   valid: [
     // Two levels read fine.
     'const clamped = Math.min(1, Math.max(0, v))',
     // A chain reads left to right; it is not nesting.
-    "const text = wrapper.find('#a').find('#b').text().trim()",
+    'const text = wrapper.find(\'#a\').find(\'#b\').text().trim()',
     // A function argument starts over.
     'const bytes = color.map((v) => Math.round(v * 255)).join(" ")',
     // A named property starts over: its name names the step.
-    "const line = t('timedOut', { minutes: Math.max(1, Math.round(seconds / 60)) })",
+    'const line = t(\'timedOut\', { minutes: Math.max(1, Math.round(seconds / 60)) })',
     // A test's expect() does not count.
-    "expect(queries.getQueryData(widgetsKey('c1'))).toEqual(before)",
+    'expect(queries.getQueryData(widgetsKey(\'c1\'))).toEqual(before)',
   ],
   invalid: [
     {
       // The owner's example, 2026-10-13.
-      code: "const css = `rgb(${color.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255)).join(' ')})`",
+      code: 'const css = `rgb(${color.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255)).join(\' \')})`',
       errors: [{ messageId: 'tooDeep', data: { depth: 3 } }],
     },
     {
@@ -45,7 +45,7 @@ tester.run('max-call-nesting', maxCallNesting, {
     },
     {
       // Inside a property, the count starts over and still applies.
-      code: "const line = t('k', { a: f(g(h(1))) })",
+      code: 'const line = t(\'k\', { a: f(g(h(1))) })',
       errors: [{ messageId: 'tooDeep', data: { depth: 3 } }],
     },
     {
@@ -54,4 +54,4 @@ tester.run('max-call-nesting', maxCallNesting, {
       errors: [{ messageId: 'tooDeep', data: { depth: 4 } }],
     },
   ],
-})
+});

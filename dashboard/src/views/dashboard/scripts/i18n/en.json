@@ -64,12 +64,11 @@
       "runs": {
         "title": "This session",
         "button": "Runs",
-        "count": "{count} test runs since you opened this page",
+        "count": "{count} test runs so far",
         "empty": "No runs yet. Run test tries a script with a sample.",
         "noMatch": "No runs match.",
         "line": "{time} · {trigger}",
         "ms": "{ms} ms",
-        "close": "Close",
         "filter": {
           "label": "Show runs",
           "all": "All",

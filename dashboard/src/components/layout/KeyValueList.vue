@@ -11,20 +11,20 @@
 // Facts as a label and a value (C11): a value with no source shows a dash and, when given, the reason.
 // The value slot lets a row show a StatusBadge or a link instead of plain text.
 export interface KeyValueItem {
-  label: string
-  value?: string | number | null
-  reason?: string
+  label: string;
+  value?: string | number | null;
+  reason?: string;
 }
 
-defineProps<{ items: readonly KeyValueItem[] }>()
+defineProps<{ items: readonly KeyValueItem[] }>();
 
-const missing: string = '-'
+const missing: string = '-';
 </script>
 
 <template>
   <dl
     data-slot="key-value-list"
-    class="grid grid-cols-[minmax(6rem,9rem)_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm"
+    class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm"
   >
     <template v-for="item in items" :key="item.label">
       <dt class="text-muted-foreground">{{ item.label }}</dt>

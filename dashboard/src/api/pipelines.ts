@@ -8,27 +8,27 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { UseQueryReturnType } from '@tanstack/vue-query'
-import type { MaybeRefOrGetter } from 'vue'
+import type { UseQueryReturnType } from '@tanstack/vue-query';
+import type { MaybeRefOrGetter } from 'vue';
 
-import { channelQuery, failed } from './channelQuery'
-import { client } from './client'
-import type { components } from './schema'
+import { channelQuery, failed } from './channelQuery';
+import { client } from './client';
+import type { components } from './schema';
 
-export type PipelineListItem = components['schemas']['PipelineListItemDto']
+export type PipelineListItem = components['schemas']['PipelineListItemDto'];
 
-const version = '1'
-const pageSize = 100
-const maxPages = 100
+const version = '1';
+const pageSize = 100;
+const maxPages = 100;
 
 export const pipelinesKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'pipelines',
-]
+];
 
 async function readPipelines(channelId: string): Promise<PipelineListItem[]> {
-  const rows: PipelineListItem[] = []
+  const rows: PipelineListItem[] = [];
 
   for (let page = 1; page <= maxPages; page += 1) {
     const { data, error, response } = await client.GET(
@@ -36,21 +36,21 @@ async function readPipelines(channelId: string): Promise<PipelineListItem[]> {
       {
         params: { path: { version, channelId }, query: { Page: page, PageSize: pageSize } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('pipelines', response.status)
+      throw failed('pipelines', response.status);
 
-    rows.push(...(data?.data ?? []))
+    rows.push(...(data?.data ?? []));
 
-    if (data?.hasMore !== true) break
+    if (data?.hasMore !== true) break;
   }
 
-  return rows
+  return rows;
 }
 
 export function usePipelines(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<PipelineListItem[], Error> {
-  return channelQuery(channelId, pipelinesKey, readPipelines)
+  return channelQuery(channelId, pipelinesKey, readPipelines);
 }

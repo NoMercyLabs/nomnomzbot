@@ -87,6 +87,9 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     }
 
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
+        throw new NotSupportedException();
+    public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<Domain.Giveaways.Entities.Giveaway> Giveaways => throw new NotSupportedException();
     public DbSet<Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>

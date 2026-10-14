@@ -153,7 +153,13 @@ public sealed class BillingTierServiceTests
         (await sut.GetLimitAsync(Channel, "tts_max_characters")).Value.Should().Be(4000);
 
         // The consequence at the enforcer: the sandbox metering check now refuses what the tier would allow.
-        UsageMeteringService metering = new(db, sut, new RecordingEventBus(), TimeProvider.System);
+        UsageMeteringService metering = new(
+            db,
+            sut,
+            new RecordingEventBus(),
+            TimeProvider.System,
+            TestConfiguration.Empty()
+        );
         QuotaCheckDto sandbox = (await metering.CheckAsync(Channel, "sandbox_exec_ms", 5000)).Value;
         sandbox.Allowed.Should().BeFalse();
         sandbox.Limit.Should().Be(1000);

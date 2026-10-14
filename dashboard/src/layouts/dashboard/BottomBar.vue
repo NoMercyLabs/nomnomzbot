@@ -8,35 +8,35 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Cross from '~icons/nnz/cross'
-import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import ChevronRight from '~icons/nnz/chevron-right';
+import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
-import type { NavEntry } from './navigation'
-import { useNavigation } from './useNavigation'
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item';
+import type { NavEntry } from './navigation';
+import { useNavigation } from './useNavigation';
 
-const { t } = useI18n()
-const { entries, isCurrent } = useNavigation()
-const more = ref(false)
+const { t } = useI18n();
+const { entries, isCurrent } = useNavigation();
+const more = ref(false);
 
 // The pages a thumb needs most stay in the bar; the rest open in the sheet.
 const barEntries = computed<NavEntry[]>(() =>
   entries.value.filter((entry) => entry.bottom).slice(0, 4),
-)
+);
 const sheetEntries = computed<NavEntry[]>(() =>
   entries.value.filter((entry) => !barEntries.value.includes(entry)),
-)
+);
 </script>
 
 <template>
@@ -49,7 +49,7 @@ const sheetEntries = computed<NavEntry[]>(() =>
       v-for="entry in barEntries"
       :key="entry.route"
       :variant="isCurrent(entry) ? 'secondary' : 'ghost'"
-      class="h-auto min-h-11 flex-1 flex-col gap-1 px-1 py-1.5 text-xs"
+      class="h-auto! min-h-11 flex-1 flex-col gap-1! px-1! py-1.5 text-xs"
       as-child
     >
       <RouterLink :to="{ name: entry.route }">
@@ -57,38 +57,42 @@ const sheetEntries = computed<NavEntry[]>(() =>
         <span class="truncate">{{ t(`frame.nav.${entry.label}`) }}</span>
       </RouterLink>
     </Button>
-    <Sheet v-if="sheetEntries.length" v-model:open="more">
-      <SheetTrigger as-child>
-        <Button variant="ghost" class="h-auto min-h-11 flex-1 flex-col gap-1 px-1 py-1.5 text-xs">
+    <!-- The rest opens in a bottom drawer, as the "More" tab of a phone app does: a handle to swipe it away,
+         one full-width row per page. -->
+    <Drawer v-if="sheetEntries.length" v-model:open="more">
+      <DrawerTrigger as-child>
+        <Button variant="ghost" class="h-auto! min-h-11 flex-1 flex-col gap-1! px-1! py-1.5 text-xs">
           <MenuDotsHorizontal aria-hidden="true" />
           <span class="truncate">{{ t('frame.nav.more') }}</span>
         </Button>
-      </SheetTrigger>
-      <SheetContent side="bottom" :show-close-button="false" class="max-h-[80svh]">
-        <SheetHeader class="flex-row items-center justify-between">
-          <SheetTitle>{{ t('frame.nav.more') }}</SheetTitle>
-          <SheetClose as-child>
-            <Button variant="ghost" size="icon" :aria-label="t('common.close')">
-              <Cross aria-hidden="true" />
-            </Button>
-          </SheetClose>
-        </SheetHeader>
-        <SheetDescription class="sr-only">{{ t('frame.nav.moreHelp') }}</SheetDescription>
-        <ul class="flex flex-col gap-1 overflow-y-auto p-2">
-          <li v-for="entry in sheetEntries" :key="entry.route">
-            <Button
-              :variant="isCurrent(entry) ? 'secondary' : 'ghost'"
-              class="w-full justify-start"
-              as-child
-            >
-              <RouterLink :to="{ name: entry.route }" @click="more = false">
+      </DrawerTrigger>
+      <DrawerContent data-slot="more-drawer">
+        <DrawerHeader>
+          <DrawerTitle>{{ t('frame.nav.more') }}</DrawerTitle>
+          <DrawerDescription class="sr-only">{{ t('frame.nav.moreHelp') }}</DrawerDescription>
+        </DrawerHeader>
+        <ItemGroup class="overflow-y-auto px-2 pb-4">
+          <Item
+            v-for="entry in sheetEntries"
+            :key="entry.route"
+            size="sm"
+            :class="isCurrent(entry) && 'bg-muted'"
+            as-child
+          >
+            <RouterLink :to="{ name: entry.route }" @click="more = false">
+              <ItemMedia variant="icon">
                 <component :is="entry.icon" aria-hidden="true" />
-                {{ t(`frame.nav.${entry.label}`) }}
-              </RouterLink>
-            </Button>
-          </li>
-        </ul>
-      </SheetContent>
-    </Sheet>
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>{{ t(`frame.nav.${entry.label}`) }}</ItemTitle>
+              </ItemContent>
+              <ItemActions>
+                <ChevronRight class="size-4 text-muted-foreground" aria-hidden="true" />
+              </ItemActions>
+            </RouterLink>
+          </Item>
+        </ItemGroup>
+      </DrawerContent>
+    </Drawer>
   </nav>
 </template>

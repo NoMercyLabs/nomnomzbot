@@ -352,6 +352,7 @@ public static class DependencyInjection
         // Warms the Helix badge + cheermote caches; scoped (they use the scoped Helix client — resolved per worker scope).
         services.AddScoped<Chat.Jobs.ChatBadgeCacheWarmer>();
         services.AddScoped<Chat.Jobs.ChatCheermoteCacheWarmer>();
+        services.AddScoped<Chat.Jobs.ChatTwitchEmoteCacheWarmer>();
 
         // Chat-decoration pipeline: the ordered adapters (multi-binding, discovered) + the thin orchestrator that runs
         // them per message. Scoped to match the per-message orchestrator and the scoped services some adapters use
@@ -368,6 +369,10 @@ public static class DependencyInjection
         >();
         // Per-channel chat-colour memory backing the mention-colour step (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
+        services.AddSingleton<
+            Application.Chat.Services.IChatColorAssignmentService,
+            ChatColorAssignmentService
+        >();
         // Typed @target to login (a display name such as a Korean one is not a login); reads the user table.
         services.AddScoped<
             Application.Chat.Services.IMentionTargetResolver,
@@ -386,6 +391,8 @@ public static class DependencyInjection
         // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
         services.AddSingleton<ISongRequestQueueStore, SongRequestQueueStore>();
+        // Song requests a limit refused, kept 15 minutes so a moderator's !permit can admit them.
+        services.AddSingleton<RefusedSongRequestStore>();
 
         // Same reasoning as the queue store above: must outlive the scoped MusicService that reads/writes
         // it. Kept warm by every real GetNowPlayingAsync read (poller-cadence for an actively streaming
@@ -425,6 +432,13 @@ public static class DependencyInjection
             Stream.RaidSuggestions.RaidScoringRulesStore
         >();
         services.AddScoped<Stream.RaidSuggestions.RaidSuggestionService>();
+        // Who to shout out this stream: chatters who stream often. Twitch lookups and "Not now" dismissals
+        // live in the singleton state so they outlive one request.
+        services.AddSingleton<Stream.ShoutoutSuggestions.ShoutoutSuggestionState>();
+        services.AddScoped<
+            Application.Moderation.Services.IShoutoutSuggestionService,
+            Stream.ShoutoutSuggestions.ShoutoutSuggestionService
+        >();
         // An ad break waits here for its duration to pass; the worker then tells chat the break ended.
         services.AddSingleton<IAdBreakEndScheduler, Stream.AdBreak.AdBreakEndScheduler>();
         // A live channel's ad schedule is read once a minute; chat and the overlays hear the warnings before an ad.
@@ -446,6 +460,7 @@ public static class DependencyInjection
             OperatorModeratedChannelResolver
         >();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
+        services.AddScoped<ChatEmoteOwnerDirectory>();
         services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
         // The out-of-process CLI runner behind the widget build service (esbuild). Not an I<X>Service, so it is
         // registered explicitly; IWidgetBuildService -> EsbuildWidgetBuildService is convention-bound.
@@ -858,7 +873,8 @@ public static class DependencyInjection
             typeof(ITtsService), // singleton — stateful TTS queues
             typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
             typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
-            typeof(IDeploymentProfileService) // singleton — boot detector + Current accessor (wired explicitly above)
+            typeof(IDeploymentProfileService), // singleton — boot detector + Current accessor (wired explicitly above)
+            typeof(Application.Chat.Services.IChatColorAssignmentService) // singleton — the dev-catalog sample stub is a second impl
         );
 
         // Ambient outbound-sanction scope. Singleton because the AsyncLocal it wraps is process-wide state,
@@ -1152,6 +1168,12 @@ public static class DependencyInjection
         // memory, so it is a singleton; the sweep reads and writes the DB, so it is scoped. Both are
         // consumed by concrete type from FollowSpikeHandler.
         services.AddSingleton<FollowSpikeTracker>();
+        // The chat safety meter holds each channel's 60-second windows in memory; the handlers that feed
+        // it are found by the IEventHandler<> scan, the reader seam is the same instance.
+        services.AddSingleton<Moderation.ChatSafety.ChatSafetyMeter>();
+        services.AddSingleton<Application.Moderation.Services.IChatSafetyMeter>(sp =>
+            sp.GetRequiredService<Moderation.ChatSafety.ChatSafetyMeter>()
+        );
         services.AddScoped<FollowBotSweepService>();
         // Same split as SpamEnforcementExecutor, one layer further in: SpamCorrelationService decides a
         // reversal is owed, this carries it out. Consumed by concrete type from SpamCorrelationService.

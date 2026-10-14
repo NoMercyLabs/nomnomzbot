@@ -10,32 +10,32 @@
 <script setup lang="ts">
 // One overlay in the list: its icon, name, whether it is on and attached, and a Fails mark.
 // The bot returns only whether a browser source is open, not how many, so the line says so in words.
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import type { Widget } from '@/api/widgets'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
+import type { Widget } from '@/api/widgets';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 
-import { overlayKind, type OverlayKind } from './overlayKind'
+import { overlayKind, type OverlayKind } from './overlayKind';
 
-const props = defineProps<{ widget: Widget; selected: boolean }>()
+const props = defineProps<{ widget: Widget; selected: boolean }>();
 
-defineEmits<{ pick: [] }>()
+defineEmits<{ pick: [] }>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const kind = computed<OverlayKind>(() => overlayKind(props.widget.name))
-const detail: ComputedRef<string> = computed<string>(() => {
+const kind = computed<OverlayKind>(() => overlayKind(props.widget.name));
+const detail = computed<string>(() => {
   if (!props.widget.isEnabled)
-    return t('dashboard.overlays.list.off')
+    return t('dashboard.overlays.list.off');
 
   return t(
     props.widget.isAttached
       ? 'dashboard.overlays.list.attached'
       : 'dashboard.overlays.list.notAttached',
-  )
-})
+  );
+});
 </script>
 
 <template>

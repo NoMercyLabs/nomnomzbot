@@ -8,16 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { chatKey, chatLineLimit, type ChatLine, type ChatLineMark } from '@/api/chat'
+import { chatKey, chatLineLimit, type ChatLine, type ChatLineMark } from '@/api/chat';
 
-import type { HubEventContext, HubEventHandler } from './hubEvent'
+import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type {
   ChannelEventPayload,
   ChatMessagePayload,
   MessageDeletedPayload,
   ModActionPayload,
   UserMessagesClearedPayload,
-} from './payloads'
+} from './payloads';
 
 // A removed line stays in the feed, marked, so the page decides whether to hide or strike it.
 function markLines(
@@ -31,20 +31,20 @@ function markLines(
       applies(line)
         ? { ...line, ...mark }
         : line),
-  )
+  );
 }
 
 // A timeout and a ban say what happened; Twitch also sends a purge for them, which must not wipe that.
 function modActionMark(action: ModActionPayload): ChatLineMark | null {
   if (action.action === 'timeout') {
-    return { removed: 'timeout', timeoutSeconds: action.durationSeconds ?? undefined }
+    return { removed: 'timeout', timeoutSeconds: action.durationSeconds ?? undefined };
   }
 
   if (action.action === 'ban') {
-    return { removed: 'banned' }
+    return { removed: 'banned' };
   }
 
-  return null
+  return null;
 }
 
 // One connection watches many channels, so every handler files by the channel the payload names, not the joined one.
@@ -61,42 +61,46 @@ export const chatHandlers: [
         feed && !feed.some((existing) => existing.id === message.id)
           ? [...feed, message].slice(-chatLineLimit)
           : feed,
-      )
+      );
     },
   },
   {
     event: 'ChannelEvent',
     handle: ({ queries }, event) => {
       if (event.type === 'message_deleted') {
-        const { messageId } = event.data as MessageDeletedPayload
+        const { messageId } = event.data as MessageDeletedPayload;
 
-        markLines(queries, event.broadcasterId, { removed: 'deleted' }, (line) =>
-          line.id === messageId)
+        markLines(
+          queries,
+          event.broadcasterId,
+          { removed: 'deleted' },
+          (line) => line.id === messageId,
+        );
       }
 
       if (event.type === 'chat_cleared') {
         markLines(queries, event.broadcasterId, { removed: 'cleared' }, () =>
-          true)
+          true);
       }
 
       if (event.type === 'user_messages_cleared') {
-        const { targetUserId } = event.data as UserMessagesClearedPayload
+        const { targetUserId } = event.data as UserMessagesClearedPayload;
         const isUnmarkedLineOf = (line: ChatLine): boolean =>
-          line.userId === targetUserId && line.removed === undefined
+          line.userId === targetUserId && line.removed === undefined;
 
-        markLines(queries, event.broadcasterId, { removed: 'purged' }, isUnmarkedLineOf)
+        markLines(queries, event.broadcasterId, { removed: 'purged' }, isUnmarkedLineOf);
       }
     },
   },
   {
     event: 'ModAction',
     handle: ({ queries }, action) => {
-      const mark = modActionMark(action)
+      const mark = modActionMark(action);
 
-      if (!mark) return
+      if (!mark) return;
 
       markLines(queries, action.broadcasterId, mark, (line) =>
-        line.userId === action.targetUserId)
+        line.userId === action.targetUserId);
     },
   },
-]
+];

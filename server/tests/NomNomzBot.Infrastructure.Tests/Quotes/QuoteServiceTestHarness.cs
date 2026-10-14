@@ -228,6 +228,9 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
         throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
+        throw new NotSupportedException();
+    public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();

@@ -8,24 +8,24 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { RuleTester } from '@typescript-eslint/rule-tester'
-import { afterAll, describe, it } from 'vitest'
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import { afterAll, describe, it } from 'vitest';
 
-import { arrowTernaryBody } from '../arrow-ternary-body'
+import { arrowTernaryBody } from '../arrow-ternary-body';
 
-RuleTester.afterAll = afterAll
-RuleTester.describe = describe
-RuleTester.it = it
-RuleTester.itOnly = it.only
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
-const tester = new RuleTester()
+const tester = new RuleTester();
 
 tester.run('arrow-ternary-body', arrowTernaryBody, {
   valid: [
     // A ternary body starts on the line after the arrow, without brackets.
     'const pick = (a: boolean) =>\n  a\n    ? 1\n    : 2',
     // Brackets that belong to a member read stay.
-    "const bare = (name: string) => (name ? 'a' : 'b').toLowerCase()",
+    'const bare = (name: string) => (name ? \'a\' : \'b\').toLowerCase()',
     // An object body keeps its brackets.
     'const make = () => ({ a: 1 })',
   ],
@@ -46,4 +46,4 @@ tester.run('arrow-ternary-body', arrowTernaryBody, {
       errors: [{ messageId: 'nextLine' }],
     },
   ],
-})
+});

@@ -40,7 +40,13 @@ public sealed class ResourceQuotaServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         BillingTierService tiers = new(db, TimeProvider.System);
         FakeTimeProvider clock = new();
-        UsageMeteringService metering = new(db, tiers, new RecordingEventBus(), clock);
+        UsageMeteringService metering = new(
+            db,
+            tiers,
+            new RecordingEventBus(),
+            clock,
+            TestConfiguration.Empty()
+        );
         return (new(tiers, metering, db, clock), db, clock);
     }
 

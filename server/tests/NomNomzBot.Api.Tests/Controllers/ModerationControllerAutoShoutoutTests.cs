@@ -50,7 +50,8 @@ public sealed class ModerationControllerAutoShoutoutTests
             Substitute.For<ITemplateHelperValidator>(),
             Substitute.For<IModerationHistoryService>(),
             Substitute.For<IMassBanConsentService>(),
-            shoutoutAction is null ? [] : [shoutoutAction]
+            shoutoutAction is null ? [] : [shoutoutAction],
+            Substitute.For<IShoutoutSuggestionService>()
         );
 
     private static Guid SeedChannel(ApiTestDbContext db, string name, bool autoShoutout)

@@ -13,78 +13,78 @@ import {
   useQuery,
   type UseMutationReturnType,
   type UseQueryReturnType,
-} from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+} from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import { useOptimisticSave } from '@/composables/useOptimisticSave'
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed, refusal } from './channelQuery'
-import { client } from './client'
-import type { components } from './schema'
+import { channelQuery, failed, refusal } from './channelQuery';
+import { client } from './client';
+import type { components } from './schema';
 
-export type Widget = components['schemas']['WidgetDetail']
-export type WidgetSettingsSchema = components['schemas']['WidgetSettingsSchema']
-export type WidgetSettingsField = components['schemas']['WidgetSettingsField']
-export type WidgetSettings = Widget['settings']
+export type Widget = components['schemas']['WidgetDetail'];
+export type WidgetSettingsSchema = components['schemas']['WidgetSettingsSchema'];
+export type WidgetSettingsField = components['schemas']['WidgetSettingsField'];
+export type WidgetSettings = Widget['settings'];
 
-const version = '1'
-const pageSize = 100
-const firstPage = 1
+const version = '1';
+const pageSize = 100;
+const firstPage = 1;
 
 export const widgetsKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'widgets',
-]
+];
 export const widgetSchemaKey = (channelId: string | null, widgetId: string | null): unknown[] => [
   'channels',
   channelId,
   'widget-schema',
   widgetId,
-]
+];
 
 function numberOrNull(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined)
-    return null
+    return null;
 
-  const parsed = Number(value)
+  const parsed = Number(value);
 
   return Number.isFinite(parsed)
     ? parsed
-    : null
+    : null;
 }
 
 // Pages are read one after the other until the bot says there are no more.
 async function readWidgets(channelId: string): Promise<Widget[]> {
-  const widgets: Widget[] = []
-  let page: number | null = firstPage
+  const widgets: Widget[] = [];
+  let page: number | null = firstPage;
 
   while (page !== null) {
-    const current: number = page
+    const current: number = page;
     const { data, error, response } = await client.GET(
       '/api/v{version}/channels/{channelId}/widgets',
       {
         params: { path: { version, channelId }, query: { Page: current, PageSize: pageSize } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('widgets', response.status)
+      throw failed('widgets', response.status);
 
-    widgets.push(...(data?.data ?? []))
+    widgets.push(...(data?.data ?? []));
 
     page = data?.hasMore
       ? (numberOrNull(data.nextPage) ?? current + 1)
-      : null
+      : null;
   }
 
-  return widgets
+  return widgets;
 }
 
 export function useWidgets(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<Widget[], Error> {
-  return channelQuery(channelId, widgetsKey, readWidgets)
+  return channelQuery(channelId, widgetsKey, readWidgets);
 }
 
 // The schema is read per widget; a widget without one returns an empty field list.
@@ -106,24 +106,24 @@ export function useWidgetSchema(
             },
           },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('widget settings', response.status)
+        throw failed('widget settings', response.status);
 
-      return data?.data ?? null
+      return data?.data ?? null;
     },
     enabled: computed(() => toValue(channelId) !== null && toValue(widgetId) !== null),
-  })
+  });
 }
 
 // Ready means switched on and not failing on its last run.
 export function isWidgetReady(widget: Widget): boolean {
-  return widget.isEnabled && !widget.lastRuntimeError
+  return widget.isEnabled && !widget.lastRuntimeError;
 }
 
-export type WidgetEnabledInput = { widgetId: string; isEnabled: boolean }
-export type WidgetSettingsInput = { widgetId: string; settings: NonNullable<WidgetSettings> }
+export type WidgetEnabledInput = { widgetId: string; isEnabled: boolean };
+export type WidgetSettingsInput = { widgetId: string; settings: NonNullable<WidgetSettings> };
 
 async function putWidget(
   channelId: string,
@@ -134,15 +134,21 @@ async function putWidget(
   const { error, response } = await client.PUT(
     '/api/v{version}/channels/{channelId}/widgets/{widgetId}',
     {
-      params: { path: { version, channelId, widgetId } },
+      params: {
+        path: {
+          version,
+          channelId,
+          widgetId,
+        },
+      },
       body,
     },
-  )
+  );
 
   if (error !== undefined)
-    throw failed(what, response.status)
+    throw failed(what, response.status);
 
-  return readWidgets(channelId)
+  return readWidgets(channelId);
 }
 
 function changed(
@@ -154,7 +160,7 @@ function changed(
     row.id === widgetId
       ? { ...row, ...change }
       : row,
-  )
+  );
 }
 
 // The switch moves at once; a refused save puts it back and reaches the error inbox.
@@ -167,7 +173,7 @@ export function useSetWidgetEnabled(
       putWidget(toValue(channelId) as string, widgetId, { isEnabled }, 'switch widget'),
     apply: (current: Widget[] | undefined, { widgetId, isEnabled }: WidgetEnabledInput): Widget[] =>
       changed(current, widgetId, { isEnabled }),
-  })
+  });
 }
 
 // The whole settings map travels in the PUT; the row shows it at once and then holds what the bot returns.
@@ -180,10 +186,10 @@ export function useSaveWidgetSettings(
       putWidget(toValue(channelId) as string, widgetId, { settings }, 'save widget settings'),
     apply: (current: Widget[] | undefined, { widgetId, settings }: WidgetSettingsInput): Widget[] =>
       changed(current, widgetId, { settings }),
-  })
+  });
 }
 
-export type WidgetTestInput = { eventType: string }
+export type WidgetTestInput = { eventType: string };
 
 // Resolves to the line the bot answers with, naming who received the sample event.
 export function useTestWidgetEvent(
@@ -198,12 +204,12 @@ export function useTestWidgetEvent(
           // Without data the bot sends its own sample payload.
           body: { eventType } as components['schemas']['WidgetTestEventRequest'],
         },
-      )
+      );
 
       if (error !== undefined)
-        throw refusal('widget test', error, response.status)
+        throw refusal('widget test', error, response.status);
 
-      return data?.data ?? ''
+      return data?.data ?? '';
     },
-  })
+  });
 }

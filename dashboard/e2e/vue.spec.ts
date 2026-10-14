@@ -8,9 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from '@playwright/test';
 
 test('visits the app root url', async ({ page }) => {
-  await page.goto('/')
-  await expect(page.locator('p')).toHaveText('NomNomzBot dashboard')
-})
+  await page.goto('/');
+  await expect(page.locator('p')).toHaveText('NomNomzBot dashboard');
+});

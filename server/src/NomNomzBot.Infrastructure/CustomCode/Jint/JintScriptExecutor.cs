@@ -193,6 +193,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 },
                 music: {
                     queue: function (uri) { return bot.call('music.queue', need('music.queue', 'a track uri', uri)) === 'true'; },
+                    playNow: function (uri) { return nnz.api.actions.invoke('play_track_once', { track_uri: need('music.playNow', 'a track uri', uri) }).success === true; },
                     nowPlaying: function () { var r = bot.call('music.nowPlaying'); return r ? JSON.parse(r) : null; }
                 },
                 http: {
@@ -343,6 +344,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["user.lookup"] = "user.lookup",
         ["economy.balance"] = "economy.read",
         ["music.queue"] = "music.queue",
+        ["music.playNow"] = "actions.invoke:play_track_once",
         ["music.nowPlaying"] = "music.nowPlaying",
         ["http.fetch"] = "http.fetch",
         ["storage.get"] = "storage.get",

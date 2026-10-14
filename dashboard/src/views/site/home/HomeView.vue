@@ -10,17 +10,17 @@
 <script setup lang="ts">
 // The public home page (V20). One primary action per view region: the hero and the closing call
 // carry the pink button; the header and the hosting card use outline buttons.
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 
-import DeploySection from './DeploySection.vue'
-import HomeHeader from './HomeHeader.vue'
-import OutcomeBlocks from './OutcomeBlocks.vue'
-import ShellDemo from './ShellDemo.vue'
+import DeploySection from './DeploySection.vue';
+import HomeHeader from './HomeHeader.vue';
+import OutcomeBlocks from './OutcomeBlocks.vue';
+import ShellDemo from './ShellDemo.vue';
 
-const integrations: string[] = ['spotify', 'discord', 'youtube', 'tts', 'obs']
-const { t } = useI18n()
+const integrations: string[] = ['spotify', 'discord', 'youtube', 'tts', 'obs'];
+const { t } = useI18n();
 </script>
 
 <template>
@@ -97,8 +97,7 @@ const { t } = useI18n()
         :href="t('site.home.githubUrl')"
         target="_blank"
         rel="noopener"
-        >{{ t('site.home.github') }}</a
-      >
+      >{{ t('site.home.github') }}</a>
     </footer>
   </div>
 </template>

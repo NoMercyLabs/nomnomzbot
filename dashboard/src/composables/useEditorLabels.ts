@@ -8,8 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 // The words of the served editor page in the dashboard's language. The page names each text by a camelCase
 // id (DEFAULT_LABELS in editor.js) and fills its own `{name}` placeholders, so each one is handed back as
@@ -17,33 +17,37 @@ import { useI18n } from 'vue-i18n'
 export function useEditorLabels(
   withTestRun: MaybeRefOrGetter<boolean>,
 ): ComputedRef<Record<string, unknown>> {
-  const { t, tm, locale } = useI18n()
+  const { t, tm, locale } = useI18n();
 
   function words(group: string): Record<string, string> {
-    const out: Record<string, string> = {}
+    const out: Record<string, string> = {};
 
     for (const [id, raw] of Object.entries(tm(group) as Record<string, unknown>)) {
-      if (typeof raw !== 'string') continue
+      if (typeof raw !== 'string') continue;
 
-      const own: Record<string, string> = {}
+      const own: Record<string, string> = {};
 
       for (const match of raw.matchAll(/\{(\w+)\}/g)) {
-        own[match[1]!] = match[0]
+        own[match[1]!] = match[0];
       }
 
-      out[id] = t(`${group}.${id}`, own)
+      out[id] = t(`${group}.${id}`, own);
     }
 
-    return out
+    return out;
   }
 
   return computed(() => {
-    void locale.value
-    const labels: Record<string, unknown> = words('codeEditor.labels')
+    void locale.value;
+    const labels: Record<string, unknown> = words('codeEditor.labels');
 
     if (!toValue(withTestRun))
-      return labels
+      return labels;
 
-    return { ...labels, ...words('codeEditor.testRun'), roles: words('codeEditor.testRun.roles') }
-  })
+    return {
+      ...labels,
+      ...words('codeEditor.testRun'),
+      roles: words('codeEditor.testRun.roles'),
+    };
+  });
 }

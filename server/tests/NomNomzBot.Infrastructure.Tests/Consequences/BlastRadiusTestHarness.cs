@@ -411,6 +411,10 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.ChatterAssignedColor> ChatterAssignedColors =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
         throw new NotSupportedException();
     public DbSet<GiveawayEntry> GiveawayEntries => Set<GiveawayEntry>();

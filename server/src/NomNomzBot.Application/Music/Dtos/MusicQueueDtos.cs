@@ -22,6 +22,12 @@ public sealed record SongRequestDto
     public string? RequestedBy { get; init; }
 }
 
+/// <summary>Request to drop a queued song at a new zero-based position in the queue.</summary>
+public sealed record MoveQueueItemDto
+{
+    public required int ToPosition { get; init; }
+}
+
 /// <summary>A queue item with its position. <paramref name="Cost"/> is 0 for a free request.</summary>
 public sealed record QueueItemDto(
     int Position,

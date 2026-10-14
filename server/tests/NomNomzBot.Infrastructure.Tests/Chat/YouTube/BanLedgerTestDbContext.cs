@@ -84,6 +84,9 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         await _connection.DisposeAsync();
     }
 
+    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
+        Set<NomNomzBot.Domain.Chat.Entities.FavoriteEmote>();
+    public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();
@@ -101,6 +104,19 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     {
         // All-scalar entity — the real configuration adds only lengths/indexes, which a relational provider enforces.
         b.Entity<YouTubeLiveChatBan>(e => e.HasKey(x => x.Id));
+
+        // Favorites: the production configuration minus the User FK (User is unmapped here); the unique index stays.
+        b.Entity<NomNomzBot.Domain.Chat.Entities.FavoriteEmote>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new
+                {
+                    x.UserId,
+                    x.Provider,
+                    x.EmoteId,
+                })
+                .IsUnique();
+        });
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
@@ -126,7 +142,11 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         return base.SaveChangesAsync(cancellationToken);
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(YouTubeLiveChatBan)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(YouTubeLiveChatBan),
+        typeof(NomNomzBot.Domain.Chat.Entities.FavoriteEmote),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [

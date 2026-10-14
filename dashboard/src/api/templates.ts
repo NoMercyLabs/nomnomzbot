@@ -8,14 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import type { components } from './schema'
-import { client } from './client'
+import type { components } from './schema';
+import { client } from './client';
 
-export type TemplateHelper = components['schemas']['TemplateHelperDto']
-export type TemplateContext = 'command' | 'eventResponse' | 'timer'
+export type TemplateHelper = components['schemas']['TemplateHelperDto'];
+export type TemplateContext = 'command' | 'eventResponse' | 'timer';
 
 async function fetchHelpers(
   context: TemplateContext,
@@ -23,9 +23,9 @@ async function fetchHelpers(
 ): Promise<TemplateHelper[]> {
   const { data } = await client.GET('/api/v{version}/templates/helpers', {
     params: { path: { version: '1' }, query: { context, eventType } },
-  })
+  });
 
-  return [...(data?.data ?? [])]
+  return [...(data?.data ?? [])];
 }
 
 // The helpers a template may use in one place. The set only changes with a new bot version, so it is fetched once.
@@ -33,12 +33,12 @@ export function useTemplateHelpers(
   context: MaybeRefOrGetter<TemplateContext>,
   eventType?: MaybeRefOrGetter<string | undefined>,
 ): UseQueryReturnType<TemplateHelper[], Error> {
-  const place = computed(() => toValue(context))
-  const event = computed(() => toValue(eventType) ?? null)
+  const place = computed(() => toValue(context));
+  const event = computed(() => toValue(eventType) ?? null);
 
   return useQuery({
     queryKey: ['templates', 'helpers', place, event],
     queryFn: () => fetchHelpers(place.value, event.value ?? undefined),
     staleTime: Infinity,
-  })
+  });
 }

@@ -58,7 +58,21 @@ public sealed record ViewerIdentityDto(
     // The management-role side (Plane B) — broadcaster/moderator/… when this person also manages the channel.
     string? ManagementRole,
     DateTime? MemberSinceUtc,
-    DateTime FirstSeenUtc
+    DateTime FirstSeenUtc,
+    // Twitch account creation date (Helix created_at) — the account age. Null until the profile is first read.
+    DateTime? AccountCreatedAtUtc,
+    string? Description,
+    // "" | "affiliate" | "partner" (Helix broadcaster_type) — stored as given.
+    string BroadcasterType,
+    // "" | "staff" | "admin" | "global_mod" (Helix type) — stored as given.
+    string UserType,
+    // The person's own chat color; when they have none, the color the bot assigned them in THIS channel.
+    string? ChatColor,
+    string? Nickname,
+    string? Timezone,
+    bool IsLurking,
+    // True when a person (not the pronoun API) chose the pronoun.
+    bool PronounIsManualOverride
 );
 
 public sealed record LinkedIdentityDto(
@@ -66,7 +80,9 @@ public sealed record LinkedIdentityDto(
     string ProviderUsername,
     string? ProviderDisplayName,
     string? ProviderAvatarUrl,
-    bool IsPrimary
+    bool IsPrimary,
+    DateTime LinkedAtUtc,
+    DateTime? LastLoginAtUtc
 );
 
 /// <summary>Economy & games (owner punch list §3 row 4).</summary>

@@ -11,121 +11,121 @@
 // Two groups as in the mockup: the streaming platforms, then the bot account and the services.
 // Only Kick and YouTube have a web connect flow in the API (the same one the Stream page uses);
 // Twitch is where the channel signed in, and a service without a flow shows its status only.
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useBotStatus, useConnections, useHomeStats, type IntegrationStatus } from '@/api/home'
-import { useConnectIntegration } from '@/api/stream'
-import InlineFlow from '@/components/layout/InlineFlow.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
-import { useProviderName } from '@/composables/useProviderName'
+import { useBotStatus, useConnections, useHomeStats, type IntegrationStatus } from '@/api/home';
+import { useConnectIntegration } from '@/api/stream';
+import InlineFlow from '@/components/layout/InlineFlow.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
+import { useProviderName } from '@/composables/useProviderName';
 
-const PLATFORMS = ['twitch', 'kick', 'youtube'] as const
+const PLATFORMS = ['twitch', 'kick', 'youtube'] as const;
 
 // The scope set each platform needs to manage a stream (server OAuthProviderRegistry).
 const SCOPE_SETS = {
   kick: 'kick.chat',
   youtube: 'youtube.manage',
-} as const satisfies Record<string, string>
+} as const satisfies Record<string, string>;
 
 const dotClass = {
   ok: 'bg-success',
   bad: 'bg-destructive',
   live: 'bg-destructive',
   off: 'bg-muted-foreground',
-} as const satisfies Record<StatusTone, string>
+} as const satisfies Record<StatusTone, string>;
 
-const { t } = useI18n()
-const { channelId, current } = useCurrentChannel()
-const platformName = useProviderName()
+const { t } = useI18n();
+const { channelId, current } = useCurrentChannel();
+const platformName = useProviderName();
 
-const connectionsQuery = useConnections(channelId)
-const botQuery = useBotStatus(channelId)
-const statsQuery = useHomeStats(channelId)
-const connect = useConnectIntegration(channelId)
-const connectionsState = usePanelState(connectionsQuery)
+const connectionsQuery = useConnections(channelId);
+const botQuery = useBotStatus(channelId);
+const statsQuery = useHomeStats(channelId);
+const connect = useConnectIntegration(channelId);
+const connectionsState = usePanelState(connectionsQuery);
 
-const allConnections = computed(() => connectionsQuery.data.value ?? [])
-const livePlatforms = computed(() => statsQuery.data.value?.platformsLive ?? [])
+const allConnections = computed(() => connectionsQuery.data.value ?? []);
+const livePlatforms = computed(() => statsQuery.data.value?.platformsLive ?? []);
 const services = computed(() =>
   allConnections.value.filter(
     (connection) => !(PLATFORMS as readonly string[]).includes(connection.provider),
   ),
-)
+);
 
 function connectionOf(provider: string): IntegrationStatus | undefined {
-  return allConnections.value.find((connection) => connection.provider === provider)
+  return allConnections.value.find((connection) => connection.provider === provider);
 }
 
 function isConnected(provider: string): boolean {
   // The channel signed in with Twitch, so Twitch counts as connected until the list says otherwise.
-  return connectionOf(provider)?.connected ?? provider === 'twitch'
+  return connectionOf(provider)?.connected ?? provider === 'twitch';
 }
 
 function isLiveOn(provider: string): boolean {
-  return isConnected(provider) && livePlatforms.value.includes(provider)
+  return isConnected(provider) && livePlatforms.value.includes(provider);
 }
 
 function platformTone(provider: string): StatusTone {
   return isLiveOn(provider)
     ? 'ok'
-    : 'off'
+    : 'off';
 }
 
 function accountOf(provider: string): string {
-  const named = connectionOf(provider)?.accountName
+  const named = connectionOf(provider)?.accountName;
 
-  return named ?? current.value?.displayName ?? ''
+  return named ?? current.value?.displayName ?? '';
 }
 
 function platformLine(provider: string): string {
   if (!isConnected(provider))
-    return t('dashboard.home.connections.notConnected')
+    return t('dashboard.home.connections.notConnected');
 
-  const account = accountOf(provider)
+  const account = accountOf(provider);
 
   // Until the stream stats arrive the line names the account and claims neither live nor offline.
   if (!statsQuery.data.value)
-    return account
+    return account;
 
   return isLiveOn(provider)
     ? t('dashboard.home.connections.platformLive', { account })
-    : t('dashboard.home.connections.platformOffline', { account })
+    : t('dashboard.home.connections.platformOffline', { account });
 }
 
 function scopeSetOf(provider: string): string | undefined {
-  return (SCOPE_SETS as Record<string, string>)[provider]
+  return (SCOPE_SETS as Record<string, string>)[provider];
 }
 
 async function open(provider: string): Promise<void> {
-  const scopeSetKey = scopeSetOf(provider) as string
-  const url: string = await connect.mutateAsync({ provider, scopeSetKey })
+  const scopeSetKey = scopeSetOf(provider) as string;
+  const url: string = await connect.mutateAsync({ provider, scopeSetKey });
 
-  window.location.assign(url)
+  window.location.assign(url);
 }
 
 function connectionTone(connection: IntegrationStatus): 'ok' | 'bad' | 'off' {
   if (!connection.connected)
-    return 'off'
+    return 'off';
 
   return connection.needsReauth
     ? 'bad'
-    : 'ok'
+    : 'ok';
 }
 
 function connectionLabel(connection: IntegrationStatus): string {
   if (!connection.connected)
-    return t('dashboard.home.connections.notConnected')
+    return t('dashboard.home.connections.notConnected');
 
   return connection.needsReauth
     ? t('dashboard.home.connections.reauth')
-    : t('dashboard.home.connections.connected')
+    : t('dashboard.home.connections.connected');
 }
 </script>
 

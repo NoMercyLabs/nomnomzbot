@@ -15,33 +15,34 @@
 // failure: the reason to show when the action rejects; without it a plain "did not work" line shows.
 // harm: the confirm button is red only when the action destroys something.
 // The step is wider than one button, so wrap every control it replaces in the slot; right anchors
-// it to the right edge for a group at the end of a row.
-import { onKeyStroke } from '@vueuse/core'
-import { nextTick, ref, watch, type Ref } from 'vue'
-import Check from '~icons/nnz/check'
+// it to the right edge for a group at the end of a row. A long result or failure is cut to one
+// short line (full text on hover and for screen readers), so the step never covers the row title.
+import { onKeyStroke } from '@vueuse/core';
+import { nextTick, ref, watch } from 'vue';
+import Check from '~icons/nnz/check';
 
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import {
   useInlineFlow,
   type InlineFlowKind,
   type InlineFlowStep,
-} from '@/composables/useInlineFlow'
+} from '@/composables/useInlineFlow';
 
 const props = withDefaults(
   defineProps<{
-    kind: InlineFlowKind
-    label: string
-    ask?: string
-    yes?: string
-    text?: string
-    result?: string
-    failure?: string
-    harm?: boolean
-    right?: boolean
-    action?: () => void | Promise<void>
-    revert?: () => void | Promise<void>
-    undoMs?: number
+    kind: InlineFlowKind;
+    label: string;
+    ask?: string;
+    yes?: string;
+    text?: string;
+    result?: string;
+    failure?: string;
+    harm?: boolean;
+    right?: boolean;
+    action?: () => void | Promise<void>;
+    revert?: () => void | Promise<void>;
+    undoMs?: number;
   }>(),
   {
     ask: undefined,
@@ -55,41 +56,41 @@ const props = withDefaults(
     revert: undefined,
     undoMs: undefined,
   },
-)
+);
 
 const { step, canUndo, start, confirm, undo, back } = useInlineFlow({
   kind: () => props.kind,
   action: () => props.action,
   revert: () => props.revert,
   undoMs: () => props.undoMs,
-})
+});
 
-const root: Ref<HTMLElement | null> = ref(null)
-const opener: Ref<HTMLElement | null> = ref(null)
-const box: Ref<HTMLElement | null> = ref(null)
+const root = ref<HTMLElement | null>(null);
+const opener = ref<HTMLElement | null>(null);
+const box = ref<HTMLElement | null>(null);
 
-onKeyStroke('Escape', back, { target: root })
+onKeyStroke('Escape', back, { target: root });
 
 // Focus follows the step: the safe button first, and the opener again when the step ends.
 watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
-  await nextTick()
+  await nextTick();
 
   if (now === 'idle') {
     if (before !== 'idle') {
-      opener.value?.querySelector<HTMLElement>('button, [href], [tabindex]')?.focus()
+      opener.value?.querySelector<HTMLElement>('button, [href], [tabindex]')?.focus();
     }
 
-    return
+    return;
   }
 
   const target: string = now === 'ask'
     ? 'back'
     : canUndo.value
       ? 'undo'
-      : 'back'
+      : 'back';
 
-  box.value?.querySelector<HTMLElement>(`[data-flow-act="${target}"]`)?.focus()
-})
+  box.value?.querySelector<HTMLElement>(`[data-flow-act="${target}"]`)?.focus();
+});
 </script>
 
 <template>
@@ -137,17 +138,30 @@ watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
         <span>{{ text ?? $t('common.flow.working') }}</span>
       </template>
       <template v-else-if="step === 'failed'">
-        <span class="text-destructive">{{ failure ?? $t('common.flow.failed') }}</span>
+        <span
+          data-flow-message
+          :title="failure ?? $t('common.flow.failed')"
+          class="max-w-56 truncate text-destructive"
+        >{{ failure ?? $t('common.flow.failed') }}</span>
         <Button data-flow-act="back" size="sm" variant="ghost" @click="back">{{
           $t('common.flow.done')
         }}</Button>
       </template>
       <template v-else>
-        <span class="inline-flex items-center gap-2">
+        <span class="inline-flex min-w-0 items-center gap-2">
           <Check v-if="kind !== 'note'" class="size-4 flex-none" aria-hidden="true" />
-          {{ kind === 'note' ? text : (result ?? $t('common.flow.done')) }}
+          <span
+            data-flow-message
+            :title="kind === 'note' ? text : (result ?? $t('common.flow.done'))"
+            class="max-w-56 truncate"
+          >{{ kind === 'note' ? text : (result ?? $t('common.flow.done')) }}</span>
         </span>
-        <Button v-if="canUndo" data-flow-act="undo" size="sm" variant="outline" @click="undo">
+        <Button v-if="canUndo"
+                data-flow-act="undo"
+                size="sm"
+                variant="outline"
+                @click="undo"
+        >
           {{ $t('common.flow.undo') }}
         </Button>
         <Button data-flow-act="back" size="sm" variant="ghost" @click="back">{{

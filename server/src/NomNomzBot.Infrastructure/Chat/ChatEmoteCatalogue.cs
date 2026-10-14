@@ -25,8 +25,8 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// (app token, no scope), and the logged-in OPERATOR's cross-channel emotes via Get User Emotes on the OPERATOR's
 /// OWN token (<c>user:read:emotes</c>) so a moderator's personal subscription emotes reach their composer on ANY
 /// channel they operate — not only their own — keyed to the operator so they never leak between operators. Twitch
-/// emote urls are built from the deterministic CDN template — the exact shape <c>TwitchEmoteUrlAdapter</c> uses for
-/// the live feed — so the composer renders Twitch emotes identically. Cache-only for third-party (never a provider
+/// emote urls, types and tiers come from <see cref="TwitchEmoteMapper"/> — the exact shape <c>TwitchEmoteUrlAdapter</c>
+/// and the Twitch emote warmer use for the live feed — so the composer renders Twitch emotes identically. Cache-only for third-party (never a provider
 /// HTTP call here); any Twitch fetch failure (including a missing user-emotes scope, or an operator with no linked
 /// Twitch identity) degrades that source to empty rather than failing the catalogue.
 /// </summary>
@@ -51,15 +51,6 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     // catalogue. Beyond this cap the pass is truncated (logged, never silent).
     private const int MaxFollowerEmoteChannels = 60;
 
-    // Twitch emote CDN v2: /{id}/{format}/{theme}/{scale}. Dark theme + the three offered scales — mirrors
-    // TwitchEmoteUrlAdapter so a Twitch emote in the composer matches the same emote in the feed.
-    private static readonly (string Key, string Scale)[] Scales =
-    [
-        ("1", "1.0"),
-        ("2", "2.0"),
-        ("3", "3.0"),
-    ];
-
     // Precedence low-to-high is applied by add order below (first-wins dedup): Twitch native before third-party.
     private static readonly EmoteProvider[] ThirdParty =
     [
@@ -71,18 +62,21 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     private readonly ICacheService _cache;
     private readonly ITwitchChatAssetsApi _assets;
     private readonly ITwitchIdentityResolver _identity;
+    private readonly ChatEmoteOwnerDirectory _owners;
     private readonly ILogger<ChatEmoteCatalogue> _logger;
 
     public ChatEmoteCatalogue(
         ICacheService cache,
         ITwitchChatAssetsApi assets,
         ITwitchIdentityResolver identity,
+        ChatEmoteOwnerDirectory owners,
         ILogger<ChatEmoteCatalogue> logger
     )
     {
         _cache = cache;
         _assets = assets;
         _identity = identity;
+        _owners = owners;
         _logger = logger;
     }
 
@@ -104,22 +98,106 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         // emotes are subscriber-gated (the dedicated bot account is not the broadcaster and cannot use them) and
         // the operator's personal emotes obviously are not the bot's. What survives — Twitch global + third-party
         // (BTTV/FFZ/7TV are plain text codes any sender may type) — is exactly what the bot can genuinely send.
+        // Each pass tags its origin where it is added (the cached lists are shared between operators, so the tag is
+        // set on a copy per request). "Own" needs the operator's Twitch id; the bot never has one.
+        string? operatorTwitchId =
+            sender == ChatEmoteSender.Operator
+                ? await _identity.GetTwitchUserIdAsync(operatorUserId, ct)
+                : null;
+
         List<ChatEmote> all = [];
         if (sender == ChatEmoteSender.Operator)
         {
-            all.AddRange(await TwitchChannelAsync(broadcasterId, twitchId, ct));
-            all.AddRange(await TwitchUserEmotesAsync(operatorUserId, twitchId, ct));
+            all.AddRange(
+                TagTwitch(
+                    await TwitchChannelAsync(broadcasterId, twitchId, ct),
+                    twitchId,
+                    operatorTwitchId
+                )
+            );
+            all.AddRange(
+                TagTwitch(
+                    await TwitchUserEmotesAsync(operatorUserId, twitchId, ct),
+                    twitchId,
+                    operatorTwitchId
+                )
+            );
         }
-        all.AddRange(await TwitchGlobalAsync(ct));
+        all.AddRange(TagGlobal(await TwitchGlobalAsync(ct)));
 
         if (twitchId is not null)
             foreach (EmoteProvider provider in ThirdParty)
-                all.AddRange(await CachedAsync(ChatEmoteCacheKeys.Channel(provider, twitchId), ct));
+                all.AddRange(
+                    TagChannelSet(
+                        await CachedAsync(ChatEmoteCacheKeys.Channel(provider, twitchId), ct),
+                        twitchId
+                    )
+                );
 
         foreach (EmoteProvider provider in ThirdParty)
-            all.AddRange(await CachedAsync(ChatEmoteCacheKeys.Global(provider), ct));
+            all.AddRange(TagGlobal(await CachedAsync(ChatEmoteCacheKeys.Global(provider), ct)));
 
-        return Result.Success(Dedup(all));
+        return Result.Success(await WithOwnerChannelsAsync(Dedup(all), ct));
+    }
+
+    private static IEnumerable<ChatEmote> TagGlobal(IEnumerable<ChatEmote> emotes) =>
+        emotes.Select(e => e with { Origin = ChatEmoteOrigin.Global, OwnerChannel = null });
+
+    // A 7TV/BTTV/FFZ channel set belongs to the viewed channel; the uploader stays on Owner.
+    private static IEnumerable<ChatEmote> TagChannelSet(
+        IEnumerable<ChatEmote> emotes,
+        string viewedTwitchId
+    ) =>
+        emotes.Select(e =>
+            e with
+            {
+                Origin = ChatEmoteOrigin.Channel,
+                OwnerChannel = new ChatEmoteOwner(viewedTwitchId, null, null),
+            }
+        );
+
+    // A Twitch emote is global (type "globals"), the operator's own, the viewed channel's, or another channel's.
+    private static IEnumerable<ChatEmote> TagTwitch(
+        IEnumerable<ChatEmote> emotes,
+        string? viewedTwitchId,
+        string? operatorTwitchId
+    ) =>
+        emotes.Select(e =>
+        {
+            if (e.Type == TwitchEmoteMapper.GlobalType || string.IsNullOrEmpty(e.OwnerId))
+                return e with { Origin = ChatEmoteOrigin.Global, OwnerChannel = null };
+
+            ChatEmoteOrigin origin =
+                e.OwnerId == operatorTwitchId ? ChatEmoteOrigin.Own
+                : e.OwnerId == viewedTwitchId ? ChatEmoteOrigin.Channel
+                : ChatEmoteOrigin.Other;
+            return e with
+            {
+                Origin = origin,
+                OwnerChannel = new ChatEmoteOwner(e.OwnerId, null, null),
+            };
+        });
+
+    // Names every owner channel in one batched lookup; an owner that cannot be named keeps its bare id.
+    private async Task<IReadOnlyList<ChatEmote>> WithOwnerChannelsAsync(
+        IReadOnlyList<ChatEmote> emotes,
+        CancellationToken ct
+    )
+    {
+        IEnumerable<string> ids = emotes.Select(e => e.OwnerChannel?.Id).OfType<string>();
+        IReadOnlyDictionary<string, ChatEmoteOwner> owners = await _owners.ResolveAsync(ids, ct);
+
+        return
+        [
+            .. emotes.Select(e =>
+                e.OwnerChannel?.Id is { } id && owners.TryGetValue(id, out ChatEmoteOwner? named)
+                    ? e with
+                    {
+                        OwnerChannel = named,
+                    }
+                    : e
+            ),
+        ];
     }
 
     private async Task<IReadOnlyList<ChatEmote>> CachedAsync(string key, CancellationToken ct) =>
@@ -139,10 +217,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
             return [];
         }
 
-        List<ChatEmote> mapped =
-        [
-            .. fetched.Value.Select(e => Map(e.Id, e.Name, e.Format, setId: null)),
-        ];
+        List<ChatEmote> mapped = [.. fetched.Value.Select(TwitchEmoteMapper.FromGlobal)];
         await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchGlobalTtl, ct);
         return mapped;
     }
@@ -176,7 +251,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
         List<ChatEmote> mapped =
         [
-            .. fetched.Value.Select(e => Map(e.Id, e.Name, e.Format, e.EmoteSetId)),
+            .. fetched.Value.Select(e => TwitchEmoteMapper.FromChannel(e, twitchId, null)),
         ];
         await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchChannelTtl, ct);
         return mapped;
@@ -235,7 +310,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
             foreach (TwitchUserEmote emote in fetched.Value.Items)
             {
-                mapped.Add(Map(emote.Id, emote.Name, emote.Format, emote.EmoteSetId));
+                mapped.Add(TwitchEmoteMapper.FromUser(emote));
 
                 if (
                     !string.IsNullOrEmpty(emote.OwnerId)
@@ -300,34 +375,8 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
             foreach (TwitchChannelEmote emote in fetched.Value)
                 if (string.Equals(emote.EmoteType, "follower", StringComparison.Ordinal))
-                    mapped.Add(Map(emote.Id, emote.Name, emote.Format, emote.EmoteSetId));
+                    mapped.Add(TwitchEmoteMapper.FromChannel(emote, ownerId, null));
         }
-    }
-
-    private static ChatEmote Map(
-        string id,
-        string code,
-        IReadOnlyList<string> formats,
-        string? setId
-    )
-    {
-        bool animated = formats.Contains("animated");
-        string format = animated ? "animated" : "static";
-
-        Dictionary<string, string> urls = new(Scales.Length);
-        foreach ((string key, string scale) in Scales)
-            urls[key] = $"https://static-cdn.jtvnw.net/emoticons/v2/{id}/{format}/dark/{scale}";
-
-        return new(
-            EmoteProvider.Twitch,
-            id,
-            code,
-            urls,
-            animated,
-            ZeroWidth: false,
-            SetId: setId,
-            Formats: formats
-        );
     }
 
     // Dedup by code, CASE-SENSITIVE, first-wins. Emote codes are case-sensitive everywhere — Twitch "Kappa", and

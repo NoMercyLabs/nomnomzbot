@@ -10,17 +10,17 @@
 <script setup lang="ts">
 // Any number of named options chosen at once: each option is its own on/off press (the mockup's
 // .btn.outline.sm.toggle) and none chosen is allowed. The row wraps when the options do not fit one line.
-import Check from '~icons/nnz/check'
+import Check from '~icons/nnz/check';
 
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-defineProps<{ options: readonly { value: string; label: string }[] }>()
+defineProps<{ options: readonly { value: string; label: string }[] }>();
 
-const chosen = defineModel<string[]>({ required: true })
+const chosen = defineModel<string[]>({ required: true });
 
 function choose(next: unknown): void {
   if (Array.isArray(next)) {
-    chosen.value = next.map(String)
+    chosen.value = next.map(String);
   }
 }
 </script>

@@ -32,9 +32,8 @@
           "description": "The sample below shows each change at once."
         },
         "sample": {
-          "name": "A viewer",
-          "time": "18:26",
-          "line": "{name} {time} This is how chat reads with these options.",
+          "heading": "A page heading",
+          "body": "Body text reads like this on every page.",
           "pangram": "The quick brown fox jumps over the lazy dog. 0123456789"
         },
         "font": {
