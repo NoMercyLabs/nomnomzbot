@@ -992,10 +992,14 @@ public partial class CommunityController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        // userId is the Twitch user string id (as exposed by the list DTOs).
-        User? user = await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
-        if (user is null)
+        // userId is the Twitch user id (the list DTOs) or the internal User.Id (the activity feed). A Twitch id is
+        // numeric, so it never parses as a Guid.
+        User? user = Guid.TryParse(userId, out Guid internalId)
+            ? await _db.Users.FirstOrDefaultAsync(u => u.Id == internalId, ct)
+            : await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
+        if (user?.TwitchUserId is null)
             return NotFoundResponse("User not found.");
+        userId = user.TwitchUserId;
 
         var messageStats = await _db
             .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.UserId == userId)

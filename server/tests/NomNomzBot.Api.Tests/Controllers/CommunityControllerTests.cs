@@ -1278,6 +1278,64 @@ public sealed class CommunityControllerTests
         body.Data.Should().NotContain(b => b.Id == "twitch-b-target");
     }
 
+    [Fact]
+    public async Task GetUserDetail_finds_the_person_by_the_internal_user_id_that_the_activity_feed_carries()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        Guid internalId = Guid.CreateVersion7();
+        db.Users.Add(
+            new()
+            {
+                Id = internalId,
+                TwitchUserId = "twitch-777",
+                Username = "feed_viewer",
+                UsernameNormalized = "feed_viewer",
+                DisplayName = "Feed_Viewer",
+            }
+        );
+        await db.SaveChangesAsync();
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: moderators
+        );
+
+        IActionResult result = await controller.GetUserDetail(
+            Broadcaster.ToString(),
+            internalId.ToString(),
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        CommunityController.UserDetailDto detail = (
+            (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
+        ).Data!;
+        detail.Id.Should().Be("twitch-777");
+        detail.InternalUserId.Should().Be(internalId);
+        await moderators
+            .Received()
+            .GetModeratorsByUserIdAsync(
+                Broadcaster,
+                Arg.Is<IReadOnlyList<string>>(l => l.Count == 1 && l[0] == "twitch-777"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static async Task<CommunityController.UserDetailDto> DetailAsync(
         ITwitchModeratorsApi moderators
     )
