@@ -49,6 +49,23 @@ let timers: Record<string, unknown>[] = [];
 let startFails = false;
 let endFails = false;
 let pollList: Record<string, unknown>[] = [];
+let suggestions: Record<string, unknown>[] = [];
+let shoutoutFails = false;
+
+const suggestion = (
+  twitchUserId: string,
+  displayName: string,
+  streamsLast14Days: number,
+  lastCategory: string | null,
+): Record<string, unknown> => ({
+  twitchUserId,
+  login: displayName.toLowerCase(),
+  displayName,
+  color: '#00FF00',
+  lastCategory,
+  streamsLast14Days,
+  lastShoutoutAt: null,
+});
 
 const runningPoll = (id: string, votes: number[]): Record<string, unknown> => ({
   id,
@@ -127,6 +144,7 @@ function freshAnswers(): Record<string, () => Answer> {
     '/timers': () => ok(timers),
     '/live-ops/polls': () => ok(pollList),
     '/live-ops/predictions': () => ok([]),
+    '/moderation/shoutout-suggestions': () => ok(suggestions),
   };
 }
 
@@ -166,17 +184,30 @@ vi.mock('@/api/client', () => ({
     },
     POST: async (
       path: string,
-      options?: { params?: { path?: { id?: string } }; body?: unknown },
+      options?: { params?: { path?: { id?: string; twitchUserId?: string } }; body?: unknown },
     ) => {
       const id = options?.params?.path?.id;
+      const twitchUserId = options?.params?.path?.twitchUserId;
 
       calls.push({
         method: 'POST',
         path: id
           ? path.replace('{id}', id)
-          : path,
+          : path.replace('{twitchUserId}', twitchUserId ?? '{twitchUserId}'),
         body: options?.body,
       });
+
+      if (path.endsWith('/dismiss')) {
+        suggestions = suggestions.filter((entry) => entry.twitchUserId !== twitchUserId);
+
+        return { response: { status: 204, ok: true } };
+      }
+
+      if (path.endsWith('/moderation/shoutout')) {
+        return shoutoutFails
+          ? refused()
+          : { data: { data: { path: 'helix' } }, response: { status: 200, ok: true } };
+      }
 
       if (path.endsWith('/live-ops/polls')) {
         if (startFails)
@@ -228,6 +259,12 @@ beforeEach(() => {
   startFails = false;
   endFails = false;
   pollList = [];
+  shoutoutFails = false;
+
+  suggestions = [
+    suggestion('101', 'JDDoesDev', 12, 'Software and Game Development'),
+    suggestion('102', 'MarciPopsis', 9, null),
+  ];
 
   timers = [
     timer('discord', 10, true, 6),
@@ -697,6 +734,82 @@ describe('QuickActionsPanel', () => {
       expect(useSaveErrorsStore().items).toHaveLength(1);
       expect(row('poll').textContent).toContain('Which game next?');
       expect(buttonIn(dialog(), 'End poll')).toBeDefined();
+    });
+  });
+
+  // Owner 2026-10-12: chatters in this stream who went live often, most streams first.
+  describe('suggested shoutouts', () => {
+    const group = (): HTMLElement =>
+      document.body.querySelector('[data-shoutout-suggestions]') as HTMLElement;
+    const suggestionRow = (userId: string): HTMLElement =>
+      group().querySelector(`[data-suggestion="${userId}"]`) as HTMLElement;
+
+    it('lists each chatter with their streams and category, and counts them in the header', async () => {
+      await open();
+
+      expect(group().querySelector('[data-suggestions-header]')?.textContent).toContain(
+        'Suggested shoutouts · 2',
+      );
+
+      expect(suggestionRow('101').textContent).toContain('JDDoesDev');
+
+      expect(suggestionRow('101').textContent).toContain(
+        '12 streams in 14 days · Software and Game Development',
+      );
+
+      expect(suggestionRow('102').textContent).toContain('9 streams in 14 days');
+      expect(suggestionRow('102').textContent).not.toContain('·');
+    });
+
+    it('sends the shoutout for that chatter and marks the row sent', async () => {
+      await open();
+      buttonIn(suggestionRow('101'), 'Shoutout').click();
+      await settle();
+
+      expect(posts()).toEqual([
+        {
+          method: 'POST',
+          path: expect.stringContaining('/moderation/shoutout'),
+          body: { targetTwitchUserId: '101' },
+        },
+      ]);
+
+      expect(suggestionRow('101').textContent).toContain('Shoutout sent');
+      expect(buttonIn(suggestionRow('101'), 'Shoutout')).toBeUndefined();
+
+      expect(group().querySelector('[data-suggestions-header]')?.textContent).toContain(
+        'Suggested shoutouts · 1',
+      );
+    });
+
+    it('says a refused shoutout failed and keeps the button', async () => {
+      shoutoutFails = true;
+      await open();
+      buttonIn(suggestionRow('101'), 'Shoutout').click();
+      await settle();
+
+      expect(suggestionRow('101').textContent).toContain('The shoutout did not go out.');
+      expect(buttonIn(suggestionRow('101'), 'Shoutout')).toBeDefined();
+    });
+
+    it('drops a chatter with Not now, through the dismiss call', async () => {
+      await open();
+      buttonIn(suggestionRow('102'), 'Not now').click();
+      await settle();
+
+      expect(posts()[0]!.path).toContain('/shoutout-suggestions/102/dismiss');
+      expect(suggestionRow('102')).toBeNull();
+
+      expect(group().querySelector('[data-suggestions-header]')?.textContent).toContain(
+        'Suggested shoutouts · 1',
+      );
+    });
+
+    it('shows no group when there is no one to suggest', async () => {
+      suggestions = [];
+      await open();
+
+      expect(group()).toBeNull();
     });
   });
 });

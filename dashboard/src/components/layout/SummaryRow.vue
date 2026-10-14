@@ -50,7 +50,7 @@ withDefaults(
       <slot name="leading" />
       <span class="min-w-0 flex-1">
         <!-- Wrap, never cut: on a phone a cut detail loses its meaning, and a long bot address its end. -->
-        <span class="block text-sm font-medium wrap-break-word">{{ title }}</span>
+        <span class="block text-sm font-medium wrap-break-word"><slot name="title">{{ title }}</slot></span>
         <span v-if="detail" class="block text-sm text-muted-foreground">{{ detail }}</span>
       </span>
       <slot name="end" />
