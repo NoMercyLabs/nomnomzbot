@@ -135,6 +135,33 @@ function badgeUrl(urls: Record<string, string>): string | undefined {
   return urls['1'] ?? Object.values(urls)[0];
 }
 
+// A badge the server could not resolve has no image, so it is left out rather than shown broken.
+const badges = computed(() =>
+  props.line.badges.flatMap((badge) => {
+    const src = badgeUrl(badge.urls);
+
+    return src
+      ? [{
+          key: badge.setId + badge.id,
+          src,
+          alt: badge.setId,
+        }]
+      : [];
+  }));
+
+// Every part of a line centers on one line height: the emote height on a line with emotes, else 1.5rem.
+const lineStyle = computed(() => {
+  const emoteHeight = emoteHeights[props.display.emoteSize];
+  const hasEmote = props.line.fragments.some((fragment) => fragment.emote || fragment.type === 'html');
+
+  return {
+    '--emote-h': emoteHeight,
+    '--line-h': hasEmote
+      ? `max(1.5rem, ${emoteHeight})`
+      : '1.5rem',
+  };
+});
+
 // A timeout or ban says what happened, with the timeout's length; other removals only strike the line.
 const removal = computed<string | null>(() => {
   const { removed, timeoutSeconds } = props.line;
@@ -200,8 +227,9 @@ function pick(event: MouseEvent): void {
     :data-alt="display.alternating && index % 2 === 1 ? 'on' : 'off'"
     :data-mention="mentionsMe ? 'true' : undefined"
     :data-focus="focus"
-    class="group/line relative flex cursor-pointer gap-2 rounded-lg px-3 text-sm hover:bg-muted focus-within:bg-muted"
+    class="group/line relative flex cursor-pointer gap-2 rounded-lg px-3 text-sm leading-(--line-h) hover:bg-muted focus-within:bg-muted"
     :class="rowClass"
+    :style="lineStyle"
     @click="pick"
   >
     <time
@@ -209,53 +237,54 @@ function pick(event: MouseEvent): void {
       class="flex-none text-muted-foreground tabular-nums"
       :datetime="line.timestamp"
     >{{ time }}</time>
-    <img
-      v-if="display.avatars && line.avatarUrl"
-      data-avatar
-      :src="line.avatarUrl"
-      alt=""
-      class="size-6 flex-none rounded-full"
-    />
+    <span v-if="display.avatars && line.avatarUrl" class="flex h-(--line-h) flex-none items-center">
+      <img
+        data-avatar
+        :src="line.avatarUrl"
+        alt=""
+        class="size-6 rounded-full"
+      />
+    </span>
     <div class="min-w-0 flex-1">
       <p
         class="wrap-break-word"
         :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
       >
-        <PlatformLogo
-          v-if="display.platform"
-          data-platform
-          :platform="line.provider"
-          class="mr-1 inline-block size-4 align-middle"
-        />
-        <template v-if="display.badges">
-          <img
-            v-for="badge in line.badges"
-            :key="badge.setId + badge.id"
-            data-badge
-            :src="badgeUrl(badge.urls)"
-            :alt="badge.setId"
-            class="mr-1 inline-block size-4 align-middle"
+        <span data-line-head class="me-1 inline-flex h-(--line-h) items-center gap-1 align-top">
+          <PlatformLogo
+            v-if="display.platform"
+            data-platform
+            :platform="line.provider"
+            class="size-4 flex-none"
           />
-        </template>
-        <UserName
-          :user-id="line.userId"
-          :name="line.displayName"
-          :style="{ color: nameColor }"
-        />
+          <template v-if="display.badges">
+            <img
+              v-for="badge in badges"
+              :key="badge.key"
+              data-badge
+              :src="badge.src"
+              :alt="badge.alt"
+              class="size-4 flex-none"
+            />
+          </template>
+          <UserName
+            :user-id="line.userId"
+            :name="line.displayName"
+            :style="{ color: nameColor }"
+          />
+        </span>
         <template v-for="(fragment, at) in line.fragments" :key="at">
           <img
             v-if="fragment.emote && emoteUrl(fragment.emote.urls)"
             data-emote
             :src="emoteUrl(fragment.emote.urls)"
             :alt="fragment.text"
-            :style="{ height: emoteHeights[display.emoteSize] }"
-            class="mx-0.5 inline-block align-middle"
+            class="mx-0.5 my-[calc((var(--line-h)-var(--emote-h))/2)] inline-block h-(--emote-h) align-top"
           />
           <span
             v-else-if="fragment.type === 'html'"
             data-html
-            :style="{ '--emote-h': emoteHeights[display.emoteSize] }"
-            class="[&_.emote]:mx-0.5 [&_.emote]:inline-block [&_.emote]:h-(--emote-h) [&_.emote]:align-middle [&_img]:max-h-32"
+            class="[&_.emote]:mx-0.5 [&_.emote]:my-[calc((var(--line-h)-var(--emote-h))/2)] [&_.emote]:inline-block [&_.emote]:h-(--emote-h) [&_.emote]:align-top [&_img]:max-h-32"
             v-html="purifyChatHtml(fragment.text)"
           />
           <span
@@ -265,7 +294,6 @@ function pick(event: MouseEvent): void {
             :style="{ color: shownColor(fragment.mention.color) }"
           >{{ fragment.text }}</span>
           <template v-else>
-            {{ ' ' }}
             <template v-for="(part, slot) in parts(fragment.text)" :key="slot">
               <mark v-if="part.mention" data-mention class="bg-transparent font-bold text-foreground">{{ part.text }}</mark>
               <span v-else-if="part.at" data-mention-tag class="font-bold">{{ part.text }}</span>

@@ -706,7 +706,15 @@ describe('ChatView display drawer', () => {
   beforeEach(() => {
     history = [
       line('m1', 'u1', 'Alice', 'first words', {
-        badges: [badge],
+        badges: [
+          badge,
+          {
+            setId: 'campaign-1-ranking',
+            id: '1',
+            info: null,
+            urls: {},
+          },
+        ],
         avatarUrl: 'https://cdn.test/alice.png',
         color: '#0000ff',
         fragments: [
@@ -775,11 +783,15 @@ describe('ChatView display drawer', () => {
     await open();
     expect(rowOf('m1').querySelector('time')?.textContent).not.toMatch(/AM|PM/i);
     expect(rowOf('m1').querySelector('time')?.textContent).toMatch(/\d{2}:\d{2}/);
-    expect(rowOf('m1').querySelector('img[data-badge]')).not.toBeNull();
+
+    expect(
+      [...rowOf('m1').querySelectorAll('img[data-badge]')].map((img) => img.getAttribute('src')),
+    ).toEqual(['https://cdn.test/sub.png']);
+
     expect(rowOf('m1').querySelector('img[data-avatar]')).toBeNull();
     expect(rowOf('m1').querySelector('svg[data-platform]')).toBeNull();
     expect(rowOf('m1').className).not.toContain('max-w-[65ch]');
-    expect(rowOf('m1').querySelector<HTMLElement>('img[data-emote]')!.style.height).toBe('1.5em');
+    expect(rowOf('m1').style.getPropertyValue('--emote-h')).toBe('1.5em');
     expect(rowOf('m2').querySelector('p')!.className).toContain('line-through');
     expect(rowOf('m2').querySelector('mark[data-mention]')?.textContent).toBe('@stoney_eagle');
   });
@@ -854,13 +866,15 @@ describe('ChatView display drawer', () => {
     await open();
     await showPanel();
 
-    const height = (): string =>
-      rowOf('m1').querySelector<HTMLElement>('img[data-emote]')!.style.height;
+    const height = (): string => rowOf('m1').style.getPropertyValue('--emote-h');
+    const lineHeight = (): string => rowOf('m1').style.getPropertyValue('--line-h');
 
+    expect(rowOf('m1').querySelector('img[data-emote]')!.className).toContain('h-(--emote-h)');
     await pick('emoteSize', display.small);
     expect(height()).toBe('1.2em');
     await pick('emoteSize', display.large);
     expect(height()).toBe('2.3em');
+    expect(lineHeight()).toBe('max(1.5rem, 2.3em)');
   });
 
   it('mention highlight can be switched off', async () => {
