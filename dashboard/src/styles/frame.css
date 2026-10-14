@@ -96,6 +96,10 @@
   flex: 1 1 0;
   width: 100%;
 }
+/* Horizontal tabs stack strip over content: there the strip's grow would stretch it tall. */
+[data-slot='tabs'][data-orientation='horizontal'] > [data-slot='tabs-list'] {
+  flex: none;
+}
 /* A key cap means nothing without a keyboard: touch screens never show one. */
 @media (pointer: coarse) {
   [data-slot='kbd'] {

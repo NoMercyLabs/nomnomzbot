@@ -840,22 +840,22 @@ describe('the profile dialog', () => {
     expect(active?.textContent).toContain('hello from ada');
   });
 
-  it('keeps every tab panel mounted in one cell, so the dialog takes the tallest tab size up front', async () => {
+  // Audit 2026-10-15: on a phone the dialog scrolled past the tallest tab's empty space and pushed the actions out
+  // of reach. The dialog scrolls as one, the actions stay pinned below, and a hidden tab takes no room.
+  it('scrolls header and tabs as one, keeps the actions outside it, and gives a hidden tab no room', async () => {
     await openPage();
     await openUser('u1');
 
-    const panels: HTMLElement[] = Array.from(dialogs()[0]!.querySelectorAll('[role="tabpanel"]'));
+    const dialog = dialogs()[0]!;
+    const body = dialog.querySelector<HTMLElement>('[data-profile-body]')!;
+    const panels: HTMLElement[] = Array.from(dialog.querySelectorAll('[role="tabpanel"]'));
 
+    expect(body.classList).toContain('overflow-y-auto');
+    expect(body.contains(dialog.querySelector('[role="tablist"]'))).toBe(true);
+    expect(body.contains(dialog.querySelector('[data-profile-ban]'))).toBe(false);
     expect(panels).toHaveLength(7);
-
-    for (const panel of panels) {
-      expect(panel.hidden).toBe(false);
-      expect(panel.classList).toContain('row-start-1');
-      expect(panel.classList).toContain('col-start-1');
-    }
-
     expect(panels.filter((panel) => panel.dataset.state === 'inactive').every((panel) =>
-      panel.classList.contains('data-[state=inactive]:invisible'))).toBe(true);
+      panel.classList.contains('data-[state=inactive]:hidden'))).toBe(true);
   });
 
   // The live API leaves a never-asked consent out of the answer; the tab once printed profile.yesNo.undefined.

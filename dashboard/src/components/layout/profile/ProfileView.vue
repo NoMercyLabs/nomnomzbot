@@ -75,22 +75,24 @@ const PROFILE_TABS: readonly string[] = ['points', 'data'];
 const inDialog = injectDialogRootContext(null) !== null;
 
 // Every panel stays mounted in one grid cell, so the view takes the tallest tab's size up front and never jumps.
-// A phone page scrolls anyway, so there a short tab drops the others' height instead of trailing empty space.
+// A phone page and the dialog scroll as a whole, so there a short tab drops the others' height instead of trailing
+// empty space.
 const PANEL_CLASS = inDialog
-  ? 'col-start-1 row-start-1 data-[state=inactive]:invisible'
+  ? 'col-start-1 row-start-1 data-[state=inactive]:hidden'
   : 'col-start-1 row-start-1 data-[state=inactive]:invisible max-md:data-[state=inactive]:hidden';
 const fit = inDialog
   ? 'min-h-0'
   : 'md:min-h-0';
-// A short window (the chat popout) gives the header all the height: the tabs keep room, the view scrolls instead.
-const roomForTabs = inDialog
-  ? 'min-h-48'
-  : 'md:min-h-48';
-const viewScroll = inDialog
-  ? 'overflow-y-auto'
-  : 'md:overflow-y-auto';
+// The dialog scrolls header and tabs as one, under a sticky tab strip, and keeps the actions pinned below: a short
+// window (a phone, the chat popout) otherwise squeezed the tabs or pushed the actions out of reach.
+const body = inDialog
+  ? 'min-h-0 overflow-y-auto'
+  : 'md:min-h-0';
+const strip = inDialog
+  ? 'sticky top-0 z-10 bg-popover'
+  : '';
 const scroll = inDialog
-  ? 'overflow-y-auto'
+  ? ''
   : 'md:overflow-y-auto';
 
 const { t, n, locale } = useI18n();
@@ -271,29 +273,29 @@ async function banNow(): Promise<void> {
 </script>
 
 <template>
-  <div data-slot="profile-view" class="flex flex-1 flex-col" :class="[fit, viewScroll]">
-    <ProfileHeader :person="person" :profile="viewerProfile" :roles="roles" :preview="preview" />
+  <div data-slot="profile-view" class="flex flex-1 flex-col" :class="fit">
+    <div data-profile-body class="flex flex-1 flex-col" :class="body">
+      <ProfileHeader :person="person" :profile="viewerProfile" :roles="roles" :preview="preview" />
 
-    <div v-if="member.isPending.value" data-profile-loading class="grid gap-2 px-6 pb-4">
-      <Skeleton class="h-16 rounded-lg" />
-      <Skeleton class="h-32 rounded-lg" />
-    </div>
-    <div
-      v-else-if="!person"
-      data-profile-error
-      role="alert"
-      class="grid justify-items-start gap-3 px-6 pb-4 text-sm"
-    >
-      <span class="text-destructive">{{ $t('profile.error') }}</span>
-      <Button variant="outline" size="sm" @click="member.refetch()">{{
-        $t('common.panel.retry')
-      }}</Button>
-    </div>
+      <div v-if="member.isPending.value" data-profile-loading class="grid gap-2 px-6 pb-4">
+        <Skeleton class="h-16 rounded-lg" />
+        <Skeleton class="h-32 rounded-lg" />
+      </div>
+      <div
+        v-else-if="!person"
+        data-profile-error
+        role="alert"
+        class="grid justify-items-start gap-3 px-6 pb-4 text-sm"
+      >
+        <span class="text-destructive">{{ $t('profile.error') }}</span>
+        <Button variant="outline" size="sm" @click="member.refetch()">{{
+          $t('common.panel.retry')
+        }}</Button>
+      </div>
 
-    <template v-else>
-      <Tabs v-model="tab" class="flex min-w-0 flex-1 flex-col gap-0" :class="roomForTabs">
+      <Tabs v-else v-model="tab" class="flex min-w-0 flex-1 flex-col gap-0" :class="fit">
         <!-- A phone swipes the tabs sideways like the Twitch app: the cut-off last tab shows there are more. -->
-        <div ref="tabStrip" class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none">
+        <div ref="tabStrip" class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none" :class="strip">
           <TabsList>
             <TabsTrigger v-for="name in tabs" :key="name" :value="name">{{
               $t(`profile.tabs.${name}`)
@@ -377,96 +379,96 @@ async function banNow(): Promise<void> {
           </TabsContent>
         </div>
       </Tabs>
+    </div>
 
-      <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): the quiet ones are
+    <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): the quiet ones are
            ghost buttons on the left, so Ban stays the one strong button in the row. -->
-      <div v-if="!isOwner" class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4">
-        <Button
-          data-profile-shoutout
-          type="button"
-          variant="ghost"
-          :disabled="!canShoutout"
-          :title="lockedTip(canShoutout)"
-          @click="shoutOut"
-        >
-          {{ $t('profile.shoutout.button') }}
-        </Button>
-        <Button
-          data-profile-vip
-          type="button"
-          variant="ghost"
-          :disabled="isVip === null || !canVip"
-          :title="lockedTip(canVip)"
-          @click="toggleVip"
-        >
-          {{ vipLabel }}
-        </Button>
-        <ProfileWarn v-model:open="warnOpen" :user-id="userId" :name="title" />
+    <div v-if="person && !member.isPending.value && !isOwner" class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4">
+      <Button
+        data-profile-shoutout
+        type="button"
+        variant="ghost"
+        :disabled="!canShoutout"
+        :title="lockedTip(canShoutout)"
+        @click="shoutOut"
+      >
+        {{ $t('profile.shoutout.button') }}
+      </Button>
+      <Button
+        data-profile-vip
+        type="button"
+        variant="ghost"
+        :disabled="isVip === null || !canVip"
+        :title="lockedTip(canVip)"
+        @click="toggleVip"
+      >
+        {{ vipLabel }}
+      </Button>
+      <ProfileWarn v-model:open="warnOpen" :user-id="userId" :name="title" />
 
-        <!-- The mod actions stay together, one look each, with Ban the one strong button (owner 2026-10-15:
+      <!-- The mod actions stay together, one look each, with Ban the one strong button (owner 2026-10-15:
              "ban timeout and warn are mod actions so why is one of them a link button?"). -->
-        <div class="ml-auto flex items-center gap-2">
+      <div class="ml-auto flex items-center gap-2">
+        <Button
+          v-if="sanctionable && !person.isBanned"
+          data-profile-warn
+          type="button"
+          variant="outline"
+          :disabled="!canWarn"
+          :title="lockedTip(canWarn)"
+          @click="warnOpen = true"
+        >
+          {{ $t('profile.warn.button') }}
+        </Button>
+        <Button
+          v-if="person.isBanned"
+          data-profile-unban
+          type="button"
+          :disabled="!canUnban || unban.isPending.value"
+          :title="lockedTip(canUnban)"
+          @click="liftBan"
+        >
+          {{ $t('profile.unban.button') }}
+        </Button>
+        <template v-else-if="sanctionable">
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button
+                data-profile-timeout
+                type="button"
+                variant="outline"
+                :disabled="!canBan"
+                :title="lockedTip(canBan)"
+              >
+                {{ $t('profile.timeout.button') }}
+                <ChevronDown class="size-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{{ $t('profile.timeout.menu') }}</DropdownMenuLabel>
+              <DropdownMenuItem
+                v-for="seconds in TIMEOUT_LENGTHS"
+                :key="seconds"
+                :data-profile-timeout-length="seconds"
+                @select="timeoutFor(seconds)"
+              >
+                {{ formatLength(seconds, locale) }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
-            v-if="sanctionable && !person.isBanned"
-            data-profile-warn
+            data-profile-ban
             type="button"
-            variant="outline"
-            :disabled="!canWarn"
-            :title="lockedTip(canWarn)"
-            @click="warnOpen = true"
+            variant="destructive"
+            :disabled="!canBan"
+            :title="lockedTip(canBan)"
+            @click="confirmBan = true"
           >
-            {{ $t('profile.warn.button') }}
+            {{ $t('profile.ban.button') }}
           </Button>
-          <Button
-            v-if="person.isBanned"
-            data-profile-unban
-            type="button"
-            :disabled="!canUnban || unban.isPending.value"
-            :title="lockedTip(canUnban)"
-            @click="liftBan"
-          >
-            {{ $t('profile.unban.button') }}
-          </Button>
-          <template v-else-if="sanctionable">
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <Button
-                  data-profile-timeout
-                  type="button"
-                  variant="outline"
-                  :disabled="!canBan"
-                  :title="lockedTip(canBan)"
-                >
-                  {{ $t('profile.timeout.button') }}
-                  <ChevronDown class="size-4" aria-hidden="true" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{{ $t('profile.timeout.menu') }}</DropdownMenuLabel>
-                <DropdownMenuItem
-                  v-for="seconds in TIMEOUT_LENGTHS"
-                  :key="seconds"
-                  :data-profile-timeout-length="seconds"
-                  @select="timeoutFor(seconds)"
-                >
-                  {{ formatLength(seconds, locale) }}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              data-profile-ban
-              type="button"
-              variant="destructive"
-              :disabled="!canBan"
-              :title="lockedTip(canBan)"
-              @click="confirmBan = true"
-            >
-              {{ $t('profile.ban.button') }}
-            </Button>
-          </template>
-        </div>
+        </template>
       </div>
-    </template>
+    </div>
   </div>
 
   <ConfirmDialog
