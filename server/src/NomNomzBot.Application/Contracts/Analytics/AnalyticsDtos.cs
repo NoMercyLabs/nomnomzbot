@@ -112,6 +112,19 @@ public sealed record ChannelAnalyticsPlatformSummaryDto(
     long BitsCheered
 );
 
+/// <summary>
+/// One non-empty cell of the "when chat is busy" grid: stored chat messages on this weekday and local hour.
+/// <see cref="DayOfWeek"/> is 0 (Sunday) to 6 (Saturday); <see cref="Hour"/> is 0 to 23.
+/// </summary>
+public sealed record ChatHourCellDto(int DayOfWeek, int Hour, long Messages, int Chatters);
+
+/// <summary>
+/// The "when chat is busy" grid for a date range. <see cref="TimeZone"/> is the zone the cells are bucketed
+/// in (the channel owner's saved zone, or "UTC" when none is saved or it is unknown); only cells with at
+/// least one message are listed.
+/// </summary>
+public sealed record ChannelChatHoursDto(string TimeZone, IReadOnlyList<ChatHourCellDto> Cells);
+
 /// <summary>The metric a top-viewers query ranks by (analytics.md §4).</summary>
 public enum TopViewerMetric
 {

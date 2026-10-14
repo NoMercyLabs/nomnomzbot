@@ -66,4 +66,15 @@ public interface IChannelAnalyticsService
         DateOnly to,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// When chat is busy: stored chat messages over a range (local dates in the channel's time zone) as
+    /// weekday x hour cells, bucketed in that zone. Only non-empty cells are returned.
+    /// </summary>
+    Task<Result<ChannelChatHoursDto>> GetChatHoursAsync(
+        Guid broadcasterId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken ct = default
+    );
 }

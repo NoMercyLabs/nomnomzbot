@@ -76,6 +76,17 @@ public class AnalyticsController(
         CancellationToken ct
     ) => ResultResponse(await channelAnalytics.GetPlatformSummaryAsync(channelId, from, to, ct));
 
+    /// <summary>Read when the channel's chat is busy: weekday x hour message cells for a date range.</summary>
+    [HttpGet("channel/chat-hours")]
+    [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<ChannelChatHoursDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetChannelChatHours(
+        Guid channelId,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct
+    ) => ResultResponse(await channelAnalytics.GetChatHoursAsync(channelId, from, to, ct));
+
     /// <summary>Rank the channel's top viewers by the chosen metric over a date range.</summary>
     [HttpGet("channel/top-viewers")]
     [RequireAction("analytics:read")]

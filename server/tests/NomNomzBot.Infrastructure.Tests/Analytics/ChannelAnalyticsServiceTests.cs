@@ -210,6 +210,167 @@ public sealed class ChannelAnalyticsServiceTests
         breakdown[0].Provider.Should().Be("twitch");
     }
 
+    // ── Chat hours ("when chat is busy") ─────────────────────────────────────
+
+    private static async Task SeedChannelWithZoneAsync(AuthDbContext db, string? zone)
+    {
+        Guid ownerId = Guid.NewGuid();
+        db.Users.Add(
+            new()
+            {
+                Id = ownerId,
+                Username = "streamer",
+                UsernameNormalized = "streamer",
+                DisplayName = "streamer",
+                Timezone = zone,
+            }
+        );
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                OwnerUserId = ownerId,
+                Name = "streamer",
+                NameNormalized = "streamer",
+            }
+        );
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task GetChatHours_buckets_in_the_channel_zone_across_midnight_and_skips_out_of_range()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        await SeedChannelWithZoneAsync(db, "Europe/Amsterdam"); // CEST = UTC+2 in June
+
+        // Sat 2026-06-20 22:30 UTC = Sun 2026-06-21 00:30 local: crosses midnight into Sunday hour 0.
+        // Sun 2026-06-21 22:10 UTC = Mon 2026-06-22 00:10 local: Monday hour 0, but local 06-22 is out of range.
+        // Sat 2026-06-20 21:59 UTC = Sat 23:59 local: before the range (local 06-20).
+        // Sun 2026-06-21 10:15 UTC = Sun 12:15 local, twice from viewer-a and once from viewer-b.
+        db.ChatMessages.AddRange(
+            ChatMessageOnProvider(
+                "m1",
+                "twitch",
+                "viewer-a",
+                new(2026, 6, 20, 22, 30, 0, TimeSpan.Zero)
+            ),
+            ChatMessageOnProvider(
+                "m2",
+                "twitch",
+                "viewer-b",
+                new(2026, 6, 21, 22, 10, 0, TimeSpan.Zero)
+            ),
+            ChatMessageOnProvider(
+                "m3",
+                "twitch",
+                "viewer-a",
+                new(2026, 6, 20, 21, 59, 0, TimeSpan.Zero)
+            ),
+            ChatMessageOnProvider(
+                "m4",
+                "twitch",
+                "viewer-a",
+                new(2026, 6, 21, 10, 15, 0, TimeSpan.Zero)
+            ),
+            ChatMessageOnProvider(
+                "m5",
+                "kick",
+                "viewer-a",
+                new(2026, 6, 21, 10, 45, 0, TimeSpan.Zero)
+            ),
+            ChatMessageOnProvider(
+                "m6",
+                "twitch",
+                "viewer-b",
+                new(2026, 6, 21, 10, 50, 0, TimeSpan.Zero)
+            )
+        );
+        await db.SaveChangesAsync();
+
+        ChannelChatHoursDto grid = (
+            await sut.GetChatHoursAsync(Channel, new(2026, 6, 21), new(2026, 6, 21))
+        ).Value;
+
+        grid.TimeZone.Should().Be("Europe/Amsterdam");
+        grid.Cells.Should()
+            .BeEquivalentTo(
+                new[]
+                {
+                    new ChatHourCellDto(0, 0, 1, 1), // Sunday 00:xx local
+                    new ChatHourCellDto(0, 12, 3, 2), // Sunday 12:xx local
+                }
+            );
+    }
+
+    [Fact]
+    public async Task GetChatHours_uses_utc_and_says_so_when_the_channel_has_no_zone()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        await SeedChannelWithZoneAsync(db, null);
+        db.ChatMessages.Add(
+            ChatMessageOnProvider(
+                "m1",
+                "twitch",
+                "viewer-a",
+                new(2026, 6, 21, 22, 30, 0, TimeSpan.Zero)
+            )
+        );
+        await db.SaveChangesAsync();
+
+        ChannelChatHoursDto grid = (
+            await sut.GetChatHoursAsync(Channel, new(2026, 6, 21), new(2026, 6, 21))
+        ).Value;
+
+        grid.TimeZone.Should().Be("UTC");
+        grid.Cells.Should().BeEquivalentTo(new[] { new ChatHourCellDto(0, 22, 1, 1) });
+    }
+
+    [Fact]
+    public async Task GetChatHours_keeps_a_half_hour_zone_in_the_right_local_hour()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        await SeedChannelWithZoneAsync(db, "Asia/Kolkata"); // UTC+5:30
+        // 18:20 UTC = 23:50 local; 18:40 UTC = 00:10 next local day.
+        db.ChatMessages.AddRange(
+            ChatMessageOnProvider(
+                "m1",
+                "twitch",
+                "viewer-a",
+                new(2026, 6, 21, 18, 20, 0, TimeSpan.Zero)
+            ),
+            ChatMessageOnProvider(
+                "m2",
+                "twitch",
+                "viewer-a",
+                new(2026, 6, 21, 18, 40, 0, TimeSpan.Zero)
+            )
+        );
+        await db.SaveChangesAsync();
+
+        ChannelChatHoursDto grid = (
+            await sut.GetChatHoursAsync(Channel, new(2026, 6, 21), new(2026, 6, 22))
+        ).Value;
+
+        grid.Cells.Should()
+            .BeEquivalentTo(
+                new[] { new ChatHourCellDto(0, 23, 1, 1), new ChatHourCellDto(1, 0, 1, 1) }
+            );
+    }
+
+    [Fact]
+    public async Task GetChatHours_rejects_an_inverted_range()
+    {
+        (ChannelAnalyticsService sut, _) = Build();
+
+        Result<ChannelChatHoursDto> result = await sut.GetChatHoursAsync(
+            Channel,
+            new(2026, 6, 22),
+            new(2026, 6, 20)
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
     private static NomNomzBot.Domain.Chat.Entities.ChatMessage ChatMessageOnProvider(
         string id,
         string provider,
