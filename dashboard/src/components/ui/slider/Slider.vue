@@ -28,13 +28,13 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       data-slot="slider-track"
       :data-horizontal="props.orientation !== 'vertical' ? '' : undefined"
       :data-vertical="props.orientation === 'vertical' ? '' : undefined"
-      class="bg-muted rounded-full data-horizontal:h-1.5 data-vertical:w-1.5 relative grow overflow-hidden data-horizontal:w-full data-vertical:h-full"
+      class="bg-(--kit-surface-hover) rounded-full data-horizontal:h-1.5 data-vertical:w-1.5 relative grow overflow-hidden data-horizontal:w-full data-vertical:h-full"
     >
       <SliderRange
         data-slot="slider-range"
         :data-horizontal="props.orientation !== 'vertical' ? '' : undefined"
         :data-vertical="props.orientation === 'vertical' ? '' : undefined"
-        class="bg-primary absolute select-none data-horizontal:h-full data-vertical:w-full"
+        class="bg-(--kit-danger) absolute select-none data-horizontal:h-full data-vertical:w-full"
       />
     </SliderTrack>
 
@@ -43,7 +43,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       :key="key"
       data-slot="slider-thumb"
       :data-vertical="props.orientation === 'vertical' ? '' : undefined"
-      class="border-primary ring-ring/50 size-4 rounded-full border bg-white shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden block shrink-0 select-none disabled:pointer-events-none disabled:opacity-50"
+      class="border-(--kit-pill-from) bg-(--kit-ink) ring-(--kit-focus)/50 size-4 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden block shrink-0 select-none disabled:pointer-events-none disabled:opacity-50"
     />
   </SliderRoot>
 </template>
