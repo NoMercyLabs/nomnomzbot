@@ -16,6 +16,7 @@ import { ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { i18n } from '@/i18n';
+import { useProfileDialogStore } from '@/stores/profileDialog';
 
 import HappeningPanel from '../components/HappeningPanel.vue';
 import en from '../i18n/en.json';
@@ -23,27 +24,50 @@ import en from '../i18n/en.json';
 type Fed = {
   type: string;
   username: string | null;
+  userId?: string | null;
   data: unknown;
 };
 
 let fed: Fed[] = [];
+let allowed = false;
+let replayStatus = 200;
+let replayResult = {
+  eventsReplayed: 1,
+  chatMessagesSent: 2,
+  ttsQueued: 1,
+  overlaysShown: 0,
+  widgetsNotified: 3,
+};
+const post = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const toastSuccess = vi.fn<(message: string) => void>();
+const toastError = vi.fn<(message: string) => void>();
+
+vi.mock('vue-sonner', () => ({
+  toast: { success: (message: string) => toastSuccess(message),
+    error: (message: string) => toastError(message) },
+}));
 
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ({
+    GET: async (path: string) => ({
       data: {
-        data: fed.map((item, index) => ({
-          id: `e${index}`,
-          type: item.type,
-          userId: null,
-          username: item.username,
-          data: JSON.stringify(item.data),
-          timestamp: '2026-10-10T21:15:00',
-        })),
+        data: path.includes('roles/effective/me')
+          ? { heldActionKeys: allowed
+              ? ['dashboard:replay']
+              : [] }
+          : fed.map((item, index) => ({
+              id: `e${index}`,
+              type: item.type,
+              userId: item.userId ?? null,
+              username: item.username,
+              data: JSON.stringify(item.data),
+              timestamp: '2026-10-10T21:15:00',
+            })),
       },
       response: { status: 200, ok: true },
     }),
+    POST: (...args: unknown[]) => post(...args),
   },
 }));
 
@@ -54,8 +78,101 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
+  allowed = false;
+  replayStatus = 200;
+
+  replayResult = {
+    eventsReplayed: 1,
+    chatMessagesSent: 2,
+    ttsQueued: 1,
+    overlaysShown: 0,
+    widgetsNotified: 3,
+  };
+
+  post.mockReset();
+  toastSuccess.mockClear();
+  toastError.mockClear();
+
+  post.mockImplementation(async () => ({
+    data: { data: replayResult },
+    error: replayStatus === 200
+      ? undefined
+      : { code: 'NOT_FOUND' },
+    response: { status: replayStatus, ok: replayStatus === 200 },
+  }));
+
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
+});
+
+describe('activity row actions', () => {
+  const event = {
+    type: 'channel.follow',
+    username: 'Alice',
+    userId: 'twitch-42',
+    data: {},
+  };
+
+  it('opens the clicked person profile', async () => {
+    await rowsFor([event]);
+    document.body.querySelector<HTMLButtonElement>('[data-user="twitch-42"]')?.click();
+    expect(useProfileDialogStore().userId).toBe('twitch-42');
+  });
+
+  it('hides Replay without the action permission', async () => {
+    await rowsFor([event]);
+    expect(document.body.querySelector('[data-activity-replay]')).toBeNull();
+  });
+
+  it('posts the event with no body and reports the actual counts', async () => {
+    allowed = true;
+    await rowsFor([event]);
+    document.body.querySelector<HTMLButtonElement>('[data-activity-replay]')?.click();
+    await flushPromises();
+
+    expect(post).toHaveBeenCalledWith(
+      '/api/v{version}/dashboard/{channelId}/activity/{eventId}/replay',
+      { params: { path: {
+        version: '1',
+        channelId: 'c1',
+        eventId: 'e0',
+      } } },
+    );
+
+    expect(toastSuccess).toHaveBeenCalledWith(
+      'Replayed 1 event: 2 chat messages, 1 voice, 0 overlays, 3 widgets.',
+    );
+  });
+
+  it('reports NOT_FOUND without claiming a replay', async () => {
+    allowed = true;
+    replayStatus = 404;
+    await rowsFor([event]);
+    document.body.querySelector<HTMLButtonElement>('[data-activity-replay]')?.click();
+    await flushPromises();
+    expect(toastError).toHaveBeenCalledWith('Nothing to replay for this event.');
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('reports zero work without claiming a viewer effect', async () => {
+    allowed = true;
+
+    replayResult = {
+      eventsReplayed: 1,
+      chatMessagesSent: 0,
+      ttsQueued: 0,
+      overlaysShown: 0,
+      widgetsNotified: 0,
+    };
+
+    await rowsFor([event]);
+    document.body.querySelector<HTMLButtonElement>('[data-activity-replay]')?.click();
+    await flushPromises();
+
+    expect(toastSuccess).toHaveBeenCalledWith(
+      'Replayed 1 event: 0 chat messages, 0 voice, 0 overlays, 0 widgets.',
+    );
+  });
 });
 
 afterEach(() => {
@@ -71,6 +188,11 @@ async function rowsFor(items: Fed[]): Promise<{ title: string; detail: string }[
     props: { live: true },
     attachTo: document.body,
     global: {
+      stubs: {
+        Tooltip: { template: '<div><slot /></div>' },
+        TooltipTrigger: { template: '<div><slot /></div>' },
+        TooltipContent: true,
+      },
       plugins: [
         i18n,
         createRouter({ history: createMemoryHistory(), routes: [] }),

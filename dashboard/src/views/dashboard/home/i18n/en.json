@@ -134,6 +134,13 @@
         "empty": "Nothing happened yet.",
         "error": "Events could not load.",
         "allEvents": "All events",
+
+        "replay": "Replay",
+        "replayTip": "Replays the chat line, voice, and overlay alerts viewers saw. Grants nothing.",
+        "replayResultOne": "Replayed {events} event: {chat} chat messages, {voice} voice, {overlays} overlays, {widgets} widgets.",
+        "replayResult": "Replayed {events} events: {chat} chat messages, {voice} voice, {overlays} overlays, {widgets} widgets.",
+        "replayNotFound": "Nothing to replay for this event.",
+        "replayFailed": "Could not replay this event.",
         "type": {
           "channel_follow": "Followed",
           "channel_subscribe": "Subscribed on Twitch",
