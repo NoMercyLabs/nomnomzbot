@@ -40,6 +40,7 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
         string broadcasterId,
         PaginationParams pagination,
         bool failuresOnly,
+        Guid? pipelineId = null,
         CancellationToken ct = default
     )
     {
@@ -55,6 +56,9 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
 
         if (failuresOnly)
             query = query.Where(e => FailureStatuses.Contains(e.Status));
+
+        if (pipelineId.HasValue)
+            query = query.Where(e => e.PipelineId == pipelineId.Value);
 
         int total = await query.CountAsync(ct);
 

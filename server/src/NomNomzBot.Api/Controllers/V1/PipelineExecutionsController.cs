@@ -36,7 +36,7 @@ public class PipelineExecutionsController : BaseController
     }
 
     /// <summary>List the channel's pipeline runs, newest-first, paginated. <c>failuresOnly=true</c>
-    /// restricts to non-success outcomes.</summary>
+    /// restricts to non-success outcomes; <c>pipelineId</c> restricts to one pipeline's runs.</summary>
     [RequireAction("pipelines:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<PipelineExecutionSummaryDto>>(StatusCodes.Status200OK)]
@@ -44,6 +44,7 @@ public class PipelineExecutionsController : BaseController
         string channelId,
         [FromQuery] PageRequestDto request,
         [FromQuery] bool failuresOnly,
+        [FromQuery] Guid? pipelineId,
         CancellationToken ct
     )
     {
@@ -52,6 +53,7 @@ public class PipelineExecutionsController : BaseController
             channelId,
             pagination,
             failuresOnly,
+            pipelineId,
             ct
         );
         if (result.IsFailure)

@@ -20,11 +20,13 @@ namespace NomNomzBot.Application.Commands.Services;
 public interface IPipelineExecutionQueryService
 {
     /// <summary>Lists the channel's runs, newest-first, real-paginated. <paramref name="failuresOnly"/>
-    /// restricts to non-success outcomes (failed / partially_failed / timed_out / cancelled).</summary>
+    /// restricts to non-success outcomes (failed / partially_failed / timed_out / cancelled).
+    /// <paramref name="pipelineId"/>, when set, restricts to the runs of that one pipeline.</summary>
     Task<Result<PagedList<PipelineExecutionSummaryDto>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
         bool failuresOnly,
+        Guid? pipelineId = null,
         CancellationToken ct = default
     );
 

@@ -188,4 +188,56 @@ public class PipelineExecutionQueryServiceTests
         Assert.Equal(partiallyFailed.Id, onlyResult.Id);
         Assert.DoesNotContain(filteredResult.Value.Items, i => i.Id == succeeded.Id);
     }
+
+    [Fact]
+    public async Task ListAsync_WithPipelineId_ReturnsOnlyThatPipelinesRuns_AndCountsOnlyThose()
+    {
+        PipelineExecutionQueryTestDbContext db = PipelineExecutionQueryTestDbContext.New();
+        IPipelineExecutionQueryService service = new PipelineExecutionQueryService(db);
+
+        Guid tenant = Guid.NewGuid();
+        Guid pipelineA = Guid.NewGuid();
+        Guid pipelineB = Guid.NewGuid();
+        DateTime baseTime = new(2026, 10, 14, 9, 0, 0, DateTimeKind.Utc);
+
+        PipelineExecution aOlder = BuildExecution(tenant, pipelineA, "completed", baseTime);
+        PipelineExecution aNewer = BuildExecution(
+            tenant,
+            pipelineA,
+            "failed",
+            baseTime.AddMinutes(2)
+        );
+        PipelineExecution bRun = BuildExecution(
+            tenant,
+            pipelineB,
+            "completed",
+            baseTime.AddMinutes(1)
+        );
+        db.PipelineExecutions.AddRange(aOlder, aNewer, bRun);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<PipelineExecutionSummaryDto>> filtered = await service.ListAsync(
+            tenant.ToString(),
+            new(Page: 1, PageSize: 25),
+            failuresOnly: false,
+            pipelineId: pipelineA
+        );
+        Result<PagedList<PipelineExecutionSummaryDto>> unfiltered = await service.ListAsync(
+            tenant.ToString(),
+            new(Page: 1, PageSize: 25),
+            failuresOnly: false
+        );
+
+        Assert.True(filtered.IsSuccess);
+        Assert.Equal(2, filtered.Value.TotalCount);
+        Assert.Equal(
+            new[] { aNewer.Id, aOlder.Id },
+            filtered.Value.Items.Select(i => i.Id).ToArray()
+        );
+        Assert.All(filtered.Value.Items, i => Assert.Equal(pipelineA, i.PipelineId));
+
+        // Without the filter nothing changes: all three runs come back.
+        Assert.True(unfiltered.IsSuccess);
+        Assert.Equal(3, unfiltered.Value.TotalCount);
+    }
 }
