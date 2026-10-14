@@ -167,6 +167,29 @@ describe('AdminChannelsView', () => {
     expect(text()).toContain('2 channels');
   });
 
+  it('labels both filter groups in view and keeps the bar on one scrolling line', async () => {
+    await open();
+
+    const labels = [...document.body.querySelectorAll('[data-filter-label]')].map((node) =>
+      node.textContent?.trim());
+    const strip = document.body.querySelector('[data-slot="page-bar"] > div') as HTMLElement;
+
+    expect(labels).toEqual(['Status', 'Live']);
+    expect(strip.className).toContain('overflow-x-auto');
+    expect(strip.className).not.toContain('flex-wrap');
+  });
+
+  it('lets the search and the table stay inside the page width on a phone', async () => {
+    await open();
+
+    const search = document.body.querySelector('[data-slot="search-field"]') as HTMLElement;
+    const card = document.body.querySelector('[data-slot="table-container"]')!
+      .closest('[data-slot="panel-card"], .min-h-80') as HTMLElement;
+
+    expect(search.className).not.toContain('mx-4');
+    expect(card.className).toContain('min-w-0');
+  });
+
   it('refetches with the typed search after the pause and goes back to page 1', async () => {
     total = 60;
     await open();

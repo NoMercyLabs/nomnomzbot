@@ -102,25 +102,35 @@ function pick(row: AdminTenant): void {
       </span>
     </template>
     <template #bar>
-      <div class="ml-auto flex flex-wrap items-center gap-4">
-        <FilterBar
-          v-model="status"
-          :label="$t('dashboard.admin.filters.statusLabel')"
-          :options="statusOptions"
-        />
-        <FilterBar
-          v-model="live"
-          :label="$t('dashboard.admin.filters.liveLabel')"
-          :options="liveOptions"
-        />
+      <div class="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto scrollbar-none md:justify-end">
+        <div class="flex shrink-0 items-center gap-2">
+          <span data-filter-label class="text-sm text-muted-foreground">
+            {{ $t('dashboard.admin.filters.statusLabel') }}
+          </span>
+          <FilterBar
+            v-model="status"
+            :label="$t('dashboard.admin.filters.statusLabel')"
+            :options="statusOptions"
+          />
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          <span data-filter-label class="text-sm text-muted-foreground">
+            {{ $t('dashboard.admin.filters.liveLabel') }}
+          </span>
+          <FilterBar
+            v-model="live"
+            :label="$t('dashboard.admin.filters.liveLabel')"
+            :options="liveOptions"
+          />
+        </div>
       </div>
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6">
-    <SearchField v-model="search" class="max-md:mx-4" :placeholder="$t('dashboard.admin.search')" />
+  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
+    <SearchField v-model="search" :placeholder="$t('dashboard.admin.search')" />
     <PanelCard
       tier="lead"
-      class="min-h-80 flex-1"
+      class="min-h-80 min-w-0 flex-1"
       :title="$t('dashboard.admin.list.title')"
       :description="$t('dashboard.admin.list.newestFirst')"
       :state="panelState"
