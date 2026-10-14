@@ -61,13 +61,6 @@ export const spacingPadding = {
   roomy: 'py-4',
 } as const satisfies Record<Spacing, string>;
 
-// Lifts the line tray past the row padding above, so it sits on the row's top edge with a 2px overlap.
-export const trayLift = {
-  tight: '-translate-y-0',
-  normal: '-translate-y-1.5',
-  roomy: '-translate-y-3.5',
-} as const satisfies Record<Spacing, string>;
-
 export function useChatDisplay(): RemovableRef<ChatDisplay> {
   return useLocalStorage<ChatDisplay>('nnz.chat.display', { ...chatDisplayDefaults }, {
     mergeDefaults: true,

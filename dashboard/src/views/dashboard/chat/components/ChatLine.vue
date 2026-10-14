@@ -36,7 +36,7 @@ import { purifyChatHtml } from '@/lib/html';
 import { formatLength } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
-import { emoteHeights, spacingPadding, splitMentions, trayLift, type ChatDisplay } from '../chatDisplay';
+import { emoteHeights, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
 
 const LENGTHS: readonly number[] = [60, 600, 3600, 86400];
 
@@ -216,7 +216,7 @@ function pick(event: MouseEvent): void {
       alt=""
       class="size-6 flex-none rounded-full"
     />
-    <div class="relative min-w-0 flex-1">
+    <div class="min-w-0 flex-1">
       <p
         class="wrap-break-word"
         :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
@@ -277,11 +277,11 @@ function pick(event: MouseEvent): void {
           $t('dashboard.chat.display.deletedTag')
         }}</span>
       </p>
-      <!-- Above the name, on the row's top edge so the hover holds on the way up; never over the text. -->
+      <!-- At the row's top-right corner, above the row: never over this line or a name, and touching the row
+           so the hover holds on the way up (owner 2026-10-13 and 2026-10-14). -->
       <div
         v-if="!line.removed"
-        :class="trayLift[display.spacing]"
-        class="absolute bottom-full left-0 z-10 flex items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-data-[state=open]:opacity-100"
+        class="absolute right-3 bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-data-[state=open]:opacity-100"
         data-tray
         role="group"
         :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"

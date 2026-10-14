@@ -1032,19 +1032,24 @@ describe('ChatView display drawer', () => {
       expect(rowOf('m2').dataset.focus).toBeUndefined();
     });
 
-    // Stoney 2026-10-13: the tray covered the end of a long message. It sits above the name, touching the
-    // line so the hover holds while the pointer moves up to it.
-    it('floats the line actions above the name, never over the message text', async () => {
+    // Stoney 2026-10-13: the tray covered the end of a long message (right, centered). Stoney 2026-10-14:
+    // "what is this weird hover placement" — above the name it covered the line above where the eye reads.
+    // It sits at the row's top-right corner, above the row: never over this line, and over the quiet
+    // right end of the line above, touching the row so the hover holds on the way up.
+    it('floats the line actions at the top-right corner above the row, never over any name or this line', async () => {
       await open();
-      const tray: HTMLElement = rowOf('m1').querySelector('[data-tray]')!;
-      const text: HTMLElement = rowOf('m1').querySelector('p')!;
+      const row = rowOf('m1');
+      const tray: HTMLElement = row.querySelector('[data-tray]')!;
 
-      expect(tray.parentElement).toBe(text.parentElement);
+      // The row is the box the tray is placed against: no positioned wrapper sits between them.
+      expect(tray.parentElement!.closest('.relative')).toBe(row);
       expect(tray.classList).toContain('bottom-full');
-      expect(tray.classList).toContain('left-0');
+      expect(tray.classList).toContain('right-3');
+      expect(tray.classList).not.toContain('left-0');
       expect(tray.classList).not.toContain('top-1/2');
-      // Normal spacing pads the row 8px: the tray lifts 6px past it, keeping a 2px overlap with the row.
-      expect(tray.classList).toContain('-translate-y-1.5');
+      // Placed on the row's own top edge, it drops 2px into the row at every spacing, so no gap breaks the hover.
+      expect(tray.classList).toContain('translate-y-0.5');
+      expect([...tray.classList].some((name) => name.startsWith('-translate-y'))).toBe(false);
     });
 
     it('a click on a line action does not pick the chatter', async () => {
