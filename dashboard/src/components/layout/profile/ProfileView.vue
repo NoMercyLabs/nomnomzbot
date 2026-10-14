@@ -19,6 +19,7 @@ import ChevronDown from '~icons/nnz/chevron-down';
 import MenuDots from '~icons/nnz/menu-dots-horizontal';
 
 import { useChannelAccess } from '@/api/access';
+import { useCurrentUser } from '@/api/auth';
 import {
   useBanMember,
   useCommunityMember,
@@ -41,6 +42,7 @@ import ProfileStanding from '@/components/layout/profile/ProfileStanding.vue';
 import ProfileVoice from '@/components/layout/profile/ProfileVoice.vue';
 import ProfileWarn from '@/components/layout/profile/ProfileWarn.vue';
 import {
+  canSanction,
   roleKeys,
   type RoleKey,
   twitchStanding,
@@ -108,6 +110,15 @@ const roles = computed<RoleKey[]>(() =>
     : []);
 // Twitch refuses a ban or VIP on the channel's own account, so the view does not offer them.
 const isOwner = computed<boolean>(() => roles.value.includes('broadcaster'));
+
+// Timeout, Ban and Warn show only where Twitch accepts them for this person and the signed-in one.
+const currentUser = useCurrentUser();
+const sanctionable = computed<boolean>(() =>
+  person.value !== null &&
+  canSanction(currentUser.data.value?.username, current.value?.login, {
+    username: person.value.username,
+    roles: roles.value,
+  }));
 
 // The mutations need the channel id when they are made; the view is mounted inside a signed-in channel.
 const vipChange = useVipChange(channelId.value ?? '');
@@ -296,15 +307,16 @@ async function banNow(): Promise<void> {
           <TabsContent value="chat" force-mount :class="PANEL_CLASS">
             <!-- The bot sends at most 10 lines, so they list in full: no box scrolls inside the profile. -->
             <PanelCard
+              bare
               :title="$t('profile.chat.title')"
               :state="lines.length > 0 ? 'ready' : 'empty'"
               :empty-text="$t('profile.chat.empty')"
             >
-              <ul data-profile-chat-lines :aria-label="$t('profile.chat.title')" class="grid">
+              <ul data-profile-chat-lines :aria-label="$t('profile.chat.title')" class="grid gap-3">
                 <li
                   v-for="line in lines"
                   :key="`${line.timestamp}-${line.content}`"
-                  class="grid gap-0.5 px-2 py-1.5 text-sm"
+                  class="grid gap-0.5 text-sm"
                 >
                   <span class="text-xs text-muted-foreground">{{ dateText(line.timestamp) }}</span>
                   <EmoteText class="wrap-anywhere" :text="line.content" />
@@ -320,24 +332,21 @@ async function banNow(): Promise<void> {
             />
           </TabsContent>
 
-          <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-4']">
-            <ProfileStanding v-if="!isOwner" :user-id="userId" :name="title" />
+          <!-- Flat sections like the Overview, no boxes in boxes (owner 2026-10-14: "the moderation section needs
+               a better ui"). -->
+          <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-8']">
             <ProfileNotes :user-id="userId" />
             <ProfileHistory :internal-user-id="person.internalUserId ?? null" />
-            <PanelCard
-              v-if="actions.length > 0"
-              data-profile-actions
-              pad
-              :title="$t('profile.moderation.counts')"
-            >
+            <section v-if="actions.length > 0" data-profile-actions class="grid gap-3">
+              <h3 class="text-sm font-semibold">{{ $t('profile.moderation.counts') }}</h3>
               <KeyValueList :items="actions" />
-            </PanelCard>
-            <PanelCard
-              :title="$t('profile.moderation.title')"
-              :state="person.banHistory.length > 0 ? 'ready' : 'empty'"
-              :empty-text="$t('profile.moderation.empty')"
-            >
-              <ul class="grid gap-2 p-2 text-sm">
+            </section>
+            <section data-profile-bans class="grid gap-3">
+              <h3 class="text-sm font-semibold">{{ $t('profile.moderation.title') }}</h3>
+              <p v-if="person.banHistory.length === 0" class="text-sm text-muted-foreground">
+                {{ $t('profile.moderation.empty') }}
+              </p>
+              <ul v-else class="grid gap-3 text-sm">
                 <li v-for="record in person.banHistory" :key="record.id" class="grid gap-0.5">
                   <span>{{ record.reason || $t('profile.moderation.noReason') }}</span>
                   <span class="text-xs text-muted-foreground">
@@ -353,7 +362,7 @@ async function banNow(): Promise<void> {
                   }}</span>
                 </li>
               </ul>
-            </PanelCard>
+            </section>
           </TabsContent>
 
           <template v-if="viewerProfile">
@@ -369,10 +378,10 @@ async function banNow(): Promise<void> {
           <TabsContent value="settings" force-mount :class="PANEL_CLASS">
             <!-- What the bot keeps about this person, one label column like the Overview (owner 2026-10-14). -->
             <dl data-profile-settings class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 text-sm">
-              <template v-if="viewerProfile">
-                <dt class="text-muted-foreground">{{ $t('profile.facts.trust') }}</dt>
-                <dd data-profile-standing-value class="m-0">
-                  {{ $t(`profile.standing.${viewerProfile.identity.communityStanding.toLowerCase()}`) }}
+              <template v-if="!isOwner">
+                <dt class="text-muted-foreground">{{ $t('profile.botStanding.title') }}</dt>
+                <dd class="m-0 min-w-0">
+                  <ProfileStanding :user-id="userId" :name="title" />
                 </dd>
               </template>
               <dt class="text-muted-foreground">{{ $t('profile.voice.title') }}</dt>
@@ -416,6 +425,7 @@ async function banNow(): Promise<void> {
               {{ vipLabel }}
             </DropdownMenuItem>
             <DropdownMenuItem
+              v-if="sanctionable"
               data-profile-warn
               :disabled="!canWarn || person.isBanned"
               :title="lockedTip(canWarn)"
@@ -438,7 +448,7 @@ async function banNow(): Promise<void> {
           >
             {{ $t('profile.unban.button') }}
           </Button>
-          <template v-else>
+          <template v-else-if="sanctionable">
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
                 <Button

@@ -15,9 +15,8 @@ import { useI18n } from 'vue-i18n';
 
 import { useChannelAccess } from '@/api/access';
 import { useStanding, type StandingLevel } from '@/api/moderation';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { shortDate } from '@/lib/time';
@@ -26,7 +25,7 @@ import ProfileStandingEdit from './ProfileStandingEdit.vue';
 
 const props = defineProps<{ userId: string; name: string }>();
 
-const { t, locale } = useI18n();
+const { locale } = useI18n();
 const { channelId } = useCurrentChannel();
 const access = useChannelAccess(channelId);
 
@@ -48,42 +47,40 @@ const level = computed<StandingLevel | null>(() =>
   (standing.data.value?.standing as StandingLevel | undefined) ?? null);
 const levelKey = computed(() => level.value ?? 'normal');
 
-const facts = computed<KeyValueItem[]>(() => {
+// The reason and date of a standing someone set; the default standing has neither.
+const note = computed<string | null>(() => {
   const current = standing.data.value;
 
-  return [
-    { label: t('profile.botStanding.now'), value: t(`profile.botStanding.levels.${levelKey.value}.name`) },
-    { label: t('profile.botStanding.reason'), value: current?.reason || null },
-    {
-      label: t('profile.botStanding.since'),
-      value: current
-        ? shortDate(current.updatedAt, locale.value)
-        : null,
-    },
-  ];
+  if (!current?.reason)
+    return null;
+
+  return `${current.reason} · ${shortDate(current.updatedAt, locale.value)}`;
 });
 
 const editOpen = ref(false);
 </script>
 
 <template>
-  <PanelCard
-    data-slot="profile-standing"
-    pad
-    :title="$t('profile.botStanding.title')"
-    :state="state"
-    :empty-text="$t('profile.botStanding.noAccess')"
-    :error-text="$t('profile.botStanding.error')"
-    @retry="standing.refetch()"
-  >
-    <div class="grid gap-3">
-      <p data-profile-standing-effect class="text-sm text-muted-foreground">
-        {{ $t(`profile.botStanding.levels.${levelKey}.effect`) }}
-      </p>
-      <KeyValueList :items="facts" />
+  <!-- The value of the Settings list row, like the TTS voice: the level, what it does, and Change. -->
+  <div data-slot="profile-standing">
+    <p v-if="state === 'empty'" class="text-sm text-muted-foreground">{{ $t('profile.botStanding.noAccess') }}</p>
+    <Skeleton v-else-if="state === 'loading'" class="h-10 rounded-lg" />
+    <div v-else-if="state === 'error'" role="alert" class="flex items-center gap-3 text-sm">
+      <span class="flex-1 text-destructive">{{ $t('profile.botStanding.error') }}</span>
+      <Button type="button" variant="outline" size="sm" @click="standing.refetch()">
+        {{ $t('common.panel.retry') }}
+      </Button>
     </div>
-
-    <template #footer>
+    <div v-else class="flex items-center gap-3">
+      <div class="grid min-w-0 flex-1 text-sm">
+        <span data-profile-standing-name class="font-medium">{{
+          $t(`profile.botStanding.levels.${levelKey}.name`)
+        }}</span>
+        <span data-profile-standing-effect class="text-muted-foreground">{{
+          $t(`profile.botStanding.levels.${levelKey}.effect`)
+        }}</span>
+        <span v-if="note" data-profile-standing-note class="text-muted-foreground wrap-anywhere">{{ note }}</span>
+      </div>
       <Button
         data-profile-standing-change
         type="button"
@@ -95,8 +92,8 @@ const editOpen = ref(false);
       >
         {{ $t('profile.botStanding.change') }}
       </Button>
-    </template>
-  </PanelCard>
+    </div>
+  </div>
   <ProfileStandingEdit
     v-model:open="editOpen"
     :user-id="userId"

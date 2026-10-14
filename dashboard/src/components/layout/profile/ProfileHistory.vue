@@ -77,13 +77,14 @@ function byline(entry: ModerationHistoryEntry): string {
 <template>
   <PanelCard
     data-slot="profile-history"
+    bare
     :title="$t('profile.history.title')"
     :state="state"
     :empty-text="emptyText"
     :error-text="$t('profile.history.error')"
     @retry="history.refetch()"
   >
-    <ul class="grid gap-2 p-2 text-sm">
+    <ul class="grid gap-3 text-sm">
       <li v-for="entry in entries" :key="entry.id" data-profile-history class="grid gap-0.5">
         <span class="font-medium">{{ what(entry) }}</span>
         <span v-if="entry.reason" class="wrap-anywhere">{{ entry.reason }}</span>

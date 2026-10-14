@@ -51,6 +51,8 @@ Range.prototype.getBoundingClientRect = () =>
 const calls: Call[] = [];
 let history: ChatLine[] = [];
 let sendOk: boolean = true;
+// Who is signed in; the channel belongs to stoney_eagle.
+let signedInAs: string = 'stoney_eagle';
 // The search answer per `before` cursor; the first page has no cursor. A cursor with no page fails.
 let searchPages: Record<string, SearchPage> = {};
 
@@ -154,7 +156,7 @@ vi.mock('@/api/client', () => ({
         return { data: { data: memberOf(options) }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/auth/me')) {
-        return { data: { data: { username: 'stoney_eagle' } }, response: { status: 200, ok: true } };
+        return { data: { data: { username: signedInAs } }, response: { status: 200, ok: true } };
       }
 
       return { data: { data: history }, response: { status: 200, ok: true } };
@@ -287,6 +289,7 @@ beforeEach(() => {
   calls.length = 0;
   localStorage.clear();
   sendOk = true;
+  signedInAs = 'stoney_eagle';
   searchPages = {};
 
   history = [
@@ -571,6 +574,67 @@ describe('ChatView', () => {
       targetUserId: 'u2',
       durationSeconds: 3600,
       reason: null,
+    });
+  });
+
+  describe('who may be timed out or banned from the tray', () => {
+    const names = (id: string): string[] =>
+      [...rowOf(id).querySelectorAll<HTMLElement>('[data-line-action]')].map(
+        (button) => button.dataset.lineAction ?? '',
+      );
+
+    const sanctions = ['timeout', 'ban'];
+
+    beforeEach(() => {
+      history = [
+        line('v1', 'u1', 'Alice', 'a viewer'),
+        line('mod1', 'u7', 'Modest', 'another mod', { isModerator: true }),
+        line('lead1', 'u8', 'Leader', 'a lead mod', {
+          badges: [{
+            setId: 'lead_moderator',
+            id: '1',
+            urls: {},
+          }],
+        }),
+        line('own1', 'u9', 'Stoney_Eagle', 'the broadcaster', { isBroadcaster: true }),
+        line('me1', 'u5', 'Helper', 'my own line', { isModerator: true }),
+      ];
+    });
+
+    it('lets a moderator sanction a viewer', async () => {
+      signedInAs = 'helper';
+      await open();
+      expect(names('v1')).toEqual(expect.arrayContaining(sanctions));
+    });
+
+    it('hides Timeout and Ban for a moderator on their own line, keeping Delete', async () => {
+      signedInAs = 'helper';
+      await open();
+      expect(names('me1')).toEqual(['reply', 'delete', 'profile']);
+    });
+
+    it('hides Timeout and Ban for a moderator on the broadcaster line', async () => {
+      signedInAs = 'helper';
+      await open();
+      expect(names('own1')).toEqual(['reply', 'delete', 'profile']);
+    });
+
+    it('hides Timeout and Ban for a moderator on another moderator, and on a lead moderator', async () => {
+      signedInAs = 'helper';
+      await open();
+      expect(names('mod1')).toEqual(['reply', 'delete', 'profile']);
+      expect(names('lead1')).toEqual(['reply', 'delete', 'profile']);
+    });
+
+    it('lets the broadcaster sanction a moderator and a lead moderator', async () => {
+      await open();
+      expect(names('mod1')).toEqual(expect.arrayContaining(sanctions));
+      expect(names('lead1')).toEqual(expect.arrayContaining(sanctions));
+    });
+
+    it('hides Timeout and Ban for the broadcaster on their own line', async () => {
+      await open();
+      expect(names('own1')).toEqual(['reply', 'delete', 'profile']);
     });
   });
 

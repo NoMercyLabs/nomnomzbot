@@ -116,13 +116,14 @@ function confirmDelete(): void {
 <template>
   <PanelCard
     data-slot="profile-notes"
+    bare
     :title="$t('profile.notes.title')"
     :state="state"
     :empty-text="emptyText"
     :error-text="$t('profile.notes.error')"
     @retry="notes.refetch()"
   >
-    <ul class="grid gap-2 p-2 text-sm">
+    <ul class="grid gap-3 text-sm">
       <li
         v-for="note in notes.data.value"
         :key="note.id"

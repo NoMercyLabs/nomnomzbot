@@ -335,6 +335,7 @@ async function confirmBan(): Promise<void> {
                 :display="display"
                 :index="index"
                 :me="me"
+                :channel-login="current?.login ?? null"
                 :focus="focusOf(item)"
                 :parent="parentOf(item)"
                 @ban="askBan"

@@ -459,7 +459,6 @@ describe('PeopleView', () => {
     expect(detail.querySelector('[data-slot="profile-view"]')).not.toBeNull();
     expect(detail.querySelector('h2')!.textContent).toBe('ALICE');
     expect(detail.textContent).toContain('she/her');
-    expect(detail.textContent).toContain('VIP');
     expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Timeouts\s*3/);
     expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Messages deleted\s*9/);
     expect(detail.textContent).toContain('Watch streak');

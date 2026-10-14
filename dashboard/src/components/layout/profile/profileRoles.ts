@@ -78,6 +78,28 @@ export function roleKeys(
   return roles;
 }
 
+export type SanctionTarget = { username: string; roles: readonly RoleKey[] };
+
+function sameLogin(a: string | null | undefined, b: string | null | undefined): boolean {
+  return Boolean(a) && Boolean(b) && a?.toLowerCase() === b?.toLowerCase();
+}
+
+// Whether the signed-in person can time out or ban this target. Twitch refuses it on yourself and on the
+// broadcaster, and only the broadcaster can sanction a moderator (a lead moderator too). Delete stays open.
+export function canSanction(
+  me: string | null | undefined,
+  channelLogin: string | null | undefined,
+  target: SanctionTarget,
+): boolean {
+  if (sameLogin(me, target.username) || sameLogin(channelLogin, target.username))
+    return false;
+
+  if (target.roles.includes('broadcaster'))
+    return false;
+
+  return !target.roles.includes('moderator') || sameLogin(me, channelLogin);
+}
+
 export type TwitchStanding = 'regular' | 'affiliate' | 'partner';
 
 const standings = ['affiliate', 'partner'] as const satisfies TwitchStanding[];

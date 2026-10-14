@@ -31,6 +31,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { canSanction, type RoleKey } from '@/components/layout/profile/profileRoles';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { readableNameColor } from '@/lib/accent';
 import { purifyChatHtml } from '@/lib/html';
@@ -54,6 +55,8 @@ const props = defineProps<{
   display: ChatDisplay;
   index: number;
   me: string | null;
+  // The channel's own login: its owner is the broadcaster.
+  channelLogin?: string | null;
   focus?: 'on' | 'dim';
   parent?: ChatLine | null;
 }>();
@@ -142,6 +145,26 @@ function parts(text: string): ReturnType<typeof splitMentions> {
 
   return splitMentions(text, me);
 }
+
+const moderatorBadges = ['moderator', 'lead_moderator'];
+
+// Timeout and Ban show only where Twitch accepts them for this chatter and the signed-in person.
+const canSanctionLine = computed<boolean>(() => {
+  const roles: RoleKey[] = [];
+
+  if (props.line.isBroadcaster) {
+    roles.push('broadcaster');
+  }
+
+  const moderatorBadge = props.line.badges.some((badge) =>
+    moderatorBadges.includes(badge.setId));
+
+  if (props.line.isModerator || moderatorBadge) {
+    roles.push('moderator');
+  }
+
+  return canSanction(props.me, props.channelLogin, { username: props.line.username, roles });
+});
 
 // A badge the server could not resolve has no image, so it is left out rather than shown broken.
 const badges = computed(() =>
@@ -385,7 +408,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.reply.tip') }}</TooltipContent>
         </Tooltip>
-        <DropdownMenu>
+        <DropdownMenu v-if="canSanctionLine">
           <Tooltip>
             <TooltipTrigger as-child>
               <DropdownMenuTrigger as-child>
@@ -427,7 +450,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.delete.label') }}</TooltipContent>
         </Tooltip>
-        <Tooltip>
+        <Tooltip v-if="canSanctionLine">
           <TooltipTrigger as-child>
             <Button
               data-line-action="ban"

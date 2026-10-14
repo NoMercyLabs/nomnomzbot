@@ -18,13 +18,14 @@ import Clock from '~icons/nnz/clock';
 import Cross from '~icons/nnz/cross';
 import StopSign from '~icons/nnz/stop-sign';
 
+import { useCurrentUser } from '@/api/auth';
 import { useBanUser, useTimeoutUser, useUnbanUser, type ChatLine } from '@/api/chat';
 import { useCommunityMember } from '@/api/community';
 import { useCurrencyConfig } from '@/api/economy';
 import { useViewerProfile } from '@/api/people';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import ProfileHeader from '@/components/layout/profile/ProfileHeader.vue';
-import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
+import { canSanction, roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import StatTile from '@/components/layout/StatTile.vue';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,9 @@ const currency = useCurrencyConfig(() =>
     ? null
     : props.channelId);
 
+const currentUser = useCurrentUser();
+const me = computed<string | null>(() => currentUser.data.value?.username ?? null);
+
 const step = ref<Step>('idle');
 const done = ref<Done | null>(null);
 const failed = ref(false);
@@ -93,6 +97,14 @@ const roles = computed<RoleKey[]>(() =>
   person.value
     ? roleKeys(person.value, viewerProfile.value, props.channelLogin)
     : []);
+
+// Twitch refuses Timeout and Ban on yourself, the broadcaster, and a moderator (unless you own it).
+const sanctionable = computed<boolean>(() =>
+  person.value !== null &&
+  canSanction(me.value, props.channelLogin, {
+    username: person.value.username,
+    roles: roles.value,
+  }));
 
 const account = computed(() => viewerProfile.value?.economy.wallet ?? null);
 const currencyName = computed<string>(() =>
@@ -300,7 +312,7 @@ async function undo(): Promise<void> {
             {{ $t('dashboard.chat.viewer.cancel') }}
           </Button>
         </template>
-        <template v-else>
+        <template v-else-if="sanctionable">
           <Button variant="outline" size="sm" @click="go('pick')">
             <Clock class="size-4" aria-hidden="true" />
             {{ $t('dashboard.chat.viewer.timeout') }}

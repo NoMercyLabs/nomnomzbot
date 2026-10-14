@@ -80,7 +80,7 @@ function setKey(emote: PersonEmote): string {
     : 'other';
 }
 
-const SET_ORDER = ['tier1', 'tier2', 'tier3', 'bitstier', 'follower', 'other'] as const;
+const SET_ORDER = ['follower', 'tier1', 'tier2', 'tier3', 'bitstier', 'other'] as const;
 
 function sets(provider: string): EmoteSet[] {
   const list = (emotes.data.value ?? []).filter((emote: PersonEmote) =>
@@ -124,7 +124,7 @@ function shown(list: PersonEmote[]): ShownEmote[] {
 <template>
   <PanelCard
     data-slot="profile-emotes"
-    pad
+    bare
     :title="$t('profile.emotes.title')"
     :state="state"
     :empty-text="$t('profile.emotes.empty')"

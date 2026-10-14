@@ -33,6 +33,9 @@ type Answer = {
 
 const calls: Call[] = [];
 let actionOk: boolean = true;
+// Who is signed in, and whose channel this is.
+let signedInAs: string = 'kitte';
+let channelLogin: string = 'kitte';
 
 const member = {
   id: 'u1',
@@ -85,11 +88,13 @@ vi.mock('@/api/client', () => ({
         body: undefined,
       });
 
-      const body = path.endsWith('/economy/config')
-        ? currency
-        : path.endsWith('/profile')
-          ? profile
-          : member;
+      const body = path.endsWith('/auth/me')
+        ? { username: signedInAs }
+        : path.endsWith('/economy/config')
+          ? currency
+          : path.endsWith('/profile')
+            ? profile
+            : member;
 
       return { data: { data: body }, response: { status: 200, ok: true } };
     },
@@ -137,6 +142,9 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   calls.length = 0;
   actionOk = true;
+  signedInAs = 'kitte';
+  channelLogin = 'kitte';
+  member.isModerator = null;
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
 });
@@ -155,6 +163,7 @@ async function show(userId: string | null, hour12 = false): Promise<VueWrapper> 
     props: {
       userId,
       channelId: 'c1',
+      channelLogin,
       lines: feed,
       hour12,
     },
@@ -209,7 +218,7 @@ describe('ViewerPanel', () => {
     await show(null);
 
     expect(text()).toContain(en.dashboard.chat.viewer.empty);
-    expect(calls).toHaveLength(0);
+    expect(calls.filter((call) => !call.path.endsWith('/auth/me'))).toHaveLength(0);
     expect(button('Timeout')).toBeUndefined();
     expect(button('Ban')).toBeUndefined();
   });
@@ -249,6 +258,45 @@ describe('ViewerPanel', () => {
 
     expect(text()).toContain(en.dashboard.chat.viewer.otherUnavailable);
     expect(document.body.querySelector('[data-viewer-other-row]')).toBeNull();
+  });
+
+  describe('who may be timed out or banned', () => {
+    it('offers both to a moderator on a viewer', async () => {
+      signedInAs = 'helper';
+      await show('u1');
+      expect(button('Timeout')).toBeDefined();
+      expect(button('Ban')).toBeDefined();
+    });
+
+    it('offers neither on yourself', async () => {
+      signedInAs = 'dukasoft';
+      await show('u1');
+      expect(button('Timeout')).toBeUndefined();
+      expect(button('Ban')).toBeUndefined();
+    });
+
+    it('offers neither on the broadcaster', async () => {
+      signedInAs = 'helper';
+      channelLogin = 'dukasoft';
+      await show('u1');
+      expect(button('Timeout')).toBeUndefined();
+      expect(button('Ban')).toBeUndefined();
+    });
+
+    it('offers neither to a moderator on another moderator', async () => {
+      signedInAs = 'helper';
+      member.isModerator = true;
+      await show('u1');
+      expect(button('Timeout')).toBeUndefined();
+      expect(button('Ban')).toBeUndefined();
+    });
+
+    it('offers both to the broadcaster on a moderator', async () => {
+      member.isModerator = true;
+      await show('u1');
+      expect(button('Timeout')).toBeDefined();
+      expect(button('Ban')).toBeDefined();
+    });
   });
 
   it('times out for the chosen length in this channel and offers undo', async () => {

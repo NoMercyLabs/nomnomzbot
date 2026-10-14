@@ -427,6 +427,7 @@ function mapNotes(
 
 vi.mock('@/api/client', () => ({
   client: {
+    use: () => undefined,
     GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options);
 
@@ -442,6 +443,9 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/roles/effective/me'))
         return { data: { data: { heldActionKeys: [...held] } }, response: { ok: true } };
+
+      if (path.endsWith('/auth/me'))
+        return { data: { data: { username: signedInAs } }, response: { ok: true, status: 200 } };
 
       if (path.endsWith('/history/{userId}'))
         return { data: historyPage(options), response: { ok: true } };
@@ -576,6 +580,8 @@ vi.mock('@/api/client', () => ({
 // The login of the channel being managed; a test sets it to make a person the channel's own account.
 // The live channel list sends own channels without a Twitch id, so the login is what identifies them.
 const channelLogin = ref('somebody');
+// Who is signed in; a test sets it to make the caller a moderator, or the person themself.
+let signedInAs = 'somebody';
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
@@ -592,6 +598,7 @@ let router: Router;
 beforeEach(async () => {
   calls.length = 0;
   channelLogin.value = 'somebody';
+  signedInAs = 'somebody';
   people = freshPeople();
   profiles = freshProfiles();
   notes = freshNotes();
@@ -987,6 +994,7 @@ describe('the profile dialog', () => {
       '/emotes',
       '/notes',
       '/roles/effective/me',
+      '/auth/me',
       '/history/{userId}',
       '/context',
     ];
@@ -1025,6 +1033,52 @@ describe('the profile dialog', () => {
         durationSeconds: 600,
       },
     ]);
+  });
+
+  describe('who may be timed out or banned', () => {
+    const sanctionButtons = (): HTMLElement[] =>
+      ['[data-profile-timeout]', '[data-profile-ban]'].flatMap((selector: string) =>
+        [...document.body.querySelectorAll<HTMLElement>(selector)]);
+
+    it('shows both to a moderator on a viewer', async () => {
+      signedInAs = 'helper';
+      const ada = profiles.g1 as { identity: { managementRole: string | null } };
+
+      ada.identity.managementRole = null;
+      await openPage();
+      await openUser('u1');
+      expect(sanctionButtons()).toHaveLength(2);
+    });
+
+    it('shows neither on yourself', async () => {
+      signedInAs = 'ada';
+      await openPage();
+      await openUser('u1');
+      expect(sanctionButtons()).toHaveLength(0);
+    });
+
+    it('shows neither on the broadcaster', async () => {
+      signedInAs = 'helper';
+      channelLogin.value = 'ada';
+      await openPage();
+      await openUser('u1');
+      expect(sanctionButtons()).toHaveLength(0);
+    });
+
+    it('shows neither to a moderator on another moderator', async () => {
+      signedInAs = 'helper';
+      people.u1!.isModerator = true;
+      await openPage();
+      await openUser('u1');
+      expect(sanctionButtons()).toHaveLength(0);
+    });
+
+    it('shows both to the broadcaster on a moderator', async () => {
+      people.u1!.isModerator = true;
+      await openPage();
+      await openUser('u1');
+      expect(sanctionButtons()).toHaveLength(2);
+    });
   });
 
   it('shouts a person out from the More menu', async () => {
