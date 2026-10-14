@@ -191,10 +191,7 @@ public sealed class ViewerSelfServiceTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        result
-            .Value.Select(c => c.ChannelId)
-            .Should()
-            .Equal(ChannelTwo.ToString(), ChannelOne.ToString());
+        result.Value.Select(c => c.ChannelId).Should().Equal(ChannelTwo, ChannelOne);
         WatchedChannelDto older = result.Value[1];
         older.Name.Should().Be("alpha");
         older.DisplayName.Should().Be("STREAMER");

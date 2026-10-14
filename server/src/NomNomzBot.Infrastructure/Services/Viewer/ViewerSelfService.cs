@@ -37,14 +37,14 @@ public sealed class ViewerSelfService(
         CancellationToken ct = default
     )
     {
-        List<WatchedChannelRow> rows = await db
+        List<WatchedChannelDto> rows = await db
             .ViewerProfiles.Where(p => p.ViewerUserId == callerUserId && p.DeletedAt == null)
             .Join(
                 db.Channels.Where(c => c.OwnerUserId != callerUserId),
                 p => p.BroadcasterId,
                 c => c.Id,
                 (p, c) =>
-                    new WatchedChannelRow(
+                    new WatchedChannelDto(
                         c.Id,
                         c.Name,
                         c.User.DisplayName,
@@ -56,28 +56,10 @@ public sealed class ViewerSelfService(
             .ToListAsync(ct);
 
         // Sorted in memory: one viewer watches a handful of channels, and a null LastSeenAt sorts last.
-        // The id is formatted here, not in SQL: SQLite keeps a Guid as upper-case text, the API speaks lower case.
         IReadOnlyList<WatchedChannelDto> ordered = rows.OrderByDescending(r => r.LastSeenAt)
-            .Select(r => new WatchedChannelDto(
-                r.ChannelId.ToString(),
-                r.Name,
-                r.DisplayName,
-                r.ProfileImageUrl,
-                r.IsLive,
-                r.LastSeenAt
-            ))
             .ToList();
         return Result.Success(ordered);
     }
-
-    private sealed record WatchedChannelRow(
-        Guid ChannelId,
-        string Name,
-        string DisplayName,
-        string? ProfileImageUrl,
-        bool IsLive,
-        DateTime? LastSeenAt
-    );
 
     public async Task<Result<ViewerSelfSummaryDto>> GetSummaryAsync(
         Guid channelId,
@@ -139,7 +121,7 @@ public sealed class ViewerSelfService(
     private async Task<bool> ReadSongRequestsEnabledAsync(Guid channelId, CancellationToken ct)
     {
         Result<MusicConfigDto> config = await music.GetConfigAsync(channelId.ToString(), ct);
-        return config.IsSuccess && config.Value.IsEnabled;
+        return config is { IsSuccess: true, Value.IsEnabled: true };
     }
 
     // Cached Helix lookup; any failure means "could not find out", never a failed read.

@@ -12,7 +12,7 @@ namespace NomNomzBot.Application.Contracts.Viewer;
 
 /// <summary>One channel the caller watches: a channel where the caller has viewer activity.</summary>
 public sealed record WatchedChannelDto(
-    string ChannelId,
+    Guid ChannelId,
     string Name,
     string DisplayName,
     string? ProfileImageUrl,
