@@ -1622,4 +1622,37 @@ describe('ChatView emote picker', () => {
     expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('catKISS');
     expect(picker()!.querySelector('[data-picker-preview]')!.textContent).toContain('7TV');
   });
+
+  // Stoney 2026-10-14: "Remove the input from emojis on mobile", closer to the Twitch app's tray.
+  describe('on a phone', () => {
+    const realMatchMedia = window.matchMedia;
+
+    beforeEach(() => {
+      window.matchMedia = ((query: string): MediaQueryList => ({
+        matches: query.includes('max-width: 767px'),
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+        onchange: null,
+      }) as MediaQueryList) as typeof window.matchMedia;
+    });
+
+    afterEach(() => {
+      window.matchMedia = realMatchMedia;
+    });
+
+    it('opens a tray with no search box and no preview, and leaves the focus off it', async () => {
+      await open();
+      await openPicker();
+
+      expect(picker()).not.toBeNull();
+      expect(picker()!.querySelector('[data-picker-query]')).toBeNull();
+      expect(picker()!.querySelector('[data-picker-preview]')).toBeNull();
+      expect(picker()!.contains(document.activeElement)).toBe(false);
+      expect(itemsOf('SevenTv')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
+    });
+  });
 });

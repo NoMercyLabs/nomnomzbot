@@ -12,7 +12,7 @@
 // emotes per source, the emoji per group, a jump rail at the side, and a search over all of them at the bottom.
 // A pick goes into the box at the cursor and the picker stays open for the next one; the name of the item under
 // the pointer shows below the list.
-import { useLocalStorage } from '@vueuse/core';
+import { useLocalStorage, useMediaQuery } from '@vueuse/core';
 import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ClockBackward from '~icons/nnz/clock-backward';
@@ -106,9 +106,16 @@ function jump(id: string): void {
   document.getElementById(`picker-${id}`)?.scrollIntoView({ block: 'start' });
 }
 
+// On a phone the picker is a full-width tray as in the Twitch app: no search and no focus, so the keyboard stays
+// down, and the jump rail runs along the bottom. Stoney 2026-10-14: "Remove the input from emojis on mobile".
+const phone = useMediaQuery('(max-width: 767px)');
+
 // The search sits at the bottom, so the picker opens with the cursor in it instead of on the first rail icon.
 function focusSearch(event: Event): void {
   event.preventDefault();
+
+  if (phone.value) return;
+
   document.querySelector<HTMLInputElement>('[data-picker-query]')?.focus();
 }
 
@@ -136,13 +143,15 @@ function pick(item: Suggestion): void {
       data-picker
       side="top"
       align="end"
-      class="flex w-120 flex-col gap-2 p-2"
+      :collision-padding="phone ? 0 : 8"
+      class="flex w-120 flex-col gap-2 p-2 max-md:w-screen max-md:rounded-none max-md:border-x-0"
       @open-auto-focus="focusSearch"
     >
-      <div class="flex h-80 gap-2">
+      <div class="flex h-80 gap-2 max-md:flex-col-reverse">
         <nav
           v-if="query.trim() === ''"
-          class="flex w-9 shrink-0 flex-col gap-0.5 overflow-y-auto scrollbar-none"
+          class="flex w-9 shrink-0 flex-col gap-0.5 overflow-y-auto scrollbar-none max-md:w-auto max-md:flex-row
+            max-md:overflow-x-auto max-md:overflow-y-hidden"
           :aria-label="$t('dashboard.chat.picker.jump')"
         >
           <button
@@ -183,7 +192,7 @@ function pick(item: Suggestion): void {
             <h3 class="sticky top-0 z-10 bg-popover px-1 py-1 text-xs font-medium text-muted-foreground">
               {{ title(section) }}
             </h3>
-            <div class="grid grid-cols-10 gap-0.5" role="group" :aria-label="title(section)">
+            <div class="grid grid-cols-10 gap-0.5 max-md:grid-cols-7" role="group" :aria-label="title(section)">
               <button
                 v-for="item in section.items"
                 :key="item.kind + item.insert"
@@ -201,15 +210,21 @@ function pick(item: Suggestion): void {
                   :src="item.image"
                   alt=""
                   loading="lazy"
-                  class="size-8 object-contain"
+                  class="size-8 object-contain max-md:size-10"
                 />
-                <span v-else class="text-2xl leading-none" aria-hidden="true">{{ item.insert }}</span>
+                <span v-else class="text-2xl leading-none max-md:text-3xl" aria-hidden="true">{{ item.insert }}</span>
               </button>
             </div>
           </section>
         </div>
       </div>
-      <p data-picker-preview class="flex h-6 items-center gap-2 truncate px-1 text-sm" aria-live="polite">
+      <!-- A phone has no pointer to point with and a search box would raise the keyboard over the tray. -->
+      <p
+        v-if="!phone"
+        data-picker-preview
+        class="flex h-6 items-center gap-2 truncate px-1 text-sm"
+        aria-live="polite"
+      >
         <template v-if="shown">
           <span class="truncate font-medium">{{ shown.label }}</span>
           <span class="text-xs text-muted-foreground">{{
@@ -220,7 +235,7 @@ function pick(item: Suggestion): void {
         </template>
         <span v-else class="text-muted-foreground">{{ $t('dashboard.chat.picker.hint') }}</span>
       </p>
-      <InputGroup data-picker-search class="rounded-[calc(var(--radius-md)-8px)]">
+      <InputGroup v-if="!phone" data-picker-search class="rounded-[calc(var(--radius-md)-8px)]">
         <InputGroupAddon>
           <SearchMagnifyingGlass />
         </InputGroupAddon>
