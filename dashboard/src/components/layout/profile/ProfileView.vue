@@ -70,6 +70,7 @@ const props = defineProps<{ userId: string; preview?: ProfilePreview | null }>()
 // The header already shows every count, so no tab repeats them. Points and Data come from the bot's stored
 // profile, so they show once it loaded.
 const BASE_TABS: readonly string[] = ['overview', 'chat', 'emotes', 'moderation'];
+const SETTINGS_TAB = 'settings';
 const PROFILE_TABS: readonly string[] = ['points', 'data'];
 
 // The dialog scrolls the tabs inside itself. On a page a phone scrolls the page once, never a box inside it.
@@ -133,10 +134,14 @@ const vipLabel = computed<string>(() => {
     ? t('profile.vip.remove')
     : t('profile.vip.make');
 });
-const tabs = computed<readonly string[]>(() =>
-  viewerProfile.value
+// Settings is always last: it changes how the bot treats the person, where the other tabs only show.
+const tabs = computed<readonly string[]>(() => {
+  const shown = viewerProfile.value
     ? merge(BASE_TABS, PROFILE_TABS)
-    : BASE_TABS);
+    : BASE_TABS;
+
+  return [...shown, SETTINGS_TAB];
+});
 // On a page the open tab is ?tab=, so a link opens it and Back returns to the last one. The dialog sits over a
 // page whose query is not its own, so it keeps the tab as a model: its Open full page link carries it over.
 const dialogTab = defineModel<string>('tab', { default: 'overview' });
@@ -276,21 +281,15 @@ async function banNow(): Promise<void> {
       <Tabs v-model="tab" class="flex flex-1 flex-col gap-0" :class="fit">
         <!-- A phone swipes the tabs sideways like the Twitch app: the cut-off last tab shows there are more. -->
         <div ref="tabStrip" class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none">
-          <TabsList class="w-max">
+          <TabsList>
             <TabsTrigger v-for="name in tabs" :key="name" :value="name">{{
               $t(`profile.tabs.${name}`)
             }}</TabsTrigger>
           </TabsList>
         </div>
         <div class="grid flex-1 px-6 py-4" :class="[fit, scroll]">
-          <TabsContent value="overview" force-mount :class="[PANEL_CLASS, 'grid content-start gap-4']">
-            <ProfileOverview
-              :person="person"
-              :profile="viewerProfile"
-              :roles="roles"
-              @show-chat="tab = 'chat'"
-            />
-            <ProfileVoice :user-id="userId" :name="title" />
+          <TabsContent value="overview" force-mount :class="PANEL_CLASS">
+            <ProfileOverview :profile="viewerProfile" />
           </TabsContent>
 
           <TabsContent value="chat" force-mount :class="PANEL_CLASS">
@@ -365,6 +364,22 @@ async function banNow(): Promise<void> {
               <ProfileData :profile="viewerProfile" />
             </TabsContent>
           </template>
+
+          <TabsContent value="settings" force-mount :class="PANEL_CLASS">
+            <!-- What the bot keeps about this person, one label column like the Overview (owner 2026-10-14). -->
+            <dl data-profile-settings class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 text-sm">
+              <template v-if="viewerProfile">
+                <dt class="text-muted-foreground">{{ $t('profile.facts.trust') }}</dt>
+                <dd data-profile-standing-value class="m-0">
+                  {{ $t(`profile.standing.${viewerProfile.identity.communityStanding.toLowerCase()}`) }}
+                </dd>
+              </template>
+              <dt class="text-muted-foreground">{{ $t('profile.voice.title') }}</dt>
+              <dd class="m-0 min-w-0">
+                <ProfileVoice :user-id="userId" :name="title" />
+              </dd>
+            </dl>
+          </TabsContent>
         </div>
       </Tabs>
 

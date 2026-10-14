@@ -278,7 +278,8 @@
       "activity": "Activity",
       "moderation": "Moderation",
       "points": "Points",
-      "data": "Data"
+      "data": "Data",
+      "settings": "Settings"
     },
     "emotes": {
       "title": "Their channel emotes",

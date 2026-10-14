@@ -16,7 +16,8 @@ export interface KeyValueItem {
   reason?: string;
 }
 
-defineProps<{ items: readonly KeyValueItem[] }>();
+// subgrid: the list takes its columns from the parent grid, so stacked lists share one label column.
+defineProps<{ items: readonly KeyValueItem[]; subgrid?: boolean }>();
 
 const missing: string = '-';
 </script>
@@ -24,7 +25,10 @@ const missing: string = '-';
 <template>
   <dl
     data-slot="key-value-list"
-    class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm"
+    class="grid gap-x-4 gap-y-2 text-sm"
+    :class="subgrid
+      ? 'col-span-full grid-cols-subgrid'
+      : 'grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)]'"
   >
     <template v-for="item in items" :key="item.label">
       <dt class="text-muted-foreground">{{ item.label }}</dt>

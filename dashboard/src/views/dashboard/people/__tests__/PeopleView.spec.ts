@@ -504,7 +504,7 @@ describe('PeopleView', () => {
     const points = detail.querySelector('[data-slot="profile-points"]')!.textContent;
     const data = detail.querySelector('[data-slot="profile-data"]')!.textContent;
 
-    expect(detail.textContent).toMatch(/Pronouns\s*she\/her · they\/them/);
+    expect(detail.querySelector('[data-profile-pronouns]')?.textContent).toBe('she/her · they/them');
     expect(detail.textContent).toMatch(/Other platforms\s*kick: AliceOnKick/);
     expect(detail.textContent).toMatch(/Manages the channel as\s*Lead moderator/);
     expect(detail.textContent).toMatch(/Best watch streak\s*11 streams in a row/);
@@ -545,14 +545,14 @@ describe('PeopleView', () => {
     await settle();
 
     expect(router.currentRoute.value.query.u).toBe('bob');
-    expect(text()).toContain('@bob');
+    expect(document.body.querySelector('[data-person-detail] h2')?.textContent).toBe('BOB');
   });
 
   it('never reads the profile of a person without an internal id, and still shows what the bot has', async () => {
     await open('/app/people?u=cara');
 
     expect(profileCalls()).toHaveLength(0);
-    expect(text()).toContain('@cara');
+    expect(document.body.querySelector('[data-person-detail] h2')?.textContent).toBe('CARA');
     expect(text()).toContain('42');
   });
 

@@ -48,7 +48,21 @@ const inDialog = injectDialogRootContext(null) !== null;
 // The person as far as the header knows them: the full record, or the light preview while it loads.
 const who = computed<ProfilePreview | null>(() => props.person ?? props.preview ?? null);
 const title = computed<string>(() => who.value?.displayName ?? t('profile.title'));
-const pronouns = computed<string | null>(() => props.profile?.identity.pronoun ?? null);
+// A second set from pronouns.alejo.io shows after the main one; a set a moderator typed says so.
+const pronouns = computed<string | null>(() => {
+  const identity = props.profile?.identity;
+  const sets = [identity?.pronoun, identity?.altPronoun]
+    .filter((value): value is string => Boolean(value));
+
+  if (sets.length === 0)
+    return null;
+
+  const text = sets.join(' · ');
+
+  return identity?.pronounIsManualOverride
+    ? t('profile.facts.setByChannel', { value: text })
+    : text;
+});
 const standing = computed(() =>
   twitchStanding(props.profile));
 

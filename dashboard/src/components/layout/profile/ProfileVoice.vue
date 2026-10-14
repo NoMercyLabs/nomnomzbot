@@ -14,8 +14,8 @@ import { useI18n } from 'vue-i18n';
 
 import { useChannelAccess } from '@/api/access';
 import { usePersonVoice } from '@/api/tts';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import PlaySampleButton from '@/views/dashboard/tts/PlaySampleButton.vue';
@@ -65,24 +65,22 @@ const editOpen = ref(false);
 </script>
 
 <template>
-  <PanelCard
-    data-slot="profile-voice"
-    pad
-    :title="$t('profile.voice.title')"
-    :state="state"
-    :empty-text="$t('profile.voice.noAccess')"
-    :error-text="$t('profile.voice.error')"
-    @retry="personVoice.refetch()"
-  >
-    <div class="flex items-center gap-3">
-      <div class="grid min-w-0 flex-1 gap-0.5 text-sm">
-        <span data-profile-voice-name class="font-medium">{{ title }}</span>
-        <span class="text-muted-foreground">{{ detail }}</span>
+  <!-- The value of the Settings list row: the current voice and its actions on one line; the row label names it. -->
+  <div data-slot="profile-voice">
+    <p v-if="state === 'empty'" class="text-sm text-muted-foreground">{{ $t('profile.voice.noAccess') }}</p>
+    <Skeleton v-else-if="state === 'loading'" class="h-10 rounded-lg" />
+    <div v-else-if="state === 'error'" role="alert" class="flex items-center gap-3 text-sm">
+      <span class="flex-1 text-destructive">{{ $t('profile.voice.error') }}</span>
+      <Button type="button" variant="outline" size="sm" @click="personVoice.refetch()">
+        {{ $t('common.panel.retry') }}
+      </Button>
+    </div>
+    <div v-else class="flex items-center gap-3">
+      <div class="grid min-w-0 flex-1 text-sm">
+        <span data-profile-voice-name class="truncate font-medium">{{ title }}</span>
+        <span class="truncate text-muted-foreground">{{ detail }}</span>
       </div>
       <PlaySampleButton v-if="voice" :voice-id="voice.voiceId" compact />
-    </div>
-
-    <template #footer>
       <Button
         data-profile-voice-change
         type="button"
@@ -94,8 +92,8 @@ const editOpen = ref(false);
       >
         {{ $t('profile.voice.change') }}
       </Button>
-    </template>
-  </PanelCard>
+    </div>
+  </div>
   <ProfileVoiceEdit
     v-model:open="editOpen"
     :user-id="userId"

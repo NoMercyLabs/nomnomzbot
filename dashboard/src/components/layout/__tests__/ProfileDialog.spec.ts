@@ -790,6 +790,7 @@ describe('the profile dialog', () => {
       'Moderation',
       'Points',
       'Data',
+      'Settings',
     ]);
 
     tabs[1]!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
@@ -806,7 +807,7 @@ describe('the profile dialog', () => {
 
     const panels: HTMLElement[] = Array.from(dialogs()[0]!.querySelectorAll('[role="tabpanel"]'));
 
-    expect(panels).toHaveLength(6);
+    expect(panels).toHaveLength(7);
 
     for (const panel of panels) {
       expect(panel.hidden).toBe(false);
@@ -1409,10 +1410,6 @@ describe('the profile dialog', () => {
 
 const header = (): HTMLElement => document.body.querySelector('[data-slot="profile-header"]')!;
 const overview = (): HTMLElement => document.body.querySelector('[data-slot="profile-overview"]')!;
-const chatLines = (): string[] =>
-  Array.from(overview().querySelectorAll('[data-profile-line]')).map(
-    (line: Element) => line.textContent ?? '',
-  );
 
 describe('the profile header', () => {
   it('shows the pronouns, the role badges and when the person was last seen', async () => {
@@ -1566,7 +1563,7 @@ describe('the profile header', () => {
 });
 
 describe('the Overview tab', () => {
-  it('lists the Identity and Relationship facts from the profile', async () => {
+  it('lists the Relationship and Identity facts from the profile', async () => {
     await openPage();
     await openUser('u1');
 
@@ -1574,31 +1571,48 @@ describe('the Overview tab', () => {
 
     expect(text).toContain('Identity');
     expect(text).toContain('Relationship');
-    expect(text).toContain('she/her');
     expect(text).toContain('90210');
     // memberSinceUtc is when the channel role was given (ChannelMembership.GrantedAt), not the account date.
     expect(text).toContain('Role since');
     expect(text).toContain('Mar 4, 2020');
-    expect(text).toContain('Following');
-    expect(text).toContain('Yes');
     expect(text).toContain('Tier 1');
-    expect(text).toContain('Jan 2, 2026');
   });
 
-  it('shows the Twitch account facts: its age, status, nickname, color, time zone and bits', async () => {
+  it('repeats nothing the header already shows', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const labels = Array.from(overview().querySelectorAll('dt')).map((dt: Element) => dt.textContent);
+
+    for (const label of ['Name', 'Pronouns', 'Account created', 'On Twitch', 'Following', 'Roles', 'First seen', 'Last seen']) {
+      expect(labels).not.toContain(label);
+    }
+
+    expect(overview().textContent).not.toContain('she/her');
+    expect(overview().textContent).not.toContain('Twitch affiliate');
+  });
+
+  it('shows the About text first, as the person wrote it, and not as a list row', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const about = overview().querySelector('[data-profile-about]');
+    const labels = Array.from(overview().querySelectorAll('dt')).map((dt: Element) => dt.textContent);
+
+    expect(about?.textContent).toBe('Writes compilers for fun.');
+    expect(overview().firstElementChild).toBe(about);
+    expect(labels).not.toContain('About');
+  });
+
+  it('shows the nickname, color, time zone, linked accounts and bits', async () => {
     await openPage();
     await openUser('u1');
 
     const text = overview().textContent ?? '';
     const swatch = overview().querySelector<HTMLElement>('[data-profile-color]');
 
-    expect(text).toContain('Account created');
-    expect(text).toContain('Jun 1, 2015');
-    expect(text).toContain('Twitch affiliate, Twitch staff');
     expect(text).toContain('Countess');
-    expect(text).toContain('Writes compilers for fun.');
     expect(text).toContain('Europe/London');
-    expect(text).toContain('she/her (set by the channel)');
     expect(text).toContain('Kick: AdaK, linked May 6, 2026');
     expect(text).toContain('Lurking');
     expect(text).toContain('Bits cheered');
@@ -1621,16 +1635,6 @@ describe('the Overview tab', () => {
     ]);
   });
 
-  it('shows since when the person follows the channel, with its age', async () => {
-    await openPage();
-    await openUser('u1');
-
-    const text = overview().textContent ?? '';
-
-    expect(text).toContain('Following');
-    expect(text).toContain('Since Aug 15, 2024 (');
-  });
-
   it('omits a fact the server does not return', async () => {
     await openPage();
     await openUser('u2');
@@ -1639,53 +1643,26 @@ describe('the Overview tab', () => {
       (dt: Element) => dt.textContent,
     );
 
-    expect(labels).not.toContain('Pronouns');
-    expect(labels).not.toContain('Role since');
-    expect(labels).not.toContain('Following');
-    expect(labels).not.toContain('Twitch ID');
-    expect(labels).not.toContain('Subscription');
-
-    // An empty Twitch status, no color and not lurking are not facts worth a row.
-    for (const label of ['Account created', 'Nickname', 'About', 'Time zone', 'Chat color', 'On Twitch', 'Lurking', 'Bits cheered']) {
+    // Facts the server does not return, an empty Twitch status, no color and not lurking are not worth a row.
+    for (const label of ['Role since', 'Twitch ID', 'Subscription', 'Nickname', 'Time zone', 'Chat color', 'Lurking', 'Bits cheered']) {
       expect(labels).not.toContain(label);
     }
 
-    expect(labels).toContain('First seen');
+    expect(overview().querySelector('[data-profile-about]')).toBeNull();
   });
 
-  it('shows the newest 3 chat lines and opens the Chat tab from All chat', async () => {
-    people.u1!.recentActivity = [1, 2, 3, 4].map((minute: number) => ({
+  it('keeps the chat lines in the Chat tab only, never in the Overview', async () => {
+    people.u1!.recentActivity = [{
       type: 'chat',
-      content: `line ${minute}`,
-      timestamp: `2026-10-01T10:0${minute}:00Z`,
-    }));
+      content: 'line one',
+      timestamp: '2026-10-01T10:00:00Z',
+    }];
 
     await openPage();
     await openUser('u1');
 
-    const shown = chatLines();
-
-    expect(shown.length).toBe(3);
-    expect(shown[0]).toContain('line 4');
-    expect(shown[2]).toContain('line 2');
-    expect(shown.join(' ')).not.toContain('line 1');
-    // Another day reads in the same date style as the rest of the dialog, never as 2026-10-01.
-    expect(shown.join(' ')).toContain('Oct 1');
-    expect(shown.join(' ')).not.toContain('2026-10-01');
-
-    button('[data-profile-all-chat]').click();
-    await settle();
-
-    const chatTab = Array.from(document.body.querySelectorAll('[role="tab"]')).find(
-      (t: Element) => t.textContent?.trim() === 'Chat',
-    );
-
-    expect(chatTab?.getAttribute('aria-selected')).toBe('true');
-
-    expect(
-      document.body.querySelector('[data-slot="profile-overview"]')!.closest('[role="tabpanel"]')!
-        .getAttribute('data-state'),
-    ).toBe('inactive');
+    expect(overview().textContent).not.toContain('line one');
+    expect(document.body.querySelector('[data-profile-chat-lines]')!.textContent).toContain('line one');
   });
 
   it('shows a known emote code in a chat line as the emote, and keeps other words as text', async () => {
@@ -1698,23 +1675,13 @@ describe('the Overview tab', () => {
     await openPage();
     await openUser('u1');
 
-    for (const scope of [overview(), dialogs()[0]!.querySelector('[data-profile-chat-lines]')!]) {
-      const emote = scope.querySelector<HTMLImageElement>('img[data-emote="stoney90Hmmm"]');
+    const scope = dialogs()[0]!.querySelector('[data-profile-chat-lines]')!;
+    const emote = scope.querySelector<HTMLImageElement>('img[data-emote="stoney90Hmmm"]');
 
-      expect(emote?.src).toBe('https://cdn.example/hmmm/1x.png');
-      expect(emote?.alt).toBe('stoney90Hmmm');
-      expect(scope.textContent).toContain('nice raid');
-      expect(scope.textContent).toContain('stoney90Unknown');
-    }
-  });
-
-  it('says there are no chat lines and offers no All chat button when there are none', async () => {
-    await openPage();
-    await openUser('u2');
-
-    expect(chatLines()).toEqual([]);
-    expect(overview().textContent).toContain('No chat lines stored yet.');
-    expect(document.body.querySelector('[data-profile-all-chat]')).toBeNull();
+    expect(emote?.src).toBe('https://cdn.example/hmmm/1x.png');
+    expect(emote?.alt).toBe('stoney90Hmmm');
+    expect(scope.textContent).toContain('nice raid');
+    expect(scope.textContent).toContain('stoney90Unknown');
   });
 });
 
@@ -1726,6 +1693,19 @@ describe('the TTS voice panel', () => {
 
   beforeEach(() => {
     held = [...merge(held, VOICE_KEYS)];
+  });
+
+  it('sits in the Settings tab, not in the Overview', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const tabPanel = panel().closest('[role="tabpanel"]')!;
+    const settingsTab = Array.from(document.body.querySelectorAll('[role="tab"]')).find(
+      (t: Element) => t.textContent?.trim() === 'Settings',
+    );
+
+    expect(settingsTab?.getAttribute('aria-controls')).toBe(tabPanel.id);
+    expect(overview().closest('[role="tabpanel"]')).not.toBe(tabPanel);
   });
 
   it('says a person without their own voice uses the channel voice', async () => {
