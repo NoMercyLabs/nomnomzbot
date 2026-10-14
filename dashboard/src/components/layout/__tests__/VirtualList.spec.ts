@@ -22,22 +22,61 @@ interface Row {
 const ROW_HEIGHT = 40;
 const VIEWPORT_HEIGHT = 400;
 
+// A row's height now: a narrower list wraps its rows, so a test may make them taller.
+let rowHeight = ROW_HEIGHT;
+
+type Observer = { callback: ResizeObserverCallback; targets: Element[] };
+
+const observers: Observer[] = [];
+
+// Every observed element reports a new width, and each row reports the current rowHeight.
+function resizeTo(width: number): void {
+  for (const observer of observers) {
+    const entries = observer.targets.map((target) => {
+      const contentRect = { width, height: target.clientHeight };
+
+      return { target, contentRect } as unknown as ResizeObserverEntry;
+    });
+
+    observer.callback(entries, {} as ResizeObserver);
+  }
+}
+
 // jsdom has no layout (TanStack Virtual's own tests mock sizes the same way): the scroll area is
-// VIEWPORT_HEIGHT tall and every row is ROW_HEIGHT tall. Scrolling writes scrollTop and fires a scroll event.
+// VIEWPORT_HEIGHT tall and every row is rowHeight tall. Scrolling writes scrollTop and fires a scroll event.
 beforeEach(() => {
+  rowHeight = ROW_HEIGHT;
+  observers.length = 0;
+
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
+      private readonly observer: Observer;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.observer = { callback, targets: [] };
+        observers.push(this.observer);
+      }
+
+      observe(target: Element): void {
+        this.observer.targets.push(target);
+      }
+
+      unobserve(target: Element): void {
+        this.observer.targets = this.observer.targets.filter((other) =>
+          other !== target);
+      }
+
+      disconnect(): void {
+        this.observer.targets = [];
+      }
     },
   );
 
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll')
       ? VIEWPORT_HEIGHT
-      : ROW_HEIGHT;
+      : rowHeight;
 
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,
@@ -305,6 +344,53 @@ describe('the stick-to-bottom mode', () => {
 
     expect(scroller(wrapper).scrollTop).toBe(400);
     expect(wrapper.find('[data-new-below]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+// Owner 2026-10-14: "chat layout shifts when selecting a user". A side panel narrows the list, the rows
+// rewrap and grow taller, and the reader's place must hold. "it still bounces down and up": the place
+// holds in the same measure step, so the checks wait for no animation frame.
+describe('a list that changes width', () => {
+  function rowTop(wrapper: VueWrapper, index: number): number {
+    const row = wrapper.find(`[data-index="${index}"]`).element as HTMLElement;
+    const start = Number(/translateY\((\d+)px\)/.exec(row.style.transform)![1]);
+
+    return start - scroller(wrapper).scrollTop;
+  }
+
+  it('keeps a reader at the bottom at the bottom when the rows grow taller', async () => {
+    const wrapper: VueWrapper = list(rows(50), { stick: true });
+
+    await nextTick();
+    await nextTick();
+    resizeTo(300);
+    rowHeight = 80;
+    resizeTo(200);
+    await nextTick();
+
+    const total = parseInt((wrapper.find('[role="list"]').element as HTMLElement).style.height, 10);
+
+    expect(scroller(wrapper).scrollTop).toBe(total - VIEWPORT_HEIGHT);
+    wrapper.unmount();
+  });
+
+  it('keeps the middle row of a reader who scrolled up in the same place', async () => {
+    const wrapper: VueWrapper = list(rows(100), { stick: true });
+
+    await nextTick();
+    await nextTick();
+    resizeTo(300);
+    await scrollTo(wrapper, 1000);
+
+    const before = rowTop(wrapper, 30);
+
+    rowHeight = 80;
+    resizeTo(200);
+    await nextTick();
+
+    expect(before).toBe(200);
+    expect(rowTop(wrapper, 30)).toBe(before);
     wrapper.unmount();
   });
 });

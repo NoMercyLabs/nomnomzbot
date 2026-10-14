@@ -52,6 +52,10 @@ const options = computed<Options>(() => ({
   estimateSize: () => props.estimateSize,
   getItemKey: (index: number) => props.itemKey(props.items[index]!, index),
   overscan: OVERSCAN,
+  anchorTo: props.stick
+    ? 'end'
+    : 'start',
+  scrollEndThreshold: AT_BOTTOM_SLACK,
 }));
 const virtualizer = useVirtualizer(options);
 
@@ -80,11 +84,33 @@ function maxOffset(element: HTMLElement): number {
   return Math.max(0, virtualizer.value.getTotalSize() - viewportHeight(element));
 }
 
+// The row in the middle of the view, kept while the reader scrolls.
+let middleIndex: number | null = null;
+
+function middleRow(element: HTMLElement): number | null {
+  const middle = element.scrollTop + viewportHeight(element) / 2;
+  // The cache, not the rendered window: the window catches up with this scroll only on its next render.
+  const row = virtualizer.value.measurementsCache.find((item) =>
+    item.end > middle);
+
+  return row?.index ?? null;
+}
+
+// A side panel narrows the list, the rows rewrap and their heights change. Every row above the middle
+// row moves the scroll by its change, in the same measure step and so before paint: the middle row stays
+// still (owner 2026-10-14: "chat layout shifts when selecting a user", "it still bounces down and up").
+// A chat list at the bottom stays there through anchorTo: 'end'.
+virtualizer.value.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) =>
+  middleIndex === null
+    ? item.end <= (instance.scrollOffset ?? 0)
+    : item.index < middleIndex;
+
 function onScroll(): void {
   const element = scrollArea.value;
 
   if (!element) return;
 
+  middleIndex = middleRow(element);
   atBottom.value = maxOffset(element) - element.scrollTop <= AT_BOTTOM_SLACK;
 
   if (atBottom.value) {
