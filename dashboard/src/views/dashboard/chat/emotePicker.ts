@@ -36,6 +36,7 @@ export type PickerContext = {
   channelName: string | null;
   channelAvatar?: string | null;
   ownAvatar?: string | null;
+  ownName?: string | null;
   favorites: readonly string[];
 };
 
@@ -105,6 +106,7 @@ function ownerSections(
   }
 
   if (own) {
+    own.name = at.ownName ?? undefined;
     own.avatar = at.ownAvatar ?? undefined;
   }
 

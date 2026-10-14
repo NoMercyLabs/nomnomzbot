@@ -168,9 +168,9 @@
         },
         "favorites": "Favorites",
         "starred": "{name}, starred",
-        "own": "Your emotes",
+        "own": "You",
         "channel": "This channel",
-        "others": "Other {source} emotes",
+        "others": "{source}",
         "global": "{source} global",
         "groups": {
           "smileys": "Smileys",

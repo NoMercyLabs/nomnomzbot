@@ -168,9 +168,9 @@
         },
         "favorites": "Favorieten",
         "starred": "{name}, met ster",
-        "own": "Jouw emotes",
+        "own": "Jij",
         "channel": "Dit kanaal",
-        "others": "Andere {source}-emotes",
+        "others": "{source}",
         "global": "{source} algemeen",
         "groups": {
           "smileys": "Smileys",

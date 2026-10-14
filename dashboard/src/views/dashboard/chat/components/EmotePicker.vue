@@ -74,6 +74,7 @@ const context = computed<PickerContext>(() => ({
   channelName: channel.value?.displayName ?? null,
   channelAvatar: channel.value?.profileImageUrl ?? null,
   ownAvatar: me.data.value?.profileImageUrl ?? null,
+  ownName: me.data.value?.displayName ?? null,
   favorites: favoriteKeys.value,
 }));
 

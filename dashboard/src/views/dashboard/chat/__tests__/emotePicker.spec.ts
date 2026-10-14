@@ -122,6 +122,16 @@ describe('the emote picker sections', () => {
       item.insert)).toEqual(['LULW', 'xLULx']);
   });
 
+  // Stoney 2026-10-14: "no "other" and no "emotes" just the name in the heading collapse".
+  it('names your own section after you', () => {
+    const named = pickerSections([emote('myOwn', 'Twitch', 'own')], [], [], '', {
+      ...context,
+      ownName: 'Stoney_Eagle',
+    });
+
+    expect(named[0]).toMatchObject({ id: 'own', name: 'Stoney_Eagle' });
+  });
+
   // Stoney 2026-10-14: "use the channel avatar instead of its first emote".
   it('carries the avatar of the channel a section belongs to', () => {
     const avatars = {
