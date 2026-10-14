@@ -859,11 +859,16 @@ public sealed class CommunityControllerTests
             }
         );
 
-    private static void AddChat(CommunityControllerTestDbContext db, string twitchId) =>
+    private static void AddChat(
+        CommunityControllerTestDbContext db,
+        string twitchId,
+        DateTime? createdAt = null
+    ) =>
         db.ChatMessages.Add(
             new()
             {
                 Id = Guid.CreateVersion7().ToString(),
+                CreatedAt = createdAt ?? DateTime.UtcNow,
                 BroadcasterId = Broadcaster,
                 UserId = twitchId,
                 Username = twitchId,
@@ -1169,6 +1174,118 @@ public sealed class CommunityControllerTests
 
         detail.IsVip.Should().BeNull();
         detail.IsModerator.Should().BeNull();
+    }
+
+    private static readonly DateTime OldChatAt = new(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime PresenceAt = new(2026, 10, 13, 20, 0, 0, DateTimeKind.Utc);
+
+    private static void AddProfile(
+        CommunityControllerTestDbContext db,
+        string twitchId,
+        DateTime lastSeenAt
+    ) =>
+        db.ViewerProfiles.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                ViewerUserId = Guid.CreateVersion7(),
+                ViewerTwitchUserId = twitchId,
+                LastSeenAt = lastSeenAt,
+            }
+        );
+
+    [Fact]
+    public async Task ListMembers_all_lists_a_silent_present_chatter_with_the_presence_date_as_last_seen()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-kana", "kana", "Kana");
+        AddProfile(db, "twitch-kana", PresenceAt);
+        AddUser(db, "twitch-talker", "talker", "Talker");
+        AddChat(db, "twitch-talker", OldChatAt);
+        AddProfile(db, "twitch-talker", PresenceAt);
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: null,
+            cursor: null,
+            CancellationToken.None
+        );
+
+        List<CommunityController.CommunityUserDto> members = Data(result);
+
+        CommunityController.CommunityUserDto silent = members.Single(m => m.Id == "twitch-kana");
+        silent.MessageCount.Should().Be(0);
+        silent.LastSeen.Should().Be(PresenceAt);
+
+        // Chat and presence both exist: the newer one wins.
+        members.Single(m => m.Id == "twitch-talker").LastSeen.Should().Be(PresenceAt);
+    }
+
+    [Fact]
+    public async Task ListMembers_keeps_the_chat_date_when_it_is_newer_than_the_profile_stamp()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-aaoa", "aaoa", "Aaoa");
+        AddChat(db, "twitch-aaoa", PresenceAt);
+        AddProfile(db, "twitch-aaoa", OldChatAt);
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: null,
+            cursor: null,
+            CancellationToken.None
+        );
+
+        Data(result).Single(m => m.Id == "twitch-aaoa").LastSeen.Should().Be(PresenceAt);
+    }
+
+    [Fact]
+    public async Task GetUserDetail_uses_the_presence_date_for_a_chatter_who_never_spoke()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-kana", "kana", "Kana");
+        AddProfile(db, "twitch-kana", PresenceAt);
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: moderators
+        );
+
+        IActionResult result = await controller.GetUserDetail(
+            Broadcaster.ToString(),
+            "twitch-kana",
+            CancellationToken.None
+        );
+
+        CommunityController.UserDetailDto detail = (
+            (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
+        ).Data!;
+        detail.LastSeen.Should().Be(PresenceAt);
     }
 
     private static string BanEntryJson(string userId, string bannedBy) =>
