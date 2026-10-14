@@ -178,8 +178,46 @@ public sealed class ViewerProfileService(
             standing?.SubTier,
             membership?.ManagementRole.ToString(),
             membership?.GrantedAt,
-            user.CreatedAt
+            await ResolveFirstSeenAsync(broadcasterId, user, ct)
         );
+    }
+
+    // User.CreatedAt is when the bot first stored the person (often an import), a cross-channel date. It
+    // is only the answer when this channel holds no fact of its own.
+    private async Task<DateTime> ResolveFirstSeenAsync(
+        Guid broadcasterId,
+        User user,
+        CancellationToken ct
+    )
+    {
+        DateTime? analyticsFirst = await db
+            .ViewerProfiles.Where(p =>
+                p.BroadcasterId == broadcasterId && p.ViewerUserId == user.Id
+            )
+            .Select(p => p.FirstSeenAt)
+            .FirstOrDefaultAsync(ct);
+
+        DateTime? firstChat = null;
+        if (user.TwitchUserId is not null)
+        {
+            firstChat = await db
+                .ChatMessages.Where(m =>
+                    m.BroadcasterId == broadcasterId && m.UserId == user.TwitchUserId
+                )
+                .OrderBy(m => m.CreatedAt)
+                .Select(m => (DateTime?)m.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        if (analyticsFirst is null && firstChat is null)
+            return user.CreatedAt;
+
+        if (analyticsFirst is null)
+            return firstChat!.Value;
+
+        return firstChat is null || analyticsFirst < firstChat
+            ? analyticsFirst.Value
+            : firstChat.Value;
     }
 
     private async Task<ViewerEconomyDto> BuildEconomyAsync(

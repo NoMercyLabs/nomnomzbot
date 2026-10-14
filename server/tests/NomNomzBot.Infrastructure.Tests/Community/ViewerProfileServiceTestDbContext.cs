@@ -175,6 +175,16 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
             e.Ignore(u => u.Command);
         });
 
+        b.Entity<ChatMessage>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.Ignore(m => m.Channel);
+            e.Ignore(m => m.Stream);
+            e.Ignore(m => m.Fragments);
+            e.Ignore(m => m.Badges);
+        });
+        b.Entity<ViewerProfile>(e => e.HasKey(p => p.Id));
+
         b.Entity<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride>(e => e.HasKey(o => o.Id));
         b.Entity<ChannelCommunityStanding>(e => e.HasKey(s => s.Id));
         b.Entity<ChannelMembership>(e => e.HasKey(m => m.Id));
@@ -265,6 +275,9 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
         typeof(NomNomzBot.Domain.Stream.Entities.ShoutoutOverride),
         typeof(NomNomzBot.Domain.ViewerData.Entities.ViewerDatum),
         typeof(CommandUsage),
+        // The first-seen lookup reads the channel's own chat history and analytics profile.
+        typeof(ChatMessage),
+        typeof(ViewerProfile),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -341,7 +354,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
-    public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();
@@ -497,7 +510,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints =>
         throw new NotSupportedException();
     public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => throw new NotSupportedException();
-    public DbSet<ViewerProfile> ViewerProfiles => throw new NotSupportedException();
+    public DbSet<ViewerProfile> ViewerProfiles => Set<ViewerProfile>();
     public DbSet<WatchSession> WatchSessions => throw new NotSupportedException();
     public DbSet<MessageActivityDaily> MessageActivityDailies => throw new NotSupportedException();
     public DbSet<ViewerEngagementDaily> ViewerEngagementDailies =>
