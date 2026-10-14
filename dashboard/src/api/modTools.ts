@@ -13,7 +13,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed } from './channelQuery';
+import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 
@@ -56,7 +56,7 @@ export function useSetChatSettings(channelId: MaybeRefOrGetter<string | null>) {
       });
 
       if (error !== undefined || !data?.data)
-        throw failed('chat settings', response.status);
+        throw refusal('chat settings', error, response.status);
 
       return data.data;
     },

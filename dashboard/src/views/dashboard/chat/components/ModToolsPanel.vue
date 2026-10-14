@@ -9,6 +9,8 @@
 -->
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import Cross from '~icons/nnz/cross';
 
 import { useChannelAccess } from '@/api/access';
@@ -29,6 +31,7 @@ import { Switch } from '@/components/ui/switch';
 const props = defineProps<{ channelId: string | null; channelName: string }>();
 const emit = defineEmits<{ close: [] }>();
 
+const { t } = useI18n();
 const access = useChannelAccess(() => props.channelId);
 const canRead = computed(() => access.can('moderation:chat:settings:read'));
 const canWrite = computed(() => access.can('moderation:chat:settings:write'));
@@ -83,6 +86,21 @@ const banDisabled = computed(() =>
   raids.isPending.value ||
   raids.isError.value ||
   ban.isPending.value);
+
+type DurationMode = (typeof lengths)[number]['mode'];
+
+const rangeError = ref<DurationMode | null>(null);
+
+function inRange(mode: DurationMode, value: number): boolean {
+  if (mode === 'slowMode')
+    return value >= 3 && value <= 120;
+
+  if (mode === 'followersOnly')
+    return value >= 0 && value <= 129600;
+
+  return [2, 4, 6].includes(value);
+}
+
 const dialog = ref<'ban' | 'clear' | null>(null);
 const failed = ref(false);
 
@@ -98,28 +116,49 @@ function toggle(mode: Mode, value: boolean): void {
     next[length.field] = length.value;
   }
 
-  void save.mutateAsync(next).catch(() => undefined);
+  void saveSettings(next);
 }
 
-function setDuration(field: 'slowModeDelay' | 'followersOnlyDuration' | 'nonModeratorChatDelayDuration',
-  event: Event): void {
+// A refused save rolls the cache back to the saved value; the toast carries the bot's reason.
+async function saveSettings(next: ChatSettings): Promise<boolean> {
+  try {
+    await save.mutateAsync(next);
+
+    return true;
+  } catch (error) {
+    toast.error(error instanceof Error
+      ? error.message
+      : t('dashboard.chat.modTools.saveFailed'));
+
+    return false;
+  }
+}
+
+async function setDuration(mode: DurationMode, event: Event): Promise<void> {
   if (!canWrite.value || !settings.data.value) return;
 
   const input = event.target;
 
   if (!(input instanceof HTMLInputElement)) return;
 
+  const field = lengths.find((item) => item.mode === mode)?.field;
+
+  if (!field) return;
+
   const value = Number(input.value);
+  const valid = Number.isInteger(value) && inRange(mode, value);
 
-  const valid = field === 'slowModeDelay'
-    ? value >= 3 && value <= 120
-    : field === 'followersOnlyDuration'
-      ? value >= 0 && value <= 129600
-      : [2, 4, 6].includes(value);
+  rangeError.value = valid
+    ? null
+    : mode;
 
-  if (!Number.isInteger(value) || !valid) return;
+  if (!valid) return;
 
-  void save.mutateAsync({ ...settings.data.value, [field]: value }).catch(() => undefined);
+  const saved = await saveSettings({ ...settings.data.value, [field]: value });
+
+  if (!saved && settings.data.value) {
+    input.value = String(settings.data.value[field]);
+  }
 }
 
 function closeDialog(open: boolean): void {
@@ -197,17 +236,19 @@ async function confirm(): Promise<void> {
               v-if="mode === 'slowMode' || mode === 'followersOnly' || mode === 'nonModeratorChatDelay'"
               :data-duration="mode"
               type="number"
-              min="1"
+              :min="mode === 'followersOnly' ? 0 : 1"
               class="w-24"
+              :aria-invalid="rangeError === mode"
               :aria-label="$t(`dashboard.chat.modTools.duration.${mode}`)"
               :model-value="mode === 'slowMode' ? settings.data.value.slowModeDelay
                 : mode === 'followersOnly' ? settings.data.value.followersOnlyDuration
                   : settings.data.value.nonModeratorChatDelayDuration"
               :disabled="!canWrite || save.isPending.value"
-              @change="setDuration(mode === 'slowMode' ? 'slowModeDelay'
-                : mode === 'followersOnly' ? 'followersOnlyDuration'
-                  : 'nonModeratorChatDelayDuration', $event)"
+              @change="setDuration(mode, $event)"
             />
+            <p v-if="rangeError === mode" role="alert" :data-duration-error="mode" class="text-xs text-destructive">
+              {{ $t(`dashboard.chat.modTools.range.${mode}`) }}
+            </p>
           </div>
         </template>
         <p class="text-xs text-muted-foreground">{{ $t('dashboard.chat.modTools.shieldNote') }}</p>

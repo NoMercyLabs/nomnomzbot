@@ -249,7 +249,13 @@
           "nonModeratorChatDelay": "Seconden vertraging niet-moderators"
         },
         "loadingRaids": "Raidbeoordelingen laden...",
-        "raidsFailed": "Raidbeoordelingen konden niet worden geladen."
+        "raidsFailed": "Raidbeoordelingen konden niet worden geladen.",
+        "saveFailed": "De chatmodus is niet veranderd. Probeer het opnieuw.",
+        "range": {
+          "slowMode": "Voer 3 tot 120 seconden in.",
+          "followersOnly": "Voer 0 tot 129600 minuten in.",
+          "nonModeratorChatDelay": "Voer 2, 4 of 6 seconden in."
+        }
       }
     }
   }

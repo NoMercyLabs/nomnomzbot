@@ -249,7 +249,13 @@
           "nonModeratorChatDelay": "Non-moderator delay seconds"
         },
         "loadingRaids": "Loading raid assessments...",
-        "raidsFailed": "Could not load raid assessments."
+        "raidsFailed": "Could not load raid assessments.",
+        "saveFailed": "The chat mode did not change. Try again.",
+        "range": {
+          "slowMode": "Enter 3 to 120 seconds.",
+          "followersOnly": "Enter 0 to 129600 minutes.",
+          "nonModeratorChatDelay": "Enter 2, 4, or 6 seconds."
+        }
       }
     }
   }
