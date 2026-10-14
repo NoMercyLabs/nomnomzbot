@@ -10,14 +10,16 @@
 <script setup lang="ts">
 // The settings page. Channel: a list of settings beside the open one (only Readability is built so far).
 // This device: what stays in this browser, with a link back into the Channel list.
+import ArrowLeft from '~icons/nnz/arrow-left';
 import BookOpenText from '~icons/nnz/book-open';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import { Button } from '@/components/ui/button';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePageView } from '@/composables/usePageView';
@@ -32,6 +34,14 @@ const tabs = computed<PageTab[]>(() => [
   { value: 'device', label: t('dashboard.settings.tabs.device') },
 ]);
 const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
+
+// On a phone the section list is the first screen; a picked section opens over it.
+const opened = ref(false);
+
+function openReadability(): void {
+  opened.value = true;
+  view.value = 'channel';
+}
 </script>
 
 <template>
@@ -39,20 +49,33 @@ const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
     <template #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
-  <ListDetail v-if="view === 'channel'" show-detail>
+  <ListDetail v-if="view === 'channel'" :show-detail="opened">
     <template #list>
       <PanelCard :title="$t('dashboard.settings.nav.you')" tier="quiet">
         <RowGroup>
-          <SummaryRow pick selected :title="$t('dashboard.settings.nav.readability')">
+          <SummaryRow
+            pick
+            selected
+            :title="$t('dashboard.settings.nav.readability')"
+            @click="opened = true"
+          >
             <template #leading><BookOpenText class="size-4 shrink-0" /></template>
           </SummaryRow>
         </RowGroup>
       </PanelCard>
     </template>
-    <template #detail><ReadabilityView /></template>
+    <template #detail>
+      <div class="flex flex-1 flex-col gap-2">
+        <Button variant="ghost" size="sm" class="self-start md:hidden" @click="opened = false">
+          <ArrowLeft aria-hidden="true" />
+          {{ $t('dashboard.settings.back') }}
+        </Button>
+        <ReadabilityView />
+      </div>
+    </template>
   </ListDetail>
 
   <div v-else class="px-6 pt-4 pb-6">
-    <DeviceView @open-readability="view = 'channel'" />
+    <DeviceView @open-readability="openReadability" />
   </div>
 </template>

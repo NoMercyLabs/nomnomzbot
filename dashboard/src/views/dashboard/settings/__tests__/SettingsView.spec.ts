@@ -206,6 +206,35 @@ describe('Readability options', () => {
   });
 });
 
+describe('Phone layout', () => {
+  const pane = (name: string): HTMLElement =>
+    document.body.querySelector<HTMLElement>(`[data-slot="${name}"]`)!;
+  const hiddenOnPhone = (name: string): boolean => pane(name).classList.contains('max-md:hidden');
+
+  it('starts on the section list, opens a section over it and goes back', async () => {
+    await open();
+    expect(hiddenOnPhone('list-detail-list')).toBe(false);
+    expect(hiddenOnPhone('list-detail-detail')).toBe(true);
+
+    button('Readability').click();
+    await flushPromises();
+    expect(hiddenOnPhone('list-detail-list')).toBe(true);
+    expect(hiddenOnPhone('list-detail-detail')).toBe(false);
+
+    button('Back to settings').click();
+    await flushPromises();
+    expect(hiddenOnPhone('list-detail-list')).toBe(false);
+    expect(hiddenOnPhone('list-detail-detail')).toBe(true);
+  });
+
+  it('the device link opens the Readability section directly', async () => {
+    await open('?view=device');
+    button('Open readability').click();
+    await flushPromises();
+    expect(hiddenOnPhone('list-detail-detail')).toBe(false);
+  });
+});
+
 describe('This device tab', () => {
   it('opens the Readability view from its one link', async () => {
     await open('?view=device');
