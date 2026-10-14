@@ -129,6 +129,13 @@
         "empty": "Er is nog niets gebeurd.",
         "error": "Gebeurtenissen konden niet laden.",
         "allEvents": "Alle gebeurtenissen",
+
+        "replay": "Opnieuw afspelen",
+        "replayTip": "Speelt de chatregel, stem en overlaymeldingen opnieuw af. Geeft niets.",
+        "replayResultOne": "{events} gebeurtenis opnieuw afgespeeld: {chat} chatberichten, {voice} stemmen, {overlays} overlays, {widgets} widgets.",
+        "replayResult": "{events} gebeurtenissen opnieuw afgespeeld: {chat} chatberichten, {voice} stemmen, {overlays} overlays, {widgets} widgets.",
+        "replayNotFound": "Niets om opnieuw af te spelen voor deze gebeurtenis.",
+        "replayFailed": "Kan deze gebeurtenis niet opnieuw afspelen.",
         "type": {
           "channel_follow": "Volgt nu",
           "channel_subscribe": "Abonneerde op Twitch",

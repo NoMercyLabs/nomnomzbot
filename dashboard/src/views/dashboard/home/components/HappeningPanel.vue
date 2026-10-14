@@ -11,16 +11,26 @@
 import { computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink, useRouter } from 'vue-router';
+import { toast } from 'vue-sonner';
 
-import { useActivity, type ActivityEvent } from '@/api/home';
+import { useChannelAccess } from '@/api/access';
+import {
+  ActivityReplayError,
+  useActivity,
+  useActivityReplay,
+  type ActivityEvent,
+} from '@/api/home';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
+import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
 import ArrowRight from '~icons/nnz/arrow-right';
+import Repeat from '~icons/nnz/repeat';
 
 import { describeActivity, type ActivityRowText } from './activityKinds';
 
@@ -28,6 +38,30 @@ defineProps<{ live: boolean }>();
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const access = useChannelAccess(channelId);
+const replay = useActivityReplay(channelId);
+
+async function replayEvent(eventId: string): Promise<void> {
+  try {
+    const result = await replay.mutateAsync(eventId);
+
+    const message = t(Number(result.eventsReplayed) === 1
+      ? 'dashboard.home.activity.replayResultOne'
+      : 'dashboard.home.activity.replayResult', {
+      events: result.eventsReplayed,
+      chat: result.chatMessagesSent,
+      voice: result.ttsQueued,
+      overlays: result.overlaysShown,
+      widgets: result.widgetsNotified,
+    });
+
+    toast.success(message);
+  } catch (error) {
+    toast.error(t(error instanceof ActivityReplayError && error.status === 404
+      ? 'dashboard.home.activity.replayNotFound'
+      : 'dashboard.home.activity.replayFailed'));
+  }
+}
 
 const activityQuery = useActivity(channelId);
 const activityState = usePanelState(activityQuery, (items: ActivityEvent[]) =>
@@ -45,6 +79,8 @@ type Row = {
   id: string;
   icon: Component;
   title: string;
+  userId: string | null;
+  username: string | null;
   detail: string | undefined;
   time: string;
 };
@@ -78,6 +114,8 @@ const rows = computed<Row[]>(() =>
       id: event.id,
       icon: view.icon,
       title: title ?? detail,
+      userId: event.userId ?? null,
+      username: event.username ?? view.actor ?? null,
       detail: title === undefined
         ? undefined
         : detail,
@@ -106,6 +144,10 @@ const rows = computed<Row[]>(() =>
     <RowGroup>
       <div v-for="row in rows" :key="row.id" data-activity-row>
         <SummaryRow :title="row.title" :detail="row.detail">
+          <template v-if="row.userId && row.username" #title>
+            <UserName :user-id="row.userId" :name="row.username" />
+            <span v-if="row.title !== row.username"> {{ row.title }}</span>
+          </template>
           <template #leading>
             <component
               :is="row.icon"
@@ -115,6 +157,21 @@ const rows = computed<Row[]>(() =>
           </template>
           <template #trailing>
             <span class="text-sm text-muted-foreground tabular-nums">{{ row.time }}</span>
+            <Tooltip v-if="access.can('dashboard:replay')">
+              <TooltipTrigger as-child>
+                <Button
+                  data-activity-replay
+                  variant="ghost"
+                  size="icon-sm"
+                  :aria-label="t('dashboard.home.activity.replay')"
+                  :disabled="replay.isPending.value"
+                  @click="replayEvent(row.id)"
+                >
+                  <Repeat class="size-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ t('dashboard.home.activity.replayTip') }}</TooltipContent>
+            </Tooltip>
           </template>
         </SummaryRow>
       </div>

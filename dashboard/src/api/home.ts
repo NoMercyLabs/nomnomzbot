@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query';
+import { useMutation, type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
@@ -22,6 +22,13 @@ export type ReviewQueueItem = components['schemas']['ModerationQueueItemDto'];
 export type IntegrationStatus = components['schemas']['IntegrationStatusDto'];
 export type BotStatus = components['schemas']['BotStatusDto'];
 export type ActivityEvent = components['schemas']['ActivityEventDto'];
+export type ReplayActivityResult = components['schemas']['ReplayActivityResultDto'];
+
+export class ActivityReplayError extends Error {
+  constructor(public readonly status: number) {
+    super(`activity replay failed (${status})`);
+  }
+}
 
 const version = '1';
 
@@ -143,6 +150,28 @@ export function useActivity(
       throw failed('activity', response.status);
 
     return data?.data ?? [];
+  });
+}
+
+export function useActivityReplay(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<ReplayActivityResult, Error, string, unknown> {
+  return useMutation({
+    mutationFn: async (eventId: string): Promise<ReplayActivityResult> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/dashboard/{channelId}/activity/{eventId}/replay',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          eventId,
+        } } },
+      );
+
+      if (error !== undefined || !data?.data)
+        throw new ActivityReplayError(response.status);
+
+      return data.data;
+    },
   });
 }
 
