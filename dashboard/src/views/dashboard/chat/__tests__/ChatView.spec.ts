@@ -2369,6 +2369,25 @@ describe('ChatView emote picker', () => {
       expect(itemsOf('channel')).toEqual(['bigCat', 'catKISS', 'catJAM', 'Kappa']);
     });
 
+    // Audit 2026-10-15 (390x844): the skin tone button sat alone on a row under the jump rail, and the grid cut
+    // its last row in half. The tone moves into the rail row; the list snaps to whole rows.
+    it('puts the skin tone control in the jump rail row and snaps the list to whole rows', async () => {
+      await open();
+      await openPicker();
+
+      const rail = picker()!.querySelector('[data-picker-rail]')!;
+      const tone = picker()!.querySelector('[data-skin-tone-button]');
+      const list = picker()!.querySelector('[data-picker-section]')!.parentElement!;
+      const rows = [...picker()!.querySelectorAll('[data-picker-item]')];
+
+      expect(rail.contains(tone)).toBe(true);
+      expect(rail.contains(rail.querySelector('nav'))).toBe(true);
+      expect(picker()!.querySelectorAll('[data-skin-tone-button]')).toHaveLength(1);
+      expect(list.classList).toContain('phone:snap-mandatory');
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.classList.contains('phone:snap-start'))).toBe(true);
+    });
+
     // A closed tray that hands the focus back to its button draws a focus ring there, and a focus in the box
     // would pull the keyboard up. The focus goes nowhere.
     it('leaves the focus off the smile button and the box when it closes', async () => {
