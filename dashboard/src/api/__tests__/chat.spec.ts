@@ -44,11 +44,12 @@ vi.mock('../client', () => ({ client: http }));
 const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
 const channel = 'c1';
 
-const line = (id: string): ChatLine =>
+const line = (id: string, timestamp: string = '2026-10-14T12:00:00Z'): ChatLine =>
   ({
     id,
     channelId: channel,
     message: id,
+    timestamp,
   }) as ChatLine;
 
 function mount<T>(use: () => T): { queries: QueryClient; hook: T } {
@@ -100,6 +101,31 @@ describe('useChatHistory', () => {
       'a',
       'b',
       'c',
+    ]);
+  });
+
+  // Owner 2026-10-14: "where do these come from? they are not from now". After a restart the history came
+  // back as the newest lines only; older cached lines were appended under today's chat.
+  it('puts older cached lines above a refetched history, never under it', async () => {
+    let finish: (answer: Answer) => void = () => {};
+
+    http.GET.mockReturnValue(new Promise<Answer>((done) => (finish = done)));
+    const { queries } = mount(() => useChatHistory(channel));
+
+    await settle();
+
+    queries.setQueryData(chatKey(channel), [
+      line('old', '2026-10-09T20:23:00Z'),
+      line('today', '2026-10-14T17:59:00Z'),
+    ]);
+
+    finish({ data: { data: [line('today', '2026-10-14T17:59:00Z'), line('now', '2026-10-14T18:01:00Z')] }, response: ok });
+    await settle();
+
+    expect(queries.getQueryData<ChatLine[]>(chatKey(channel))?.map((entry) => entry.id)).toEqual([
+      'old',
+      'today',
+      'now',
     ]);
   });
 });

@@ -66,12 +66,17 @@ function ensureOk(response: Response, what: string): void {
     throw new Error(`${what} ${response.status}`);
 }
 
-// Lines that arrived live while the history call ran stay; the history wins on a shared id.
+// Lines that arrived live while the history call ran stay; the history wins on a shared id. Every line takes
+// its place by time: a refetch after a restart keeps older cached lines too, and those belong above, not
+// under today's chat (owner 2026-10-14: "where do these come from? they are not from now").
 function mergeHistory(history: ChatLine[], live: ChatLine[] | undefined): ChatLine[] {
   const known = new Set<string>(history.map((line) => line.id));
   const fresh: ChatLine[] = (live ?? []).filter((line) => !known.has(line.id));
 
-  return merge(history, fresh).slice(-chatLineLimit);
+  return [...merge(history, fresh)]
+    .sort((a, b) =>
+      Date.parse(a.timestamp) - Date.parse(b.timestamp))
+    .slice(-chatLineLimit);
 }
 
 export function useChatHistory(
