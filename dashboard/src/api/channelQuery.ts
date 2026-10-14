@@ -29,10 +29,12 @@ export function channelQuery<T>(
   channelId: MaybeRefOrGetter<string | null>,
   key: (channelId: string | null) => unknown[],
   fetch: (channelId: string) => Promise<T>,
+  refetchInterval?: number,
 ): UseQueryReturnType<T, Error> {
   return useQuery({
     queryKey: computed(() => key(toValue(channelId))),
     queryFn: () => fetch(toValue(channelId) as string),
     enabled: computed(() => toValue(channelId) !== null),
+    refetchInterval,
   });
 }

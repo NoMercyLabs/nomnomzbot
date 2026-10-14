@@ -33,6 +33,9 @@ export class ActivityReplayError extends Error {
 const version = '1';
 
 // The realtime layer writes into these entries, so the keys are part of the module's surface.
+// Twitch sends no event for the viewer count, so the stats are read again each minute.
+export const statsRefreshMs = 60_000;
+
 export const homeStatsKey = (channelId: string | null): unknown[] => [
   'dashboard',
   channelId,
@@ -74,7 +77,7 @@ export function useHomeStats(
       throw failed('stats', response.status);
 
     return data?.data ?? null;
-  });
+  }, statsRefreshMs);
 }
 
 export function useReviewQueue(

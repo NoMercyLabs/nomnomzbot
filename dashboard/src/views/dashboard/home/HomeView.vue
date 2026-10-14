@@ -8,6 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import { useIntervalFn, useNow } from '@vueuse/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -58,7 +59,14 @@ const statusLabel = computed<string>(() =>
 );
 
 const category = computed(() => stats.value?.gameName ?? '');
-const uptime = computed(() => formatCountdown(Number(stats.value?.uptime ?? 0)));
+// The bot reports the uptime at fetch time; the clock counts on from there between fetches.
+const now = useNow({ scheduler: (tick: () => void) => useIntervalFn(tick, 1000) });
+const uptime = computed(() => {
+  const elapsedMs = now.value.getTime() - statsQuery.dataUpdatedAt.value;
+  const sinceFetch = Math.max(0, Math.floor(elapsedMs / 1000));
+
+  return formatCountdown(Number(stats.value?.uptime ?? 0) + sinceFetch);
+});
 
 // Each number stands on its own with an icon, so the eye finds it without reading a sentence.
 const liveStats = computed(() => [

@@ -320,6 +320,26 @@ describe('HomeView', () => {
     );
   });
 
+  // Owner 2026-10-14: "updates are not LIVE LIVE". The uptime stood still between fetches.
+  it('counts the uptime on every second without a new fetch', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    await open();
+
+    const statsReads = (): number => calls.filter((call) => call.path.endsWith('/stats')).length;
+    const before = statsReads();
+    const bold = (): string | null | undefined =>
+      document.body.querySelector('[data-slot="stream-line"] b')?.textContent;
+
+    expect(bold()).toBe('1:02:05');
+
+    vi.advanceTimersByTime(5000);
+    await flushPromises();
+    vi.useRealTimers();
+
+    expect(bold()).toBe('1:02:10');
+    expect(statsReads()).toBe(before);
+  });
+
   it('leaves the category out of the live line when the bot returns none', async () => {
     answers['/stats'] = () => ok({ ...liveStats, gameName: null });
     await open();
