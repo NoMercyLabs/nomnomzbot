@@ -134,6 +134,19 @@ public partial class CommunityController : BaseController
             .ToDictionaryAsync(p => p.ViewerTwitchUserId, ct);
     }
 
+    /// <summary>
+    /// The newest moment a viewer was seen in the channel: their last chat message or the profile's LastSeenAt
+    /// (follow, redemption, command, or the chatter-presence stamp), whichever is later; null when neither exists.
+    /// </summary>
+    private static DateTime? NewestSeen(DateTime? lastChatAt, ViewerProfile? profile)
+    {
+        DateTime? profileSeen = profile?.LastSeenAt;
+        if (lastChatAt is null || profileSeen is null)
+            return lastChatAt ?? profileSeen;
+
+        return lastChatAt > profileSeen ? lastChatAt : profileSeen;
+    }
+
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
     public record CommunityUserDto(
@@ -472,7 +485,7 @@ public partial class CommunityController : BaseController
                         "viewer",
                         false,
                         f.FollowedAt.UtcDateTime,
-                        stats?.LastSeen ?? f.FollowedAt.UtcDateTime
+                        NewestSeen(stats?.LastSeen, profile) ?? f.FollowedAt.UtcDateTime
                     );
                 }),
             ];
@@ -550,7 +563,9 @@ public partial class CommunityController : BaseController
                         stats?.FirstSeen
                             ?? user?.CreatedAt
                             ?? _timeProvider.GetUtcNow().UtcDateTime,
-                        stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
+                        NewestSeen(stats?.LastSeen, profile)
+                            ?? user?.CreatedAt
+                            ?? _timeProvider.GetUtcNow().UtcDateTime
                     );
                 }),
             ];
@@ -591,7 +606,13 @@ public partial class CommunityController : BaseController
                 .Select(cm => cm.User.TwitchUserId!)
                 .ToListAsync(ct);
 
-            candidateUserIds = [.. chattedIds.Union(modIds).Distinct()];
+            // A viewer seen only by presence (in chat, never spoke) holds a stamped ViewerProfile.LastSeenAt.
+            List<string> presentIds = await _db
+                .ViewerProfiles.Where(p => p.BroadcasterId == broadcasterId && p.LastSeenAt != null)
+                .Select(p => p.ViewerTwitchUserId)
+                .ToListAsync(ct);
+
+            candidateUserIds = [.. chattedIds.Union(modIds).Union(presentIds).Distinct()];
         }
 
         int totalCount = candidateUserIds.Count;
@@ -676,7 +697,9 @@ public partial class CommunityController : BaseController
                         stats?.FirstSeen
                             ?? user?.CreatedAt
                             ?? _timeProvider.GetUtcNow().UtcDateTime,
-                        stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
+                        NewestSeen(stats?.LastSeen, profile)
+                            ?? user?.CreatedAt
+                            ?? _timeProvider.GetUtcNow().UtcDateTime
                     );
                 }),
         ];
@@ -945,7 +968,7 @@ public partial class CommunityController : BaseController
             trustLevel,
             isBanned,
             messageStats?.FirstSeen ?? user.CreatedAt,
-            messageStats?.LastSeen ?? user.CreatedAt,
+            NewestSeen(messageStats?.LastSeen, profile) ?? user.CreatedAt,
             recentMessages,
             banHistory,
             await AskTwitchIsVipAsync(broadcasterId, userId, ct),
