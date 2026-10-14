@@ -166,7 +166,16 @@ async function signInAgain(): Promise<boolean> {
   return refresh();
 }
 
+// Every window of the site shares one refresh cookie, and the bot revokes the whole session when a used
+// cookie comes back. Two windows (the dashboard and a popped-out chat) refreshing at once did exactly that,
+// so the refresh takes a browser-wide lock: the second window waits and sends the cookie the first got back.
 async function refresh(): Promise<boolean> {
+  return navigator.locks?.request
+    ? await navigator.locks.request('nnz-auth-refresh', refreshNow)
+    : await refreshNow();
+}
+
+async function refreshNow(): Promise<boolean> {
   const result: { data?: unknown; response: Response } = await client.POST(
     '/api/v{version}/auth/refresh',
     { params: version, credentials: 'include' },

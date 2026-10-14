@@ -71,6 +71,55 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('two windows of one browser', () => {
+  // A browser runs one holder of a lock name at a time, across every window of the site.
+  function stubLocks(): void {
+    let queue: Promise<unknown> = Promise.resolve();
+
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      locks: {
+        request: (_name: string, task: () => Promise<unknown>) => {
+          const run = queue.then(task);
+
+          queue = run.catch(() => undefined);
+
+          return run;
+        },
+      },
+    });
+  }
+
+  it('never refresh at the same time, so the server never sees a used cookie twice', async () => {
+    let open = 0;
+    let overlapped = false;
+
+    stubLocks();
+
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      open += 1;
+      overlapped ||= open > 1;
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 5));
+
+      open -= 1;
+
+      return new Response(JSON.stringify({ data: { accessToken: 'fresh' } }), { status: 200 });
+    }));
+
+    vi.resetModules();
+    const main = await import('../auth');
+
+    vi.resetModules();
+    const popout = await import('../auth');
+
+    await Promise.all([main.restoreSession(), popout.restoreSession()]);
+
+    expect(overlapped).toBe(false);
+  });
+});
+
 describe('expired access token', () => {
   it('refreshes once and repeats the call with the new token', async () => {
     const seen = stubServer(200);
