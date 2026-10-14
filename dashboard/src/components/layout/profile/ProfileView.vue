@@ -82,6 +82,13 @@ const PANEL_CLASS = inDialog
 const fit = inDialog
   ? 'min-h-0'
   : 'md:min-h-0';
+// A short window (the chat popout) gives the header all the height: the tabs keep room, the view scrolls instead.
+const roomForTabs = inDialog
+  ? 'min-h-48'
+  : 'md:min-h-48';
+const viewScroll = inDialog
+  ? 'overflow-y-auto'
+  : 'md:overflow-y-auto';
 const scroll = inDialog
   ? 'overflow-y-auto'
   : 'md:overflow-y-auto';
@@ -264,7 +271,7 @@ async function banNow(): Promise<void> {
 </script>
 
 <template>
-  <div data-slot="profile-view" class="flex flex-1 flex-col" :class="fit">
+  <div data-slot="profile-view" class="flex flex-1 flex-col" :class="[fit, viewScroll]">
     <ProfileHeader :person="person" :profile="viewerProfile" :roles="roles" :preview="preview" />
 
     <div v-if="member.isPending.value" data-profile-loading class="grid gap-2 px-6 pb-4">
@@ -284,7 +291,7 @@ async function banNow(): Promise<void> {
     </div>
 
     <template v-else>
-      <Tabs v-model="tab" class="flex flex-1 flex-col gap-0" :class="fit">
+      <Tabs v-model="tab" class="flex min-w-0 flex-1 flex-col gap-0" :class="roomForTabs">
         <!-- A phone swipes the tabs sideways like the Twitch app: the cut-off last tab shows there are more. -->
         <div ref="tabStrip" class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none">
           <TabsList>

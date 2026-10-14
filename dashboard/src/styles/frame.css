@@ -95,6 +95,10 @@
 [data-segmented] {
   flex: 1 1 0;
   width: 100%;
+}
+/* Only the strip keeps its options whole; the tabs block also holds the content, which must wrap. */
+[data-slot='tabs-list'],
+[data-segmented] {
   min-width: max-content;
 }
 [data-slot='tabs-trigger'],
