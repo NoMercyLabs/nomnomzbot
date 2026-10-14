@@ -109,30 +109,6 @@
         "profile": "Open profiel van {name}",
         "profileTip": "Open profiel"
       },
-      "asset": {
-        "emoteLabel": "Toon emote {name}",
-        "badgeLabel": "Toon badge {name}",
-        "provider": "Van",
-        "providers": {
-          "Twitch": "Twitch",
-          "SevenTv": "7TV",
-          "Bttv": "BetterTTV",
-          "Ffz": "FrankerFaceZ"
-        },
-        "kind": "Soort",
-        "animated": "Bewegend",
-        "still": "Stilstaand beeld",
-        "layer": "Laag",
-        "zeroWidth": "Ligt over de emote ervoor",
-        "open": {
-          "SevenTv": "Open op 7TV",
-          "Bttv": "Open op BetterTTV",
-          "Ffz": "Open op FrankerFaceZ"
-        },
-        "set": "Badge",
-        "version": "Versie",
-        "info": "Detail"
-      },
       "reply": {
         "label": "Antwoord {name}",
         "tip": "Antwoord",

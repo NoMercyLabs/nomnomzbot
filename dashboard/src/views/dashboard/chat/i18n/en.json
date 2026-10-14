@@ -109,30 +109,6 @@
         "profile": "Open profile of {name}",
         "profileTip": "Open profile"
       },
-      "asset": {
-        "emoteLabel": "Show emote {name}",
-        "badgeLabel": "Show badge {name}",
-        "provider": "From",
-        "providers": {
-          "Twitch": "Twitch",
-          "SevenTv": "7TV",
-          "Bttv": "BetterTTV",
-          "Ffz": "FrankerFaceZ"
-        },
-        "kind": "Kind",
-        "animated": "Animated",
-        "still": "Still image",
-        "layer": "Layer",
-        "zeroWidth": "Sits on top of the emote before it",
-        "open": {
-          "SevenTv": "Open on 7TV",
-          "Bttv": "Open on BetterTTV",
-          "Ffz": "Open on FrankerFaceZ"
-        },
-        "set": "Badge",
-        "version": "Version",
-        "info": "Detail"
-      },
       "reply": {
         "label": "Reply to {name}",
         "tip": "Reply",

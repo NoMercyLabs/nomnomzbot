@@ -20,6 +20,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
 import { client } from './client';
+import type { ChatEmoteEntry } from './chat';
 import type { components } from './schema';
 
 export type CommunityMember = components['schemas']['UserDetailDto'];
@@ -65,6 +66,35 @@ export function useCommunityMember(
     queryKey: computed(() => memberKey(toValue(channelId), toValue(userId))),
     queryFn: () => fetchMember(toValue(channelId)!, toValue(userId)!),
     enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
+  });
+}
+
+export type PersonEmote = ChatEmoteEntry;
+
+// The emotes a person's own channel offers (Twitch, 7TV, BetterTTV, FrankerFaceZ), for the profile's Emotes tab.
+export function usePersonEmotes(
+  channelId: MaybeRefOrGetter<string | null>,
+  userId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PersonEmote[], Error> {
+  return useQuery({
+    queryKey: computed(() => [...memberKey(toValue(channelId), toValue(userId)), 'emotes']),
+    queryFn: async (): Promise<PersonEmote[]> => {
+      const { data, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/community/{userId}/emotes',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId)!,
+          userId: toValue(userId)!,
+        } } },
+      );
+
+      if (!response.ok)
+        throw new Error(`The emotes of ${toValue(userId)} did not load (${response.status}).`);
+
+      return [...(data?.data ?? [])];
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
+    staleTime: 5 * 60_000,
   });
 }
 

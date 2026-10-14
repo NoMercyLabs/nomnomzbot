@@ -379,7 +379,7 @@ function closeTones(isOpen: boolean): void {
           <span class="truncate font-medium">{{ shown.label }}</span>
           <span class="text-xs text-muted-foreground">{{
             shown.provider
-              ? $t(`dashboard.chat.asset.providers.${shown.provider}`)
+              ? $t(`asset.providers.${shown.provider}`)
               : $t(`dashboard.chat.composer.kind.${shown.kind}`)
           }}</span>
         </template>

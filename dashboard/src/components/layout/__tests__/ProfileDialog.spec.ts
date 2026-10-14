@@ -92,6 +92,46 @@ const freshPeople = (): Record<string, Record<string, unknown>> => ({
   },
 });
 
+// A person's own channel emotes by Twitch id (what GET community/{userId}/emotes answers).
+const emotes: Record<string, Record<string, unknown>[]> = {
+  u1: [
+    {
+      code: 'adaHi',
+      provider: 'Twitch',
+      urls: { 1: 'https://cdn/adaHi/1', 3: 'https://cdn/adaHi/3' },
+      animated: false,
+      zeroWidth: false,
+      setId: 's1',
+      id: 'e1',
+      type: 'subscriptions',
+      tier: '1000',
+      origin: 'other',
+      ownerId: 'u1',
+      ownerLogin: 'ada',
+      ownerName: 'Ada',
+      ownerAvatarUrl: null,
+      staticUrls: { 1: 'https://cdn/adaHi/1', 3: 'https://cdn/adaHi/3' },
+    },
+    {
+      code: 'adaDance',
+      provider: 'SevenTv',
+      urls: { 1: 'https://7tv/adaDance/1', 4: 'https://7tv/adaDance/4' },
+      animated: true,
+      zeroWidth: false,
+      setId: null,
+      id: '7d',
+      type: null,
+      tier: null,
+      origin: 'other',
+      ownerId: 'u1',
+      ownerLogin: 'ada',
+      ownerName: 'Ada',
+      ownerAvatarUrl: null,
+      staticUrls: { 1: 'https://7tv/adaDance/1s', 4: 'https://7tv/adaDance/4s' },
+    },
+  ],
+};
+
 // The viewer profile by internal id (what GET community/{userId}/profile answers).
 let profiles: Record<string, Record<string, unknown> | null> = {};
 
@@ -221,6 +261,13 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/profile'))
         return { data: { data: onTheWire(profiles[userIdOf(options)] ?? null) } };
 
+      if (path.endsWith('/emotes')) {
+        return {
+          data: { data: onTheWire(emotes[userIdOf(options)] ?? []) },
+          response: { ok: true },
+        };
+      }
+
       return { data: { data: { ...people[userIdOf(options)] } } };
     }),
     POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
@@ -273,14 +320,16 @@ beforeEach(() => {
   vipWrite = null;
   vipWriteFails = false;
 
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
-    },
-  );
+  for (const observer of ['ResizeObserver', 'IntersectionObserver']) {
+    vi.stubGlobal(
+      observer,
+      class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      },
+    );
+  }
 
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll')
@@ -370,6 +419,14 @@ async function openUser(id: string): Promise<void> {
   await settle();
 }
 
+async function openTab(label: string): Promise<void> {
+  const tab = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]'))
+    .find((element: HTMLElement) => element.textContent?.trim() === label);
+
+  tab!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+  await settle();
+}
+
 describe('the profile dialog', () => {
   it('opens one dialog with the data of the clicked name', async () => {
     await openPage();
@@ -416,6 +473,7 @@ describe('the profile dialog', () => {
     expect(tabs.map((t: HTMLElement) => t.textContent?.trim())).toEqual([
       'Overview',
       'Chat',
+      'Emotes',
       'Moderation',
       'Points',
       'Data',
@@ -435,7 +493,7 @@ describe('the profile dialog', () => {
 
     const panels: HTMLElement[] = Array.from(dialogs()[0]!.querySelectorAll('[role="tabpanel"]'));
 
-    expect(panels).toHaveLength(5);
+    expect(panels).toHaveLength(6);
 
     for (const panel of panels) {
       expect(panel.hidden).toBe(false);
@@ -467,11 +525,7 @@ describe('the profile dialog', () => {
   it('lists the ban history of a banned person on the Moderation tab', async () => {
     await openPage();
     await openUser('u2');
-
-    const tabs: HTMLElement[] = Array.from(document.body.querySelectorAll('[role="tab"]'));
-
-    tabs[2]!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
-    await settle();
+    await openTab('Moderation');
 
     const active = dialogs()[0]!.querySelector('[role="tabpanel"][data-state="active"]');
 
@@ -562,9 +616,10 @@ describe('the profile dialog', () => {
     await openUser('u1');
 
     expect(button('[data-profile-vip]').textContent).toContain('Remove VIP');
-    const writes = calls.filter(
-      (c: Call) => !c.path.endsWith('/community/{userId}') && !c.path.endsWith('/profile'),
-    );
+    const reads = ['/community/{userId}', '/profile', '/emotes'];
+    const writes = calls.filter((c: Call) =>
+      !reads.some((end: string) =>
+        c.path.endsWith(end)));
 
     expect(writes).toEqual([]);
   });
@@ -810,5 +865,69 @@ describe('the Overview tab', () => {
     expect(chatLines()).toEqual([]);
     expect(overview().textContent).toContain('No chat lines stored yet.');
     expect(document.body.querySelector('[data-profile-all-chat]')).toBeNull();
+  });
+});
+
+describe('the Emotes tab', () => {
+  const groups = (): string[] =>
+    Array.from(document.body.querySelectorAll<HTMLElement>('[data-profile-emote-group]'))
+      .map((group: HTMLElement) => group.dataset.profileEmoteGroup ?? '');
+  const emote = (code: string): HTMLElement =>
+    document.body.querySelector(`[data-profile-emote="${code}"] [data-asset-trigger]`) as HTMLElement;
+
+  it('asks for the person\'s own channel emotes and groups them by where they come from', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Emotes');
+
+    expect(calls.some((c: Call) =>
+      c.path.endsWith('/community/{userId}/emotes') && userIdOf({ params: c.params } as Options) === 'u1'))
+      .toBe(true);
+
+    expect(groups()).toEqual(['Twitch', 'SevenTv']);
+
+    expect(document.body.querySelector('[data-profile-emote="adaHi"] img')?.getAttribute('src'))
+      .toBe('https://cdn/adaHi/1');
+  });
+
+  it('opens a card with the emote at its largest size, its tier as a number and its own page', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Emotes');
+
+    emote('adaHi').click();
+    await settle();
+
+    const card = document.body.querySelector('[data-asset-card]')!;
+
+    expect(card.querySelector('img')?.getAttribute('src')).toBe('https://cdn/adaHi/3');
+    expect(card.textContent).toContain('Tier 1');
+    expect(card.textContent).not.toContain('1000');
+    expect(card.querySelector('a')).toBeNull();
+  });
+
+  it('links a 7TV emote to its page on 7TV', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Emotes');
+
+    emote('adaDance').click();
+    await settle();
+
+    const link = document.body.querySelector<HTMLAnchorElement>('[data-asset-card] a');
+
+    expect(link?.href).toBe('https://7tv.app/emotes/7d');
+    expect(link?.textContent).toContain('Open on 7TV');
+  });
+
+  it('says the person has no channel emotes when the bot finds none', async () => {
+    await openPage();
+    await openUser('u2');
+    await openTab('Emotes');
+
+    const active = dialogs()[0]!.querySelector('[role="tabpanel"][data-state="active"]');
+
+    expect(groups()).toEqual([]);
+    expect(active?.textContent).toContain('No channel emotes found for this person.');
   });
 });

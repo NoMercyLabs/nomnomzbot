@@ -233,6 +233,32 @@
       "music_favorite_outcome": "What happened: queued, none, or unavailable"
     }
   },
+  "asset": {
+    "emoteLabel": "Show emote {name}",
+    "badgeLabel": "Show badge {name}",
+    "provider": "From",
+    "providers": {
+      "Twitch": "Twitch",
+      "SevenTv": "7TV",
+      "Bttv": "BetterTTV",
+      "Ffz": "FrankerFaceZ"
+    },
+    "kind": "Kind",
+    "animated": "Animated",
+    "still": "Still image",
+    "layer": "Layer",
+    "zeroWidth": "Sits on top of the emote before it",
+    "tier": "Twitch subscription",
+    "tierNumber": "Tier {n}",
+    "open": {
+      "SevenTv": "Open on 7TV",
+      "Bttv": "Open on BetterTTV",
+      "Ffz": "Open on FrankerFaceZ"
+    },
+    "set": "Badge",
+    "version": "Version",
+    "info": "Detail"
+  },
   "profile": {
     "open": "Open the profile of {name}",
     "title": "Profile",
@@ -242,10 +268,16 @@
     "tabs": {
       "overview": "Overview",
       "chat": "Chat",
+      "emotes": "Emotes",
       "activity": "Activity",
       "moderation": "Moderation",
       "points": "Points",
       "data": "Data"
+    },
+    "emotes": {
+      "title": "Their channel emotes",
+      "empty": "No channel emotes found for this person.",
+      "error": "Their emotes could not load."
     },
     "lastSeen": "Last seen {ago}",
     "streakDays": "{n} stream | {n} streams in a row",

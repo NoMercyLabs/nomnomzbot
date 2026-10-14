@@ -21,6 +21,7 @@ import { chatKey, type ChatLine } from '@/api/chat';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
+import appWords from '@/i18n/locales/en.json';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
 import ChatView from '../ChatView.vue';
@@ -1207,7 +1208,7 @@ describe('ChatView emote and badge cards', () => {
   const card = (): HTMLElement | null => document.body.querySelector<HTMLElement>('[data-asset-card]');
   const factsOf = (shown: HTMLElement): string[] =>
     [...shown.querySelectorAll('dt, dd')].map((cell) => cell.textContent?.trim() ?? '');
-  const asset = en.dashboard.chat.asset;
+  const asset = appWords.asset;
 
   async function press(selector: string): Promise<void> {
     rowOf('m1').querySelector(selector)!.closest('button')!.click();

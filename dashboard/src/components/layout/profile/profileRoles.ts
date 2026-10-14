@@ -35,7 +35,7 @@ const tierNumbers = {
 } as const satisfies Record<number, number>;
 
 // The tier number for a Twitch tier code, or null for a code Twitch has not defined.
-export function tierNumber(code: string | null | undefined): number | null {
+export function tierNumber(code: string | number | null | undefined): number | null {
   return tierNumbers[Number(code) as keyof typeof tierNumbers] ?? null;
 }
 

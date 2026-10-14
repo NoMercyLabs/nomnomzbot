@@ -50,7 +50,7 @@ const emit = defineEmits<{ pick: [suggestion: Suggestion] }>();
       <span class="min-w-0 flex-1 truncate">{{ suggestion.label }}</span>
       <span class="flex-none text-xs text-muted-foreground">{{
         suggestion.provider
-          ? $t(`dashboard.chat.asset.providers.${suggestion.provider}`)
+          ? $t(`asset.providers.${suggestion.provider}`)
           : $t(`dashboard.chat.composer.kind.${suggestion.kind}`)
       }}</span>
     </li>

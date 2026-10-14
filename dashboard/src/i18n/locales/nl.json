@@ -233,6 +233,32 @@
       "music_favorite_outcome": "Wat er gebeurde: queued, none of unavailable"
     }
   },
+  "asset": {
+    "emoteLabel": "Toon emote {name}",
+    "badgeLabel": "Toon badge {name}",
+    "provider": "Van",
+    "providers": {
+      "Twitch": "Twitch",
+      "SevenTv": "7TV",
+      "Bttv": "BetterTTV",
+      "Ffz": "FrankerFaceZ"
+    },
+    "kind": "Soort",
+    "animated": "Bewegend",
+    "still": "Stilstaand beeld",
+    "layer": "Laag",
+    "zeroWidth": "Ligt over de emote ervoor",
+    "tier": "Twitch-abonnement",
+    "tierNumber": "Tier {n}",
+    "open": {
+      "SevenTv": "Open op 7TV",
+      "Bttv": "Open op BetterTTV",
+      "Ffz": "Open op FrankerFaceZ"
+    },
+    "set": "Badge",
+    "version": "Versie",
+    "info": "Detail"
+  },
   "profile": {
     "open": "Open het profiel van {name}",
     "title": "Profiel",
@@ -242,10 +268,16 @@
     "tabs": {
       "overview": "Overzicht",
       "chat": "Chat",
+      "emotes": "Emotes",
       "activity": "Activiteit",
       "moderation": "Moderatie",
       "points": "Punten",
       "data": "Gegevens"
+    },
+    "emotes": {
+      "title": "Hun kanaal-emotes",
+      "empty": "Geen kanaal-emotes gevonden voor deze persoon.",
+      "error": "Hun emotes konden niet laden."
     },
     "lastSeen": "Laatst gezien {ago}",
     "streakDays": "{n} stream | {n} streams op rij",

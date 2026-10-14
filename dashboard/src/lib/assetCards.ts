@@ -8,13 +8,22 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { ChatLine } from '@/api/chat';
+import type { ChatEmoteEntry, ChatLine } from '@/api/chat';
 import type { KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import { tierNumber } from '@/components/layout/profile/profileRoles';
 
 type Fragment = ChatLine['fragments'][number];
-type Emote = NonNullable<Fragment['emote']>;
 type Badge = ChatLine['badges'][number];
-type Translate = (key: string) => string;
+type Translate = (key: string, values?: Record<string, unknown>) => string;
+
+// What a chat line and the emote catalog both know of an emote; only the catalog knows a Twitch tier.
+type EmoteFacts = {
+  id?: string | null;
+  provider: string;
+  animated: boolean;
+  zeroWidth: boolean;
+  tier?: string | number | null;
+};
 
 export type AssetCard = {
   title: string;
@@ -40,10 +49,10 @@ export function largestUrl(urls: Record<string, string>): string | undefined {
     : undefined;
 }
 
-function emotePage(emote: Emote): string | null {
+function emotePage(emote: EmoteFacts): string | null {
   const base: string | undefined = emotePages[emote.provider as keyof typeof emotePages];
 
-  return base
+  return base && emote.id
     ? base + emote.id
     : null;
 }
@@ -57,25 +66,45 @@ export function emoteCard(fragment: Fragment, t: Translate): AssetCard | null {
   if (!emote || !image)
     return null;
 
+  return emoteAssetCard(emote, fragment.text, image, t);
+}
+
+// The card for an emote from the catalog, such as the ones a person's own channel offers.
+export function catalogEmoteCard(emote: ChatEmoteEntry, t: Translate): AssetCard | null {
+  const image = largestUrl(emote.urls);
+
+  if (!image)
+    return null;
+
+  return emoteAssetCard(emote, emote.code, image, t);
+}
+
+function emoteAssetCard(emote: EmoteFacts, title: string, image: string, t: Translate): AssetCard {
   const facts: KeyValueItem[] = [
-    { label: t('dashboard.chat.asset.provider'), value: t(`dashboard.chat.asset.providers.${emote.provider}`) },
-    { label: t('dashboard.chat.asset.kind'), value: t(emote.animated
-      ? 'dashboard.chat.asset.animated'
-      : 'dashboard.chat.asset.still') },
+    { label: t('asset.provider'), value: t(`asset.providers.${emote.provider}`) },
+    { label: t('asset.kind'), value: t(emote.animated
+      ? 'asset.animated'
+      : 'asset.still') },
   ];
 
   if (emote.zeroWidth) {
-    facts.push({ label: t('dashboard.chat.asset.layer'), value: t('dashboard.chat.asset.zeroWidth') });
+    facts.push({ label: t('asset.layer'), value: t('asset.zeroWidth') });
+  }
+
+  const tier = tierNumber(emote.tier);
+
+  if (tier !== null) {
+    facts.push({ label: t('asset.tier'), value: t('asset.tierNumber', { n: tier }) });
   }
 
   const page = emotePage(emote);
 
   return {
-    title: fragment.text,
+    title,
     image,
     facts,
     link: page
-      ? { href: page, label: t(`dashboard.chat.asset.open.${emote.provider}`) }
+      ? { href: page, label: t(`asset.open.${emote.provider}`) }
       : null,
   };
 }
@@ -88,12 +117,12 @@ export function badgeCard(badge: Badge, t: Translate): AssetCard | null {
     return null;
 
   const facts: KeyValueItem[] = [
-    { label: t('dashboard.chat.asset.set'), value: badge.setId },
-    { label: t('dashboard.chat.asset.version'), value: badge.id },
+    { label: t('asset.set'), value: badge.setId },
+    { label: t('asset.version'), value: badge.id },
   ];
 
   if (badge.info) {
-    facts.push({ label: t('dashboard.chat.asset.info'), value: badge.info });
+    facts.push({ label: t('asset.info'), value: badge.info });
   }
 
   return {

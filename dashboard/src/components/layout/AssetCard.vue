@@ -8,8 +8,8 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The card an emote or a badge in a chat line opens on a click: the image at its largest size, its name and
-// the facts the line carries, as Twitch and FrankerFaceZ show them.
+// The card an emote or a badge opens on a click, in a chat line or a profile: the image at its largest size,
+// its name and the facts it carries, as Twitch and FrankerFaceZ show them.
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

@@ -37,9 +37,9 @@ import { purifyChatHtml } from '@/lib/html';
 import { formatLength } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
-import { badgeCard as cardOfBadge, emoteCard, type AssetCard } from '../chatAssets';
+import AssetCardPopover from '@/components/layout/AssetCard.vue';
+import { badgeCard as cardOfBadge, emoteCard, type AssetCard } from '@/lib/assetCards';
 import { emoteHeights, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
-import ChatAssetCard from './ChatAssetCard.vue';
 
 const LENGTHS: readonly number[] = [60, 600, 3600, 86400];
 
@@ -297,17 +297,17 @@ function pick(event: MouseEvent): void {
               class="size-4 flex-none"
             />
             <template v-if="display.badges">
-              <ChatAssetCard
+              <AssetCardPopover
                 v-for="badge in badges"
                 :key="badge.key"
-                :label="$t('dashboard.chat.asset.badgeLabel', { name: badge.card.title })"
+                :label="$t('asset.badgeLabel', { name: badge.card.title })"
                 :title="badge.card.title"
                 :image="badge.card.image"
                 :facts="badge.card.facts"
                 :link="badge.card.link"
               >
                 <img data-badge :src="badge.src" alt="" class="size-4 flex-none" />
-              </ChatAssetCard>
+              </AssetCardPopover>
             </template>
           </span>
           <UserName
@@ -317,9 +317,9 @@ function pick(event: MouseEvent): void {
           />
         </span>
         <template v-for="(fragment, at) in line.fragments" :key="at">
-          <ChatAssetCard
+          <AssetCardPopover
             v-if="fragment.emote && emoteUrl(fragment.emote.urls) && emoteCards[at]"
-            :label="$t('dashboard.chat.asset.emoteLabel', { name: fragment.text })"
+            :label="$t('asset.emoteLabel', { name: fragment.text })"
             :title="emoteCards[at]!.title"
             :image="emoteCards[at]!.image"
             :facts="emoteCards[at]!.facts"
@@ -332,7 +332,7 @@ function pick(event: MouseEvent): void {
               :alt="fragment.text"
               class="inline-block h-(--emote-h)"
             />
-          </ChatAssetCard>
+          </AssetCardPopover>
           <span
             v-else-if="fragment.type === 'html'"
             data-html

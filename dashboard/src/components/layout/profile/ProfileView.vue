@@ -27,6 +27,7 @@ import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueLis
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ProfileHeader, { type ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
 import ProfileData from '@/components/layout/profile/ProfileData.vue';
+import ProfileEmotes from '@/components/layout/profile/ProfileEmotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
 import { roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
@@ -46,7 +47,7 @@ const props = defineProps<{ userId: string; preview?: ProfilePreview | null }>()
 
 // The header already shows every count, so no tab repeats them. Points and Data come from the bot's stored
 // profile, so they show once it loaded.
-const BASE_TABS: readonly string[] = ['overview', 'chat', 'moderation'];
+const BASE_TABS: readonly string[] = ['overview', 'chat', 'emotes', 'moderation'];
 const PROFILE_TABS: readonly string[] = ['points', 'data'];
 
 // The dialog scrolls the tabs inside itself. On a page a phone scrolls the page once, never a box inside it.
@@ -231,6 +232,10 @@ async function banNow(): Promise<void> {
                 </li>
               </ul>
             </PanelCard>
+          </TabsContent>
+
+          <TabsContent value="emotes" force-mount :class="PANEL_CLASS">
+            <ProfileEmotes :user-id="userId" />
           </TabsContent>
 
           <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-4']">
