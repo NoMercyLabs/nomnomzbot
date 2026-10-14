@@ -51,7 +51,12 @@ public sealed class ChatEmoteOwnerDirectory
         Dictionary<string, ChatEmoteOwner> owners = new(StringComparer.Ordinal);
         List<string> misses = [];
 
-        foreach (string id in twitchUserIds.Distinct(StringComparer.Ordinal))
+        // Turbo emotes carry the owner "twitch"; one non-numeric id makes Twitch reject the whole batch.
+        foreach (
+            string id in twitchUserIds
+                .Distinct(StringComparer.Ordinal)
+                .Where(id => id.Length > 0 && id.All(char.IsAsciiDigit))
+        )
         {
             ChatEmoteOwner? cached = await _cache.GetAsync<ChatEmoteOwner>(
                 ChatEmoteCacheKeys.TwitchOwner(id),

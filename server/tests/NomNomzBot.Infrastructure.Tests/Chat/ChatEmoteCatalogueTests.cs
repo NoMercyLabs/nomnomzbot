@@ -939,6 +939,37 @@ public sealed class ChatEmoteCatalogueTests
         result.Value.Should().BeEmpty();
     }
 
+    // Turbo emotes carry the owner id "twitch". Twitch rejects a whole Get Users batch for one non-numeric id,
+    // which left 322 of 392 channel emotes unnamed in the picker (live data, 2026-10-14).
+    [Fact]
+    public async Task OwnerDirectory_NamesEveryRealOwner_WhenATurboOwnerSharesTheBatch()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+                call.Arg<IReadOnlyList<string>>().All(id => id.All(char.IsAsciiDigit))
+                    ? Result.Success<IReadOnlyList<TwitchUser>>([
+                        User("999", "thirdchan", "ThirdChan"),
+                    ])
+                    : Result.Failure<IReadOnlyList<TwitchUser>>("Invalid id", "BAD_REQUEST")
+            );
+        ChatEmoteOwnerDirectory directory = new(
+            new FakeCache(),
+            users,
+            NullLogger<ChatEmoteOwnerDirectory>.Instance
+        );
+
+        IReadOnlyDictionary<string, ChatEmoteOwner> owners = await directory.ResolveAsync([
+            "999",
+            "twitch",
+        ]);
+
+        owners.Should().ContainKey("999");
+        owners["999"].DisplayName.Should().Be("ThirdChan");
+        owners.Should().NotContainKey("twitch");
+    }
+
     private sealed class FakeCache : ICacheService
     {
         private readonly Dictionary<string, object?> _store = new();
