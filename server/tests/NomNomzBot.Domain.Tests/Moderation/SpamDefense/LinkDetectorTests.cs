@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 
@@ -82,6 +83,38 @@ public sealed class LinkDetectorTests
     public void ANullMessageHasNoLinks()
     {
         LinkDetector.Find(null).Should().BeEmpty();
+    }
+
+    // A pattern that backtracks without end on this input, with the shortest timeout .NET allows, forces a
+    // genuine RegexMatchTimeoutException regardless of machine speed.
+    private static readonly Regex TimingOutPattern = new(
+        @"(?<scheme>(a+)+$)",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(1)
+    );
+
+    [Fact]
+    public void AMatchTimeout_ReportsTheSchemeUrlsOfTheMessage_InsteadOfThrowing()
+    {
+        string message = new string('a', 40) + "! see https://shop.example.com/x";
+
+        IReadOnlyList<DetectedLink> links = LinkDetector.Find(message, TimingOutPattern);
+
+        DetectedLink link = links.Should().ContainSingle().Subject;
+        link.Host.Should().Be("shop.example.com");
+        link.Text.Should().Be("https://shop.example.com/x");
+    }
+
+    [Fact]
+    public void AMatchTimeout_WithNoSchemeUrl_ReportsTheMessageAsAnUnreadableLink()
+    {
+        string message = new string('a', 40) + "! shop.example.com";
+
+        IReadOnlyList<DetectedLink> links = LinkDetector.Find(message, TimingOutPattern);
+
+        DetectedLink link = links.Should().ContainSingle().Subject;
+        link.Host.Should().BeEmpty();
+        link.Text.Should().Contain("shop.example.com");
     }
 
     [Theory]
