@@ -32,4 +32,18 @@ public interface ITwitchWhispersApi
         string message,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Send Whisper as the platform bot: <c>from_user_id</c> is the bot account's Twitch id (the recipient of the
+    /// whisper being answered) and the call rides the bot's own user token. Requires <c>user:manage:whispers</c>
+    /// on the bot; without it the call short-circuits with <c>missing_scope</c> and raises the missing-scope card
+    /// on <paramref name="channelId"/> (<see cref="Guid.Empty"/> when no channel is known: no card).
+    /// </summary>
+    Task<Result> SendAsBotAsync(
+        Guid channelId,
+        string botTwitchUserId,
+        string toTwitchUserId,
+        string message,
+        CancellationToken ct = default
+    );
 }

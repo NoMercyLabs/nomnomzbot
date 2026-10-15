@@ -41,6 +41,7 @@ using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Chat.Kick;
+using NomNomzBot.Infrastructure.Chat.Whispers;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Integrations.Kick;
@@ -246,6 +247,9 @@ public static class DependencyInjection
             typeof(IEventHandler<>),
             ServiceLifetime.Scoped
         );
+
+        // The bot's daily new-recipient whisper count must outlive each scoped handler run.
+        services.AddSingleton<WhisperRecipientCap>();
 
         // Pipeline actions + conditions (transient — stateless strategies, multi-binding).
         // CapturingCommandAction is a decorator built by hand per pipeline test-run, never resolved from DI —

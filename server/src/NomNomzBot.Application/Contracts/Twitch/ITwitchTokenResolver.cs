@@ -80,4 +80,11 @@ public interface ITwitchTokenResolver
     /// Reads the granted scope set; a missing scope short-circuits a call with <c>missing_scope</c>.
     /// </summary>
     Task<bool> HasScopeAsync(Guid broadcasterId, string scope, CancellationToken ct = default);
+
+    /// <summary>
+    /// True if the connection backing the bot token (<see cref="GetBotTokenAsync"/>) has been granted
+    /// <paramref name="scope"/>. A gap is reported as a missing-scope card on <paramref name="channelId"/>,
+    /// the channel the bot call serves.
+    /// </summary>
+    Task<bool> HasBotScopeAsync(Guid channelId, string scope, CancellationToken ct = default);
 }

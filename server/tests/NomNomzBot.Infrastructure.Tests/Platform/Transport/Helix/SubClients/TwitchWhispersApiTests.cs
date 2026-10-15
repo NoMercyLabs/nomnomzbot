@@ -92,4 +92,33 @@ public class TwitchWhispersApiTests
         result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);
         transport.CallCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task SendAsBot_WithBotScope_PostsFromTheBot_OnTheBotToken()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchWhispersApi api = Build(transport, TwitchScopes.UserManageWhispers);
+
+        Result result = await api.SendAsBotAsync(Tenant, "bot1", TargetTwitchId, "queue");
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Path.Should().Be("whispers");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.App);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "from_user_id" && q.Value == "bot1");
+    }
+
+    [Fact]
+    public async Task SendAsBot_MissingBotScope_ShortCircuits_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchWhispersApi api = Build(transport); // the bot has no user:manage:whispers
+
+        Result result = await api.SendAsBotAsync(Tenant, "bot1", TargetTwitchId, "queue");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
+        transport.CallCount.Should().Be(0);
+    }
 }

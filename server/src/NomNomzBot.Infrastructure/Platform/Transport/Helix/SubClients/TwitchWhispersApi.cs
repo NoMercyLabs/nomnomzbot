@@ -57,6 +57,39 @@ public sealed class TwitchWhispersApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserManageWhispers)]
+    public async Task<Result> SendAsBotAsync(
+        Guid channelId,
+        string botTwitchUserId,
+        string toTwitchUserId,
+        string message,
+        CancellationToken ct = default
+    )
+    {
+        bool granted = await tokens.HasBotScopeAsync(
+            channelId,
+            TwitchScopes.UserManageWhispers,
+            ct
+        );
+        if (!granted)
+            return Result.Failure(
+                $"Missing required scope '{TwitchScopes.UserManageWhispers}'.",
+                TwitchErrorCodes.MissingScope
+            );
+
+        // No tenant: the transport's default branch signs with the bot's own user token.
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "whispers",
+            TwitchHelixAuth.App,
+            Query: [new("from_user_id", botTwitchUserId), new("to_user_id", toTwitchUserId)],
+            Body: new SendWhisperRequest(message),
+            Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendAsync(request, ct);
+    }
+
     /// <summary>Resolves the tenant Guid to its Twitch user id, or <c>not_found</c> when unknown locally.</summary>
     private async Task<Result<string>> ResolveUserAsync(Guid fromUserId, CancellationToken ct)
     {
