@@ -10,9 +10,11 @@
 <script setup lang="ts">
 // The OBS page: is OBS linked, is every overlay loaded in it, and which scene is on air.
 // Dots: green works, orange needs a look (nothing loaded, OBS silent), red failed. The header dot is the worst of them.
+import { useDocumentVisibility } from '@vueuse/core';
 import { computed } from 'vue';
 
 import { useObsBridge, useObsConnection, useObsScenes, useObsState } from '@/api/obs';
+import { useObsStats, useObsVirtualCam } from '@/api/obsOutputs';
 import { useWidgets, type Widget } from '@/api/widgets';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -21,7 +23,9 @@ import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/compon
 
 import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
 import ObsConnectionPanel from './components/ObsConnectionPanel.vue';
+import OutputsPanel from './components/OutputsPanel.vue';
 import ScenesPanel from './components/ScenesPanel.vue';
+import StatsStrip from './components/StatsStrip.vue';
 import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
 
 const { channelId } = useCurrentChannel();
@@ -32,6 +36,13 @@ const enabled = computed<boolean>(() => connection.data.value?.isEnabled === tru
 const state = useObsState(channelId, enabled);
 const scenes = useObsScenes(channelId, enabled);
 const widgets = useWidgets(channelId);
+
+// The stats poll runs only while this tab is on screen.
+const visibility = useDocumentVisibility();
+const visible = computed<boolean>(() => visibility.value === 'visible');
+const stats = useObsStats(channelId, enabled, visible, 5000);
+const virtualCam = useObsVirtualCam(channelId, enabled);
+const outputsPanel = usePanelState(state);
 
 const connectionPanel = usePanelState(connection);
 const sourcesPanel = usePanelState(widgets);
@@ -79,6 +90,16 @@ function retry(): void {
       :panel-state="connectionPanel"
       @retry="retry"
     />
+    <OutputsPanel
+      :channel-id="channelId"
+      :state="state.data.value"
+      :virtual-cam="virtualCam.data.value === true"
+      :panel-state="outputsPanel"
+      :offline="!enabled"
+      @retry="retry"
+    >
+      <StatsStrip :stats="stats.data.value" />
+    </OutputsPanel>
     <ScenesPanel
       :scenes="scenes.data.value"
       :panel-state="scenesPanel"

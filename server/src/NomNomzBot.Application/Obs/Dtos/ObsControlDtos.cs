@@ -75,7 +75,8 @@ public sealed record ObsStateDto(
     bool Recording,
     bool RecordPaused,
     bool ReplayBufferActive,
-    string? RecordTimecode
+    string? RecordTimecode,
+    string? StreamTimecode = null
 );
 
 public sealed record ObsSceneDto(string Name, bool IsCurrent);
