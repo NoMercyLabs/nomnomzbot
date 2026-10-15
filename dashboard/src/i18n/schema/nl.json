@@ -878,6 +878,9 @@
       "pitch": {
         "help": "Toonhoogte als percentage, van -50 (lager) tot 50 (hoger). Leeg laten voor de normale toonhoogte."
       },
+      "play_on_audio": {
+        "help": "Speel de spraak ook af op de Audio-overlay, de browserbron die OBS mixt. De stap mislukt als er geen Audio-overlay verbonden is."
+      },
       "rate": {
         "help": "Spreeksnelheid als percentage, van -50 (langzamer) tot 50 (sneller). Leeg laten voor de normale snelheid."
       },

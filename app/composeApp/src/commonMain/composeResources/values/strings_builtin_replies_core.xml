@@ -32,6 +32,12 @@
     <string name="builtin_reply_help_linebanger_description">Someone asks what !banger does.</string>
     <string name="builtin_reply_help_linebansong_label">Help for !bansong</string>
     <string name="builtin_reply_help_linebansong_description">Someone asks what !bansong does.</string>
+    <string name="builtin_reply_help_lineclearsongs_label">Help for !clearsongs</string>
+    <string name="builtin_reply_help_lineclearsongs_description">Someone asks what !clearsongs does.</string>
+    <string name="builtin_reply_help_lineclosequeue_label">Help for !closequeue</string>
+    <string name="builtin_reply_help_lineclosequeue_description">Someone asks what !closequeue does.</string>
+    <string name="builtin_reply_help_lineopenqueue_label">Help for !openqueue</string>
+    <string name="builtin_reply_help_lineopenqueue_description">Someone asks what !openqueue does.</string>
     <string name="builtin_reply_help_linecommands_label">Help for !commands</string>
     <string name="builtin_reply_help_linecommands_description">Someone asks what !commands does.</string>
     <string name="builtin_reply_help_linediscord_label">Help for !discord</string>

@@ -4,22 +4,22 @@
       "title": "Supporters",
       "anonymous": "Anonymous",
       "stats": {
-        "subscribers": "Subscribers",
+        "subscribers": "Twitch subscribers",
         "subscribersContext": "On Twitch right now",
         "gifts": "Gift events",
         "bits": "Bits cheered",
         "recent": "In the recent activity"
       },
       "subs": {
-        "title": "Subscriptions and gifts",
-        "empty": "No subscriptions or gifts in the recent activity.",
-        "error": "The subscriptions could not be loaded.",
+        "title": "Twitch subscriptions and gifts",
+        "empty": "No Twitch subscriptions or gifts in the recent activity.",
+        "error": "The Twitch subscriptions could not be loaded.",
         "giftMark": "Gift",
         "receivedGift": "received as a gift",
         "receivedGiftDetail": "· received as a gift",
-        "subscribed": "Subscribed · Tier {tier}",
-        "subscribedMonths": "Subscribed · Tier {tier} · {months} months",
-        "gifted": "Gifted {count} sub · Tier {tier} | Gifted {count} subs · Tier {tier}"
+        "subscribed": "Subscribed on Twitch · Tier {tier}",
+        "subscribedMonths": "Subscribed on Twitch · Tier {tier} · {months} months",
+        "gifted": "Gifted {count} Twitch sub · Tier {tier} | Gifted {count} Twitch subs · Tier {tier}"
       },
       "cheers": {
         "title": "Cheers",
@@ -33,8 +33,8 @@
         "empty": "No cheers or gifts to rank yet.",
         "error": "The top supporters could not be loaded.",
         "cheerers": "Most bits",
-        "gifters": "Most gifted subs",
-        "subs": "{count} sub | {count} subs"
+        "gifters": "Most gifted Twitch subs",
+        "subs": "{count} Twitch sub | {count} Twitch subs"
       },
       "tips": {
         "title": "Tips and memberships",

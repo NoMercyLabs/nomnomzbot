@@ -558,10 +558,12 @@ describe('PeopleView', () => {
     expect(text()).toContain('42');
   });
 
-  it('never shows the trust or heat score', async () => {
+  // Stoney 2026-10-15 (b50c3266b): "standing shows". The moderator profile shows the trust score the bot
+  // keeps; the heat score stays internal.
+  it('shows the trust score in the standing and never the heat score', async () => {
     await open('/app/people?u=alice');
 
-    expect(text()).not.toContain('777');
+    expect(text()).toContain('777');
     expect(text()).not.toContain('888');
   });
 

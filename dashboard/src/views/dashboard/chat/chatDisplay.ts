@@ -58,6 +58,9 @@ export const emoteHeights = {
   l: '2.3em',
 } as const satisfies Record<EmoteSize, string>;
 
+// The emote of a Gigantified Emote Power-up.
+export const gigantifiedEmoteHeight = '5rem';
+
 export const spacingPadding = {
   tight: 'py-0.5',
   normal: 'py-2',
