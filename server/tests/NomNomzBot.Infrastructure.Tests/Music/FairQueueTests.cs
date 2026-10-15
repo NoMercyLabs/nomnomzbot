@@ -173,6 +173,23 @@ public class FairQueueTests
         order.Should().Equal("b1", "a2", "c1", "b2");
     }
 
+    [Fact]
+    public void Enqueue_SameRequesterInDifferentCasing_IsOneOwner_AndInterleavesWithOthers()
+    {
+        // The fair-queueing demo scenario: one requester with three songs, three others with one each.
+        // A display name can arrive as "finwo_" from chat and "Finwo_" from a reward; it is one person.
+        FairQueue<string> q = new();
+        q.Enqueue("HakuTheWolfSpirit", "h1");
+        q.Enqueue("finwo_", "f1");
+        q.Enqueue("Stoney_Eagle", "s1");
+        q.Enqueue("Finwo_", "f2");
+        q.Enqueue("Bamo16", "b1");
+        q.Enqueue("FINWO_", "f3");
+
+        List<string> order = [.. q.GetSnapshot().Select(e => e.Item)];
+        order.Should().Equal("h1", "f1", "s1", "b1", "f2", "f3");
+    }
+
     // ─── Peek ────────────────────────────────────────────────────────────────
 
     [Fact]
