@@ -11,7 +11,8 @@ const followers = ref<string[]>([])
 // Newest first, capped at the configured count — a persistent standings panel, not a one-shot alert.
 const shown = computed<string[]>(() => followers.value.slice(0, Math.max(1, cfg.count)))
 
-function onFollow(d: NnzWidgetEventMap['follow'] | null | undefined): void {
+function onFollow(d: NnzWidgetEventMap['follow'] | null | undefined, _type?: string, meta?: NnzEventMeta): void {
+  if (meta && meta.test) return // a dashboard test fire never joins the real list
   // FollowAlertDto (AlertDtos.cs) — camelCase on the wire: displayName, not user.
   const user: string = (d && d.displayName) || ''
   if (!user) return

@@ -452,7 +452,8 @@ public sealed class OverlaySdkController : ControllerBase
                 var data = e.data == null ? {} : e.data;
                 // Widget events are for visuals only: audio plays solely from the raw targets below, which the
                 // server sends to the one audio page, so no sound is ever played twice.
-                emit(e.eventType, data);
+                // test: a dashboard preview. A widget shows it, then keeps its real value (it must not store it).
+                emit(e.eventType, data, { replay: false, test: e.isTest === true });
                 break;
               }
               case "WidgetSettingsChanged": applySettings((args[0] || {}).settings || {}); break;

@@ -184,7 +184,7 @@ public record ObsLiveStateDto(
     string Timestamp
 );
 
-public record WidgetEventDto(string WidgetId, string EventType, object? Data);
+public record WidgetEventDto(string WidgetId, string EventType, object? Data, bool IsTest = false);
 
 /// <summary>
 /// One event on the generic overlay feed: the canonical <paramref name="Type"/> the overlay filters on, and the

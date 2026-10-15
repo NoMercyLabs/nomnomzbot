@@ -18,29 +18,59 @@ const display = computed<string>(() => {
   return cfg.formatString ? cfg.formatString.replace(/\{value\}/g, raw.value) : raw.value
 })
 
-function onFollow(d: NnzWidgetEventMap['follow']): void {
+// A dashboard test fire (meta.test) is shown for a few seconds, then the real value comes back. It never
+// changes the tracked value, a count or a total.
+const PREVIEW_MS = 8000
+let previewTimer: ReturnType<typeof setTimeout> | undefined
+function preview(name: string): void {
+  if (previewTimer === undefined) previewBase = raw.value
+  raw.value = name
+  clearTimeout(previewTimer)
+  previewTimer = setTimeout(() => {
+    raw.value = previewBase
+    previewTimer = undefined
+  }, PREVIEW_MS)
+}
+let previewBase = ''
+function isTest(meta?: NnzEventMeta): boolean { return !!meta && !!meta.test }
+
+function onFollow(d: NnzWidgetEventMap['follow'], _type?: string, meta?: NnzEventMeta): void {
+  if (isTest(meta)) {
+    if (cfg.label === 'latest_follower' && d && d.displayName) preview(d.displayName)
+    return
+  }
   // FollowAlertDto — camelCase on the wire: displayName, not user.
   followCount += 1
   if (cfg.label === 'latest_follower') raw.value = (d && d.displayName) || raw.value
   else if (cfg.label === 'follower_count') raw.value = String(followCount)
 }
-function onSub(d: NnzWidgetEventMap['subscription']): void {
+function onSub(d: NnzWidgetEventMap['subscription'], _type?: string, meta?: NnzEventMeta): void {
+  if (isTest(meta)) {
+    if (cfg.label === 'latest_sub' && d && d.displayName) preview(d.displayName)
+    return
+  }
   // SubscriptionAlertDto — camelCase on the wire: displayName, not user.
   subCount += 1
   if (cfg.label === 'latest_sub') raw.value = (d && d.displayName) || raw.value
   else if (cfg.label === 'sub_count') raw.value = String(subCount)
 }
-function onResub(d: NnzWidgetEventMap['resub']): void {
+function onResub(d: NnzWidgetEventMap['resub'], _type?: string, meta?: NnzEventMeta): void {
+  if (isTest(meta)) {
+    if (cfg.label === 'latest_sub' && d && d.displayName) preview(d.displayName)
+    return
+  }
   // ResubAlertDto — camelCase on the wire: displayName, not user.
   if (cfg.label === 'latest_sub') raw.value = (d && d.displayName) || raw.value
 }
-function onGift(d: NnzWidgetEventMap['gift']): void {
+function onGift(d: NnzWidgetEventMap['gift'], _type?: string, meta?: NnzEventMeta): void {
+  if (isTest(meta)) return
   // GiftSubAlertDto — camelCase on the wire: count, not amount.
   const n: number = Math.max(1, Number(d && d.count) || 1)
   subCount += n
   if (cfg.label === 'sub_count') raw.value = String(subCount)
 }
-function onCheer(d: NnzWidgetEventMap['cheer']): void {
+function onCheer(d: NnzWidgetEventMap['cheer'], _type?: string, meta?: NnzEventMeta): void {
+  if (isTest(meta)) return
   // CheerAlertDto — camelCase on the wire: displayName/bits, not user/amount.
   if (cfg.label !== 'top_cheerer') return
   const user: string = (d && d.displayName) || ''

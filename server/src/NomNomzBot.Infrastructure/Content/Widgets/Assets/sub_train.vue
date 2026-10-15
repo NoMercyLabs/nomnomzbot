@@ -28,9 +28,13 @@ function add(n: number, t: number): void {
   for (let i = 0; i < Math.max(1, n); i++) events.value.push(t)
   now.value = Date.now()
 }
-function onSub(_d: unknown, _type: string, meta?: NnzEventMeta): void { add(1, stamp(meta)) }
+function onSub(_d: unknown, _type: string, meta?: NnzEventMeta): void {
+  if (meta && meta.test) return // a dashboard test fire never extends the real train
+  add(1, stamp(meta))
+}
 // GiftSubAlertDto (AlertDtos.cs) — camelCase on the wire: count, not amount. A gift of N counts as N.
 function onGift(d: NnzWidgetEventMap['gift'] | null | undefined, _type: string, meta?: NnzEventMeta): void {
+  if (meta && meta.test) return
   add(Math.max(1, Number(d && d.count) || 1), stamp(meta))
 }
 

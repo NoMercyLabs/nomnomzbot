@@ -16,7 +16,8 @@ const board = ref<Cheerer[]>([])
 
 const shown = computed<Cheerer[]>(() => board.value.slice(0, Math.max(1, cfg.count)))
 
-function onCheer(d: NnzWidgetEventMap['cheer'] | null | undefined): void {
+function onCheer(d: NnzWidgetEventMap['cheer'] | null | undefined, _type?: string, meta?: NnzEventMeta): void {
+  if (meta && meta.test) return // a dashboard test fire never counts toward the real board
   // CheerAlertDto (AlertDtos.cs) — camelCase on the wire: displayName/bits, not user/amount.
   const user: string = (d && d.displayName) || ''
   const bits: number = Number(d && d.bits) || 0
