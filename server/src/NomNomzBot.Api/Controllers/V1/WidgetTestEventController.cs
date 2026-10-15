@@ -103,7 +103,9 @@ public sealed class WidgetTestEventController : BaseController
         // the WidgetEvent serializes as real values, not {"ValueKind":...} — otherwise a widget driven by the
         // payload (chat box / poll / emote wall reading message + fragments) receives garbage and renders nothing.
         object data = request.Data is { } custom
-            ? custom.ToDictionary(pair => pair.Key, pair => Normalize(pair.Value))
+            ? WidgetTestSamples.MarkAsTest(
+                custom.ToDictionary(pair => pair.Key, pair => Normalize(pair.Value))
+            )
             : WidgetTestSamples.For(request.EventType, _clock.GetUtcNow());
 
         // The same push a real event makes, but to this one widget's hub group only: a test on one overlay's

@@ -147,6 +147,38 @@ public sealed class WidgetTestEventReachTests
         receivers.Should().NotContain(other.Id.ToString());
     }
 
+    // Owner 2026-10-15: "test data should never persist in the active overlays" — a custom payload is a test too.
+    [Fact]
+    public async Task A_custom_test_payload_reaches_the_overlay_marked_as_a_test()
+    {
+        using ApiTestDbContext db = ApiTestDbContext.New();
+        Widget target = await SeedSubscriberAsync(db, "Emote Wall");
+        IWidgetNotifier notifier = Substitute.For<IWidgetNotifier>();
+        WidgetTestEventController controller = new(
+            db,
+            notifier,
+            Substitute.For<IOverlayPresenceRegistry>(),
+            TimeProvider.System
+        );
+
+        await controller.Fire(
+            Broadcaster.ToString(),
+            target.Id.ToString(),
+            new WidgetTestEventRequest(
+                "tts_speak",
+                new Dictionary<string, object?> { ["text"] = "custom line" }
+            ),
+            CancellationToken.None
+        );
+
+        List<WidgetEventDto> sent = notifier
+            .ReceivedCalls()
+            .SelectMany(call => call.GetArguments())
+            .OfType<WidgetEventDto>()
+            .ToList();
+        sent.Should().ContainSingle().Which.IsTest.Should().BeTrue();
+    }
+
     [Fact]
     public async Task An_overlay_that_does_not_react_to_the_event_is_not_sent_it()
     {

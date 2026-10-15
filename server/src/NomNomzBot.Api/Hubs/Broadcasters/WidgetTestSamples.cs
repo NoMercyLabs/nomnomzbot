@@ -66,7 +66,8 @@ internal static class WidgetTestSamples
         object
     > Marked = new();
 
-    private static object MarkAsTest(object payload)
+    /// <summary>Marks <paramref name="payload"/> as a preview; a custom test payload from the dashboard goes through here too.</summary>
+    public static object MarkAsTest(object payload)
     {
         Marked.AddOrUpdate(payload, payload);
         return payload;
