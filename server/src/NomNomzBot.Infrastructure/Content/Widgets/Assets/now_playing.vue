@@ -87,14 +87,20 @@ function stopTicking(): void {
 function refreshMarquee(): void {
   window.setTimeout(() => {
     if (!titleEl.value || !marqueeEl.value) return
-    marqueeEl.value.classList.remove('animate-marquee')
-    marqueeEl.value.style.removeProperty('--marquee-distance')
-    const containerWidth = titleEl.value.getBoundingClientRect().width
-    const textWidth = marqueeEl.value.getBoundingClientRect().width
-    if (textWidth > containerWidth) {
-      marqueeEl.value.style.setProperty('--marquee-distance', `${containerWidth - textWidth}px`)
-      marqueeEl.value.classList.add('animate-marquee')
-    }
+    const el: HTMLElement = marqueeEl.value
+    el.classList.remove('animate-marquee')
+    el.style.removeProperty('--marquee-distance')
+    el.style.removeProperty('--marquee-duration')
+    const containerWidth: number = titleEl.value.getBoundingClientRect().width
+    const textWidth: number = el.getBoundingClientRect().width
+    if (textWidth <= containerWidth) return
+
+    // Scroll only the overflow, at a slow constant speed (about 30 px/s) plus time for the fades and holds.
+    const overflow: number = textWidth - containerWidth
+    el.style.setProperty('--marquee-distance', `-${overflow}px`)
+    el.style.setProperty('--marquee-duration', `${Math.max(6, overflow / 30 + 3)}s`)
+    void el.offsetWidth // force a reflow so the animation restarts from the fade-in for the new track
+    el.classList.add('animate-marquee')
   }, 300)
 }
 
@@ -236,12 +242,16 @@ onUnmounted(() => {
   display: inline-block;
 }
 .track-text.animate-marquee {
-  animation: nnz-marquee 8s ease-in-out infinite;
+  animation: nnz-marquee var(--marquee-duration, 8s) linear infinite;
 }
+/* Cycle: fade in, hold, slow linear move to the end of the line, hold, fade out, reset while invisible, replay. */
 @keyframes nnz-marquee {
-  0%, 15% { transform: translateX(0); }
-  50%, 65% { transform: translateX(var(--marquee-distance, 0)); }
-  100% { transform: translateX(0); }
+  0% { transform: translateX(0); opacity: 0; }
+  8% { transform: translateX(0); opacity: 1; }
+  18% { transform: translateX(0); opacity: 1; }
+  80% { transform: translateX(var(--marquee-distance, 0)); opacity: 1; }
+  90% { transform: translateX(var(--marquee-distance, 0)); opacity: 0; }
+  100% { transform: translateX(var(--marquee-distance, 0)); opacity: 0; }
 }
 .artist {
   font-size: 12px;
