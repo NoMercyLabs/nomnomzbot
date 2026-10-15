@@ -29,4 +29,5 @@ public interface IDashboardClient
     Task ConfigChanged(ConfigChangedDto evt);
     Task ObsBridgeStateChanged(ObsBridgeStateDto evt);
     Task ObsLiveStateChanged(ObsLiveStateDto evt);
+    Task ObsStateChanged(ObsStateChangedDto evt);
 }

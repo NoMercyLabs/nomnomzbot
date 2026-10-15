@@ -93,3 +93,57 @@ public sealed class ObsInputMuteStateChangedEvent : DomainEventBase
     /// <summary>True when the input is now muted.</summary>
     public required bool Muted { get; init; }
 }
+
+/// <summary>
+/// One piece of the channel's live OBS state changed (scene, preview, an output, studio mode, an input's
+/// mute or volume, the scene list, a scene item's visibility). Projected from <see cref="ObsEventReceivedEvent"/>
+/// so the dashboard can patch its OBS page in place. Only the fields that belong to <see cref="Kind"/> are set.
+/// </summary>
+public sealed class ObsDashboardStateChangedEvent : DomainEventBase
+{
+    /// <summary>Which part changed, one of <see cref="ObsStateKinds"/>.</summary>
+    public required string Kind { get; init; }
+
+    /// <summary>The program or preview scene, or the scene that holds the changed item.</summary>
+    public string? SceneName { get; init; }
+
+    /// <summary>Whether the output (stream, record, replay buffer, virtual cam) or studio mode is on.</summary>
+    public bool? Active { get; init; }
+
+    /// <summary>Whether an active recording is paused.</summary>
+    public bool? Paused { get; init; }
+
+    /// <summary>The audio input whose mute or volume changed.</summary>
+    public string? InputName { get; init; }
+
+    /// <summary>The input's new mute state.</summary>
+    public bool? Muted { get; init; }
+
+    /// <summary>The input's new volume in decibels.</summary>
+    public double? VolumeDb { get; init; }
+
+    /// <summary>The scene item whose visibility changed.</summary>
+    public int? SceneItemId { get; init; }
+
+    /// <summary>The scene item's new visibility.</summary>
+    public bool? Enabled { get; init; }
+
+    /// <summary>The full scene list in OBS display order, top first.</summary>
+    public IReadOnlyList<string>? SceneNames { get; init; }
+}
+
+/// <summary>The <see cref="ObsDashboardStateChangedEvent.Kind"/> values; the dashboard switches on them.</summary>
+public static class ObsStateKinds
+{
+    public const string ProgramScene = "programScene";
+    public const string PreviewScene = "previewScene";
+    public const string Stream = "stream";
+    public const string Record = "record";
+    public const string ReplayBuffer = "replayBuffer";
+    public const string VirtualCam = "virtualCam";
+    public const string StudioMode = "studioMode";
+    public const string InputMute = "inputMute";
+    public const string InputVolume = "inputVolume";
+    public const string SceneList = "sceneList";
+    public const string SceneItemVisibility = "sceneItemVisibility";
+}

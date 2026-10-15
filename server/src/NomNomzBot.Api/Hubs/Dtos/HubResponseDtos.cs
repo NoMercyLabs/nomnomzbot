@@ -184,6 +184,25 @@ public record ObsLiveStateDto(
     string Timestamp
 );
 
+/// <summary>
+/// Pushed to the channel's dashboards when one piece of live OBS state changes, carrying the new value so
+/// the OBS page patches in place without a refetch. <paramref name="Kind"/> names the piece; only its fields are set.
+/// </summary>
+public record ObsStateChangedDto(
+    string BroadcasterId,
+    string Kind,
+    string? SceneName,
+    bool? Active,
+    bool? Paused,
+    string? InputName,
+    bool? Muted,
+    double? VolumeDb,
+    int? SceneItemId,
+    bool? Enabled,
+    IReadOnlyList<string>? SceneNames,
+    string Timestamp
+);
+
 public record WidgetEventDto(string WidgetId, string EventType, object? Data, bool IsTest = false);
 
 /// <summary>

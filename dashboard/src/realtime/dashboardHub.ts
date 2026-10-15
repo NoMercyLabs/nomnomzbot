@@ -21,6 +21,7 @@ import { communityHandlers } from './community';
 import { attachHandlers, buildHub, retryDelay } from './hubConnection';
 import { dashboardHubStatus, dashboardJoinErrors } from './hubStatus';
 import { liveHandlers } from './liveSync';
+import { obsHandlers } from './obs';
 import type { JoinChannelResult } from './payloads';
 import { viewerHandlers } from './viewer';
 
@@ -131,7 +132,7 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
 
   attachHandlers(
     hub,
-    merge(channelHandlers, communityHandlers, chatHandlers, liveHandlers, viewerHandlers),
+    merge(channelHandlers, communityHandlers, chatHandlers, liveHandlers, obsHandlers, viewerHandlers),
     () => ({
       queries,
       channelId: joinedChannel,

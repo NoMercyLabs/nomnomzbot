@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
 import { i18n } from '@/i18n';
+import { obsStateChanged } from '@/realtime/obs';
 
 import en from '../i18n/en.json';
 import ObsView from '../ObsView.vue';
@@ -122,8 +123,10 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+let queryClient = new QueryClient();
+
 async function open(): Promise<void> {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   mounted = mount(ObsView, {
     attachTo: document.body,
@@ -172,6 +175,26 @@ describe('ObsView', () => {
 
     expect(scenes.map((scene) => scene.getAttribute('data-current'))).toEqual(['true', 'false']);
     expect(document.querySelector('[data-obs-live]')?.textContent).toContain(en.dashboard.obs.live.streaming);
+  });
+
+  // Stoney 2026-10-15: "the current page does not even react to scene changes so i expect better".
+  it('moves the live scene mark when OBS switches scene, without reading the scenes again', async () => {
+    await open();
+    calls.length = 0;
+
+    obsStateChanged.handle({ queries: queryClient, channelId: 'c1' }, {
+      broadcasterId: 'c1',
+      kind: 'programScene',
+      sceneName: 'BRB',
+      timestamp: '2026-10-15T20:00:00Z',
+    });
+
+    await flushPromises();
+
+    const scenes = Array.from(document.querySelectorAll('[data-obs-scene]'));
+
+    expect(scenes.map((scene) => scene.getAttribute('data-current'))).toEqual(['false', 'true']);
+    expect(calls).toEqual([]);
   });
 
   it('turns the connection red with the bot reason and the header dot red when OBS reports an error', async () => {
