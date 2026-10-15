@@ -18,9 +18,12 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)][string]$WorktreePath,
-    [string]$Repo = (Split-Path -Parent $PSScriptRoot)
+    [string]$Repo = ''
 )
 $ErrorActionPreference = 'Stop'
+
+# Windows PowerShell 5 leaves $PSScriptRoot empty inside a param default under -File.
+if (-not $Repo) { $Repo = Split-Path -Parent $PSScriptRoot }
 
 [string]$repoRoot = [System.IO.Path]::GetFullPath($Repo.Replace('/', '\')).TrimEnd('\')
 [string]$full = [System.IO.Path]::GetFullPath($WorktreePath.Replace('/', '\')).TrimEnd('\')
