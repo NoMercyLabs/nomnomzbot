@@ -29,6 +29,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class ViewerSelfController(
     IViewerSelfService viewer,
     IViewerSelfActivityService activity,
+    IViewerSelfQueueService queue,
     ICurrentUserService currentUser
 ) : BaseController
 {
@@ -86,6 +87,16 @@ public class ViewerSelfController(
         if (!TryGetCaller(out Guid caller))
             return UnauthenticatedResponse();
         return ResultResponse(await activity.ListCommandsAsync(channelId, caller, ct));
+    }
+
+    /// <summary>The caller's own songs in the channel's song-request queue, with their place in line.</summary>
+    [HttpGet("api/v{version:apiVersion}/channels/{channelId:guid}/viewer/me/queue")]
+    [ProducesResponseType<StatusResponseDto<ViewerQueueDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyQueue(Guid channelId, CancellationToken ct)
+    {
+        if (!TryGetCaller(out Guid caller))
+            return UnauthenticatedResponse();
+        return ResultResponse(await queue.GetMyQueueAsync(channelId, caller, ct));
     }
 
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);

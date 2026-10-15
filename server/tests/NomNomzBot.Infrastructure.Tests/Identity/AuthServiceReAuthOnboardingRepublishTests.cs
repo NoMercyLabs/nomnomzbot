@@ -110,6 +110,9 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
         credentials
             .GetClientIdAsync("twitch", Arg.Any<CancellationToken>())
             .Returns("public-client-id");
+        credentials
+            .GetAsync("twitch", Arg.Any<CancellationToken>())
+            .Returns(new SystemAppCredentials("public-client-id", "client-secret"));
 
         ITwitchAuthService twitchAuth = Substitute.For<ITwitchAuthService>();
         twitchAuth

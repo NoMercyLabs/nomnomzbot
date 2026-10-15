@@ -260,6 +260,94 @@ public sealed class AuthService : IAuthService
                 "USER_FETCH_FAILED"
             );
 
+        (User user, bool isNewUser) = await UpsertTwitchUserAsync(twitchUser, cancellationToken);
+
+        // Best-effort chat color sync (design-system §2): populate User.Color so the dashboard can derive the
+        // dynamic accent from the streamer's Twitch chat color. Failures are swallowed — the login must still
+        // succeed even when the /helix/chat/color call is unavailable or the scope is not yet granted.
+        string? chatColor = await GetChatColorFromTokenAsync(
+            tokens.AccessToken,
+            twitchUser.Id,
+            cancellationToken
+        );
+        if (chatColor is not null)
+            user.Color = chatColor;
+
+        return await FinishStreamerSessionAsync(
+            user,
+            isNewUser,
+            twitchUser,
+            tokens,
+            context,
+            cancellationToken
+        );
+    }
+
+    // ─── Viewer login (identity only) ────────────────────────────────────────
+
+    // A viewer only proves who they are. `openid` is the one scope Twitch's OIDC flow requires in the list
+    // (dev.twitch.tv getting-tokens-oidc: "The list must include the openid scope"); it grants no Helix access.
+    private static readonly string[] ViewerLoginScopes = ["openid"];
+
+    public Task<Result<string>> GetTwitchViewerOAuthUrl(
+        string? state = null,
+        string? baseUrl = null,
+        CancellationToken cancellationToken = default
+    ) => BuildAuthorizeUrlAsync(ViewerLoginScopes, state, baseUrl, false, cancellationToken);
+
+    /// <summary>
+    /// The viewer sign-in: writes the viewer's own User row and opens a session bound to no channel. It never
+    /// creates or onboards a channel and never stores the Twitch token — a viewer reads their own data only.
+    /// </summary>
+    public async Task<Result<AuthResultDto>> HandleTwitchViewerCallbackAsync(
+        OAuthCallbackDto callback,
+        AuthContextDto context,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string redirectUri = callback.RedirectUri ?? $"{_baseUrl}/api/v1/auth/twitch/callback";
+        TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
+            callback.Code,
+            redirectUri,
+            cancellationToken
+        );
+        if (tokens is null)
+            return Result.Failure<AuthResultDto>(
+                "Failed to exchange authorization code.",
+                "TOKEN_EXCHANGE_FAILED"
+            );
+
+        TwitchUserInfo? twitchUser = await GetUserFromTokenAsync(
+            tokens.AccessToken,
+            cancellationToken
+        );
+        if (twitchUser is null)
+            return Result.Failure<AuthResultDto>(
+                "Failed to fetch Twitch user info.",
+                "USER_FETCH_FAILED"
+            );
+
+        (User user, _) = await UpsertTwitchUserAsync(twitchUser, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        Result<SessionTokensDto> session = await _sessions.CreateSessionAsync(
+            user.Id,
+            null,
+            context,
+            cancellationToken
+        );
+        if (session.IsFailure)
+            return session.WithValue<AuthResultDto>(null!);
+
+        return Result.Success(BuildAuthResult(session.Value, user));
+    }
+
+    /// <summary>Find or create the User for a Twitch account and refresh its live profile fields.</summary>
+    private async Task<(User User, bool IsNew)> UpsertTwitchUserAsync(
+        TwitchUserInfo twitchUser,
+        CancellationToken cancellationToken
+    )
+    {
         bool isNewUser = false;
         User? user = await _db.Users.FirstOrDefaultAsync(
             u => u.TwitchUserId == twitchUser.Id,
@@ -296,17 +384,31 @@ public sealed class AuthService : IAuthService
         }
         user.LastSeenAt = _timeProvider.GetUtcNow().UtcDateTime;
 
-        // Best-effort chat color sync (design-system §2): populate User.Color so the dashboard can derive the
-        // dynamic accent from the streamer's Twitch chat color. Failures are swallowed — the login must still
-        // succeed even when the /helix/chat/color call is unavailable or the scope is not yet granted.
-        string? chatColor = await GetChatColorFromTokenAsync(
-            tokens.AccessToken,
+        // Keep the primary Twitch identity live + enriched from Helix (platform-identity §3.1).
+        await PrimaryIdentityWriter.EnsureAsync(
+            _db,
+            _timeProvider,
+            user.Id,
+            AuthEnums.Platform.Twitch,
             twitchUser.Id,
-            cancellationToken
+            twitchUser.Login,
+            twitchUser.DisplayName,
+            twitchUser.ProfileImageUrl,
+            cancellationToken: cancellationToken
         );
-        if (chatColor is not null)
-            user.Color = chatColor;
 
+        return (user, isNewUser);
+    }
+
+    private async Task<Result<AuthResultDto>> FinishStreamerSessionAsync(
+        User user,
+        bool isNewUser,
+        TwitchUserInfo twitchUser,
+        TokenResult tokens,
+        AuthContextDto context,
+        CancellationToken cancellationToken
+    )
+    {
         // First-admin bootstrap (§12): the configured App:InitialAdminTwitchId match (any deployment), OR — on
         // self-host, where the owner IS the admin — the FIRST account to onboard when no platform principal
         // exists yet. No raw SQL, idempotent.
@@ -331,19 +433,6 @@ public sealed class AuthService : IAuthService
                 user.TwitchUserId
             );
         }
-
-        // Keep the streamer's primary Twitch identity live + enriched from Helix (platform-identity §3.1).
-        await PrimaryIdentityWriter.EnsureAsync(
-            _db,
-            _timeProvider,
-            user.Id,
-            AuthEnums.Platform.Twitch,
-            twitchUser.Id,
-            twitchUser.Login,
-            twitchUser.DisplayName,
-            twitchUser.ProfileImageUrl,
-            cancellationToken: cancellationToken
-        );
 
         await _db.SaveChangesAsync(cancellationToken);
 

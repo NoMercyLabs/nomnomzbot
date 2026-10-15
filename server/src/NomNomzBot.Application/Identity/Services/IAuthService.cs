@@ -46,6 +46,20 @@ public interface IAuthService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The viewer sign-in authorize URL: identity only (<c>openid</c>), no Helix scope.</summary>
+    Task<Result<string>> GetTwitchViewerOAuthUrl(
+        string? state = null,
+        string? baseUrl = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Viewer callback: writes the viewer's User row and a session bound to no channel.</summary>
+    Task<Result<AuthResultDto>> HandleTwitchViewerCallbackAsync(
+        OAuthCallbackDto callback,
+        AuthContextDto context,
+        CancellationToken cancellationToken = default
+    );
+
     // ── Device Code Flow login (no client secret) ────────────────────────────
     // NomNomzBot ships its own public client id, so the streamer logs in by approving a short user code at
     // twitch.tv/activate — no Twitch app registration. Start mints the code; the client polls until the
