@@ -13,6 +13,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref, type Ref } from 'vue';
 
+import type { ObsState } from '@/api/obs';
 import { useObsStats } from '@/api/obsOutputs';
 import { i18n } from '@/i18n';
 
@@ -45,7 +46,7 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
-const idle = {
+const idle: ObsState = {
   currentScene: 'Main',
   streaming: false,
   recording: false,
@@ -70,7 +71,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function show(state: Record<string, unknown>, virtualCam: boolean = false): void {
+function show(state: ObsState, virtualCam: boolean = false): void {
   mounted = mount(OutputsPanel, {
     attachTo: document.body,
     props: {
@@ -87,7 +88,7 @@ function show(state: Record<string, unknown>, virtualCam: boolean = false): void
 async function press(selector: string): Promise<void> {
   const button = document.body.querySelector<HTMLButtonElement>(selector);
 
-  expect(button, selector).not.toBeNull();
+  expect(button).not.toBeNull();
   button?.click();
   await flushPromises();
 }

@@ -123,7 +123,7 @@ describe('useSetChatColor', () => {
 
     queries.setQueryData(chatIdentityKey(channel), identity);
 
-    await expect(hook.mutateAsync('#123456')).rejects.toThrow();
+    await expect(hook.mutateAsync('#123456')).rejects.toThrow('Turbo needed');
     expect(queries.getQueryData<ChatIdentity>(chatIdentityKey(channel))).toEqual(identity);
   });
 });

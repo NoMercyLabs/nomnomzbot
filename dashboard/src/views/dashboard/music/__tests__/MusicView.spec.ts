@@ -188,7 +188,7 @@ function write(method: string, path: string, options?: Options): Answer {
   }
 
   if (path.endsWith('/requests-open')) {
-    requestsOpen = (options?.body as { open: boolean }).open;
+    requestsOpen = (options!.body as { open: boolean }).open;
   }
 
   return { response: { status: 200, ok: true } };

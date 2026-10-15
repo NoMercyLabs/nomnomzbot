@@ -68,7 +68,7 @@ vi.mock('@/realtime/useViewerMusicLive', () => ({
 
 vi.mock('@/api/client', () => ({
   client: {
-    GET: vi.fn(async (path: string, options?: Options) => {
+    GET: vi.fn<(path: string, options?: Options) => Promise<Answer>>(async (path, options) => {
       requested.push(`${path} ${JSON.stringify(options?.params?.path ?? {})}`);
       const match = Object.keys(answers).find((suffix) => path.endsWith(suffix));
 

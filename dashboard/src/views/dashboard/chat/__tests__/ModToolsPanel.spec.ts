@@ -34,7 +34,7 @@ const http = vi.hoisted(() => ({
 }));
 
 vi.mock('@/api/client', () => ({ client: http }));
-vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock('vue-sonner', () => ({ toast: { error: vi.fn<(message: string) => void>(), success: vi.fn<(message: string) => void>() } }));
 vi.mock('@/api/access', () => ({ useChannelAccess: () => ({ can: () => true }) }));
 
 const initial = {

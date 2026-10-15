@@ -400,7 +400,11 @@ export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): 
 export type RequesterRemoval = { name: string };
 
 function withoutRequester(current: MusicQueue | undefined, name: string): MusicQueue {
-  const base: MusicQueue = current ?? { nowPlaying: null, queue: [], requestsOpen: true };
+  const base: MusicQueue = current ?? {
+    nowPlaying: null,
+    queue: [],
+    requestsOpen: true,
+  };
   const rest = base.queue.filter(
     (item: QueueItem): boolean => item.requestedBy?.toLowerCase() !== name.toLowerCase(),
   );
