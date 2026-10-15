@@ -31,6 +31,7 @@ import { merge } from '@/lib/array';
 import { channelPrefixes, configDomainKeys } from './configDomains';
 import type { HubEventHandler, QueryKeyBuilder } from './hubEvent';
 import type {
+  ChannelEventPayload,
   ConfigChangedPayload,
   DashboardHubEvents,
   PermissionChangedPayload,
@@ -85,6 +86,26 @@ const eventHandlers = [
   refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
 ] as const;
 
+// The server sends every Twitch poll and prediction step, and every bot chat poll change, as a ChannelEvent.
+// Each one lands in the history list (the journal row is written before the event), so the list and the
+// running poll or prediction refetch.
+const pollEventKeys = [
+  { prefix: 'poll_', keys: [pollsKey, pollHistoryKey] },
+  { prefix: 'prediction_', keys: [predictionsKey, pollHistoryKey] },
+  { prefix: 'ChatPollChanged', keys: [pollHistoryKey] },
+] as const;
+
+const pollEventsChanged = {
+  event: 'ChannelEvent',
+  handle: ({ queries, channelId }, event) => {
+    const match = pollEventKeys.find((entry) => event.type.startsWith(entry.prefix));
+
+    if (!match) return;
+
+    invalidateKeys(queries, match.keys, channelId);
+  },
+} as const satisfies HubEventHandler<ChannelEventPayload>;
+
 const permissionChanged = {
   event: 'PermissionChanged',
   handle: ({ queries, channelId }) => {
@@ -104,4 +125,8 @@ const configChanged = {
   },
 } as const satisfies HubEventHandler<ConfigChangedPayload>;
 
-export const liveHandlers = merge(eventHandlers, [permissionChanged, configChanged]);
+export const liveHandlers = merge(eventHandlers, [
+  pollEventsChanged,
+  permissionChanged,
+  configChanged,
+]);

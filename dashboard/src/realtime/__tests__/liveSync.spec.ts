@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { actionRequiredKey } from '@/api/actionRequired';
 import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
-import { pollsKey, predictionsKey, timersKey } from '@/api/liveOps';
+import { pollHistoryKey, pollsKey, predictionsKey, timersKey } from '@/api/liveOps';
 import {
   musicConfigKey,
   musicHistoryKey,
@@ -70,6 +70,7 @@ const everyKey: Keys[] = [
   timersKey,
   pollsKey,
   predictionsKey,
+  pollHistoryKey,
   adScheduleKey,
   musicQueueKey,
   musicHistoryKey,
@@ -104,6 +105,7 @@ const eventKeys: [string, unknown, Keys[]][] = [
     reviewQueueKey,
     pollsKey,
     predictionsKey,
+    pollHistoryKey,
     adScheduleKey,
   ]],
   ['PermissionChanged', {
@@ -124,6 +126,33 @@ const eventKeys: [string, unknown, Keys[]][] = [
     botStatusKey,
   ]],
   ['ObsLiveStateChanged', { broadcasterId: 'x' }, [connectionsKey, botStatusKey]],
+  // Owner 2026-10-15: "ALL data must be live updates as it happens". The server sends each poll,
+  // prediction and chat poll change as a ChannelEvent; the history list follows every one of them.
+  ...['poll_begin', 'poll_progress', 'poll_end'].map((type): [string, unknown, Keys[]] => [
+    'ChannelEvent',
+    {
+      type,
+      broadcasterId: 'x',
+      data: null,
+    },
+    [homeStatsKey, activityKey, pollsKey, pollHistoryKey],
+  ]),
+  ...['prediction_begin', 'prediction_progress', 'prediction_lock', 'prediction_end'].map(
+    (type): [string, unknown, Keys[]] => [
+      'ChannelEvent',
+      {
+        type,
+        broadcasterId: 'x',
+        data: null,
+      },
+      [homeStatsKey, activityKey, predictionsKey, pollHistoryKey],
+    ],
+  ),
+  ['ChannelEvent', {
+    type: 'ChatPollChanged',
+    broadcasterId: 'x',
+    data: null,
+  }, [homeStatsKey, activityKey, pollHistoryKey]],
   ['ChannelEvent', {
     type: 'follow',
     broadcasterId: 'x',
