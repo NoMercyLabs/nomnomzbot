@@ -20,7 +20,6 @@ import {
   useSetChatColor,
   useStartScopeRegrant,
 } from '@/api/chatIdentity';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -63,20 +62,20 @@ function badgeImage(urls: Record<string, string>): string | undefined {
 </script>
 
 <template>
-  <PanelCard
-    :title="$t('dashboard.settings.chatIdentity.title')"
-    :description="$t('dashboard.settings.chatIdentity.description')"
-    tier="lead"
-  >
+  <div class="flex h-full min-w-0 flex-col gap-4 overflow-y-auto rounded-xl border bg-card p-4">
+    <header class="flex flex-col gap-1">
+      <h2 class="text-base font-semibold">{{ $t('dashboard.chat.identity.title') }}</h2>
+      <p class="text-sm text-muted-foreground">{{ $t('dashboard.chat.identity.description') }}</p>
+    </header>
     <p v-if="identityQuery.isPending.value" class="text-sm text-muted-foreground">
-      {{ $t('dashboard.settings.chatIdentity.loading') }}
+      {{ $t('dashboard.chat.identity.loading') }}
     </p>
     <p v-else-if="identityQuery.isError.value || !identity" class="text-sm text-destructive">
-      {{ $t('dashboard.settings.chatIdentity.loadFailed') }}
+      {{ $t('dashboard.chat.identity.loadFailed') }}
     </p>
     <div v-else class="flex flex-col gap-6">
       <section class="flex flex-col gap-2" data-test="preview">
-        <h3 class="text-sm font-medium">{{ $t('dashboard.settings.chatIdentity.preview') }}</h3>
+        <h3 class="text-sm font-medium">{{ $t('dashboard.chat.identity.preview') }}</h3>
         <div class="flex items-center gap-1 rounded-md border bg-muted/40 px-3 py-2 text-sm">
           <img
             v-for="badge in identity.badges"
@@ -88,20 +87,20 @@ function badgeImage(urls: Record<string, string>): string | undefined {
           <span class="font-semibold" data-test="name" :style="{ color: shownColor }">
             {{ identity.displayName }}</span>
           <span class="text-muted-foreground">
-            {{ $t('dashboard.settings.chatIdentity.sample') }}
+            {{ $t('dashboard.chat.identity.sample') }}
           </span>
         </div>
       </section>
 
       <section class="flex flex-col gap-2">
-        <h3 class="text-sm font-medium">{{ $t('dashboard.settings.chatIdentity.color') }}</h3>
+        <h3 class="text-sm font-medium">{{ $t('dashboard.chat.identity.color') }}</h3>
 
         <div v-if="!identity.canManageColor" class="flex flex-col gap-2 rounded-md border p-3" data-test="scope">
           <p class="text-sm">
-            {{ $t('dashboard.settings.chatIdentity.needsScope', { scope: identity.colorScope }) }}
+            {{ $t('dashboard.chat.identity.needsScope', { scope: identity.colorScope }) }}
           </p>
           <p v-if="regrantCode && !approved" class="text-sm" data-test="regrant-code">
-            {{ $t('dashboard.settings.chatIdentity.enterCode', { code: regrantCode.userCode }) }}
+            {{ $t('dashboard.chat.identity.enterCode', { code: regrantCode.userCode }) }}
             <a
               :href="regrantCode.verificationUri"
               target="_blank"
@@ -109,9 +108,9 @@ function badgeImage(urls: Record<string, string>): string | undefined {
               class="underline"
             >{{ regrantCode.verificationUri }}</a>
           </p>
-          <p v-if="approved" class="text-sm">{{ $t('dashboard.settings.chatIdentity.approved') }}</p>
+          <p v-if="approved" class="text-sm">{{ $t('dashboard.chat.identity.approved') }}</p>
           <p v-if="regrant.isError.value" class="text-sm text-destructive">
-            {{ regrant.error.value?.detail ?? $t('dashboard.settings.chatIdentity.regrantFailed') }}
+            {{ regrant.error.value?.detail ?? $t('dashboard.chat.identity.regrantFailed') }}
           </p>
           <Button
             v-if="!regrantCode"
@@ -120,11 +119,11 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             data-test="regrant"
             @click="regrant.mutate()"
           >
-            {{ $t('dashboard.settings.chatIdentity.regrant') }}
+            {{ $t('dashboard.chat.identity.regrant') }}
           </Button>
         </div>
 
-        <div class="flex flex-wrap gap-2" role="radiogroup" :aria-label="$t('dashboard.settings.chatIdentity.color')">
+        <div class="flex flex-wrap gap-2" role="radiogroup" :aria-label="$t('dashboard.chat.identity.color')">
           <button
             v-for="named in identity.namedColors"
             :key="named.name"
@@ -149,7 +148,7 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             v-model="hex"
             class="w-36"
             placeholder="#9146FF"
-            :aria-label="$t('dashboard.settings.chatIdentity.hex')"
+            :aria-label="$t('dashboard.chat.identity.hex')"
             :disabled="!identity.canManageColor"
             data-test="hex"
           />
@@ -159,15 +158,15 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             :disabled="!identity.canManageColor || setColor.isPending.value"
             data-test="apply-hex"
           >
-            {{ $t('dashboard.settings.chatIdentity.applyHex') }}
+            {{ $t('dashboard.chat.identity.applyHex') }}
           </Button>
         </form>
-        <p class="text-xs text-muted-foreground">{{ $t('dashboard.settings.chatIdentity.hexNote') }}</p>
+        <p class="text-xs text-muted-foreground">{{ $t('dashboard.chat.identity.hexNote') }}</p>
         <p v-if="refusal" class="text-sm text-destructive" role="alert" data-test="refusal">{{ refusal }}</p>
       </section>
 
       <section class="flex flex-col gap-2">
-        <h3 class="text-sm font-medium">{{ $t('dashboard.settings.chatIdentity.badges') }}</h3>
+        <h3 class="text-sm font-medium">{{ $t('dashboard.chat.identity.badges') }}</h3>
         <ul v-if="identity.badges.length > 0" class="flex flex-wrap gap-3" data-test="badges">
           <li
             v-for="badge in identity.badges"
@@ -178,11 +177,11 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             {{ badge.setId.replaceAll('-', ' ') }}
           </li>
         </ul>
-        <p v-else class="text-sm text-muted-foreground">{{ $t('dashboard.settings.chatIdentity.noBadges') }}</p>
+        <p v-else class="text-sm text-muted-foreground">{{ $t('dashboard.chat.identity.noBadges') }}</p>
         <p class="text-xs text-muted-foreground" data-test="badge-note">
-          {{ $t('dashboard.settings.chatIdentity.badgeNote') }}
+          {{ $t('dashboard.chat.identity.badgeNote') }}
         </p>
       </section>
     </div>
-  </PanelCard>
+  </div>
 </template>
