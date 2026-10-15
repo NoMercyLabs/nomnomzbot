@@ -86,6 +86,16 @@
           "action": "Stop stream"
         }
       },
+      "audio": {
+        "title": "Audiomixer",
+        "offline": "De mixer verschijnt zodra de OBS-koppeling aan staat.",
+        "empty": "OBS meldt geen invoer met audio.",
+        "loadError": "De audio-invoer kon niet laden.",
+        "mute": "{name} dempen",
+        "unmute": "{name} aanzetten",
+        "level": "Niveau van {name}",
+        "decibels": "{value} dB"
+      },
       "stats": {
         "title": "OBS-belasting",
         "cpu": "CPU",

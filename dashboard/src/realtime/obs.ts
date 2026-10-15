@@ -10,7 +10,14 @@
 
 import type { QueryClient } from '@tanstack/vue-query';
 
-import { obsScenesKey, obsStateKey, type ObsScene, type ObsState } from '@/api/obs';
+import {
+  obsInputsKey,
+  obsScenesKey,
+  obsStateKey,
+  type ObsInput,
+  type ObsScene,
+  type ObsState,
+} from '@/api/obs';
 
 import type { HubEventHandler } from './hubEvent';
 import type { ObsStateChangedPayload } from './payloads';
@@ -85,12 +92,34 @@ function patchScenes(
     scenes && markCurrent(listed, current));
 }
 
+// An input mute or level change sets that one input in the loaded list.
+function patchInputs(
+  queries: QueryClient,
+  channelId: string | null,
+  change: ObsStateChangedPayload,
+): void {
+  if (change.kind !== 'inputMute' && change.kind !== 'inputVolume') return;
+
+  const apply = (input: ObsInput): ObsInput => {
+    if (input.name !== change.inputName)
+      return input;
+
+    return change.kind === 'inputMute'
+      ? { ...input, muted: change.muted === true }
+      : { ...input, volumeDb: change.volumeDb ?? input.volumeDb };
+  };
+
+  queries.setQueryData<ObsInput[]>(obsInputsKey(channelId), (inputs) =>
+    inputs?.map(apply));
+}
+
 // OBS pushes each live change with its new value; the loaded OBS reads take it in place, without a refetch.
 export const obsStateChanged = {
   event: 'ObsStateChanged',
   handle: ({ queries, channelId }, change) => {
     patchScenes(queries, channelId, change);
     patchState(queries, channelId, change);
+    patchInputs(queries, channelId, change);
   },
 } as const satisfies HubEventHandler<ObsStateChangedPayload>;
 

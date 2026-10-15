@@ -143,6 +143,14 @@ export function useObsScenes(
 }
 
 export type ObsTransition = components['schemas']['ObsTransitionDto'];
+export type ObsInput = components['schemas']['ObsInputDto'];
+
+export const obsInputsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'obs',
+  'inputs',
+];
 
 export const obsStudioKey = (channelId: string | null): KeyParts => [
   'channels',
@@ -354,5 +362,91 @@ export function useObsSetTransition(channelId: MaybeRefOrGetter<string | null>) 
         markCurrent(old, transitionName)),
     onError: (_error, _name, context) => rollBack(queries, context),
     onSettled: () => queries.invalidateQueries({ queryKey: obsTransitionsKey(toValue(channelId)) }),
+  });
+}
+
+// The OBS inputs with their live mute and level. An input without audio reads back null for both.
+export function useObsInputs(
+  channelId: MaybeRefOrGetter<string | null>,
+  connected: MaybeRefOrGetter<boolean>,
+): UseQueryReturnType<ObsInput[], Error> {
+  return useQuery({
+    queryKey: computed(() => obsInputsKey(toValue(channelId))),
+    queryFn: async (): Promise<ObsInput[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/obs/inputs',
+        { params: { path: { version, channelId: toValue(channelId) as string } } },
+      );
+
+      if (error !== undefined)
+        throw failed('obs inputs', response.status, error);
+
+      return [...(data?.data ?? [])];
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(connected)),
+    retry: false,
+  });
+}
+
+const inputsKey = (channelId: MaybeRefOrGetter<string | null>): KeyParts =>
+  obsInputsKey(toValue(channelId));
+
+// The same list with one input changed.
+function changeInput(
+  list: readonly ObsInput[],
+  name: string,
+  change: Partial<ObsInput>,
+): ObsInput[] {
+  return list.map((item: ObsInput) =>
+    item.name === name
+      ? { ...item, ...change }
+      : item);
+}
+
+// Mute or unmute one input. The row flips at once; a refusal flips it back.
+export function useObsSetInputMute(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { inputName: string; muted: boolean }): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/inputs/mute',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: input,
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('obs input mute', response.status, error);
+    },
+    onMutate: (input: { inputName: string; muted: boolean }) =>
+      applyOptimistic<ObsInput[]>(queries, inputsKey(channelId), (old) =>
+        changeInput(old, input.inputName, { muted: input.muted })),
+    onError: (_error, _input, context) => rollBack(queries, context),
+  });
+}
+
+// Set one input's level in dB. The slider keeps the new level; a refusal puts the old one back.
+export function useObsSetInputVolume(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { inputName: string; volumeDb: number }): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/inputs/volume',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: input,
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('obs input volume', response.status, error);
+    },
+    onMutate: (input: { inputName: string; volumeDb: number }) =>
+      applyOptimistic<ObsInput[]>(queries, inputsKey(channelId), (old) =>
+        changeInput(old, input.inputName, { volumeDb: input.volumeDb })),
+    onError: (_error, _input, context) => rollBack(queries, context),
   });
 }

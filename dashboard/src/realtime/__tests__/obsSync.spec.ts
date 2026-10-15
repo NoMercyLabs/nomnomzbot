@@ -11,7 +11,14 @@
 import { QueryClient } from '@tanstack/vue-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { obsScenesKey, obsStateKey, type ObsScene, type ObsState } from '@/api/obs';
+import {
+  obsInputsKey,
+  obsScenesKey,
+  obsStateKey,
+  type ObsInput,
+  type ObsScene,
+  type ObsState,
+} from '@/api/obs';
 
 import type { ObsStateChangedPayload } from '../payloads';
 
@@ -40,6 +47,21 @@ const scenes: ObsScene[] = [
   },
 ];
 
+const inputs: ObsInput[] = [
+  {
+    name: 'Mic',
+    kind: 'wasapi_input_capture',
+    muted: false,
+    volumeDb: -6,
+  },
+  {
+    name: 'Music',
+    kind: 'wasapi_output_capture',
+    muted: false,
+    volumeDb: -20,
+  },
+];
+
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
   const hub = await import('../dashboardHub');
   const queries = new QueryClient();
@@ -50,6 +72,8 @@ async function started(): Promise<[QueryClient, FakeHubConnection]> {
   queries.setQueryData(obsStateKey('c1'), state);
   queries.setQueryData(obsScenesKey('c1'), scenes);
   queries.setQueryData(obsStateKey('other'), state);
+  queries.setQueryData(obsInputsKey('c1'), inputs);
+  queries.setQueryData(obsInputsKey('other'), inputs);
 
   return [queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)];
 }
@@ -142,6 +166,38 @@ describe('ObsStateChanged patches the OBS caches in place', () => {
         isCurrent: true,
       },
     ]);
+  });
+
+  it('an input mute change sets the muted flag of that input only', async () => {
+    const [queries, connection] = await started();
+
+    send(connection, {
+      kind: 'inputMute',
+      inputName: 'Mic',
+      muted: true,
+    });
+
+    const cached = queries.getQueryData<ObsInput[]>(obsInputsKey('c1'));
+
+    expect(cached?.[0]).toEqual({ ...inputs[0], muted: true });
+    expect(cached?.[1]).toEqual(inputs[1]);
+    expect(queries.getQueryData<ObsInput[]>(obsInputsKey('other'))).toEqual(inputs);
+    expect(queries.getQueryState(obsInputsKey('c1'))?.isInvalidated).toBe(false);
+  });
+
+  it('an input volume change sets the dB of that input only', async () => {
+    const [queries, connection] = await started();
+
+    send(connection, {
+      kind: 'inputVolume',
+      inputName: 'Music',
+      volumeDb: -35.5,
+    });
+
+    const cached = queries.getQueryData<ObsInput[]>(obsInputsKey('c1'));
+
+    expect(cached?.[1]).toEqual({ ...inputs[1], volumeDb: -35.5 });
+    expect(cached?.[0]).toEqual(inputs[0]);
   });
 
   it('a change for a page that is not loaded leaves the cache empty', async () => {

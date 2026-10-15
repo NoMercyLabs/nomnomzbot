@@ -21,6 +21,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
 
+import AudioPanel from './components/AudioPanel.vue';
 import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
 import ObsConnectionPanel from './components/ObsConnectionPanel.vue';
 import OutputsPanel from './components/OutputsPanel.vue';
@@ -107,6 +108,7 @@ function retry(): void {
       :offline="!enabled"
       @retry="retry"
     />
+    <AudioPanel :offline="!enabled" />
     <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
     <BrowserSourcesPanel
       class="lg:col-span-2"

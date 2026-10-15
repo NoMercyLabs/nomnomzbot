@@ -86,6 +86,16 @@
           "action": "Stop stream"
         }
       },
+      "audio": {
+        "title": "Audio mixer",
+        "offline": "The mixer shows once the OBS link is switched on.",
+        "empty": "OBS reports no inputs with audio.",
+        "loadError": "The audio inputs could not load.",
+        "mute": "Mute {name}",
+        "unmute": "Unmute {name}",
+        "level": "Level of {name}",
+        "decibels": "{value} dB"
+      },
       "stats": {
         "title": "OBS load",
         "cpu": "CPU",
