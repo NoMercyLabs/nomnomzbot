@@ -177,7 +177,7 @@ public sealed class AuthControllerWebReturnOriginTests
             controller.Request.Headers["X-Forwarded-Host"] = forwardedHost;
             controller.Request.Headers["X-Forwarded-Proto"] = "https";
 
-            await controller.StartTwitchOAuth(null, "web", returnTo, null, default);
+            await controller.StartTwitchOAuth(null, "web", returnTo, null, null, default);
             return issued;
         }
 

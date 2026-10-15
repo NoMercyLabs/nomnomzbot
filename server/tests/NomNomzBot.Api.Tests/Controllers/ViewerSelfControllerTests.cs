@@ -41,7 +41,10 @@ public sealed class ViewerSelfControllerTests
         IViewerSelfService service = Substitute.For<IViewerSelfService>();
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(userId);
-        return (new(service, activity, currentUser), service);
+        return (
+            new(service, activity, Substitute.For<IViewerSelfQueueService>(), currentUser),
+            service
+        );
     }
 
     [Fact]

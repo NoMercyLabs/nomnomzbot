@@ -79,6 +79,7 @@ public sealed class OAuthForwardedOriginTests
             client: "web",
             return_to: null,
             return_route: null,
+            mode: null,
             default
         );
 
@@ -140,6 +141,7 @@ public sealed class OAuthForwardedOriginTests
             client: "web",
             return_to: null,
             return_route: returnRoute,
+            mode: null,
             default
         );
 

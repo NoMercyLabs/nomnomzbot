@@ -361,11 +361,14 @@ public class AuthController : BaseController
         [FromQuery] string? client,
         [FromQuery] string? return_to,
         [FromQuery] string? return_route,
+        [FromQuery] string? mode,
         CancellationToken ct
     )
     {
         if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
             return BadRequest("Disallowed redirect_uri.");
+
+        bool viewer = string.Equals(mode, "viewer", StringComparison.OrdinalIgnoreCase);
 
         // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch, and
         // the flow + optional mobile redirect + client class are held server-side so the callback can route
@@ -373,7 +376,7 @@ public class AuthController : BaseController
         // path is normalized to a same-origin relative path (or dropped) BEFORE it enters the state.
         string state = await _oauthState.IssueAsync(
             new(
-                "user",
+                viewer ? "viewer" : "user",
                 redirect_uri,
                 Client: client,
                 ReturnTo: ReturnPathPolicy.Normalize(return_to),
@@ -383,12 +386,14 @@ public class AuthController : BaseController
             ct
         );
 
-        Result<string> authUrl = await _authService.GetTwitchOAuthUrl(
-            state,
-            GetPublicBaseUrl(),
-            await ResolveArrivingBroadcasterAsync(ct),
-            ct
-        );
+        Result<string> authUrl = viewer
+            ? await _authService.GetTwitchViewerOAuthUrl(state, GetPublicBaseUrl(), ct)
+            : await _authService.GetTwitchOAuthUrl(
+                state,
+                GetPublicBaseUrl(),
+                await ResolveArrivingBroadcasterAsync(ct),
+                ct
+            );
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
         return Redirect(authUrl.Value);
@@ -511,16 +516,20 @@ public class AuthController : BaseController
             return Redirect($"{GetPublicBaseUrl()}/oauth-relay?custom_bot_connected=true");
         }
 
-        Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(
-            new()
-            {
-                Code = code,
-                State = state,
-                RedirectUri = callbackUri,
-            },
-            BuildAuthContext(),
-            ct
-        );
+        OAuthCallbackDto callback = new()
+        {
+            Code = code,
+            State = state,
+            RedirectUri = callbackUri,
+        };
+        Result<AuthResultDto> result =
+            flow == "viewer"
+                ? await _authService.HandleTwitchViewerCallbackAsync(
+                    callback,
+                    BuildAuthContext(),
+                    ct
+                )
+                : await _authService.HandleTwitchCallbackAsync(callback, BuildAuthContext(), ct);
 
         if (result.IsFailure)
         {

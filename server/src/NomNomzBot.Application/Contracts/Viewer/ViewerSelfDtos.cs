@@ -38,3 +38,16 @@ public sealed record ViewerSelfSummaryDto(
     string? SubTier,
     bool IsLive
 );
+
+/// <summary>One of the caller's own songs in the queue. <c>Position</c> is 1-based: 1 plays next.</summary>
+public sealed record ViewerQueuedSongDto(
+    int Position,
+    string TrackName,
+    string Artist,
+    string? ImageUrl,
+    int DurationMs,
+    string Code
+);
+
+/// <summary>The caller's own songs in one channel's queue, plus the full queue length for context.</summary>
+public sealed record ViewerQueueDto(int QueueLength, IReadOnlyList<ViewerQueuedSongDto> Songs);
