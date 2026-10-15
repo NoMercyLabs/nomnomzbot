@@ -29,6 +29,7 @@ public static class WebReturnOriginPolicy
         "http://localhost:5090",
         "http://localhost:8081",
         "https://bot-dev.nomercy.tv",
+        "https://vue.nomnomz.bot",
     ];
 
     /// <summary>The configured <c>Cors:Origins</c>, or the built-in defaults when the key is absent.</summary>
