@@ -24,8 +24,16 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
+import Cross from '~icons/nnz/cross';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
@@ -171,7 +179,21 @@ function ruleSummary(rule: DiscordRule | null): string {
     </div>
 
     <Sheet v-model:open="open">
-      <SheetContent v-if="editing !== null && connectionId !== null" class="overflow-y-auto">
+      <SheetContent
+        v-if="editing !== null && connectionId !== null"
+        class="overflow-y-auto"
+        :show-close-button="false"
+      >
+        <SheetClose as-child>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="absolute top-3 right-3 z-10"
+            :aria-label="t('common.close')"
+          >
+            <Cross aria-hidden="true" />
+          </Button>
+        </SheetClose>
         <SheetHeader>
           <SheetTitle>{{ triggerLabel(editing) }}</SheetTitle>
           <SheetDescription>{{ t('dashboard.discord.editor.description') }}</SheetDescription>

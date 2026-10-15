@@ -878,6 +878,9 @@
       "pitch": {
         "help": "Voice pitch as a percentage, from -50 (lower) to 50 (higher). Leave blank for the normal pitch."
       },
+      "play_on_audio": {
+        "help": "Also play the speech on the Audio overlay, the browser source that OBS mixes. The step fails when no Audio overlay is connected."
+      },
       "rate": {
         "help": "Speaking speed as a percentage, from -50 (slower) to 50 (faster). Leave blank for normal speed."
       },

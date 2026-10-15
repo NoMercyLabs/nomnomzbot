@@ -66,8 +66,7 @@ function confirmRemove(): void {
       </SelectContent>
     </Select>
     <Button
-      variant="outline"
-      class="text-destructive"
+      variant="destructive"
       :disabled="chosen === undefined"
       @click="confirmOpen = true"
     >
