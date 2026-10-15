@@ -1,0 +1,31 @@
+{
+  "dashboard": {
+    "channelPoints": {
+      "title": "Channel points",
+      "rewards": {
+        "title": "Rewards",
+        "count": "{count} rewards",
+        "empty": "This channel has no rewards yet.",
+        "error": "The rewards could not load.",
+        "runsNothing": "Only lands in the queue",
+        "paused": "Paused",
+        "cost": "Cost of {title}",
+        "enabled": "Turn {title} on or off"
+      },
+      "redemptions": {
+        "title": "Redemptions",
+        "empty": "No one has redeemed a reward yet.",
+        "error": "The redemptions could not load.",
+        "meta": "{count} points · {when}",
+        "fulfill": "Fulfill",
+        "fulfillRow": "Fulfill {title} for {name}",
+        "refundRow": "Refund {title} to {name}",
+        "status": {
+          "unfulfilled": "Waiting",
+          "fulfilled": "Fulfilled",
+          "canceled": "Refunded"
+        }
+      }
+    }
+  }
+}

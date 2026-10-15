@@ -1,0 +1,31 @@
+{
+  "dashboard": {
+    "channelPoints": {
+      "title": "Kanaalpunten",
+      "rewards": {
+        "title": "Beloningen",
+        "count": "{count} beloningen",
+        "empty": "Dit kanaal heeft nog geen beloningen.",
+        "error": "De beloningen konden niet laden.",
+        "runsNothing": "Komt alleen in de wachtrij",
+        "paused": "Gepauzeerd",
+        "cost": "Prijs van {title}",
+        "enabled": "{title} aan of uit zetten"
+      },
+      "redemptions": {
+        "title": "Inwisselingen",
+        "empty": "Niemand heeft al een beloning ingewisseld.",
+        "error": "De inwisselingen konden niet laden.",
+        "meta": "{count} punten · {when}",
+        "fulfill": "Afhandelen",
+        "fulfillRow": "{title} afhandelen voor {name}",
+        "refundRow": "{title} terugbetalen aan {name}",
+        "status": {
+          "unfulfilled": "Wachtend",
+          "fulfilled": "Afgehandeld",
+          "canceled": "Terugbetaald"
+        }
+      }
+    }
+  }
+}
