@@ -132,7 +132,14 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
 
   attachHandlers(
     hub,
-    merge(channelHandlers, communityHandlers, chatHandlers, liveHandlers, obsHandlers, viewerHandlers),
+    merge(
+      channelHandlers,
+      communityHandlers,
+      chatHandlers,
+      liveHandlers,
+      obsHandlers,
+      viewerHandlers,
+    ),
     () => ({
       queries,
       channelId: joinedChannel,

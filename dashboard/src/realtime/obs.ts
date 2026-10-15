@@ -43,7 +43,11 @@ function currentSceneOf(queries: QueryClient, channelId: string | null): string 
   return state?.currentScene ?? marked?.name ?? null;
 }
 
-function patchState(queries: QueryClient, channelId: string | null, change: ObsStateChangedPayload): void {
+function patchState(
+  queries: QueryClient,
+  channelId: string | null,
+  change: ObsStateChangedPayload,
+): void {
   const patch = statePatches[change.kind];
 
   if (!patch) return;
@@ -57,7 +61,11 @@ function patchState(queries: QueryClient, channelId: string | null, change: ObsS
       : state);
 }
 
-function patchScenes(queries: QueryClient, channelId: string | null, change: ObsStateChangedPayload): void {
+function patchScenes(
+  queries: QueryClient,
+  channelId: string | null,
+  change: ObsStateChangedPayload,
+): void {
   if (change.kind === 'programScene') {
     queries.setQueryData<ObsScene[]>(obsScenesKey(channelId), (scenes) =>
       scenes && markCurrent(scenes, change.sceneName ?? null));
