@@ -18,6 +18,7 @@ import {
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
+import { failed } from './errors';
 
 export const shieldKey = (channelId: string | null): unknown[] => ['channels', channelId, 'shield'];
 
@@ -61,7 +62,7 @@ export function useSetShieldMode(
       );
 
       if (!response.ok)
-        throw new Error(`shield ${response.status}`);
+        throw failed('shield', response.status);
     },
     onSuccess: () => queries.invalidateQueries({ queryKey: shieldKey(toValue(channelId)) }),
   });

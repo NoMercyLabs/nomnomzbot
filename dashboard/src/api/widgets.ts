@@ -20,6 +20,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { numberOrNull } from '@/lib/number';
 
 import { channelQuery, failed, refusal } from './channelQuery';
+import type { ApiOperation } from './errors';
 import { client } from './client';
 import type { components } from './schema';
 
@@ -119,7 +120,7 @@ async function putWidget(
   channelId: string,
   widgetId: string,
   body: components['schemas']['UpdateWidgetRequest'],
-  what: string,
+  what: ApiOperation,
 ): Promise<Widget[]> {
   const { error, response } = await client.PUT(
     '/api/v{version}/channels/{channelId}/widgets/{widgetId}',

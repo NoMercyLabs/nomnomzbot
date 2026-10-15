@@ -20,6 +20,7 @@ import {
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
+import { problemError } from './errors';
 import type { components } from './schema';
 
 export type AdminTenant = components['schemas']['AdminTenantDto'];
@@ -99,7 +100,7 @@ export function useAdminTenants(
 
       // A refusal is an error state, not an empty registry.
       if (error !== undefined)
-        throw new Error(`admin tenants ${response.status}`);
+        throw problemError('admin tenants', response.status, error);
 
       return data ?? {};
     },
@@ -121,7 +122,7 @@ export function useAdminTenant(
       );
 
       if (error !== undefined)
-        throw new Error(`admin tenant ${response.status}`);
+        throw problemError('admin tenant', response.status, error);
 
       return data?.data ?? null;
     },
@@ -148,13 +149,13 @@ export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInp
 
   return useMutation({
     mutationFn: async ({ broadcasterId, newStatus, reason }: SuspendInput): Promise<void> => {
-      const { error } = await client.POST('/api/v{version}/admin/tenants/{broadcasterId}/suspend', {
+      const { error, response } = await client.POST('/api/v{version}/admin/tenants/{broadcasterId}/suspend', {
         params: { path: { version, broadcasterId } },
         body: { newStatus, reason },
       });
 
       if (error !== undefined)
-        throw new Error('suspend failed');
+        throw problemError('suspend', response.status, error);
     },
     onSuccess: (_data: void, { broadcasterId }: SuspendInput) =>
       refreshTenant(queries, broadcasterId),
@@ -168,7 +169,7 @@ export function useAdminReinstate(): UseMutationReturnType<void, Error, Reinstat
 
   return useMutation({
     mutationFn: async ({ broadcasterId, justification }: ReinstateInput): Promise<void> => {
-      const { error } = await client.POST(
+      const { error, response } = await client.POST(
         '/api/v{version}/admin/tenants/{broadcasterId}/reinstate',
         {
           params: { path: { version, broadcasterId } },
@@ -177,7 +178,7 @@ export function useAdminReinstate(): UseMutationReturnType<void, Error, Reinstat
       );
 
       if (error !== undefined)
-        throw new Error('reinstate failed');
+        throw problemError('reinstate', response.status, error);
     },
     onSuccess: (_data: void, { broadcasterId }: ReinstateInput) =>
       refreshTenant(queries, broadcasterId),
@@ -204,7 +205,7 @@ export function useAdminBeginAccess(): UseMutationReturnType<
       breakGlass,
       expiresAt,
     }: BeginAccessInput): Promise<AdminAccessGrant> => {
-      const { data, error } = await client.POST(
+      const { data, error, response } = await client.POST(
         '/api/v{version}/admin/tenants/{broadcasterId}/access',
         {
           params: { path: { version, broadcasterId } },
@@ -217,7 +218,7 @@ export function useAdminBeginAccess(): UseMutationReturnType<
       );
 
       if (error !== undefined || !data?.data)
-        throw new Error('begin access failed');
+        throw problemError('begin access', response.status, error);
 
       return data.data;
     },
@@ -242,7 +243,7 @@ export function useAdminImpersonate(): UseMutationReturnType<
       accessGrantId,
       justification,
     }: ImpersonateInput): Promise<AdminImpersonationToken> => {
-      const { data, error } = await client.POST(
+      const { data, error, response } = await client.POST(
         '/api/v{version}/admin/users/{userId}/impersonate',
         {
           params: { path: { version, userId } },
@@ -251,7 +252,7 @@ export function useAdminImpersonate(): UseMutationReturnType<
       );
 
       if (error !== undefined || !data?.data)
-        throw new Error('impersonate failed');
+        throw problemError('impersonate', response.status, error);
 
       return data.data;
     },

@@ -232,7 +232,7 @@ describe('useAdminSuspend', () => {
         newStatus: 'Suspended',
         reason: 'abuse',
       }),
-    ).rejects.toThrow('suspend failed');
+    ).rejects.toMatchObject({ code: 'admin/suspend', status: 409 });
 
     expect(queries.getQueryState(adminTenantKey('a'))?.isInvalidated).toBe(false);
     expect(queries.getQueryState(adminTenantsKey(page))?.isInvalidated).toBe(false);
@@ -269,9 +269,10 @@ describe('useAdminReinstate', () => {
     queries.setQueryData(adminTenantKey('a'), { id: 'a' });
     const { hook } = mount(() => useAdminReinstate(), queries);
 
-    await expect(hook.mutateAsync({ broadcasterId: 'a', justification: 'x' })).rejects.toThrow(
-      'reinstate failed',
-    );
+    await expect(hook.mutateAsync({ broadcasterId: 'a', justification: 'x' })).rejects.toMatchObject({
+      code: 'admin/reinstate',
+      status: 500,
+    });
 
     expect(queries.getQueryState(adminTenantKey('a'))?.isInvalidated).toBe(false);
   });
@@ -340,6 +341,6 @@ describe('useAdminImpersonate', () => {
         accessGrantId: 'g1',
         justification: 'repro',
       }),
-    ).rejects.toThrow('impersonate failed');
+    ).rejects.toMatchObject({ code: 'admin/impersonate', status: 403 });
   });
 });

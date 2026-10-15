@@ -11,17 +11,13 @@
 import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-export function failed(what: string, status: number): Error {
-  return new Error(`${what} ${status}`);
-}
+import { failed, problemError, type ApiError, type ApiOperation } from './errors';
 
-// A refusal carries the bot's own reason in `message`; without one, the status stands in.
-export function refusal(what: string, error: unknown, status: number): Error {
-  const reason = (error as { message?: string | null } | undefined)?.message;
+export { failed };
 
-  return reason
-    ? new Error(reason)
-    : failed(what, status);
+// A refusal carries the bot's own reason in its body (`detail` or `message`); without one, the status stands in.
+export function refusal(what: ApiOperation, error: unknown, status: number): ApiError {
+  return problemError(what, status, error);
 }
 
 // A query that waits for a channel id and keeps one cache entry per channel.

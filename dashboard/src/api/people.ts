@@ -26,6 +26,7 @@ import { numberOrNull } from '@/lib/number';
 
 import { memberKey, type CommunityRow } from './community';
 import { client } from './client';
+import { failed, refused } from './errors';
 import type { components } from './schema';
 
 export type { CommunityRow };
@@ -70,10 +71,6 @@ export const userNotesKey = (channelId: string | null, userId: string | null): u
   'notes',
   userId,
 ];
-
-function failed(what: string, status: number): Error {
-  return new Error(`${what} ${status}`);
-}
 
 async function readPage(
   channelId: string,
@@ -385,7 +382,7 @@ export function useTimeout(
 
       // The bot can answer 200 and still refuse; its message says why.
       if (data?.data?.success === false)
-        throw new Error(data.data.message ?? 'timeout refused');
+        throw refused('timeout refused', data.data.message);
     },
     onSuccess: (_data: void, { userId }: TimeoutInput) =>
       personChanged(queries, toValue(channelId) as string, userId),
@@ -414,7 +411,7 @@ export function useWarn(
         throw failed('warn', response.status);
 
       if (data?.data?.success === false)
-        throw new Error(data.data.message ?? 'warn refused');
+        throw refused('warn refused', data.data.message);
     },
     onSuccess: (_data: void, { userId }: WarnInput) => {
       const channel = toValue(channelId) as string;

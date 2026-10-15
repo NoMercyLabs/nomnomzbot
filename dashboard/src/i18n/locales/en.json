@@ -1,4 +1,13 @@
 {
+  "errors": {
+    "failed": "Something went wrong. Try again.",
+    "refused": "The bot refused this.",
+    "notFound": "That could not be found.",
+    "forbidden": "You do not have the right for this.",
+    "rateLimited": "Too many tries. Wait a moment.",
+    "invalid": "Some of the input is not valid.",
+    "server": "The bot had a problem. Try again in a moment."
+  },
   "common": {
     "signOut": "Sign out",
     "language": "Language",

@@ -15,6 +15,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { merge } from '@/lib/array';
 
 import { client } from './client';
+import { problemError } from './errors';
 import type { components } from './schema';
 
 export type FavoriteEmote = components['schemas']['FavoriteEmoteDto'];
@@ -29,10 +30,10 @@ const version = { path: { version: '1' } } as const;
 export const favoriteEmotesKey = ['users', 'me', 'favorite-emotes'] as const;
 
 async function fetchFavorites(): Promise<FavoriteEmote[]> {
-  const { data, error } = await client.GET('/api/v{version}/users/me/favorite-emotes', { params: version });
+  const { data, error, response } = await client.GET('/api/v{version}/users/me/favorite-emotes', { params: version });
 
   if (error)
-    throw new Error('favorite emotes failed');
+    throw problemError('favorite emotes', response.status, error);
 
   return [...(data?.data ?? [])];
 }
@@ -52,7 +53,7 @@ function same(a: EmoteRef, b: EmoteRef): boolean {
 }
 
 async function save({ emote, favorite }: FavoriteChange): Promise<FavoriteEmote[]> {
-  const { error } = favorite
+  const { error, response } = favorite
     ? await client.PUT('/api/v{version}/users/me/favorite-emotes', { params: version, body: emote })
     : await client.DELETE('/api/v{version}/users/me/favorite-emotes/{provider}/{emoteId}', {
         params: { path: {
@@ -63,7 +64,7 @@ async function save({ emote, favorite }: FavoriteChange): Promise<FavoriteEmote[
       });
 
   if (error)
-    throw new Error('favorite emote change failed');
+    throw problemError('favorite emote change', response.status, error);
 
   return fetchFavorites();
 }

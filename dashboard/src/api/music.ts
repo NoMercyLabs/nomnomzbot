@@ -19,6 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
 import { client } from './client';
+import { failed } from './errors';
 import type { components } from './schema';
 
 export type MusicQueue = components['schemas']['MusicQueueDto'];
@@ -48,10 +49,6 @@ export const blockedTracksKey = (channelId: string | null): unknown[] => [
   channelId,
   'music-blocked-tracks',
 ];
-
-function failed(what: string, status: number): Error {
-  return new Error(`${what} ${status}`);
-}
 
 function channelQuery<T>(
   channelId: MaybeRefOrGetter<string | null>,

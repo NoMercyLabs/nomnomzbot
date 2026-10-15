@@ -28,6 +28,7 @@ import type {
 import { channelQuery, refusal } from './channelQuery';
 import type { components } from './schema';
 import { client } from './client';
+import { problemError } from './errors';
 
 export type CodeScriptSummary = components['schemas']['CodeScriptSummaryDto'];
 export type CodeScriptDetail = components['schemas']['CodeScriptDetailDto'];
@@ -50,9 +51,7 @@ export async function fetchCodeScripts(): Promise<CodeScriptSummary[]> {
   });
 
   if (error !== undefined) {
-    const reason = (error as { message?: string | null }).message;
-
-    throw new Error(reason ?? `code scripts ${response.status}`);
+    throw problemError('code scripts', response.status, error);
   }
 
   return [...(data?.data ?? [])];

@@ -20,6 +20,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
 import { client } from './client';
+import { failed, problemError } from './errors';
 import type { ChatEmoteEntry } from './chat';
 import type { components } from './schema';
 
@@ -89,7 +90,7 @@ export function usePersonEmotes(
       );
 
       if (!response.ok)
-        throw new Error(`The emotes of ${toValue(userId)} did not load (${response.status}).`);
+        throw failed('community emotes', response.status);
 
       return [...(data?.data ?? [])];
     },
@@ -114,7 +115,7 @@ export function useCommunityFirstPage(
 
       // A refusal is an error state, not an empty community.
       if (error !== undefined)
-        throw new Error(`community ${response.status}`);
+        throw problemError('community', response.status, error);
 
       return data?.data ?? [];
     },
@@ -143,7 +144,7 @@ export function useVipChange(
           },
         },
       };
-      const { error } = vip
+      const { error, response } = vip
         ? await client.POST('/api/v{version}/channels/{channelId}/community/{userId}/vip', params)
         : await client.DELETE(
             '/api/v{version}/channels/{channelId}/community/{userId}/vip',
@@ -151,7 +152,7 @@ export function useVipChange(
           );
 
       if (error)
-        throw new Error('vip change failed');
+        throw problemError('vip change', response.status, error);
 
       return fetchMember(channelId, userId);
     },
@@ -174,7 +175,7 @@ export function useBanMember(
 
   return useMutation({
     mutationFn: async ({ userId, reason }: BanInput): Promise<void> => {
-      const { error } = await client.POST(
+      const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/community/{userId}/ban',
         {
           params: {
@@ -189,7 +190,7 @@ export function useBanMember(
       );
 
       if (error)
-        throw new Error('ban failed');
+        throw problemError('community ban', response.status, error);
     },
     onSuccess: (_data: void, { userId }: BanInput) =>
       queries.invalidateQueries({ queryKey: memberKey(channelId, userId) }),
@@ -228,7 +229,7 @@ export function useViewerSearch(
       );
 
       if (error !== undefined)
-        throw new Error(`viewer search ${response.status}`);
+        throw problemError('viewer search', response.status, error);
 
       return data?.data ?? [];
     },
@@ -255,7 +256,7 @@ export function useTwitchLookup(
         throw new TwitchUserNotFoundError('twitch user not found');
 
       if (error !== undefined || !data?.data)
-        throw new Error(`twitch lookup ${response.status}`);
+        throw problemError('twitch lookup', response.status, error);
 
       return data.data;
     },

@@ -24,6 +24,7 @@ import { merge } from '@/lib/array';
 import type { ChatMessagePayload } from '@/realtime/payloads';
 
 import { client } from './client';
+import { failed, type ApiOperation } from './errors';
 import type { paths } from './schema';
 
 // The live feed of one channel, oldest line first. The hub appends to it; the page seeds it from the history call.
@@ -61,9 +62,9 @@ export type BanInput = {
 };
 export type UnbanInput = { targetUserId: string; scope: ChatScope };
 
-function ensureOk(response: Response, what: string): void {
+function ensureOk(response: Response, what: ApiOperation): void {
   if (!response.ok)
-    throw new Error(`${what} ${response.status}`);
+    throw failed(what, response.status);
 }
 
 // Lines that arrived live while the history call ran stay; the history wins on a shared id. Every line takes
@@ -122,7 +123,7 @@ export function useChatEmotes(
         },
       });
 
-      ensureOk(response, 'emotes');
+      ensureOk(response, 'chat emotes');
 
       return [...(data?.data ?? [])];
     },
@@ -155,7 +156,7 @@ async function readSearchPage(
     params: { path: { version: '1', channelId }, query: { q: query, before } },
   });
 
-  ensureOk(response, 'search');
+  ensureOk(response, 'chat search');
 
   return {
     messages: (data?.data?.messages ?? []) as ChatLine[],
@@ -232,7 +233,7 @@ export function useSendChat(
   return useMutation({
     mutationFn: async (input: SendChatInput): Promise<void> => {
       if (input.message.length > chatMessageMaxLength)
-        throw new Error('chat message too long');
+        throw failed('chat message too long', 400);
 
       const { response } = await client.POST('/api/v{version}/channels/{channelId}/chat/messages', {
         params: { path: { version: '1', channelId: toValue(channelId) as string } },
@@ -243,7 +244,7 @@ export function useSendChat(
         },
       });
 
-      ensureOk(response, 'send');
+      ensureOk(response, 'chat send');
     },
   });
 }
@@ -266,7 +267,7 @@ export function useDeleteChatMessage(
         },
       );
 
-      ensureOk(response, 'delete');
+      ensureOk(response, 'chat delete');
     },
   });
 }
@@ -289,7 +290,7 @@ export function useTimeoutUser(
         },
       );
 
-      ensureOk(response, 'timeout');
+      ensureOk(response, 'chat timeout');
     },
   });
 }
@@ -311,7 +312,7 @@ export function useBanUser(
         },
       );
 
-      ensureOk(response, 'ban');
+      ensureOk(response, 'chat ban');
     },
   });
 }
@@ -329,7 +330,7 @@ export function useUnbanUser(
         },
       );
 
-      ensureOk(response, 'unban');
+      ensureOk(response, 'chat unban');
     },
   });
 }
