@@ -230,6 +230,33 @@ export type ObsLiveStatePayload = {
   timestamp: string;
 };
 
+// HubResponseDtos.cs: ObsStateChangedDto. Only the fields of the kind are set.
+export type ObsStateChangedPayload = {
+  broadcasterId: string;
+  kind:
+    | 'programScene' |
+    'previewScene' |
+    'stream' |
+    'record' |
+    'replayBuffer' |
+    'virtualCam' |
+    'studioMode' |
+    'inputMute' |
+    'inputVolume' |
+    'sceneList' |
+    'sceneItemVisibility';
+  sceneName?: string | null;
+  active?: boolean | null;
+  paused?: boolean | null;
+  inputName?: string | null;
+  muted?: boolean | null;
+  volumeDb?: number | null;
+  sceneItemId?: number | null;
+  enabled?: boolean | null;
+  sceneNames?: string[] | null;
+  timestamp: string;
+};
+
 // Every event the dashboard hub sends to a joined channel (Hubs/Clients/IDashboardClient.cs, plus the sr_queue_changed
 // method the notifier sends by name), keyed by the method name. A handler is typed from this map by its event name.
 export type DashboardHubEvents = {
@@ -249,5 +276,6 @@ export type DashboardHubEvents = {
   ConfigChanged: ConfigChangedPayload;
   ObsBridgeStateChanged: ObsBridgeStatePayload;
   ObsLiveStateChanged: ObsLiveStatePayload;
+  ObsStateChanged: ObsStateChangedPayload;
   sr_queue_changed: SrQueueChangedPayload;
 };
