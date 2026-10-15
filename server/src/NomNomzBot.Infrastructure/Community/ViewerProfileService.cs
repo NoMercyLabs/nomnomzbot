@@ -41,7 +41,8 @@ public sealed class ViewerProfileService(
     IPermitService permits,
     IQuoteService quotes,
     ITtsConfigService tts,
-    IFollowStateService follows
+    IFollowStateService follows,
+    ISpamDefenseService spam
 ) : IViewerProfileService
 {
     private const int RecentQuotesPageSize = 10;
@@ -199,8 +200,39 @@ public sealed class ViewerProfileService(
             user.Timezone,
             user.IsLurking,
             user.PronounManualOverride,
-            await ResolveFollowedAtUtcAsync(broadcasterId, user, ct)
+            await ResolveFollowedAtUtcAsync(broadcasterId, user, ct),
+            await ResolveTrustTierAsync(broadcasterId, user, standing, ct)
         );
+    }
+
+    // The bot's own ladder, never Twitch's account type. Any failure means "could not find out" (null).
+    private async Task<string?> ResolveTrustTierAsync(
+        Guid broadcasterId,
+        User user,
+        ChannelCommunityStanding? standing,
+        CancellationToken ct
+    )
+    {
+        if (user.TwitchUserId is null)
+            return null;
+
+        try
+        {
+            SpamTrustTier tier = await spam.ResolveTrustTierAsync(
+                broadcasterId,
+                AuthEnums.Platform.Twitch,
+                user.TwitchUserId,
+                user.DisplayName,
+                standing?.Standing == CommunityStanding.Vip,
+                !string.IsNullOrEmpty(standing?.SubTier),
+                ct
+            );
+            return tier.ToString();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     // Cached Helix lookup; any failure means "could not find out", never a failed profile read.

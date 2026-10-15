@@ -296,8 +296,21 @@
         "other": "Other"
       }
     },
+    "trustTier": {
+      "Untrusted": "Untrusted",
+      "Newcomer": "Newcomer",
+      "Known": "Known",
+      "Regular": "Regular",
+      "SemiTrusted": "Semi-trusted",
+      "Trusted": "Trusted",
+      "Established": "Established"
+    },
+    "behavior": {
+      "title": "Bot standing",
+      "tier": "Trust tier",
+      "trust": "Trust score"
+    },
     "twitchStanding": {
-      "regular": "Regular",
       "affiliate": "Affiliate",
       "partner": "Partner"
     },

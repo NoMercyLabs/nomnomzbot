@@ -192,6 +192,45 @@ public partial class CommunityController : BaseController
     }
 
     /// <summary>
+    /// When the viewer was last seen BEFORE the current live stream began, so someone who just showed up does not
+    /// read "just now". Off the air it is the newest sighting (<see cref="NewestSeen"/>). Live, the chat-presence
+    /// stamp on the profile only counts when it is older than the stream; null when there is no earlier sighting.
+    /// </summary>
+    private async Task<DateTime?> LastSeenBeforeLiveStreamAsync(
+        Guid broadcasterId,
+        string twitchUserId,
+        ViewerProfile? profile,
+        CancellationToken ct
+    )
+    {
+        // Evaluated in memory: a DateTimeOffset comparison does not translate on the SQLite provider.
+        List<DateTimeOffset?> liveStarts = await _db
+            .Streams.Where(s =>
+                s.ChannelId == broadcasterId && s.StartedAt != null && s.EndedAt == null
+            )
+            .Select(s => s.StartedAt)
+            .ToListAsync(ct);
+        DateTimeOffset? liveStart = liveStarts.Max();
+
+        DateTime? lastChat = await _db
+            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.UserId == twitchUserId)
+            .Where(m => liveStart == null || m.CreatedAt < liveStart.Value.UtcDateTime)
+            .MaxAsync(m => (DateTime?)m.CreatedAt, ct);
+
+        if (liveStart is null)
+            return NewestSeen(lastChat, profile);
+
+        DateTime? profileSeen = profile?.LastSeenAt;
+        if (profileSeen is not null && profileSeen >= liveStart.Value.UtcDateTime)
+            profileSeen = null;
+
+        if (lastChat is null || profileSeen is null)
+            return lastChat ?? profileSeen;
+
+        return lastChat > profileSeen ? lastChat : profileSeen;
+    }
+
+    /// <summary>
     /// The earliest moment a viewer was observed in the channel: their first chat message or the profile's
     /// FirstSeenAt, whichever is earlier; null when the bot never observed them (never the user-record date).
     /// </summary>
@@ -1074,7 +1113,7 @@ public partial class CommunityController : BaseController
             trustLevel,
             isBanned,
             EarliestSeen(messageStats?.FirstSeen, profile),
-            NewestSeen(messageStats?.LastSeen, profile),
+            await LastSeenBeforeLiveStreamAsync(broadcasterId, userId, profile, ct),
             recentMessages,
             banHistory,
             await AskTwitchIsVipAsync(broadcasterId, userId, ct),

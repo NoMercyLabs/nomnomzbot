@@ -1592,22 +1592,35 @@ describe('the profile header', () => {
     expect(standing?.querySelector('[data-profile-platform]')).not.toBeNull();
   });
 
-  it('calls a channel without a Twitch status regular', async () => {
+  it('shows no Regular mark for a Twitch default account', async () => {
     (profiles.g1 as { identity: { broadcasterType: string } }).identity.broadcasterType = '';
     await openPage();
     await openUser('u1');
 
-    expect(header().querySelector('[data-profile-standing]')?.textContent?.trim()).toBe('Regular');
+    expect(header().querySelector('[data-profile-standing]')).toBeNull();
+    expect(header().querySelector('[data-profile-regular]')).toBeNull();
   });
 
-  it('claims no standing before the bot has read the account from Twitch', async () => {
-    (profiles.g1 as { identity: { accountCreatedAtUtc: string | null } }).identity
-      .accountCreatedAtUtc = null;
-
+  it('shows the Regular mark when the bot trust tier is Regular', async () => {
+    (profiles.g1 as { identity: { trustTier: string } }).identity.trustTier = 'Regular';
     await openPage();
     await openUser('u1');
 
-    expect(header().querySelector('[data-profile-standing]')).toBeNull();
+    expect(header().querySelector('[data-profile-regular]')?.textContent?.trim()).toBe('Regular');
+  });
+
+  it('shows the trust tier and the trust score in the behavior block', async () => {
+    (profiles.g1 as { identity: { trustTier: string } }).identity.trustTier = 'Known';
+    (profiles.g1 as { trust: unknown }).trust = { trustScore: 62.4, heatScore: 3 };
+    await openPage();
+    await openUser('u1');
+
+    const stat = (key: string): string | undefined =>
+      header().querySelector(`[data-profile-behavior-stat="${key}"] b`)?.textContent?.trim();
+
+    expect(stat('tier')).toBe('Known');
+    expect(stat('trust')).toBe('62');
+    expect(header().querySelector('[data-profile-regular]')).toBeNull();
   });
 
   // Owner 2026-10-14: the sword for mods and the diamond for VIPs in Twitch's colors, the subscriber in Twitch

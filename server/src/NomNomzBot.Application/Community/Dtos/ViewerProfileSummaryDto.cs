@@ -74,7 +74,10 @@ public sealed record ViewerIdentityDto(
     // True when a person (not the pronoun API) chose the pronoun.
     bool PronounIsManualOverride,
     // When this person followed THIS channel on Twitch. Null when they do not follow or the platform could not say.
-    DateTime? FollowedAtUtc
+    DateTime? FollowedAtUtc,
+    // The bot's own trust tier for this person in this channel (Untrusted … Established), resolved by the
+    // spam-defense ladder. Not Twitch's account type. Null when the tier could not be resolved.
+    string? TrustTier = null
 );
 
 public sealed record LinkedIdentityDto(

@@ -140,6 +140,20 @@ public interface ISpamDefenseService
     );
 
     /// <summary>
+    /// The trust tier this viewer holds in this channel right now, resolved by the same ladder a chat
+    /// message is judged by. Read-only: nothing is recorded and nothing is enforced.
+    /// </summary>
+    Task<SpamTrustTier> ResolveTrustTierAsync(
+        Guid broadcasterId,
+        string provider,
+        string platformUserId,
+        string displayName,
+        bool isVip,
+        bool isSubscriber,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// Evaluate one message and record the verdict. In dry run — the shipped default — this records
     /// and returns what WOULD have happened, and does nothing else.
     /// </summary>

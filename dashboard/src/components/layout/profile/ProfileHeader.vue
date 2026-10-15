@@ -18,7 +18,13 @@ import { useI18n } from 'vue-i18n';
 import type { CommunityMember } from '@/api/community';
 import type { PersonProfile } from '@/api/people';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
-import { roleIcons, type RoleKey, twitchStanding } from '@/components/layout/profile/profileRoles';
+import {
+  isRegular,
+  roleIcons,
+  type RoleKey,
+  trustTier,
+  twitchStanding,
+} from '@/components/layout/profile/profileRoles';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +71,33 @@ const pronouns = computed<string | null>(() => {
 });
 const standing = computed(() =>
   twitchStanding(props.profile));
+const regular = computed(() =>
+  isRegular(props.profile));
+
+// The bot's behavior standing for this person: the tier it resolved and the trust score it keeps.
+const behavior = computed<Stat[]>(() => {
+  const tier = trustTier(props.profile);
+  const trust = props.profile?.trust;
+  const list: Stat[] = [];
+
+  if (tier) {
+    list.push({
+      key: 'tier',
+      label: t('profile.behavior.tier'),
+      value: t(`profile.trustTier.${tier}`),
+    });
+  }
+
+  if (trust) {
+    list.push({
+      key: 'trust',
+      label: t('profile.behavior.trust'),
+      value: n(Number(trust.trustScore), { maximumFractionDigits: 0 }),
+    });
+  }
+
+  return list;
+});
 
 // How long this person has been around, at a glance: their Twitch account, their follow, their first sighting here.
 const ages = computed<Stat[]>(() => {
@@ -165,7 +198,7 @@ const stats = computed<Stat[]>(() => {
           >{{ pronouns }}</span>
         </div>
         <div
-          v-if="roles.length > 0 || standing"
+          v-if="roles.length > 0 || standing || regular"
           class="flex flex-wrap items-center gap-1.5"
         >
           <!-- The account status leads, then the roles (owner 2026-10-14). The Twitch logo and each role's own
@@ -178,6 +211,15 @@ const stats = computed<Stat[]>(() => {
           >
             <PlatformLogo data-profile-platform platform="twitch" />
             {{ $t(`profile.twitchStanding.${standing}`) }}
+          </Badge>
+          <!-- The bot's own Regular tier, earned in this channel. Twitch's default account type is no mark. -->
+          <Badge
+            v-if="regular"
+            data-profile-regular
+            variant="secondary"
+            class="bg-muted text-muted-foreground"
+          >
+            {{ $t('profile.trustTier.Regular') }}
           </Badge>
           <Badge
             v-for="role in roles"
@@ -223,6 +265,21 @@ const stats = computed<Stat[]>(() => {
     <p v-else-if="who" class="text-xs text-muted-foreground">
       {{ $t('profile.handle', { name: who.username }) }}
     </p>
+
+    <section v-if="behavior.length > 0" data-profile-behavior class="grid gap-4">
+      <h3 class="text-sm font-medium">{{ $t('profile.behavior.title') }}</h3>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-5">
+        <div
+          v-for="stat in behavior"
+          :key="stat.key"
+          :data-profile-behavior-stat="stat.key"
+          class="grid min-w-0 gap-0.5"
+        >
+          <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
+          <b class="text-base font-medium">{{ stat.value }}</b>
+        </div>
+      </div>
+    </section>
 
     <!-- Who they are above, what they did here below (owner 2026-10-14: "visually split the channel activity"). -->
     <section v-if="stats.length > 0" data-profile-activity class="grid gap-4">

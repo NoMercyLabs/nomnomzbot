@@ -100,18 +100,42 @@ export function canSanction(
   return !target.roles.includes('moderator') || sameLogin(me, channelLogin);
 }
 
-export type TwitchStanding = 'regular' | 'affiliate' | 'partner';
+export type TwitchStanding = 'affiliate' | 'partner';
 
 const standings = ['affiliate', 'partner'] as const satisfies TwitchStanding[];
 
-// The person's Twitch channel standing. Twitch sends "" for a regular channel, and the bot reads it together
-// with the account age, so without an account age the bot does not know yet.
+// The person's Twitch channel status. Twitch sends "" for a channel with neither, and that is no status.
 export function twitchStanding(profile: PersonProfile | null): TwitchStanding | null {
-  const identity = profile?.identity;
-
-  if (!identity?.accountCreatedAtUtc)
-    return null;
-
   return standings.find((standing: TwitchStanding) =>
-    standing === identity.broadcasterType) ?? 'regular';
+    standing === profile?.identity.broadcasterType) ?? null;
+}
+
+// A channel the bot has read from Twitch (it knows the account age) that is no affiliate or partner has no Twitch emotes.
+export function hasNoTwitchEmotes(profile: PersonProfile | null): boolean {
+  return profile?.identity.accountCreatedAtUtc != null && twitchStanding(profile) === null;
+}
+
+// The bot's own trust tier names, in ladder order. "Regular" is one of them, earned in this channel;
+// it has nothing to do with Twitch's account type.
+export const trustTiers = [
+  'Untrusted',
+  'Newcomer',
+  'Known',
+  'Regular',
+  'SemiTrusted',
+  'Trusted',
+  'Established',
+] as const;
+
+export type TrustTier = (typeof trustTiers)[number];
+
+// The tier the bot resolved for this person, or null when it could not say or sent a name we do not know.
+export function trustTier(profile: PersonProfile | null): TrustTier | null {
+  return trustTiers.find((tier: TrustTier) =>
+    tier === profile?.identity.trustTier) ?? null;
+}
+
+// Only the bot's Regular tier earns the Regular mark.
+export function isRegular(profile: PersonProfile | null): boolean {
+  return trustTier(profile) === 'Regular';
 }

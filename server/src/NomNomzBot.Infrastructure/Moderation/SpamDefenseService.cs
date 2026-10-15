@@ -663,6 +663,33 @@ public sealed class SpamDefenseService : ISpamDefenseService
         ];
     }
 
+    public async Task<SpamTrustTier> ResolveTrustTierAsync(
+        Guid broadcasterId,
+        string provider,
+        string platformUserId,
+        string displayName,
+        bool isVip,
+        bool isSubscriber,
+        CancellationToken ct = default
+    )
+    {
+        SpamDefenseSettings settings = await GetSettingsAsync(broadcasterId, ct);
+        SpamEvaluationRequest request = new(
+            broadcasterId,
+            provider,
+            string.Empty,
+            platformUserId,
+            displayName,
+            string.Empty,
+            false,
+            false,
+            isVip,
+            isSubscriber
+        );
+        (SpamTrustTier tier, _) = await ResolveTierAsync(request, settings, ct);
+        return tier;
+    }
+
     /// <summary>
     /// Work out where the sender sits on the ladder, from what they have actually done in THIS channel.
     ///

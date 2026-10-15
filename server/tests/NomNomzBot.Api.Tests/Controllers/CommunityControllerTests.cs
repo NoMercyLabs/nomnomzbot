@@ -1610,6 +1610,114 @@ public sealed class CommunityControllerTests
         detail.LastSeen.Should().Be(PresenceAt);
     }
 
+    private static readonly DateTime StreamStartedAt = new(
+        2026,
+        10,
+        15,
+        18,
+        0,
+        0,
+        DateTimeKind.Utc
+    );
+
+    private static void AddStream(
+        CommunityControllerTestDbContext db,
+        DateTime startedAt,
+        DateTime? endedAt
+    ) =>
+        db.Streams.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                ChannelId = Broadcaster,
+                StartedAt = new DateTimeOffset(startedAt, TimeSpan.Zero),
+                EndedAt = endedAt is null ? null : new DateTimeOffset(endedAt.Value, TimeSpan.Zero),
+            }
+        );
+
+    private static async Task<CommunityController.UserDetailDto> GetDetailAsync(
+        CommunityControllerTestDbContext db,
+        string twitchUserId
+    )
+    {
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: moderators
+        );
+
+        IActionResult result = await controller.GetUserDetail(
+            Broadcaster.ToString(),
+            twitchUserId,
+            CancellationToken.None
+        );
+
+        return (
+            (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
+        ).Data!;
+    }
+
+    [Fact]
+    public async Task GetUserDetail_while_live_last_seen_is_the_last_activity_before_the_stream_started()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-kana", "kana", "Kana");
+        AddChat(db, "twitch-kana", OldChatAt);
+        AddChat(db, "twitch-kana", StreamStartedAt.AddMinutes(10));
+        AddProfile(db, "twitch-kana", StreamStartedAt.AddMinutes(20));
+        AddStream(db, StreamStartedAt, endedAt: null);
+        await db.SaveChangesAsync();
+
+        CommunityController.UserDetailDto detail = await GetDetailAsync(db, "twitch-kana");
+
+        detail.LastSeen.Should().Be(OldChatAt);
+    }
+
+    [Fact]
+    public async Task GetUserDetail_while_live_a_newcomer_with_only_current_stream_activity_has_no_last_seen()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-kana", "kana", "Kana");
+        AddChat(db, "twitch-kana", StreamStartedAt.AddMinutes(10));
+        AddProfile(db, "twitch-kana", StreamStartedAt.AddMinutes(20));
+        AddStream(db, StreamStartedAt, endedAt: null);
+        await db.SaveChangesAsync();
+
+        CommunityController.UserDetailDto detail = await GetDetailAsync(db, "twitch-kana");
+
+        detail.LastSeen.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetUserDetail_when_the_stream_has_ended_last_seen_is_the_newest_activity()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-kana", "kana", "Kana");
+        AddChat(db, "twitch-kana", OldChatAt);
+        AddChat(db, "twitch-kana", StreamStartedAt.AddMinutes(10));
+        AddStream(db, StreamStartedAt, endedAt: StreamStartedAt.AddHours(2));
+        await db.SaveChangesAsync();
+
+        CommunityController.UserDetailDto detail = await GetDetailAsync(db, "twitch-kana");
+
+        detail.LastSeen.Should().Be(StreamStartedAt.AddMinutes(10));
+    }
+
     [Fact]
     public async Task ListMembers_moderator_never_seen_in_chat_has_no_first_or_last_seen()
     {

@@ -16,7 +16,6 @@ import { useI18n } from 'vue-i18n';
 import { usePersonEmotes, type PersonEmote } from '@/api/community';
 import AssetCardPopover from '@/components/layout/AssetCard.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import type { TwitchStanding } from '@/components/layout/profile/profileRoles';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import {
@@ -30,7 +29,8 @@ import {
 const props = defineProps<{
   // The internal user id: the emotes route takes the Guid, not the Twitch id.
   userId: string | null;
-  standing: TwitchStanding | null;
+  // True when the bot has read the account and it is no affiliate or partner: it has no Twitch emotes.
+  noTwitchEmotes: boolean;
 }>();
 
 const PROVIDERS = ['Twitch', 'SevenTv', 'Bttv', 'Ffz'] as const;
@@ -57,7 +57,7 @@ const state = usePanelState(emotes, (list: PersonEmote[]) =>
 
 // Only an affiliate or a partner can have Twitch emotes; 7TV, BTTV and FFZ sets belong to anyone.
 const regular = computed(() =>
-  props.standing === 'regular');
+  props.noTwitchEmotes);
 const providers = computed(() =>
   PROVIDERS.filter((provider) =>
     !regular.value || provider !== 'Twitch'));

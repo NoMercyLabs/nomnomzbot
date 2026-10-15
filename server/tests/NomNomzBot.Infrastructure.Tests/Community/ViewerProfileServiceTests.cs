@@ -49,8 +49,9 @@ public sealed class ViewerProfileServiceTests
         IPermitService Permits,
         IQuoteService Quotes,
         ITtsConfigService Tts
-    ) Build(IFollowStateService? follows = null)
+    ) Build(IFollowStateService? follows = null, ISpamDefenseService? spam = null)
     {
+        spam ??= Substitute.For<ISpamDefenseService>();
         if (follows is null)
         {
             follows = Substitute.For<IFollowStateService>();
@@ -92,7 +93,7 @@ public sealed class ViewerProfileServiceTests
                 Errors.NotFound<Application.Tts.Dtos.UserTtsVoiceDto>("TTS voice assignment", "")
             );
 
-        ViewerProfileService sut = new(db, analytics, permits, quotes, tts, follows);
+        ViewerProfileService sut = new(db, analytics, permits, quotes, tts, follows, spam);
         return (sut, db, analytics, permits, quotes, tts);
     }
 
@@ -168,6 +169,35 @@ public sealed class ViewerProfileServiceTests
         profile.ModerationHistory!.BanCount.Should().Be(1);
         profile.ModerationHistory.TimeoutCount.Should().Be(2);
         profile.ModerationHistory.WarningCount.Should().Be(3);
+    }
+
+    [Theory]
+    [InlineData(SpamTrustTier.Regular, "Regular")]
+    [InlineData(SpamTrustTier.Untrusted, "Untrusted")]
+    public async Task GetProfileAsync_CarriesTheBotsTrustTier_ResolvedForThisViewerAndChannel(
+        SpamTrustTier tier,
+        string expected
+    )
+    {
+        ISpamDefenseService spam = Substitute.For<ISpamDefenseService>();
+        spam.ResolveTrustTierAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "subject-twitch",
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(tier);
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build(
+            spam: spam
+        );
+        await SeedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Identity.TrustTier.Should().Be(expected);
     }
 
     [Fact]

@@ -118,6 +118,12 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
 
         b.Entity<ViewerProfile>().HasKey(p => p.Id);
 
+        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Ignore(s => s.Channel);
+        });
+
         b.Entity<ChannelModerator>(e =>
         {
             e.HasKey(m => new { m.ChannelId, m.UserId });
@@ -144,6 +150,7 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
         typeof(ChatMessage),
         typeof(User),
         typeof(ViewerProfile),
+        typeof(NomNomzBot.Domain.Stream.Entities.Stream),
         typeof(ChannelModerator),
         typeof(NomNomzBot.Domain.Platform.Entities.Configuration),
     ];
@@ -262,7 +269,7 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
         throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Stream.Entities.Stream>();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
     public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();

@@ -145308,6 +145308,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "trustTier": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

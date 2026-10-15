@@ -99441,6 +99441,7 @@ export interface components {
             pronounIsManualOverride: boolean;
             /** Format: date-time */
             followedAtUtc?: null | string;
+            trustTier?: null | string;
         };
         /** @description One of the caller's own chat lines. `DeletedByModerator` is true when a moderator removed it. */
         ViewerMessageDto: {

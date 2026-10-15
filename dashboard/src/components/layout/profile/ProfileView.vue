@@ -43,7 +43,7 @@ import {
   canSanction,
   roleKeys,
   type RoleKey,
-  twitchStanding,
+  hasNoTwitchEmotes,
 } from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
 import {
@@ -312,7 +312,7 @@ async function banNow(): Promise<void> {
           <TabsContent value="emotes" force-mount :class="PANEL_CLASS">
             <ProfileEmotes
               :user-id="person?.internalUserId ?? null"
-              :standing="twitchStanding(viewerProfile)"
+              :no-twitch-emotes="hasNoTwitchEmotes(viewerProfile)"
             />
           </TabsContent>
 

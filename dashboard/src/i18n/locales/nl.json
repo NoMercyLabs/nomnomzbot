@@ -296,8 +296,21 @@
         "other": "Overig"
       }
     },
+    "trustTier": {
+      "Untrusted": "Niet vertrouwd",
+      "Newcomer": "Nieuwkomer",
+      "Known": "Bekend",
+      "Regular": "Vaste kijker",
+      "SemiTrusted": "Half vertrouwd",
+      "Trusted": "Vertrouwd",
+      "Established": "Gevestigd"
+    },
+    "behavior": {
+      "title": "Status bij de bot",
+      "tier": "Vertrouwensniveau",
+      "trust": "Vertrouwensscore"
+    },
     "twitchStanding": {
-      "regular": "Gewoon",
       "affiliate": "Affiliate",
       "partner": "Partner"
     },

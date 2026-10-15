@@ -30,8 +30,8 @@ import type { components } from './schema';
 
 export type { CommunityRow };
 export type UserNote = components['schemas']['UserNoteDto'];
-// The profile without the trust and heat scores: the People page never shows them (viewer pages carry no bully data).
-export type PersonProfile = Omit<components['schemas']['ViewerProfileSummaryDto'], 'trust'>;
+// The whole profile, with the trust and heat scores: the standing block of the profile shows the behavior standing.
+export type PersonProfile = components['schemas']['ViewerProfileSummaryDto'];
 
 export type CommunityPage = {
   rows: CommunityRow[];
@@ -154,11 +154,7 @@ async function readProfile(channelId: string, userId: string): Promise<PersonPro
   if (!summary)
     return null;
 
-  const { trust, ...profile } = summary;
-
-  void trust;
-
-  return profile;
+  return summary;
 }
 
 // The id is the internal Guid (CommunityRow.internalUserId). A person without one has no profile to read.
