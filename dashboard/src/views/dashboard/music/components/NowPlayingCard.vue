@@ -100,23 +100,23 @@ const nextRepeat = computed<RepeatMode>(() => {
 <template>
   <!-- Every control is always drawn, disabled when the player cannot do it, so nothing jumps between songs. -->
   <div data-player class="flex h-full flex-col gap-5 p-4">
-    <div class="flex min-h-0 items-center gap-5">
+    <div class="flex min-h-0 items-center gap-8">
       <img
         v-if="track.imageUrl"
         :src="track.imageUrl"
         alt=""
-        class="size-44 flex-none rounded-lg object-cover shadow-md"
+        class="size-60 flex-none rounded-xl object-cover shadow-md"
       />
       <div
         v-else
-        class="flex size-44 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
+        class="flex size-60 flex-none items-center justify-center rounded-xl bg-muted text-muted-foreground"
       >
-        <Music class="size-10" aria-hidden="true" />
+        <Music class="size-16" aria-hidden="true" />
       </div>
-      <div class="grid min-w-0 flex-1 gap-1">
-        <p data-player-title class="line-clamp-2 text-2xl font-semibold">{{ track.trackName }}</p>
-        <p class="truncate text-base text-muted-foreground">{{ track.artist }}</p>
-        <p data-player-requester class="h-5 truncate text-sm text-muted-foreground">
+      <div class="grid min-w-0 flex-1 gap-3">
+        <p data-player-title class="line-clamp-2 text-5xl leading-tight font-bold">{{ track.trackName }}</p>
+        <p class="truncate text-2xl text-muted-foreground">{{ track.artist }}</p>
+        <p data-player-requester class="h-7 truncate text-lg text-muted-foreground">
           <template v-if="track.requestedBy">
             {{ $t('dashboard.music.now.requestedBy', { name: track.requestedBy }) }}
           </template>
