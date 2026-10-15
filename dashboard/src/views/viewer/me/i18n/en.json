@@ -1,0 +1,34 @@
+{
+  "viewer": {
+    "me": {
+      "title": "Your stats in {channel}",
+      "notFound": "This channel is not set up here.",
+      "retry": "Try again",
+      "stats": {
+        "messages": "Messages",
+        "commands": "Commands used",
+        "songs": "Song requests",
+        "points": "Points",
+        "follow": "Following since",
+        "notFollowing": "Not following",
+        "sub": "Subscription",
+        "notSubbed": "Not subscribed",
+        "tier": "Tier {tier}",
+        "live": "Channel",
+        "liveYes": "Live now",
+        "liveNo": "Offline",
+        "firstSeen": "First seen {date}",
+        "lastSeen": "Last seen {date}",
+        "error": "Your stats did not load."
+      },
+      "queue": {
+        "title": "Your songs in the queue",
+        "description": "Only your own requests. Your place counts from the next song.",
+        "empty": "You have no songs in the queue.",
+        "error": "Your queue did not load.",
+        "position": "Next in line | {n} in line",
+        "total": "{count} songs in the whole queue"
+      }
+    }
+  }
+}

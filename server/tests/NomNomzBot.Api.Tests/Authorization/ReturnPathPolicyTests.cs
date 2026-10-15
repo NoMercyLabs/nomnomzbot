@@ -24,6 +24,7 @@ public sealed class ReturnPathPolicyTests
     [Theory]
     [InlineData("/")]
     [InlineData("/commands")]
+    [InlineData("/me/stoney_eagle")]
     [InlineData("/settings?tab=identity")]
     [InlineData("/channels/abc/moderation?page=2&pageSize=25")]
     public void A_same_origin_relative_path_passes_through_unchanged(string path)

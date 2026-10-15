@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { activeBot } from '@/api/activeBot';
-import { providersQuery, signInUrl, type LoginProvider } from '@/api/signIn';
+import { providersQuery, signInUrl, viewerSignInUrl, type LoginProvider } from '@/api/signIn';
 import AppMark from '@/components/layout/AppMark.vue';
 import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -77,6 +77,12 @@ const shown = computed(() =>
   codeOnly.value
     ? codeProviders.value
     : enabled.value);
+
+// A link to a viewer page (/me/<channel>) offers the small viewer sign-in beside the full one.
+const viewerReturn = computed<string | null>(() =>
+  returnTo.value.startsWith('/me/')
+    ? returnTo.value
+    : null);
 
 function signIn(provider: LoginProvider): void {
   if (!codeOnly.value) {
@@ -184,6 +190,15 @@ function signIn(provider: LoginProvider): void {
             @click="useCode"
           >
             {{ $t('site.login.useCode') }}
+          </Button>
+          <Button
+            v-if="!codeOnly && viewerReturn"
+            variant="link"
+            class="w-full text-muted-foreground"
+            as="a"
+            :href="viewerSignInUrl(viewerReturn)"
+          >
+            {{ $t('site.login.viewer') }}
           </Button>
         </div>
       </div>

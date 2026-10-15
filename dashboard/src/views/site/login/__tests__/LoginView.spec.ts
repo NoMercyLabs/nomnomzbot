@@ -16,8 +16,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import words from '../i18n/en.json';
 
+const asked = vi.hoisted(() => ({ query: {} as Record<string, string> }));
+
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: {} }),
+  useRoute: () => ({ query: asked.query }),
   useRouter: () => ({ replace: vi.fn<() => Promise<void>>() }),
 }));
 
@@ -76,6 +78,35 @@ async function mountLogin(): Promise<VueWrapper> {
 
 beforeEach(() => {
   localStorage.clear();
+  asked.query = {};
+});
+
+describe('signing in as a viewer', () => {
+  it('offers the small viewer sign-in, returning to the viewer page, when the visitor came from one', async () => {
+    asked.query = { return_to: '/me/stoney_eagle' };
+    vi.stubGlobal('isSecureContext', true);
+    stubBot();
+    const wrapper = await mountLogin();
+    const findLink = () => wrapper.findAll('a').find((a) => a.text() === 'Sign in as a viewer');
+
+    await vi.waitFor(() => expect(findLink()).toBeDefined());
+
+    const link = findLink();
+
+    const url = new URL(link!.attributes('href')!);
+
+    expect(url.pathname).toBe('/api/v1/auth/twitch');
+    expect(url.searchParams.get('client')).toBe('web');
+    expect(url.searchParams.get('mode')).toBe('viewer');
+    expect(url.searchParams.get('return_to')).toBe('/me/stoney_eagle');
+  });
+
+  it('does not offer it on a plain sign-in', async () => {
+    stubBot();
+    const wrapper = await mountLogin();
+
+    expect(wrapper.text()).not.toContain('Sign in as a viewer');
+  });
 });
 
 afterEach(() => {
