@@ -32,6 +32,12 @@
     <string name="builtin_reply_help_linebanger_description">Iemand vraagt wat !banger doet.</string>
     <string name="builtin_reply_help_linebansong_label">Uitleg over !bansong</string>
     <string name="builtin_reply_help_linebansong_description">Iemand vraagt wat !bansong doet.</string>
+    <string name="builtin_reply_help_lineclearsongs_label">Uitleg over !clearsongs</string>
+    <string name="builtin_reply_help_lineclearsongs_description">Iemand vraagt wat !clearsongs doet.</string>
+    <string name="builtin_reply_help_lineclosequeue_label">Uitleg over !closequeue</string>
+    <string name="builtin_reply_help_lineclosequeue_description">Iemand vraagt wat !closequeue doet.</string>
+    <string name="builtin_reply_help_lineopenqueue_label">Uitleg over !openqueue</string>
+    <string name="builtin_reply_help_lineopenqueue_description">Iemand vraagt wat !openqueue doet.</string>
     <string name="builtin_reply_help_linecommands_label">Uitleg over !commands</string>
     <string name="builtin_reply_help_linecommands_description">Iemand vraagt wat !commands doet.</string>
     <string name="builtin_reply_help_linediscord_label">Uitleg over !discord</string>
