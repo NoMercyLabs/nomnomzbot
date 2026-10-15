@@ -216,15 +216,14 @@ describe('useViewerProfile', () => {
     streak: null,
   };
 
-  it('reads the profile by the internal id and never exposes the trust or heat score', async () => {
+  it('reads the profile by the internal id with the standing the moderator profile shows', async () => {
     http.GET.mockResolvedValue({ data: { data: summary }, response: ok });
     const { hook } = mount(() => useViewerProfile(channel, 'g1'));
 
     await settle();
     expect((http.GET.mock.calls[0] as Call)[1].params?.path?.userId).toBe('g1');
     expect(hook.data.value?.moderationHistory?.timeoutCount).toBe(2);
-    expect(hook.data.value).not.toHaveProperty('trust');
-    expect(JSON.stringify(hook.data.value)).not.toContain('heatScore');
+    expect(hook.data.value).toEqual(summary);
   });
 
   it('does not call the profile endpoint when the person has no internal id', async () => {
