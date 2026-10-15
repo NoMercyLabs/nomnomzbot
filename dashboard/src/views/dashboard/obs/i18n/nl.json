@@ -47,6 +47,14 @@
         "offline": "Scenes verschijnen zodra de OBS-koppeling aan staat.",
         "empty": "OBS meldt geen scenes.",
         "loadError": "De scenes konden niet laden."
+      },
+      "studio": {
+        "title": "Studiomodus",
+        "mode": "Studiomodus",
+        "transition": "Overgang",
+        "preview": "Voorbeeldscene",
+        "duration": "Duur (ms)",
+        "cut": "Overgang starten"
       }
     }
   }

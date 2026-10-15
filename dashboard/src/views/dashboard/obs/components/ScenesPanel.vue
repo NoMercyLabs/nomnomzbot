@@ -8,12 +8,14 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The scenes OBS reports, with the one on air marked. Read only: the page shows state, it never switches a scene.
+// The scenes OBS reports, with the one on air marked. A click puts that scene on air.
 import { computed } from 'vue';
+import { toast } from 'vue-sonner';
 
-import type { ObsScene } from '@/api/obs';
+import { useObsSwitchScene, type ObsScene } from '@/api/obs';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const props = defineProps<{
   scenes: readonly ObsScene[] | undefined;
@@ -23,6 +25,13 @@ const props = defineProps<{
 }>();
 
 defineEmits<{ retry: [] }>();
+
+const { channelId } = useCurrentChannel();
+const switchScene = useObsSwitchScene(channelId);
+
+function switchTo(scene: string): void {
+  switchScene.mutate(scene, { onError: (error: Error) => toast.error(error.message) });
+}
 
 const state = computed<PanelState>(() => {
   if (props.offline)
@@ -47,7 +56,10 @@ const state = computed<PanelState>(() => {
         v-for="scene in scenes"
         :key="scene.name"
         data-obs-scene
+        pick
+        :selected="scene.isCurrent"
         :data-current="scene.isCurrent"
+        @click="switchTo(scene.name)"
         :title="scene.name"
         :detail="scene.isCurrent ? $t('dashboard.obs.scenes.current') : undefined"
       >

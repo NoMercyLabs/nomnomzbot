@@ -47,6 +47,14 @@
         "offline": "Scenes show once the OBS link is switched on.",
         "empty": "OBS reports no scenes.",
         "loadError": "The scenes could not load."
+      },
+      "studio": {
+        "title": "Studio mode",
+        "mode": "Studio mode",
+        "transition": "Transition",
+        "preview": "Preview scene",
+        "duration": "Duration (ms)",
+        "cut": "Transition"
       }
     }
   }
