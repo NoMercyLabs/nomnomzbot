@@ -127,6 +127,16 @@ export function catalogEmoteCard(emote: ChatEmoteEntry, t: Translate): AssetCard
   return emoteAssetCard({ ...emote, owner }, emote.code, image, t);
 }
 
+function personLabel(role: AssetPerson['role'], twitch: boolean): string {
+  if (role === 'artist')
+    return 'asset.people.artist';
+
+  if (twitch)
+    return 'asset.people.channel';
+
+  return 'asset.people.uploader';
+}
+
 // Only a Twitch emote's owner id is a Twitch user id; a 7TV, BTTV or FFZ id belongs to that site.
 function emotePerson(
   emote: EmoteFacts,
@@ -140,15 +150,10 @@ function emotePerson(
     return null;
 
   const twitch = emote.provider === 'Twitch';
-  const label = role === 'artist'
-    ? 'asset.people.artist'
-    : twitch
-      ? 'asset.people.channel'
-      : 'asset.people.uploader';
 
   return {
     role,
-    label: t(label),
+    label: t(personLabel(role, twitch)),
     value: name,
     userId: twitch
       ? person.id ?? null

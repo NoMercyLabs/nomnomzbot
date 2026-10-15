@@ -195,6 +195,9 @@ export default defineConfigWithVueTs(
         quoteProps: 'as-needed',
         jsx: false,
       }).rules,
+      // Owner 2026-10-15: "never inline complex multi ternary chains, extract it to a local or
+      // global depending on the use".
+      'no-nested-ternary': 'error',
       '@stylistic/max-len': [
         'error',
         {
@@ -218,6 +221,13 @@ export default defineConfigWithVueTs(
     rules: {
       // vue/max-len below measures .vue files; the stylistic one would count class lists too.
       '@stylistic/max-len': 'off',
+      'vue/no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ConditionalExpression ConditionalExpression',
+          message: 'Name a ternary chain: move it to a computed or a function in the script.',
+        },
+      ],
       'vue/html-indent': ['error', 2],
       'vue/html-quotes': ['error', 'double'],
       'vue/html-closing-bracket-newline': 'error',

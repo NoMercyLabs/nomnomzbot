@@ -14,9 +14,11 @@
 // Balance: the first ink sits 12px (px-3) from the row edge on both sides. A trailing button sits
 // outside the body, so its wrapper adds pr-3. A ghost button has no border, so its ink starts
 // one padding inside it: it gets a negative margin equal to that padding (10px, 8px for icons).
+import { computed } from 'vue';
+
 defineOptions({ inheritAttrs: false });
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     title: string;
     detail?: string;
@@ -32,6 +34,15 @@ withDefaults(
     selected: false,
   },
 );
+
+const bodyClass = computed<string>(() => {
+  if (props.selected)
+    return 'bg-accent text-accent-foreground';
+
+  return props.pick
+    ? 'cursor-pointer hover:bg-foreground/5'
+    : '';
+});
 </script>
 
 <template>
@@ -41,13 +52,7 @@ withDefaults(
       :type="pick ? 'button' : undefined"
       data-slot="summary-row-body"
       class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[8px] px-3 py-2 text-left [&>[data-variant=ghost]:first-child]:-ml-2.5 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:first-child]:-ml-2 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
-      :class="[
-        selected
-          ? 'bg-accent text-accent-foreground'
-          : pick
-            ? 'cursor-pointer hover:bg-foreground/5'
-            : '',
-      ]"
+      :class="bodyClass"
       v-bind="$attrs"
     >
       <slot name="leading" />

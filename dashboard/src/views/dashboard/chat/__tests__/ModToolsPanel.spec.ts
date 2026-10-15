@@ -62,6 +62,16 @@ const raid = {
   occurredAt: '2026-10-14T00:00:00Z',
 };
 
+function answerFor(path: string): unknown {
+  if (path.includes('raid-assessments'))
+    return [raid];
+
+  if (path.includes('roles/effective'))
+    return { heldActionKeys: [] };
+
+  return initial;
+}
+
 function setup() {
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const pinia = createPinia();
@@ -86,12 +96,7 @@ beforeEach(() => {
   http.PUT.mockReset();
   http.POST.mockReset();
 
-  http.GET.mockImplementation(async (path) =>
-    path.includes('raid-assessments')
-      ? { data: { data: [raid] }, response: ok }
-      : path.includes('roles/effective')
-        ? { data: { data: { heldActionKeys: [] } }, response: ok }
-        : { data: { data: initial }, response: ok });
+  http.GET.mockImplementation(async (path) => ({ data: { data: answerFor(path) }, response: ok }));
 
   http.PUT.mockResolvedValue({ data: { data: { ...initial, slowMode: true } }, response: ok });
   http.POST.mockResolvedValue({ response: ok });

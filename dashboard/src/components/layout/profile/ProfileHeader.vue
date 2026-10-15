@@ -51,6 +51,15 @@ const props = defineProps<{
 const { t, n, locale } = useI18n();
 const inDialog = injectDialogRootContext(null) !== null;
 
+const rootClass = computed<string | string[]>(() => {
+  if (props.flush)
+    return '';
+
+  return ['px-6 pb-6', inDialog
+    ? 'pt-2'
+    : 'pt-6'];
+});
+
 // The person as far as the header knows them: the full record, or the light preview while it loads.
 const who = computed<ProfilePreview | null>(() => props.person ?? props.preview ?? null);
 const title = computed<string>(() => who.value?.displayName ?? t('profile.title'));
@@ -173,7 +182,7 @@ const stats = computed<Stat[]>(() => {
   <div
     data-slot="profile-header"
     class="grid flex-none gap-6"
-    :class="flush ? '' : ['px-6 pb-6', inDialog ? 'pt-2' : 'pt-6']"
+    :class="rootClass"
   >
     <div class="flex items-center gap-3">
       <Avatar class="size-12">

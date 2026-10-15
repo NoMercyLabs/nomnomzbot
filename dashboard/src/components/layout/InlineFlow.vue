@@ -83,11 +83,9 @@ watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
     return;
   }
 
-  const target: string = now === 'ask'
+  const target: string = now === 'ask' || !canUndo.value
     ? 'back'
-    : canUndo.value
-      ? 'undo'
-      : 'back';
+    : 'undo';
 
   box.value?.querySelector<HTMLElement>(`[data-flow-act="${target}"]`)?.focus();
 });

@@ -129,6 +129,16 @@ async function putCommand(
   return readCommands(channelId);
 }
 
+function saveKey(change: CommandChange): 'turnOnCommand' | 'turnOffCommand' | 'updateCommand' {
+  if (change.isEnabled === true)
+    return 'turnOnCommand';
+
+  if (change.isEnabled === false)
+    return 'turnOffCommand';
+
+  return 'updateCommand';
+}
+
 function saveRow<TVariables>(
   channelId: MaybeRefOrGetter<string | null>,
   send: (variables: TVariables) => { commandName: string; change: CommandChange },
@@ -137,11 +147,7 @@ function saveRow<TVariables>(
     describe: (variables) => {
       const { commandName, change } = send(variables);
 
-      return { key: change.isEnabled === true
-        ? 'turnOnCommand'
-        : change.isEnabled === false
-          ? 'turnOffCommand'
-          : 'updateCommand', params: { name: commandName } };
+      return { key: saveKey(change), params: { name: commandName } };
     },
     queryKey: () => commandsKey(toValue(channelId)),
     mutationFn: (variables: TVariables): Promise<CommandListItem[]> => {

@@ -422,12 +422,15 @@ describe('PeopleView', () => {
   });
 
   it('puts the total of each list on its tab', async () => {
-    listAnswer = (role) =>
-      role === 'moderator'
-        ? page([everyone[1]!], 4)
-        : role === 'vip'
-          ? page([everyone[2]!], 2)
-          : page(everyone, 120);
+    listAnswer = (role) => {
+      if (role === 'moderator')
+        return page([everyone[1]!], 4);
+
+      if (role === 'vip')
+        return page([everyone[2]!], 2);
+
+      return page(everyone, 120);
+    };
 
     await open();
 
