@@ -15,6 +15,7 @@ import { merge } from '@/lib/array';
 import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route';
 import { dashboardAnalyticsRoute } from '@/views/dashboard/analytics/route';
 import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route';
+import { dashboardChannelPointsRoute } from '@/views/dashboard/channel-points/route';
 import { dashboardChatRoute } from '@/views/dashboard/chat/route';
 import { dashboardCommandsRoute } from '@/views/dashboard/commands/route';
 import { dashboardHomeRoute } from '@/views/dashboard/home/route';
@@ -34,6 +35,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardChatRoute,
   dashboardCommandsRoute,
   dashboardMusicRoute,
+  dashboardChannelPointsRoute,
   dashboardTtsRoute,
   dashboardPeopleRoute,
   dashboardOverlaysRoute,

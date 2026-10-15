@@ -790,6 +790,7 @@
         "blockTrack": "Block {title}",
         "unblockTrack": "Unblock track {id}",
         "saveMusicSettings": "Save music settings",
+        "updateReward": "Save the reward",
         "addUserNote": "Add a note for user {userId}",
         "editUserNote": "Edit a note for user {userId}",
         "deleteUserNote": "Delete a note for user {userId}",

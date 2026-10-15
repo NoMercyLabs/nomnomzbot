@@ -790,6 +790,7 @@
         "blockTrack": "{title} blokkeren",
         "unblockTrack": "Nummer {id} deblokkeren",
         "saveMusicSettings": "Muziekinstellingen opslaan",
+        "updateReward": "De beloning opslaan",
         "addUserNote": "Notitie voor gebruiker {userId} toevoegen",
         "editUserNote": "Notitie voor gebruiker {userId} bewerken",
         "deleteUserNote": "Notitie voor gebruiker {userId} verwijderen",
