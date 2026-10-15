@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -15,6 +16,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Obs.Entities;
+using NomNomzBot.Domain.Obs.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NSubstitute;
 
@@ -37,7 +39,9 @@ public sealed class OBSRelayHubTests
     private sealed record Fixture(
         OBSRelayHub Hub,
         IOBSRelayClient Caller,
-        HubCallerContext Context
+        HubCallerContext Context,
+        IObsBridgeRegistry Registry,
+        IEventBus Bus
     );
 
     private static Fixture Build(ObsRelayHubTestDbContext db, IObsConnectionService connections)
@@ -55,12 +59,13 @@ public sealed class OBSRelayHubTests
         >();
         clients.Caller.Returns(caller);
 
+        IEventBus bus = Substitute.For<IEventBus>();
         OBSRelayHub hub = new(
             db,
             registry,
             connections,
             new(),
-            Substitute.For<IEventBus>(),
+            bus,
             new FakeTimeProvider(),
             NullLogger<OBSRelayHub>.Instance
         )
@@ -68,7 +73,7 @@ public sealed class OBSRelayHubTests
             Context = context,
             Clients = clients,
         };
-        return new(hub, caller, context);
+        return new(hub, caller, context, registry, bus);
     }
 
     [Fact]
@@ -95,7 +100,7 @@ public sealed class OBSRelayHubTests
 
         await f.Hub.OnConnectedAsync();
 
-        await f.Caller.Received(1).SetObsCredentials(null, 4456);
+        await f.Caller.Received(1).SetObsCredentials(null, 4456, Arg.Any<int>());
     }
 
     [Fact]
@@ -122,6 +127,72 @@ public sealed class OBSRelayHubTests
 
         await f.Hub.OnConnectedAsync();
 
-        await f.Caller.Received(1).SetObsCredentials(null, 4455);
+        await f.Caller.Received(1).SetObsCredentials(null, 4455, Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task OnConnectedAsync_delivers_the_channels_saved_event_mask_for_the_bridge_identify()
+    {
+        using ObsRelayHubTestDbContext db = ObsRelayHubTestDbContext.New();
+        db.ObsConnections.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                Mode = "bridge",
+                BridgeToken = Token,
+                IsEnabled = true,
+                EventSubscriptionsMask = 4 | 64, // Scenes + Outputs only
+            }
+        );
+        await db.SaveChangesAsync();
+        IObsConnectionService connections = Substitute.For<IObsConnectionService>();
+        connections
+            .GetPasswordForTransportAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+        Fixture f = Build(db, connections);
+
+        await f.Hub.OnConnectedAsync();
+
+        await f.Caller.Received(1).SetObsCredentials(null, 4455, 4 | 64);
+    }
+
+    [Fact]
+    public async Task Only_the_leader_bridge_publishes_a_forwarded_obs_or_vts_event()
+    {
+        using ObsRelayHubTestDbContext db = ObsRelayHubTestDbContext.New();
+        db.ObsConnections.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                Mode = "bridge",
+                BridgeToken = Token,
+                IsEnabled = true,
+            }
+        );
+        await db.SaveChangesAsync();
+        Fixture f = Build(db, Substitute.For<IObsConnectionService>());
+        await f.Hub.OnConnectedAsync();
+
+        f.Registry.GetLeaderAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns("another-bridge");
+        await f.Hub.ForwardObsEvent("CurrentProgramSceneChanged", "{}");
+        await f.Hub.ForwardVtsEvent("ModelLoadedEvent", "{}");
+        f.Bus.ReceivedCalls()
+            .Should()
+            .BeEmpty("a non-leader bridge would publish every event twice");
+
+        f.Registry.GetLeaderAsync(Broadcaster, Arg.Any<CancellationToken>()).Returns("bridge-conn");
+        await f.Hub.ForwardObsEvent("CurrentProgramSceneChanged", """{"sceneName":"Game"}""");
+
+        await f
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<ObsEventReceivedEvent>(e =>
+                    e.BroadcasterId == Broadcaster
+                    && e.ObsEventType == "CurrentProgramSceneChanged"
+                    && e.DataJson == """{"sceneName":"Game"}"""
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

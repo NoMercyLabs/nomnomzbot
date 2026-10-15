@@ -99,7 +99,11 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
             connection.BroadcasterId,
             Context.ConnectionAborted
         );
-        await Clients.Caller.SetObsCredentials(obsPassword, connection.Port ?? 4455);
+        await Clients.Caller.SetObsCredentials(
+            obsPassword,
+            connection.Port ?? 4455,
+            connection.EventSubscriptionsMask
+        );
 
         _logger.LogInformation(
             "OBS bridge connected for {Channel} ({Connection}).",
@@ -132,18 +136,20 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
         return Task.CompletedTask;
     }
 
-    /// <summary>The LEADER bridge forwards each OBS event it sees; non-leaders stay quiet client-side.</summary>
+    /// <summary>
+    /// Every bridge forwards the OBS events it sees; only the leader's are published, so a channel with
+    /// several bridges never fires one event twice.
+    /// </summary>
     public async Task ForwardObsEvent(string eventType, string? eventDataJson)
     {
-        if (!ConnectionChannels.TryGetValue(Context.ConnectionId, out Guid broadcasterId))
-            return; // never authenticated — ignore
-        if (string.IsNullOrWhiteSpace(eventType))
+        Guid? broadcasterId = await LeaderChannelAsync(eventType);
+        if (broadcasterId is null)
             return;
 
         await _eventBus.PublishAsync(
             new ObsEventReceivedEvent
             {
-                BroadcasterId = broadcasterId,
+                BroadcasterId = broadcasterId.Value,
                 OccurredAt = _clock.GetUtcNow(),
                 ObsEventType = eventType,
                 DataJson = eventDataJson ?? "{}",
@@ -151,22 +157,33 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
         );
     }
 
-    /// <summary>The LEADER bridge forwards each VTS event it sees (one relay carries both — vtube-studio.md D1).</summary>
+    /// <summary>Only the leader's VTS events are published (one relay carries both — vtube-studio.md D1).</summary>
     public async Task ForwardVtsEvent(string eventType, string? payloadJson)
     {
-        if (!ConnectionChannels.TryGetValue(Context.ConnectionId, out Guid broadcasterId))
-            return; // never authenticated — ignore
-        if (string.IsNullOrWhiteSpace(eventType))
+        Guid? broadcasterId = await LeaderChannelAsync(eventType);
+        if (broadcasterId is null)
             return;
 
         await _eventBus.PublishAsync(
             new Domain.Vts.Events.VtsEventReceived
             {
-                BroadcasterId = broadcasterId,
+                BroadcasterId = broadcasterId.Value,
                 OccurredAt = _clock.GetUtcNow(),
                 EventType = eventType,
                 PayloadJson = payloadJson ?? "{}",
             }
         );
+    }
+
+    /// <summary>The caller's channel when it is authenticated, the event is named and the caller leads; else null.</summary>
+    private async Task<Guid?> LeaderChannelAsync(string eventType)
+    {
+        if (!ConnectionChannels.TryGetValue(Context.ConnectionId, out Guid broadcasterId))
+            return null;
+        if (string.IsNullOrWhiteSpace(eventType))
+            return null;
+
+        string? leader = await _bridges.GetLeaderAsync(broadcasterId, Context.ConnectionAborted);
+        return leader == Context.ConnectionId ? broadcasterId : null;
     }
 }

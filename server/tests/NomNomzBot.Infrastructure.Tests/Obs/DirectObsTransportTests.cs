@@ -38,7 +38,7 @@ public sealed class DirectObsTransportTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000f701");
 
-    private sealed class FakeObsSocket : IObsSocket
+    internal sealed class FakeObsSocket : IObsSocket
     {
         private readonly Channel<string?> _incoming =
             System.Threading.Channels.Channel.CreateUnbounded<string?>();
@@ -75,15 +75,16 @@ public sealed class DirectObsTransportTests
         }
     }
 
-    private sealed class Harness
+    internal sealed class Harness
     {
         public required DirectObsTransport Transport { get; init; }
         public required FakeObsSocket Socket { get; init; }
         public required RecordingEventBus Bus { get; init; }
         public required ObsTestDbContext Db { get; init; }
+        public required IObsSocketFactory Factory { get; init; }
     }
 
-    private static Harness Build(
+    internal static Harness Build(
         bool enabled = true,
         string mode = "direct",
         bool withPassword = false
@@ -139,10 +140,11 @@ public sealed class DirectObsTransportTests
             Socket = socket,
             Bus = bus,
             Db = db,
+            Factory = factory,
         };
     }
 
-    private static void QueueHandshake(FakeObsSocket socket, bool withAuth = false)
+    internal static void QueueHandshake(FakeObsSocket socket, bool withAuth = false)
     {
         socket.QueueIncoming(
             withAuth
