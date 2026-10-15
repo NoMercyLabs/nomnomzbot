@@ -244,7 +244,8 @@ describe('folder layout', () => {
   });
 
   // A toast or tooltip works on every page only when the frame mounts its host once; a page that mounts its
-  // own stacks a second host, and a page without one shows nothing. The popout window is its own frame.
+  // own stacks a second host, and a page without one shows nothing. The popout window and the viewer
+  // page (no sidebar, no live management connection) are each their own frame.
   it('mounts the toast host and the tooltip provider once per frame', () => {
     const own = allPaths(src)
       .map((path) => relative(src, path).replace(/\\/g, '/'))
@@ -255,7 +256,11 @@ describe('folder layout', () => {
       return /<(Toaster|TooltipProvider)\b/.test(text);
     });
 
-    expect(hosts).toEqual(['layouts/DashboardLayout.vue', 'layouts/PopoutLayout.vue']);
+    expect(hosts).toEqual([
+      'layouts/DashboardLayout.vue',
+      'layouts/PopoutLayout.vue',
+      'layouts/ViewerLayout.vue',
+    ]);
   });
 
   // Stoney 2026-10-13: "the icon size in the navbar is too small, it should match the font better and follow
@@ -355,7 +360,10 @@ describe('folder layout', () => {
       .map((path) => relative(src, path).replace(/\\/g, '/'))
       .filter((path) => /^views\/[^/]+\/[^/]+\/i18n\/[^/]+\.json$/.test(path))
       .flatMap((path) => {
-        const [, area, slug] = path.split('/');
+        const [, area, folder] = path.split('/');
+        // A folder name is kebab-case; its page key is the camelCase of it (channel-points = channelPoints).
+        const slug = folder!.replace(/-([a-z])/g, (_, letter: string) =>
+          letter.toUpperCase());
         const text: string = readFileSync(join(src, path), 'utf8');
         const words: Record<string, Record<string, unknown>> = JSON.parse(text);
         const keys = Object.entries(words).flatMap(([top, pages]) =>
