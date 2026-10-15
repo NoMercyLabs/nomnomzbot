@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { errorText, fieldErrorLines } from '@/lib/errors';
 
 type Kind = 'template' | 'pipeline';
 
@@ -85,9 +86,7 @@ async function submit(): Promise<void> {
   try {
     await create.mutateAsync(bodyOf(clean));
   } catch (failure) {
-    error.value = failure instanceof Error
-      ? failure.message
-      : String(failure);
+    error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
 
     return;
   }

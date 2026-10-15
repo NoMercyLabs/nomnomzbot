@@ -23,6 +23,7 @@ import {
   type Widget,
   type WidgetSettingsField,
 } from '@/api/widgets';
+import { ApiError } from '@/api/errors';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -116,7 +117,7 @@ const rawKeys = computed<KeyValueItem[]>(() =>
 const noSchema = computed<boolean>(() => {
   const reason = schema.error.value ?? schema.failureReason.value;
 
-  return reason?.message.endsWith(' 404') ?? false;
+  return reason instanceof ApiError && reason.status === 404;
 });
 
 const state = computed<PanelState>(() => {

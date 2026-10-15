@@ -46,7 +46,7 @@ async function readPolls(channelId: string): Promise<Poll[]> {
   );
 
   if (error !== undefined)
-    throw failed('polls', response.status);
+    throw failed('polls', response.status, error);
 
   return [...(data?.data ?? [])];
 }
@@ -74,7 +74,7 @@ async function readTimers(channelId: string): Promise<Timer[]> {
   );
 
   if (error !== undefined)
-    throw failed('timers', response.status);
+    throw failed('timers', response.status, error);
 
   return [...(data?.data ?? [])];
 }
@@ -110,7 +110,7 @@ export function useToggleTimer(
       );
 
       if (error !== undefined)
-        throw failed('timer-toggle', response.status);
+        throw failed('timer-toggle', response.status, error);
 
       return readTimers(id);
     },
@@ -146,7 +146,7 @@ export function useStartPoll(
       );
 
       if (error !== undefined)
-        throw failed('poll-start', response.status);
+        throw failed('poll-start', response.status, error);
 
       return readPolls(id);
     },
@@ -226,7 +226,7 @@ async function readPredictions(channelId: string): Promise<Prediction[]> {
   );
 
   if (error !== undefined)
-    throw failed('predictions', response.status);
+    throw failed('predictions', response.status, error);
 
   return [...(data?.data ?? [])];
 }
@@ -249,7 +249,7 @@ export function useStartPrediction(
       );
 
       if (error !== undefined)
-        throw failed('prediction-start', response.status);
+        throw failed('prediction-start', response.status, error);
 
       return readPredictions(id);
     },
@@ -278,7 +278,7 @@ async function endPrediction(
   );
 
   if (error !== undefined)
-    throw failed('prediction-end', response.status);
+    throw failed('prediction-end', response.status, error);
 
   return readPredictions(channelId);
 }
@@ -368,7 +368,7 @@ export function useEndPoll(
       );
 
       if (error !== undefined)
-        throw failed('poll-end', response.status);
+        throw failed('poll-end', response.status, error);
 
       return readPolls(id);
     },

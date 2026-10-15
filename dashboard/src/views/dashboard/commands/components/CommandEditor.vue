@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { errorText } from '@/lib/errors';
 
 import CodeTierNote from './CodeTierNote.vue';
 import { changeOf, draftOf, sameDraft, type CommandDraft } from './commandDraft';
@@ -98,9 +99,7 @@ async function save(): Promise<void> {
     await update.mutateAsync({ commandName: props.row.name, change: change.value });
     baseline.value = { ...draft.value, replies: [...draft.value.replies] };
   } catch (error) {
-    failure.value = error instanceof Error
-      ? error.message
-      : String(error);
+    failure.value = errorText(error, t);
   }
 }
 

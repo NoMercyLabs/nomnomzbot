@@ -100,7 +100,7 @@ async function readPage(
 
   // A refusal is an error state, not an empty community.
   if (error !== undefined)
-    throw failed('community list', response.status);
+    throw failed('community list', response.status, error);
 
   return {
     rows: data?.data ?? [],
@@ -144,7 +144,7 @@ async function readProfile(channelId: string, userId: string): Promise<PersonPro
   );
 
   if (error !== undefined)
-    throw failed('viewer profile', response.status);
+    throw failed('viewer profile', response.status, error);
 
   const summary = data?.data;
 
@@ -181,7 +181,7 @@ async function readNotes(channelId: string, userId: string): Promise<UserNote[]>
   );
 
   if (error !== undefined)
-    throw failed('user notes', response.status);
+    throw failed('user notes', response.status, error);
 
   return data?.data ?? [];
 }
@@ -228,7 +228,7 @@ export function useAddNote(
       );
 
       if (error !== undefined)
-        throw failed('add note', response.status);
+        throw failed('add note', response.status, error);
 
       return readNotes(id, userId);
     },
@@ -273,7 +273,7 @@ export function useEditNote(
       );
 
       if (error !== undefined)
-        throw failed('edit note', response.status);
+        throw failed('edit note', response.status, error);
 
       return readNotes(id, userId);
     },
@@ -309,7 +309,7 @@ export function useDeleteNote(
       );
 
       if (error !== undefined)
-        throw failed('delete note', response.status);
+        throw failed('delete note', response.status, error);
 
       return readNotes(id, userId);
     },
@@ -342,7 +342,7 @@ export function useShoutout(
       );
 
       if (error !== undefined)
-        throw failed('shoutout', response.status);
+        throw failed('shoutout', response.status, error);
 
       return data?.data?.path ?? '';
     },
@@ -378,7 +378,7 @@ export function useTimeout(
       );
 
       if (error !== undefined)
-        throw failed('timeout', response.status);
+        throw failed('timeout', response.status, error);
 
       // The bot can answer 200 and still refuse; its message says why.
       if (data?.data?.success === false)
@@ -408,7 +408,7 @@ export function useWarn(
       );
 
       if (error !== undefined)
-        throw failed('warn', response.status);
+        throw failed('warn', response.status, error);
 
       if (data?.data?.success === false)
         throw refused('warn refused', data.data.message);
@@ -442,7 +442,7 @@ export function useUnban(
       );
 
       if (error !== undefined)
-        throw failed('unban', response.status);
+        throw failed('unban', response.status, error);
     },
     onSuccess: (_data: void, { userId }: PersonInput) =>
       personChanged(queries, toValue(channelId) as string, userId),
@@ -471,7 +471,7 @@ export function useLiftBan(
       );
 
       if (error !== undefined)
-        throw failed('lift ban', response.status);
+        throw failed('lift ban', response.status, error);
     },
     onSuccess: (_data: void, { userId }: PersonInput) =>
       personChanged(queries, toValue(channelId) as string, userId),

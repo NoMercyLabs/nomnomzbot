@@ -62,9 +62,9 @@ export type BanInput = {
 };
 export type UnbanInput = { targetUserId: string; scope: ChatScope };
 
-function ensureOk(response: Response, what: ApiOperation): void {
+function ensureOk(response: Response, what: ApiOperation, error: unknown): void {
   if (!response.ok)
-    throw failed(what, response.status);
+    throw failed(what, response.status, error);
 }
 
 // Lines that arrived live while the history call ran stay; the history wins on a shared id. Every line takes
@@ -116,14 +116,14 @@ export function useChatEmotes(
   return useQuery({
     queryKey: computed(() => [...chatKey(toValue(channelId)), 'emotes']),
     queryFn: async (): Promise<ChatEmoteEntry[]> => {
-      const { data, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/emotes', {
+      const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/emotes', {
         params: {
           path: { version: '1', channelId: toValue(channelId) as string },
           query: { senderIdentity: 'you' },
         },
       });
 
-      ensureOk(response, 'chat emotes');
+      ensureOk(response, 'chat emotes', error);
 
       return [...(data?.data ?? [])];
     },
@@ -152,11 +152,11 @@ async function readSearchPage(
   query: string,
   before: string | undefined,
 ): Promise<ChatSearchPage> {
-  const { data, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/search', {
+  const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/search', {
     params: { path: { version: '1', channelId }, query: { q: query, before } },
   });
 
-  ensureOk(response, 'chat search');
+  ensureOk(response, 'chat search', error);
 
   return {
     messages: (data?.data?.messages ?? []) as ChatLine[],
@@ -193,7 +193,7 @@ async function readUserChatPage(
   userId: string,
   before: string | undefined,
 ): Promise<ChatSearchPage> {
-  const { data, response } = await client.GET(
+  const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/chat/users/{userId}/messages',
     { params: { path: {
       version: '1',
@@ -202,7 +202,7 @@ async function readUserChatPage(
     }, query: { before } } },
   );
 
-  ensureOk(response, 'user chat');
+  ensureOk(response, 'user chat', error);
 
   return {
     messages: (data?.data?.messages ?? []) as ChatLine[],
@@ -235,7 +235,7 @@ export function useSendChat(
       if (input.message.length > chatMessageMaxLength)
         throw failed('chat message too long', 400);
 
-      const { response } = await client.POST('/api/v{version}/channels/{channelId}/chat/messages', {
+      const { error, response } = await client.POST('/api/v{version}/channels/{channelId}/chat/messages', {
         params: { path: { version: '1', channelId: toValue(channelId) as string } },
         body: {
           message: input.message,
@@ -244,7 +244,7 @@ export function useSendChat(
         },
       });
 
-      ensureOk(response, 'chat send');
+      ensureOk(response, 'chat send', error);
     },
   });
 }
@@ -254,7 +254,7 @@ export function useDeleteChatMessage(
 ): UseMutationReturnType<void, Error, string, unknown> {
   return useMutation({
     mutationFn: async (messageId: string): Promise<void> => {
-      const { response } = await client.DELETE(
+      const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/chat/messages/{messageId}',
         {
           params: {
@@ -267,7 +267,7 @@ export function useDeleteChatMessage(
         },
       );
 
-      ensureOk(response, 'chat delete');
+      ensureOk(response, 'chat delete', error);
     },
   });
 }
@@ -277,7 +277,7 @@ export function useTimeoutUser(
 ): UseMutationReturnType<void, Error, TimeoutInput, unknown> {
   return useMutation({
     mutationFn: async (input: TimeoutInput): Promise<void> => {
-      const { response } = await client.POST(
+      const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/moderation/actions',
         {
           params: { path: { version: '1', channelId: toValue(channelId) as string } },
@@ -290,7 +290,7 @@ export function useTimeoutUser(
         },
       );
 
-      ensureOk(response, 'chat timeout');
+      ensureOk(response, 'chat timeout', error);
     },
   });
 }
@@ -300,7 +300,7 @@ export function useBanUser(
 ): UseMutationReturnType<void, Error, BanInput, unknown> {
   return useMutation({
     mutationFn: async (input: BanInput): Promise<void> => {
-      const { response } = await client.POST(
+      const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/moderation/actions/ban',
         {
           params: { path: { version: '1', channelId: toValue(channelId) as string } },
@@ -312,7 +312,7 @@ export function useBanUser(
         },
       );
 
-      ensureOk(response, 'chat ban');
+      ensureOk(response, 'chat ban', error);
     },
   });
 }
@@ -322,7 +322,7 @@ export function useUnbanUser(
 ): UseMutationReturnType<void, Error, UnbanInput, unknown> {
   return useMutation({
     mutationFn: async (input: UnbanInput): Promise<void> => {
-      const { response } = await client.POST(
+      const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/moderation/actions/unban',
         {
           params: { path: { version: '1', channelId: toValue(channelId) as string } },
@@ -330,7 +330,7 @@ export function useUnbanUser(
         },
       );
 
-      ensureOk(response, 'chat unban');
+      ensureOk(response, 'chat unban', error);
     },
   });
 }

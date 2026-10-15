@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n';
 import { useDeletePipeline, useSavePipeline, type Pipeline } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import { Button } from '@/components/ui/button';
+import { errorText } from '@/lib/errors';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,7 +72,7 @@ async function remove(): Promise<void> {
     emit('deleted');
   } catch (error: unknown) {
     toast.error(error instanceof Error
-      ? error.message
+      ? errorText(error, t)
       : t(`${page}.delete.failed`));
   }
 }

@@ -99,7 +99,7 @@ async function readPipelines(channelId: string): Promise<PipelineListItem[]> {
     );
 
     if (error !== undefined)
-      throw failed('pipelines', response.status);
+      throw failed('pipelines', response.status, error);
 
     rows.push(...(data?.data ?? []));
 
@@ -164,7 +164,7 @@ async function readPipeline(channelId: string, id: string): Promise<Pipeline> {
   );
 
   if (error !== undefined || !data?.data)
-    throw failed('pipeline', response.status);
+    throw failed('pipeline', response.status, error);
 
   return parsePipeline(data.data);
 }
@@ -296,7 +296,7 @@ async function readBlastRadius(channelId: string, id: string): Promise<PipelineB
   );
 
   if (error !== undefined || !data?.data)
-    throw failed('pipeline blast radius', response.status);
+    throw failed('pipeline blast radius', response.status, error);
 
   return data.data;
 }
@@ -326,7 +326,7 @@ async function readCatalog(channelId: string): Promise<PipelineCatalog> {
   );
 
   if (error !== undefined || !data?.data)
-    throw failed('pipeline catalog', response.status);
+    throw failed('pipeline catalog', response.status, error);
 
   return data.data;
 }
@@ -379,7 +379,7 @@ async function readOptions(
   });
 
   if (error !== undefined || !data?.data)
-    throw failed('pipeline options', response.status);
+    throw failed('pipeline options', response.status, error);
 
   return data.data;
 }

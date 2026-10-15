@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { errorText } from '@/lib/errors';
 import { numberOrNull } from '@/lib/number';
 
 import OverlaySettings from './OverlaySettings.vue';
@@ -134,7 +135,7 @@ async function sendTest(eventType: string): Promise<void> {
 
     testResults.value = { ...testResults.value, [eventType]: answer };
   } catch (error) {
-    testFailures.value = { ...testFailures.value, [eventType]: (error as Error).message };
+    testFailures.value = { ...testFailures.value, [eventType]: errorText(error, t) };
     throw error;
   }
 }

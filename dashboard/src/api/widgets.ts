@@ -60,7 +60,7 @@ async function readWidgets(channelId: string): Promise<Widget[]> {
     );
 
     if (error !== undefined)
-      throw failed('widgets', response.status);
+      throw failed('widgets', response.status, error);
 
     widgets.push(...(data?.data ?? []));
 
@@ -100,7 +100,7 @@ export function useWidgetSchema(
       );
 
       if (error !== undefined)
-        throw failed('widget settings', response.status);
+        throw failed('widget settings', response.status, error);
 
       return data?.data ?? null;
     },
@@ -137,7 +137,7 @@ async function putWidget(
   );
 
   if (error !== undefined)
-    throw failed(what, response.status);
+    throw failed(what, response.status, error);
 
   return readWidgets(channelId);
 }

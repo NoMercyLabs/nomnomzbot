@@ -11,16 +11,19 @@
 // The New script dialog: one name field. The bot gets the name, an empty description and the starter code.
 // The dialog stays open on a refusal and shows the bot's reason; on success it closes and tells the page the new id.
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useCreateCodeScript } from '@/api/codeScripts';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import { Input } from '@/components/ui/input';
+import { errorText, fieldErrorLines } from '@/lib/errors';
 
 import { STARTER_SOURCE } from './starterSource';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ 'update:open': [open: boolean]; created: [id: string | null] }>();
 
+const { t } = useI18n();
 const create = useCreateCodeScript();
 const name = ref('');
 const error = ref<string | undefined>(undefined);
@@ -53,7 +56,7 @@ async function submit(): Promise<void> {
     emit('update:open', false);
     emit('created', id);
   } catch (failure) {
-    error.value = (failure as Error).message;
+    error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
   }
 }
 </script>

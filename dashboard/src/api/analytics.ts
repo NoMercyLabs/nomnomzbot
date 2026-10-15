@@ -67,7 +67,7 @@ async function readSummary(channelId: string, dates: RangeDates): Promise<Analyt
   );
 
   if (error !== undefined)
-    throw failed('analytics summary', response.status);
+    throw failed('analytics summary', response.status, error);
 
   return data?.data ?? null;
 }
@@ -79,7 +79,7 @@ async function readDays(channelId: string, dates: RangeDates): Promise<Analytics
   );
 
   if (error !== undefined)
-    throw failed('analytics daily', response.status);
+    throw failed('analytics daily', response.status, error);
 
   return [...(data?.data ?? [])];
 }
@@ -91,7 +91,7 @@ async function readChatHours(channelId: string, dates: RangeDates): Promise<Chat
   );
 
   if (error !== undefined)
-    throw failed('analytics chat hours', response.status);
+    throw failed('analytics chat hours', response.status, error);
 
   return data?.data ?? null;
 }
@@ -107,7 +107,7 @@ async function readStreams(channelId: string, dates: RangeDates): Promise<Stream
     );
 
     if (error !== undefined)
-      throw failed('analytics streams', response.status);
+      throw failed('analytics streams', response.status, error);
 
     const batch = data?.data ?? [];
     const inRange = batch.filter((row: StreamRow) => (row.startedAt ?? '').slice(0, 10) >= dates.from);

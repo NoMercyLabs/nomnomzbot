@@ -90,7 +90,7 @@ export function usePersonEmotes(
       );
 
       if (!response.ok)
-        throw failed('community emotes', response.status);
+        throw failed('community emotes', response.status, error);
 
       return [...(data?.data ?? [])];
     },

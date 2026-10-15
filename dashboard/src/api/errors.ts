@@ -298,14 +298,14 @@ export class ApiError extends Error {
   }
 }
 
-// A response with an error status and no body worth reading.
-export function failed(operation: ApiOperation, status: number): ApiError {
-  return new ApiError(operation, status);
+// A response with an error status and the body the server sent with it, when it sent one.
+export function failed(operation: ApiOperation, status: number, body?: unknown): ApiError {
+  return new ApiError(operation, status, parseProblem(body));
 }
 
-// A response with an error status and the body the server sent with it.
+// The same, for a body the caller already holds.
 export function problemError(operation: ApiOperation, status: number, body: unknown): ApiError {
-  return new ApiError(operation, status, parseProblem(body));
+  return failed(operation, status, body);
 }
 
 // The bot answered 200 and still refused; its message says why.

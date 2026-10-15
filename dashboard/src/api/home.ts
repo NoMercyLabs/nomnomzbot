@@ -74,7 +74,7 @@ export function useHomeStats(
     );
 
     if (error !== undefined)
-      throw failed('stats', response.status);
+      throw failed('stats', response.status, error);
 
     return data?.data ?? null;
   }, statsRefreshMs);
@@ -92,7 +92,7 @@ export function useReviewQueue(
     );
 
     if (error !== undefined)
-      throw failed('review queue', response.status);
+      throw failed('review queue', response.status, error);
 
     return data?.data ?? [];
   });
@@ -113,7 +113,7 @@ export function useConnections(
       );
 
       if (error !== undefined)
-        throw failed('connections', response.status);
+        throw failed('connections', response.status, error);
 
       return [...(data?.data ?? [])];
     },
@@ -132,7 +132,7 @@ export function useBotStatus(
     );
 
     if (error !== undefined)
-      throw failed('bot status', response.status);
+      throw failed('bot status', response.status, error);
 
     return data?.data ?? null;
   });
@@ -150,7 +150,7 @@ export function useActivity(
     );
 
     if (error !== undefined)
-      throw failed('activity', response.status);
+      throw failed('activity', response.status, error);
 
     return data?.data ?? [];
   });
@@ -206,7 +206,7 @@ export function useResolveQueueItem(
       );
 
       if (error !== undefined)
-        throw failed('resolve', response.status);
+        throw failed('resolve', response.status, error);
 
       const { data } = await client.GET(
         '/api/v{version}/channels/{channelId}/moderation/automod/queue',

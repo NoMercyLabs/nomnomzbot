@@ -37,6 +37,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import { errorText } from '@/lib/errors';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { TestTrigger } from '@/composables/useEditorBridge';
@@ -151,7 +152,7 @@ async function askDelete(): Promise<void> {
     consequences.value = blastLines(await fetchBlastRadius(props.scriptId));
     confirmOpen.value = true;
   } catch (failure) {
-    deleteError.value = (failure as Error).message;
+    deleteError.value = errorText(failure, t);
   }
 }
 
@@ -163,7 +164,7 @@ function confirmDelete(): void {
     },
     onError: (failure: Error): void => {
       confirmOpen.value = false;
-      deleteError.value = failure.message;
+      deleteError.value = errorText(failure, t);
     },
   });
 }
@@ -179,7 +180,7 @@ function confirmDelete(): void {
     :title="$t('dashboard.scripts.detail.title')"
     :state="state"
     :empty-text="$t('dashboard.scripts.detail.notFound', { id: scriptId })"
-    :error-text="detail.error.value?.message"
+    :error-text="detail.error.value ? errorText(detail.error.value, t) : undefined"
     @retry="detail.refetch()"
   />
 

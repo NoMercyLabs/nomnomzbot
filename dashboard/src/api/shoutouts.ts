@@ -37,7 +37,7 @@ async function readSuggestions(channelId: string): Promise<ShoutoutSuggestion[]>
   );
 
   if (error !== undefined)
-    throw failed('shoutout suggestions', response.status);
+    throw failed('shoutout suggestions', response.status, error);
 
   return data?.data ?? [];
 }
@@ -68,7 +68,7 @@ export function useDismissShoutoutSuggestion(
       );
 
       if (!response.ok)
-        throw failed('dismiss suggestion', response.status);
+        throw failed('dismiss suggestion', response.status, error);
     },
     onSuccess: () =>
       queries.invalidateQueries({ queryKey: shoutoutSuggestionsKey(toValue(channelId)) }),

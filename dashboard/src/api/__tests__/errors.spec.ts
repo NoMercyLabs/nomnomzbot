@@ -99,6 +99,20 @@ describe('ApiError', () => {
     expect(failed('stream', 418).messageKey).toBe('errors.failed');
   });
 
+  it('keeps the ProblemDetails body that comes with a failed response', () => {
+    const body = {
+      title: 'Forbidden',
+      detail: 'You are not a moderator.',
+      traceId: 'abc-1',
+    };
+    const error = failed('shield', 403, body);
+
+    expect(error.title).toBe('Forbidden');
+    expect(error.detail).toBe('You are not a moderator.');
+    expect(error.traceId).toBe('abc-1');
+    expect(error.message).toBe('You are not a moderator.');
+  });
+
   it('names the code and status when the body has no detail', () => {
     expect(failed('music queue', 500).message).toBe('music queue 500');
   });

@@ -64,7 +64,7 @@ async function readRunPage(
   );
 
   if (error !== undefined)
-    throw failed('pipeline runs', response.status);
+    throw failed('pipeline runs', response.status, error);
 
   return {
     runs: data?.data ?? [],
@@ -102,7 +102,7 @@ async function readRun(channelId: string, id: string): Promise<PipelineRunDetail
   );
 
   if (error !== undefined || !data?.data)
-    throw failed('pipeline run', response.status);
+    throw failed('pipeline run', response.status, error);
 
   return data.data;
 }

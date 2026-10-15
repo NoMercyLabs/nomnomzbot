@@ -137,7 +137,7 @@ describe('Mod tools', () => {
     await wrapper.find('[data-mode="slowMode"]').trigger('click');
     await flushPromises();
 
-    expect(toast.error).toHaveBeenCalledWith('Slow mode needs a delay of at least 3 seconds.');
+    expect(toast.error).toHaveBeenCalledWith('errors.invalid Slow mode needs a delay of at least 3 seconds.');
     expect(queries.getQueryData(['channels', 'channel', 'chat-settings'])).toEqual(initial);
     wrapper.unmount();
   });

@@ -26,6 +26,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { errorText } from '@/lib/errors';
 
 const props = defineProps<{ channelId: string | null; channelName: string }>();
 
@@ -126,7 +127,7 @@ async function saveSettings(next: ChatSettings): Promise<boolean> {
     return true;
   } catch (error) {
     toast.error(error instanceof Error
-      ? error.message
+      ? errorText(error, t)
       : t('dashboard.chat.modTools.saveFailed'));
 
     return false;

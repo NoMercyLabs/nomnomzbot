@@ -35,7 +35,7 @@ async function readSettings(channelId: string): Promise<ChatSettings> {
   });
 
   if (error !== undefined || !data?.data)
-    throw failed('chat settings', response.status);
+    throw failed('chat settings', response.status, error);
 
   return data.data;
 }
@@ -74,7 +74,7 @@ async function readRaids(channelId: string): Promise<RaidAssessment[]> {
     });
 
     if (error !== undefined)
-      throw failed('raid assessments', response.status);
+      throw failed('raid assessments', response.status, error);
 
     assessments.push(...data?.data ?? []);
     hasMore = data?.hasMore === true;
@@ -99,7 +99,7 @@ export function useMassBanRaiders(
       });
 
       if (error !== undefined)
-        throw failed('mass ban', response.status);
+        throw failed('mass ban', response.status, error);
     },
   });
 }
@@ -114,7 +114,7 @@ export function useClearChat(
       });
 
       if (error !== undefined)
-        throw failed('clear chat', response.status);
+        throw failed('clear chat', response.status, error);
     },
   });
 }

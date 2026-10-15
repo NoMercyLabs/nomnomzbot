@@ -61,7 +61,7 @@ export function useDismissActionRequired(
       );
 
       if (error !== undefined)
-        throw failed('action-required-dismiss', response.status);
+        throw failed('action-required-dismiss', response.status, error);
 
       return readActionRequired(id);
     },

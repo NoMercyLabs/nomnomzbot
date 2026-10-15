@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { usePageView } from '@/composables/usePageView';
+import { errorText } from '@/lib/errors';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import {
   fetchScriptProject,
@@ -402,7 +403,7 @@ function confirmDelete(): void {
               t('dashboard.catalog.codeEditor.open')
             }}</Button>
             <span v-if="scripts.error.value" role="alert" class="text-sm text-destructive">
-              {{ scripts.error.value.message }}
+              {{ errorText(scripts.error.value, t) }}
             </span>
             <span v-else-if="editorMissing" class="text-sm text-muted-foreground">
               {{ t('dashboard.catalog.codeEditor.none') }}
