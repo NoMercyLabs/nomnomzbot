@@ -18,7 +18,7 @@ import SidePanel from '@/components/layout/SidePanel.vue';
 import { i18n } from '@/i18n';
 import { railWanted } from '@/composables/useFrameRail';
 
-let mounted: VueWrapper | undefined;
+let mounted: VueWrapper<InstanceType<typeof SidePanel>> | undefined;
 
 afterEach(() => {
   mounted?.unmount();
@@ -79,7 +79,7 @@ describe('the side panel', () => {
 
   // Owner 2026-10-14: "no close button?". The drawer hides the sheet corner X; its top panel carries one.
   describe('the close button of its top panel', () => {
-    async function panelsAt(width: number): Promise<VueWrapper> {
+    async function panelsAt(width: number): Promise<VueWrapper<InstanceType<typeof SidePanel>>> {
       setWidth(width);
 
       mounted = mount(SidePanel, {

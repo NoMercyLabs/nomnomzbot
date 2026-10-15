@@ -52,8 +52,8 @@ const member = {
   lastSeen: '2026-10-12T18:00:00Z',
   recentActivity: [],
   banHistory: [],
-  isVip: null,
-  isModerator: null,
+  isVip: null as boolean | null,
+  isModerator: null as boolean | null,
 };
 
 const profile = {

@@ -87,6 +87,7 @@ const config: MusicConfig = {
   allowSpotify: true,
   minTrustLevel: 'everyone',
   bangerAutoCreate: false,
+  requestsOpen: true,
 };
 
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));

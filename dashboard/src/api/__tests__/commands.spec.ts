@@ -350,6 +350,7 @@ describe('built-in commands', () => {
     name: '!sr',
     isEnabled: true,
     defaultCooldownSeconds: 5,
+    defaultUserCooldownSeconds: 0,
     defaultMinPermissionLevel: 'Everyone',
     replyGroup: 'sr',
     speakWithTts: false,

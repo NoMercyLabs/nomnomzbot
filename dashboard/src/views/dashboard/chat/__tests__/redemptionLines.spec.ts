@@ -37,9 +37,12 @@ function plugins() {
     routes: [{ path: '/', component: { render: () => null } }],
   });
 
-  const query = [VueQueryPlugin, { queryClient: new QueryClient() }] as const;
+  const query: [typeof VueQueryPlugin, { queryClient: QueryClient }] = [
+    VueQueryPlugin,
+    { queryClient: new QueryClient() },
+  ];
 
-  return [i18n, createPinia(), router, query] as const;
+  return [i18n, createPinia(), router, query];
 }
 
 function inTooltips(component: object, props: Record<string, unknown>) {
