@@ -22,6 +22,7 @@ import {
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{ channelId: string | null }>();
@@ -46,7 +47,7 @@ function detailOf(entry: ShoutoutSuggestion): string {
   if (refused.value.has(entry.twitchUserId))
     return t('dashboard.home.shoutouts.failed');
 
-  const streams = t('dashboard.home.shoutouts.streams', Number(entry.streamsLast14Days));
+  const streams = t('dashboard.home.shoutouts.streams', Number(entry.streamsLast30Days));
 
   return !entry.lastCategory
     ? streams
@@ -77,6 +78,18 @@ async function send(entry: ShoutoutSuggestion): Promise<void> {
         :data-suggestion="entry.twitchUserId"
       >
         <SummaryRow :title="entry.displayName" :detail="detailOf(entry)">
+          <template #leading>
+            <Avatar class="size-8">
+              <AvatarFallback
+                data-chat-color
+                class="font-medium"
+                :class="entry.color ? 'text-black' : ''"
+                :style="entry.color ? { backgroundColor: entry.color } : undefined"
+              >
+                {{ entry.displayName.slice(0, 2).toUpperCase() }}
+              </AvatarFallback>
+            </Avatar>
+          </template>
           <template #title>
             <UserName :user-id="entry.twitchUserId" :name="entry.displayName" />
           </template>

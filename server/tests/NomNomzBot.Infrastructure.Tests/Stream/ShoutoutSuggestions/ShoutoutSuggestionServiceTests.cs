@@ -24,7 +24,7 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Stream.ShoutoutSuggestions;
 
 /// <summary>
-/// The shoutout suggestions list: chatters of THIS stream, most streams in the last 14 days first, with the
+/// The shoutout suggestions list: chatters of THIS stream, most streams in the last 30 days first, with the
 /// broadcaster, the bot, chatters without an archive, chatters already shouted out and dismissed chatters left
 /// out, a cap of 10, and Twitch lookups kept for one hour.
 /// </summary>
@@ -156,7 +156,7 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Orders_by_streams_in_14_days_then_name_and_fills_every_field_from_twitch_or_our_records()
+    public async Task Orders_by_streams_in_30_days_then_name_and_fills_every_field_from_twitch_or_our_records()
     {
         Chatter("11", 3);
         Chatter("12", 5);
@@ -183,7 +183,7 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
         List<ShoutoutSuggestionDto> list = await SuggestAsync();
 
         list.Select(s => s.TwitchUserId).Should().Equal("12", "10", "11");
-        list.Select(s => s.StreamsLast14Days).Should().Equal(5, 3, 3);
+        list.Select(s => s.StreamsLast30Days).Should().Equal(5, 3, 3);
         ShoutoutSuggestionDto top = list[0];
         top.Login.Should().Be("login12");
         top.DisplayName.Should().Be("Name12");
@@ -258,15 +258,27 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task The_14_day_window_counts_an_archive_made_exactly_14_days_ago_and_not_one_second_older()
+    public async Task A_chatter_with_a_stream_20_days_ago_is_suggested_with_that_stream_counted()
     {
         DateTimeOffset now = _clock.GetUtcNow();
-        _context.SessionChatters["40"] = "Chat40";
-        _archives["40"] = [now.AddDays(-14), now.AddDays(-14).AddSeconds(-1), now.AddDays(-2)];
+        _context.SessionChatters["41"] = "Chat41";
+        _archives["41"] = [now.AddDays(-20)];
 
         List<ShoutoutSuggestionDto> list = await SuggestAsync();
 
-        list.Should().ContainSingle().Which.StreamsLast14Days.Should().Be(2);
+        list.Should().ContainSingle().Which.StreamsLast30Days.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task The_30_day_window_counts_an_archive_made_exactly_30_days_ago_and_not_one_second_older()
+    {
+        DateTimeOffset now = _clock.GetUtcNow();
+        _context.SessionChatters["40"] = "Chat40";
+        _archives["40"] = [now.AddDays(-30), now.AddDays(-30).AddSeconds(-1), now.AddDays(-2)];
+
+        List<ShoutoutSuggestionDto> list = await SuggestAsync();
+
+        list.Should().ContainSingle().Which.StreamsLast30Days.Should().Be(2);
     }
 
     [Fact]
@@ -278,7 +290,7 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
         List<ShoutoutSuggestionDto> list = await SuggestAsync();
 
         list.Should().HaveCount(10);
-        list.Select(s => s.StreamsLast14Days).Should().Equal(12, 11, 10, 9, 8, 7, 6, 5, 4, 3);
+        list.Select(s => s.StreamsLast30Days).Should().Equal(12, 11, 10, 9, 8, 7, 6, 5, 4, 3);
     }
 
     [Fact]
@@ -326,7 +338,7 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
                 Arg.Any<TwitchPageRequest>(),
                 Arg.Any<CancellationToken>()
             );
-        later.Should().ContainSingle().Which.StreamsLast14Days.Should().Be(1);
+        later.Should().ContainSingle().Which.StreamsLast30Days.Should().Be(1);
     }
 
     [Fact]

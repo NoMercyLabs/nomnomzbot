@@ -1889,7 +1889,7 @@ public class ModerationController : BaseController
 
     /// <summary>
     /// Chatters of the current stream the streamer may want to shout out: up to 10, most streams in the last
-    /// 14 days first. Empty while the channel is offline. Send one with <c>POST moderation/shoutout</c>.
+    /// 30 days first. Empty while the channel is offline. Send one with <c>POST moderation/shoutout</c>.
     /// </summary>
     [RequireAction("moderation:read")]
     [HttpGet("shoutout-suggestions")]

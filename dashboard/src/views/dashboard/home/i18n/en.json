@@ -30,7 +30,7 @@
       },
       "shoutouts": {
         "title": "Suggested shoutouts · {count}",
-        "streams": "No streams in 14 days | {count} stream in 14 days | {count} streams in 14 days",
+        "streams": "No streams in 30 days | {count} stream in 30 days | {count} streams in 30 days",
         "send": "Shoutout",
         "later": "Not now",
         "sent": "Shoutout sent.",

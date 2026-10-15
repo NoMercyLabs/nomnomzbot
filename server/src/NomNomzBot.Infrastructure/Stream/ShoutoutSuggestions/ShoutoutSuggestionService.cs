@@ -33,7 +33,7 @@ public sealed class ShoutoutSuggestionService(
     TimeProvider clock
 ) : IShoutoutSuggestionService
 {
-    private const int WindowDays = 14;
+    private const int WindowDays = 30;
     private const int MaxSuggestions = 10;
     private const int MaxVideoPages = 3;
     private const int ParallelLookups = 4;
@@ -61,7 +61,7 @@ public sealed class ShoutoutSuggestionService(
             cancellationToken
         );
 
-        Dictionary<string, int> streams = await StreamsLast14DaysAsync(
+        Dictionary<string, int> streams = await StreamsLast30DaysAsync(
             candidates,
             now,
             cancellationToken
@@ -200,7 +200,7 @@ public sealed class ShoutoutSuggestionService(
         }
     }
 
-    private async Task<Dictionary<string, int>> StreamsLast14DaysAsync(
+    private async Task<Dictionary<string, int>> StreamsLast30DaysAsync(
         List<string> candidates,
         DateTimeOffset now,
         CancellationToken cancellationToken

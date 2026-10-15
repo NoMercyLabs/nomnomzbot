@@ -18,7 +18,7 @@ namespace NomNomzBot.Application.Moderation.Dtos;
 /// <param name="DisplayName">The name as Twitch shows it.</param>
 /// <param name="Color">The chat color from their latest chat line in this channel, or null when none is known.</param>
 /// <param name="LastCategory">The category of their channel on Twitch now (Get Channel Information), or null when none is set.</param>
-/// <param name="StreamsLast14Days">How many archived streams they published in the last 14 days (Get Videos, type archive).</param>
+/// <param name="StreamsLast30Days">How many archived streams they published in the last 30 days (Get Videos, type archive).</param>
 /// <param name="LastShoutoutAt">When this channel last shouted them out, from our own records, or null when never.</param>
 public sealed record ShoutoutSuggestionDto(
     string TwitchUserId,
@@ -26,6 +26,6 @@ public sealed record ShoutoutSuggestionDto(
     string DisplayName,
     string? Color,
     string? LastCategory,
-    int StreamsLast14Days,
+    int StreamsLast30Days,
     DateTimeOffset? LastShoutoutAt
 );

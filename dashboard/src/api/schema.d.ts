@@ -50010,7 +50010,7 @@ export interface paths {
         };
         /**
          * Chatters of the current stream the streamer may want to shout out: up to 10, most streams in the last
-         *     14 days first. Empty while the channel is offline. Send one with `POST moderation/shoutout`.
+         *     30 days first. Empty while the channel is offline. Send one with `POST moderation/shoutout`.
          */
         get: {
             parameters: {
@@ -91993,9 +91993,9 @@ export interface components {
             lastCategory?: null | string;
             /**
              * Format: int32
-             * @description How many archived streams they published in the last 14 days (Get Videos, type archive).
+             * @description How many archived streams they published in the last 30 days (Get Videos, type archive).
              */
-            streamsLast14Days: number | string;
+            streamsLast30Days: number | string;
             /**
              * Format: date-time
              * @description When this channel last shouted them out, from our own records, or null when never.

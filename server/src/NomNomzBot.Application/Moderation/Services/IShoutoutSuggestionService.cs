@@ -15,13 +15,13 @@ namespace NomNomzBot.Application.Moderation.Services;
 
 /// <summary>
 /// Suggests who to shout out during the current stream: chatters of this stream who streamed often in the last
-/// 14 days, most streams first. Every field comes from Twitch or from this channel's own records.
+/// 30 days, most streams first. Every field comes from Twitch or from this channel's own records.
 /// </summary>
 public interface IShoutoutSuggestionService
 {
     /// <summary>
     /// Up to 10 suggestions. The list is empty when the channel is offline. The broadcaster, the bot, chatters
-    /// without an archive in the last 14 days, chatters already shouted out this stream and chatters dismissed
+    /// without an archive in the last 30 days, chatters already shouted out this stream and chatters dismissed
     /// this stream are left out.
     /// </summary>
     Task<Result<IReadOnlyList<ShoutoutSuggestionDto>>> GetAsync(

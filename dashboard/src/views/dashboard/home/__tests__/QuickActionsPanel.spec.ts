@@ -56,7 +56,7 @@ let shoutoutFails = false;
 const suggestion = (
   twitchUserId: string,
   displayName: string,
-  streamsLast14Days: number,
+  streamsLast30Days: number,
   lastCategory: string | null,
 ): Record<string, unknown> => ({
   twitchUserId,
@@ -64,7 +64,7 @@ const suggestion = (
   displayName,
   color: '#00FF00',
   lastCategory,
-  streamsLast14Days,
+  streamsLast30Days,
   lastShoutoutAt: null,
 });
 
@@ -755,10 +755,14 @@ describe('QuickActionsPanel', () => {
       expect(suggestionRow('101').textContent).toContain('JDDoesDev');
 
       expect(suggestionRow('101').textContent).toContain(
-        '12 streams in 14 days · Software and Game Development',
+        '12 streams in 30 days · Software and Game Development',
       );
 
-      expect(suggestionRow('102').textContent).toContain('9 streams in 14 days');
+      const avatar = suggestionRow('101').querySelector<HTMLElement>('[data-chat-color]');
+
+      expect(avatar?.style.backgroundColor).toBe('rgb(0, 255, 0)');
+
+      expect(suggestionRow('102').textContent).toContain('9 streams in 30 days');
       expect(suggestionRow('102').textContent).not.toContain('·');
     });
 

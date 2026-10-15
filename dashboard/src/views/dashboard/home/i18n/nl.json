@@ -30,7 +30,7 @@
       },
       "shoutouts": {
         "title": "Voorgestelde shoutouts · {count}",
-        "streams": "Geen streams in 14 dagen | {count} stream in 14 dagen | {count} streams in 14 dagen",
+        "streams": "Geen streams in 30 dagen | {count} stream in 30 dagen | {count} streams in 30 dagen",
         "send": "Shoutout",
         "later": "Nu niet",
         "sent": "Shoutout verstuurd.",

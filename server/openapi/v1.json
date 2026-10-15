@@ -59116,7 +59116,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Chatters of the current stream the streamer may want to shout out: up to 10, most streams in the last\r\n14 days first. Empty while the channel is offline. Send one with `POST moderation/shoutout`.",
+        "summary": "Chatters of the current stream the streamer may want to shout out: up to 10, most streams in the last\r\n30 days first. Empty while the channel is offline. Send one with `POST moderation/shoutout`.",
         "parameters": [
           {
             "name": "channelId",
@@ -123289,7 +123289,7 @@
           "twitchUserId",
           "login",
           "displayName",
-          "streamsLast14Days"
+          "streamsLast30Days"
         ],
         "type": "object",
         "properties": {
@@ -123319,13 +123319,13 @@
             ],
             "description": "The category of their channel on Twitch now (Get Channel Information), or null when none is set."
           },
-          "streamsLast14Days": {
+          "streamsLast30Days": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
-            "description": "How many archived streams they published in the last 14 days (Get Videos, type archive).",
+            "description": "How many archived streams they published in the last 30 days (Get Videos, type archive).",
             "format": "int32"
           },
           "lastShoutoutAt": {
