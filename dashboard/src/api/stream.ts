@@ -78,7 +78,7 @@ export function useStreamInfo(
     );
 
     if (error !== undefined)
-      throw failed('stream', response.status);
+      throw failed('stream', response.status, error);
 
     return data?.data ?? null;
   });
@@ -93,7 +93,7 @@ async function readAdSchedule(channelId: string): Promise<AdSchedule | null> {
   );
 
   if (error !== undefined)
-    throw failed('ad schedule', response.status);
+    throw failed('ad schedule', response.status, error);
 
   return data?.data ?? null;
 }
@@ -121,7 +121,7 @@ export function useSnoozeAd(
       );
 
       if (error !== undefined)
-        throw failed('snooze', response.status);
+        throw failed('snooze', response.status, error);
 
       return readAdSchedule(id);
     },
@@ -149,7 +149,7 @@ export function useStreamHistory(
     );
 
     if (error !== undefined)
-      throw failed('stream history', response.status);
+      throw failed('stream history', response.status, error);
 
     return [...(data?.data ?? [])];
   });
@@ -174,7 +174,7 @@ export function useCategorySearch(
       );
 
       if (error !== undefined)
-        throw failed('categories', response.status);
+        throw failed('categories', response.status, error);
 
       return [...(data?.data ?? [])];
     },
@@ -202,7 +202,7 @@ export function useSaveStreamInfo(
       );
 
       if (error !== undefined)
-        throw failed('stream info', response.status);
+        throw failed('stream info', response.status, error);
 
       return data?.data ?? queries.getQueryData<StreamInfo | null>(streamInfoKey(id)) ?? null;
     },
@@ -234,7 +234,7 @@ export function useConnectIntegration(
       );
 
       if (error !== undefined)
-        throw failed('connect', response.status);
+        throw failed('connect', response.status, error);
 
       const url = data?.data?.authorizeUrl;
 

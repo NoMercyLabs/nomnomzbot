@@ -18,6 +18,7 @@ import ChevronLeft from '~icons/nnz/chevron-left';
 import ChevronRight from '~icons/nnz/chevron-right';
 
 import { useAdminTenants, type AdminTenant, type AdminTenantsParams } from '@/api/admin';
+import { ApiError } from '@/api/errors';
 import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -77,8 +78,8 @@ const liveOptions = computed<FilterOption[]>(() =>
 
 const panelState = usePanelState(tenants, (data) =>
   (data.data?.length ?? 0) === 0);
-const errorText = computed<string>(() =>
-  tenants.error.value?.message.endsWith('403')
+const listError = computed<string>(() =>
+  tenants.error.value instanceof ApiError && tenants.error.value.status === 403
     ? t('dashboard.admin.list.forbidden')
     : t('dashboard.admin.list.error'),
 );
@@ -135,7 +136,7 @@ function pick(row: AdminTenant): void {
       :description="$t('dashboard.admin.list.newestFirst')"
       :state="panelState"
       :empty-text="$t('dashboard.admin.list.empty')"
-      :error-text="errorText"
+      :error-text="listError"
       @retry="tenants.refetch()"
     >
       <ChannelsTable :rows="rows" :selected-id="selectedId" @pick="pick" />

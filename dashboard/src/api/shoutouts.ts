@@ -37,7 +37,7 @@ async function readSuggestions(channelId: string): Promise<ShoutoutSuggestion[]>
   );
 
   if (error !== undefined)
-    throw failed('shoutout suggestions', response.status);
+    throw failed('shoutout suggestions', response.status, error);
 
   return data?.data ?? [];
 }
@@ -58,7 +58,7 @@ export function useDismissShoutoutSuggestion(
   return useMutation({
     mutationFn: async (twitchUserId: string): Promise<void> => {
       const id = toValue(channelId) as string;
-      const { response } = await client.POST(
+      const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/moderation/shoutout-suggestions/{twitchUserId}/dismiss',
         { params: { path: {
           version,
@@ -68,7 +68,7 @@ export function useDismissShoutoutSuggestion(
       );
 
       if (!response.ok)
-        throw failed('dismiss suggestion', response.status);
+        throw failed('dismiss suggestion', response.status, error);
     },
     onSuccess: () =>
       queries.invalidateQueries({ queryKey: shoutoutSuggestionsKey(toValue(channelId)) }),

@@ -40,7 +40,7 @@ export function useRewards(
     );
 
     if (error !== undefined)
-      throw failed('rewards', response.status);
+      throw failed('rewards', response.status, error);
 
     return [...(data?.data ?? [])];
   });

@@ -1,4 +1,13 @@
 {
+  "errors": {
+    "failed": "Er ging iets mis. Probeer het opnieuw.",
+    "refused": "De bot weigerde dit.",
+    "notFound": "Dit is niet gevonden.",
+    "forbidden": "Je hebt hier geen recht voor.",
+    "rateLimited": "Te veel pogingen. Wacht even.",
+    "invalid": "Een deel van de invoer klopt niet.",
+    "server": "De bot had een probleem. Probeer het zo opnieuw."
+  },
   "common": {
     "signOut": "Afmelden",
     "language": "Taal",

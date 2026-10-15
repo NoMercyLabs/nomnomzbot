@@ -43,6 +43,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { errorText } from '@/lib/errors';
 import { usePanelState } from '@/composables/usePanelState';
 import { useShortcut } from '@/composables/useShortcut';
 
@@ -237,7 +238,7 @@ async function testRun(): Promise<void> {
     runCount.value += 1;
   } catch (error: unknown) {
     toast.error(error instanceof Error
-      ? error.message
+      ? errorText(error, t)
       : t(`${page}.run.failedToStart`));
   }
 }
@@ -263,7 +264,7 @@ async function save(): Promise<void> {
     toast.success(t(`${page}.saved`));
   } catch (error: unknown) {
     toast.error(error instanceof Error
-      ? error.message
+      ? errorText(error, t)
       : t(`${page}.saveFailed`));
   }
 }

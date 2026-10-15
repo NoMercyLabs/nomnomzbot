@@ -37,7 +37,7 @@ async function readAccess(channelId: string): Promise<ResolvedAccess> {
   );
 
   if (error !== undefined || !data?.data)
-    throw failed('channel access', response.status);
+    throw failed('channel access', response.status, error);
 
   return data.data;
 }

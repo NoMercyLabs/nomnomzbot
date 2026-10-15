@@ -19,6 +19,8 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { client } from './client';
 import type { KeyParts } from '@/lib/array';
 
+import { failed } from './errors';
+
 export const shieldKey = (channelId: string | null): KeyParts => ['channels', channelId, 'shield'];
 
 // The status reads live from the Twitch moderation API; the document types the answer as an open object.
@@ -48,7 +50,7 @@ export function useSetShieldMode(
 
   return useMutation({
     mutationFn: async (enabled: boolean): Promise<void> => {
-      const { response } = await client.PATCH(
+      const { error, response } = await client.PATCH(
         '/api/v{version}/channels/{channelId}/moderation/shield',
         {
           params: { path: { version: '1', channelId: toValue(channelId) as string } },
@@ -57,7 +59,7 @@ export function useSetShieldMode(
       );
 
       if (!response.ok)
-        throw new Error(`shield ${response.status}`);
+        throw failed('shield', response.status, error);
     },
     onSuccess: () => queries.invalidateQueries({ queryKey: shieldKey(toValue(channelId)) }),
   });

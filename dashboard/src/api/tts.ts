@@ -89,7 +89,7 @@ export function useTtsConfig(
     );
 
     if (error !== undefined)
-      throw failed('tts config', response.status);
+      throw failed('tts config', response.status, error);
 
     return data?.data ?? null;
   });
@@ -107,7 +107,7 @@ export function useTtsOverlay(
     );
 
     if (error !== undefined)
-      throw failed('tts overlay', response.status);
+      throw failed('tts overlay', response.status, error);
 
     return data?.data ?? null;
   });
@@ -132,7 +132,7 @@ async function readVoicePage(channelId: string, q: string, page: number): Promis
   );
 
   if (error !== undefined)
-    throw failed('tts voices', response.status);
+    throw failed('tts voices', response.status, error);
 
   const nextPage = Number(data?.nextPage);
   const total = Number(data?.total ?? Number.NaN);
@@ -232,7 +232,7 @@ async function readPersonVoice(channelId: string, userId: string): Promise<Perso
     return null;
 
   if (error !== undefined || !data?.data)
-    throw failed('person voice', response.status);
+    throw failed('person voice', response.status, error);
 
   const voiceId = data.data.voiceId;
   const matches = await readVoicePage(channelId, voiceId, firstVoicePage);

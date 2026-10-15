@@ -19,6 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
 import { client } from './client';
+import { failed } from './errors';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
@@ -50,10 +51,6 @@ export const blockedTracksKey = (channelId: string | null): KeyParts => [
   'music-blocked-tracks',
 ];
 
-function failed(what: string, status: number): Error {
-  return new Error(`${what} ${status}`);
-}
-
 function channelQuery<T>(
   channelId: MaybeRefOrGetter<string | null>,
   key: (channelId: string | null) => KeyParts,
@@ -75,7 +72,7 @@ async function readQueue(channelId: string): Promise<MusicQueue> {
   );
 
   if (error !== undefined)
-    throw failed('music queue', response.status);
+    throw failed('music queue', response.status, error);
 
   return data?.data ?? { nowPlaying: null, queue: [] };
 }
@@ -89,7 +86,7 @@ async function readBlocked(channelId: string): Promise<BlockedTrack[]> {
   );
 
   if (error !== undefined)
-    throw failed('blocked tracks', response.status);
+    throw failed('blocked tracks', response.status, error);
 
   return data?.data ?? [];
 }
@@ -115,7 +112,7 @@ export function useMusicConfig(
       );
 
       if (error !== undefined)
-        throw failed('music config', response.status);
+        throw failed('music config', response.status, error);
 
       return data?.data ?? null;
     },
@@ -173,7 +170,7 @@ function transport(
       });
 
       if (error !== undefined)
-        throw failed('music control', response.status);
+        throw failed('music control', response.status, error);
 
       return readQueue(id);
     },
@@ -217,7 +214,7 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
       );
 
       if (error !== undefined)
-        throw failed('promote', response.status);
+        throw failed('promote', response.status, error);
 
       return readQueue(id);
     },
@@ -264,7 +261,7 @@ export function useMoveQueueItem(
       );
 
       if (error !== undefined)
-        throw failed('move', response.status);
+        throw failed('move', response.status, error);
 
       return readQueue(id);
     },
@@ -313,7 +310,7 @@ export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): 
       );
 
       if (error !== undefined)
-        throw failed('remove song', response.status);
+        throw failed('remove song', response.status, error);
 
       return readQueue(id);
     },
@@ -345,7 +342,7 @@ export function useBanQueueItem(channelId: MaybeRefOrGetter<string | null>): Row
       );
 
       if (error !== undefined)
-        throw failed('ban song', response.status);
+        throw failed('ban song', response.status, error);
 
       await queries.invalidateQueries({ queryKey: blockedTracksKey(id) });
 
@@ -373,7 +370,7 @@ export function useBlockTrack(
       );
 
       if (error !== undefined)
-        throw failed('block song', response.status);
+        throw failed('block song', response.status, error);
 
       return readBlocked(id);
     },
@@ -414,7 +411,7 @@ export function useUnblockTrack(
       );
 
       if (error !== undefined)
-        throw failed('unblock song', response.status);
+        throw failed('unblock song', response.status, error);
 
       return readBlocked(id);
     },
@@ -450,7 +447,7 @@ export function useSaveMusicConfig(
       );
 
       if (error !== undefined)
-        throw failed('save music config', response.status);
+        throw failed('save music config', response.status, error);
 
       return data?.data ?? null;
     },
@@ -491,7 +488,7 @@ async function readHistory(channelId: string): Promise<SongHistoryItem[]> {
   );
 
   if (error !== undefined)
-    throw failed('music history', response.status);
+    throw failed('music history', response.status, error);
 
   return data?.data ?? [];
 }
@@ -505,7 +502,7 @@ async function readTopRequesters(channelId: string): Promise<TopRequester[]> {
   );
 
   if (error !== undefined)
-    throw failed('top requesters', response.status);
+    throw failed('top requesters', response.status, error);
 
   return data?.data ?? [];
 }

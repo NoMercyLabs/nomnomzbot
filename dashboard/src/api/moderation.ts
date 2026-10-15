@@ -70,7 +70,7 @@ async function readHistoryPage(
   );
 
   if (error !== undefined)
-    throw failed('moderation history', response.status);
+    throw failed('moderation history', response.status, error);
 
   return {
     entries: data?.data ?? [],
@@ -126,7 +126,7 @@ async function readStanding(channelId: string, userId: string): Promise<Moderati
   );
 
   if (error !== undefined)
-    throw failed('moderation standing', response.status);
+    throw failed('moderation standing', response.status, error);
 
   const standings = data?.data?.standings ?? [];
 
@@ -173,7 +173,7 @@ async function writeStanding(channelId: string, change: StandingChange): Promise
       });
 
   if (error !== undefined)
-    throw failed('moderation standing', response.status);
+    throw failed('moderation standing', response.status, error);
 }
 
 // The new standing shows at once. The server notes every change on the person, so the notes reload after it.

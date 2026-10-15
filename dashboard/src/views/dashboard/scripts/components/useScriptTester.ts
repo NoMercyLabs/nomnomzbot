@@ -10,9 +10,11 @@
 
 import { useTimeoutFn } from '@vueuse/core';
 import { ref, type Ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { runScriptTest, type TestRunOutcome } from '@/api/codeScripts';
 import type { TestRunResult, TestTrigger } from '@/composables/useEditorBridge';
+import { errorText } from '@/lib/errors';
 
 const FALLBACK_WAIT_SECONDS = 10;
 
@@ -29,6 +31,7 @@ export interface ScriptTester {
 
 // A dry run of one script: nothing it does reaches chat. A refusal shows its reason; a 429 starts a wait.
 export function useScriptTester(scriptId: () => string): ScriptTester {
+  const { t } = useI18n();
   const running = ref(false);
   const limited = ref(false);
   const last = ref<TestRunResult | null>(null);
@@ -67,7 +70,7 @@ export function useScriptTester(scriptId: () => string): ScriptTester {
 
       return { result: outcome.result, trigger: trigger?.label ?? null };
     } catch (error) {
-      failure.value = (error as Error).message;
+      failure.value = errorText(error, t);
 
       return null;
     } finally {

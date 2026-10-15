@@ -25,6 +25,7 @@ import SearchField from '@/components/layout/SearchField.vue';
 import { Button } from '@/components/ui/button';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
+import { errorText } from '@/lib/errors';
 
 import FailedRunDialog from './components/FailedRunDialog.vue';
 import NewScriptDialog from './components/NewScriptDialog.vue';
@@ -98,8 +99,11 @@ const emptyText = computed<string>(() => {
       : 'dashboard.scripts.list.emptyTab',
   );
 });
-const errorText = computed<string>(
-  () => scripts.error.value?.message || t('dashboard.scripts.list.error'),
+const listError = computed<string>(
+  () =>
+    scripts.error.value
+      ? errorText(scripts.error.value, t)
+      : t('dashboard.scripts.list.error'),
 );
 
 const hint = computed<string>(() => t(`dashboard.scripts.hints.${view.value}`));
@@ -188,7 +192,7 @@ function opened(id: string | null): void {
         :description="count"
         :state="panelState"
         :empty-text="emptyText"
-        :error-text="errorText"
+        :error-text="listError"
         @retry="scripts.refetch()"
       >
         <ScriptRow

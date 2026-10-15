@@ -12,6 +12,7 @@ import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
+import { problemError } from './errors';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
@@ -37,7 +38,7 @@ export function useCurrencyConfig(
       );
 
       if (error !== undefined)
-        throw new Error(`currency config ${response.status}`);
+        throw problemError('currency config', response.status, error);
 
       return data?.data ?? null;
     },

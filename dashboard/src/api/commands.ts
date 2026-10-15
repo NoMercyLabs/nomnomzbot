@@ -57,7 +57,7 @@ async function readCommands(channelId: string): Promise<CommandListItem[]> {
     );
 
     if (error !== undefined)
-      throw failed('commands', response.status);
+      throw failed('commands', response.status, error);
 
     rows.push(...(data?.data ?? []));
 
@@ -76,7 +76,7 @@ async function readBuiltins(channelId: string): Promise<BuiltinCommand[]> {
   );
 
   if (error !== undefined)
-    throw failed('built-in commands', response.status);
+    throw failed('built-in commands', response.status, error);
 
   return [...(data?.data ?? [])];
 }

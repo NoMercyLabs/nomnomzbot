@@ -11,13 +11,16 @@
 // The New pipeline dialog: one name field. The bot makes an empty pipeline; the page then opens its workbench.
 // The dialog stays open on a refusal and shows the bot's reason.
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useCreatePipeline } from '@/api/pipelines';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { errorText, fieldErrorLines } from '@/lib/errors';
 
+const { t } = useI18n();
 const open = defineModel<boolean>('open', { required: true });
 const emit = defineEmits<{ created: [id: string] }>();
 
@@ -46,7 +49,7 @@ async function submit(): Promise<void> {
     open.value = false;
     emit('created', created.id);
   } catch (failure) {
-    error.value = (failure as Error).message;
+    error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
   }
 }
 </script>

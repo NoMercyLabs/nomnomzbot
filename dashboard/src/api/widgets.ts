@@ -20,6 +20,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { numberOrNull } from '@/lib/number';
 
 import { channelQuery, failed, refusal } from './channelQuery';
+import type { ApiOperation } from './errors';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -60,7 +61,7 @@ async function readWidgets(channelId: string): Promise<Widget[]> {
     );
 
     if (error !== undefined)
-      throw failed('widgets', response.status);
+      throw failed('widgets', response.status, error);
 
     widgets.push(...(data?.data ?? []));
 
@@ -100,7 +101,7 @@ export function useWidgetSchema(
       );
 
       if (error !== undefined)
-        throw failed('widget settings', response.status);
+        throw failed('widget settings', response.status, error);
 
       return data?.data ?? null;
     },
@@ -120,7 +121,7 @@ async function putWidget(
   channelId: string,
   widgetId: string,
   body: components['schemas']['UpdateWidgetRequest'],
-  what: string,
+  what: ApiOperation,
 ): Promise<Widget[]> {
   const { error, response } = await client.PUT(
     '/api/v{version}/channels/{channelId}/widgets/{widgetId}',
@@ -137,7 +138,7 @@ async function putWidget(
   );
 
   if (error !== undefined)
-    throw failed(what, response.status);
+    throw failed(what, response.status, error);
 
   return readWidgets(channelId);
 }
