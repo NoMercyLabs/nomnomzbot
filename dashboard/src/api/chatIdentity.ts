@@ -17,6 +17,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
+import type { ApiError } from './errors';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
@@ -55,7 +56,7 @@ export function useChatIdentity(
 export function useSetChatColor(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
-  return useMutation({
+  return useMutation<ChatIdentity | null, ApiError, string>({
     mutationFn: async (color: string): Promise<ChatIdentity | null> => {
       const id = toValue(channelId) as string;
       const { data, error, response } = await client.PUT(
@@ -82,7 +83,7 @@ export function useSetChatColor(channelId: MaybeRefOrGetter<string | null>) {
 // Starts the additive re-consent: Twitch asks for the scopes the bot lacks on top of the ones it has,
 // so nothing is signed out. The caller shows the code and polls the device approval.
 export function useStartScopeRegrant() {
-  return useMutation({
+  return useMutation<ScopeRegrant | null, ApiError>({
     mutationFn: async (): Promise<ScopeRegrant | null> => {
       const { data, error, response } = await client.POST(
         '/api/v{version}/twitch/diagnostics/regrant',

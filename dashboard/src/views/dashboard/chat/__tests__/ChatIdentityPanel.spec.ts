@@ -17,7 +17,7 @@ import type { ChatIdentity } from '@/api/chatIdentity';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
-import ChatIdentityView from '../ChatIdentityView.vue';
+import ChatIdentityPanel from '../components/ChatIdentityPanel.vue';
 
 type Answer = {
   data?: unknown;
@@ -59,7 +59,7 @@ async function open(answer: ChatIdentity): Promise<VueWrapper> {
 
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-  mounted = mount(ChatIdentityView, {
+  mounted = mount(ChatIdentityPanel, {
     global: { plugins: [i18n, [VueQueryPlugin, { queryClient: queries }]] },
   });
 

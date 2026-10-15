@@ -20,6 +20,7 @@ import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
 import Moderator from '~icons/nnz/moderator';
 import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
+import UserCircle from '~icons/nnz/user-circle';
 
 import { useCurrentUser } from '@/api/auth';
 import {
@@ -44,6 +45,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { useChatDisplay } from './chatDisplay';
 import ChatComposer from './components/ChatComposer.vue';
 import ChatDisplayPanel from './components/ChatDisplayPanel.vue';
+import ChatIdentityPanel from './components/ChatIdentityPanel.vue';
 import ChatLine from './components/ChatLine.vue';
 import RedemptionLine from './components/RedemptionLine.vue';
 import ModToolsPanel from './components/ModToolsPanel.vue';
@@ -88,6 +90,7 @@ function toggleDockSearch(): void {
 const display = useChatDisplay();
 const displayOpen = ref(false);
 const modToolsOpen = ref(false);
+const identityOpen = ref(false);
 const focusedUserId = ref<string | null>(null);
 const currentUser = useCurrentUser();
 const me = computed<string | null>(() => currentUser.data.value?.username ?? null);
@@ -221,7 +224,7 @@ const viewerOpen = computed<boolean>({
 
 // Side panels never squeeze the chat: two fit beside it on a wide screen, else one. Opening one more closes
 // the panel opened longest ago (owner 2026-10-14: "maybe only allow both if there is enough space?").
-type ChatPanel = 'viewer' | 'display' | 'modTools';
+type ChatPanel = 'viewer' | 'display' | 'modTools' | 'identity';
 
 const twoPanelsFit = useMediaQuery('(min-width: 1800px)');
 const openOrder = ref<ChatPanel[]>([]);
@@ -232,6 +235,9 @@ const closers = {
   },
   modTools: () => {
     modToolsOpen.value = false;
+  },
+  identity: () => {
+    identityOpen.value = false;
   },
 } as const satisfies Record<ChatPanel, () => void>;
 
@@ -268,6 +274,9 @@ watch(displayOpen, (open) =>
 
 watch(modToolsOpen, (open) =>
   track('modTools', open));
+
+watch(identityOpen, (open) =>
+  track('identity', open));
 
 function clearFocusOnEscape(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
@@ -329,6 +338,17 @@ async function confirmBan(): Promise<void> {
         >
           <Moderator class="size-4" aria-hidden="true" />
           <span class="phone:sr-only">{{ $t('dashboard.chat.modTools.title') }}</span>
+        </Button>
+        <Button
+          data-identity-toggle
+          variant="outline"
+          size="sm"
+          :aria-pressed="identityOpen"
+          :aria-label="$t('dashboard.chat.identity.title')"
+          @click="identityOpen = !identityOpen"
+        >
+          <UserCircle class="size-4" aria-hidden="true" />
+          <span class="phone:sr-only">{{ $t('dashboard.chat.identity.title') }}</span>
         </Button>
         <Button
           data-display-toggle
@@ -457,6 +477,9 @@ async function confirmBan(): Promise<void> {
       <SidePanel v-model:open="modToolsOpen" data-mod-tools-panel :label="$t('dashboard.chat.modTools.title')">
         <ModToolsPanel :channel-id="channelId" :channel-name="current?.login ?? ''" />
       </SidePanel>
+      <SidePanel v-model:open="identityOpen" data-identity-panel :label="$t('dashboard.chat.identity.title')">
+        <ChatIdentityPanel />
+      </SidePanel>
     </div>
   </div>
   <!-- The docked controls (a small window, an OBS dock, a phone): the search field, then one slim bar of icon
@@ -500,6 +523,16 @@ async function confirmBan(): Promise<void> {
         @click="modToolsOpen = !modToolsOpen"
       >
         <Moderator class="size-5" aria-hidden="true" />
+      </Button>
+      <Button
+        data-identity-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="identityOpen"
+        :aria-label="$t('dashboard.chat.identity.title')"
+        @click="identityOpen = !identityOpen"
+      >
+        <UserCircle class="size-5" aria-hidden="true" />
       </Button>
       <Button
         data-display-toggle
