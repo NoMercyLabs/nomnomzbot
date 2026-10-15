@@ -107,6 +107,27 @@ public record RewardRedeemedDto(
 );
 
 /// <summary>
+/// Broadcast when a viewer redeems something that is not a custom channel-point reward: an automatic reward
+/// (<c>Kind</c> = <c>automatic_reward</c>, <c>Title</c> is Twitch's fixed reward type such as
+/// <c>send_highlighted_message</c>, priced in channel points) or a custom Power-up (<c>Kind</c> =
+/// <c>custom_power_up</c>, <c>Title</c> is the streamer's Power-up name, priced in Bits). The chat page shows
+/// it as a line next to the messages, like Twitch does. <c>CostUnit</c> is <c>channel_points</c> or <c>bits</c>.
+/// </summary>
+public record RedemptionActivityDto(
+    string BroadcasterId,
+    string Kind,
+    string RedemptionId,
+    string Title,
+    string UserId,
+    string UserLogin,
+    string UserDisplayName,
+    int Cost,
+    string CostUnit,
+    string? UserInput,
+    string Timestamp
+);
+
+/// <summary>
 /// Broadcast when a queued redemption's status changes — fulfilled or canceled — whether the change came from
 /// the dashboard's own fulfil/refund button or from Twitch directly (<c>channel_points_custom_reward_redemption.
 /// update</c>). Distinct from <see cref="RewardRedeemedDto"/>, which announces the NEW redemption; this is what

@@ -267,6 +267,37 @@ public sealed class AdBreakBitsUserTranslatorsTests
         published
             .MessageText.Should()
             .BeNull("a bare power-up carries no message object, so the text degrades to null");
+        published.PowerUpType.Should().BeNull("this payload carries no power_up object");
+    }
+
+    [Fact]
+    public async Task BitsUse_Celebration_ReadsThePowerUpTypeAndMessageEffect()
+    {
+        CapturingEventBus bus = new();
+        ChannelBitsUseTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                Guid.NewGuid(),
+                "channel.bits.use",
+                """
+                {
+                    "id": "use-1",
+                    "user_id": "9001",
+                    "user_login": "redeemer",
+                    "user_name": "Redeemer",
+                    "bits": 250,
+                    "type": "power_up",
+                    "power_up": { "type": "celebration", "emote": null, "message_effect_id": null },
+                    "message": null
+                }
+                """
+            )
+        );
+
+        BitsUsedEvent published = bus.EventsOf<BitsUsedEvent>().Should().ContainSingle().Subject;
+        published.PowerUpType.Should().Be("celebration");
+        published.Bits.Should().Be(250);
     }
 
     [Fact]

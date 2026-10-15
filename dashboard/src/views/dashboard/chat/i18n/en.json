@@ -59,6 +59,27 @@
         "show": "Show",
         "deletedTag": "(deleted)"
       },
+      "redemption": {
+        "redeemed": "redeemed",
+        "cost": {
+          "channel_points": "{amount} points",
+          "bits": "{amount} Bits"
+        },
+        "types": {
+          "send_highlighted_message": "Highlight My Message",
+          "single_message_bypass_sub_mode": "Send a Message in Sub-Only Mode",
+          "random_sub_emote_unlock": "Unlock a Random Sub Emote",
+          "chosen_sub_emote_unlock": "Choose an Emote to Unlock",
+          "chosen_modified_sub_emote_unlock": "Modify a Single Emote",
+          "message_effect": "Message Effects",
+          "gigantify_an_emote": "Gigantify an Emote",
+          "celebration": "On-Screen Celebration"
+        },
+        "powerUp": {
+          "power_ups_message_effect": "Message Effect",
+          "power_ups_gigantified_emote": "Gigantified Emote"
+        }
+      },
       "lengths": {
         "60": "1 min",
         "600": "10 min",

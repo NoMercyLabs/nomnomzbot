@@ -16,8 +16,11 @@ import type {
   ChatMessagePayload,
   MessageDeletedPayload,
   ModActionPayload,
+  RedemptionActivityPayload,
+  RewardRedeemedPayload,
   UserMessagesClearedPayload,
 } from './payloads';
+import { activityLine, rewardLine } from './redemptionLines';
 
 // A removed line stays in the feed, marked, so the page decides whether to hide or strike it.
 function markLines(
@@ -60,21 +63,40 @@ function modActionMark(action: ModActionPayload): ChatLineMark | null {
   return null;
 }
 
+// A new line joins its channel's feed once, by its place in time; a feed never loaded has no cache to join.
+function appendLine(queries: HubEventContext['queries'], line: ChatLine): void {
+  queries.setQueryData<ChatLine[]>(chatKey(line.channelId), (feed) =>
+    feed && !feed.some((existing) => existing.id === line.id)
+      ? inOrder(feed, line).slice(-chatLineLimit)
+      : feed,
+  );
+}
+
 // One connection watches many channels, so every handler files by the channel the payload names, not the joined one.
 // A channel whose feed was never loaded has no cache; the page seeds it from the history call.
 export const chatHandlers: [
   HubEventHandler<ChatMessagePayload>,
+  HubEventHandler<RewardRedeemedPayload>,
+  HubEventHandler<RedemptionActivityPayload>,
   HubEventHandler<ChannelEventPayload>,
   HubEventHandler<ModActionPayload>,
 ] = [
   {
     event: 'ChatMessage',
     handle: ({ queries }, message) => {
-      queries.setQueryData<ChatLine[]>(chatKey(message.channelId), (feed) =>
-        feed && !feed.some((existing) => existing.id === message.id)
-          ? inOrder(feed, message).slice(-chatLineLimit)
-          : feed,
-      );
+      appendLine(queries, message);
+    },
+  },
+  {
+    event: 'RewardRedeemed',
+    handle: ({ queries }, reward) => {
+      appendLine(queries, rewardLine(reward));
+    },
+  },
+  {
+    event: 'RedemptionActivity',
+    handle: ({ queries }, activity) => {
+      appendLine(queries, activityLine(activity));
     },
   },
   {
