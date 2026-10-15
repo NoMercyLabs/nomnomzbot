@@ -10,8 +10,8 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using NSubstitute;
 using NomNomzBot.Api.Authorization;
+using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Authorization;
 
