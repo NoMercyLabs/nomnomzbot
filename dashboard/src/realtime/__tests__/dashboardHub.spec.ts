@@ -220,3 +220,42 @@ describe('dashboard hub channel groups', () => {
     expect(dashboardHubStatus.value).toBe('offline');
   });
 });
+
+describe('the viewer music group', () => {
+  it('joins the viewer music group of the page channel and leaves it when the page moves on', async () => {
+    const [hub, , connection] = await started();
+
+    await hub.watchViewerMusic('c1');
+    await hub.watchViewerMusic('c2');
+    await hub.watchViewerMusic(null);
+
+    expect(connection.invocations).toEqual([
+      ['JoinViewerMusic', 'c1'],
+      ['LeaveViewerMusic', 'c1'],
+      ['JoinViewerMusic', 'c2'],
+      ['LeaveViewerMusic', 'c2'],
+    ]);
+  });
+
+  it('joins the group again after a reconnect', async () => {
+    const [hub, , connection] = await started();
+
+    await hub.watchViewerMusic('c1');
+    connection.invocations.length = 0;
+    connection.lifecycle.reconnected();
+
+    expect(connection.invocations).toEqual([['JoinViewerMusic', 'c1']]);
+  });
+
+  it('marks the viewer channel and the viewer queue stale on a queue push', async () => {
+    const [, queries, connection] = await started();
+    const { viewerChannelKey, viewerQueueKey } = await import('@/api/viewer');
+
+    queries.setQueryData(viewerChannelKey('stoney_eagle'), { isAcceptingRequests: true });
+    queries.setQueryData(viewerQueueKey('c1'), { queueLength: 0, songs: [] });
+    connection.receive('sr_queue_changed', { items: [] });
+
+    expect(queries.getQueryState(viewerChannelKey('stoney_eagle'))?.isInvalidated).toBe(true);
+    expect(queries.getQueryState(viewerQueueKey('c1'))?.isInvalidated).toBe(true);
+  });
+});

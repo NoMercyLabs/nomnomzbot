@@ -25,6 +25,7 @@
         "title": "Jouw nummers in de wachtrij",
         "description": "Alleen je eigen verzoeken. Je plek telt vanaf het volgende nummer.",
         "empty": "Je hebt geen nummers in de wachtrij.",
+        "closed": "Verzoekjes zijn nu gesloten.",
         "error": "Je wachtrij is niet geladen.",
         "position": "Eerstvolgende | {n} in de rij",
         "total": "{count} nummers in de hele wachtrij"

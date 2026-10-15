@@ -92,6 +92,7 @@ type Row = {
   title: string;
   userId: string | null;
   username: string | null;
+  color: string | null;
   detail: string | undefined;
   time: string;
 };
@@ -125,8 +126,9 @@ const rows = computed<Row[]>(() =>
       id: event.id,
       icon: view.icon,
       title: title ?? detail,
-      userId: event.userId ?? null,
+      userId: event.twitchUserId ?? null,
       username: event.username ?? view.actor ?? null,
+      color: event.color ?? null,
       detail: title === undefined
         ? undefined
         : detail,
@@ -156,7 +158,7 @@ const rows = computed<Row[]>(() =>
       <div v-for="row in rows" :key="row.id" data-activity-row>
         <SummaryRow :title="row.title" :detail="row.detail">
           <template v-if="row.userId && row.username" #title>
-            <UserName :user-id="row.userId" :name="row.username" />
+            <UserName :user-id="row.userId" :name="row.username" :color="row.color" />
             <span v-if="row.title !== row.username"> {{ row.title }}</span>
           </template>
           <template #leading>

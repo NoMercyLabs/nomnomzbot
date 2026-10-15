@@ -11,6 +11,7 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { watch, type Ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { i18n } from '@/i18n';
@@ -56,6 +57,14 @@ const song = (position: number, trackName: string): Record<string, unknown> => (
   durationMs: 200000,
   code: `c${position}`,
 });
+
+const watched: (string | null)[] = [];
+
+vi.mock('@/realtime/useViewerMusicLive', () => ({
+  useViewerMusicLive: (id: Ref<string | null>) => {
+    watch(id, (value) => watched.push(value), { immediate: true });
+  },
+}));
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -178,5 +187,33 @@ describe('the viewer page', () => {
 
     expect(wrapper.text()).toContain('This channel is not set up here.');
     expect(requested.some((r) => r.includes('/viewer/me'))).toBe(false);
+  });
+
+  it('says requests are closed when the channel is not accepting them', async () => {
+    answers['/public/sr/by-channel/{channelName}'] = () =>
+      ok({
+        broadcasterId: 'chan-1',
+        channelName: 'Stoney_Eagle',
+        isAcceptingRequests: false,
+        enabledProviders: ['spotify'],
+      });
+
+    const wrapper = await mountPage();
+
+    expect(wrapper.get('[data-queue-closed]').text()).toContain(
+      'Song requests are closed right now.',
+    );
+  });
+
+  it('shows no closed message while the channel accepts requests', async () => {
+    const wrapper = await mountPage();
+
+    expect(wrapper.find('[data-queue-closed]').exists()).toBe(false);
+  });
+
+  it('follows the channel live under its id', async () => {
+    await mountPage();
+
+    expect(watched).toContain('chan-1');
   });
 });

@@ -25,6 +25,7 @@
         "title": "Your songs in the queue",
         "description": "Only your own requests. Your place counts from the next song.",
         "empty": "You have no songs in the queue.",
+        "closed": "Song requests are closed right now.",
         "error": "Your queue did not load.",
         "position": "Next in line | {n} in line",
         "total": "{count} songs in the whole queue"

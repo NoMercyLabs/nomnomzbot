@@ -28,10 +28,14 @@ const state = usePanelState(
   query,
   (rows: TopRequester[]): boolean => rows.length === 0,
 );
-const leader = computed<number>(() => query.data.value?.[0]?.count ?? 1);
+const leader = computed<number>(() => Number(query.data.value?.[0]?.count ?? 1));
 
-function share(count: number): string {
-  return `${Math.round((count / leader.value) * 100)}%`;
+function share(count: number | string): string {
+  return `${Math.round((Number(count) / leader.value) * 100)}%`;
+}
+
+function songs(count: number | string): number {
+  return Number(count);
 }
 </script>
 
@@ -63,7 +67,7 @@ function share(count: number): string {
           </span>
         </span>
         <span class="flex-none text-xs text-muted-foreground">
-          {{ $t('dashboard.music.thanks.songs', { count: item.count }, item.count) }}
+          {{ $t('dashboard.music.thanks.songs', { count: songs(item.count) }, songs(item.count)) }}
         </span>
       </li>
     </ul>

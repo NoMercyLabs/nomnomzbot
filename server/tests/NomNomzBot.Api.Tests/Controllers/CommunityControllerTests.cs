@@ -268,6 +268,7 @@ public sealed class CommunityControllerTests
                 Username = "regular_raider",
                 UsernameNormalized = "regular_raider",
                 DisplayName = "Regular_Raider",
+                Color = "#1E90FF",
             }
         );
         await db.SaveChangesAsync();
@@ -320,10 +321,12 @@ public sealed class CommunityControllerTests
         CommunityController.CommunityUserDto withRow = members.Single(m => m.Id == "twitch-777");
         withRow.InternalUserId.Should().Be(knownUserId);
         withRow.Id.Should().Be("twitch-777");
+        withRow.Color.Should().Be("#1E90FF");
 
         // No local User row → null, truthfully (no internal identity folded yet), not a fabricated guid.
         CommunityController.CommunityUserDto noRow = members.Single(m => m.Id == "twitch-999");
         noRow.InternalUserId.Should().BeNull();
+        noRow.Color.Should().BeNull();
     }
 
     [Fact]
