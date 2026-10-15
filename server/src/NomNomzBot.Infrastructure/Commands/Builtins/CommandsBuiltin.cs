@@ -146,17 +146,24 @@ public sealed class CommandsBuiltin : IBuiltinCommand
             broadcasterIdText,
             ct
         );
-        IEnumerable<(string Name, string Trigger)> builtin = builtinResult.IsSuccess
-            ? builtinResult
-                .Value.Where(b =>
-                    b.IsEnabled
-                    && CallerMeets(
+        IBuiltinCommandCatalog? catalog = _serviceProvider.GetService<IBuiltinCommandCatalog>();
+        List<(string Name, string Trigger)> builtin = [];
+        if (builtinResult.IsSuccess)
+            foreach (BuiltinCommandDto b in builtinResult.Value)
+            {
+                if (
+                    !b.IsEnabled
+                    || !CallerMeets(
                         context,
                         b.MinPermissionLevelOverride ?? b.DefaultMinPermissionLevel
                     )
                 )
-                .Select(b => (b.BuiltinKey, context.CommandPrefix + b.BuiltinKey))
-            : [];
+                    continue;
+                IBuiltinCommand? impl = catalog?.Get(b.BuiltinKey);
+                if (impl is not null && !await impl.IsAvailableToAsync(context, ct))
+                    continue;
+                builtin.Add((b.BuiltinKey, context.CommandPrefix + b.BuiltinKey));
+            }
 
         return custom
             .Concat(builtin)

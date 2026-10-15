@@ -455,7 +455,8 @@ public sealed class VolumeBuiltin(
         CancellationToken ct = default
     )
     {
-        if (!await gate.IsAllowedAsync(context, ct))
+        // Reading the volume is open to everyone; only a SET needs the moderator-or-grant check.
+        if (!string.IsNullOrWhiteSpace(context.Args) && !await gate.IsAllowedAsync(context, ct))
             return Result.Success(await composer.ComposePermissionDeniedAsync(context, ct));
 
         // Like the old bot, nothing playing answers the same way for a read and for a set. The volume is

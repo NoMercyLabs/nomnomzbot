@@ -37,6 +37,14 @@ public interface IBuiltinCommand
     /// </summary>
     bool IsReserved => false;
 
+    /// <summary>
+    /// Whether this caller may use the command at all, for builtins that refuse inside
+    /// <see cref="ExecuteAsync"/> on a grant rather than the level floor. The <c>!commands</c> / <c>!help</c>
+    /// listing asks this so it shows only what the caller can really run. Defaults to true.
+    /// </summary>
+    Task<bool> IsAvailableToAsync(BuiltinCommandContext context, CancellationToken ct = default) =>
+        Task.FromResult(true);
+
     Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
         CancellationToken ct = default
