@@ -110,6 +110,8 @@ public sealed class FairQueue<T> : IFairQueue<T>
             foreach (QueueEntry e in _queue.Where(e => e.Key == entry.Key))
                 e.Rank = newRank++;
 
+            SettleAfterPlayedSongsLeave();
+
             return entry.Item;
         }
     }
@@ -158,6 +160,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             int count = index + 1;
             _queue.RemoveRange(0, count);
             RecalculateRanks();
+            SettleAfterPlayedSongsLeave();
             return count;
         }
     }
@@ -256,6 +259,20 @@ public sealed class FairQueue<T> : IFairQueue<T>
             foreach (QueueEntry e in owned)
                 e.Rank = rank++;
         }
+    }
+
+    /// <summary>
+    /// A song that played counted toward its owner's rank while it sat in the queue, so that owner's later
+    /// requests were placed one tier too deep. Once it leaves, those requests drop a rank but keep their
+    /// old place, behind other owners' higher-rank songs. A stable sort by rank restores "everyone's Nth
+    /// song comes after everyone's (N-1)th" and keeps arrival order inside a tier. Only runs when a song
+    /// finishes, never on an operator move, so a deliberate bump survives.
+    /// </summary>
+    private void SettleAfterPlayedSongsLeave()
+    {
+        List<QueueEntry> sorted = [.. _queue.OrderBy(e => e.Rank)];
+        _queue.Clear();
+        _queue.AddRange(sorted);
     }
 
     private static string KeyOf(string ownerKey) => ownerKey.ToUpperInvariant();

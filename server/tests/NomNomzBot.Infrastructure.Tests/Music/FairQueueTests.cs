@@ -190,6 +190,41 @@ public class FairQueueTests
         order.Should().Equal("h1", "f1", "s1", "b1", "f2", "f3");
     }
 
+    [Fact]
+    public void Dequeue_OfAPlayedSong_LetsTheNextOwnerSongOfWhoeverPlayedItJumpAheadOfLaterSecondSongs()
+    {
+        // Live 2026-10-15: finwo_'s song was playing while finwo_ queued more. Those songs ranked behind
+        // it (rank 2+), so they sat behind Bamo16's second song. When the played song left, finwo_'s
+        // next song became rank 1 but stayed BEHIND Bamo16's rank-2 song.
+        FairQueue<string> q = new();
+        q.Enqueue("finwo_", "f0");
+        q.Enqueue("Bamo16", "bamo-playing");
+        q.Enqueue("HakuTheWolfSpirit", "h1");
+        q.Enqueue("Bamo16", "b2");
+        q.Enqueue("finwo_", "f1");
+
+        q.Dequeue().Should().Be("f0");
+
+        List<string> order = [.. q.GetSnapshot().Select(e => e.Item)];
+        order.Should().Equal("bamo-playing", "h1", "f1", "b2");
+    }
+
+    [Fact]
+    public void RemoveThrough_PlayedSongs_ReRanksSoARankOneSongNeverSitsBehindARankTwoSong()
+    {
+        FairQueue<string> q = new();
+        q.Enqueue("finwo_", "f0");
+        q.Enqueue("Bamo16", "bamo-playing");
+        q.Enqueue("HakuTheWolfSpirit", "h1");
+        q.Enqueue("Bamo16", "b2");
+        q.Enqueue("finwo_", "f1");
+
+        q.RemoveThrough(item => item == "f0").Should().Be(1);
+
+        List<string> order = [.. q.GetSnapshot().Select(e => e.Item)];
+        order.Should().Equal("bamo-playing", "h1", "f1", "b2");
+    }
+
     // ─── Peek ────────────────────────────────────────────────────────────────
 
     [Fact]
