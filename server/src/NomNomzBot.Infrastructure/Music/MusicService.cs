@@ -1716,6 +1716,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         }
     }
 
+    /// <summary>Matches the request already handed to the provider, which an operator move never crosses.</summary>
+    private Func<SongRequestEntry, bool> IsInFlight(string broadcasterId)
+    {
+        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
+        return entry => inFlight is not null && ReferenceEquals(entry, inFlight);
+    }
+
     public async Task<bool> PromoteToTopAsync(
         string broadcasterId,
         int position,
@@ -1723,7 +1730,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     )
     {
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
-        bool moved = queue is not null && queue.MoveToFront(position);
+        bool moved = queue is not null && queue.MoveToFront(position, IsInFlight(broadcasterId));
 
         if (moved)
         {
@@ -1752,7 +1759,14 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "VALIDATION_FAILED"
             );
 
-        if (!queue!.MoveTo(fromPosition, toPosition))
+        Func<SongRequestEntry, bool> isInFlight = IsInFlight(broadcasterId);
+        if (fromPosition == 0 && isInFlight(queue!.Peek()!))
+            return Result.Failure(
+                "The song already sent to the player cannot move.",
+                "VALIDATION_FAILED"
+            );
+
+        if (!queue!.MoveTo(fromPosition, toPosition, isInFlight))
             return Result.Failure("The queue changed while moving; try again.", "NOT_FOUND");
 
         if (fromPosition != toPosition)

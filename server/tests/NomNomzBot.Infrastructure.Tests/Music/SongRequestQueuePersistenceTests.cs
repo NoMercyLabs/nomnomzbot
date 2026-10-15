@@ -272,6 +272,25 @@ public sealed class SongRequestQueuePersistenceTests
             .Contain("discarded");
     }
 
+    /// <summary>An operator bump persists an order the fair rank would not produce; a restart must keep it.</summary>
+    [Fact]
+    public void Restore_keeps_the_persisted_operator_order_instead_of_re_ranking()
+    {
+        SongRequestEntry a1 = new("a1", "A1", "Artist", null, 200000, "viewerA", 0, null, "");
+        SongRequestEntry a2 = new("a2", "A2", "Artist", null, 200000, "viewerA", 0, null, "");
+        SongRequestEntry b1 = new("b1", "B1", "Artist", null, 200000, "viewerB", 0, null, "");
+        SongRequestQueueStore store = new();
+
+        store.Restore(ChannelA, [("viewerA", a1), ("viewerA", a2), ("viewerB", b1)]);
+
+        store
+            .TryGet(ChannelA)!
+            .GetSnapshot()
+            .Select(e => (e.Item.TrackUri, e.Rank))
+            .Should()
+            .Equal(("a1", 1), ("a2", 2), ("b1", 1));
+    }
+
     private static void Enqueue(
         FairQueue<SongRequestEntry> queue,
         string ownerKey,

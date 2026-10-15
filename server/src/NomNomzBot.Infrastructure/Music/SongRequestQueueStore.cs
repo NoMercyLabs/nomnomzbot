@@ -295,7 +295,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         FairQueue<SongRequestEntry> queue = GetOrCreate(broadcasterId);
         queue.Clear();
         foreach ((string ownerKey, SongRequestEntry entry) in orderedEntries)
-            queue.Enqueue(ownerKey, entry);
+            queue.Append(ownerKey, entry);
 
         SongRequestEntry? inFlight =
             inFlightIndex is int and >= 0 and int index && index < orderedEntries.Count
