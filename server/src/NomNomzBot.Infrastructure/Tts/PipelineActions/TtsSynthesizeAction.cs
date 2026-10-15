@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Infrastructure.Tts.PipelineActions;
 
@@ -36,6 +37,9 @@ public sealed class TtsSynthesizeAction : ICommandAction
     private readonly ISoundClipStore _audioStore;
     private readonly ITtsLexiconService _lexicon;
     private readonly ISpokenNameFormatter _spokenNames;
+    private readonly IOverlayPresenceRegistry _presence;
+    private readonly ISoundClipOverlayNotifier _audioBus;
+    private readonly IChannelAudioMixService _mix;
 
     public string ActionType => "tts_synthesize";
 
@@ -70,6 +74,11 @@ public sealed class TtsSynthesizeAction : ICommandAction
                 PipelineActionFieldKind.Number,
                 Description: new("pipeline.tts_synthesize.pitch.help")
             ),
+            new(
+                "play_on_audio",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.tts_synthesize.play_on_audio.help")
+            ),
         ];
 
     public TtsSynthesizeAction(
@@ -78,9 +87,15 @@ public sealed class TtsSynthesizeAction : ICommandAction
         ITtsConfigService ttsConfig,
         ISoundClipStore audioStore,
         ITtsLexiconService lexicon,
-        ISpokenNameFormatter spokenNames
+        ISpokenNameFormatter spokenNames,
+        IOverlayPresenceRegistry presence,
+        ISoundClipOverlayNotifier audioBus,
+        IChannelAudioMixService mix
     )
     {
+        _presence = presence;
+        _audioBus = audioBus;
+        _mix = mix;
         _resolver = resolver;
         _tts = tts;
         _ttsConfig = ttsConfig;
@@ -94,6 +109,19 @@ public sealed class TtsSynthesizeAction : ICommandAction
         ActionDefinition action
     )
     {
+        bool playOnAudio = string.Equals(
+            action.GetString("play_on_audio"),
+            "true",
+            StringComparison.OrdinalIgnoreCase
+        );
+
+        // Checked before any synthesis: with nothing to play on, the caller must learn it now (a chat reply
+        // and a refund), not after a silent run that the stream never hears.
+        if (playOnAudio && !_presence.IsAudioSourceConnected(ctx.BroadcasterId))
+            return ActionResult.Failure(
+                "tts_synthesize: no Audio overlay is connected, so the speech cannot be heard on stream."
+            );
+
         string template = action.GetString("text") ?? string.Empty;
         if (string.IsNullOrWhiteSpace(template))
             return ActionResult.Failure("tts_synthesize requires a 'text' parameter.");
@@ -193,8 +221,27 @@ public sealed class TtsSynthesizeAction : ICommandAction
         ctx.Variables["tts.durationMs"] = synth.DurationMs.ToString();
         ctx.Variables["tts.voiceId"] = synth.VoiceId;
 
+        if (playOnAudio)
+            await PlayOnAudioBusAsync(ctx, url.Value, synth.DurationMs);
+
         return ActionResult.Success(
             $"tts_synthesize:{synth.VoiceId} durationMs={synth.DurationMs}"
+        );
+    }
+
+    /// <summary>Sends the clip to the routed Audio overlay at the channel's TTS volume (tts x master).</summary>
+    private async Task PlayOnAudioBusAsync(PipelineExecutionContext ctx, string url, int durationMs)
+    {
+        Result<ChannelAudioMixDto> mix = await _mix.GetAsync(
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
+        int volume = mix.IsSuccess ? (int)Math.Round(mix.Value.TtsPlaybackVolume * 100) : 100;
+
+        await _audioBus.PlaySoundAsync(
+            ctx.BroadcasterId,
+            new(Guid.Empty, url, volume, durationMs),
+            ctx.CancellationToken
         );
     }
 }

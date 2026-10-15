@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Infrastructure.Tts;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using NSubstitute;
@@ -59,7 +60,12 @@ public sealed class TtsSynthesizeActionTests
         ITtsService Tts,
         ITtsConfigService Config,
         ISoundClipStore Store
-    ) Build(string resolvedText)
+    ) Build(
+        string resolvedText,
+        IOverlayPresenceRegistry? presence = null,
+        ISoundClipOverlayNotifier? overlay = null,
+        IChannelAudioMixService? mix = null
+    )
     {
         // Only a `{{...}}` template resolves to resolvedText — a literal (e.g. an explicit voice id with no
         // braces) passes through unchanged, matching the real resolver's behavior for plain strings.
@@ -86,7 +92,17 @@ public sealed class TtsSynthesizeActionTests
             .Returns(ci => Task.FromResult(ci.ArgAt<string>(1)));
 
         return (
-            new(resolver, tts, config, store, lexicon, new SpokenNameFormatter()),
+            new(
+                resolver,
+                tts,
+                config,
+                store,
+                lexicon,
+                new SpokenNameFormatter(),
+                presence ?? Substitute.For<IOverlayPresenceRegistry>(),
+                overlay ?? Substitute.For<ISoundClipOverlayNotifier>(),
+                mix ?? Substitute.For<IChannelAudioMixService>()
+            ),
             tts,
             config,
             store
@@ -174,6 +190,124 @@ public sealed class TtsSynthesizeActionTests
         result.Succeeded.Should().BeTrue();
         await tts.Received(1)
             .SynthesizeAsync("welcome Leet Hacker", "en-US-Guy", ct: Arg.Any<CancellationToken>());
+    }
+
+    private static void StoreClip(ITtsService tts, ISoundClipStore store, int durationMs)
+    {
+        tts.SynthesizeAsync(
+                "Your PC ran into a problem.",
+                "en-US-Guy",
+                ct: Arg.Any<CancellationToken>()
+            )
+            .Returns(new TtsResult([1, 2], durationMs, "en-US-Guy", "azure"));
+        store
+            .PutAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<System.IO.Stream>(),
+                "audio/mpeg",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success("clips/tts-bsod.mp3"));
+        store
+            .GetPlaybackUrlAsync("clips/tts-bsod.mp3", Arg.Any<CancellationToken>())
+            .Returns(Result.Success("https://bot.local/sounds/tts-bsod.mp3"));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PlayOnAudio_AudioSourceConnected_SendsClipToTheAudioBus()
+    {
+        IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
+        presence.IsAudioSourceConnected(Channel).Returns(true);
+        ISoundClipOverlayNotifier overlay = Substitute.For<ISoundClipOverlayNotifier>();
+        IChannelAudioMixService mix = Substitute.For<IChannelAudioMixService>();
+        mix.GetAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new ChannelAudioMixDto(MasterVolume: 50, TtsVolume: 80)));
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("Your PC ran into a problem.", presence, overlay, mix);
+        MockVoiceExists(config, "en-US-Guy");
+        StoreClip(tts, store, 4200);
+
+        PipelineExecutionContext ctx = Context();
+        ActionResult result = await action.ExecuteAsync(
+            ctx,
+            Action(
+                ("text", "Your PC ran into a problem."),
+                ("voice", "en-US-Guy"),
+                ("play_on_audio", true)
+            )
+        );
+
+        result.Succeeded.Should().BeTrue();
+        ctx.Variables["tts.durationMs"].Should().Be("4200");
+        await overlay
+            .Received(1)
+            .PlaySoundAsync(
+                Channel,
+                Arg.Is<SoundPlaybackDto>(p =>
+                    p.PlaybackUrl == "https://bot.local/sounds/tts-bsod.mp3"
+                    && p.DurationMs == 4200
+                    && p.Volume == 40
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PlayOnAudio_NoAudioSource_FailsAndPlaysNothing()
+    {
+        IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
+        presence.IsAudioSourceConnected(Channel).Returns(false);
+        ISoundClipOverlayNotifier overlay = Substitute.For<ISoundClipOverlayNotifier>();
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("Your PC ran into a problem.", presence, overlay);
+        MockVoiceExists(config, "en-US-Guy");
+        StoreClip(tts, store, 4200);
+
+        PipelineExecutionContext ctx = Context();
+        ActionResult result = await action.ExecuteAsync(
+            ctx,
+            Action(
+                ("text", "Your PC ran into a problem."),
+                ("voice", "en-US-Guy"),
+                ("play_on_audio", true)
+            )
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Audio");
+        ctx.Variables.ContainsKey("tts.audioUrl").Should().BeFalse();
+        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutPlayOnAudio_NeverTouchesTheAudioBus()
+    {
+        ISoundClipOverlayNotifier overlay = Substitute.For<ISoundClipOverlayNotifier>();
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("Your PC ran into a problem.", overlay: overlay);
+        MockVoiceExists(config, "en-US-Guy");
+        StoreClip(tts, store, 4200);
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(("text", "Your PC ran into a problem."), ("voice", "en-US-Guy"))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!, default);
     }
 
     [Fact]
