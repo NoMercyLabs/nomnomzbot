@@ -16,6 +16,7 @@ import { computed } from 'vue';
 import { useObsBridge, useObsConnection, useObsScenes, useObsState } from '@/api/obs';
 import { useObsStats, useObsVirtualCam } from '@/api/obsOutputs';
 import { useWidgets, type Widget } from '@/api/widgets';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -82,37 +83,39 @@ function retry(): void {
       </span>
     </template>
   </PageHeader>
-  <div data-page-inset class="grid gap-4 p-6 @container lg:grid-cols-2">
-    <ObsConnectionPanel
-      :connection="connection.data.value"
-      :bridge="bridge.data.value"
-      :state="state.data.value"
-      :unreachable="unreachable"
-      :panel-state="connectionPanel"
-      @retry="retry"
-    />
-    <OutputsPanel
-      :channel-id="channelId"
-      :state="state.data.value"
-      :virtual-cam="virtualCam.data.value === true"
-      :panel-state="outputsPanel"
-      :offline="!enabled"
-      @retry="retry"
-    >
-      <StatsStrip :stats="stats.data.value" />
-    </OutputsPanel>
-    <ScenesPanel
-      :scenes="scenes.data.value"
-      :panel-state="scenesPanel"
-      :offline="!enabled"
-      @retry="retry"
-    />
-    <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
-    <BrowserSourcesPanel
-      class="lg:col-span-2"
-      :widgets="widgets.data.value"
-      :panel-state="sourcesPanel"
-      @retry="widgets.refetch()"
-    />
-  </div>
+  <PageBody>
+    <div data-page-inset class="grid gap-4 @container lg:grid-cols-2">
+      <ObsConnectionPanel
+        :connection="connection.data.value"
+        :bridge="bridge.data.value"
+        :state="state.data.value"
+        :unreachable="unreachable"
+        :panel-state="connectionPanel"
+        @retry="retry"
+      />
+      <OutputsPanel
+        :channel-id="channelId"
+        :state="state.data.value"
+        :virtual-cam="virtualCam.data.value === true"
+        :panel-state="outputsPanel"
+        :offline="!enabled"
+        @retry="retry"
+      >
+        <StatsStrip :stats="stats.data.value" />
+      </OutputsPanel>
+      <ScenesPanel
+        :scenes="scenes.data.value"
+        :panel-state="scenesPanel"
+        :offline="!enabled"
+        @retry="retry"
+      />
+      <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
+      <BrowserSourcesPanel
+        class="lg:col-span-2"
+        :widgets="widgets.data.value"
+        :panel-state="sourcesPanel"
+        @retry="widgets.refetch()"
+      />
+    </div>
+  </PageBody>
 </template>

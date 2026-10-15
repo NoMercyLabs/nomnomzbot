@@ -375,6 +375,46 @@ describe('folder layout', () => {
 
     expect(misplaced).toEqual([]);
   });
+
+  // Stoney 2026-10-16: "the obs page is also overflowing without a contained scroll pannel". The frame's <main>
+  // is overflow-hidden, so every routed page owns its scroll region: a PageBody, a BoardGrid, a ListDetail, a
+  // virtual list, a scroll area or its own overflow-y-auto, in the page file or in a part beside it in the same folder (a
+  // panel under components/ scrolling inside itself is not a page scroll region).
+  it('gives every routed dashboard page a contained scroll region', () => {
+    const scrolls = /PageBody|data-page-body|BoardGrid|ListDetail|ScrollArea|VirtualList|overflow-y-auto|overflow-auto/;
+    const sideBySideVue = /from '\.\/([A-Za-z]+\.vue)'/g;
+
+    function withParts(path: string, seen: Set<string>): string {
+      if (seen.has(path))
+        return '';
+
+      seen.add(path);
+
+      const text: string = readFileSync(path, 'utf8');
+      const parts = [...text.matchAll(sideBySideVue)].map((match) =>
+        withParts(join(path, '..', match[1] ?? ''), seen));
+
+      return merge([text], parts).join('\n');
+    }
+
+    const pages: string[] = allPaths(join(src, 'views', 'dashboard'))
+      .filter((path) => path.endsWith('View.vue') && !path.includes('components'))
+      .filter((path) => readFileSync(path, 'utf8').includes('<PageHeader'));
+
+    const scrollsIn = (path: string): boolean => {
+      const seen = new Set<string>();
+      const text = withParts(path, seen);
+
+      return scrolls.test(text);
+    };
+
+    const loose = pages
+      .filter((path) => !scrollsIn(path))
+      .map((path) => relative(src, path).replace(/\\/g, '/'));
+
+    expect(pages.length).toBeGreaterThan(15);
+    expect(loose).toEqual([]);
+  });
 });
 
 // Stoney 2026-10-14: "make sure buttons never get pancaked flat when they should be rounded". A lone icon in a

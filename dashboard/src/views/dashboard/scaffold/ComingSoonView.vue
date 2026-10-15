@@ -31,7 +31,7 @@ const title = computed(() => t(`frame.nav.${route.meta.comingSoon ?? 'home'}`));
 
 <template>
   <PageHeader :title="title" />
-  <div class="flex min-h-0 flex-1 items-center justify-center p-6">
+  <div class="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">
     <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon"><Hourglass aria-hidden="true" /></EmptyMedia>

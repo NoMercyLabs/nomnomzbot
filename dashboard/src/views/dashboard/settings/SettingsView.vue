@@ -16,6 +16,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import ListDetail from '@/components/layout/ListDetail.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -75,7 +76,7 @@ function openReadability(): void {
     </template>
   </ListDetail>
 
-  <div v-else class="px-6 pt-4 pb-6">
+  <PageBody v-else>
     <DeviceView @open-readability="openReadability" />
-  </div>
+  </PageBody>
 </template>
