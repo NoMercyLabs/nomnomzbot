@@ -28,6 +28,15 @@ public sealed record MoveQueueItemDto
     public required int ToPosition { get; init; }
 }
 
+/// <summary>Request to remove every queued song of one requester (display name, case-insensitive).</summary>
+public sealed record RemoveRequesterSongsDto
+{
+    public required string RequestedBy { get; init; }
+}
+
+/// <summary>How many queued songs a bulk removal took out.</summary>
+public sealed record RemovedSongsDto(int RemovedCount);
+
 /// <summary>A queue item with its position. <paramref name="Cost"/> is 0 for a free request.</summary>
 public sealed record QueueItemDto(
     int Position,

@@ -47,6 +47,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import HistoryPanel from './components/HistoryPanel.vue';
 import NowPlayingCard from './components/NowPlayingCard.vue';
 import ThanksPanel from './components/ThanksPanel.vue';
+import RequesterBulkRemove from './components/RequesterBulkRemove.vue';
 import RulesPanel from './components/RulesPanel.vue';
 
 const { t } = useI18n();
@@ -210,6 +211,7 @@ const panels = computed(() => [
         :error-text="$t('dashboard.music.queue.error')"
         @retry="queueQuery.refetch()"
       >
+        <RequesterBulkRemove :rows="rows" />
         <div ref="queueList" data-queue-list>
           <SummaryRow
             v-for="item in rows"

@@ -213,6 +213,31 @@ public class MusicController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Remove every queued song of one requester in a single action (the playing track is untouched).
+    /// Returns how many were removed; the queue-changed push reaches every view.
+    /// </summary>
+    [RequireAction("music:queue:moderate")]
+    [NotDestructive("Removes queued tracks; no entity carries a queue-item FK.")]
+    [HttpPost("queue/remove-by-requester")]
+    [ProducesResponseType<StatusResponseDto<RemovedSongsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveRequesterSongs(
+        string channelId,
+        [FromBody] RemoveRequesterSongsDto request,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(request.RequestedBy))
+            return BadRequestResponse("A requester is required.");
+
+        int removed = await _musicService.RemoveAllFromRequesterAsync(
+            channelId,
+            request.RequestedBy,
+            ct
+        );
+        return Ok(new StatusResponseDto<RemovedSongsDto> { Data = new RemovedSongsDto(removed) });
+    }
+
     /// <summary>Move a queued song to the front of the queue — play this one next.</summary>
     [RequireAction("music:queue:moderate")]
     [HttpPost("queue/{position:int}/promote")]

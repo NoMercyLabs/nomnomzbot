@@ -189,6 +189,18 @@ public interface IMusicService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Removes every queued request made by <paramref name="requestedBy"/> (case-insensitive display name),
+    /// one by one through the same path as <see cref="RemoveFromQueueAsync"/> so refunds, provider
+    /// retraction and the queue-changed push all apply. The playing track is not part of the queue and is
+    /// never touched. Returns the number removed.
+    /// </summary>
+    Task<int> RemoveAllFromRequesterAsync(
+        string broadcasterId,
+        string requestedBy,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Remove a specific item from the queue by its zero-based position.</summary>
     Task<bool> RemoveFromQueueAsync(
         string broadcasterId,

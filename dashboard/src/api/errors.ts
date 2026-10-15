@@ -131,6 +131,7 @@ export const apiOperations = {
   promote: 'music',
   move: 'music',
   'remove song': 'music',
+  'remove requester songs': 'music',
   'ban song': 'music',
   'block song': 'music',
   'unblock song': 'music',

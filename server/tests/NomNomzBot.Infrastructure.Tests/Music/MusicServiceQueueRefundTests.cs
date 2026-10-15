@@ -37,7 +37,7 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// </summary>
 public sealed class MusicServiceQueueRefundTests
 {
-    private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-0000000f0004");
+    internal static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-0000000f0004");
     private static readonly Guid ViewerId = Guid.Parse("0192a000-0000-7000-8000-0000000f00aa");
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class MusicServiceQueueRefundTests
     /// get a paid entry into the queue today, since no admission path (<c>RequestTrackAsync</c>/
     /// <c>AddToQueueAsync</c>) charges for a song request yet (S067b ground truth). This proves the
     /// refund MECHANISM independently of that still-missing charge.</summary>
-    private static void SeedPaidEntry(
+    internal static void SeedPaidEntry(
         ISongRequestQueueStore store,
         string trackUri,
         int cost,
@@ -168,7 +168,7 @@ public sealed class MusicServiceQueueRefundTests
                 )
             );
 
-    private static (
+    internal static (
         MusicService Sut,
         ICurrencyAccountService Accounts,
         ISongRequestQueueStore Store

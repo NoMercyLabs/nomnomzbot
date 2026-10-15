@@ -39,7 +39,12 @@
         "confirmTitle": "Dit nummer verwijderen?",
         "confirmBody": "Aangevraagd door {name}. Het verdwijnt uit de wachtrij en {name} hoort het niet.",
         "confirmBodyNoName": "Het verdwijnt uit de wachtrij en wordt niet gespeeld.",
-        "confirmAction": "Verwijderen"
+        "confirmAction": "Verwijderen",
+        "pickRequester": "Kies een aanvrager",
+        "requesterOption": "{name} ({count})",
+        "removeAll": "Alles verwijderen",
+        "removeAllTitle": "{count} nummers van {name} verwijderen?",
+        "removeAllBody": "Alle nummers die deze persoon in de wachtrij zette verdwijnen. Het nummer dat nu speelt blijft spelen."
       },
       "rules": {
         "title": "Aanvraagregels",
