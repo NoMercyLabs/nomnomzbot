@@ -48,6 +48,31 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         _eventBus = eventBus;
     }
 
+    /// <summary>
+    /// The in-flight request is dropped from the store as soon as its track plays, so the requester is kept
+    /// aside until a different track starts. A track nobody requested clears it, which is the "not
+    /// requested" state (the UI then shows the provider instead).
+    /// </summary>
+    private void RememberRequesterOfPlayingTrack(string broadcasterId, string playingTrackUri)
+    {
+        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
+        if (
+            inFlight is not null
+            && string.Equals(inFlight.TrackUri, playingTrackUri, StringComparison.Ordinal)
+        )
+        {
+            _queueStore.SetPlayingRequest(broadcasterId, inFlight);
+            return;
+        }
+
+        SongRequestEntry? remembered = _queueStore.GetPlayingRequest(broadcasterId);
+        if (
+            remembered is not null
+            && !string.Equals(remembered.TrackUri, playingTrackUri, StringComparison.Ordinal)
+        )
+            _queueStore.SetPlayingRequest(broadcasterId, null);
+    }
+
     public async Task HandleAsync(
         PlaybackStateChangedEvent @event,
         CancellationToken cancellationToken = default
@@ -57,6 +82,7 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
             return;
 
         string broadcasterId = @event.BroadcasterId.ToString();
+        RememberRequesterOfPlayingTrack(broadcasterId, @event.TrackUri);
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
         if (queue is null)
             return;

@@ -91,6 +91,37 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
+    public async Task The_requester_of_the_playing_track_is_remembered_after_it_leaves_the_queue()
+    {
+        (
+            SongRequestQueueReconciler sut,
+            FairQueue<SongRequestEntry> queue,
+            _,
+            SongRequestQueueStore store,
+            _
+        ) = Build("a", "b");
+        HandOver(store, queue, "a");
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a"));
+
+        MusicService
+            .RequesterOfPlayingTrack(store, ChannelId.ToString(), "spotify:track:a")
+            .Should()
+            .NotBeNullOrEmpty("the handed-over request is now playing and keeps its requester");
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:streamer-playlist"));
+
+        MusicService
+            .RequesterOfPlayingTrack(store, ChannelId.ToString(), "spotify:track:streamer-playlist")
+            .Should()
+            .BeNull("a track nobody requested carries no requester");
+        MusicService
+            .RequesterOfPlayingTrack(store, ChannelId.ToString(), "spotify:track:a")
+            .Should()
+            .BeNull("the memory ends once another track plays");
+    }
+
+    [Fact]
     public async Task A_track_that_is_not_ours_while_one_is_handed_over_hands_over_nothing()
     {
         (

@@ -69,6 +69,16 @@ public interface ISongRequestQueueStore
     void SetInFlight(string broadcasterId, SongRequestEntry? entry);
 
     /// <summary>
+    /// The request that is playing right now. A handed-over request leaves the fair queue (and the in-flight
+    /// slot) the moment the provider starts it, so this remembers who asked for it until another track
+    /// plays. Null when the playing track was not requested.
+    /// </summary>
+    SongRequestEntry? GetPlayingRequest(string broadcasterId);
+
+    /// <summary>Records (or clears, with null) the request that is playing right now.</summary>
+    void SetPlayingRequest(string broadcasterId, SongRequestEntry? entry);
+
+    /// <summary>
     /// Whether the in-flight request is due a check that it is still at the provider: first one
     /// <see cref="SongRequestQueueStore.InFlightCheckInterval"/> after it was handed over, then once per
     /// interval after that. The grace keeps a request that was only just pushed from being judged before
@@ -148,6 +158,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         (SongRequestEntry Entry, DateTimeOffset NextCheckAt)
     > _inFlightChecks = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlightSeen = new();
+    private readonly ConcurrentDictionary<string, SongRequestEntry> _playingRequests = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _handoverLocks = new();
     private readonly ConcurrentDictionary<
         (string BroadcasterId, string TrackUri),
@@ -168,6 +179,17 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
 
     public SongRequestEntry? GetInFlight(string broadcasterId) =>
         _inFlight.TryGetValue(broadcasterId, out SongRequestEntry? entry) ? entry : null;
+
+    public SongRequestEntry? GetPlayingRequest(string broadcasterId) =>
+        _playingRequests.TryGetValue(broadcasterId, out SongRequestEntry? entry) ? entry : null;
+
+    public void SetPlayingRequest(string broadcasterId, SongRequestEntry? entry)
+    {
+        if (entry is null)
+            _playingRequests.TryRemove(broadcasterId, out _);
+        else
+            _playingRequests[broadcasterId] = entry;
+    }
 
     public void SetInFlight(string broadcasterId, SongRequestEntry? entry)
     {
