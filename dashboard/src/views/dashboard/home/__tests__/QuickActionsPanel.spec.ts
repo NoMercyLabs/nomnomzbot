@@ -725,6 +725,24 @@ describe('QuickActionsPanel', () => {
       expect(row('poll').textContent).toContain('No poll or prediction running');
     });
 
+    // Owner 2026-10-15: a finished poll went back to the empty form instead of its result.
+    it('keeps the final result open when the poll ends, and offers a new poll from there', async () => {
+      pollList = [runningPoll('p1', [3, 1])];
+      await open();
+      await pressRow('Open poll');
+      await pressDialog('End poll');
+
+      expect(dialog().textContent).toContain('Which game next?');
+      expect(dialog().textContent).toContain('Final result');
+      expect(result('Game 1').textContent).toContain('75%');
+      expect(field('title')).toBeNull();
+      expect(dialog().textContent).not.toContain('End poll');
+
+      await pressDialog('New poll');
+
+      expect(field('title')).not.toBeNull();
+    });
+
     it('reports a refused end and keeps the poll running', async () => {
       pollList = [runningPoll('p1', [3, 1])];
       endFails = true;

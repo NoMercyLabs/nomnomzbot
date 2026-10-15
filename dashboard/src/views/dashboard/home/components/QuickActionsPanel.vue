@@ -12,7 +12,7 @@
 // the timers and a running poll or prediction. Each row reads its own source, so one failing
 // source shows its own line and the others still render. Nothing here is invented: a source
 // with no data says so.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -122,6 +122,29 @@ const pollOpen = ref(false);
 const runningPoll = computed<Poll | null>(
   () => (pollsQuery.data.value ?? []).find(isPollRunning) ?? null,
 );
+
+// The poll the dialog shows stays there after it ends, so its final result is visible until closed.
+const shownPollId = ref<string | null>(null);
+const dialogPoll = computed<Poll | null>(
+  () =>
+    runningPoll.value ??
+    (pollsQuery.data.value ?? []).find((poll: Poll) => poll.id === shownPollId.value) ??
+    null,
+);
+
+watch(runningPoll, (poll: Poll | null) => {
+  if (poll !== null) {
+    shownPollId.value = poll.id;
+  } else if (!pollOpen.value) {
+    shownPollId.value = null;
+  }
+});
+
+watch(pollOpen, (isOpen: boolean) => {
+  if (!isOpen) {
+    shownPollId.value = runningPoll.value?.id ?? null;
+  }
+});
 
 const predictionOpen = ref(false);
 const runningPrediction = computed<Prediction | null>(
@@ -316,7 +339,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
     </RowGroup>
     <ShoutoutSuggestions :channel-id="channelId" />
     <TimersDialog v-model:open="timersOpen" :timers="allTimers" />
-    <PollDialog v-model:open="pollOpen" :poll="runningPoll" />
+    <PollDialog v-model:open="pollOpen" :poll="dialogPoll" @new-poll="shownPollId = null" />
     <PredictionDialog v-model:open="predictionOpen" :prediction="runningPrediction" />
   </PanelCard>
 </template>

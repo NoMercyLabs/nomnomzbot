@@ -84,6 +84,8 @@
         "pollClose": "Sluiten",
         "pollStartGo": "Start poll",
         "pollEnd": "Beëindig poll",
+        "pollFinal": "Eindresultaat",
+        "pollNew": "Nieuwe poll",
         "pollOpen": "Poll openen",
         "pollVotes": "{count} stem | {count} stemmen",
         "pollTally": "{votes} · {percent}%",

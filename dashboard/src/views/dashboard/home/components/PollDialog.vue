@@ -17,6 +17,7 @@ import { computed, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  isPollRunning,
   pollsKey,
   useEndPoll,
   useStartPoll,
@@ -43,6 +44,8 @@ import Cross from '~icons/nnz/cross';
 const props = defineProps<{ poll: Poll | null }>();
 
 const open = defineModel<boolean>('open', { required: true });
+
+const emit = defineEmits<{ newPoll: [] }>();
 
 const MIN_CHOICES = 2;
 const MAX_CHOICES = 5;
@@ -81,6 +84,8 @@ const pointsOk = computed(
 const valid = computed(
   () => title.value.trim() !== '' && enoughChoices.value && durationOk.value && pointsOk.value,
 );
+
+const ended = computed(() => props.poll !== null && !isPollRunning(props.poll));
 
 const totalVotes = computed(() =>
   (props.poll?.choices ?? []).reduce((sum: number, choice) => sum + Number(choice.votes), 0),
@@ -137,7 +142,7 @@ function refresh(): void {
 const ticker = useIntervalFn(refresh, REFRESH_MS, { immediate: false });
 
 watchEffect(() => {
-  if (open.value && props.poll !== null) {
+  if (open.value && props.poll !== null && !ended.value) {
     ticker.resume();
   } else {
     ticker.pause();
@@ -234,7 +239,10 @@ watchEffect(() => {
       </div>
 
       <div v-else class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4">
-        <p class="text-sm font-medium">
+        <p v-if="ended" data-poll-final class="text-sm font-medium">
+          {{ t('dashboard.home.quick.pollFinal') }}
+        </p>
+        <p v-else class="text-sm font-medium">
           <Countdown
             :target="new Date(poll.startedAt).getTime() + Number(poll.duration) * 1000"
             :label="poll.title"
@@ -264,6 +272,9 @@ watchEffect(() => {
         </Button>
         <Button v-if="poll === null" :disabled="!valid || start.isPending.value" @click="submit">
           {{ t('dashboard.home.quick.pollStartGo') }}
+        </Button>
+        <Button v-else-if="ended" @click="emit('newPoll')">
+          {{ t('dashboard.home.quick.pollNew') }}
         </Button>
         <Button v-else variant="destructive" :disabled="end.isPending.value" @click="end.mutate(poll.id)">
           {{ t('dashboard.home.quick.pollEnd') }}

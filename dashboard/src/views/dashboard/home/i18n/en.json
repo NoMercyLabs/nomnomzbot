@@ -84,6 +84,8 @@
         "pollClose": "Close",
         "pollStartGo": "Start poll",
         "pollEnd": "End poll",
+        "pollFinal": "Final result",
+        "pollNew": "New poll",
         "pollOpen": "Open poll",
         "pollVotes": "{count} vote | {count} votes",
         "pollTally": "{votes} · {percent}%",
