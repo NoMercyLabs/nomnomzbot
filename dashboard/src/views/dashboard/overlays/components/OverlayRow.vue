@@ -17,6 +17,7 @@ import type { Widget } from '@/api/widgets';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 
+import { overlayHealth, type HealthDot } from './overlayHealth';
 import { overlayKind, type OverlayKind } from './overlayKind';
 
 const props = defineProps<{ widget: Widget; selected: boolean }>();
@@ -37,18 +38,7 @@ const detail = computed<string>(() => {
   );
 });
 
-// Truthful states only: the bot reports an error string and whether a source is open, not a load state.
-const dotState = computed<string>(() => {
-  if (!props.widget.isEnabled)
-    return '';
-
-  if (props.widget.lastRuntimeError)
-    return 'bad';
-
-  return props.widget.isAttached
-    ? 'ok'
-    : 'warn';
-});
+const dotState = computed<HealthDot>(() => overlayHealth(props.widget));
 </script>
 
 <template>

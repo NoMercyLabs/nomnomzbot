@@ -20,6 +20,7 @@ import { dashboardChatRoute } from '@/views/dashboard/chat/route';
 import { dashboardCommandsRoute } from '@/views/dashboard/commands/route';
 import { dashboardHomeRoute } from '@/views/dashboard/home/route';
 import { dashboardMusicRoute } from '@/views/dashboard/music/route';
+import { dashboardObsRoute } from '@/views/dashboard/obs/route';
 import { dashboardOverlaysRoute } from '@/views/dashboard/overlays/route';
 import { dashboardPeopleRoute } from '@/views/dashboard/people/route';
 import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboard/pipelines/route';
@@ -41,6 +42,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardTtsRoute,
   dashboardPeopleRoute,
   dashboardOverlaysRoute,
+  dashboardObsRoute,
   dashboardPipelinesRoute,
   dashboardPipelineRoute,
   dashboardScriptsRoute,
