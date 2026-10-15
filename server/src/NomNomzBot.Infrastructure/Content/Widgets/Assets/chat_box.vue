@@ -59,40 +59,66 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`
 }
 
-// Clamp a chat color's lightness so it stays readable against a solid theme background — a dark color on the
-// dark theme, or a light color on the light theme, is otherwise illegible (W·§2). The transparent theme keeps
-// the color as-authored: its `.line` already applies a dark drop-shadow that helps any color read against an
-// arbitrary OBS scene, and there is no fixed background to reason a minimum contrast against.
-function contrastColor(hex: string, theme: string): string {
-  if (theme !== 'dark' && theme !== 'light') return hex
+// WCAG 2.x relative luminance of a #RGB / #RRGGBB / #RRGGBBAA colour (alpha ignored).
+function hexLuminance(hex: string): number {
   const h: string = hex.replace('#', '')
   const full: string = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
-  const r: number = parseInt(full.slice(0, 2), 16) / 255
-  const g: number = parseInt(full.slice(2, 4), 16) / 255
-  const b: number = parseInt(full.slice(4, 6), 16) / 255
-  const max: number = Math.max(r, g, b)
-  const min: number = Math.min(r, g, b)
-  let hDeg = 0
-  const l: number = (max + min) / 2
-  const d: number = max - min
-  const s: number = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
-  if (d !== 0) {
-    if (max === r) hDeg = ((g - b) / d) % 6
-    else if (max === g) hDeg = (b - r) / d + 2
-    else hDeg = (r - g) / d + 4
-    hDeg *= 60
-    if (hDeg < 0) hDeg += 360
+  const channels: number[] = [0, 2, 4].map((i) => {
+    const v: number = parseInt(full.slice(i, i + 2), 16) / 255
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+  })
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+}
+
+// WCAG contrast ratio between two relative luminances.
+function contrastRatio(a: number, b: number): number {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
+// Black or white, whichever reads better on EVERY colour of the bar: a gradient is judged by its worst stop,
+// so the text stays legible across the whole bar rather than only at its start.
+function readableTextColor(hexes: string[]): string {
+  const lums: number[] = hexes.map(hexLuminance)
+  const worst = (textLum: number): number => Math.min(...lums.map((l) => contrastRatio(l, textLum)))
+  return worst(0) >= worst(1) ? '#000000' : '#ffffff'
+}
+
+// The colours the header bar is made of: the paint's own colours while paints are on (every hex stop of a
+// gradient, or its flat colour), otherwise the chatter's Twitch name colour. Empty when there is none.
+function headColors(l: ChatLine): string[] {
+  if (cfg.showSevenTvPaints && l.paint) {
+    const stops: string[] = (l.paint.backgroundImage || '').match(/#[0-9a-fA-F]{3,8}\b/g) || []
+    if (stops.length) return stops
+    if (l.paint.color) return [l.paint.color]
   }
-  const targetL: number = theme === 'dark' ? Math.max(l, 0.55) : Math.min(l, 0.4)
-  if (targetL === l) return hex
-  const c: number = (1 - Math.abs(2 * targetL - 1)) * s
-  const x: number = c * (1 - Math.abs(((hDeg / 60) % 2) - 1))
-  const m: number = targetL - c / 2
-  const [r2, g2, b2]: [number, number, number] =
-    hDeg < 60 ? [c, x, 0] : hDeg < 120 ? [x, c, 0] : hDeg < 180 ? [0, c, x] :
-    hDeg < 240 ? [0, x, c] : hDeg < 300 ? [x, 0, c] : [c, 0, x]
-  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0')
-  return `#${toHex(r2)}${toHex(g2)}${toHex(b2)}`
+  return l.color ? [l.color] : []
+}
+
+// The message header bar carries the chatter's colour: a resolved 7TV paint (gradient or flat) wins while
+// showSevenTvPaints is on, then the Twitch name colour. The name and pronoun text on it are plain black or
+// white by contrast (never painted themselves). An image-only paint has no known colours, so it keeps its
+// picture and takes white text with a shadow. No colour at all leaves the header unstyled.
+function headStyle(l: ChatLine): Record<string, string> {
+  const painted: boolean = cfg.showSevenTvPaints && !!l.paint
+  const image: string = painted && l.paint?.backgroundImage ? l.paint.backgroundImage : ''
+  const colors: string[] = headColors(l)
+  if (!colors.length && !image) return {}
+
+  const style: Record<string, string> = {}
+  if (image) {
+    style['background-image'] = image
+    style['background-size'] = 'cover'
+    style['background-position'] = 'center'
+    style['background-repeat'] = 'no-repeat'
+  }
+  if (!image || image.startsWith('url(')) {
+    if (colors.length) style['background-color'] = colors[0]
+  }
+  const text: string = colors.length ? readableTextColor(colors) : '#ffffff'
+  style.color = text
+  style['-webkit-text-fill-color'] = text
+  if (!colors.length) style['text-shadow'] = '0 1px 3px rgba(0, 0, 0, 0.9)'
+  return style
 }
 
 const rootStyle = computed<Record<string, string>>(() => {
@@ -174,41 +200,6 @@ interface ChatLine {
   replyMessageBody: string
   provider: string      // 'twitch' | 'kick' | 'youtube'
   paint: ChatPaint | null
-}
-
-// A paint's colour/gradient renders as the NAME's own style — not the line's — the same way 7TV's own
-// extension paints only the name, never the whole chat bubble. A gradient needs background-clip: text (and a
-// transparent fill colour to show it through); a flat colour just sets color. Image-only paints carry no
-// usable colour (SevenTvPaintMapper flags them but resolves no url here), so they fall through to the theme's
-// default name colour rather than rendering blank.
-function paintNameStyle(p: ChatPaint | null): Record<string, string> {
-  if (!p) return {}
-  const style: Record<string, string> = {}
-  if (p.backgroundImage) {
-    style['background-image'] = p.backgroundImage
-    style['background-clip'] = 'text'
-    style['-webkit-background-clip'] = 'text'
-    style.color = 'transparent'
-    // An image paint is a 384x128 texture clipped to a ~95x24 name. Without an explicit size the
-    // browser paints the unscaled top-left corner, which reads as one flat colour and looks like a
-    // broken paint - proven on the rendered overlay, invisible to any payload-level test. Gradient
-    // layers do not need this: a CSS gradient sizes itself to the box.
-    style['background-size'] = 'cover'
-    style['background-position'] = 'center'
-    style['background-repeat'] = 'no-repeat'
-  } else if (p.color) {
-    style.color = p.color
-  }
-  if (p.textShadow) style['text-shadow'] = p.textShadow
-  return style
-}
-
-// The name's actual style for one line: a resolved paint wins only while showSevenTvPaints is on — the
-// paint itself always arrives from the server regardless of this setting (S-PL6), so turning it off falls
-// back to the plain chat-colour style rather than losing the paint at the source.
-function nameStyle(l: ChatLine): Record<string, string> {
-  if (cfg.showSevenTvPaints && l.paint) return paintNameStyle(l.paint)
-  return { color: l.color ? contrastColor(l.color, cfg.theme) : '' }
 }
 
 const PROVIDER_LABEL: Record<string, string> = { twitch: 'Twitch', kick: 'Kick', youtube: 'YouTube' }
@@ -413,17 +404,13 @@ onUnmounted(() => {
         <span class="reply-user">{{ l.replyUserName }}</span>
         <span class="reply-body">{{ l.replyMessageBody }}</span>
       </span>
-      <span class="head">
+      <span class="head" :class="{ 'head-colored': !!headColors(l).length }" :style="headStyle(l)">
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
         <span v-if="l.provider !== 'twitch'" class="platform" :class="'platform-' + l.provider">{{ PROVIDER_LABEL[l.provider] || l.provider }}</span>
         <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
         <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
         <span v-if="l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
-        <span
-          class="name"
-          :class="{ 'name-painted': cfg.showSevenTvPaints && l.paint && (l.paint.backgroundImage || l.paint.color) }"
-          :style="nameStyle(l)"
-        >{{ l.name }}</span>
+        <span class="name">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
         <span v-if="l.isCheer && l.bitsAmount > 0" class="line-cheer-bits">{{ l.bitsAmount }} bits</span>
       </span>
@@ -633,10 +620,19 @@ onUnmounted(() => {
   white-space: nowrap;
   vertical-align: bottom;
 }
-/* A 7TV paint owns the name's colour outright — background-clip: text needs an opaque background box to clip
-   against, which inline-block already gives .name for its ellipsis truncation. */
-.name-painted {
-  -webkit-text-fill-color: transparent;
+/* A coloured header bar (7TV paint or Twitch name colour) sets the text colour itself, black or white by
+   contrast, so the name and pronouns inherit it instead of taking the accent colour. */
+.head-colored {
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.head-colored .name,
+.head-colored .pron {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+.head-colored .pron {
+  opacity: 1;
 }
 .pron {
   font-size: 12px;
@@ -724,7 +720,7 @@ onUnmounted(() => {
      (previously plain bold text, easy to miss). */
   font-weight: 700;
   /* The chip tints with the mentioned user's own colour, never the channel accent; a user with no colour keeps the
-     inherited text colour, exactly like their own name in a chat line (nameStyle). */
+     inherited text colour, exactly like their own name in a chat line. */
   background: color-mix(in srgb, var(--mention-color, currentColor) 22%, transparent);
   border-radius: 4px;
   padding: 0 4px;
