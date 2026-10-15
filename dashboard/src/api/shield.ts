@@ -12,27 +12,23 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
+import type { KeyParts } from '@/lib/array';
 
-export const shieldKey = (channelId: string | null): unknown[] => ['channels', channelId, 'shield'];
+export const shieldKey = (channelId: string | null): KeyParts => ['channels', channelId, 'shield'];
 
 // The status reads live from the Twitch moderation API; the document types the answer as an open object.
 async function fetchShield(channelId: string): Promise<boolean> {
   const { data } = await client.GET('/api/v{version}/channels/{channelId}/moderation/shield', {
     params: { path: { version: '1', channelId } },
   });
-  const answer: unknown = data?.data;
+  const answer = data?.data as { enabled?: boolean } | null | undefined;
 
-  return (
-    typeof answer === 'object' &&
-    answer !== null &&
-    (answer as { enabled?: unknown }).enabled === true
-  );
+  return answer?.enabled === true;
 }
 
 export function useShieldMode(
@@ -47,7 +43,7 @@ export function useShieldMode(
 
 export function useSetShieldMode(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, boolean, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({

@@ -16,6 +16,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type Poll = components['schemas']['TwitchPoll'];
 export type Prediction = components['schemas']['TwitchPrediction'];
@@ -24,14 +25,14 @@ export type Timer = components['schemas']['TimerListItem'];
 const version = '1';
 const timerPageSize = 100;
 
-export const timersKey = (channelId: string | null): unknown[] => ['channels', channelId, 'timers'];
+export const timersKey = (channelId: string | null): KeyParts => ['channels', channelId, 'timers'];
 
-export const pollsKey = (channelId: string | null): unknown[] => [
+export const pollsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'live-ops-polls',
 ];
-export const predictionsKey = (channelId: string | null): unknown[] => [
+export const predictionsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'live-ops-predictions',

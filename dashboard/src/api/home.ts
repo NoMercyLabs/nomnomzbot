@@ -16,6 +16,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type HomeStats = components['schemas']['DashboardStatsDto'];
 export type ReviewQueueItem = components['schemas']['ModerationQueueItemDto'];
@@ -36,27 +37,27 @@ const version = '1';
 // Twitch sends no event for the viewer count, so the stats are read again each minute.
 export const statsRefreshMs = 60_000;
 
-export const homeStatsKey = (channelId: string | null): unknown[] => [
+export const homeStatsKey = (channelId: string | null): KeyParts => [
   'dashboard',
   channelId,
   'stats',
 ];
-export const reviewQueueKey = (channelId: string | null): unknown[] => [
+export const reviewQueueKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'automod-queue',
 ];
-export const connectionsKey = (channelId: string | null): unknown[] => [
+export const connectionsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'integrations-status',
 ];
-export const botStatusKey = (channelId: string | null): unknown[] => [
+export const botStatusKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'bot-status',
 ];
-export const activityKey = (channelId: string | null): unknown[] => [
+export const activityKey = (channelId: string | null): KeyParts => [
   'dashboard',
   channelId,
   'activity',
@@ -158,7 +159,7 @@ export function useActivity(
 
 export function useActivityReplay(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<ReplayActivityResult, Error, string, unknown> {
+) {
   return useMutation({
     mutationFn: async (eventId: string): Promise<ReplayActivityResult> => {
       const { data, error, response } = await client.POST(

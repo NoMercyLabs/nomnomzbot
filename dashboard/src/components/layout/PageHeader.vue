@@ -12,7 +12,7 @@
 // filters and page-wide controls (the chat page's Display and Viewer), never inside a card header.
 // actions holds the one primary action; meta is quiet text beside it (for example "Updated 2 min ago").
 // The frame's controls follow the page's actions, so the page has one header row.
-import { inject, type Component } from 'vue';
+import { inject, type Component, type VNode } from 'vue';
 
 import { frameActionsKey } from './frameActions';
 
@@ -20,10 +20,10 @@ defineProps<{ title: string; crumb?: string }>();
 
 // Typed slots: a page that fills a slot name this header does not have fails the type check.
 defineSlots<{
-  status?: () => unknown;
-  meta?: () => unknown;
-  actions?: () => unknown;
-  bar?: () => unknown;
+  status?: () => VNode[];
+  meta?: () => VNode[];
+  actions?: () => VNode[];
+  bar?: () => VNode[];
 }>();
 
 const frameActions: Component | null = inject(frameActionsKey, null);

@@ -253,7 +253,7 @@ interface DemoRow {
   text: string;
 }
 const demoRows = ref<DemoRow[]>(
-  Array.from({ length: 5000 }, (_: unknown, id: number) => ({
+  Array.from({ length: 5000 }, (_: undefined, id: number) => ({
     id,
     text:
       t('dashboard.catalog.virtual.row', { number: id + 1 }) +

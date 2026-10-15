@@ -24,6 +24,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type TtsConfig = components['schemas']['TtsConfigDto'];
 export type TtsOverlay = components['schemas']['TtsOverlayDto'];
@@ -50,17 +51,17 @@ const languageFamilies: readonly string[] = ['en', 'nl', 'de', 'fr', 'es'];
 export const voiceFamilyOrder: readonly string[] = [...languageFamilies, 'other'];
 
 // The realtime layer writes into these entries, so the keys are part of the module's surface.
-export const ttsConfigKey = (channelId: string | null): unknown[] => [
+export const ttsConfigKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'tts-config',
 ];
-export const ttsOverlayKey = (channelId: string | null): unknown[] => [
+export const ttsOverlayKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'tts-overlay',
 ];
-export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters): unknown[] => [
+export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters): KeyParts => [
   'channels',
   channelId,
   'tts-voices',
@@ -209,7 +210,7 @@ export function useSetTtsVoice(
 // A person's own voice, with the catalog entry that names it. null means they use the channel voice.
 export type PersonVoice = { voiceId: string; voice: TtsVoice | null };
 
-export const personVoiceKey = (channelId: string | null, userId: string | null): unknown[] => [
+export const personVoiceKey = (channelId: string | null, userId: string | null): KeyParts => [
   'channels',
   channelId,
   'tts-person-voice',
@@ -293,7 +294,7 @@ export function useSetPersonVoice(
         ? { voiceId: change.voice.id, voice: change.voice }
         : null;
     },
-    apply: (_current: unknown, { voice }: PersonVoiceChange): PersonVoice | null =>
+    apply: (_current: PersonVoice | null | undefined, { voice }: PersonVoiceChange): PersonVoice | null =>
       voice
         ? { voiceId: voice.id, voice }
         : null,
@@ -302,7 +303,7 @@ export function useSetPersonVoice(
 
 export function useTtsSample(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<TtsSampleResult, Error, TtsSampleRequest, unknown> {
+) {
   return useMutation<TtsSampleResult, Error, TtsSampleRequest>({
     mutationFn: async ({ voiceId, text }: TtsSampleRequest): Promise<TtsSampleResult> => {
       const { data, error, response } = await client.POST(

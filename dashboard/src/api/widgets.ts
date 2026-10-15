@@ -22,6 +22,7 @@ import { numberOrNull } from '@/lib/number';
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type Widget = components['schemas']['WidgetDetail'];
 export type WidgetSettingsSchema = components['schemas']['WidgetSettingsSchema'];
@@ -32,12 +33,12 @@ const version = '1';
 const pageSize = 100;
 const firstPage = 1;
 
-export const widgetsKey = (channelId: string | null): unknown[] => [
+export const widgetsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'widgets',
 ];
-export const widgetSchemaKey = (channelId: string | null, widgetId: string | null): unknown[] => [
+export const widgetSchemaKey = (channelId: string | null, widgetId: string | null): KeyParts => [
   'channels',
   channelId,
   'widget-schema',
@@ -188,7 +189,7 @@ export type WidgetTestInput = { eventType: string };
 // Resolves to the line the bot answers with, naming who received the sample event.
 export function useTestWidgetEvent(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<string, Error, WidgetTestInput, unknown> {
+) {
   return useMutation({
     mutationFn: async ({ eventType }: WidgetTestInput): Promise<string> => {
       const { data, error, response } = await client.POST(

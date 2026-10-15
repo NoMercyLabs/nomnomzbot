@@ -8,6 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+// One part of a query key: a name, an id, a flag, or a filter object.
+export type KeyPart = string | number | boolean | null | undefined | object;
+
+// A query key as the cache holds it.
+export type KeyParts = KeyPart[];
+
+// merge takes lists of any item type, so its input must accept everything.
 type List = readonly unknown[];
 
 type Merged<Lists extends readonly List[]> = Lists extends readonly [

@@ -12,7 +12,7 @@ import type { ChatHourCell } from '@/api/analytics';
 
 // The week runs Monday to Sunday; the bot numbers Sunday 0.
 export const WEEK = [1, 2, 3, 4, 5, 6, 0] as const satisfies readonly number[];
-export const HOURS = Array.from({ length: 24 }, (_: unknown, hour: number) =>
+export const HOURS = Array.from({ length: 24 }, (_: undefined, hour: number) =>
   hour);
 
 export type DayTotal = {

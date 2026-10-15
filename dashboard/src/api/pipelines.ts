@@ -23,6 +23,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type PipelineListItem = components['schemas']['PipelineListItemDto'];
 export type PipelineBlastRadius = components['schemas']['PipelineBlastRadiusDto'];
@@ -81,7 +82,7 @@ const version = '1';
 const pageSize = 100;
 const maxPages = 100;
 
-export const pipelinesKey = (channelId: string | null): unknown[] => [
+export const pipelinesKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'pipelines',
@@ -115,7 +116,7 @@ export function usePipelines(
   return channelQuery(channelId, pipelinesKey, readPipelines);
 }
 
-export const pipelineKey = (channelId: string | null, id: string | null): unknown[] => [
+export const pipelineKey = (channelId: string | null, id: string | null): KeyParts => [
   'channels',
   channelId,
   'pipeline',
@@ -185,7 +186,7 @@ export type NewPipeline = { name: string };
 // A new pipeline starts empty and on; the list reloads so the new row shows.
 export function useCreatePipeline(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<Pipeline, Error, NewPipeline, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -263,7 +264,7 @@ export function useSavePipeline(
 // Deletes the pipeline for good. What started it (commands, triggers, timers, event responses) stops running it.
 export function useDeletePipeline(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, string, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -313,7 +314,7 @@ export function useBlastRadius(
   });
 }
 
-export const catalogKey = (channelId: string | null): unknown[] => [
+export const catalogKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'pipeline-catalog',
@@ -432,7 +433,7 @@ export type TestRunRequest = {
 // when one is sent, the saved graph otherwise.
 export function useTestRunPipeline(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<PipelineTestRun, Error, TestRunRequest, unknown> {
+) {
   return useMutation({
     mutationFn: async ({ id, variables, graph }: TestRunRequest): Promise<PipelineTestRun> => {
       const { data, error, response } = await client.POST(

@@ -11,7 +11,6 @@
 import {
   useMutation,
   useQueryClient,
-  type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
@@ -19,12 +18,13 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type ShoutoutSuggestion = components['schemas']['ShoutoutSuggestionDto'];
 
 const version = '1';
 
-export const shoutoutSuggestionsKey = (channelId: string | null): unknown[] => [
+export const shoutoutSuggestionsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'shoutout-suggestions',
@@ -52,7 +52,7 @@ export function useShoutoutSuggestions(
 // "Not now": the chatter leaves the list for this stream.
 export function useDismissShoutoutSuggestion(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, string, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({

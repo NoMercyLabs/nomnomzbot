@@ -308,6 +308,31 @@ export default defineConfigWithVueTs(
             'ArrayExpression[elements.0.type=\'SpreadElement\'][elements.1.type=\'SpreadElement\']',
           message: 'Join lists with merge(a, b) from @/lib/array.',
         },
+        {
+          // Owner 2026-10-15: "i don't want any unknowns if the type can be infered, it is only allowed when the
+          // argument MUST accept everything". Allowed without a comment: a catch variable and a type guard (its
+          // input is anything by definition). Anything else types the real shape, or says why it must take anything
+          // with an eslint-disable-next-line comment that carries the reason.
+          selector:
+            'TSUnknownKeyword:not(CatchClause TSUnknownKeyword, [returnType.typeAnnotation.type=\'TSTypePredicate\'] TSUnknownKeyword)',
+          message:
+            'Type the real shape. unknown is only for an input that must accept everything (catch variable, type guard).',
+        },
+      ],
+    },
+  },
+  {
+    // Tests build mocks and read untyped wire data; the rule guards the app code.
+    name: 'app/no-unknown-tests',
+    files: ['src/**/__tests__/**', 'src/**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'ArrayExpression[elements.0.type=\'SpreadElement\'][elements.1.type=\'SpreadElement\']',
+          message: 'Join lists with merge(a, b) from @/lib/array.',
+        },
       ],
     },
   },

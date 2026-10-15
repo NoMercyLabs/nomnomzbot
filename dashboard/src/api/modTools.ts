@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useMutation, type UseMutationReturnType } from '@tanstack/vue-query';
+import { useMutation } from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
@@ -16,6 +16,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type ChatSettings = components['schemas']['ChatSettingsDto'];
 export type RaidAssessment = components['schemas']['RaidAssessmentDto'];
@@ -26,8 +27,8 @@ const raidsPath = '/api/v{version}/channels/{channelId}/moderation/raid-assessme
 const massBanPath = '/api/v{version}/channels/{channelId}/moderation/actions/mass-ban';
 const clearPath = '/api/v{version}/channels/{channelId}/moderation/chat/clear';
 
-export const chatSettingsKey = (id: string | null): unknown[] => ['channels', id, 'chat-settings'];
-export const raidAssessmentsKey = (id: string | null): unknown[] => ['channels', id, 'raid-assessments'];
+export const chatSettingsKey = (id: string | null): KeyParts => ['channels', id, 'chat-settings'];
+export const raidAssessmentsKey = (id: string | null): KeyParts => ['channels', id, 'raid-assessments'];
 
 async function readSettings(channelId: string): Promise<ChatSettings> {
   const { data, error, response } = await client.GET(settingsPath, {
@@ -90,7 +91,7 @@ export function useRaidAssessments(channelId: MaybeRefOrGetter<string | null>) {
 
 export function useMassBanRaiders(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, string[], unknown> {
+) {
   return useMutation({
     mutationFn: async (ids: string[]): Promise<void> => {
       const { error, response } = await client.POST(massBanPath, {
@@ -106,7 +107,7 @@ export function useMassBanRaiders(
 
 export function useClearChat(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, void, unknown> {
+) {
   return useMutation({
     mutationFn: async (): Promise<void> => {
       const { error, response } = await client.POST(clearPath, {

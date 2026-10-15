@@ -13,7 +13,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
 
@@ -30,6 +29,7 @@ const version = { path: { version: '1' } };
 async function fetchMyChannels(): Promise<ChannelSummary[]> {
   const { data } = await client.GET('/api/v{version}/channels', { params: version });
 
+  // eslint-disable-next-line no-restricted-syntax -- the document types the rows as ChannelDto, so the cast must go through the wire's true type
   return (data?.data ?? []) as unknown as ChannelSummary[];
 }
 
@@ -57,12 +57,7 @@ export function useModeratedChannels(): UseQueryReturnType<ModeratedChannel[], E
 }
 
 // A channel the person moderates on Twitch, where the bot is not installed yet, opens in moderator mode.
-export function useEnterModeratedChannel(): UseMutationReturnType<
-  ChannelSummary | null,
-  Error,
-  string,
-  unknown
-> {
+export function useEnterModeratedChannel() {
   const queries = useQueryClient();
 
   return useMutation({

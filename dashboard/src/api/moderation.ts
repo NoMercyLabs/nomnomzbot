@@ -26,6 +26,7 @@ import { failed } from './channelQuery';
 import { client } from './client';
 import { userNotesKey } from './people';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type ModerationHistoryEntry = components['schemas']['ModerationHistoryEntryDto'];
 export type ModerationStanding = components['schemas']['ModerationStandingDto'];
@@ -47,7 +48,7 @@ const firstPage = 1;
 export const moderationHistoryKey = (
   channelId: string | null,
   userId: string | null,
-): unknown[] => ['moderation', channelId, 'history', userId];
+): KeyParts => ['moderation', channelId, 'history', userId];
 
 async function readHistoryPage(
   channelId: string,
@@ -103,7 +104,7 @@ export function useModerationHistory(
 // Standings are kept per platform identity; the profile shows the person's Twitch one.
 const provider = 'twitch';
 
-export const standingKey = (channelId: string | null, userId: string | null): unknown[] => [
+export const standingKey = (channelId: string | null, userId: string | null): KeyParts => [
   'moderation',
   channelId,
   'standing',

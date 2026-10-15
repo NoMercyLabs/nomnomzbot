@@ -14,7 +14,7 @@
 // stick: a chat-style list. At the bottom it stays at the bottom as rows arrive. Scrolled up, the
 // reader keeps their place, new rows are counted, and one button returns to the bottom.
 import { useVirtualizer, type PartialKeys, type VirtualizerOptions } from '@tanstack/vue-virtual';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue';
 
 import { Button } from '@/components/ui/button';
 
@@ -75,7 +75,7 @@ watch([lastShown, () => props.items.length], ([last, count]: [number, number]) =
   emit('end');
 });
 
-function measure(element: unknown): void {
+function measure(element: Element | ComponentPublicInstance | null): void {
   if (element instanceof Element) {
     virtualizer.value.measureElement(element);
   }

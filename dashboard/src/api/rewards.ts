@@ -14,6 +14,7 @@ import { type MaybeRefOrGetter } from 'vue';
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type Reward = components['schemas']['RewardDetail'];
 
@@ -21,7 +22,7 @@ const version = '1';
 // Twitch allows at most 50 custom rewards per channel, so one page holds them all.
 const pageSize = 100;
 
-export const rewardsKey = (channelId: string | null): unknown[] => [
+export const rewardsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'rewards',

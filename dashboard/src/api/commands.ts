@@ -21,6 +21,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type CommandListItem = components['schemas']['CommandListItem'];
 export type CommandChange = components['schemas']['UpdateCommandDto'];
@@ -33,12 +34,12 @@ const pageSize = 100;
 const maxPages = 100;
 
 // The realtime layer writes into these entries, so the keys are part of the module's surface.
-export const commandsKey = (channelId: string | null): unknown[] => [
+export const commandsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'commands',
 ];
-export const builtinsKey = (channelId: string | null): unknown[] => [
+export const builtinsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'builtins',
@@ -220,7 +221,7 @@ export function useDeleteCommand(
 // A new command is not shown before the bot accepts it: the name can be taken and the quota can be full.
 export function useCreateCommand(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, NewCommand, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation<void, Error, NewCommand>({

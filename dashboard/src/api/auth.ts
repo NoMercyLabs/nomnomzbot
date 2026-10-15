@@ -175,21 +175,18 @@ async function refresh(): Promise<boolean> {
     : await refreshNow();
 }
 
+type RefreshEnvelope = { data?: { accessToken?: string } | null };
+
 async function refreshNow(): Promise<boolean> {
-  const result: { data?: unknown; response: Response } = await client.POST(
+  const result: { data?: RefreshEnvelope; response: Response } = await client.POST(
     '/api/v{version}/auth/refresh',
     { params: version, credentials: 'include' },
   );
   const { response } = result;
-  // The OpenAPI document declares no 200 body for refresh yet, so the envelope is checked here.
-  const payload: unknown = (result.data as { data?: unknown } | undefined)?.data;
+  // The OpenAPI document declares no 200 body for refresh yet, so the envelope is typed here.
+  const token: string | undefined = result.data?.data?.accessToken;
 
-  if (!response.ok || typeof payload !== 'object' || payload === null)
-    return false;
-
-  const token: unknown = (payload as { accessToken?: unknown }).accessToken;
-
-  if (typeof token !== 'string')
+  if (!response.ok || typeof token !== 'string')
     return false;
 
   accessToken = token;

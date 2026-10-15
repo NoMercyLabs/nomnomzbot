@@ -22,7 +22,7 @@ import { merge } from '@/lib/array';
 
 import { channelPrefixes, configDomainKeys } from './configDomains';
 import type { HubEventHandler, QueryKeyBuilder } from './hubEvent';
-import type { ConfigChangedPayload } from './payloads';
+import type { ConfigChangedPayload, DashboardHubEvents, PermissionChangedPayload } from './payloads';
 
 function invalidateKeys(
   queries: QueryClient,
@@ -35,7 +35,10 @@ function invalidateKeys(
 }
 
 // An event that only marks page queries of the joined channel stale; the page loads them again if it shows them.
-function refreshing(event: string, keys: readonly QueryKeyBuilder[]): HubEventHandler<unknown> {
+function refreshing<TEvent extends keyof DashboardHubEvents>(
+  event: TEvent,
+  keys: readonly QueryKeyBuilder[],
+): HubEventHandler<DashboardHubEvents[TEvent]> {
   return {
     event,
     handle: ({ queries, channelId }) => {
@@ -73,7 +76,7 @@ const permissionChanged = {
     invalidateKeys(queries, keys, channelId);
     void queries.invalidateQueries({ queryKey: currentUserQuery.queryKey });
   },
-} as const satisfies HubEventHandler<unknown>;
+} as const satisfies HubEventHandler<PermissionChangedPayload>;
 
 const configChanged = {
   event: 'ConfigChanged',

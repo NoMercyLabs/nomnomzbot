@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { QueryClient } from '@tanstack/vue-query';
+import type { KeyParts } from '@/lib/array';
 
 export type HubEventContext = {
   queries: QueryClient;
@@ -23,4 +24,4 @@ export type HubEventHandler<TPayload> = {
 };
 
 // Builds the key of one page query for a channel; the realtime layer marks that query stale.
-export type QueryKeyBuilder = (channelId: string | null) => unknown[];
+export type QueryKeyBuilder = (channelId: string | null) => KeyParts;

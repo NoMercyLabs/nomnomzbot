@@ -22,6 +22,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { client } from './client';
 import type { ChatEmoteEntry } from './chat';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type CommunityMember = components['schemas']['UserDetailDto'];
 export type CommunityRow = components['schemas']['CommunityUserDto'];
@@ -30,14 +31,14 @@ export type TwitchViewer = components['schemas']['PlatformViewerDto'];
 
 const version = '1';
 
-export const memberKey = (channelId: string | null, userId: string | null): unknown[] => [
+export const memberKey = (channelId: string | null, userId: string | null): KeyParts => [
   'community',
   channelId,
   'member',
   userId,
 ];
 
-export const communityFirstPageKey = (channelId: string | null): unknown[] => [
+export const communityFirstPageKey = (channelId: string | null): KeyParts => [
   'community',
   channelId,
   'first-page',
@@ -169,7 +170,7 @@ export type BanInput = { userId: string; reason: string };
 
 export function useBanMember(
   channelId: string,
-): UseMutationReturnType<void, Error, BanInput, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -198,7 +199,7 @@ export function useBanMember(
 
 const SEARCH_LIMIT = 25;
 
-export const viewerSearchKey = (channelId: string | null, q: string): unknown[] => [
+export const viewerSearchKey = (channelId: string | null, q: string): KeyParts => [
   'community',
   channelId,
   'viewer-search',
@@ -241,7 +242,7 @@ export class TwitchUserNotFoundError extends Error {}
 // A live Helix lookup by login. The bot saves the person it finds, so the id opens a profile at once.
 export function useTwitchLookup(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<TwitchViewer, Error, string, unknown> {
+) {
   return useMutation({
     mutationFn: async (login: string): Promise<TwitchViewer> => {
       const { data, error, response } = await client.GET(

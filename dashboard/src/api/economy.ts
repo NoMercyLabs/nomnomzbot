@@ -13,10 +13,11 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type CurrencyConfig = components['schemas']['CurrencyConfigDto'];
 
-export const currencyConfigKey = (channelId: string | null): unknown[] => [
+export const currencyConfigKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'economy',

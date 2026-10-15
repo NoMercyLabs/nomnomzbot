@@ -20,6 +20,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type MusicQueue = components['schemas']['MusicQueueDto'];
 export type QueueItem = components['schemas']['QueueItemDto'];
@@ -33,17 +34,17 @@ const version = '1';
 const blockedPageSize = 100;
 
 // The realtime layer writes into the queue entry, so the keys are part of the module's surface.
-export const musicQueueKey = (channelId: string | null): unknown[] => [
+export const musicQueueKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'music-queue',
 ];
-export const musicConfigKey = (channelId: string | null): unknown[] => [
+export const musicConfigKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'music-config',
 ];
-export const blockedTracksKey = (channelId: string | null): unknown[] => [
+export const blockedTracksKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'music-blocked-tracks',
@@ -55,7 +56,7 @@ function failed(what: string, status: number): Error {
 
 function channelQuery<T>(
   channelId: MaybeRefOrGetter<string | null>,
-  key: (channelId: string | null) => unknown[],
+  key: (channelId: string | null) => KeyParts,
   fetch: (channelId: string) => Promise<T>,
 ): UseQueryReturnType<T, Error> {
   return useQuery({

@@ -22,6 +22,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type StreamInfo = components['schemas']['StreamInfoDto'];
 export type AdSchedule = components['schemas']['TwitchAdSchedule'];
@@ -42,23 +43,23 @@ const historySize = 20;
 // Twitch moves the next ad by this much per snooze.
 export const SNOOZE_SECONDS: number = 300;
 
-export const streamInfoKey = (channelId: string | null): unknown[] => [
+export const streamInfoKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'stream',
 ];
-export const adScheduleKey = (channelId: string | null): unknown[] => [
+export const adScheduleKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'ad-schedule',
 ];
 
-export const streamHistoryKey = (channelId: string | null): unknown[] => [
+export const streamHistoryKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'stream-history',
 ];
-export const categorySearchKey = (channelId: string | null, query: string): unknown[] => [
+export const categorySearchKey = (channelId: string | null, query: string): KeyParts => [
   'channels',
   channelId,
   'stream-categories',
@@ -215,7 +216,7 @@ export function useSaveStreamInfo(
 // Starts a connect: the bot answers with the page of the platform where the streamer says yes.
 export function useConnectIntegration(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<string, Error, { provider: string; scopeSetKey: string }, unknown> {
+) {
   return useMutation({
     mutationFn: async (variables: { provider: string; scopeSetKey: string }): Promise<string> => {
       const { data, error, response } = await client.POST(

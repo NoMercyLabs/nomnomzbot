@@ -15,7 +15,6 @@ import {
   useQueryClient,
   type InfiniteData,
   type UseInfiniteQueryReturnType,
-  type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
@@ -25,9 +24,10 @@ import type { ChatMessagePayload } from '@/realtime/payloads';
 
 import { client } from './client';
 import type { paths } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 // The live feed of one channel, oldest line first. The hub appends to it; the page seeds it from the history call.
-export const chatKey = (channelId: string | null): unknown[] => ['channels', channelId, 'chat'];
+export const chatKey = (channelId: string | null): KeyParts => ['channels', channelId, 'chat'];
 
 export const chatLineLimit = 500;
 
@@ -138,7 +138,7 @@ export type ChatSearchPage = { messages: ChatLine[]; nextCursor: string | null }
 
 export const chatSearchMinLength = 2;
 
-const chatSearchKey = (channelId: string | null, query: string): unknown[] => [
+const chatSearchKey = (channelId: string | null, query: string): KeyParts => [
   'channels',
   channelId,
   'chat',
@@ -179,7 +179,7 @@ export function useChatSearch(
   });
 }
 
-const userChatKey = (channelId: string | null, userId: string | null): unknown[] => [
+const userChatKey = (channelId: string | null, userId: string | null): KeyParts => [
   'channels',
   channelId,
   'chat',
@@ -228,7 +228,7 @@ export function useUserChat(
 
 export function useSendChat(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, SendChatInput, unknown> {
+) {
   return useMutation({
     mutationFn: async (input: SendChatInput): Promise<void> => {
       if (input.message.length > chatMessageMaxLength)
@@ -250,7 +250,7 @@ export function useSendChat(
 
 export function useDeleteChatMessage(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, string, unknown> {
+) {
   return useMutation({
     mutationFn: async (messageId: string): Promise<void> => {
       const { response } = await client.DELETE(
@@ -273,7 +273,7 @@ export function useDeleteChatMessage(
 
 export function useTimeoutUser(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, TimeoutInput, unknown> {
+) {
   return useMutation({
     mutationFn: async (input: TimeoutInput): Promise<void> => {
       const { response } = await client.POST(
@@ -296,7 +296,7 @@ export function useTimeoutUser(
 
 export function useBanUser(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, BanInput, unknown> {
+) {
   return useMutation({
     mutationFn: async (input: BanInput): Promise<void> => {
       const { response } = await client.POST(
@@ -318,7 +318,7 @@ export function useBanUser(
 
 export function useUnbanUser(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, UnbanInput, unknown> {
+) {
   return useMutation({
     mutationFn: async (input: UnbanInput): Promise<void> => {
       const { response } = await client.POST(

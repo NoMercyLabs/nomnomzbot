@@ -10,12 +10,14 @@
 
 import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
+import type { KeyParts } from '@/lib/array';
 
 export function failed(what: string, status: number): Error {
   return new Error(`${what} ${status}`);
 }
 
 // A refusal carries the bot's own reason in `message`; without one, the status stands in.
+// eslint-disable-next-line no-restricted-syntax -- every endpoint's error body has a different generated type, so the input must accept any of them
 export function refusal(what: string, error: unknown, status: number): Error {
   const reason = (error as { message?: string | null } | undefined)?.message;
 
@@ -27,7 +29,7 @@ export function refusal(what: string, error: unknown, status: number): Error {
 // A query that waits for a channel id and keeps one cache entry per channel.
 export function channelQuery<T>(
   channelId: MaybeRefOrGetter<string | null>,
-  key: (channelId: string | null) => unknown[],
+  key: (channelId: string | null) => KeyParts,
   fetch: (channelId: string) => Promise<T>,
   refetchInterval?: number,
 ): UseQueryReturnType<T, Error> {

@@ -14,13 +14,13 @@ import {
   useQuery,
   useQueryClient,
   type QueryClient,
-  type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type AdminTenant = components['schemas']['AdminTenantDto'];
 export type AdminTenantDetail = components['schemas']['AdminTenantDetailDto'];
@@ -38,10 +38,10 @@ export type AdminTenantsParams = {
 
 const version = '1';
 
-export const adminSystemStatusKey: unknown[] = ['admin', 'system-status'];
+export const adminSystemStatusKey: KeyParts = ['admin', 'system-status'];
 
 // Every cached list page starts with this prefix, whatever its filters.
-export const adminTenantsPrefix: unknown[] = ['admin', 'tenants'];
+export const adminTenantsPrefix: KeyParts = ['admin', 'tenants'];
 
 export const adminTenantsKey = ({
   search,
@@ -49,7 +49,7 @@ export const adminTenantsKey = ({
   isLive,
   page,
   take,
-}: AdminTenantsParams): unknown[] => [
+}: AdminTenantsParams): KeyParts => [
   ...adminTenantsPrefix,
   {
     search,
@@ -60,7 +60,7 @@ export const adminTenantsKey = ({
   },
 ];
 
-export const adminTenantKey = (id: string | null): unknown[] => ['admin', 'tenant', id];
+export const adminTenantKey = (id: string | null): KeyParts => ['admin', 'tenant', id];
 
 // An empty filter is left out of the request, not sent as an empty string.
 function listQuery({
@@ -130,7 +130,7 @@ export function useAdminTenant(
 }
 
 // A changed tenant changes its detail and the position of its row in every list page.
-function refreshTenant(queries: QueryClient, broadcasterId: string): Promise<unknown> {
+function refreshTenant(queries: QueryClient, broadcasterId: string): Promise<[void, void]> {
   return Promise.all([
     queries.invalidateQueries({ queryKey: adminTenantKey(broadcasterId) }),
     queries.invalidateQueries({ queryKey: adminTenantsPrefix }),
@@ -143,7 +143,7 @@ export type SuspendInput = {
   reason: string;
 };
 
-export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInput, unknown> {
+export function useAdminSuspend() {
   const queries = useQueryClient();
 
   return useMutation({
@@ -163,7 +163,7 @@ export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInp
 
 export type ReinstateInput = { broadcasterId: string; justification: string };
 
-export function useAdminReinstate(): UseMutationReturnType<void, Error, ReinstateInput, unknown> {
+export function useAdminReinstate() {
   const queries = useQueryClient();
 
   return useMutation({
@@ -191,12 +191,7 @@ export type BeginAccessInput = {
   expiresAt: string | null;
 };
 
-export function useAdminBeginAccess(): UseMutationReturnType<
-  AdminAccessGrant,
-  Error,
-  BeginAccessInput,
-  unknown
-> {
+export function useAdminBeginAccess() {
   return useMutation({
     mutationFn: async ({
       broadcasterId,
@@ -230,12 +225,7 @@ export type ImpersonateInput = {
   justification: string;
 };
 
-export function useAdminImpersonate(): UseMutationReturnType<
-  AdminImpersonationToken,
-  Error,
-  ImpersonateInput,
-  unknown
-> {
+export function useAdminImpersonate() {
   return useMutation({
     mutationFn: async ({
       userId,

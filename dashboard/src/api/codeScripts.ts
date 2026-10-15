@@ -28,6 +28,7 @@ import type {
 import { channelQuery, refusal } from './channelQuery';
 import type { components } from './schema';
 import { client } from './client';
+import type { KeyParts } from '@/lib/array';
 
 export type CodeScriptSummary = components['schemas']['CodeScriptSummaryDto'];
 export type CodeScriptDetail = components['schemas']['CodeScriptDetailDto'];
@@ -40,7 +41,7 @@ const version = '1';
 const versionsPageSize = 25;
 
 export const codeScriptsKey: string[] = ['code-scripts'];
-export const codeScriptKey = (id: string | null): unknown[] => ['code-scripts', 'detail', id];
+export const codeScriptKey = (id: string | null): KeyParts => ['code-scripts', 'detail', id];
 
 // The channel's scripts, first page. The bot reads the channel from the signed-in session, not from the path.
 // A refusal (custom code switched off, no right) fails with the bot's reason; it is not an empty list.
@@ -121,12 +122,7 @@ export function useSetScriptEnabled(): UseMutationReturnType<
 }
 
 // Resolves to the new script's id, or null when the bot does not echo it.
-export function useCreateCodeScript(): UseMutationReturnType<
-  string | null,
-  Error,
-  NewCodeScript,
-  unknown
-> {
+export function useCreateCodeScript() {
   const queries = useQueryClient();
 
   return useMutation<string | null, Error, NewCodeScript>({
@@ -139,8 +135,8 @@ export function useCreateCodeScript(): UseMutationReturnType<
       if (error !== undefined)
         throw refusal('create code script', error, response.status);
 
-      const created: unknown = (data as { data?: unknown } | undefined)?.data;
-      const id: unknown = (created as { id?: unknown } | null | undefined)?.id;
+      // The document declares no body for create, so the envelope is typed here.
+      const id: string | undefined = (data as { data?: { id?: string } | null } | undefined)?.data?.id;
 
       return typeof id === 'string'
         ? id
@@ -165,7 +161,7 @@ export async function fetchBlastRadius(id: string): Promise<BlastRadius> {
 }
 
 // The blast radius is read again right before the delete: a script whose impact cannot be read is not deleted.
-export function useDeleteCodeScript(): UseMutationReturnType<void, Error, string, unknown> {
+export function useDeleteCodeScript() {
   const queries = useQueryClient();
 
   return useMutation<void, Error, string>({

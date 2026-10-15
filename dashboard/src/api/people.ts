@@ -27,6 +27,7 @@ import { numberOrNull } from '@/lib/number';
 import { memberKey, type CommunityRow } from './community';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type { CommunityRow };
 export type UserNote = components['schemas']['UserNoteDto'];
@@ -45,7 +46,7 @@ const pageSize = 50;
 const firstPage = 1;
 
 // Prefix keys let one invalidation reach every role and search of a channel (the realtime layer does that).
-export const communityListsKey = (channelId: string | null): unknown[] => [
+export const communityListsKey = (channelId: string | null): KeyParts => [
   'community',
   channelId,
   'list',
@@ -54,17 +55,17 @@ export const communityListKey = (
   channelId: string | null,
   role: string,
   search: string,
-): unknown[] => [...communityListsKey(channelId), role, search];
-export const viewerProfilesKey = (channelId: string | null): unknown[] => [
+): KeyParts => [...communityListsKey(channelId), role, search];
+export const viewerProfilesKey = (channelId: string | null): KeyParts => [
   'community',
   channelId,
   'profile',
 ];
-export const viewerProfileKey = (channelId: string | null, userId: string | null): unknown[] => [
+export const viewerProfileKey = (channelId: string | null, userId: string | null): KeyParts => [
   ...viewerProfilesKey(channelId),
   userId,
 ];
-export const userNotesKey = (channelId: string | null, userId: string | null): unknown[] => [
+export const userNotesKey = (channelId: string | null, userId: string | null): KeyParts => [
   'community',
   channelId,
   'notes',
@@ -333,7 +334,7 @@ export type ShoutoutInput = { targetTwitchUserId: string };
 // Resolves to the path the bot took ("helix" or a chat line), so the page can say how the shoutout went out.
 export function useShoutout(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<string, Error, ShoutoutInput, unknown> {
+) {
   return useMutation({
     mutationFn: async (input: ShoutoutInput): Promise<string> => {
       const { data, error, response } = await client.POST(
@@ -360,7 +361,7 @@ export type TimeoutInput = {
 
 export function useTimeout(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, TimeoutInput, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -397,7 +398,7 @@ export type WarnInput = { userId: string; reason: string };
 // Twitch Warn Chat User, signed by the caller; the person must accept it before they chat again.
 export function useWarn(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, WarnInput, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -431,7 +432,7 @@ export type PersonInput = { userId: string };
 // Lifts a timeout (or a ban) in this channel.
 export function useUnban(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, PersonInput, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -455,7 +456,7 @@ export function useUnban(
 // Undo for a ban made through useBanMember: the same member path with DELETE.
 export function useLiftBan(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, PersonInput, unknown> {
+) {
   const queries = useQueryClient();
 
   return useMutation({

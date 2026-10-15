@@ -21,7 +21,7 @@ import { braced, filterHelpers, groupHelpers } from './templatePlaceholders';
 
 const props = withDefaults(
   defineProps<{
-    target: { insert: (text: string) => unknown } | null;
+    target: { insert: (text: string) => void } | null;
     context: TemplateContext;
     eventType?: string;
   }>(),

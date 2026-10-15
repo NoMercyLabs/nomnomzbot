@@ -11,6 +11,7 @@
 // One filter for the page control bar. A short choice (2 to 4 options) is a segmented control;
 // a longer one is a select with its label inside. The search stays above the list, never in the
 // bar (owner 2026-10-14: "only th controls, keep the search above").
+import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -37,7 +38,7 @@ const selected = defineModel<string>({ required: true });
 const segmented = computed<boolean>(() => props.options.length <= 4);
 
 // The select can send an empty value; a filter always keeps one.
-function choose(value: unknown): void {
+function choose(value: AcceptableValue): void {
   if (typeof value === 'string' && value !== '') {
     selected.value = value;
   }

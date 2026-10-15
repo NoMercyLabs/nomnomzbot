@@ -22,6 +22,7 @@ import { numberOrNull } from '@/lib/number';
 import { failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type PipelineRun = components['schemas']['PipelineExecutionSummaryDto'];
 export type PipelineRunDetail = components['schemas']['PipelineExecutionDetailDto'];
@@ -37,7 +38,7 @@ const version = '1';
 const pageSize = 25;
 const firstPage = 1;
 
-export const pipelineRunsKey = (channelId: string | null, pipelineId: string | null): unknown[] => [
+export const pipelineRunsKey = (channelId: string | null, pipelineId: string | null): KeyParts => [
   'channels',
   channelId,
   'pipeline-runs',

@@ -10,13 +10,15 @@
 <script setup lang="ts" generic="T extends string">
 // One choice from 2 to 4 named options. One option is always chosen: pressing the open one again,
 // which would clear it in the library, changes nothing.
+import type { AcceptableValue } from 'reka-ui';
+
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 defineProps<{ label: string; options: readonly { value: T; label: string }[] }>();
 
 const chosen = defineModel<T>({ required: true });
 
-function choose(next: unknown): void {
+function choose(next: AcceptableValue | AcceptableValue[]): void {
   if (typeof next === 'string' && next !== '') {
     chosen.value = next as T;
   }

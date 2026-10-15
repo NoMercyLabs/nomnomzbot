@@ -13,6 +13,7 @@ import { computed, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+import type { KeyParts } from '@/lib/array';
 
 export type ResolvedAccess = components['schemas']['ResolvedAccessDto'];
 
@@ -23,7 +24,7 @@ export type ChannelAccess = {
 
 const version = '1';
 
-export const channelAccessKey = (channelId: string | null): unknown[] => [
+export const channelAccessKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'access',
