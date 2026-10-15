@@ -31,6 +31,7 @@ export type ApiOrigin =
   'moderation' |
   'modTools' |
   'music' |
+  'supporters' |
   'people' |
   'pipelineRuns' |
   'pipelines' |
@@ -111,6 +112,7 @@ export const apiOperations = {
   'raid assessments': 'modTools',
   'mass ban': 'modTools',
   'clear chat': 'modTools',
+  'supporter events': 'supporters',
   'music queue': 'music',
   'blocked tracks': 'music',
   'music config': 'music',
