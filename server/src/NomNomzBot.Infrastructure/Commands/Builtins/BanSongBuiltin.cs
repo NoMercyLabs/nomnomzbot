@@ -37,6 +37,11 @@ public sealed class BanSongBuiltin(
     // stays open for a non-mod chatter who holds the grant.
     public int DefaultMinPermissionLevel => 0;
 
+    public Task<bool> IsAvailableToAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct = default
+    ) => gate.IsAllowedAsync(context, ct);
+
     public async Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
         CancellationToken ct = default
