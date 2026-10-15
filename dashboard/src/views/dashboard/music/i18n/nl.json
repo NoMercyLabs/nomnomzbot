@@ -37,7 +37,8 @@
         "nextRow": "{title} als volgende spelen",
         "remove": "{title} verwijderen",
         "confirmTitle": "Dit nummer verwijderen?",
-        "confirmBody": "{title} verdwijnt uit de wachtrij. De aanvrager hoort het niet.",
+        "confirmBody": "Aangevraagd door {name}. Het verdwijnt uit de wachtrij en {name} hoort het niet.",
+        "confirmBodyNoName": "Het verdwijnt uit de wachtrij en wordt niet gespeeld.",
         "confirmAction": "Verwijderen"
       },
       "rules": {

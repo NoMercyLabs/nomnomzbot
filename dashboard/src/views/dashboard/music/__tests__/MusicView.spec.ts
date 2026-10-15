@@ -398,6 +398,20 @@ describe('MusicView', () => {
     expect(panel('Request queue').textContent).toContain('Strobe');
   });
 
+  // Owner 2026-10-15: the confirm must name who asked and lead with the song itself.
+  it('shows the song, its artist and who asked for it in the remove confirm', async () => {
+    await open();
+
+    buttonIn(panel('Request queue'), 'Remove Opus').click();
+    await settle();
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"]')!;
+
+    expect(dialog.querySelector('[data-confirm-song]')?.textContent).toBe('Opus');
+    expect(dialog.querySelector('[data-confirm-subject]')?.textContent).toContain('Eric Prydz');
+    expect(dialog.textContent).toContain('Requested by DukaSoft');
+  });
+
   it('moves a song up with a POST to promote and its position', async () => {
     await open();
 

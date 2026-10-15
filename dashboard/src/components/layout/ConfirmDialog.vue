@@ -12,6 +12,7 @@
 // Header and footer stay; only the body scrolls; the dialog is at most 90% of the window.
 // Cancel is outline on the left; the red button names the action. Pressing it emits confirm and
 // leaves the dialog open: the owner closes it (v-model:open) when the work is done, so pending can show.
+// The default slot shows the thing the action hits (a song, a user), between the header and the consequences.
 import BlastList from '@/components/layout/BlastList.vue';
 import { useReadOnly } from '@/components/layout/readOnly';
 import {
@@ -57,6 +58,9 @@ const locked = useReadOnly();
         <AlertDialogDescription v-if="description" class="text-sm text-muted-foreground">
           {{ description }}
         </AlertDialogDescription>
+      </div>
+      <div v-if="$slots.default" data-confirm-subject class="flex-none px-6 pb-4">
+        <slot />
       </div>
       <div v-if="consequences.length > 0" class="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
         <BlastList :items="consequences" />

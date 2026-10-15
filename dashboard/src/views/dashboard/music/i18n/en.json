@@ -37,7 +37,8 @@
         "nextRow": "Play next {title}",
         "remove": "Remove {title}",
         "confirmTitle": "Remove this song?",
-        "confirmBody": "{title} leaves the queue. The person who asked will not hear it.",
+        "confirmBody": "Requested by {name}. It leaves the queue and {name} will not hear it.",
+        "confirmBodyNoName": "It leaves the queue and will not play.",
         "confirmAction": "Remove"
       },
       "rules": {

@@ -108,6 +108,15 @@ const spotify = computed<{ tone: StatusTone; key: string }>(() => {
 });
 
 const removing = ref<QueueItem | null>(null);
+
+// Names who asked for the song, so the moderator sees whose request they take away.
+const removeNote = computed<string>(() => {
+  const name = removing.value?.requestedBy;
+
+  return name
+    ? t('dashboard.music.queue.confirmBody', { name })
+    : t('dashboard.music.queue.confirmBodyNoName');
+});
 const confirmOpen = computed<boolean>({
   get: () => removing.value !== null,
   set: (open: boolean) => {
@@ -264,8 +273,27 @@ const panels = computed(() => [
   <ConfirmDialog
     v-model:open="confirmOpen"
     :title="$t('dashboard.music.queue.confirmTitle')"
-    :description="$t('dashboard.music.queue.confirmBody', { title: removing?.trackName ?? '' })"
+    :description="removeNote"
     :action="$t('dashboard.music.queue.confirmAction')"
     @confirm="confirmRemove"
-  />
+  >
+    <div v-if="removing" class="flex items-center gap-3 rounded-lg border border-border p-2">
+      <img
+        v-if="removing.imageUrl"
+        :src="removing.imageUrl"
+        alt=""
+        class="size-12 flex-none rounded-sm object-cover"
+      />
+      <span
+        v-else
+        class="flex size-12 flex-none items-center justify-center rounded-sm bg-muted text-muted-foreground"
+      >
+        <Music class="size-4" aria-hidden="true" />
+      </span>
+      <span class="grid min-w-0">
+        <span data-confirm-song class="truncate text-sm font-semibold">{{ removing.trackName }}</span>
+        <span class="truncate text-sm text-muted-foreground">{{ removing.artist }}</span>
+      </span>
+    </div>
+  </ConfirmDialog>
 </template>
