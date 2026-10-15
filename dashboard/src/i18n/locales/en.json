@@ -637,6 +637,7 @@
       "music": "Music",
       "tts": "Text to speech",
       "mediaShare": "Media share",
+      "discord": "Discord",
       "settings": "Settings",
       "back": {
         "admin": "Exit admin",
@@ -708,6 +709,7 @@
       "people": "People",
       "loyalty": "Loyalty",
       "musicVoice": "Music and voice",
+      "connect": "Connections",
       "setup": "Setup",
       "admin": {
         "activity": "Activity",

@@ -24,6 +24,7 @@ export type ApiOrigin =
   'codeScripts' |
   'commands' |
   'community' |
+  'discord' |
   'economy' |
   'favoriteEmotes' |
   'home' |
@@ -88,6 +89,13 @@ export const apiOperations = {
   'community ban': 'community',
   'viewer search': 'community',
   'twitch lookup': 'community',
+  'discord connections': 'discord',
+  'discord channels': 'discord',
+  'discord roles': 'discord',
+  'discord rules': 'discord',
+  'save discord rule': 'discord',
+  'create discord rule': 'discord',
+  'discord preview': 'discord',
   'currency config': 'economy',
   'favorite emotes': 'favoriteEmotes',
   'favorite emote change': 'favoriteEmotes',

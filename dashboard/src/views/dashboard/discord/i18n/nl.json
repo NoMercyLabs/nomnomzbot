@@ -1,0 +1,62 @@
+{
+  "dashboard": {
+    "discord": {
+      "title": "Discord",
+      "connection": {
+        "title": "Discord-server",
+        "empty": "Er is nog geen Discord-server aan dit kanaal gekoppeld.",
+        "error": "De Discord-server kon niet laden.",
+        "none": "Niet gekoppeld",
+        "botMissing": "De bot zit niet in de server",
+        "consentPending": "Wacht op goedkeuring van de serverbeheerder",
+        "ready": "Gekoppeld en klaar"
+      },
+      "rules": {
+        "title": "Meldingen",
+        "subtitle": "Eén bericht per gebeurtenis, naar een Discord-kanaal.",
+        "error": "De meldingsregels konden niet laden.",
+        "notSetUp": "Niet ingesteld",
+        "on": "Aan",
+        "off": "Uit",
+        "edit": "Bewerken",
+        "setUp": "Instellen"
+      },
+      "triggers": {
+        "stream_online": "Stream gaat live",
+        "stream_offline": "Stream stopt",
+        "channel_follow": "Nieuwe volger",
+        "channel_subscribe": "Nieuwe abonnee",
+        "channel_subscription_gift": "Gegeven abonnement",
+        "channel_cheer": "Cheer of bits",
+        "channel_raid": "Binnenkomende raid",
+        "channel_poll_begin": "Poll begint",
+        "channel_prediction_begin": "Voorspelling begint"
+      },
+      "editor": {
+        "description": "Kies waar het bericht heen gaat, wie het pingt en wat er staat.",
+        "enabled": "Stuur deze melding",
+        "enabledHelp": "Zet uit om de regel te bewaren zonder te sturen.",
+        "channel": "Discord-kanaal",
+        "channelOption": "# {name}",
+        "roleOption": "{'@'}{name}",
+        "channelPlaceholder": "Kies een kanaal",
+        "role": "Ping-rol",
+        "noRole": "Geen ping",
+        "message": "Bericht",
+        "embed": "Embed",
+        "embedTitle": "Titel",
+        "embedDescription": "Beschrijving",
+        "embedColor": "Kleur",
+        "embedThumbnail": "Link naar miniatuur",
+        "embedImage": "Link naar afbeelding",
+        "embedFooter": "Voettekst",
+        "fieldName": "Veldnaam",
+        "fieldValue": "Veldwaarde",
+        "addField": "Veld toevoegen",
+        "removeField": "Veld verwijderen",
+        "preview": "Voorbeeld",
+        "save": "Opslaan"
+      }
+    }
+  }
+}

@@ -637,6 +637,7 @@
       "music": "Muziek",
       "tts": "Tekst naar spraak",
       "mediaShare": "Media delen",
+      "discord": "Discord",
       "settings": "Instellingen",
       "back": {
         "admin": "Admin verlaten",
@@ -708,6 +709,7 @@
       "people": "Mensen",
       "loyalty": "Loyaliteit",
       "musicVoice": "Muziek en stem",
+      "connect": "Koppelingen",
       "setup": "Instellen",
       "admin": {
         "activity": "Activiteit",
