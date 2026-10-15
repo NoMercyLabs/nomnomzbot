@@ -372,6 +372,32 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Playback resumed." });
     }
 
+    /// <summary>Go back to the previous track; the provider restarts the current one when it is a few seconds in.</summary>
+    [RequireAction("music:queue:moderate")]
+    [HttpPost("previous")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Previous(string channelId, CancellationToken ct)
+    {
+        Result result = await _musicService.PreviousAsync(channelId, ct);
+        return result.IsSuccess ? NoContent() : ResultResponse(result);
+    }
+
+    /// <summary>Set the playback volume on the active music provider (0-100).</summary>
+    [RequireAction("music:remote:control")]
+    [HttpPut("volume")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> SetVolume(
+        string channelId,
+        [FromBody] VolumeDto dto,
+        CancellationToken ct
+    )
+    {
+        Result result = await _musicService.SetVolumeAsync(channelId, dto.Percent, ct);
+        return result.IsSuccess ? NoContent() : ResultResponse(result);
+    }
+
     // ─── Remote controls (seek / shuffle / repeat / transfer / playlists) ───────
 
     /// <summary>Seek the currently playing track to a specific position in milliseconds.</summary>
@@ -550,6 +576,8 @@ public class MusicController : BaseController
 public sealed record SeekDto(int PositionMs);
 
 public sealed record ShuffleDto(bool Enabled);
+
+public sealed record VolumeDto(int Percent);
 
 public sealed record RepeatDto(string Mode);
 

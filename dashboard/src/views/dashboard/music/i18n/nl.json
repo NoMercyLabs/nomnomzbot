@@ -12,10 +12,18 @@
         "nothing": "Er speelt nu niets.",
         "error": "De speler kon niet laden.",
         "requestedBy": "Aangevraagd door {name}",
-        "volume": "Volume {percent}%",
+        "volume": "Volume",
         "pause": "Pauze",
         "play": "Afspelen",
-        "skip": "Overslaan",
+        "skip": "Volgend nummer",
+        "previous": "Vorig nummer",
+        "shuffle": "Willekeurig",
+        "repeat": {
+          "off": "Herhalen uit",
+          "context": "Afspeellijst herhalen",
+          "track": "Dit nummer herhalen"
+        },
+        "seek": "Positie in het nummer",
         "progress": "{position} van {length}"
       },
       "queue": {

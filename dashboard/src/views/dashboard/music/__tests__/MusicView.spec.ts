@@ -11,8 +11,7 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
@@ -178,6 +177,16 @@ beforeEach(() => {
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
+
+  // jsdom has no layout; the seek and volume sliders measure their track with this.
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
 });
 
 afterEach(() => {
@@ -261,7 +270,7 @@ describe('MusicView', () => {
   it('skips with a POST to the skip path', async () => {
     await open();
 
-    buttonIn(panel('Now playing'), 'Skip').click();
+    buttonIn(panel('Now playing'), 'Next song').click();
     await settle();
 
     expect(writes()).toHaveLength(1);
@@ -290,7 +299,7 @@ describe('MusicView', () => {
     nowPlaying = playing({ canSkipNext: false, canPause: false });
     await open();
 
-    expect(buttonIn(panel('Now playing'), 'Skip').disabled).toBe(true);
+    expect(buttonIn(panel('Now playing'), 'Next song').disabled).toBe(true);
     expect(buttonIn(panel('Now playing'), 'Pause').disabled).toBe(true);
   });
 

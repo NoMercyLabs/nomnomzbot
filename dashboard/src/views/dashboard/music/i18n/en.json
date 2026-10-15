@@ -12,10 +12,18 @@
         "nothing": "Nothing is playing right now.",
         "error": "The player could not load.",
         "requestedBy": "Requested by {name}",
-        "volume": "Volume {percent}%",
+        "volume": "Volume",
         "pause": "Pause",
         "play": "Play",
-        "skip": "Skip",
+        "skip": "Next song",
+        "previous": "Previous song",
+        "shuffle": "Shuffle",
+        "repeat": {
+          "off": "Repeat off",
+          "context": "Repeat the playlist",
+          "track": "Repeat this song"
+        },
+        "seek": "Song position",
         "progress": "{position} of {length}"
       },
       "queue": {
