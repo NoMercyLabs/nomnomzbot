@@ -99548,7 +99548,10 @@ export interface components {
             /** Format: int32 */
             totalQuoteCount: number | string;
         };
-        /** @description Completed raids between this person's channel and this channel, counted from the journaled EventSub `channel.raid` rows. Zero means none were recorded. */
+        /**
+         * @description Completed raids between this person's channel and this channel, counted from the journaled EventSub
+         *     `channel.raid` rows (the executed signal, not the countdown start). Zero means none were recorded.
+         */
         ViewerRaidsDto: {
             /** Format: int32 */
             timesRaidedThisChannel: number | string;
