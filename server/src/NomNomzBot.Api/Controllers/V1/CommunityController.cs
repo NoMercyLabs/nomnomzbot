@@ -262,7 +262,9 @@ public partial class CommunityController : BaseController
         bool IsBanned,
         // Real sightings only: null when the bot never observed the viewer (never the user-record date).
         DateTime? FirstSeen,
-        DateTime? LastSeen
+        DateTime? LastSeen,
+        // The viewer's Twitch chat color, or null when never seen in chat.
+        string? Color = null
     );
 
     public record UserDetailDto(
@@ -582,7 +584,8 @@ public partial class CommunityController : BaseController
                         "viewer",
                         false,
                         EarliestSeen(stats?.FirstSeen, profile),
-                        NewestSeen(stats?.LastSeen, profile)
+                        NewestSeen(stats?.LastSeen, profile),
+                        user?.Color
                     );
                 }),
             ];
@@ -668,7 +671,8 @@ public partial class CommunityController : BaseController
                         "vip",
                         false,
                         EarliestSeen(stats?.FirstSeen, profile),
-                        NewestSeen(stats?.LastSeen, profile)
+                        NewestSeen(stats?.LastSeen, profile),
+                        user?.Color
                     );
                 }),
             ];
@@ -808,7 +812,8 @@ public partial class CommunityController : BaseController
                         trustLevel,
                         isBanned,
                         EarliestSeen(stats?.FirstSeen, profile),
-                        NewestSeen(stats?.LastSeen, profile)
+                        NewestSeen(stats?.LastSeen, profile),
+                        user?.Color
                     );
                 }),
         ];
