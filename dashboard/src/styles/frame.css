@@ -249,6 +249,9 @@ a:not([data-slot]):hover {
 .dot.ok {
   background: var(--success);
 }
+.dot.warn {
+  background: var(--warning);
+}
 .dot.bad {
   background: var(--destructive);
 }

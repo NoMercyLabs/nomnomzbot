@@ -93,6 +93,7 @@
   ); /* control edge: 3:1 or more on background, card and muted (WCAG 1.4.11) */
   --ring: oklch(0.692953 0.114282 309.045);
   --success: oklch(0.795095 0.234563 145.534);
+  --warning: oklch(0.8 0.16 75);
   --sidebar: oklch(0.168416 0 0);
   --sidebar-foreground: oklch(0.949119 0 0);
   --sidebar-primary: oklch(0.692953 0.114282 309.045);
@@ -209,6 +210,7 @@ html[data-density='touch'] {
   --input: oklch(0.6 0 0); /* control edge: 3:1 or more on white */
   --ring: oklch(0.708 0 0);
   --success: oklch(0.627 0.194 142.5);
+  --warning: oklch(0.7 0.17 65);
   --sidebar: oklch(0.96 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);

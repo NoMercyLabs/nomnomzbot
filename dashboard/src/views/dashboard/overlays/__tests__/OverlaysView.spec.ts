@@ -17,6 +17,9 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { i18n } from '@/i18n';
 
+import type { Widget } from '@/api/widgets';
+
+import OverlayRow from '../components/OverlayRow.vue';
 import OverlaysView from '../OverlaysView.vue';
 import en from '../i18n/en.json';
 
@@ -308,6 +311,30 @@ describe('OverlaysView', () => {
     expect(rows[1]!.textContent).toContain('Fails');
     expect(rows[2]!.textContent).toContain('Off');
     expect(rows[0]!.textContent).not.toContain('Fails');
+  });
+
+  it('puts a green, orange or red dot before the status text, and none is color only', async () => {
+    await open();
+
+    const rows: HTMLElement[] = [
+      ...document.body.querySelectorAll<HTMLElement>('[data-overlay-row]'),
+    ];
+    const dotOf = (row: HTMLElement | undefined) => row?.querySelector('[data-overlay-dot]');
+
+    expect(dotOf(rows[0])?.className).toContain('ok');
+    expect(dotOf(rows[1])?.className).toContain('bad');
+    expect(dotOf(rows[2])?.className).not.toMatch(/ok|bad|warn/);
+    expect(rows[0]!.textContent).toContain('A browser source is open');
+  });
+
+  it('shows an orange dot for an enabled overlay with nothing attached', () => {
+    const wrapper = mount(OverlayRow, {
+      props: { widget: widget('w9', 'Emote Wall') as unknown as Widget, selected: false },
+      global: { plugins: [i18n] },
+    });
+
+    expect(wrapper.find('[data-overlay-dot]').classes()).toContain('warn');
+    expect(wrapper.text()).toContain('Nothing attached');
   });
 
   it('shows the overlay named in the address, with its kind, origin, events and description', async () => {

@@ -36,6 +36,19 @@ const detail = computed<string>(() => {
       : 'dashboard.overlays.list.notAttached',
   );
 });
+
+// Truthful states only: the bot reports an error string and whether a source is open, not a load state.
+const dotState = computed<string>(() => {
+  if (!props.widget.isEnabled)
+    return '';
+
+  if (props.widget.lastRuntimeError)
+    return 'bad';
+
+  return props.widget.isAttached
+    ? 'ok'
+    : 'warn';
+});
 </script>
 
 <template>
@@ -54,6 +67,9 @@ const detail = computed<string>(() => {
         >
           <component :is="kind.icon" class="size-4" aria-hidden="true" />
         </span>
+      </template>
+      <template #detail-lead>
+        <span data-overlay-dot class="dot" :class="dotState" aria-hidden="true" />
       </template>
       <template #end>
         <StatusBadge
