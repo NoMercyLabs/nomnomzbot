@@ -19,7 +19,12 @@ import { useTimeAgoIntl, useTimeoutFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useSetWidgetEnabled, useTestWidgetEvent, type Widget } from '@/api/widgets';
+import {
+  useSetWidgetEnabled,
+  useTestWidgetEvent,
+  type Widget,
+  type WidgetTestResult,
+} from '@/api/widgets';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
@@ -124,16 +129,31 @@ const attachLine = computed<HealthLine>(() => {
 
 const events = computed<string[]>(() => props.widget.eventSubscriptions);
 
-// Test sends the event type alone, so the bot fills in its own sample; each row shows what the bot said.
+// Test sends the event type to this overlay alone, so the bot fills in its own sample; each row shows
+// what happened to this overlay, in the dashboard's own words.
 const testEvent = useTestWidgetEvent(channelId);
 const testResults = ref<Record<string, string>>({});
 const testFailures = ref<Record<string, string>>({});
 
+function testSummary(answer: WidgetTestResult): string {
+  const base: string = 'dashboard.overlays.detail.events';
+
+  if (!answer.delivered)
+    return t(`${base}.testNotListening`);
+
+  return answer.attached
+    ? t(`${base}.testSent`)
+    : t(`${base}.testSentDetached`);
+}
+
 async function sendTest(eventType: string): Promise<void> {
   try {
-    const answer: string = await testEvent.mutateAsync({ eventType });
+    const answer: WidgetTestResult = await testEvent.mutateAsync({
+      widgetId: props.widget.id,
+      eventType,
+    });
 
-    testResults.value = { ...testResults.value, [eventType]: answer };
+    testResults.value = { ...testResults.value, [eventType]: testSummary(answer) };
   } catch (error) {
     testFailures.value = { ...testFailures.value, [eventType]: errorText(error, t) };
     throw error;

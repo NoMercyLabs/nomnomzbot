@@ -84292,7 +84292,7 @@ export interface paths {
         };
         /**
          * The sample payload of every event type, keyed by type, plus the fallback under "_default". The
-         *         editor preview fires from this table, so a preview test sends what Task&lt;IActionResult&gt; WidgetTestEventController.Fire(string channelId, WidgetTestEventRequest request, CancellationToken ct) sends.
+         *         editor preview fires from this table, so a preview test sends what Task&lt;IActionResult&gt; WidgetTestEventController.Fire(string channelId, string widgetId, WidgetTestEventRequest request, CancellationToken ct) sends.
          */
         get: {
             parameters: {
@@ -84379,7 +84379,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/channels/{channelId}/widgets/test-event": {
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/test-event": {
         parameters: {
             query?: never;
             header?: never;
@@ -84388,13 +84388,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fire a sample event of request.EventType to the channel's subscribed widgets. */
+        /** Fire a sample event of request.EventType at the one widget widgetId. */
         post: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
                     channelId: string;
+                    widgetId: string;
                     version: string;
                 };
                 cookie?: never;
@@ -84413,7 +84414,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfstring"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfWidgetTestEventResult"];
                     };
                 };
                 /** @description Bad Request */
@@ -97849,6 +97850,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfWidgetTestEventResult: {
+            status?: string;
+            data?: null | components["schemas"]["WidgetTestEventResult"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfWidgetTokenRotationResult: {
             status?: string;
             data?: null | components["schemas"]["WidgetTokenRotationResult"];
@@ -100577,6 +100591,14 @@ export interface components {
             data?: null | {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * @description What a test fire did for the one overlay it targeted: whether the overlay reacts to the event (so it
+         *         was sent), and whether a browser source had it open to play it.
+         */
+        WidgetTestEventResult: {
+            delivered: boolean;
+            attached: boolean;
         };
         /**
          * @description Result of rotating one widget's overlay token (audit B5). string WidgetTokenRotationResult.PreviousUrl stays live until

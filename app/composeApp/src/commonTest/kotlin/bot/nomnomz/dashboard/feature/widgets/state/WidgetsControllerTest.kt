@@ -43,6 +43,7 @@ import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
 import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
+import bot.nomnomz.dashboard.core.network.TestEventResult
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlin.test.Test
@@ -828,19 +829,20 @@ class WidgetsControllerTest {
                     listOf(WidgetSummary(id = "w-1", name = "Alerts", eventSubscriptions = listOf("follow", "cheer")))
                 )
             )
-        widgetsApi.testEventResult = ApiResult.Ok("fired cheer to 1 widget(s), 1 with a browser source open")
+        widgetsApi.testEventResult = ApiResult.Ok(TestEventResult(delivered = true, attached = true))
         val controller =
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
         controller.load()
         val widget: WidgetSummary = (controller.state.value as WidgetsState.Ready).widgets.single()
 
-        val result: ApiResult<String> = controller.testWidget(widget, "cheer")
+        val result: ApiResult<TestEventResult> = controller.testWidget(widget, "cheer")
 
-        // The picked event fires, not the first declared one, and the raw backend reach description passes
+        // The picked event fires at this widget alone, not the first declared one, and the typed answer passes
         // through untouched (never collapsed to a bare success flag).
         assertEquals(listOf("cheer"), widgetsApi.testedEventTypes)
+        assertEquals(listOf("w-1"), widgetsApi.testedWidgetIds)
         assertTrue(result is ApiResult.Ok)
-        assertEquals("fired cheer to 1 widget(s), 1 with a browser source open", (result as ApiResult.Ok).value)
+        assertEquals(TestEventResult(delivered = true, attached = true), (result as ApiResult.Ok).value)
     }
 
     @Test
@@ -1238,9 +1240,11 @@ internal class RecordingWidgetsApi(
     // Records which eventType was fired so the "Test" row action's wiring (pick the widget's first declared
     // subscription, fall back to "test") is provable without HTTP.
     val testedEventTypes: MutableList<String> = mutableListOf()
-    var testEventResult: ApiResult<String> = ApiResult.Ok("fired follow — no widget on this channel subscribes it")
+    val testedWidgetIds: MutableList<String> = mutableListOf()
+    var testEventResult: ApiResult<TestEventResult> = ApiResult.Ok(TestEventResult(delivered = false, attached = false))
 
-    override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> {
+    override suspend fun testEvent(channelId: String, widgetId: String, eventType: String): ApiResult<TestEventResult> {
+        testedWidgetIds += widgetId
         testedEventTypes += eventType
         return testEventResult
     }

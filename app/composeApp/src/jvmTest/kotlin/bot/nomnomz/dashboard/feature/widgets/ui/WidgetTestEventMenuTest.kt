@@ -20,6 +20,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.TestEventResult
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,7 +49,7 @@ class WidgetTestEventMenuTest {
                 onCatalogueAction = {},
                 onTest = { _, event ->
                     fired += event
-                    ApiResult.Ok("fired $event")
+                    ApiResult.Ok(TestEventResult(delivered = true, attached = true))
                 },
                 onRotateToken = {},
             )
@@ -68,7 +69,7 @@ class WidgetTestEventMenuTest {
         waitForIdle()
 
         assertEquals(listOf("cheer"), fired)
-        onNodeWithText("Test: fired cheer", useUnmergedTree = true).assertExists()
+        onNodeWithText("Test: Sent to this overlay", useUnmergedTree = true).assertExists()
     }
 
     @Test

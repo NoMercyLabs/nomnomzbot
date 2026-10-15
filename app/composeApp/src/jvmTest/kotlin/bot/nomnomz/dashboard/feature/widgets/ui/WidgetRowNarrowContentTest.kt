@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.TestEventResult
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -65,7 +66,7 @@ class WidgetRowNarrowContentTest {
                     onVersions = {},
                     onSettings = {},
                     onCatalogueAction = {},
-                    onTest = { _, _ -> ApiResult.Ok("ok") },
+                    onTest = { _, _ -> ApiResult.Ok(TestEventResult(delivered = true, attached = true)) },
                     onRotateToken = {},
                 )
             }

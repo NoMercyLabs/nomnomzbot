@@ -1793,6 +1793,9 @@
     <string name="widgets_test_action_short">Test</string>
     <string name="widgets_test_result">Test: %1$s</string>
     <string name="widgets_test_error">Test failed: %1$s</string>
+    <string name="widgets_test_sent">Sent to this overlay</string>
+    <string name="widgets_test_sent_detached">Sent, but no browser source has it open</string>
+    <string name="widgets_test_not_listening">This overlay does not react to this event</string>
     <string name="widgets_overlay_live">Live in OBS</string>
     <string name="widgets_overlay_not_connected">Not connected</string>
     <string name="widgets_update_action">Update overlay %1$s from the gallery</string>

@@ -41,6 +41,7 @@ let widgets: Record<string, unknown>[] = [];
 let schemas: Record<string, Field[]> = {};
 let putRefusal: string | null = null;
 let testRefusal: string | null = null;
+let testAnswer = { delivered: true, attached: true };
 let schemaless: string[] = [];
 
 const text = (value: string): { key: string; text: string } => ({ key: `t.${value}`, text: value });
@@ -206,7 +207,7 @@ vi.mock('@/api/client', () => ({
       if (testRefusal !== null)
         return { error: { message: testRefusal }, response: { status: 400, ok: false } };
 
-      return { data: { data: 'Sent to 1 browser source.' }, response: { status: 200, ok: true } };
+      return { data: { data: testAnswer }, response: { status: 200, ok: true } };
     },
   },
 }));
@@ -223,6 +224,7 @@ beforeEach(() => {
   calls.length = 0;
   putRefusal = null;
   testRefusal = null;
+  testAnswer = { delivered: true, attached: true };
   schemaless = [];
 
   widgets = [
@@ -442,7 +444,9 @@ describe('the Test button on a trigger row', () => {
   const eventRow = (event: string): HTMLElement =>
     document.body.querySelector(`[data-event="${event}"]`) as HTMLElement;
 
-  it('sends the event type without data and shows what the bot answered', async () => {
+  const detail = en.dashboard.overlays.detail.events;
+
+  it('sends the event type to this overlay alone and says it was sent', async () => {
     await open();
 
     testButton('follow').click();
@@ -451,12 +455,33 @@ describe('the Test button on a trigger row', () => {
     expect(calls.filter((call) => call.method === 'POST')).toEqual([
       {
         method: 'POST',
-        path: '/api/v{version}/channels/{channelId}/widgets/test-event',
+        path: '/api/v{version}/channels/{channelId}/widgets/{widgetId}/test-event',
         body: { eventType: 'follow' },
       },
     ]);
 
-    expect(eventRow('follow').textContent).toContain('Sent to 1 browser source.');
+    expect(eventRow('follow').textContent).toContain(detail.testSent);
+  });
+
+  it('says so when no browser source has the overlay open', async () => {
+    testAnswer = { delivered: true, attached: false };
+    await open();
+
+    testButton('follow').click();
+    await settle();
+
+    expect(eventRow('follow').textContent).toContain(detail.testSentDetached);
+    expect(eventRow('follow').textContent).not.toContain(detail.testSent);
+  });
+
+  it('says so when the overlay does not react to the event', async () => {
+    testAnswer = { delivered: false, attached: false };
+    await open();
+
+    testButton('follow').click();
+    await settle();
+
+    expect(eventRow('follow').textContent).toContain(detail.testNotListening);
   });
 
   it('shows the reason when the bot refuses the test', async () => {
@@ -467,7 +492,7 @@ describe('the Test button on a trigger row', () => {
     await settle();
 
     expect(eventRow('channel.raid').textContent).toContain('Unknown event type.');
-    expect(eventRow('channel.raid').textContent).not.toContain('Sent to 1 browser source.');
+    expect(eventRow('channel.raid').textContent).not.toContain(detail.testSent);
   });
 });
 

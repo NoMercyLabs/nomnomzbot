@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
+import bot.nomnomz.dashboard.core.network.TestEventResult
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto
 import bot.nomnomz.dashboard.core.network.WidgetSummary
@@ -312,12 +313,12 @@ class WidgetsController(
 
     /**
      * Fire a representative sample of [eventType] at [widget] — the row's "Test" action, one of
-     * [WidgetSummary.testEvents]. Returns the raw reach description so the screen can surface it as a transient
-     * banner without disturbing the rendered list — a read-like action, not a mutation, so it never reloads.
+     * [WidgetSummary.testEvents]. Returns the typed answer (sent to this widget or not, browser source open or not) so the screen
+     * can surface it as a transient line without disturbing the rendered list — a read-like action, not a mutation, so it never reloads.
      */
-    suspend fun testWidget(widget: WidgetSummary, eventType: String): ApiResult<String> {
+    suspend fun testWidget(widget: WidgetSummary, eventType: String): ApiResult<TestEventResult> {
         val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
-        return widgetsApi.testEvent(channel, eventType)
+        return widgetsApi.testEvent(channel, widget.id, eventType)
     }
 
     /**

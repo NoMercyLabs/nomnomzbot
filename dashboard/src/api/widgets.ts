@@ -185,18 +185,24 @@ export function useSaveWidgetSettings(
   });
 }
 
-export type WidgetTestInput = { eventType: string };
+export type WidgetTestInput = { widgetId: string; eventType: string };
 
-// Resolves to the line the bot answers with, naming who received the sample event.
+export type WidgetTestResult = components['schemas']['WidgetTestEventResult'];
+
+// The sample goes to the one overlay named; the answer says if it was sent and if a browser source had it open.
 export function useTestWidgetEvent(
   channelId: MaybeRefOrGetter<string | null>,
 ) {
   return useMutation({
-    mutationFn: async ({ eventType }: WidgetTestInput): Promise<string> => {
+    mutationFn: async ({ widgetId, eventType }: WidgetTestInput): Promise<WidgetTestResult> => {
       const { data, error, response } = await client.POST(
-        '/api/v{version}/channels/{channelId}/widgets/test-event',
+        '/api/v{version}/channels/{channelId}/widgets/{widgetId}/test-event',
         {
-          params: { path: { version, channelId: toValue(channelId) as string } },
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            widgetId,
+          } },
           // Without data the bot sends its own sample payload.
           body: { eventType } as components['schemas']['WidgetTestEventRequest'],
         },
@@ -205,7 +211,7 @@ export function useTestWidgetEvent(
       if (error !== undefined)
         throw refusal('widget test', error, response.status);
 
-      return data?.data ?? '';
+      return data?.data ?? { delivered: false, attached: false };
     },
   });
 }

@@ -99791,7 +99791,7 @@
         "tags": [
           "Widgets"
         ],
-        "summary": "The sample payload of every event type, keyed by type, plus the fallback under \"_default\". The\r\n    editor preview fires from this table, so a preview test sends what Task&lt;IActionResult&gt; WidgetTestEventController.Fire(string channelId, WidgetTestEventRequest request, CancellationToken ct) sends.",
+        "summary": "The sample payload of every event type, keyed by type, plus the fallback under \"_default\". The\r\n    editor preview fires from this table, so a preview test sends what Task&lt;IActionResult&gt; WidgetTestEventController.Fire(string channelId, string widgetId, WidgetTestEventRequest request, CancellationToken ct) sends.",
         "parameters": [
           {
             "name": "channelId",
@@ -99884,15 +99884,23 @@
         }
       }
     },
-    "/api/v{version}/channels/{channelId}/widgets/test-event": {
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/test-event": {
       "post": {
         "tags": [
           "Widgets"
         ],
-        "summary": "Fire a sample event of request.EventType to the channel's subscribed widgets.",
+        "summary": "Fire a sample event of request.EventType at the one widget widgetId.",
         "parameters": [
           {
             "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
             "in": "path",
             "required": true,
             "schema": {
@@ -99994,7 +100002,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfstring"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetTestEventResult"
                 }
               }
             }
@@ -138690,6 +138698,43 @@
           }
         }
       },
+      "StatusResponseDtoOfWidgetTestEventResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WidgetTestEventResult"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfWidgetTokenRotationResult": {
         "type": "object",
         "properties": {
@@ -147611,6 +147656,22 @@
           }
         },
         "description": "The test-fire request: an event type, and an optional explicit payload (a sample is used when omitted)."
+      },
+      "WidgetTestEventResult": {
+        "required": [
+          "delivered",
+          "attached"
+        ],
+        "type": "object",
+        "properties": {
+          "delivered": {
+            "type": "boolean"
+          },
+          "attached": {
+            "type": "boolean"
+          }
+        },
+        "description": "What a test fire did for the one overlay it targeted: whether the overlay reacts to the event (so it\r\n    was sent), and whether a browser source had it open to play it."
       },
       "WidgetTokenRotationResult": {
         "required": [
