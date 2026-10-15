@@ -2036,6 +2036,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid>("PipelineId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("StopOnMatch")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 

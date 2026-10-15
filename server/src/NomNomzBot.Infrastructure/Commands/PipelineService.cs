@@ -347,6 +347,7 @@ public class PipelineService : IPipelineService
                 BlockConfigJson = stepDef.BlockConfig?.GetRawText(),
                 Order = stepDef.Order ?? i,
                 ContinueOnError = stepDef.ContinueOnError,
+                StopOnMatch = stepDef.StopOnMatch,
                 ActionType = stepDef.Action.Type,
                 ConfigJson = JsonSerializer.Serialize(normalizedAction),
                 IsEnabled = true,
