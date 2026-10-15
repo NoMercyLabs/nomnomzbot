@@ -40,15 +40,18 @@ public sealed class ActivityReplayService : IActivityReplayService
     private readonly GiftBombChainResolver _giftBombs;
     private readonly IReadOnlyDictionary<Type, IEventResponsePresenter> _presenters;
     private readonly IRenderedAlertReplayer _capturedAlerts;
+    private readonly ShoutoutReplayPresenter _shoutouts;
 
     public ActivityReplayService(
         IApplicationDbContext db,
         JournaledDomainEventReader reader,
         GiftBombChainResolver giftBombs,
         IEnumerable<IEventResponsePresenter> presenters,
-        IRenderedAlertReplayer capturedAlerts
+        IRenderedAlertReplayer capturedAlerts,
+        ShoutoutReplayPresenter shoutouts
     )
     {
+        _shoutouts = shoutouts;
         _db = db;
         _reader = reader;
         _giftBombs = giftBombs;
@@ -81,11 +84,33 @@ public sealed class ActivityReplayService : IActivityReplayService
             );
         }
 
-        bool rebuilt = chain.Any(i => i.Event is not null);
+        EventResponseOutcome? shoutout = await _shoutouts.ReplayAsync(
+            broadcasterId,
+            channelEventId,
+            ct
+        );
+        if (shoutout is not null)
+            responses = responses.Plus(shoutout);
+
+        bool rebuilt = chain.Any(i => i.Event is not null) || shoutout is not null;
         if (!rebuilt && widgetsNotified == 0)
             return Result.Failure<ActivityReplayResult>(
                 "This activity event has no stored event and no captured alert — nothing to replay.",
                 "NOT_FOUND"
+            );
+
+        // Reading the row is not a replay: when no chat line, voice, overlay or widget alert went out,
+        // the dashboard must not call it a success.
+        if (
+            responses.ChatMessagesSent
+                + responses.TtsQueued
+                + responses.OverlaysShown
+                + widgetsNotified
+            == 0
+        )
+            return Result.Failure<ActivityReplayResult>(
+                "The event was found, but nothing was re-performed: no response is configured or enabled for it, and no overlay alert was captured.",
+                "NOTHING_REPLAYED"
             );
 
         return Result.Success(

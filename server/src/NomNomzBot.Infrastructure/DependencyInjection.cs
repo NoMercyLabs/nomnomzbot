@@ -1091,6 +1091,7 @@ public static class DependencyInjection
         services.AddScoped<ITriggerSampleCatalog, TriggerSampleCatalog>();
         services.AddScoped<EventStore.JournaledDomainEventReader>();
         services.AddScoped<Dashboard.Replay.GiftBombChainResolver>();
+        services.AddScoped<Dashboard.Replay.ShoutoutReplayPresenter>();
         // Save-time, fail-closed validator (broker-pattern invariant + type registry check).
         services.AddScoped<ICommandConfigValidator, CommandConfigValidator>();
         // S-CONSEQ: counts the pipeline steps that name a keyless resource (sound clip, widget) inside
