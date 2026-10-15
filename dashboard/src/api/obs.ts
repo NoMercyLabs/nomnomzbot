@@ -8,7 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type UseQueryReturnType,
+} from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
@@ -133,5 +139,220 @@ export function useObsScenes(
     },
     enabled: computed(() => toValue(channelId) !== null && toValue(connected)),
     retry: false,
+  });
+}
+
+export type ObsTransition = components['schemas']['ObsTransitionDto'];
+
+export const obsStudioKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'obs',
+  'studio-mode',
+];
+export const obsTransitionsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'obs',
+  'transitions',
+];
+
+// Whether OBS is in studio mode (a preview scene next to the program scene).
+export function useObsStudioMode(
+  channelId: MaybeRefOrGetter<string | null>,
+  connected: MaybeRefOrGetter<boolean>,
+): UseQueryReturnType<boolean, Error> {
+  return useQuery({
+    queryKey: computed(() => obsStudioKey(toValue(channelId))),
+    queryFn: async (): Promise<boolean> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/obs/studio-mode',
+        { params: { path: { version, channelId: toValue(channelId) as string } } },
+      );
+
+      if (error !== undefined)
+        throw failed('obs studio mode', response.status, error);
+
+      return data?.data?.enabled === true;
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(connected)),
+    retry: false,
+  });
+}
+
+// The transitions OBS knows, with the active one flagged.
+export function useObsTransitions(
+  channelId: MaybeRefOrGetter<string | null>,
+  connected: MaybeRefOrGetter<boolean>,
+): UseQueryReturnType<ObsTransition[], Error> {
+  return useQuery({
+    queryKey: computed(() => obsTransitionsKey(toValue(channelId))),
+    queryFn: async (): Promise<ObsTransition[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/obs/scene-transitions',
+        { params: { path: { version, channelId: toValue(channelId) as string } } },
+      );
+
+      if (error !== undefined)
+        throw failed('obs transitions', response.status, error);
+
+      return [...(data?.data ?? [])];
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(connected)),
+    retry: false,
+  });
+}
+
+type Rollback<T> = { key: KeyParts; previous: T | undefined };
+
+// Writes a new value into a cached read right away and hands back the old one for the rollback.
+async function applyOptimistic<T>(
+  queries: QueryClient,
+  key: KeyParts,
+  update: (old: T) => T,
+): Promise<Rollback<T>> {
+  await queries.cancelQueries({ queryKey: key });
+
+  const previous = queries.getQueryData<T>(key);
+
+  if (previous !== undefined) {
+    queries.setQueryData<T>(key, update(previous));
+  }
+
+  return { key, previous };
+}
+
+const scenesKey = (channelId: MaybeRefOrGetter<string | null>): KeyParts =>
+  obsScenesKey(toValue(channelId));
+const studioKey = (channelId: MaybeRefOrGetter<string | null>): KeyParts =>
+  obsStudioKey(toValue(channelId));
+const transitionsKey = (channelId: MaybeRefOrGetter<string | null>): KeyParts =>
+  obsTransitionsKey(toValue(channelId));
+
+// The same list with exactly one entry flagged as the current one.
+function markCurrent<T extends { name: string; isCurrent: boolean }>(
+  list: readonly T[],
+  name: string,
+): T[] {
+  return list.map((item: T) => ({ ...item, isCurrent: item.name === name }));
+}
+
+function rollBack<T>(queries: QueryClient, context: Rollback<T> | undefined): void {
+  if (context?.previous !== undefined) {
+    queries.setQueryData<T>(context.key, context.previous);
+  }
+}
+
+// Switch the program scene. The list marks the new scene at once; a refusal puts the old mark back.
+export function useObsSwitchScene(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (scene: string): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/scene',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { scene },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('obs switch scene', response.status, error);
+    },
+    onMutate: (scene: string) =>
+      applyOptimistic<ObsScene[]>(queries, scenesKey(channelId), (old) =>
+        markCurrent(old, scene)),
+    onError: (_error, _scene, context) => rollBack(queries, context),
+    onSettled: () => queries.invalidateQueries({ queryKey: obsScenesKey(toValue(channelId)) }),
+  });
+}
+
+// Studio mode on or off.
+export function useObsSetStudioMode(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (enabled: boolean): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/studio-mode',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { enabled },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('obs studio mode', response.status, error);
+    },
+    onMutate: (enabled: boolean) =>
+      applyOptimistic<boolean>(queries, studioKey(channelId), () =>
+        enabled),
+    onError: (_error, _enabled, context) => rollBack(queries, context),
+    onSettled: () => queries.invalidateQueries({ queryKey: obsStudioKey(toValue(channelId)) }),
+  });
+}
+
+// Queue a scene as the studio preview.
+export function useObsSetPreviewScene(channelId: MaybeRefOrGetter<string | null>) {
+  return useMutation({
+    mutationFn: async (scene: string): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/scene/preview',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { scene },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('obs preview scene', response.status, error);
+    },
+  });
+}
+
+// Cut the preview scene to program. A null duration keeps the transition's own length.
+export function useObsStudioTransition(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (durationMs: number | null): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/studio-mode/transition',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { durationMs },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('obs studio transition', response.status, error);
+    },
+    onSettled: () => queries.invalidateQueries({ queryKey: obsScenesKey(toValue(channelId)) }),
+  });
+}
+
+// Make one transition the active one.
+export function useObsSetTransition(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (transitionName: string): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/scene-transitions/current',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { transitionName },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('obs set transition', response.status, error);
+    },
+    onMutate: (transitionName: string) =>
+      applyOptimistic<ObsTransition[]>(queries, transitionsKey(channelId), (old) =>
+        markCurrent(old, transitionName)),
+    onError: (_error, _name, context) => rollBack(queries, context),
+    onSettled: () => queries.invalidateQueries({ queryKey: obsTransitionsKey(toValue(channelId)) }),
   });
 }

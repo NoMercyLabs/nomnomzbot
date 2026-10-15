@@ -22,6 +22,7 @@ import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/compon
 import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
 import ObsConnectionPanel from './components/ObsConnectionPanel.vue';
 import ScenesPanel from './components/ScenesPanel.vue';
+import StudioPanel from './components/StudioPanel.vue';
 import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
 
 const { channelId } = useCurrentChannel();
@@ -85,6 +86,7 @@ function retry(): void {
       :offline="!enabled"
       @retry="retry"
     />
+    <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
     <BrowserSourcesPanel
       class="lg:col-span-2"
       :widgets="widgets.data.value"
