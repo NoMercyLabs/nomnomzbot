@@ -51368,6 +51368,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/music/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The channel's most recent accepted song requests, newest first, with the requester. */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfListOfSongHistoryItemDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/music/top-requesters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The viewers who requested the most songs in this channel, all time. */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfListOfTopRequesterDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/music/queue": {
         parameters: {
             query?: never;
@@ -95518,6 +95618,38 @@ export interface components {
              *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
              *     generic error toast) reads this field.
              */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        /** @description One accepted song request in the channel's history. TrackName is empty for a row rebuilt from the journal. */
+        SongHistoryItemDto: {
+            trackName: string;
+            artist: string;
+            imageUrl?: null | string;
+            provider: string;
+            requesterId: string;
+            requesterName: string;
+            /** Format: date-time */
+            requestedAt: string;
+        };
+        /** @description A viewer and how many songs they have requested in this channel, all time. */
+        TopRequesterDto: {
+            userId: string;
+            displayName: string;
+            /** Format: int32 */
+            count: number;
+        };
+        StatusResponseDtoOfListOfSongHistoryItemDto: {
+            status?: string;
+            data?: null | components["schemas"]["SongHistoryItemDto"][];
+            message?: null | string;
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfListOfTopRequesterDto: {
+            status?: string;
+            data?: null | components["schemas"]["TopRequesterDto"][];
+            message?: null | string;
             code?: null | string;
             args?: null | unknown[];
         };

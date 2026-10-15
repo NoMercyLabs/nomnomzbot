@@ -44,7 +44,9 @@ import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/com
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+import HistoryPanel from './components/HistoryPanel.vue';
 import NowPlayingCard from './components/NowPlayingCard.vue';
+import ThanksPanel from './components/ThanksPanel.vue';
 import RulesPanel from './components/RulesPanel.vue';
 
 const { t } = useI18n();
@@ -253,18 +255,10 @@ const panels = computed(() => [
       </PanelCard>
     </BoardCell>
     <BoardCell panel="history" :span="6">
-      <PanelCard
-        :title="$t('dashboard.music.history.title')"
-        state="empty"
-        :empty-text="$t('dashboard.music.history.empty')"
-      />
+      <HistoryPanel />
     </BoardCell>
     <BoardCell panel="thanks" :span="6">
-      <PanelCard
-        :title="$t('dashboard.music.thanks.title')"
-        state="empty"
-        :empty-text="$t('dashboard.music.thanks.empty')"
-      />
+      <ThanksPanel />
     </BoardCell>
   </BoardGrid>
   <ConfirmDialog

@@ -888,6 +888,10 @@ public static class DependencyInjection
         // whose name ENDS in "Service", and these two are named for what they do (a backfill, an importer)
         // rather than padded to fit the scan.
         services.AddScoped<
+            Application.Music.Services.IMusicHistoryReader,
+            Music.MusicHistoryReader
+        >();
+        services.AddScoped<
             Application.Music.Services.ISongRequestHistoryBackfill,
             Music.Replay.SongRequestHistoryBackfill
         >();

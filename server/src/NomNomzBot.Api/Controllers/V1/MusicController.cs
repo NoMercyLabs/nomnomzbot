@@ -35,14 +35,17 @@ public class MusicController : BaseController
     private readonly IMusicConfigService _configService;
     private readonly ISongRequestPageTokenService _srPageTokens;
     private readonly IBlockedTrackService _blockedTracks;
+    private readonly IMusicHistoryReader _history;
 
     public MusicController(
         IMusicService musicService,
         IMusicConfigService configService,
         ISongRequestPageTokenService srPageTokens,
-        IBlockedTrackService blockedTracks
+        IBlockedTrackService blockedTracks,
+        IMusicHistoryReader history
     )
     {
+        _history = history;
         _musicService = musicService;
         _configService = configService;
         _srPageTokens = srPageTokens;
@@ -267,6 +270,44 @@ public class MusicController : BaseController
             ct
         );
         return ResultResponse(result);
+    }
+
+    // ─── History ─────────────────────────────────────────────────────────────
+
+    /// <summary>The channel's most recent accepted song requests, newest first, with the requester.</summary>
+    [RequireAction("music:config:read")]
+    [HttpGet("history")]
+    [ProducesResponseType<StatusResponseDto<List<SongHistoryItemDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistory(
+        string channelId,
+        [FromQuery] int limit = 12,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(
+            await _history.GetRecentAsync(broadcasterId, Math.Clamp(limit, 1, 100), ct)
+        );
+    }
+
+    /// <summary>The viewers who requested the most songs in this channel, all time.</summary>
+    [RequireAction("music:config:read")]
+    [HttpGet("top-requesters")]
+    [ProducesResponseType<StatusResponseDto<List<TopRequesterDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTopRequesters(
+        string channelId,
+        [FromQuery] int limit = 8,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(
+            await _history.GetTopRequestersAsync(broadcasterId, Math.Clamp(limit, 1, 100), ct)
+        );
     }
 
     // ─── Blocked tracks (legacy !bansong) ─────────────────────────────────────

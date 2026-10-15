@@ -71,11 +71,18 @@
       },
       "history": {
         "title": "Geschiedenis",
-        "empty": "Nog niet vastgelegd. Gespeelde nummers verschijnen hier."
+        "empty": "Nog niet vastgelegd. Nummerverzoeken verschijnen hier.",
+        "error": "De geschiedenis kon niet laden.",
+        "unknownTrack": "Onbekend nummer",
+        "showing": "{count} recente verzoeken getoond"
       },
       "thanks": {
         "title": "Bedankt voor de muziek",
-        "empty": "Nog niet vastgelegd. De beste aanvragers verschijnen hier."
+        "subtitle": "Meeste nummers aangevraagd, alle tijd",
+        "empty": "Nog niet vastgelegd. De beste aanvragers verschijnen hier.",
+        "error": "De beste aanvragers konden niet laden.",
+        "songs": "{count} nummers | {count} nummer | {count} nummers",
+        "openPeople": "Open mensen"
       }
     }
   }
