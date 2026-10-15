@@ -146,7 +146,6 @@ import nomnomzbot.composeapp.generated.resources.commands_dialog_alias_placehold
 import nomnomzbot.composeapp.generated.resources.commands_dialog_alias_remove
 import nomnomzbot.composeapp.generated.resources.commands_dialog_aliases_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_cooldown_label
-import nomnomzbot.composeapp.generated.resources.commands_dialog_cooldown_per_user_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_custom_prefix_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_description_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_match_mode_label
@@ -783,7 +782,6 @@ private fun CommandFormDialog(
         codeScriptResolved = true
     }
     var cooldown: String by remember { mutableStateOf(editor.cooldownSeconds.toString()) }
-    var cooldownPerUser: Boolean by remember { mutableStateOf(editor.cooldownPerUser) }
     var userCooldown: String by remember { mutableStateOf(editor.userCooldownSeconds.toString()) }
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
     var speakWithTts: Boolean by remember { mutableStateOf(editor.speakWithTts) }
@@ -836,7 +834,6 @@ private fun CommandFormDialog(
         )
     val enabledLabel: String = stringResource(Res.string.commands_dialog_enabled_label)
     val randomModeLabel: String = stringResource(Res.string.commands_dialog_random_mode_label)
-    val perUserLabel: String = stringResource(Res.string.commands_dialog_cooldown_per_user_label)
 
     // A "code" command's reaction has no field of its own to send — it IS a single-step run_code
     // pipeline (S046-code-tier-link), so submitting it first creates/repoints that wrapping pipeline
@@ -858,7 +855,6 @@ private fun CommandFormDialog(
             pipelineId = resolvedPipelineId,
             cooldownSeconds = cooldownValue ?: 0,
             userCooldownSeconds = userCooldownValue ?: 0,
-            cooldownPerUser = cooldownPerUser,
             description = description,
             aliases = aliases.toList(),
             isEnabled = enabled,
@@ -882,7 +878,7 @@ private fun CommandFormDialog(
         listOf(
             name, description, tier, minLevel, prefixMode, customPrefix, matchMode, matchPattern, randomMode,
             response, responses.toList(), aliases.toList(), selectedPipelineId, selectedCodeScriptId, cooldown,
-            cooldownPerUser, userCooldown, enabled,
+            userCooldown, enabled,
         )
     val baseline: List<Any?> = remember(codeScriptResolved) { currentValues }
 
@@ -1166,7 +1162,7 @@ private fun CommandFormDialog(
             },
         )
 
-        // Cooldowns — global, plus an optional separate per-user window.
+        // Cooldowns — one for everyone and one per viewer; each is applied only when above 0.
         AppTextField(
             value = cooldown,
             onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
@@ -1175,21 +1171,14 @@ private fun CommandFormDialog(
             modifier = Modifier.fillMaxWidth(),
             label = stringResource(Res.string.commands_dialog_cooldown_label),
         )
-        SwitchRow(
-            label = perUserLabel,
-            checked = cooldownPerUser,
-            onCheckedChange = { cooldownPerUser = it },
+        AppTextField(
+            value = userCooldown,
+            onValueChange = { input -> userCooldown = input.filter { it.isDigit() } },
+            isError = !userCooldownValid,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.commands_dialog_user_cooldown_label),
         )
-        if (cooldownPerUser) {
-            AppTextField(
-                value = userCooldown,
-                onValueChange = { input -> userCooldown = input.filter { it.isDigit() } },
-                isError = !userCooldownValid,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-                label = stringResource(Res.string.commands_dialog_user_cooldown_label),
-            )
-        }
 
         SwitchRow(
             label = enabledLabel,
@@ -1348,7 +1337,6 @@ private data class CommandEditor(
     val pipelineId: String?,
     val cooldownSeconds: Int,
     val userCooldownSeconds: Int,
-    val cooldownPerUser: Boolean,
     val description: String,
     val aliases: List<String>,
     val isEnabled: Boolean,
@@ -1372,7 +1360,6 @@ private data class CommandEditor(
                 pipelineId = null,
                 cooldownSeconds = 0,
                 userCooldownSeconds = 0,
-                cooldownPerUser = false,
                 description = "",
                 aliases = emptyList(),
                 isEnabled = true,
@@ -1394,7 +1381,6 @@ private data class CommandEditor(
                 pipelineId = command.pipelineId,
                 cooldownSeconds = command.cooldownSeconds,
                 userCooldownSeconds = command.userCooldownSeconds,
-                cooldownPerUser = command.cooldownPerUser,
                 description = command.description.orEmpty(),
                 aliases = command.aliases,
                 isEnabled = command.isEnabled,

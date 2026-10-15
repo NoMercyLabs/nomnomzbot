@@ -1065,9 +1065,8 @@
     <string name="commands_dialog_alias_placeholder">alias</string>
     <string name="commands_dialog_alias_add">Add alias</string>
     <string name="commands_dialog_alias_remove">Remove alias %1$s</string>
-    <string name="commands_dialog_cooldown_label">Cooldown (seconds)</string>
-    <string name="commands_dialog_cooldown_per_user_label">Separate per-user cooldown</string>
-    <string name="commands_dialog_user_cooldown_label">Per-user cooldown (seconds)</string>
+    <string name="commands_dialog_cooldown_label">Cooldown for everyone (seconds, 0 = off)</string>
+    <string name="commands_dialog_user_cooldown_label">Cooldown per viewer (seconds, 0 = off)</string>
     <string name="commands_dialog_shadow_warning_title">This name matches a built-in command</string>
     <string name="commands_dialog_shadow_warning_body">A built-in command called !%1$s already exists. If you save this command, yours will answer instead — the built-in will go silent for this channel. Only continue if that is what you want.</string>
     <string name="commands_dialog_shadow_acknowledge">I understand — save it anyway</string>
