@@ -30,13 +30,15 @@ const sample = useTtsSample(channelId);
 const audio = ref<HTMLAudioElement | null>(null);
 const playing = ref(false);
 
-const state = computed<SampleState>(() =>
-  playing.value
-    ? 'playing'
-    : sample.isPending.value
-      ? 'loading'
-      : 'idle',
-);
+const state = computed<SampleState>(() => {
+  if (playing.value)
+    return 'playing';
+
+  if (sample.isPending.value)
+    return 'loading';
+
+  return 'idle';
+});
 
 function stop(): void {
   audio.value?.pause();

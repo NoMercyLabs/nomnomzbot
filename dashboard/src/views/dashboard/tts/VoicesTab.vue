@@ -97,13 +97,15 @@ watch(
   { immediate: true },
 );
 
-const panelState = computed<PanelState>(() =>
-  catalog.isError.value
-    ? 'error'
-    : settled.value
-      ? 'ready'
-      : 'loading',
-);
+const panelState = computed<PanelState>(() => {
+  if (catalog.isError.value)
+    return 'error';
+
+  if (settled.value)
+    return 'ready';
+
+  return 'loading';
+});
 
 const chosen = computed<string | null>(
   () => config.data.value?.defaultVoiceId ?? null,

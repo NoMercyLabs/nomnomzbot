@@ -30,7 +30,7 @@ import ListDetail from '@/components/layout/ListDetail.vue';
 import HelperPanel from '@/components/layout/HelperPanel.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
+import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -163,6 +163,18 @@ const consequences = ['chat', 'pipeline', 'history'].map((key: string) =>
 const { channelId } = useCurrentChannel();
 const community = useCommunityFirstPage(channelId);
 const people = computed<CommunityRow[]>(() => community.data.value ?? []);
+
+const profileState = computed<PanelState>(() => {
+  if (community.isError.value)
+    return 'error';
+
+  if (community.isPending.value)
+    return 'loading';
+
+  return people.value.length > 0
+    ? 'ready'
+    : 'empty';
+});
 
 const formOpen = ref(false);
 
@@ -530,15 +542,7 @@ function confirmDelete(): void {
 
           <PanelCard
             :title="t('dashboard.catalog.profile.title')"
-            :state="
-              community.isError.value
-                ? 'error'
-                : community.isPending.value
-                  ? 'loading'
-                  : people.length > 0
-                    ? 'ready'
-                    : 'empty'
-            "
+            :state="profileState"
             :empty-text="t('dashboard.catalog.profile.empty')"
             pad
             @retry="community.refetch()"

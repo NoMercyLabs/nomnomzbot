@@ -148,6 +148,16 @@ function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): Music
   };
 }
 
+function transportKey(isPlaying: boolean | null): 'skipSong' | 'resumeSong' | 'pauseSong' {
+  if (isPlaying === null)
+    return 'skipSong';
+
+  if (isPlaying)
+    return 'resumeSong';
+
+  return 'pauseSong';
+}
+
 function transport(
   channelId: MaybeRefOrGetter<string | null>,
   path:
@@ -157,11 +167,7 @@ function transport(
   isPlaying: boolean | null,
 ): QueueMutation {
   return useOptimisticSave<MusicQueue, void>({
-    describe: () => ({ key: isPlaying === null
-      ? 'skipSong'
-      : isPlaying
-        ? 'resumeSong'
-        : 'pauseSong' }),
+    describe: () => ({ key: transportKey(isPlaying) }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async (): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;

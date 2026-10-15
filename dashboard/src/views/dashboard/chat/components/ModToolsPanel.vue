@@ -89,6 +89,17 @@ const banDisabled = computed(() =>
 
 type DurationMode = (typeof lengths)[number]['mode'];
 
+// The number a mode shows: its own length, or the chat delay's when the mode carries none.
+function durationOf(current: ChatSettings, mode: Mode): ChatSettings['slowModeDelay'] {
+  if (mode === 'slowMode')
+    return current.slowModeDelay;
+
+  if (mode === 'followersOnly')
+    return current.followersOnlyDuration;
+
+  return current.nonModeratorChatDelayDuration;
+}
+
 const rangeError = ref<DurationMode | null>(null);
 
 function inRange(mode: DurationMode, value: number): boolean {
@@ -222,9 +233,7 @@ async function confirm(): Promise<void> {
               </label>
               <p class="text-xs text-muted-foreground">
                 {{ $t(`dashboard.chat.modTools.hint.${mode}`, {
-                  value: mode === 'slowMode' ? settings.data.value.slowModeDelay
-                    : mode === 'followersOnly' ? settings.data.value.followersOnlyDuration
-                      : settings.data.value.nonModeratorChatDelayDuration,
+                  value: durationOf(settings.data.value, mode),
                 }) }}
               </p>
             </div>
@@ -236,9 +245,7 @@ async function confirm(): Promise<void> {
               class="col-start-2 w-full"
               :aria-invalid="rangeError === mode"
               :aria-label="$t(`dashboard.chat.modTools.duration.${mode}`)"
-              :model-value="mode === 'slowMode' ? settings.data.value.slowModeDelay
-                : mode === 'followersOnly' ? settings.data.value.followersOnlyDuration
-                  : settings.data.value.nonModeratorChatDelayDuration"
+              :model-value="durationOf(settings.data.value, mode)"
               :disabled="!canWrite || save.isPending.value"
               @change="setDuration(mode, $event)"
             />

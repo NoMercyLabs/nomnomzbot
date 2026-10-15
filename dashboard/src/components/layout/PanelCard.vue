@@ -13,7 +13,7 @@
 // state (C7): the panel keeps its size in every state. A skeleton shows only after 150 ms,
 // so a fast answer never flashes one. The default slot shows only in the ready state.
 import { useTimeoutFn } from '@vueuse/core';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import Cross from '~icons/nnz/cross';
 
@@ -56,6 +56,40 @@ defineEmits<{ retry: [] }>();
 
 const drawerClose = useDrawerClose();
 
+const rootClass = computed<string | string[]>(() => {
+  if (props.bare)
+    return 'gap-3';
+
+  return ['overflow-hidden', props.flush
+    ? 'h-full'
+    : 'rounded-lg border border-border bg-card'];
+});
+
+const bodyPad = computed<string>(() => {
+  if (props.headless)
+    return '';
+
+  return props.pad
+    ? 'p-4'
+    : 'p-2';
+});
+
+const bodyClass = computed<string | string[]>(() => {
+  if (props.bare)
+    return '';
+
+  return ['overflow-y-auto', bodyPad.value];
+});
+
+const footerClass = computed<string | string[]>(() => {
+  if (props.bare)
+    return '';
+
+  return ['border-t border-border', props.headless
+    ? 'p-2'
+    : 'px-4 py-3'];
+});
+
 const skeletonShown = ref(false);
 const { start, stop } = useTimeoutFn(
   () => {
@@ -85,9 +119,7 @@ watch(
     data-slot="panel-card"
     :data-state="state"
     class="flex min-h-0 min-w-0 flex-col text-card-foreground"
-    :class="bare
-      ? 'gap-3'
-      : ['overflow-hidden', flush ? 'h-full' : 'rounded-lg border border-border bg-card']"
+    :class="rootClass"
   >
     <!-- The title keeps its whole width; actions sit beside it when they fit, else on their own row.
          The description runs the full width below. -->
@@ -124,7 +156,7 @@ watch(
       </div>
       <p v-if="description" class="basis-full text-sm text-muted-foreground">{{ description }}</p>
     </header>
-    <div class="min-h-0 flex-1" :class="bare ? '' : ['overflow-y-auto', headless ? '' : pad ? 'p-4' : 'p-2']">
+    <div class="min-h-0 flex-1" :class="bodyClass">
       <slot v-if="state === 'ready'" />
       <div
         v-else-if="state === 'loading'"
@@ -160,7 +192,7 @@ watch(
     <footer
       v-if="$slots.footer"
       class="flex flex-none items-center gap-2"
-      :class="bare ? '' : ['border-t border-border', headless ? 'p-2' : 'px-4 py-3']"
+      :class="footerClass"
     >
       <slot name="footer" />
     </footer>

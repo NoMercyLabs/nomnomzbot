@@ -78,6 +78,19 @@ const currency = {
   isEnabled: true,
 };
 
+function bodyFor(path: string): unknown {
+  if (path.endsWith('/auth/me'))
+    return { username: signedInAs };
+
+  if (path.endsWith('/economy/config'))
+    return currency;
+
+  if (path.endsWith('/profile'))
+    return profile;
+
+  return member;
+}
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
@@ -88,13 +101,7 @@ vi.mock('@/api/client', () => ({
         body: undefined,
       });
 
-      const body = path.endsWith('/auth/me')
-        ? { username: signedInAs }
-        : path.endsWith('/economy/config')
-          ? currency
-          : path.endsWith('/profile')
-            ? profile
-            : member;
+      const body = bodyFor(path);
 
       return { data: { data: body }, response: { status: 200, ok: true } };
     },
