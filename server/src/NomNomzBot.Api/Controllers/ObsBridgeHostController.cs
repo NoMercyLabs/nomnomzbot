@@ -193,10 +193,15 @@ public sealed class ObsBridgeHostController : ControllerBase
                   // Also drain commands still QUEUED (awaiting a live socket) so a local-OBS connect failure fails
                   // them fast instead of stranding the first command until the server's 15s timeout.
                   failAll(reason);
+                  scheduleRetry();
                 }
                 function failAll(reason) {
                   var q = queue; queue = [];
                   q.forEach(function (c) { relay.ack(c.commandId, false, null, reason); });
+                }
+                function scheduleRetry() {
+                  if (!wanted) return;
+                  setTimeout(connect, retryMs); retryMs = Math.min(retryMs * 2, 30000);
                 }
 
                 // Send one op-6 request / op-8 batch, correlated by requestId = commandId, then ack.

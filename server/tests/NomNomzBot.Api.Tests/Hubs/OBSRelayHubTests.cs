@@ -145,7 +145,11 @@ public sealed class OBSRelayHubTests
             }
         );
         await db.SaveChangesAsync();
-        Fixture f = Build(db, Substitute.For<IObsConnectionService>());
+        IObsConnectionService connections = Substitute.For<IObsConnectionService>();
+        connections
+            .GetPasswordForTransportAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+        Fixture f = Build(db, connections);
 
         await f.Hub.OnConnectedAsync();
 
@@ -173,10 +177,11 @@ public sealed class OBSRelayHubTests
             .Returns("another-bridge");
         await f.Hub.ForwardObsEvent("CurrentProgramSceneChanged", "{}");
         await f.Hub.ForwardVtsEvent("ModelLoadedEvent", "{}");
-        f.Bus.ReceivedCalls().Should().BeEmpty("a non-leader bridge would publish every event twice");
+        f.Bus.ReceivedCalls()
+            .Should()
+            .BeEmpty("a non-leader bridge would publish every event twice");
 
-        f.Registry.GetLeaderAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns("bridge-conn");
+        f.Registry.GetLeaderAsync(Broadcaster, Arg.Any<CancellationToken>()).Returns("bridge-conn");
         await f.Hub.ForwardObsEvent("CurrentProgramSceneChanged", """{"sceneName":"Game"}""");
 
         await f

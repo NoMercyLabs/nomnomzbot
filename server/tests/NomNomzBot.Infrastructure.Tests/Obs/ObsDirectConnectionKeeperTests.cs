@@ -106,9 +106,7 @@ public sealed class ObsDirectConnectionKeeperTests
         clock.Advance(TimeSpan.FromSeconds(1));
         await keeper.SweepAsync(CancellationToken.None); // attempt 3
 
-        await h
-            .Factory.Received(3)
-            .ConnectAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>());
+        await h.Factory.Received(3).ConnectAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>());
         h.Transport.IsConnected(Channel).Should().BeFalse();
     }
 
@@ -121,12 +119,8 @@ public sealed class ObsDirectConnectionKeeperTests
         await Keeper(bridge, new()).SweepAsync(CancellationToken.None);
         await Keeper(disabled, new()).SweepAsync(CancellationToken.None);
 
-        await bridge
-            .Factory.DidNotReceiveWithAnyArgs()
-            .ConnectAsync(default!, default);
-        await disabled
-            .Factory.DidNotReceiveWithAnyArgs()
-            .ConnectAsync(default!, default);
+        await bridge.Factory.DidNotReceiveWithAnyArgs().ConnectAsync(default!, default);
+        await disabled.Factory.DidNotReceiveWithAnyArgs().ConnectAsync(default!, default);
     }
 
     private static async Task<T> WaitForAsync<T>(Func<T?> probe)

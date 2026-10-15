@@ -8,9 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Persistence;
 
 namespace NomNomzBot.Infrastructure.Obs.Transport;
 
@@ -30,6 +32,7 @@ public sealed class ObsDirectConnectionKeeper : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeProvider _clock;
     private readonly ILogger<ObsDirectConnectionKeeper> _logger;
+    private readonly Dictionary<Guid, RetryState> _retry = [];
 
     public ObsDirectConnectionKeeper(
         DirectObsTransport transport,
@@ -62,5 +65,70 @@ public sealed class ObsDirectConnectionKeeper : BackgroundService
     }
 
     /// <summary>One pass: dial each enabled direct channel that has no live session and whose backoff is due.</summary>
-    internal Task SweepAsync(CancellationToken ct) => Task.CompletedTask;
+    internal async Task SweepAsync(CancellationToken ct)
+    {
+        List<Guid> channels;
+        using (IServiceScope scope = _scopeFactory.CreateScope())
+        {
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            channels = await db
+                .ObsConnections.Where(c => c.IsEnabled && c.Mode == "direct")
+                .Select(c => c.BroadcasterId)
+                .ToListAsync(ct);
+        }
+
+        foreach (Guid stale in _retry.Keys.Where(id => !channels.Contains(id)).ToList())
+            _retry.Remove(stale);
+
+        DateTimeOffset now = _clock.GetUtcNow();
+        foreach (Guid channel in channels)
+        {
+            if (_transport.IsConnected(channel))
+            {
+                _retry.Remove(channel);
+                continue;
+            }
+
+            if (_retry.TryGetValue(channel, out RetryState? state) && state.NextAttempt > now)
+                continue;
+
+            await DialAsync(channel, state, now, ct);
+        }
+    }
+
+    private async Task DialAsync(
+        Guid channel,
+        RetryState? previous,
+        DateTimeOffset now,
+        CancellationToken ct
+    )
+    {
+        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(DialTimeout);
+
+        bool connected;
+        try
+        {
+            connected = (await _transport.ConnectAsync(channel, timeout.Token)).IsSuccess;
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogDebug(ex, "OBS direct dial threw for channel {ChannelId}.", channel);
+            connected = false;
+        }
+
+        if (connected)
+        {
+            _retry.Remove(channel);
+            return;
+        }
+
+        TimeSpan backoff = previous is null
+            ? InitialBackoff
+            : TimeSpan.FromTicks(Math.Min(previous.Backoff.Ticks * 2, MaxBackoff.Ticks));
+        _retry[channel] = new(now + backoff, backoff);
+    }
+
+    private sealed record RetryState(DateTimeOffset NextAttempt, TimeSpan Backoff);
 }
