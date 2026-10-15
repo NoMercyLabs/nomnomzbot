@@ -107,9 +107,13 @@ function headStyle(l: ChatLine): Record<string, string> {
   const style: Record<string, string> = {}
   if (image) {
     style['background-image'] = image
-    style['background-size'] = 'cover'
-    style['background-position'] = 'center'
-    style['background-repeat'] = 'no-repeat'
+    // A gradient is applied exactly as 7TV defines it (no size/position/repeat overrides); only a raster
+    // picture needs to be fitted to the bar.
+    if (image.startsWith('url(')) {
+      style['background-size'] = 'cover'
+      style['background-position'] = 'center'
+      style['background-repeat'] = 'no-repeat'
+    }
   }
   if (!image || image.startsWith('url(')) {
     if (colors.length) style['background-color'] = colors[0]

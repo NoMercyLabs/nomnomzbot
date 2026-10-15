@@ -135,6 +135,29 @@ public sealed class ChatBoxHeaderPaintTests
     }
 
     [Fact]
+    public void Temptic404_city_lights_paint_is_applied_exactly_as_7tv_defines_it()
+    {
+        // "City Lights", the live 7TV paint of temptic404 (flattened by SevenTvPaintMapper).
+        const string gradient =
+            "linear-gradient(360deg, #FE019AFF 25%, #FC708EFF 40%, #F5A67CFF 50%, #E7D45EFF 59%, #CFFF04FF 80%)";
+        Engine engine = BuildEngine();
+
+        IDictionary<string, object> style = HeadStyle(
+            engine,
+            Line("#ff0000", GradientPaint(gradient, "#FE019AFF"))
+        );
+
+        style["background-image"].Should().Be(gradient);
+        style
+            .Keys.Should()
+            .NotContain(
+                ["background-size", "background-position", "background-repeat", "background-color"],
+                "7TV does not override size, position or repeat of its own gradient"
+            );
+        style["color"].Should().Be("#000000");
+    }
+
+    [Fact]
     public void Dark_paint_gets_white_text()
     {
         Engine engine = BuildEngine();

@@ -35,6 +35,36 @@ public sealed class SevenTvPaintMapperTests
         );
 
     [Fact]
+    public void Temptic404_city_lights_paint_keeps_every_7tv_stop_and_shadow_exactly()
+    {
+        // "City Lights" (01KQ92ZQRGHYMNGXYNTVYF5AEB), verbatim from the live v4 API on 2026-10-15.
+        ChatPaint? paint = SevenTvPaintMapper.Map(
+            "01KQ92ZQRGHYMNGXYNTVYF5AEB",
+            "City Lights",
+            [
+                Linear(
+                    360,
+                    repeating: false,
+                    (0.25, "#FE019AFF"),
+                    (0.4, "#FC708EFF"),
+                    (0.5, "#F5A67CFF"),
+                    (0.59, "#E7D45EFF"),
+                    (0.8, "#CFFF04FF")
+                ),
+            ],
+            [new SevenTvPaintMapper.Shadow("#FF00BBFF", 0, 0, 4)]
+        );
+
+        paint.Should().NotBeNull();
+        paint!
+            .BackgroundImage.Should()
+            .Be(
+                "linear-gradient(360deg, #FE019AFF 25%, #FC708EFF 40%, #F5A67CFF 50%, #E7D45EFF 59%, #CFFF04FF 80%)"
+            );
+        paint.TextShadow.Should().Be("0px 0px 4px #FF00BBFF");
+    }
+
+    [Fact]
     public void A_real_linear_gradient_paint_becomes_a_css_gradient()
     {
         // "Ginger Tabby S", verbatim from the live API.
