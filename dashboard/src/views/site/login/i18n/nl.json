@@ -11,6 +11,7 @@
       "loading": "De aanmeldopties laden…",
       "with": "Ga verder met {provider}",
       "useCode": "Gebruik in plaats daarvan een code",
+      "viewer": "Inloggen als kijker",
       "codeWith": "Vraag een {provider}-code aan",
       "codeChoose": "Voor welk account wil je een code?",
       "codeOnly": "{host} heeft een eigen aanmeldpagina. Vanaf hier meld je je aan met een code.",

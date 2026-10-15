@@ -1,0 +1,34 @@
+{
+  "viewer": {
+    "me": {
+      "title": "Jouw cijfers in {channel}",
+      "notFound": "Dit kanaal is hier niet ingesteld.",
+      "retry": "Opnieuw proberen",
+      "stats": {
+        "messages": "Berichten",
+        "commands": "Gebruikte commando's",
+        "songs": "Nummerverzoeken",
+        "points": "Punten",
+        "follow": "Volgt sinds",
+        "notFollowing": "Volgt niet",
+        "sub": "Abonnement",
+        "notSubbed": "Niet geabonneerd",
+        "tier": "Niveau {tier}",
+        "live": "Kanaal",
+        "liveYes": "Nu live",
+        "liveNo": "Offline",
+        "firstSeen": "Voor het eerst gezien op {date}",
+        "lastSeen": "Laatst gezien op {date}",
+        "error": "Je cijfers zijn niet geladen."
+      },
+      "queue": {
+        "title": "Jouw nummers in de wachtrij",
+        "description": "Alleen je eigen verzoeken. Je plek telt vanaf het volgende nummer.",
+        "empty": "Je hebt geen nummers in de wachtrij.",
+        "error": "Je wachtrij is niet geladen.",
+        "position": "Eerstvolgende | {n} in de rij",
+        "total": "{count} nummers in de hele wachtrij"
+      }
+    }
+  }
+}

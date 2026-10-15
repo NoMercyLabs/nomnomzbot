@@ -9986,6 +9986,13 @@
             }
           },
           {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "version",
             "in": "path",
             "required": true,
@@ -93518,6 +93525,106 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/viewer/me/queue": {
+      "get": {
+        "tags": [
+          "Viewer"
+        ],
+        "summary": "The caller's own songs in the channel's song-request queue, with their place in line.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfViewerQueueDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/voice-triggers/listener-link": {
       "get": {
         "tags": [
@@ -137908,6 +138015,43 @@
           }
         }
       },
+      "StatusResponseDtoOfViewerQueueDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ViewerQueueDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfViewerReportDto": {
         "type": "object",
         "properties": {
@@ -146259,6 +146403,74 @@
           }
         },
         "description": "Everything the domain model tracks about one person within one channel (owner punch list 2026-09-08 §3,\r\nthe Community Profile page). Every group here mirrors a row of that punch-list table; a null/empty group\r\nmeans the person genuinely has no data there yet — never a fetch that silently failed."
+      },
+      "ViewerQueuedSongDto": {
+        "required": [
+          "position",
+          "trackName",
+          "artist",
+          "durationMs",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "trackName": {
+            "type": "string"
+          },
+          "artist": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "description": "One of the caller's own songs in the queue. `Position` is 1-based: 1 plays next."
+      },
+      "ViewerQueueDto": {
+        "required": [
+          "queueLength",
+          "songs"
+        ],
+        "type": "object",
+        "properties": {
+          "queueLength": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "songs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewerQueuedSongDto"
+            }
+          }
+        },
+        "description": "The caller's own songs in one channel's queue, plus the full queue length for context."
       },
       "ViewerRaidsDto": {
         "required": [

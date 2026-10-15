@@ -14,10 +14,11 @@ import { dashboardRoutes } from './dashboard';
 import { signInGuard } from './guard';
 import { popoutRoutes } from './popout';
 import { siteRoutes } from './site';
+import { viewerRoutes } from './viewer';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [siteRoutes, dashboardRoutes, popoutRoutes],
+  routes: [siteRoutes, dashboardRoutes, popoutRoutes, viewerRoutes],
 });
 
 router.beforeEach(signInGuard);

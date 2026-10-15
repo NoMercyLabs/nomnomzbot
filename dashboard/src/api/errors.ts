@@ -41,6 +41,7 @@ export type ApiOrigin =
   'shoutouts' |
   'stream' |
   'tts' |
+  'viewer' |
   'widgets';
 
 // The catalog: every operation that can fail, and the module it belongs to. A new operation is added here
@@ -174,6 +175,9 @@ export const apiOperations = {
   'tts voices': 'tts',
   'person voice': 'tts',
   'tts sample': 'tts',
+  'viewer channel': 'viewer',
+  'viewer summary': 'viewer',
+  'viewer queue': 'viewer',
   widgets: 'widgets',
   'widget settings': 'widgets',
   'widget test': 'widgets',

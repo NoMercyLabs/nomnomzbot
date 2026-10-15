@@ -65,6 +65,18 @@ export function signInUrl(provider: string, returnTo: string): string {
   return `${activeBot.value}/api/v1/${path}?${query}`;
 }
 
+// A viewer's sign-in asks the platform for the smallest scope, so the bot reads the viewer's own identity
+// and nothing else. It is a Twitch flow; the viewer page is the return path.
+export function viewerSignInUrl(returnTo: string): string {
+  const query = new URLSearchParams({
+    client: 'web',
+    mode: 'viewer',
+    return_to: returnTo,
+  });
+
+  return `${activeBot.value}/api/v1/auth/twitch?${query}`;
+}
+
 export async function startDeviceSignIn(provider: string): Promise<DeviceCode | null> {
   const { data } = await client.POST('/api/v{version}/auth/{provider}/device', {
     params: { path: { ...version, provider } },
