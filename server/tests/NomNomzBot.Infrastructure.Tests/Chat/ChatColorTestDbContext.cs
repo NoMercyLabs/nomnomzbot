@@ -115,7 +115,16 @@ internal sealed class ChatColorTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(x => x.Channel);
             e.Ignore(x => x.Stream);
             e.Ignore(x => x.Fragments);
-            e.Ignore(x => x.Badges);
+            // Production stores badges as jsonb; SQLite keeps the same JSON as text.
+            e.Property(x => x.Badges)
+                .HasConversion(
+                    badges => System.Text.Json.JsonSerializer.Serialize(badges, JsonOptions),
+                    json =>
+                        System.Text.Json.JsonSerializer.Deserialize<List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>>(
+                            json,
+                            JsonOptions
+                        ) ?? new List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>()
+                );
         });
         b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>(e =>
         {
@@ -148,6 +157,8 @@ internal sealed class ChatColorTestDbContext : DbContext, IApplicationDbContext
 
         return base.SaveChangesAsync(cancellationToken);
     }
+
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new();
 
     private static readonly HashSet<Type> Mapped =
     [

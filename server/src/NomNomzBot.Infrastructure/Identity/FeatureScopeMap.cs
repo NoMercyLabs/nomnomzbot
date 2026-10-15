@@ -41,6 +41,7 @@ public static class FeatureScopeMap
         // (the bot-side half, user:bot, rides the bot's own grant, not the streamer's).
         ["bot_badge"] = ["channel:bot"],
         ["chat_emotes"] = ["user:read:emotes"],
+        ["chat_color"] = ["user:manage:chat_color"],
         // Core proactive management jobs (roles-permissions §4): editor-role sync reads channel editors, and the
         // bot self-mod on join makes the bot a channel moderator. Both scopes ride the base streamer grant now,
         // so these entries mainly give a stale-token streamer a NAMED gap to grant rather than a raw scope row.
@@ -84,6 +85,7 @@ public static class FeatureScopeMap
         ["chat_send"] = "send messages in your chat",
         ["bot_badge"] = "let your bot appear with the chatbot badge in your chat",
         ["chat_emotes"] = "show the emotes you can use across every channel you're subscribed to",
+        ["chat_color"] = "change your name color in chat from the dashboard",
         ["management_roles"] = "sync your Twitch channel editors into dashboard roles",
         ["bot_moderator"] = "let your bot moderate chat by making it a channel moderator",
         ["moderated_channels"] = "show the other channels you moderate in the channel switcher",
