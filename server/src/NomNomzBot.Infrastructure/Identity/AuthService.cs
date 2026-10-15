@@ -111,6 +111,9 @@ public sealed class AuthService : IAuthService
         // token, so the scope must be granted on THIS identity — the streamer-side grant above only covers
         // the single-account self-host. Without it the platform-plane subscribe 403s (that one topic only).
         "user:read:whispers",
+        // Answering a whisper: Send Whisper signs as the bot's own token. A bot signed in before this scope
+        // existed gets the existing missing-scope card (additive re-grant), never a logout.
+        "user:manage:whispers",
     ];
 
     public AuthService(

@@ -145,6 +145,12 @@ public sealed class StubScopeTokenResolver(params string[] grantedScopes) : ITwi
         CancellationToken ct = default
     ) => Task.FromResult(_scopes.Contains(scope));
 
+    public Task<bool> HasBotScopeAsync(
+        Guid channelId,
+        string scope,
+        CancellationToken ct = default
+    ) => Task.FromResult(_scopes.Contains(scope));
+
     public Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default) =>
         throw new NotSupportedException();
 

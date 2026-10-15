@@ -37,6 +37,13 @@ public interface IBuiltinCommand
     /// </summary>
     bool IsReserved => false;
 
+    /// <summary>
+    /// True when the built-in only reads information any viewer may see, so it may also run from a whisper
+    /// (its reply goes back as a whisper, never to chat). Defaults to false: a command stays chat-only until
+    /// it is explicitly marked.
+    /// </summary>
+    bool WhisperSafe => false;
+
     Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
         CancellationToken ct = default

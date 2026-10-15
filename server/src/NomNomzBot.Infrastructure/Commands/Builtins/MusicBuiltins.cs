@@ -280,6 +280,7 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
     private const int PreviewSize = 5;
 
     public string BuiltinKey => BuiltinResponseSlots.Queue.Key;
+    public bool WhisperSafe => true;
     public int DefaultCooldownSeconds => 10;
     public int DefaultMinPermissionLevel => 0;
 
@@ -555,6 +556,7 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
     : IBuiltinCommand
 {
     public string BuiltinKey => BuiltinResponseSlots.Song.Key;
+    public bool WhisperSafe => true;
     public int DefaultCooldownSeconds => 10;
     public int DefaultMinPermissionLevel => 0;
 

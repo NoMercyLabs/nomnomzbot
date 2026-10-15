@@ -234,17 +234,37 @@ public sealed class TwitchTokenResolver(
             return false;
         }
 
-        bool granted =
-            connection is not null
-            && connection.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
+        return await CheckAndReportAsync(connection, broadcasterId, scope, ct);
+    }
 
-        // The single chokepoint every sub-client's per-method scope pre-check calls — so emitting here makes the
-        // proactive precheck path feed the same reactive missing-scope surface as a runtime 403, for ALL clients,
-        // without touching each one. A gap already reported against this exact grant is not re-published: every
-        // publish is journaled, writes a row and recomputes the inbox. A changed grant reports it again.
+    public async Task<bool> HasBotScopeAsync(
+        Guid channelId,
+        string scope,
+        CancellationToken ct = default
+    )
+    {
+        // The same connection GetBotTokenAsync signs with: the registered bot, else the self-host owner.
+        IntegrationConnection? connection =
+            await ConnectionAsync(null, BotProvider, ct) ?? await OwnerUserConnectionAsync(ct);
+
+        return await CheckAndReportAsync(connection, channelId, scope, ct);
+    }
+
+    // The single chokepoint every sub-client's per-method scope pre-check calls — so emitting here makes the
+    // proactive precheck path feed the same reactive missing-scope surface as a runtime 403, for ALL clients,
+    // without touching each one. A gap already reported against this exact grant is not re-published: every
+    // publish is journaled, writes a row and recomputes the inbox. A changed grant reports it again.
+    private async Task<bool> CheckAndReportAsync(
+        IntegrationConnection? connection,
+        Guid broadcasterId,
+        string scope,
+        CancellationToken ct
+    )
+    {
         if (connection is null)
-            return granted;
+            return false;
 
+        bool granted = connection.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
         (Guid, string) gap = (broadcasterId, scope.ToLowerInvariant());
         if (granted)
         {
