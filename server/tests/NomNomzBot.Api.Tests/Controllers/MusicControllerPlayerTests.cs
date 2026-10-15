@@ -31,7 +31,8 @@ public sealed class MusicControllerPlayerTests
             music,
             Substitute.For<IMusicConfigService>(),
             Substitute.For<ISongRequestPageTokenService>(),
-            Substitute.For<IBlockedTrackService>()
+            Substitute.For<IBlockedTrackService>(),
+            Substitute.For<IMusicHistoryReader>()
         )
         {
             ControllerContext = new() { HttpContext = new DefaultHttpContext() },
