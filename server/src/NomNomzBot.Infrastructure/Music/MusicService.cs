@@ -1299,12 +1299,17 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         string? playingTrackUri
     )
     {
-        SongRequestEntry? inFlight = queueStore.GetInFlight(broadcasterId);
-        if (inFlight is null || string.IsNullOrEmpty(playingTrackUri))
+        if (string.IsNullOrEmpty(playingTrackUri))
             return null;
 
-        return string.Equals(inFlight.TrackUri, playingTrackUri, StringComparison.Ordinal)
-            ? inFlight.RequestedBy
+        SongRequestEntry? inFlight = queueStore.GetInFlight(broadcasterId);
+        if (string.Equals(inFlight?.TrackUri, playingTrackUri, StringComparison.Ordinal))
+            return inFlight?.RequestedBy;
+
+        SongRequestEntry? playing = queueStore.GetPlayingRequest(broadcasterId);
+
+        return string.Equals(playing?.TrackUri, playingTrackUri, StringComparison.Ordinal)
+            ? playing?.RequestedBy
             : null;
     }
 
