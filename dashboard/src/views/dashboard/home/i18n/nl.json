@@ -140,6 +140,7 @@
         "replayResult": "{events} gebeurtenissen opnieuw afgespeeld: {chat} chatberichten, {voice} stemmen, {overlays} overlays, {widgets} widgets.",
         "replayNotFound": "Niets om opnieuw af te spelen voor deze gebeurtenis.",
         "replayFailed": "Kan deze gebeurtenis niet opnieuw afspelen.",
+        "replayNothing": "De gebeurtenis is gevonden, maar er was niets om opnieuw te tonen: er is geen reactie voor ingesteld en er is geen melding bewaard.",
         "type": {
           "channel_follow": "Volgt nu",
           "channel_subscribe": "Abonneerde op Twitch",

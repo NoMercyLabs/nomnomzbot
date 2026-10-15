@@ -36,6 +36,7 @@ public sealed record ViewerProfileSummaryDto(
     ViewerPermitsDto Permits,
     ViewerOverridesDto Overrides,
     ViewerCommandUsageDto CommandUsage,
+    ViewerRaidsDto Raids,
     IReadOnlyList<ViewerDatumDto> FreeFormData,
     // Bounded first page (newest first); page further via GET /channels/{channelId}/quotes?userId=.
     IReadOnlyList<QuoteDto> RecentQuotes,
@@ -113,6 +114,12 @@ public sealed record ViewerOverridesDto(string? ShoutoutMessageTemplate, UserTts
 
 /// <summary>Command usage (owner punch list §3 row 7).</summary>
 public sealed record ViewerCommandUsageDto(int TotalCommandsUsed, DateTime? LastUsedUtc);
+
+/// <summary>
+/// Completed raids between this person's channel and this channel, counted from the journaled EventSub
+/// <c>channel.raid</c> rows (the executed signal, not the countdown start). Zero means none were recorded.
+/// </summary>
+public sealed record ViewerRaidsDto(int TimesRaidedThisChannel, int TimesThisChannelRaidedThem);
 
 /// <summary>One free-form <c>ViewerDatum</c> key/value pair (owner punch list §3 row 8).</summary>
 public sealed record ViewerDatumDto(string Key, string Value);

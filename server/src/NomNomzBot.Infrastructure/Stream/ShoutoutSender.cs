@@ -190,8 +190,7 @@ public sealed class ShoutoutSender : IShoutoutSender
 
         if (announceResult.IsSuccess)
             await RecordAsync(
-                request.BroadcasterId,
-                rawUserId,
+                request,
                 replayUncertain ? "replay-uncertain"
                     : request.SkipNative ? "announce-only"
                     : "pipeline",
@@ -206,23 +205,13 @@ public sealed class ShoutoutSender : IShoutoutSender
         if (announceResult.IsSuccess && request.Speak && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
-                new(
-                    BroadcasterId: request.BroadcasterId,
-                    RequestedByUserId: channel.OwnerUserId,
-                    RequestedByTwitchUserId: target.Id,
-                    RequestedByDisplayName: target.DisplayName,
-                    Text: ChatMentionName.ToSpoken(
-                        request.Announcement,
-                        target.DisplayName,
-                        target.Login
-                    ),
-                    VoiceIdOverride: null,
-                    BitsAmount: 0,
-                    CommunityStanding: "broadcaster",
-                    SourceMessageId: null,
-                    StreamId: null,
-                    Speaker: TtsSpeaker.Bot,
-                    SpokenNames: [target.DisplayName, target.Login]
+                SpeakRequest(
+                    request.BroadcasterId,
+                    channel.OwnerUserId,
+                    target.Id,
+                    target.DisplayName,
+                    target.Login,
+                    request.Announcement
                 ),
                 cancellationToken
             );
@@ -249,9 +238,35 @@ public sealed class ShoutoutSender : IShoutoutSender
         );
     }
 
-    private async Task RecordAsync(
+    /// <summary>The spoken form of a shoutout announcement, in the channel's one bot voice. The sender and a
+    /// dashboard replay build it the same way, so a replay sounds like the original.</summary>
+    internal static TtsSpeakRequest SpeakRequest(
         Guid broadcasterId,
-        string targetUserId,
+        Guid ownerUserId,
+        string targetTwitchId,
+        string targetDisplayName,
+        string targetLogin,
+        string announcement
+    ) =>
+        new(
+            BroadcasterId: broadcasterId,
+            RequestedByUserId: ownerUserId,
+            RequestedByTwitchUserId: targetTwitchId,
+            RequestedByDisplayName: targetDisplayName,
+            Text: ChatMentionName.ToSpoken(announcement, targetDisplayName, targetLogin),
+            VoiceIdOverride: null,
+            BitsAmount: 0,
+            CommunityStanding: "broadcaster",
+            SourceMessageId: null,
+            StreamId: null,
+            Speaker: TtsSpeaker.Bot,
+            SpokenNames: [targetDisplayName, targetLogin]
+        );
+
+    // The row keeps what viewers saw (announcement text, who it named, whether it was spoken), so a dashboard
+    // replay can show the same again without calling Twitch.
+    private async Task RecordAsync(
+        ShoutoutRequest request,
         string source,
         CancellationToken cancellationToken
     )
@@ -260,9 +275,18 @@ public sealed class ShoutoutSender : IShoutoutSender
             new ChannelEvent
             {
                 Id = Guid.CreateVersion7().ToString(),
-                ChannelId = broadcasterId,
+                ChannelId = request.BroadcasterId,
                 Type = "bot.shoutout.sent",
-                Data = JsonSerializer.Serialize(new { toUserId = targetUserId, source }),
+                Data = JsonSerializer.Serialize(
+                    new ShoutoutSentRecord(
+                        request.Target.Id,
+                        source,
+                        request.Announcement,
+                        request.Target.DisplayName,
+                        request.Target.Login,
+                        request.Speak
+                    )
+                ),
                 CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             }
         );

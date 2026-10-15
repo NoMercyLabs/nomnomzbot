@@ -145594,6 +145594,7 @@
           "permits",
           "overrides",
           "commandUsage",
+          "raids",
           "freeFormData",
           "recentQuotes",
           "totalQuoteCount"
@@ -145655,6 +145656,9 @@
           "commandUsage": {
             "$ref": "#/components/schemas/ViewerCommandUsageDto"
           },
+          "raids": {
+            "$ref": "#/components/schemas/ViewerRaidsDto"
+          },
           "freeFormData": {
             "type": "array",
             "items": {
@@ -145677,6 +145681,32 @@
           }
         },
         "description": "Everything the domain model tracks about one person within one channel (owner punch list 2026-09-08 §3,\r\nthe Community Profile page). Every group here mirrors a row of that punch-list table; a null/empty group\r\nmeans the person genuinely has no data there yet — never a fetch that silently failed."
+      },
+      "ViewerRaidsDto": {
+        "required": [
+          "timesRaidedThisChannel",
+          "timesThisChannelRaidedThem"
+        ],
+        "type": "object",
+        "properties": {
+          "timesRaidedThisChannel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "timesThisChannelRaidedThem": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "Completed raids between this person's channel and this channel, counted from the journaled EventSub\r\n`channel.raid` rows (the executed signal, not the countdown start). Zero means none were recorded."
       },
       "ViewerReportDto": {
         "required": [

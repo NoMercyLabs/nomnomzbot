@@ -431,6 +431,8 @@
       "about": "About",
       "lurking": "Lurking",
       "bits": "Bits cheered",
+      "raidedUs": "Raided this channel",
+      "weRaided": "This channel raided them",
       "setByChannel": "{value} (set by the channel)",
       "linkedOn": "{provider}: {name}, linked {date}"
     },

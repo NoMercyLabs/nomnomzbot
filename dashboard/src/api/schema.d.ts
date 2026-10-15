@@ -99674,10 +99674,21 @@ export interface components {
             permits: components["schemas"]["ViewerPermitsDto"];
             overrides: components["schemas"]["ViewerOverridesDto"];
             commandUsage: components["schemas"]["ViewerCommandUsageDto"];
+            raids: components["schemas"]["ViewerRaidsDto"];
             freeFormData: components["schemas"]["ViewerDatumDto"][];
             recentQuotes: components["schemas"]["QuoteDto"][];
             /** Format: int32 */
             totalQuoteCount: number | string;
+        };
+        /**
+         * @description Completed raids between this person's channel and this channel, counted from the journaled EventSub
+         *     `channel.raid` rows (the executed signal, not the countdown start). Zero means none were recorded.
+         */
+        ViewerRaidsDto: {
+            /** Format: int32 */
+            timesRaidedThisChannel: number | string;
+            /** Format: int32 */
+            timesThisChannelRaidedThem: number | string;
         };
         /** @description One viewer report in the moderation queue — who was reported, why, who reported them, and its state. */
         ViewerReportDto: {

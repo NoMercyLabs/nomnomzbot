@@ -52,6 +52,7 @@ const relationship = computed<KeyValueItem[]>(() => {
   const known = props.profile?.identity;
   const tier = tierNumber(known?.subTier);
   const bits = Number(props.profile?.activity?.totalBitsCheered ?? 0);
+  const raids = props.profile?.raids;
 
   return [
     {
@@ -77,6 +78,19 @@ const relationship = computed<KeyValueItem[]>(() => {
       label: t('profile.facts.bits'),
       value: bits > 0
         ? bits.toLocaleString(locale.value)
+        : null,
+    },
+    {
+      // Completed raids from the journaled channel.raid rows; zero means none were recorded, so no row.
+      label: t('profile.facts.raidedUs'),
+      value: raids?.timesRaidedThisChannel
+        ? Number(raids.timesRaidedThisChannel).toLocaleString(locale.value)
+        : null,
+    },
+    {
+      label: t('profile.facts.weRaided'),
+      value: raids?.timesThisChannelRaidedThem
+        ? Number(raids.timesThisChannelRaidedThem).toLocaleString(locale.value)
         : null,
     },
     {
