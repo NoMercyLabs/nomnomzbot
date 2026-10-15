@@ -15,7 +15,7 @@ import { queryClient } from '@/api/queryClient';
 import { loadPage } from '@/i18n';
 
 // Only a platform admin opens the page; anyone else goes to the home page.
-async function adminOnly(): Promise<true | RouteLocationRaw> {
+export async function adminOnly(): Promise<true | RouteLocationRaw> {
   const user = await queryClient.ensureQueryData(currentUserQuery);
 
   return user?.isAdmin === true
@@ -26,6 +26,7 @@ async function adminOnly(): Promise<true | RouteLocationRaw> {
 export const dashboardAdminChannelsRoute = {
   path: 'admin/channels',
   name: 'dashboard-admin-channels',
+  meta: { navMode: 'admin' },
   beforeEnter: adminOnly,
   component: () =>
     loadPage(

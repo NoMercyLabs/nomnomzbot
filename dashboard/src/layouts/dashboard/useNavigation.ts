@@ -12,7 +12,8 @@ import { useStorage } from '@vueuse/core';
 import { computed, watch, type ComputedRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { dashboardNav, type NavEntry, type NavGroup } from './navigation';
+import { navByMode } from './navModes';
+import type { NavEntry, NavGroup, NavMode } from './navigation';
 
 export type VisibleGroup = {
   key: string;
@@ -44,12 +45,15 @@ export function useNavigation(): Navigation {
   function isCurrent(entry: NavEntry): boolean {
     return (
       typeof route.name === 'string' &&
-      (route.name === entry.route || route.name.startsWith(`${entry.route}-`))
+      (route.name === entry.route || (entry.exact !== true && route.name.startsWith(`${entry.route}-`)))
     );
   }
 
+  // The open page says which sidebar it belongs to; a page that says nothing sits in the dashboard.
+  const mode = computed<NavMode>(() => route.meta.navMode ?? 'dashboard');
+
   const groups = computed<VisibleGroup[]>(() =>
-    dashboardNav
+    navByMode[mode.value]
       .map((group: NavGroup): VisibleGroup => {
         const entries = group.entries.filter((entry) => router.hasRoute(entry.route));
         const holdsOpenPage = entries.some(isCurrent);

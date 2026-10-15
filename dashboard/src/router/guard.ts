@@ -11,6 +11,7 @@
 import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router';
 
 import { restoreSession } from '@/api/auth';
+import type { NavMode } from '@/layouts/dashboard/navigation';
 import { loginRoute } from '@/views/site/login/route';
 
 declare module 'vue-router' {
@@ -18,6 +19,10 @@ declare module 'vue-router' {
     requiresAuth?: boolean;
     // A page only a signed-out visitor needs, such as the login page.
     guestOnly?: boolean;
+    // The sidebar the page sits in; without it the page sits in the streamer dashboard.
+    navMode?: NavMode;
+    // Words key under frame.nav of a page that is planned and not built yet.
+    comingSoon?: string;
   }
 }
 

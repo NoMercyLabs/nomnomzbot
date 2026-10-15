@@ -1,0 +1,393 @@
+{
+  "dashboard": [
+    {
+      "group": "Home",
+      "entries": [
+        {
+          "label": "Home",
+          "icon": "house"
+        }
+      ]
+    },
+    {
+      "group": "Live",
+      "entries": [
+        {
+          "label": "Chat",
+          "icon": "messages-square"
+        },
+        {
+          "label": "Stream",
+          "icon": "radio"
+        },
+        {
+          "label": "Analytics",
+          "icon": "chart-line"
+        },
+        {
+          "label": "OBS",
+          "icon": "clapperboard"
+        },
+        {
+          "label": "VTube Studio",
+          "icon": "smile"
+        }
+      ]
+    },
+    {
+      "group": "Build",
+      "entries": [
+        {
+          "label": "Commands",
+          "icon": "terminal"
+        },
+        {
+          "label": "Triggers & Timers",
+          "icon": "timer"
+        },
+        {
+          "label": "Event Responses",
+          "icon": "zap"
+        },
+        {
+          "label": "Pipelines",
+          "icon": "workflow"
+        },
+        {
+          "label": "Overlays",
+          "icon": "layers"
+        },
+        {
+          "label": "Scripts",
+          "icon": "code"
+        },
+        {
+          "label": "Library",
+          "icon": "library"
+        },
+        {
+          "label": "Gallery",
+          "icon": "layout-grid"
+        }
+      ]
+    },
+    {
+      "group": "People",
+      "entries": [
+        {
+          "label": "People",
+          "icon": "users"
+        }
+      ]
+    },
+    {
+      "group": "Loyalty",
+      "entries": [
+        {
+          "label": "Channel Points",
+          "icon": "gem"
+        },
+        {
+          "label": "Economy",
+          "icon": "feather"
+        },
+        {
+          "label": "Games",
+          "icon": "dices"
+        },
+        {
+          "label": "Giveaways",
+          "icon": "gift"
+        },
+        {
+          "label": "Supporters",
+          "icon": "heart-handshake"
+        }
+      ]
+    },
+    {
+      "group": "Music & Voice",
+      "entries": [
+        {
+          "label": "Music",
+          "icon": "music"
+        },
+        {
+          "label": "TTS",
+          "icon": "audio-lines"
+        },
+        {
+          "label": "Media Share",
+          "icon": "tv"
+        }
+      ]
+    },
+    {
+      "group": "Setup",
+      "entries": [
+        {
+          "label": "Settings",
+          "icon": "settings"
+        }
+      ]
+    }
+  ],
+  "admin": [
+    {
+      "group": "Activity",
+      "entries": [
+        {
+          "label": "Overview",
+          "icon": "gauge"
+        },
+        {
+          "label": "EventSub health",
+          "icon": "activity"
+        },
+        {
+          "label": "Webhook deliveries",
+          "icon": "send"
+        },
+        {
+          "label": "Scheduled jobs",
+          "icon": "calendar-clock"
+        },
+        {
+          "label": "Tenant usage",
+          "icon": "chart-column"
+        },
+        {
+          "label": "Error budget",
+          "icon": "shield-alert"
+        },
+        {
+          "label": "Event replay",
+          "icon": "history"
+        },
+        {
+          "label": "Audit log",
+          "icon": "scroll-text"
+        }
+      ]
+    },
+    {
+      "group": "People",
+      "entries": [
+        {
+          "label": "Channels",
+          "icon": "tv-minimal"
+        },
+        {
+          "label": "Users",
+          "icon": "users"
+        },
+        {
+          "label": "Tenants",
+          "icon": "building-2"
+        },
+        {
+          "label": "Support",
+          "icon": "life-buoy"
+        }
+      ]
+    },
+    {
+      "group": "Billing",
+      "entries": [
+        {
+          "label": "Billing",
+          "icon": "credit-card"
+        }
+      ]
+    },
+    {
+      "group": "Safety",
+      "entries": [
+        {
+          "label": "Spam defaults",
+          "icon": "shield-ban"
+        },
+        {
+          "label": "Trust & safety",
+          "icon": "shield-check"
+        },
+        {
+          "label": "Data requests",
+          "icon": "file-lock"
+        }
+      ]
+    },
+    {
+      "group": "Configuration",
+      "entries": [
+        {
+          "label": "System",
+          "icon": "server"
+        },
+        {
+          "label": "Feature flags",
+          "icon": "flag"
+        },
+        {
+          "label": "Providers",
+          "icon": "plug-zap"
+        },
+        {
+          "label": "Content",
+          "icon": "file-text"
+        },
+        {
+          "label": "Access (IAM)",
+          "icon": "key-square"
+        },
+        {
+          "label": "Platform bot",
+          "icon": "bot"
+        },
+        {
+          "label": "Platform defaults",
+          "icon": "sliders-horizontal"
+        }
+      ]
+    }
+  ],
+  "viewer": [
+    {
+      "group": "",
+      "entries": [
+        {
+          "label": "My channel",
+          "icon": "house"
+        },
+        {
+          "label": "Now playing",
+          "icon": "music"
+        },
+        {
+          "label": "Leaderboards",
+          "icon": "trophy"
+        },
+        {
+          "label": "Points and store",
+          "icon": "gem"
+        },
+        {
+          "label": "Games",
+          "icon": "dices"
+        },
+        {
+          "label": "Me",
+          "icon": "user"
+        }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "group": "You",
+      "entries": [
+        {
+          "label": "Readability",
+          "icon": "book-open-text"
+        }
+      ]
+    },
+    {
+      "group": "Bot",
+      "entries": [
+        {
+          "label": "Bot basics",
+          "icon": "sliders-horizontal"
+        },
+        {
+          "label": "Bot personality",
+          "icon": "message-circle-heart"
+        },
+        {
+          "label": "Engagement triggers",
+          "icon": "sparkles"
+        },
+        {
+          "label": "White-label bot",
+          "icon": "bot"
+        },
+        {
+          "label": "Features",
+          "icon": "toggle-right"
+        }
+      ]
+    },
+    {
+      "group": "Connections",
+      "entries": [
+        {
+          "label": "Integrations",
+          "icon": "plug"
+        },
+        {
+          "label": "Discord",
+          "icon": "message-circle"
+        },
+        {
+          "label": "Supporter sources",
+          "icon": "heart-handshake"
+        },
+        {
+          "label": "Federation",
+          "icon": "network"
+        }
+      ]
+    },
+    {
+      "group": "Developers",
+      "entries": [
+        {
+          "label": "API & devices",
+          "icon": "key-round"
+        },
+        {
+          "label": "Webhooks",
+          "icon": "webhook"
+        },
+        {
+          "label": "Custom event feeds",
+          "icon": "radio-tower"
+        }
+      ]
+    },
+    {
+      "group": "Access",
+      "entries": [
+        {
+          "label": "Permissions",
+          "icon": "shield-check"
+        },
+        {
+          "label": "Event journal",
+          "icon": "scroll-text"
+        }
+      ]
+    },
+    {
+      "group": "Account",
+      "entries": [
+        {
+          "label": "Resource limits",
+          "icon": "gauge"
+        },
+        {
+          "label": "Billing",
+          "icon": "credit-card"
+        },
+        {
+          "label": "Your data",
+          "icon": "file-lock"
+        },
+        {
+          "label": "Channel management",
+          "icon": "triangle-alert"
+        }
+      ]
+    }
+  ]
+}

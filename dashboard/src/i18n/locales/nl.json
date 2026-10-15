@@ -626,7 +626,69 @@
       "music": "Muziek",
       "tts": "Tekst naar spraak",
       "mediaShare": "Media delen",
-      "settings": "Instellingen"
+      "settings": "Instellingen",
+      "back": {
+        "admin": "Admin verlaten",
+        "dashboard": "Terug naar het dashboard"
+      },
+      "admin": {
+        "overview": "Overzicht",
+        "eventsubHealth": "EventSub-status",
+        "webhookDeliveries": "Webhook-leveringen",
+        "scheduledJobs": "Geplande taken",
+        "tenantUsage": "Gebruik per tenant",
+        "errorBudget": "Foutbudget",
+        "eventReplay": "Events opnieuw afspelen",
+        "auditLog": "Auditlogboek",
+        "channels": "Kanalen",
+        "users": "Gebruikers",
+        "tenants": "Tenants",
+        "support": "Support",
+        "billing": "Facturatie",
+        "spamDefaults": "Spam-standaarden",
+        "trustSafety": "Vertrouwen en veiligheid",
+        "dataRequests": "Gegevensverzoeken",
+        "system": "Systeem",
+        "featureFlags": "Functievlaggen",
+        "providers": "Providers",
+        "content": "Inhoud",
+        "access": "Toegang (IAM)",
+        "platformBot": "Platformbot",
+        "platformDefaults": "Platformstandaarden"
+      },
+      "viewer": {
+        "myChannel": "Mijn kanaal",
+        "nowPlaying": "Nu aan het spelen",
+        "leaderboards": "Ranglijsten",
+        "pointsStore": "Punten en winkel",
+        "games": "Spellen",
+        "me": "Ik"
+      },
+      "settingsPages": {
+        "readability": "Leesbaarheid",
+        "botBasics": "Basis van de bot",
+        "botPersonality": "Persoonlijkheid van de bot",
+        "engagementTriggers": "Betrokkenheidstriggers",
+        "whiteLabelBot": "Eigen bot (white-label)",
+        "features": "Functies",
+        "integrations": "Integraties",
+        "discord": "Discord",
+        "supporterSources": "Supporterbronnen",
+        "federation": "Federatie",
+        "apiDevices": "API en apparaten",
+        "webhooks": "Webhooks",
+        "customEventFeeds": "Eigen eventfeeds",
+        "permissions": "Rechten",
+        "eventJournal": "Eventjournaal",
+        "resourceLimits": "Gebruikslimieten",
+        "billing": "Facturatie",
+        "yourData": "Jouw gegevens",
+        "channelManagement": "Kanaalbeheer"
+      }
+    },
+    "comingSoon": {
+      "title": "Binnenkort",
+      "description": "{page} is gepland en nog niet gebouwd. De pagina verschijnt hier als hij klaar is."
     },
     "group": {
       "home": "Start",
@@ -635,7 +697,22 @@
       "people": "Mensen",
       "loyalty": "Loyaliteit",
       "musicVoice": "Muziek en stem",
-      "setup": "Instellen"
+      "setup": "Instellen",
+      "admin": {
+        "activity": "Activiteit",
+        "people": "Mensen",
+        "billing": "Facturatie",
+        "safety": "Veiligheid",
+        "configuration": "Configuratie"
+      },
+      "settings": {
+        "you": "Jij",
+        "bot": "Bot",
+        "connections": "Koppelingen",
+        "developers": "Ontwikkelaars",
+        "access": "Toegang",
+        "account": "Account"
+      }
     },
     "channel": {
       "switch": "Kanaal wisselen",

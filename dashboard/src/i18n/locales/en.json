@@ -626,7 +626,69 @@
       "music": "Music",
       "tts": "Text to speech",
       "mediaShare": "Media share",
-      "settings": "Settings"
+      "settings": "Settings",
+      "back": {
+        "admin": "Exit admin",
+        "dashboard": "Back to dashboard"
+      },
+      "admin": {
+        "overview": "Overview",
+        "eventsubHealth": "EventSub health",
+        "webhookDeliveries": "Webhook deliveries",
+        "scheduledJobs": "Scheduled jobs",
+        "tenantUsage": "Tenant usage",
+        "errorBudget": "Error budget",
+        "eventReplay": "Event replay",
+        "auditLog": "Audit log",
+        "channels": "Channels",
+        "users": "Users",
+        "tenants": "Tenants",
+        "support": "Support",
+        "billing": "Billing",
+        "spamDefaults": "Spam defaults",
+        "trustSafety": "Trust and safety",
+        "dataRequests": "Data requests",
+        "system": "System",
+        "featureFlags": "Feature flags",
+        "providers": "Providers",
+        "content": "Content",
+        "access": "Access (IAM)",
+        "platformBot": "Platform bot",
+        "platformDefaults": "Platform defaults"
+      },
+      "viewer": {
+        "myChannel": "My channel",
+        "nowPlaying": "Now playing",
+        "leaderboards": "Leaderboards",
+        "pointsStore": "Points and store",
+        "games": "Games",
+        "me": "Me"
+      },
+      "settingsPages": {
+        "readability": "Readability",
+        "botBasics": "Bot basics",
+        "botPersonality": "Bot personality",
+        "engagementTriggers": "Engagement triggers",
+        "whiteLabelBot": "White-label bot",
+        "features": "Features",
+        "integrations": "Integrations",
+        "discord": "Discord",
+        "supporterSources": "Supporter sources",
+        "federation": "Federation",
+        "apiDevices": "API and devices",
+        "webhooks": "Webhooks",
+        "customEventFeeds": "Custom event feeds",
+        "permissions": "Permissions",
+        "eventJournal": "Event journal",
+        "resourceLimits": "Resource limits",
+        "billing": "Billing",
+        "yourData": "Your data",
+        "channelManagement": "Channel management"
+      }
+    },
+    "comingSoon": {
+      "title": "Coming soon",
+      "description": "{page} is planned and not built yet. It will appear here when it is ready."
     },
     "group": {
       "home": "Home",
@@ -635,7 +697,22 @@
       "people": "People",
       "loyalty": "Loyalty",
       "musicVoice": "Music and voice",
-      "setup": "Setup"
+      "setup": "Setup",
+      "admin": {
+        "activity": "Activity",
+        "people": "People",
+        "billing": "Billing",
+        "safety": "Safety",
+        "configuration": "Configuration"
+      },
+      "settings": {
+        "you": "You",
+        "bot": "Bot",
+        "connections": "Connections",
+        "developers": "Developers",
+        "access": "Access",
+        "account": "Account"
+      }
     },
     "channel": {
       "switch": "Switch channel",

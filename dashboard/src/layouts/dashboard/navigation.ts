@@ -34,6 +34,9 @@ import Users from '~icons/nnz/users';
 import WaveForm from '~icons/nnz/wave-form';
 import Lightning from '~icons/nnz/lightning';
 
+// Which sidebar a page belongs to. A route says it in meta.navMode; a route without it sits in the dashboard.
+export type NavMode = 'dashboard' | 'admin' | 'viewer' | 'settings';
+
 export type NavEntry = {
   // The route name of the page. An entry shows only when this route exists.
   route: string;
@@ -42,6 +45,8 @@ export type NavEntry = {
   icon: Component;
   // One of the four entries the phone bottom bar keeps in reach.
   bottom?: boolean;
+  // Current only on its own route, not on the routes named after it (the first settings page shares a prefix with the rest).
+  exact?: boolean;
 };
 
 export type NavGroup = {
@@ -211,3 +216,13 @@ export const dashboardNav: readonly NavGroup[] = [
     ],
   },
 ];
+
+// A short way to write an entry for the sidebars that are not the streamer dashboard.
+export function navEntry(route: string, label: string, icon: Component, exact = false): NavEntry {
+  return {
+    route,
+    label,
+    icon,
+    exact,
+  };
+}

@@ -10,6 +10,8 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
+import { merge } from '@/lib/array';
+
 import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route';
 import { dashboardAnalyticsRoute } from '@/views/dashboard/analytics/route';
 import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route';
@@ -22,45 +24,37 @@ import { dashboardPeopleRoute } from '@/views/dashboard/people/route';
 import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboard/pipelines/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
 import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
+import { scaffoldRoutes } from '@/views/dashboard/scaffold/route';
 import { dashboardStreamRoute } from '@/views/dashboard/stream/route';
 import { dashboardTtsRoute } from '@/views/dashboard/tts/route';
+
+// The pages that are built.
+const builtRoutes: RouteRecordRaw[] = [
+  dashboardHomeRoute,
+  dashboardChatRoute,
+  dashboardCommandsRoute,
+  dashboardMusicRoute,
+  dashboardTtsRoute,
+  dashboardPeopleRoute,
+  dashboardOverlaysRoute,
+  dashboardPipelinesRoute,
+  dashboardPipelineRoute,
+  dashboardScriptsRoute,
+  dashboardStreamRoute,
+  dashboardAnalyticsRoute,
+  dashboardSettingsRoute,
+  dashboardAdminChannelsRoute,
+];
+
+// Every other planned page of every sidebar opens the empty "coming soon" page.
+const builtNames = new Set(builtRoutes.map((route) => String(route.name)));
+const comingSoonRoutes = scaffoldRoutes(builtNames);
 
 export const dashboardRoutes: RouteRecordRaw = {
   path: '/app',
   component: () => import('@/layouts/DashboardLayout.vue'),
   meta: { requiresAuth: true },
   children: import.meta.env.DEV
-    ? [
-        dashboardHomeRoute,
-        dashboardChatRoute,
-        dashboardCommandsRoute,
-        dashboardMusicRoute,
-        dashboardTtsRoute,
-        dashboardPeopleRoute,
-        dashboardOverlaysRoute,
-        dashboardPipelinesRoute,
-        dashboardPipelineRoute,
-        dashboardScriptsRoute,
-        dashboardStreamRoute,
-        dashboardAnalyticsRoute,
-        dashboardSettingsRoute,
-        dashboardAdminChannelsRoute,
-        dashboardCatalogRoute,
-      ]
-    : [
-        dashboardHomeRoute,
-        dashboardChatRoute,
-        dashboardCommandsRoute,
-        dashboardMusicRoute,
-        dashboardTtsRoute,
-        dashboardPeopleRoute,
-        dashboardOverlaysRoute,
-        dashboardPipelinesRoute,
-        dashboardPipelineRoute,
-        dashboardScriptsRoute,
-        dashboardStreamRoute,
-        dashboardAnalyticsRoute,
-        dashboardSettingsRoute,
-        dashboardAdminChannelsRoute,
-      ],
+    ? Array.from(merge(builtRoutes, comingSoonRoutes, [dashboardCatalogRoute]))
+    : Array.from(merge(builtRoutes, comingSoonRoutes)),
 };

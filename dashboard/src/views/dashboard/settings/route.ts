@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardSettingsRoute = {
   path: 'settings',
   name: 'dashboard-settings',
+  meta: { navMode: 'settings' },
   component: () =>
     loadPage(
       () => import('./SettingsView.vue'),
