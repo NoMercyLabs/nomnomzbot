@@ -1,0 +1,62 @@
+{
+  "dashboard": {
+    "discord": {
+      "title": "Discord",
+      "connection": {
+        "title": "Discord server",
+        "empty": "No Discord server is linked to this channel yet.",
+        "error": "The Discord server could not load.",
+        "none": "Not linked",
+        "botMissing": "The bot is not in the server",
+        "consentPending": "Waiting for the server admin to approve",
+        "ready": "Linked and ready"
+      },
+      "rules": {
+        "title": "Notifications",
+        "subtitle": "One message per event, sent to a Discord channel.",
+        "error": "The notification rules could not load.",
+        "notSetUp": "Not set up",
+        "on": "On",
+        "off": "Off",
+        "edit": "Edit",
+        "setUp": "Set up"
+      },
+      "triggers": {
+        "stream_online": "Stream goes live",
+        "stream_offline": "Stream ends",
+        "channel_follow": "New follower",
+        "channel_subscribe": "New subscriber",
+        "channel_subscription_gift": "Gifted sub",
+        "channel_cheer": "Cheer or bits",
+        "channel_raid": "Incoming raid",
+        "channel_poll_begin": "Poll starts",
+        "channel_prediction_begin": "Prediction starts"
+      },
+      "editor": {
+        "description": "Pick where the message goes, who it pings and what it says.",
+        "enabled": "Send this notification",
+        "enabledHelp": "Turn it off to keep the rule without sending.",
+        "channel": "Discord channel",
+        "channelOption": "# {name}",
+        "roleOption": "{'@'}{name}",
+        "channelPlaceholder": "Pick a channel",
+        "role": "Ping role",
+        "noRole": "No ping",
+        "message": "Message",
+        "embed": "Embed",
+        "embedTitle": "Title",
+        "embedDescription": "Description",
+        "embedColor": "Color",
+        "embedThumbnail": "Thumbnail link",
+        "embedImage": "Image link",
+        "embedFooter": "Footer",
+        "fieldName": "Field name",
+        "fieldValue": "Field value",
+        "addField": "Add field",
+        "removeField": "Remove field",
+        "preview": "Preview",
+        "save": "Save"
+      }
+    }
+  }
+}
