@@ -39,7 +39,18 @@ export type ChatLineRemoval = 'deleted' | 'purged' | 'timeout' | 'banned' | 'cle
 // A timeout can last from 1 second to 14 days, so a timed-out line keeps its length.
 export type ChatLineMark = { removed: ChatLineRemoval; timeoutSeconds?: number };
 
-export type ChatLine = ChatMessagePayload & Partial<ChatLineMark>;
+// A redemption shown as a chat line: a custom reward, an automatic reward or a Power-up, with what it cost.
+// It is built from a live hub event, so a line from the stored history never carries one.
+export type ChatLineRedemption = {
+  redemption: {
+    kind: 'reward' | 'automatic_reward' | 'custom_power_up';
+    title: string;
+    cost: number;
+    costUnit: 'channel_points' | 'bits';
+  };
+};
+
+export type ChatLine = ChatMessagePayload & Partial<ChatLineMark> & Partial<ChatLineRedemption>;
 
 export const chatMessageMaxLength = 500;
 

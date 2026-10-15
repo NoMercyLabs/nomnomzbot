@@ -162,6 +162,22 @@ export type RewardRedeemedPayload = {
   eventId?: string | null;
 };
 
+// HubResponseDtos.cs: RedemptionActivityDto. An automatic reward (title is Twitch's reward type, channel points)
+// or a custom Power-up (title is its name, Bits).
+export type RedemptionActivityPayload = {
+  broadcasterId: string;
+  kind: 'automatic_reward' | 'custom_power_up';
+  redemptionId: string;
+  title: string;
+  userId: string;
+  userLogin: string;
+  userDisplayName: string;
+  cost: number;
+  costUnit: 'channel_points' | 'bits';
+  userInput: string | null;
+  timestamp: string;
+};
+
 // HubResponseDtos.cs: RedemptionStatusChangedDto
 export type RedemptionStatusChangedPayload = {
   broadcasterId: string;
@@ -224,6 +240,7 @@ export type DashboardHubEvents = {
   ModAction: ModActionPayload;
   CommandExecuted: CommandExecutedPayload;
   RewardRedeemed: RewardRedeemedPayload;
+  RedemptionActivity: RedemptionActivityPayload;
   RedemptionStatusChanged: RedemptionStatusChangedPayload;
   StreamStatusChanged: StreamStatusPayload;
   AlertTriggered: AlertTriggeredPayload;
