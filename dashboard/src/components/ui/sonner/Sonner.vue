@@ -11,6 +11,7 @@ import {
 } from '@lucide/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { Toaster as Sonner } from 'vue-sonner'
+import 'vue-sonner/style.css'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<ToasterProps>()
@@ -25,7 +26,7 @@ const delegatedProps = reactiveOmit(props, 'class', 'toastOptions')
       '--normal-text': 'var(--popover-foreground)',
       '--normal-border': 'var(--border)',
       '--border-radius': 'var(--radius)',
-      '--gray2': 'hsl(var(--popover) / 0.9)',
+      '--gray2': 'color-mix(in oklab, var(--popover) 90%, transparent)',
       '--gray3': 'var(--border)',
       '--gray4': 'var(--border)',
       '--gray5': 'var(--border)',
