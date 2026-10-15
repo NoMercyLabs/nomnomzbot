@@ -80,7 +80,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
     private void EnqueueUnderLock(string ownerKey, T item)
     {
         // Rank = number of items this owner already has in the queue + 1
-        int ownerCount = _queue.Count(e => e.OwnerKey == ownerKey);
+        int ownerCount = _queue.Count(e => e.Key == KeyOf(ownerKey));
         int rank = ownerCount + 1;
 
         QueueEntry entry = new(ownerKey, item, rank);
@@ -107,8 +107,10 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
             // Recalculate ranks for remaining items by this owner
             int newRank = 1;
-            foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == entry.OwnerKey))
+            foreach (QueueEntry e in _queue.Where(e => e.Key == entry.Key))
                 e.Rank = newRank++;
+
+            SettleAfterPlayedSongsLeave();
 
             return entry.Item;
         }
@@ -132,14 +134,14 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            int removed = _queue.RemoveAll(e => e.OwnerKey == ownerKey);
+            int removed = _queue.RemoveAll(e => e.Key == KeyOf(ownerKey));
 
             // Recalculate ranks for all remaining owners after removal
-            List<string> owners = [.. _queue.Select(e => e.OwnerKey).Distinct()];
+            List<string> owners = [.. _queue.Select(e => e.Key).Distinct()];
             foreach (string owner in owners)
             {
                 int rank = 1;
-                foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == owner))
+                foreach (QueueEntry e in _queue.Where(e => e.Key == owner))
                     e.Rank = rank++;
             }
 
@@ -158,6 +160,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             int count = index + 1;
             _queue.RemoveRange(0, count);
             RecalculateRanks();
+            SettleAfterPlayedSongsLeave();
             return count;
         }
     }
@@ -175,7 +178,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
             // Recalculate ranks for the removed owner's remaining items
             int rank = 1;
-            foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == removed.OwnerKey))
+            foreach (QueueEntry e in _queue.Where(e => e.Key == removed.Key))
                 e.Rank = rank++;
 
             return true;
@@ -194,7 +197,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
             // Recalculate ranks for the removed owner's remaining items
             int rank = 1;
-            foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == removed.OwnerKey))
+            foreach (QueueEntry e in _queue.Where(e => e.Key == removed.Key))
                 e.Rank = rank++;
 
             return true;
@@ -250,7 +253,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
     /// removal has to restore (rank = that owner's 1-based position among their own remaining items).</summary>
     private void RecalculateRanks()
     {
-        foreach (IGrouping<string, QueueEntry> owned in _queue.GroupBy(e => e.OwnerKey))
+        foreach (IGrouping<string, QueueEntry> owned in _queue.GroupBy(e => e.Key))
         {
             int rank = 1;
             foreach (QueueEntry e in owned)
@@ -258,9 +261,28 @@ public sealed class FairQueue<T> : IFairQueue<T>
         }
     }
 
+    /// <summary>
+    /// A song that played counted toward its owner's rank while it sat in the queue, so that owner's later
+    /// requests were placed one tier too deep. Once it leaves, those requests drop a rank but keep their
+    /// old place, behind other owners' higher-rank songs. A stable sort by rank restores "everyone's Nth
+    /// song comes after everyone's (N-1)th" and keeps arrival order inside a tier. Only runs when a song
+    /// finishes, never on an operator move, so a deliberate bump survives.
+    /// </summary>
+    private void SettleAfterPlayedSongsLeave()
+    {
+        List<QueueEntry> sorted = [.. _queue.OrderBy(e => e.Rank)];
+        _queue.Clear();
+        _queue.AddRange(sorted);
+    }
+
+    private static string KeyOf(string ownerKey) => ownerKey.ToUpperInvariant();
+
     private sealed class QueueEntry(string ownerKey, T item, int rank)
     {
         public string OwnerKey { get; } = ownerKey;
+
+        /// <summary>The identity fairness is counted on: one person is one owner however their name is cased.</summary>
+        public string Key { get; } = KeyOf(ownerKey);
         public T Item { get; } = item;
         public int Rank { get; set; } = rank;
     }
