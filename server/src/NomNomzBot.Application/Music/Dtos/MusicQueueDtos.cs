@@ -36,7 +36,9 @@ public sealed record QueueItemDto(
     string? ImageUrl,
     int DurationMs,
     string? RequestedBy,
-    int Cost = 0
+    int Cost = 0,
+    string? RequesterId = null,
+    string? RequesterColor = null
 );
 
 /// <summary>Current now-playing state. <paramref name="ShuffleState"/> and <paramref name="RepeatState"/>
@@ -61,7 +63,9 @@ public sealed record NowPlayingDto(
     bool CanSkipPrevious = true,
     bool CanSeek = true,
     bool CanPause = true,
-    bool CanResume = true
+    bool CanResume = true,
+    string? RequesterId = null,
+    string? RequesterColor = null
 );
 
 /// <summary>Full music queue including now playing and upcoming tracks.</summary>

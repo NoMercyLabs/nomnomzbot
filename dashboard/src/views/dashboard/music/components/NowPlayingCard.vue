@@ -22,6 +22,7 @@ import VolumeTwo from '~icons/nnz/volume-two';
 import { computed, ref, watch } from 'vue';
 
 import type { NowPlaying } from '@/api/music';
+import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 
@@ -118,7 +119,15 @@ const nextRepeat = computed<RepeatMode>(() => {
         <p class="truncate text-2xl text-muted-foreground">{{ track.artist }}</p>
         <p data-player-requester class="h-7 truncate text-lg text-muted-foreground">
           <template v-if="track.requestedBy">
-            {{ $t('dashboard.music.now.requestedBy', { name: track.requestedBy }) }}
+            <i18n-t keypath="dashboard.music.now.requestedBy" scope="global">
+              <template #name>
+                <UserName
+                  :user-id="track.requesterId"
+                  :name="track.requestedBy"
+                  :color="track.requesterColor"
+                />
+              </template>
+            </i18n-t>
           </template>
         </p>
       </div>

@@ -435,6 +435,30 @@ describe('MusicView', () => {
     expect(lines[1]).not.toContain('Requested');
   });
 
+  // Bamo 2026-10-15: name colors in the music queue; a click opens the profile.
+  it('shows a queued requester in their chat color and opens their profile on click', async () => {
+    queue = [
+      {
+        ...track(1, 'Strobe', 'deadmau5', 'Bamo'),
+        requesterId: '300',
+        requesterColor: '#FF69B4',
+      },
+      track(2, 'Opus', 'Eric Prydz', 'Spotify'),
+    ];
+
+    await open();
+
+    const rows = [...panel('Request queue').querySelectorAll<HTMLElement>('[data-queue-item]')];
+    const named = rows[0]!.querySelector<HTMLElement>('[data-slot="user-name"]');
+
+    expect(named?.getAttribute('data-user')).toBe('300');
+    expect(named?.textContent?.trim()).toBe('Bamo');
+    expect(named?.style.color).not.toBe('');
+    expect(rows[0]!.textContent).toContain('Requested by Bamo');
+    expect(rows[1]!.querySelector('[data-slot="user-name"]')).toBeNull();
+    expect(rows[1]!.textContent).toContain('Requested by Spotify');
+  });
+
   // Stoney 2026-10-13: "i need to be able to drag mine to the end haha".
   it('drags a song by its handle to the end: a POST to move with the drop position, and the rows follow', async () => {
     queue.push(track(3, 'Lose Yourself', 'Eminem', 'Stoney_Eagle'));

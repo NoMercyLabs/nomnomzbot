@@ -53,7 +53,7 @@ function share(count: number): string {
         class="flex items-center gap-3 text-sm"
       >
         <span class="min-w-0 flex-1">
-          <UserName :user-id="item.userId" :name="item.displayName" />
+          <UserName :user-id="item.userId" :name="item.displayName" :color="item.color" />
           <span class="mt-1 block h-1.5 rounded-full bg-muted">
             <span
               data-bar

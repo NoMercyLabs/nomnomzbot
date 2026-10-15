@@ -29,4 +29,10 @@ public interface IMusicHistoryReader
         int limit,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>Maps requester display names (the queue carries names only) to Twitch id and chat color; a name no viewer matches is absent.</summary>
+    Task<Dictionary<string, RequesterIdentityDto>> ResolveRequestersAsync(
+        IReadOnlyCollection<string> displayNames,
+        CancellationToken cancellationToken = default
+    );
 }

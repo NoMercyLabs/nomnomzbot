@@ -89782,6 +89782,8 @@ export interface components {
             canPause: boolean;
             /** @default true */
             canResume: boolean;
+            requesterId?: null | string;
+            requesterColor?: null | string;
         };
         /** @description OAuth callback data received from the Twitch redirect. */
         OAuthCallbackDto: {
@@ -91708,6 +91710,8 @@ export interface components {
              * @default 0
              */
             cost: number | string;
+            requesterId?: null | string;
+            requesterColor?: null | string;
         };
         /** @description The transport/read shape of a quote (quotes.md §3). */
         QuoteDto: {
@@ -92609,6 +92613,7 @@ export interface components {
             requesterName: string;
             /** Format: date-time */
             requestedAt: string;
+            requesterColor?: null | string;
         };
         /** @description Request to add a song to the queue. */
         SongRequestDto: {
@@ -98557,6 +98562,7 @@ export interface components {
             displayName: string;
             /** Format: int32 */
             count: number | string;
+            color?: null | string;
         };
         /** @description A channel's top viewer over a range by the chosen metric (analytics.md §4) — not the economy board. */
         TopViewerDto: {

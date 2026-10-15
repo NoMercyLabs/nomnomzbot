@@ -114993,6 +114993,18 @@
           "canResume": {
             "type": "boolean",
             "default": true
+          },
+          "requesterId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requesterColor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Current now-playing state. ShuffleState and RepeatState\r\n            (\"off\" | \"track\" | \"context\") are the live player toggles the dashboard renders — false/\"off\" on providers\r\n            that do not report them."
@@ -121354,6 +121366,18 @@
             ],
             "format": "int32",
             "default": 0
+          },
+          "requesterId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requesterColor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "A queue item with its position. Cost is 0 for a free request."
@@ -124051,6 +124075,12 @@
           "requestedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "requesterColor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "One accepted song request in the channel's history. TrackName is empty for a row that\r\nwas rebuilt from the journal, which carries only the uri."
@@ -140765,6 +140795,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "A viewer and how many songs they have requested in this channel, all time."
