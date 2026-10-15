@@ -64,7 +64,11 @@ function when(requestedAt: string): string {
       </template>
       <template #end>
         <span class="flex flex-none flex-col items-end text-xs text-muted-foreground">
-          <UserName :user-id="item.requesterId" :name="item.requesterName" />
+          <UserName
+            :user-id="item.requesterId"
+            :name="item.requesterName"
+            :color="item.requesterColor"
+          />
           <span>{{ when(item.requestedAt) }}</span>
         </span>
       </template>

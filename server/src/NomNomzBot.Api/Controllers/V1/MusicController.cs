@@ -117,6 +117,19 @@ public class MusicController : BaseController
     {
         MusicQueue queue = await _musicService.GetQueueAsync(channelId, ct);
 
+        List<string> requesterNames =
+        [
+            .. queue
+                .Queue.Select(i => i.RequestedBy)
+                .Append(queue.CurrentTrack?.RequestedBy)
+                .OfType<string>()
+                .Distinct(),
+        ];
+        Dictionary<string, RequesterIdentityDto> requesters = await _history.ResolveRequestersAsync(
+            requesterNames,
+            ct
+        );
+
         NowPlayingDto? nowPlaying = queue.CurrentTrack is null
             ? null
             : new NowPlayingDto(
@@ -139,7 +152,9 @@ public class MusicController : BaseController
                 queue.CurrentTrack.CanSkipPrevious,
                 queue.CurrentTrack.CanSeek,
                 queue.CurrentTrack.CanPause,
-                queue.CurrentTrack.CanResume
+                queue.CurrentTrack.CanResume,
+                RequesterOf(requesters, queue.CurrentTrack.RequestedBy)?.UserId,
+                RequesterOf(requesters, queue.CurrentTrack.RequestedBy)?.Color
             );
 
         List<QueueItemDto> items =
@@ -153,7 +168,9 @@ public class MusicController : BaseController
                         item.ImageUrl,
                         item.DurationMs,
                         item.RequestedBy,
-                        item.Cost
+                        item.Cost,
+                        RequesterOf(requesters, item.RequestedBy)?.UserId,
+                        RequesterOf(requesters, item.RequestedBy)?.Color
                     )
             ),
         ];
@@ -161,6 +178,14 @@ public class MusicController : BaseController
         MusicQueueDto dto = new(nowPlaying, items);
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });
     }
+
+    private static RequesterIdentityDto? RequesterOf(
+        Dictionary<string, RequesterIdentityDto> requesters,
+        string? name
+    ) =>
+        name is not null && requesters.TryGetValue(name, out RequesterIdentityDto? who)
+            ? who
+            : null;
 
     /// <summary>
     /// Queue a song request by search query, submitted by a viewer or the operator. When the caller

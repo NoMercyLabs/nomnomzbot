@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -52,10 +53,9 @@ public sealed class MusicHistoryReader(IApplicationDbContext db) : IMusicHistory
             })
             .ToListAsync(cancellationToken);
 
-        Dictionary<string, string> names = await NamesAsync(
-            rows.Select(r => r.UserId).Distinct().ToList(),
-            cancellationToken
-        );
+        List<string> ids = rows.Select(r => r.UserId).Distinct().ToList();
+        Dictionary<string, string> names = await NamesAsync(ids, cancellationToken);
+        Dictionary<string, string?> colors = await ColorsAsync(ids, cancellationToken);
 
         List<SongHistoryItemDto> items = [];
         foreach (var row in rows)
@@ -72,7 +72,8 @@ public sealed class MusicHistoryReader(IApplicationDbContext db) : IMusicHistory
                     track.Provider,
                     row.UserId,
                     names.GetValueOrDefault(row.UserId, row.UserId),
-                    row.CreatedAt
+                    row.CreatedAt,
+                    colors.GetValueOrDefault(row.UserId)
                 )
             );
         }
@@ -98,21 +99,54 @@ public sealed class MusicHistoryReader(IApplicationDbContext db) : IMusicHistory
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-        Dictionary<string, string> names = await NamesAsync(
-            counts.Select(c => c.UserId).ToList(),
-            cancellationToken
-        );
+        List<string> countIds = counts.Select(c => c.UserId).ToList();
+        Dictionary<string, string> names = await NamesAsync(countIds, cancellationToken);
+        Dictionary<string, string?> colors = await ColorsAsync(countIds, cancellationToken);
 
         List<TopRequesterDto> top =
         [
             .. counts.Select(c => new TopRequesterDto(
                 c.UserId,
                 names.GetValueOrDefault(c.UserId, c.UserId),
-                c.Count
+                c.Count,
+                colors.GetValueOrDefault(c.UserId)
             )),
         ];
         return Result.Success(top);
     }
+
+    public async Task<Dictionary<string, RequesterIdentityDto>> ResolveRequestersAsync(
+        IReadOnlyCollection<string> displayNames,
+        CancellationToken cancellationToken = default
+    )
+    {
+        List<string> wanted = displayNames.Select(n => n.ToLowerInvariant()).Distinct().ToList();
+        List<User> users = await db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId != null && wanted.Contains(u.UsernameNormalized))
+            .ToListAsync(cancellationToken);
+
+        Dictionary<string, RequesterIdentityDto> found = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string name in displayNames)
+        {
+            User? match = users.FirstOrDefault(u =>
+                string.Equals(u.UsernameNormalized, name, StringComparison.OrdinalIgnoreCase)
+            );
+            if (match is not null)
+                found[name] = new RequesterIdentityDto(match.TwitchUserId!, match.Color);
+        }
+
+        return found;
+    }
+
+    private async Task<Dictionary<string, string?>> ColorsAsync(
+        List<string> platformIds,
+        CancellationToken cancellationToken
+    ) =>
+        await db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId != null && platformIds.Contains(u.TwitchUserId))
+            .ToDictionaryAsync(u => u.TwitchUserId!, u => u.Color, cancellationToken);
 
     private async Task<Dictionary<string, string>> NamesAsync(
         List<string> platformIds,

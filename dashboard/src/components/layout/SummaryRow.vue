@@ -63,7 +63,7 @@ const bodyClass = computed<string>(() => {
           <slot name="detail-lead" />
           <span>{{ detail }}</span>
         </span>
-        <span v-if="meta" data-slot="summary-row-meta" class="block text-xs text-muted-foreground">{{ meta }}</span>
+        <span v-if="meta || $slots.meta" data-slot="summary-row-meta" class="block text-xs text-muted-foreground"><slot name="meta">{{ meta }}</slot></span>
       </span>
       <slot name="end" />
     </component>

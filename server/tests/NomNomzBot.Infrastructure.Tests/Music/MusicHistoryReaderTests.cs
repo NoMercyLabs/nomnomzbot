@@ -54,6 +54,43 @@ public sealed class MusicHistoryReaderTests
     }
 
     [Fact]
+    public async Task Recent_and_top_requesters_carry_the_requester_chat_color()
+    {
+        MusicTestDbContext db = MusicTestDbContext.New();
+        AddUser(db, "100", "Alice", "#FF69B4");
+        AddUser(db, "200", "Bob");
+        AddRow(db, Channel, "100", "spotify:track:a", "Song A", "Artist A", T0);
+        AddRow(db, Channel, "200", "spotify:track:b", "Song B", "Artist B", T0.AddMinutes(5));
+        db.SaveChanges();
+        MusicHistoryReader sut = new(db);
+
+        Result<List<SongHistoryItemDto>> recent = await sut.GetRecentAsync(Channel, 10);
+        Result<List<TopRequesterDto>> top = await sut.GetTopRequestersAsync(Channel, 10);
+
+        recent.Value.Single(i => i.RequesterId == "100").RequesterColor.Should().Be("#FF69B4");
+        recent.Value.Single(i => i.RequesterId == "200").RequesterColor.Should().BeNull();
+        top.Value.Single(t => t.UserId == "100").Color.Should().Be("#FF69B4");
+        top.Value.Single(t => t.UserId == "200").Color.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Resolve_requesters_maps_a_display_name_to_the_twitch_id_and_color_ignoring_case()
+    {
+        MusicTestDbContext db = MusicTestDbContext.New();
+        AddUser(db, "100", "Alice", "#FF69B4");
+        db.SaveChanges();
+        MusicHistoryReader sut = new(db);
+
+        Dictionary<string, RequesterIdentityDto> found = await sut.ResolveRequestersAsync([
+            "alice",
+            "Spotify",
+        ]);
+
+        found.Should().ContainSingle();
+        found["alice"].Should().Be(new RequesterIdentityDto("100", "#FF69B4"));
+    }
+
+    [Fact]
     public async Task Recent_honors_the_limit()
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -92,7 +129,12 @@ public sealed class MusicHistoryReaderTests
         result.Value[1].Should().Be(new TopRequesterDto("100", "Alice", 1));
     }
 
-    private static void AddUser(MusicTestDbContext db, string twitchId, string name) =>
+    private static void AddUser(
+        MusicTestDbContext db,
+        string twitchId,
+        string name,
+        string? color = null
+    ) =>
         db.Users.Add(
             new User
             {
@@ -100,6 +142,7 @@ public sealed class MusicHistoryReaderTests
                 Username = name.ToLowerInvariant(),
                 UsernameNormalized = name.ToLowerInvariant(),
                 DisplayName = name,
+                Color = color,
             }
         );
 

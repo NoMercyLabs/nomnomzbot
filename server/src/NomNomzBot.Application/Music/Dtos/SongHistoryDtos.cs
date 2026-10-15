@@ -21,8 +21,17 @@ public sealed record SongHistoryItemDto(
     string Provider,
     string RequesterId,
     string RequesterName,
-    DateTime RequestedAt
+    DateTime RequestedAt,
+    string? RequesterColor = null
 );
 
 /// <summary>A viewer and how many songs they have requested in this channel, all time.</summary>
-public sealed record TopRequesterDto(string UserId, string DisplayName, int Count);
+public sealed record TopRequesterDto(
+    string UserId,
+    string DisplayName,
+    int Count,
+    string? Color = null
+);
+
+/// <summary>The Twitch id and chat color (#RRGGBB, null until the viewer was seen in chat) of a person named by display name.</summary>
+public sealed record RequesterIdentityDto(string UserId, string? Color);

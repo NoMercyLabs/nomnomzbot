@@ -32,6 +32,7 @@ import {
   type QueueItem,
 } from '@/api/music';
 import BoardCell from '@/components/layout/BoardCell.vue';
+import UserName from '@/components/layout/UserName.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
@@ -218,9 +219,19 @@ const panels = computed(() => [
             :key="item.position"
             :title="item.trackName"
             :detail="item.artist"
-            :meta="item.requestedBy ? $t('dashboard.music.queue.by', { name: item.requestedBy }) : undefined"
             data-queue-item
           >
+            <template v-if="item.requestedBy" #meta>
+              <i18n-t keypath="dashboard.music.queue.by" scope="global">
+                <template #name>
+                  <UserName
+                    :user-id="item.requesterId"
+                    :name="item.requestedBy"
+                    :color="item.requesterColor"
+                  />
+                </template>
+              </i18n-t>
+            </template>
             <template #leading>
               <span
                 data-drag-handle
