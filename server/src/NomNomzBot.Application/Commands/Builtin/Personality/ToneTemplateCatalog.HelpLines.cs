@@ -25,6 +25,7 @@ public static partial class ToneTemplateCatalog
             ("accountage", "— Shows how old your Twitch account is."),
             ("banger", "— Adds the currently playing song to the bangers playlist."),
             ("bansong", "[reason] — (Mod) Bans the current song and skips it."),
+            ("clearsongs", "<user> — (Mod) Removes all queued songs requested by that user."),
             ("closequeue", "— (Mod) Closes the song queue to new requests."),
             ("commands", "— Lists all available commands for your permission level."),
             ("discord", "— Shows the Discord invite link."),
