@@ -122,6 +122,23 @@ public sealed class ObsControlServiceTests
         state.Value.Streaming.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("GetStreamStatus")]
+    [InlineData("GetRecordStatus")]
+    public async Task A_failed_stream_or_record_read_is_an_error_never_off_air(string failing)
+    {
+        Harness harness = Build(request =>
+            request.RequestType == failing
+                ? new(false, null, "OBS said no.")
+                : new(true, new Dictionary<string, object?> { ["outputActive"] = true }, null)
+        );
+
+        Result<ObsStateDto> state = await harness.Service.GetStateAsync(Channel);
+
+        state.IsFailure.Should().BeTrue();
+        state.ErrorCode.Should().Be("OBS_STATE_UNREADABLE");
+    }
+
     [Fact]
     public async Task Source_visibility_resolves_the_item_id_first_then_enables_with_it()
     {
