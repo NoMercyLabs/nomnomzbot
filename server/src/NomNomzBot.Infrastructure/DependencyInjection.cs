@@ -367,6 +367,7 @@ public static class DependencyInjection
         );
         // Badge + cheermote resolvers (cache-only; not name-convention "*Service", so registered explicitly). Singleton.
         services.AddSingleton<Application.Chat.Services.IChatBadgeResolver, ChatBadgeResolver>();
+        services.AddScoped<Application.Chat.Services.IChatIdentityService, ChatIdentityService>();
         services.AddSingleton<
             Application.Chat.Services.ICheermoteResolver,
             ChatCheermoteResolver

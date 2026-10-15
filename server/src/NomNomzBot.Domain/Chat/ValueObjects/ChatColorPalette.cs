@@ -31,4 +31,25 @@ public static class ChatColorPalette
         "#00FF7F",
         "#9ACD32",
     ];
+
+    /// <summary>The Twitch name of each color in <see cref="Colors"/>, at the same index. Update User Chat
+    /// Color accepts these names from every user; a hex value needs Turbo or Prime.</summary>
+    public static readonly IReadOnlyList<string> Names =
+    [
+        "blue",
+        "blue_violet",
+        "cadet_blue",
+        "chocolate",
+        "coral",
+        "dodger_blue",
+        "firebrick",
+        "golden_rod",
+        "green",
+        "hot_pink",
+        "orange_red",
+        "red",
+        "sea_green",
+        "spring_green",
+        "yellow_green",
+    ];
 }
