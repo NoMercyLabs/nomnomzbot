@@ -1,0 +1,52 @@
+{
+  "dashboard": {
+    "supporters": {
+      "title": "Supporters",
+      "anonymous": "Anonymous",
+      "stats": {
+        "subscribers": "Subscribers",
+        "subscribersContext": "On Twitch right now",
+        "gifts": "Gift events",
+        "bits": "Bits cheered",
+        "recent": "In the recent activity"
+      },
+      "subs": {
+        "title": "Subscriptions and gifts",
+        "empty": "No subscriptions or gifts in the recent activity.",
+        "error": "The subscriptions could not be loaded.",
+        "giftMark": "Gift",
+        "receivedGift": "received as a gift",
+        "receivedGiftDetail": "· received as a gift",
+        "subscribed": "Subscribed · Tier {tier}",
+        "subscribedMonths": "Subscribed · Tier {tier} · {months} months",
+        "gifted": "Gifted {count} sub · Tier {tier} | Gifted {count} subs · Tier {tier}"
+      },
+      "cheers": {
+        "title": "Cheers",
+        "empty": "No cheers in the recent activity.",
+        "error": "The cheers could not be loaded.",
+        "bits": "{count} bit | {count} bits"
+      },
+      "top": {
+        "title": "Top supporters",
+        "note": "From the recent activity",
+        "empty": "No cheers or gifts to rank yet.",
+        "error": "The top supporters could not be loaded.",
+        "cheerers": "Most bits",
+        "gifters": "Most gifted subs",
+        "subs": "{count} sub | {count} subs"
+      },
+      "tips": {
+        "title": "Tips and memberships",
+        "empty": "No tips or memberships recorded yet.",
+        "error": "The tips could not be loaded.",
+        "kind": {
+          "tip": "Tip",
+          "membership": "Membership",
+          "merch": "Merch",
+          "charity": "Charity"
+        }
+      }
+    }
+  }
+}

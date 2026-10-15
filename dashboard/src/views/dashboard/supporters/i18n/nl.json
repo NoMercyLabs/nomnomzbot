@@ -1,0 +1,52 @@
+{
+  "dashboard": {
+    "supporters": {
+      "title": "Supporters",
+      "anonymous": "Anoniem",
+      "stats": {
+        "subscribers": "Abonnees",
+        "subscribersContext": "Nu op Twitch",
+        "gifts": "Cadeau-events",
+        "bits": "Bits gecheerd",
+        "recent": "In de recente activiteit"
+      },
+      "subs": {
+        "title": "Abonnementen en cadeaus",
+        "empty": "Geen abonnementen of cadeaus in de recente activiteit.",
+        "error": "De abonnementen konden niet worden geladen.",
+        "giftMark": "Cadeau",
+        "receivedGift": "cadeau gekregen",
+        "receivedGiftDetail": "· cadeau gekregen",
+        "subscribed": "Geabonneerd · Tier {tier}",
+        "subscribedMonths": "Geabonneerd · Tier {tier} · {months} maanden",
+        "gifted": "{count} abonnement geschonken · Tier {tier} | {count} abonnementen geschonken · Tier {tier}"
+      },
+      "cheers": {
+        "title": "Cheers",
+        "empty": "Geen cheers in de recente activiteit.",
+        "error": "De cheers konden niet worden geladen.",
+        "bits": "{count} bit | {count} bits"
+      },
+      "top": {
+        "title": "Topsupporters",
+        "note": "Uit de recente activiteit",
+        "empty": "Nog geen cheers of cadeaus om te rangschikken.",
+        "error": "De topsupporters konden niet worden geladen.",
+        "cheerers": "Meeste bits",
+        "gifters": "Meeste geschonken abonnementen",
+        "subs": "{count} abonnement | {count} abonnementen"
+      },
+      "tips": {
+        "title": "Tips en lidmaatschappen",
+        "empty": "Nog geen tips of lidmaatschappen vastgelegd.",
+        "error": "De tips konden niet worden geladen.",
+        "kind": {
+          "tip": "Tip",
+          "membership": "Lidmaatschap",
+          "merch": "Merch",
+          "charity": "Goed doel"
+        }
+      }
+    }
+  }
+}
