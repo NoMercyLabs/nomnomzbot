@@ -50,6 +50,30 @@ public sealed class DashboardActivityActorNameTests
     }
 
     [Theory]
+    // The projection's field wins: the name in the feed opens this person's profile.
+    [InlineData(
+        "{\"userId\":\"405277251\",\"actorDisplay\":\"R2_ADHD2\",\"actorTwitchUserId\":\"405277251\"}",
+        "405277251"
+    )]
+    // Raw raid payload: the raider is fromUserId.
+    [InlineData("{\"fromUserId\":\"120307729\",\"fromDisplayName\":\"Manadono\"}", "120307729")]
+    // Legacy imported event.
+    [InlineData("{\"user\":\"R2_ADHD2\",\"user.id\":\"405277251\"}", "405277251")]
+    public void ResolvesTheActorTwitchIdFromThePayload(string data, string expected)
+    {
+        DashboardController.ResolveActorTwitchIdFromData(data).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not json at all")]
+    [InlineData("{\"actorDisplay\":\"NoId\"}")]
+    public void ReturnsNoTwitchIdWhenThePayloadHasNone(string? data)
+    {
+        DashboardController.ResolveActorTwitchIdFromData(data).Should().BeNull();
+    }
+
+    [Theory]
     [InlineData(null)] // no payload
     [InlineData("")] // blank payload
     [InlineData("   ")] // whitespace payload

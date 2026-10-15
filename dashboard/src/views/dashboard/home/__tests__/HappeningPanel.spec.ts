@@ -25,6 +25,8 @@ type Fed = {
   type: string;
   username: string | null;
   userId?: string | null;
+  twitchUserId?: string | null;
+  color?: string | null;
   data: unknown;
 };
 
@@ -64,6 +66,8 @@ vi.mock('@/api/client', () => ({
               id: `e${index}`,
               type: item.type,
               userId: item.userId ?? null,
+              twitchUserId: item.twitchUserId ?? null,
+              color: item.color ?? null,
               username: item.username,
               data: JSON.stringify(item.data),
               timestamp: '2026-10-10T21:15:00',
@@ -114,7 +118,10 @@ describe('activity row actions', () => {
   const event = {
     type: 'channel.follow',
     username: 'Alice',
-    userId: 'twitch-42',
+    // userId is the internal id; the profile opens by the Twitch user id.
+    userId: 'internal-guid-42',
+    twitchUserId: 'twitch-42',
+    color: '#1E90FF',
     data: {},
   };
 
@@ -122,6 +129,13 @@ describe('activity row actions', () => {
     await rowsFor([event]);
     document.body.querySelector<HTMLButtonElement>('[data-user="twitch-42"]')?.click();
     expect(useProfileDialogStore().userId).toBe('twitch-42');
+  });
+
+  it('shows the name in the person chat color', async () => {
+    await rowsFor([event]);
+    const name = document.body.querySelector<HTMLButtonElement>('[data-user="twitch-42"]');
+
+    expect(name?.style.color).not.toBe('');
   });
 
   it('hides Replay without the action permission', async () => {

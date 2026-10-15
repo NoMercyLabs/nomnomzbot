@@ -91,7 +91,11 @@ async function send(entry: ShoutoutSuggestion): Promise<void> {
             </Avatar>
           </template>
           <template #title>
-            <UserName :user-id="entry.twitchUserId" :name="entry.displayName" />
+            <UserName
+              :user-id="entry.twitchUserId"
+              :name="entry.displayName"
+              :color="entry.color"
+            />
           </template>
           <template v-if="!sent.has(entry.twitchUserId)" #trailing>
             <Button

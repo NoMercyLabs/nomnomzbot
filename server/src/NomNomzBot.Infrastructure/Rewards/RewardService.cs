@@ -537,7 +537,8 @@ public class RewardService : IRewardService
                 x.Redemption.Cost,
                 x.Redemption.UserInput,
                 x.Redemption.Status,
-                x.Redemption.RedeemedAt
+                x.Redemption.RedeemedAt,
+                x.User != null ? x.User.Color : null
             ))
             .ToListAsync(cancellationToken);
 

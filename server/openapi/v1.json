@@ -100403,6 +100403,18 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          },
+          "twitchUserId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -106060,6 +106072,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -122066,6 +122084,12 @@
           "redeemedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "userColor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "One entry in the channel-points redemption queue (rewards.md) — a redemption with its current\r\n            status (`unfulfilled` / `fulfilled` / `canceled`), folded from the journal."

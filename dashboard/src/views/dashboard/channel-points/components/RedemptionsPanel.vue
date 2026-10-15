@@ -88,7 +88,7 @@ function when(redeemedAt: string): string {
       </template>
       <template #end>
         <span class="flex flex-none flex-col items-end gap-0.5 text-xs text-muted-foreground">
-          <UserName :user-id="item.userId" :name="item.userDisplayName" />
+          <UserName :user-id="item.userId" :name="item.userDisplayName" :color="item.userColor" />
           <span>{{ meta(item) }}</span>
         </span>
       </template>

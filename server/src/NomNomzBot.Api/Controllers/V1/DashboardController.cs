@@ -74,7 +74,10 @@ public class DashboardController : BaseController
         string? UserId,
         string? Username,
         string? Data,
-        DateTime Timestamp
+        DateTime Timestamp,
+        // The actor's Twitch user id (the profile dialog key) and chat color; null without a local User row.
+        string? TwitchUserId = null,
+        string? Color = null
     );
 
     /// <summary>What a replay actually re-performed — every count is real work, and 0 is a valid, truthful
@@ -285,9 +288,11 @@ public class DashboardController : BaseController
         [
             .. events.Select(e =>
             {
-                string? username = null;
-                if (e.UserId is not null && users.TryGetValue(e.UserId.Value, out User? user))
-                    username = user.DisplayName;
+                User? actor = null;
+                if (e.UserId is not null)
+                    users.TryGetValue(e.UserId.Value, out actor);
+
+                string? username = actor?.DisplayName;
 
                 // Most events carry no local User row (a follower or raider who never chatted), so the name only
                 // ever lived in the event payload — resolving it from there is what turns a wall of "— followed"
@@ -311,7 +316,9 @@ public class DashboardController : BaseController
                     e.UserId?.ToString(),
                     username,
                     e.Data,
-                    e.CreatedAt
+                    e.CreatedAt,
+                    actor?.TwitchUserId ?? ResolveActorTwitchIdFromData(e.Data),
+                    actor?.Color
                 );
             }),
         ];
@@ -371,6 +378,15 @@ public class DashboardController : BaseController
         "user.name",
     ];
 
+    // Where the actor's Twitch user id lives: the projection's field first, then the raw EventSub and legacy ones.
+    private static readonly string[] ActorTwitchIdFields =
+    [
+        "actorTwitchUserId",
+        "userId",
+        "fromUserId",
+        "user.id",
+    ];
+
     /// <summary>
     /// A day's supporter money as ONE honest number: the minor-unit total + its currency when every
     /// amount-bearing event shares a single currency; (null, null) for an amount-less or mixed-currency day —
@@ -426,7 +442,17 @@ public class DashboardController : BaseController
     /// whose actor has no local <see cref="User"/> row still resolves a name. Returns null for a missing/blank
     /// payload, a non-object payload, or one with none of the known name fields.
     /// </summary>
-    internal static string? ResolveActorNameFromData(string? data)
+    internal static string? ResolveActorNameFromData(string? data) =>
+        FirstTextField(data, ActorNameFields);
+
+    /// <summary>
+    /// Extracts the actor's Twitch user id from a channel event's JSON payload, so an actor with no local
+    /// <see cref="User"/> row still opens a profile. Null when no known id field holds text.
+    /// </summary>
+    internal static string? ResolveActorTwitchIdFromData(string? data) =>
+        FirstTextField(data, ActorTwitchIdFields);
+
+    private static string? FirstTextField(string? data, string[] fields)
     {
         if (string.IsNullOrWhiteSpace(data))
             return null;
@@ -437,7 +463,7 @@ public class DashboardController : BaseController
             if (document.RootElement.ValueKind != JsonValueKind.Object)
                 return null;
 
-            foreach (string field in ActorNameFields)
+            foreach (string field in fields)
                 if (
                     document.RootElement.TryGetProperty(field, out JsonElement value)
                     && value.ValueKind == JsonValueKind.String

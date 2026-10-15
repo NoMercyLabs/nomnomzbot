@@ -84679,6 +84679,8 @@ export interface components {
             data?: null | string;
             /** Format: date-time */
             timestamp: string;
+            twitchUserId?: null | string;
+            color?: null | string;
         };
         /** @description Bulk code intake — each plaintext is AEAD-encrypted on write and never echoed back. */
         AddCodesRequest: {
@@ -86657,6 +86659,7 @@ export interface components {
             firstSeen?: null | string;
             /** Format: date-time */
             lastSeen?: null | string;
+            color?: null | string;
         };
         /** @description The authored source to compile-on-save into the widget's next append-only version. */
         CompileWidgetRequest: {
@@ -91997,6 +92000,7 @@ export interface components {
             status: string;
             /** Format: date-time */
             redeemedAt: string;
+            userColor?: null | string;
         };
         /**
          * @description One live/recent countdown for a time-limited reward redemption. `RemainingSeconds` is

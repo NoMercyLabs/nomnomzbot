@@ -21,6 +21,7 @@ import {
 export type Person = {
   userId: string | null;
   name: string | null;
+  color: string | null;
   anonymous: boolean;
 };
 
@@ -67,11 +68,13 @@ function personOf(event: ActivityEvent, data: ActivityData): Person {
     ? {
         userId: null,
         name: null,
+        color: null,
         anonymous: true,
       }
     : {
-        userId: event.userId ?? null,
+        userId: event.twitchUserId ?? null,
         name,
+        color: event.color ?? null,
         anonymous: false,
       };
 }

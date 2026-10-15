@@ -552,7 +552,7 @@ function confirmDelete(): void {
             </p>
             <ul class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
               <li v-for="person in people" :key="person.id">
-                <UserName :user-id="person.id" :name="person.displayName" />
+                <UserName :user-id="person.id" :name="person.displayName" :color="person.color" />
               </li>
             </ul>
           </PanelCard>

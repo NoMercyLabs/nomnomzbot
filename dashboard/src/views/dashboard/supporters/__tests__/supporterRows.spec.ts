@@ -20,7 +20,11 @@ function event(id: string, type: string, username: string | null, data: object):
     type,
     userId: username === null
       ? null
+      : `guid-${username}`,
+    twitchUserId: username === null
+      ? null
       : `u-${username}`,
+    color: '#FF4500',
     username,
     data: JSON.stringify(data),
     timestamp: '2026-10-15T12:00:00Z',
@@ -43,6 +47,17 @@ describe('subscriptionRows', () => {
     });
   });
 
+  it('names a supporter by Twitch user id and chat color, so the name opens their profile', () => {
+    const rows = subscriptionRows([event('5', 'channel.subscribe', 'ann', { tier: '1000' })]);
+
+    expect(rows[0]?.person).toEqual({
+      userId: 'u-ann',
+      name: 'ann',
+      color: '#FF4500',
+      anonymous: false,
+    });
+  });
+
   it('shows an anonymous gifter without a name or profile link', () => {
     const rows = subscriptionRows([
       event('3', 'channel.subscription.gift', 'ghost', {
@@ -55,6 +70,7 @@ describe('subscriptionRows', () => {
     expect(rows[0]?.person).toEqual({
       userId: null,
       name: null,
+      color: null,
       anonymous: true,
     });
 

@@ -36,7 +36,9 @@ public sealed record RedemptionListItem(
     int Cost,
     string? UserInput,
     string Status,
-    DateTime RedeemedAt
+    DateTime RedeemedAt,
+    // The redeemer's Twitch chat color, or null when never seen in chat.
+    string? UserColor = null
 );
 
 public sealed record RewardDetail(

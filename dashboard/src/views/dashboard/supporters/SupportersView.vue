@@ -148,6 +148,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
               v-if="isNamed(row.person)"
               :user-id="row.person.userId"
               :name="row.person.name"
+              :color="row.person.color"
             />
             <span v-else>{{ t('dashboard.supporters.anonymous') }}</span>
             <span v-if="row.receivedAsGift" class="text-muted-foreground">
@@ -177,6 +178,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
               v-if="isNamed(row.person)"
               :user-id="row.person.userId"
               :name="row.person.name"
+              :color="row.person.color"
             />
             <span v-else>{{ t('dashboard.supporters.anonymous') }}</span>
           </template>
@@ -206,6 +208,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
               v-if="isNamed(entry.person)"
               :user-id="entry.person.userId"
               :name="entry.person.name"
+              :color="entry.person.color"
             />
           </template>
         </SummaryRow>
@@ -225,6 +228,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
               v-if="isNamed(entry.person)"
               :user-id="entry.person.userId"
               :name="entry.person.name"
+              :color="entry.person.color"
             />
           </template>
         </SummaryRow>
