@@ -28,12 +28,13 @@ namespace NomNomzBot.Infrastructure.Obs.Transport;
 /// <summary>
 /// The self-host OBS transport (obs-control.md §3.2/D1): the server holds one OBS-WebSocket v5
 /// connection per channel to the channel's OWN configured endpoint (no other host is ever dialed —
-/// no SSRF surface). Connects lazily on first send: Hello (op 0) → Identify (op 1, the v5
+/// no SSRF surface). <see cref="ObsDirectConnectionKeeper"/> dials every enabled direct channel and redials
+/// after a drop; a send also dials when no session is live. Hello (op 0) → Identify (op 1, the v5
 /// challenge/salt SHA-256 handshake when a password is set, subscribing with the channel's event
 /// mask) → Identified (op 2). Requests are op 6/8 with awaited correlated responses (op 7/9);
 /// inbound events (op 5) publish <see cref="ObsEventReceivedEvent"/> for the trigger surface. A
-/// dropped socket fails all in-flight requests, records <c>LastError</c> on the row, and the next
-/// send re-dials.
+/// dropped socket fails all in-flight requests, records <c>LastError</c> on the row, and the keeper
+/// (or the next send) re-dials.
 /// </summary>
 public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDisposable
 {
@@ -174,6 +175,18 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
     }
 
     /// <summary>Sends one frame and awaits its correlated op 7/9 reply (or times out / fails on drop).</summary>
+    /// <summary>True while an identified OBS session for the channel is live.</summary>
+    public bool IsConnected(Guid broadcasterId) => _sessions.ContainsKey(broadcasterId);
+
+    /// <summary>Dials and identifies the channel's OBS when no session is live, so events flow before any command.</summary>
+    public async Task<Result> ConnectAsync(Guid broadcasterId, CancellationToken ct = default)
+    {
+        Result<ObsSession> session = await GetOrConnectAsync(broadcasterId, ct);
+        return session.IsSuccess
+            ? Result.Success()
+            : Result.Failure(session.ErrorMessage!, session.ErrorCode!);
+    }
+
     private async Task<Result<JsonElement>> RoundTripAsync(
         Guid broadcasterId,
         ObsSession session,

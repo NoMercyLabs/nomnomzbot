@@ -100,6 +100,10 @@ public sealed class ObsBridgeHostController : ControllerBase
                 // Passwordless OBS setups simply leave this null and Identify goes out unauthenticated.
                 var obsPassword = null;
 
+                // The channel's saved event mask (SetObsCredentials); 4095 = OBS "All" until it arrives.
+                var eventMask = 4095;
+                // Once started, the OBS leg stays open and redials with backoff, so events flow without a command.
+                var wanted = false, retryMs = 1000;
                 var sock = null, ready = false, connecting = false;
                 var pending = {}; // requestId -> callback(dResponse)
                 var queue = [];   // commands awaiting a live, identified socket
@@ -122,7 +126,7 @@ public sealed class ObsBridgeHostController : ControllerBase
                   if (connecting || ready) return;
                   connecting = true;
                   try { sock = new WebSocket("ws://127.0.0.1:" + obsPort); }
-                  catch (e) { connecting = false; failAll("OBS socket could not open"); return; }
+                  catch (e) { connecting = false; failAll("OBS socket could not open"); scheduleRetry(); return; }
 
                   sock.onmessage = function (evt) {
                     var msg; try { msg = JSON.parse(evt.data); } catch (_) { return; }
@@ -147,7 +151,7 @@ public sealed class ObsBridgeHostController : ControllerBase
 
                 function onHello(d) {
                   var send = function (authentication) {
-                    sock.send(JSON.stringify({ op: 1, d: { rpcVersion: 1, authentication: authentication } }));
+                    sock.send(JSON.stringify({ op: 1, d: { rpcVersion: 1, authentication: authentication, eventSubscriptions: eventMask } }));
                   };
                   if (d.authentication) {
                     if (!obsPassword) {
@@ -164,7 +168,7 @@ public sealed class ObsBridgeHostController : ControllerBase
                 }
 
                 function onIdentified() {
-                  ready = true; connecting = false;
+                  ready = true; connecting = false; retryMs = 1000;
                   status("obs ready");
                   var q = queue; queue = [];
                   q.forEach(function (c) { run(c.commandId, c.payload); });
@@ -239,6 +243,8 @@ public sealed class ObsBridgeHostController : ControllerBase
                   // handshake authenticates against an auth-enabled OBS.
                   setPassword: function (pw) { obsPassword = pw || null; },
                   setPort: function (port) { if (port > 0 && port < 65536) obsPort = port; },
+                  setEventMask: function (mask) { if (typeof mask === "number" && mask >= 0) eventMask = mask; },
+                  start: function () { wanted = true; connect(); },
                   execute: function (commandId, payload) {
                     if (ready && sock && sock.readyState === WebSocket.OPEN) { run(commandId, payload); return; }
                     queue.push({ commandId: commandId, payload: payload });
@@ -406,7 +412,11 @@ public sealed class ObsBridgeHostController : ControllerBase
                 function dispatch(target, args) {
                   // Server pushes the OBS-WS password + port on connect (before any command) so the OBS leg
                   // opens the right socket and can authenticate.
-                  if (target === "SetObsCredentials") { obs.setPassword(args[0]); obs.setPort(args[1]); return; }
+                  // The OBS leg opens right away so events flow before any command.
+                  if (target === "SetObsCredentials") {
+                    obs.setPassword(args[0]); obs.setPort(args[1]); obs.setEventMask(args[2]); obs.start();
+                    return;
+                  }
                   if (target !== "ExecuteObsRequest") return;
                   var commandId = args[0], payloadJson = args[1];
                   var payload; try { payload = JSON.parse(payloadJson); }

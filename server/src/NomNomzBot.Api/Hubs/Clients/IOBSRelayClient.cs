@@ -24,5 +24,5 @@ public interface IOBSRelayClient
     /// inside OBS on the same machine, so only the port (never the host) can differ. Delivered over the
     /// authenticated relay (wss in prod) — never in the page URL.
     /// </summary>
-    Task SetObsCredentials(string? obsPassword, int obsPort);
+    Task SetObsCredentials(string? obsPassword, int obsPort, int eventSubscriptions);
 }
