@@ -1583,6 +1583,97 @@ public sealed class PipelineEngineTreeExecutionTests
         result.Outcome.Should().Be(PipelineOutcome.Completed);
     }
 
+    /// <summary>
+    /// Regression, 2026-10-16 cheer incident: one 100-bit cheer spoke two bot TTS lines. The channel's
+    /// cheer pipeline reads the message (stop_on_match) and only otherwise speaks the "silent cheer"
+    /// line. The rows lost stop_on_match, so the silent line ran after the message as well.
+    /// </summary>
+    [Fact]
+    public async Task FlatDbPipeline_StopOnMatchStopsTheRunAfterAMatchedStep()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        CountingAction matchedCounter = new() { ActionType = "matched" };
+        PipelineStep matched = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "matched",
+            """{"type":"matched"}"""
+        );
+        matched.StopOnMatch = true;
+        CountingAction fallbackCounter = new() { ActionType = "fallback" };
+        PipelineStep fallback = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "fallback",
+            """{"type":"fallback"}"""
+        );
+
+        db.PipelineSteps.AddRange(matched, fallback);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [matchedCounter, fallbackCounter]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        matchedCounter.Count.Should().Be(1);
+        fallbackCounter
+            .Count.Should()
+            .Be(0, "a matched stop_on_match step must end the run before the fallback step");
+        result.Outcome.Should().Be(PipelineOutcome.Stopped);
+    }
+
+    /// <summary>Same regression as <see cref="FlatDbPipeline_StopOnMatchStopsTheRunAfterAMatchedStep"/>
+    /// for a leaf nested inside a block, run by the tree walker.</summary>
+    [Fact]
+    public async Task TreeLeaf_StopOnMatchStopsTheRun()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep ifStep = NewStep(pipelineId, null, null, "if", "{}", 0);
+        PipelineStepCondition alwaysTrue = NewLeafCondition(
+            ifStep.Id,
+            null,
+            0,
+            desiredResult: true
+        );
+        CountingAction matchedCounter = new() { ActionType = "matched" };
+        PipelineStep matched = NewLeaf(
+            pipelineId,
+            ifStep.Id,
+            "then",
+            0,
+            "matched",
+            """{"type":"matched"}"""
+        );
+        matched.StopOnMatch = true;
+        CountingAction fallbackCounter = new() { ActionType = "fallback" };
+        PipelineStep fallback = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "fallback",
+            """{"type":"fallback"}"""
+        );
+
+        db.PipelineSteps.AddRange(ifStep, matched, fallback);
+        db.PipelineStepConditions.Add(alwaysTrue);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [matchedCounter, fallbackCounter]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        matchedCounter.Count.Should().Be(1);
+        fallbackCounter.Count.Should().Be(0);
+        result.Outcome.Should().Be(PipelineOutcome.Stopped);
+    }
+
     /// <summary>Same regression as <see cref="FlatDbPipeline_ContinueOnErrorIsHonoredNotSilentlyDropped"/>
     /// but for a leaf nested inside a block — <c>ExecuteLeafAsync</c> (the tree walker's leaf executor)
     /// never consulted <c>step.ContinueOnError</c> at all, so a block-nested step failing always

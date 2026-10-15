@@ -1160,6 +1160,7 @@ public sealed class PipelineEngine : IPipelineEngine
                     Action = action,
                     Condition = condition,
                     ContinueOnError = row.ContinueOnError,
+                    StopOnMatch = row.StopOnMatch,
                 }
             );
         }
@@ -1658,7 +1659,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 state.ContinueLoop = true;
         }
 
-        if (ctx.ShouldStop)
+        if (ctx.ShouldStop || (step.StopOnMatch && actionResult.Succeeded))
             state.StoppedDeliberately = true;
     }
 

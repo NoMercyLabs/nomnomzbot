@@ -63,6 +63,12 @@ public class PipelineStep : BaseEntity, ITenantScoped
     public bool ContinueOnError { get; set; }
 
     /// <summary>
+    /// When <c>true</c> and this step ran and succeeded, the run stops here (matches
+    /// <c>PipelineStepDefinition.StopOnMatch</c>). A step whose condition is not met never stops the run.
+    /// </summary>
+    public bool StopOnMatch { get; set; }
+
+    /// <summary>
     /// Snake_case registry key for the action type (e.g. "send_message", "timeout_user").
     /// Unknown values are rejected at save time; the engine hard-fails on unknown types.
     /// </summary>
