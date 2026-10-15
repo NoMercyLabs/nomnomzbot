@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // The OBS link in three rows: the saved connection, the browser-source bridge, and what OBS is doing now.
-// Each row has a dot (green works, orange needs a look, red failed, grey off) and the reason in words.
+// Each row has a dot (green works, orange needs a look, red failed, gray off) and the reason in words.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 

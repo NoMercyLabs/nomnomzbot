@@ -10,7 +10,7 @@
 
 import type { Widget } from '@/api/widgets';
 
-// '' is the plain grey dot (switched off); ok is green, warn orange, bad red: the classes of .dot in frame.css.
+// '' is the plain gray dot (switched off); ok is green, warn orange, bad red: the classes of .dot in frame.css.
 export type HealthDot = '' | 'ok' | 'warn' | 'bad';
 
 // Truthful states only: the bot reports an error string and whether a source is open, not a load state.

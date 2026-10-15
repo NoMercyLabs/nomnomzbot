@@ -40,7 +40,7 @@ export function clampNumber(
   return parsed;
 }
 
-// The schema types a catalogue default as unknown; it is a JSON value of the field's own type.
+// The schema types a catalog default as unknown; it is a JSON value of the field's own type.
 export function defaultOf(field: WidgetSettingsField): JsonValue | undefined {
   return field.default as JsonValue | undefined;
 }

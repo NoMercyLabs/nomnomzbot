@@ -139,7 +139,7 @@
 [data-slot='tabs-trigger'][data-state='active'],
 [data-segment][data-state='on'] {
   color: var(--foreground);
-  /* Neutral, not --accent: in dark mode --accent and --secondary are purple, and the kit's pill is grey. */
+  /* Neutral, not --accent: in dark mode --accent and --secondary are purple, and the kit's pill is gray. */
   background: color-mix(in oklch, var(--foreground) 8%, var(--muted));
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 12%, transparent);
 }

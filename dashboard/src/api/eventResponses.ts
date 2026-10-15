@@ -18,7 +18,7 @@ import type { components } from './schema';
 export type EventResponse = components['schemas']['EventResponseListItem'];
 
 const version = '1';
-// One response per event type; the event catalogue stays well under this.
+// One response per event type; the event catalog stays well under this.
 const pageSize = 200;
 
 export const eventResponsesKey = (channelId: string | null) => ['channels', channelId, 'event-responses'];

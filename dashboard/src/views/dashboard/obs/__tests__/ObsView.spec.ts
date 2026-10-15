@@ -147,7 +147,7 @@ const dotsOf = (name: string): string[] =>
   Array.from(document.querySelectorAll(`[data-obs-dot="${name}"]`)).map((dot) => dot.className);
 
 describe('ObsView', () => {
-  it('shows each browser source as green loaded, orange not loaded, red failed or grey off, with its reason', async () => {
+  it('shows each browser source as green loaded, orange not loaded, red failed or gray off, with its reason', async () => {
     await open();
 
     const rows = Array.from(document.querySelectorAll('[data-obs-source]'));

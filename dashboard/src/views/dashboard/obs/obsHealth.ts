@@ -11,13 +11,13 @@
 import type { ObsBridgeStatus, ObsConnection } from '@/api/obs';
 import type { HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
 
-// A state of the OBS page: the dot colour and the i18n key (under dashboard.obs) of the words beside it.
+// A state of the OBS page: the dot color and the i18n key (under dashboard.obs) of the words beside it.
 export type Health = {
   dot: HealthDot;
   reason: string;
 };
 
-// Red beats orange beats green beats the grey "off", so one glance at the header finds a problem.
+// Red beats orange beats green beats the gray "off", so one glance at the header finds a problem.
 const SEVERITY = {
   bad: 3,
   warn: 2,
@@ -35,7 +35,7 @@ export function worstDot(dots: readonly HealthDot[]): HealthDot {
   );
 }
 
-// The saved connection, plus whether OBS answered a live read: switched off is grey, an error red, silent orange.
+// The saved connection, plus whether OBS answered a live read: switched off is gray, an error red, silent orange.
 export function connectionHealth(
   connection: ObsConnection | null | undefined,
   unreachable: boolean,
