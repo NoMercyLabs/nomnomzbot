@@ -9,42 +9,55 @@
 // -----------------------------------------------------------------------------
 
 import type { Component } from 'vue';
-import BellNotification from '~icons/nnz/bell-notification';
 import BellRing from '~icons/nnz/bell-ring';
 import ChatMessages from '~icons/nnz/chat-messages';
-import ClosedCaption from '~icons/nnz/closed-caption';
-import Medal from '~icons/nnz/medal';
-import Monitor from '~icons/nnz/monitor';
 import NoteEighthPair from '~icons/nnz/note-eighth-pair';
-import PictureInPicture from '~icons/nnz/picture-in-picture';
-import Speaker from '~icons/nnz/speaker';
-import Trophy from '~icons/nnz/trophy';
 import WaveForm from '~icons/nnz/wave-form';
 
 export interface OverlayKind {
   /** Key under dashboard.overlays.kinds. */
   key: string;
-  icon: Component;
+  /** Null when the kind has no clear picture: the tile stays, empty, so rows line up. */
+  icon: Component | null;
 }
 
-// The bot stores no kind for an overlay, so the kind is read from its name; an unknown name is a plain overlay.
-const KINDS: Readonly<Record<string, OverlayKind>> = {
-  'Twitch Chat Overlay': { key: 'chat', icon: ChatMessages },
-  'Spotify NowPlaying': { key: 'nowPlaying', icon: NoteEighthPair },
-  'Logo badge': { key: 'badge', icon: Medal },
-  'TTS Audio Widget': { key: 'tts', icon: WaveForm },
-  BSOD: { key: 'fullScreen', icon: Monitor },
-  Leaderboard: { key: 'leaderboard', icon: Trophy },
-  'Feather Alert': { key: 'alert', icon: BellNotification },
-  'TTS Caption': { key: 'caption', icon: ClosedCaption },
-  Alerts: { key: 'alerts', icon: BellRing },
-  Audio: { key: 'audio', icon: Speaker },
-};
+interface KindRule extends OverlayKind {
+  events: readonly string[];
+}
 
-const FALLBACK: OverlayKind = { key: 'overlay', icon: PictureInPicture };
+// The kind comes from the events the overlay listens to, never from its name or title.
+// The first rule with an event the overlay listens to wins, so the order is the priority.
+const RULES = [
+  {
+    key: 'tts',
+    icon: WaveForm,
+    events: ['tts_speak'],
+  },
+  {
+    key: 'chat',
+    icon: ChatMessages,
+    events: ['ChatMessage', 'ChatMessageEnriched'],
+  },
+  {
+    key: 'nowPlaying',
+    icon: NoteEighthPair,
+    events: ['now_playing', 'track_saved_changed', 'spotify.track_changed'],
+  },
+  {
+    key: 'alerts',
+    icon: BellRing,
+    events: ['follow', 'subscription', 'resub', 'gift', 'cheer'],
+  },
+] as const satisfies readonly KindRule[];
 
-export function overlayKind(name: string): OverlayKind {
-  return KINDS[name] ?? FALLBACK;
+const PLAIN: OverlayKind = { key: 'overlay', icon: null };
+
+export function overlayKind(eventSubscriptions: readonly string[]): OverlayKind {
+  const rule: KindRule | undefined = RULES.find((candidate: KindRule) =>
+    candidate.events.some((event: string) => eventSubscriptions.includes(event)),
+  );
+
+  return rule ?? PLAIN;
 }
 
 // "channel.subscription.gift" reads as "subscription gift".

@@ -46,7 +46,7 @@ const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 const setEnabled = useSetWidgetEnabled(channelId);
 
-const kind = computed<OverlayKind>(() => overlayKind(props.widget.name));
+const kind = computed<OverlayKind>(() => overlayKind(props.widget.eventSubscriptions));
 const builtIn = computed<boolean>(() => props.widget.source === 'first_party');
 const ago = useTimeAgoIntl(() => props.widget.lastRanAt ?? new Date(0), { locale: locale.value });
 
@@ -186,7 +186,7 @@ const module = computed<KeyValueItem[]>(() => {
         <span
           class="flex size-12 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
         >
-          <component :is="kind.icon" class="size-5" aria-hidden="true" />
+          <component :is="kind.icon" v-if="kind.icon" class="size-5" aria-hidden="true" />
         </span>
         <div class="grid min-w-0 gap-1">
           <h2 class="truncate text-lg font-semibold">{{ widget.name }}</h2>

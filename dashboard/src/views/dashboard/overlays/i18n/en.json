@@ -33,14 +33,8 @@
       "kinds": {
         "chat": "Chat box",
         "nowPlaying": "Now playing",
-        "badge": "Alert badge",
         "tts": "TTS speaker",
-        "fullScreen": "Full-screen effect",
-        "leaderboard": "Leaderboard",
-        "alert": "Alert",
-        "caption": "TTS caption",
         "alerts": "Alerts",
-        "audio": "Audio player",
         "overlay": "Overlay"
       },
       "detail": {

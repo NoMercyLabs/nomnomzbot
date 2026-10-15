@@ -25,7 +25,7 @@ defineEmits<{ pick: [] }>();
 
 const { t } = useI18n();
 
-const kind = computed<OverlayKind>(() => overlayKind(props.widget.name));
+const kind = computed<OverlayKind>(() => overlayKind(props.widget.eventSubscriptions));
 const detail = computed<string>(() => {
   if (!props.widget.isEnabled)
     return t('dashboard.overlays.list.off');
@@ -65,7 +65,7 @@ const dotState = computed<string>(() => {
         <span
           class="flex size-9 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
         >
-          <component :is="kind.icon" class="size-4" aria-hidden="true" />
+          <component :is="kind.icon" v-if="kind.icon" class="size-4" aria-hidden="true" />
         </span>
       </template>
       <template #detail-lead>

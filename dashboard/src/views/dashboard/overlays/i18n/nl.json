@@ -33,14 +33,8 @@
       "kinds": {
         "chat": "Chatvenster",
         "nowPlaying": "Speelt nu",
-        "badge": "Meldingsbadge",
         "tts": "TTS-speaker",
-        "fullScreen": "Schermvullend effect",
-        "leaderboard": "Ranglijst",
-        "alert": "Melding",
-        "caption": "TTS-ondertitel",
         "alerts": "Meldingen",
-        "audio": "Audiospeler",
         "overlay": "Overlay"
       },
       "detail": {
