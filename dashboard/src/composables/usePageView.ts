@@ -24,7 +24,7 @@ export function usePageView(
   return computed<string>({
     get: (): string => {
       const known = toValue(values);
-      const asked: unknown = route.query[key];
+      const asked = route.query[key];
 
       return typeof asked === 'string' && known.includes(asked)
         ? asked

@@ -471,12 +471,12 @@ const historyLimit = 12;
 const topRequesterLimit = 8;
 
 // Both panels read the stored request rows, so the realtime layer marks them stale together.
-export const musicHistoryKey = (channelId: string | null): unknown[] => [
+export const musicHistoryKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'music-history',
 ];
-export const musicTopRequestersKey = (channelId: string | null): unknown[] => [
+export const musicTopRequestersKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'music-top-requesters',

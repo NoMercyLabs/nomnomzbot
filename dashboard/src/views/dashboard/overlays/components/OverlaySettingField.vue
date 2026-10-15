@@ -8,6 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { JsonValue } from '@/lib/json';
 // One settings field: label and "key . type . help" on the left, the control its type asks for,
 // and Reset when the value differs from the default (12-overlays.html:304-313).
 // A type the dashboard does not know shows its value read-only.
@@ -34,10 +35,10 @@ import { clampNumber } from './settingField';
 
 const props = defineProps<{
   field: WidgetSettingsField;
-  value: unknown;
+  value: JsonValue | undefined;
   changed: boolean;
 }>();
-const emit = defineEmits<{ update: [value: unknown]; reset: [] }>();
+const emit = defineEmits<{ update: [value: JsonValue | undefined]; reset: [] }>();
 
 const text = useLocalizedText();
 const titleId = useId();
@@ -83,7 +84,7 @@ const known = computed<boolean>(() =>
 // The number is held inside min and max on change; the box shows the held value even when it did not move.
 function onNumber(event: Event): void {
   const box = event.target as HTMLInputElement;
-  const next: unknown = clampNumber(box.value, props.field, props.value);
+  const next = clampNumber(box.value, props.field, props.value);
 
   box.value = String(next);
   emit('update', next);
@@ -156,7 +157,7 @@ function onNumber(event: Event): void {
       <Select
         v-else-if="field.type === 'select'"
         :model-value="shown"
-        @update:model-value="emit('update', $event)"
+        @update:model-value="emit('update', String($event))"
       >
         <SelectTrigger class="w-full sm:w-48" :aria-labelledby="titleId">
           <SelectValue>{{ chosenLabel }}</SelectValue>

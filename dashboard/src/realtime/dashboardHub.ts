@@ -55,6 +55,7 @@ function settleJoin(channelId: string, result: JoinChannelResult | undefined): v
 // the start and the reconnect both join the current channel and the watched set again.
 let linked = false;
 
+// eslint-disable-next-line no-restricted-syntax -- a hub invoke takes any serializable argument
 async function send<T>(method: string, ...args: unknown[]): Promise<T | undefined> {
   if (!connection || !linked) return;
 

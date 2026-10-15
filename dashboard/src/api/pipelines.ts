@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonObject } from '@/lib/json';
 import {
   keepPreviousData,
   useMutation,
@@ -49,7 +50,7 @@ export const BLOCK_KINDS = [
 
 export type BlockKind = (typeof BLOCK_KINDS)[number];
 
-export type PipelineAction = { type: string } & Record<string, unknown>;
+export type PipelineAction = { type: string } & JsonObject;
 
 export type PipelineCondition = {
   type: string;
@@ -64,7 +65,7 @@ export type PipelineStep = {
   parent_step_id: string | null;
   branch: string | null;
   block_kind: BlockKind | null;
-  block_config: Record<string, unknown> | null;
+  block_config: JsonObject | null;
   order: number;
   action: PipelineAction;
   condition: PipelineCondition | null;
@@ -140,7 +141,7 @@ function parseStep(step: WireStep): PipelineStep {
   };
 }
 
-function parseGraph(graph: unknown): PipelineGraph {
+function parseGraph(graph: components['schemas']['PipelineDto']['graph']): PipelineGraph {
   const steps = (graph as { steps?: WireStep[] } | null)?.steps ?? [];
 
   return { steps: steps.map(parseStep) };

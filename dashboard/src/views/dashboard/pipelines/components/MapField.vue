@@ -8,6 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { JsonValue } from '@/lib/json';
 // A step setting of names with values, one row each. A row without a name is left out; a name used twice is
 // shown as a mistake and not saved, because only one of them could count.
 import Add from '~icons/nnz/add';
@@ -22,7 +23,7 @@ import { itemText, jsonOf } from './stepFields';
 
 type Pair = { name: string; value: string };
 
-const props = defineProps<{ id: string; value: unknown }>();
+const props = defineProps<{ id: string; value: JsonValue | undefined }>();
 
 const emit = defineEmits<{ change: [value: Record<string, string> | undefined] }>();
 
@@ -32,7 +33,7 @@ const pairs = ref<Pair[]>([]);
 let sent: string | null = null;
 
 watch(() =>
-  props.value, (value: unknown) => {
+  props.value, (value: JsonValue | undefined) => {
   if (jsonOf(value) !== sent) {
     pairs.value = toPairs(value);
   }
@@ -40,11 +41,11 @@ watch(() =>
   sent = null;
 }, { immediate: true });
 
-function toPairs(value: unknown): Pair[] {
+function toPairs(value: JsonValue | undefined): Pair[] {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     return [];
 
-  return Object.entries(value).map(([name, saved]: [string, unknown]) =>
+  return Object.entries(value).map(([name, saved]: [string, JsonValue | undefined]) =>
     ({ name, value: itemText(saved) }));
 }
 

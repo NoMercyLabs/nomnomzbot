@@ -15,6 +15,7 @@ export type KeyPart = string | number | boolean | null | undefined | object;
 export type KeyParts = KeyPart[];
 
 // merge takes lists of any item type, so its input must accept everything.
+// eslint-disable-next-line no-restricted-syntax -- merge takes lists of any item type
 type List = readonly unknown[];
 
 type Merged<Lists extends readonly List[]> = Lists extends readonly [
@@ -27,6 +28,7 @@ type Merged<Lists extends readonly List[]> = Lists extends readonly [
 // Several lists as one new read-only list, in order. Tuples stay tuples, so `as const` input
 // keeps every position typed (owner 2026-10-13: "turn [...a, ...b] into merge(a, b)").
 export function merge<const Lists extends readonly List[]>(...lists: Lists): Merged<Lists> {
+// eslint-disable-next-line no-restricted-syntax -- flat() widens the tuple the Merged type restores
   return lists.flat() as unknown as Merged<Lists>;
 }
 

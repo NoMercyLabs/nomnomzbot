@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonObject, JsonValue } from '@/lib/json';
 import { useEventListener } from '@vueuse/core';
 
 // The host side of the served code editor page (/editor/index.html, owned by the server's editor.js).
@@ -16,7 +17,6 @@ import { useEventListener } from '@vueuse/core';
 
 export type EditorFiles = Record<string, string>;
 export type EditorVariables = Record<string, string>;
-type JsonObject = Record<string, unknown>;
 
 export type BuildError = {
   code?: string;
@@ -89,7 +89,7 @@ export type EditorOpenPayload = {
   language: string;
   sdkTypes: string;
   sdkTypesUnavailable: boolean;
-  labels: Record<string, unknown>;
+  labels: JsonObject;
   fireSamples?: JsonObject;
   fireSamplesError?: string;
   eventSubscriptions?: string[];
@@ -142,7 +142,7 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function stringMap(value: unknown): Record<string, string> {
+function stringMap(value: JsonValue | undefined): Record<string, string> {
   if (!isObject(value))
     return {};
 
@@ -157,20 +157,20 @@ function stringMap(value: unknown): Record<string, string> {
   return out;
 }
 
-function text(value: unknown): string {
+function text(value: JsonValue | undefined): string {
   return typeof value === 'string'
     ? value
     : '';
 }
 
-function optionalText(value: unknown): string | null {
+function optionalText(value: JsonValue | undefined): string | null {
   return typeof value === 'string'
     ? value
     : null;
 }
 
 // One page message, or null for anything else: malformed data, a host-to-page type echoed back, other traffic.
-export function decodePageMessage(data: unknown): PageMessage | null {
+export function decodePageMessage(data: JsonValue): PageMessage | null {
   if (!isObject(data) || typeof data.type !== 'string' || !data.type.startsWith(PREFIX))
     return null;
 
@@ -213,6 +213,7 @@ export function decodePageMessage(data: unknown): PageMessage | null {
   }
 }
 
+// eslint-disable-next-line no-restricted-syntax -- a caught value can be anything, so the input must accept everything
 function reason(error: unknown): string {
   return error instanceof Error && error.message
     ? error.message

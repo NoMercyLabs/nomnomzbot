@@ -23,7 +23,7 @@ export interface AttentionWords {
 }
 
 export interface AttentionTranslator {
-  t: (key: string, named?: Record<string, unknown>) => string;
+  t: (key: string, named?: Record<string, string | number>) => string;
   te: (key: string) => boolean;
   locale: { readonly value: string };
 }
@@ -90,7 +90,7 @@ function titleNamed(
   item: ActionRequiredItem,
   i18n: AttentionTranslator,
   now: Date,
-): Record<string, unknown> {
+): Record<string, string | number> {
   const { provider = '', source = '', until } = item.parameters;
   const sourceKey =
     SOURCE_NAMES[source as keyof typeof SOURCE_NAMES] ?? 'attention_source_name_unknown';
@@ -107,7 +107,7 @@ function titleNamed(
 function messageNamed(
   item: ActionRequiredItem,
   i18n: AttentionTranslator,
-): Record<string, unknown> {
+): Record<string, string | number> {
   const category = item.parameters.category?.trim();
   // The words close the sentence themselves, so a period the server error ends with would double.
   const error = item.parameters.error?.trim().replace(/\.+$/, '');
@@ -115,7 +115,7 @@ function messageNamed(
   return {
     ...item.parameters,
     category: category || i18n.t(`${WORDS}attention_held_category_unknown`),
-    error,
+    error: error ?? '',
   };
 }
 

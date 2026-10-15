@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonObject } from '@/lib/json';
 // The workbench edits on the flat step list. Each returns a new list and leaves the given one as it was, so
 // every edit is one undo step. The bot treats step ids as link keys only (save reinserts every row), so the
 // workbench may mint its own.
@@ -146,13 +147,13 @@ export function insertSteps(
 
 // Settings to change on one step: the named action and block settings change, a cleared one (undefined) goes.
 export type StepPatch = {
-  action?: Record<string, unknown>;
-  block_config?: Record<string, unknown>;
+  action?: JsonObject;
+  block_config?: JsonObject;
   continue_on_error?: boolean;
 };
 
-function withSettings<T extends object>(current: T, change: Record<string, unknown>): T {
-  const next: Record<string, unknown> = { ...current, ...change };
+function withSettings<T extends object>(current: T, change: JsonObject): T {
+  const next: JsonObject = { ...current, ...change };
 
   for (const [key, value] of Object.entries(change)) {
     if (value === undefined) {

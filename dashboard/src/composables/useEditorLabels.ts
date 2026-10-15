@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonObject } from '@/lib/json';
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -16,13 +17,13 @@ import { useI18n } from 'vue-i18n';
 // itself: `{path}` stays `{path}` in the text that goes to the page.
 export function useEditorLabels(
   withTestRun: MaybeRefOrGetter<boolean>,
-): ComputedRef<Record<string, unknown>> {
+): ComputedRef<JsonObject> {
   const { t, tm, locale } = useI18n();
 
   function words(group: string): Record<string, string> {
     const out: Record<string, string> = {};
 
-    for (const [id, raw] of Object.entries(tm(group) as Record<string, unknown>)) {
+    for (const [id, raw] of Object.entries(tm(group) as JsonObject)) {
       if (typeof raw !== 'string') continue;
 
       const own: Record<string, string> = {};
@@ -39,7 +40,7 @@ export function useEditorLabels(
 
   return computed(() => {
     void locale.value;
-    const labels: Record<string, unknown> = words('codeEditor.labels');
+    const labels: JsonObject = words('codeEditor.labels');
 
     if (!toValue(withTestRun))
       return labels;

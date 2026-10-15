@@ -8,18 +8,19 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonObject, JsonValue } from '@/lib/json';
 // The activity feed carries its readable detail in a JSON string. Two writers fill it with
 // different key names (the journal projection and the alert handlers), so each reader takes
 // a list of keys and uses the first one that holds a value.
 
-export type ActivityData = Record<string, unknown>;
+export type ActivityData = JsonObject;
 
 export function parseActivityData(raw: string | null | undefined): ActivityData {
   if (raw === null || raw === undefined)
     return {};
 
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: JsonValue = JSON.parse(raw);
 
     return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
       ? (parsed as ActivityData)
@@ -31,7 +32,7 @@ export function parseActivityData(raw: string | null | undefined): ActivityData 
 
 export function pickText(data: ActivityData, ...keys: string[]): string | null {
   for (const key of keys) {
-    const value: unknown = data[key];
+    const value = data[key];
 
     if (typeof value === 'string' && value.trim() !== '')
       return value;
@@ -46,7 +47,7 @@ export function pickNestedText(
   objectKey: string,
   ...keys: string[]
 ): string | null {
-  const inner: unknown = data[objectKey];
+  const inner = data[objectKey];
 
   return typeof inner === 'object' && inner !== null && !Array.isArray(inner)
     ? pickText(inner as ActivityData, ...keys)
@@ -55,7 +56,7 @@ export function pickNestedText(
 
 export function pickCount(data: ActivityData, ...keys: string[]): number | null {
   for (const key of keys) {
-    const value: unknown = data[key];
+    const value = data[key];
     const number =
       typeof value === 'string' && value.trim() !== ''
         ? Number(value)
@@ -69,7 +70,7 @@ export function pickCount(data: ActivityData, ...keys: string[]): number | null 
 }
 
 // "1000", "Tier 2", "3" and "Prime" all become one label: the tier number, or "Prime".
-export function tierOf(raw: unknown): string | null {
+export function tierOf(raw: JsonValue | undefined): string | null {
   if (typeof raw === 'number')
     return String(raw >= 1000
       ? raw / 1000

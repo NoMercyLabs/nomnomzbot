@@ -8,16 +8,21 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonValue } from '@/lib/json';
 import type { WidgetSettingsField } from '@/api/widgets';
 import { numberOrNull } from '@/lib/number';
 
 // Settings values are plain JSON, so two values are the same when they serialize the same.
-export function sameValue(a: unknown, b: unknown): boolean {
+export function sameValue(a: JsonValue | undefined, b: JsonValue | undefined): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
 // Holds a typed number inside the field's min and max; text that is not a number keeps the old value.
-export function clampNumber(typed: string, field: WidgetSettingsField, fallback: unknown): unknown {
+export function clampNumber(
+  typed: string,
+  field: WidgetSettingsField,
+  fallback: JsonValue | undefined,
+): JsonValue | undefined {
   const parsed = numberOrNull(typed);
 
   if (parsed === null)
@@ -33,4 +38,9 @@ export function clampNumber(typed: string, field: WidgetSettingsField, fallback:
     return max;
 
   return parsed;
+}
+
+// The schema types a catalogue default as unknown; it is a JSON value of the field's own type.
+export function defaultOf(field: WidgetSettingsField): JsonValue | undefined {
+  return field.default as JsonValue | undefined;
 }

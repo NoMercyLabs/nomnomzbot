@@ -13,7 +13,7 @@ import type { KeyValueItem } from '@/components/layout/KeyValueList.vue';
 
 type Fragment = ChatLine['fragments'][number];
 type Badge = ChatLine['badges'][number];
-type Translate = (key: string, values?: Record<string, unknown>) => string;
+type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 // What a chat line and the emote catalog both know of an emote; only the catalog knows a Twitch tier.
 type EmoteFacts = {

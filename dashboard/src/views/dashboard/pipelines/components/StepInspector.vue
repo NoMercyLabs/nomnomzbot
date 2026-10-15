@@ -8,6 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { JsonValue } from '@/lib/json';
 // The picked step in detail (5-workbench.html:344-379): Settings edits every field the bot's catalog gives the
 // action, or the block's own settings; In plain words says what the step does from the same facts. Each edit,
 // Duplicate and Remove change the draft; a role that cannot change pipelines sees them locked.
@@ -77,7 +78,7 @@ const keepGoing = computed<FieldRow>(() =>
     target: 'step',
   }));
 
-function change(row: FieldRow, value: unknown): void {
+function change(row: FieldRow, value: JsonValue | undefined): void {
   emit('patch', row.target === 'step'
     ? { continue_on_error: value === true }
     : { [row.target]: { [row.name]: value } });

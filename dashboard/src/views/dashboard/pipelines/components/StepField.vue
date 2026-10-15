@@ -8,6 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { JsonValue } from '@/lib/json';
 // One setting of a step in the inspector, with the control its kind needs. Text and numbers hand their value
 // over when the field is left or Enter is pressed, so one typed value is one undo step. An emptied field hands
 // over undefined: the step saves without the setting.
@@ -28,7 +29,7 @@ import { valueText } from './stepWords';
 
 const props = defineProps<{ row: FieldRow }>();
 
-const emit = defineEmits<{ change: [value: unknown] }>();
+const emit = defineEmits<{ change: [value: JsonValue | undefined] }>();
 
 const id = useId();
 const text = computed(() => valueText(props.row.value) ?? '');
@@ -64,7 +65,7 @@ function typed(event: Event): void {
     <Select
       v-if="row.control === 'choice'"
       :model-value="text"
-      @update:model-value="emit('change', $event)"
+      @update:model-value="emit('change', String($event))"
     >
       <SelectTrigger :id="id" class="w-full">
         <SelectValue :placeholder="$t('dashboard.pipelines.workbench.inspector.notSet')" />

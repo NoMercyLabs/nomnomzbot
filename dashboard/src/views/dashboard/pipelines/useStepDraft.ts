@@ -49,7 +49,8 @@ const mint = (): string =>
   crypto.randomUUID();
 
 export function useStepDraft(saved: Ref<Pipeline | undefined>): StepDraft {
-  const steps = ref<PipelineStep[]>([]);
+  // Vue's deep unwrap of the recursive JSON value type is unbounded, so the ref is typed as the list it holds.
+  const steps = ref([]) as Ref<PipelineStep[]>;
   const baseline = ref('[]');
   // Recorded at once: a deferred record of the load would land after clear() and let Undo empty the list.
   const history = useRefHistory(steps, { capacity: 50, flush: 'sync' });

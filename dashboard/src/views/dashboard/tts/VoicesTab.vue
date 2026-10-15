@@ -89,7 +89,7 @@ const settled = ref(false);
 
 watch(
   () => catalog.data.value,
-  (data: unknown) => {
+  (data) => {
     if (data !== undefined) {
       settled.value = true;
     }

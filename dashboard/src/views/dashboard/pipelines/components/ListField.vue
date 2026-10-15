@@ -8,6 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { JsonValue } from '@/lib/json';
 // A step setting with many items: one row each, a row is removed on its own, and a new row is empty until it
 // is typed in. Empty rows are left out of the saved setting; no rows at all saves without it.
 import Add from '~icons/nnz/add';
@@ -20,9 +21,9 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { itemText, jsonOf, listItem } from './stepFields';
 
-const props = defineProps<{ id: string; value: unknown }>();
+const props = defineProps<{ id: string; value: JsonValue | undefined }>();
 
-const emit = defineEmits<{ change: [value: unknown[] | undefined] }>();
+const emit = defineEmits<{ change: [value: JsonValue[] | undefined] }>();
 
 const root = useTemplateRef<HTMLElement>('root');
 const items = ref<string[]>([]);
@@ -30,7 +31,7 @@ const items = ref<string[]>([]);
 let sent: string | null = null;
 
 watch(() =>
-  props.value, (value: unknown) => {
+  props.value, (value: JsonValue | undefined) => {
   if (jsonOf(value) !== sent) {
     items.value = toItems(value);
   }
@@ -38,7 +39,7 @@ watch(() =>
   sent = null;
 }, { immediate: true });
 
-function toItems(value: unknown): string[] {
+function toItems(value: JsonValue | undefined): string[] {
   if (Array.isArray(value))
     return value.map(itemText);
 

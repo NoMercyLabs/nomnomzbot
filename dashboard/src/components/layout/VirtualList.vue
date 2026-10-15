@@ -14,7 +14,7 @@
 // stick: a chat-style list. At the bottom it stays at the bottom as rows arrive. Scrolled up, the
 // reader keeps their place, new rows are counted, and one button returns to the bottom.
 import { useVirtualizer, type PartialKeys, type VirtualizerOptions } from '@tanstack/vue-virtual';
-import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue';
+import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance, type VNode } from 'vue';
 
 import { Button } from '@/components/ui/button';
 
@@ -30,7 +30,7 @@ const props = withDefaults(
   { stick: false, pauseOnHover: false },
 );
 
-defineSlots<{ default(props: { item: T; index: number }): unknown }>();
+defineSlots<{ default(props: { item: T; index: number }): VNode[] }>();
 
 // The last row came into view: the owner may load the next page. Asked once per list length.
 const emit = defineEmits<{ end: [] }>();

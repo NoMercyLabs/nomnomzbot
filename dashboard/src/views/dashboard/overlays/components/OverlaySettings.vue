@@ -8,6 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { JsonObject, JsonValue } from '@/lib/json';
 // The settings form of one overlay, built from the bot's settings schema (12-overlays.html:304-313, 360-361).
 // The form keeps its own unsaved copy. It takes the saved values again only for a new overlay or after a
 // successful save, so a refused save leaves the change in place and Save stays on.
@@ -32,9 +33,9 @@ import { useLocalizedText } from '@/composables/useLocalizedText';
 import { humanize } from '@/lib/text';
 
 import OverlaySettingField from './OverlaySettingField.vue';
-import { sameValue } from './settingField';
+import { defaultOf, sameValue } from './settingField';
 
-type Values = Record<string, unknown>;
+type Values = JsonObject;
 type SaveResult = 'none' | 'saved' | 'failed';
 
 const props = defineProps<{ widget: Widget }>();
@@ -49,12 +50,12 @@ const save = useSaveWidgetSettings(channelId);
 const fields = computed<WidgetSettingsField[]>(
   () => schema.data.value?.fields ?? [],
 );
-const saved = computed<Values>(() => props.widget.settings ?? {});
+const saved = computed<Values>(() => (props.widget.settings ?? {}) as Values);
 
-function savedValue(field: WidgetSettingsField): unknown {
+function savedValue(field: WidgetSettingsField): JsonValue | undefined {
   return field.key in saved.value
     ? saved.value[field.key]
-    : field.default;
+    : defaultOf(field);
 }
 
 const draft = ref<Values>({});
@@ -79,10 +80,10 @@ const edited = computed<WidgetSettingsField[]>(() =>
 const dirty = computed<boolean>(() => edited.value.length > 0);
 
 function isChanged(field: WidgetSettingsField): boolean {
-  return !sameValue(draft.value[field.key], field.default);
+  return !sameValue(draft.value[field.key], defaultOf(field));
 }
 
-function set(key: string, value: unknown): void {
+function set(key: string, value: JsonValue | undefined): void {
   draft.value = { ...draft.value, [key]: value };
   result.value = 'none';
 }
@@ -186,7 +187,7 @@ function submit(): void {
             :value="draft[field.key]"
             :changed="isChanged(field)"
             @update="set(field.key, $event)"
-            @reset="set(field.key, field.default)"
+            @reset="set(field.key, defaultOf(field))"
           />
         </RowGroup>
       </section>

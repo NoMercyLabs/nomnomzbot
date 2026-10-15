@@ -294,7 +294,10 @@ export function useSetPersonVoice(
         ? { voiceId: change.voice.id, voice: change.voice }
         : null;
     },
-    apply: (_current: PersonVoice | null | undefined, { voice }: PersonVoiceChange): PersonVoice | null =>
+    apply: (
+      _current: PersonVoice | null | undefined,
+      { voice }: PersonVoiceChange,
+    ): PersonVoice | null =>
       voice
         ? { voiceId: voice.id, voice }
         : null,

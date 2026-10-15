@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router';
+import type { LocationQueryValue, RouteLocationNormalized, RouteLocationRaw } from 'vue-router';
 
 import { restoreSession } from '@/api/auth';
 import type { NavMode } from '@/layouts/dashboard/navigation';
@@ -27,7 +27,7 @@ declare module 'vue-router' {
 }
 
 // Only a path on this site is followed, so a crafted link cannot send a signed-in visitor elsewhere.
-export function returnPath(asked: unknown): string {
+export function returnPath(asked: LocationQueryValue | LocationQueryValue[] | undefined): string {
   return typeof asked === 'string' && asked.startsWith('/') && !asked.startsWith('//')
     ? asked
     : '/app';

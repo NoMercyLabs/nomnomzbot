@@ -97,7 +97,7 @@ type Row = {
 };
 
 function say(text: ActivityRowText): string {
-  const count: unknown = text.params?.count;
+  const count = text.params?.count;
 
   return t(text.key, text.params ?? {}, typeof count === 'number'
     ? count

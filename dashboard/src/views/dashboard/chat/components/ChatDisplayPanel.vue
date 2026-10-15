@@ -121,7 +121,7 @@ function segmentRowClass(name: SegmentName): string {
     : 'items-center';
 }
 
-function set(name: SwitchName | SegmentName, value: unknown): void {
+function set(name: SwitchName | SegmentName, value: boolean | string): void {
   display.value = { ...display.value, [name]: value };
 }
 

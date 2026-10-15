@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonValue } from '@/lib/json';
 import type { components } from '@/api/schema';
 
 // The hubs are not in v1.json, so their payloads are written here, once, from the server records.
@@ -64,14 +65,14 @@ export type ChannelEventPayload = {
   broadcasterId: string;
   userId: string | null;
   userDisplayName: string | null;
-  data: unknown;
+  data: JsonValue;
   timestamp: string;
 };
 
 // Hubs/Broadcasters/AdminHubStatusPublisher.cs: the anonymous { System, Stats } snapshot (IAdminClient.ReceiveSystemStatus)
 export type AdminSystemStatusPayload = {
-  system: unknown;
-  stats: unknown;
+  system: components['schemas']['AdminSystemDto'];
+  stats: components['schemas']['AdminStatsDto'];
 };
 
 // Hubs/Clients/IAdminClient.cs: ReceiveChannelRegistryUpdate (AdminBroadcastHandlers.cs). Three anonymous shapes share one event:
@@ -185,7 +186,7 @@ export type RewardChangedPayload = {
 export type AlertTriggeredPayload = {
   type: string;
   message: string | null;
-  data: unknown;
+  data: JsonValue;
 };
 
 // HubResponseDtos.cs: PermissionChangedDto

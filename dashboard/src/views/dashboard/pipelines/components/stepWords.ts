@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonValue } from '@/lib/json';
 // The words a step card and the inspector show. Action titles come from the KMP block names
 // (pipelineBlock.<type>, copied by scripts/gen-schema-words.mjs); an action without one is humanized from its
 // type, as the KMP editor does. Descriptions and field help are the bot's schema words.
@@ -25,7 +26,7 @@ import { humanize } from '@/lib/text';
 import type { StepLane } from './stepTree';
 
 export type Words = {
-  t: (key: string, named?: Record<string, unknown>) => string;
+  t: (key: string, named?: Record<string, string | number>) => string;
   te: (key: string) => boolean;
 };
 
@@ -71,7 +72,7 @@ export function conditionSentence(condition: PipelineCondition, { t, te }: Words
     : t(`${page}.onlyIf`, named);
 }
 
-function isEmpty(value: unknown): boolean {
+function isEmpty(value: JsonValue | undefined): boolean {
   if (Array.isArray(value))
     return value.length === 0;
 
@@ -105,7 +106,7 @@ export function fieldHelp(type: string, field: PipelineActionField, text: TextOf
 }
 
 // A saved value as one line of text; an empty value is null so the inspector can say "Not set".
-export function valueText(value: unknown): string | null {
+export function valueText(value: JsonValue | undefined): string | null {
   if (isEmpty(value))
     return null;
 

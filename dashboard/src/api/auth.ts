@@ -184,7 +184,7 @@ async function refreshNow(): Promise<boolean> {
   );
   const { response } = result;
   // The OpenAPI document declares no 200 body for refresh yet, so the envelope is typed here.
-  const token: string | undefined = result.data?.data?.accessToken;
+  const token = result.data?.data?.accessToken;
 
   if (!response.ok || typeof token !== 'string')
     return false;

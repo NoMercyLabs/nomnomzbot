@@ -136,7 +136,7 @@ export function useCreateCodeScript() {
         throw refusal('create code script', error, response.status);
 
       // The document declares no body for create, so the envelope is typed here.
-      const id: string | undefined = (data as { data?: { id?: string } | null } | undefined)?.data?.id;
+      const id = (data as { data?: { id?: string } | null } | undefined)?.data?.id;
 
       return typeof id === 'string'
         ? id

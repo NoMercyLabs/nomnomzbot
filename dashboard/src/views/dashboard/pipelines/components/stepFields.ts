@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonValue } from '@/lib/json';
 // The step form in the inspector: one row per setting, with the control its kind needs. Action settings come
 // from the bot's catalog; block settings mirror the engine's block configs (PipelineTreeTypes.cs).
 import {
@@ -43,7 +44,7 @@ export type FieldRow = {
   // The bot's field kind; a pick asks the bot for this kind's options.
   kind: string;
   control: FieldControl;
-  value: unknown;
+  value: JsonValue | undefined;
   help: string;
   choices: FieldChoice[];
   required: boolean;
@@ -88,12 +89,12 @@ function controlOf(field: PipelineActionField): FieldControl {
 
 // A list item is text, unless it is a whole JSON object (an OBS request is one): then it saves as that object.
 // Text with braces such as {user} is not valid JSON, so it stays text.
-export function listItem(text: string): unknown {
+export function listItem(text: string): JsonValue {
   if (!text.trim().startsWith('{'))
     return text;
 
   try {
-    const parsed: unknown = JSON.parse(text);
+    const parsed: JsonValue = JSON.parse(text);
 
     return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
       ? parsed
@@ -104,11 +105,11 @@ export function listItem(text: string): unknown {
 }
 
 // A setting's value as text to compare, with no value as its own word.
-export function jsonOf(value: unknown): string {
+export function jsonOf(value: JsonValue | undefined): string {
   return JSON.stringify(value) ?? 'none';
 }
 
-export function itemText(item: unknown): string {
+export function itemText(item: JsonValue | undefined): string {
   return typeof item === 'object' && item !== null
     ? JSON.stringify(item, null, 2)
     : String(item ?? '');
@@ -145,7 +146,7 @@ type BlockField = {
   name: string;
   control: FieldControl;
   choices?: readonly string[];
-  fallback?: unknown;
+  fallback?: JsonValue | undefined;
 };
 
 function loopFields(mode: string): BlockField[] {

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonValue } from '@/lib/json';
 import { useLocalStorage } from '@vueuse/core';
 import { defineStore } from 'pinia';
 import { computed } from 'vue';
@@ -19,7 +20,7 @@ const alwaysListed: readonly string[] = [servedOrigin, officialOrigin];
 
 function readOrigins(raw: string): string[] {
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: JsonValue = JSON.parse(raw);
 
     return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')
       ? parsed

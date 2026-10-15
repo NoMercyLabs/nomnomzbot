@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { describe, expect, it } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { nextTick, shallowRef } from 'vue';
 
 import type { Pipeline, PipelineStep } from '@/api/pipelines';
 
@@ -43,7 +43,7 @@ function stepIds(steps: PipelineStep[]): (string | null)[] {
 
 describe('the step draft', () => {
   it('keeps unsaved edits when only the pipeline around the steps changes', async () => {
-    const saved = ref<Pipeline | undefined>(pipeline);
+    const saved = shallowRef<Pipeline | undefined>(pipeline);
     const draft = useStepDraft(saved);
 
     draft.remove('b');
@@ -56,7 +56,7 @@ describe('the step draft', () => {
   });
 
   it('takes the saved steps when the bot sends other steps', async () => {
-    const saved = ref<Pipeline | undefined>(pipeline);
+    const saved = shallowRef<Pipeline | undefined>(pipeline);
     const draft = useStepDraft(saved);
 
     draft.remove('b');
