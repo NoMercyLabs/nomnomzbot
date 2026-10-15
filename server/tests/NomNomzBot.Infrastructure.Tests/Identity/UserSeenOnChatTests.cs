@@ -50,11 +50,7 @@ public sealed class UserSeenOnChatTests
             OccurredAt = new DateTimeOffset(at),
         };
 
-    private static User NewUser(
-        string twitchId,
-        string? color = null,
-        DateTime? lastSeen = null
-    ) =>
+    private static User NewUser(string twitchId, string? color = null, DateTime? lastSeen = null) =>
         new()
         {
             TwitchUserId = twitchId,

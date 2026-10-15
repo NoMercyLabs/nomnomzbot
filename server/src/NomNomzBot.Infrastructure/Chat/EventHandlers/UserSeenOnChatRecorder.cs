@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 
@@ -34,10 +34,7 @@ public sealed class UserSeenOnChatRecorder(IApplicationDbContext db)
         CancellationToken cancellationToken = default
     )
     {
-        if (
-            @event.Provider != AuthEnums.Platform.Twitch
-            || string.IsNullOrEmpty(@event.UserId)
-        )
+        if (@event.Provider != AuthEnums.Platform.Twitch || string.IsNullOrEmpty(@event.UserId))
             return;
 
         User? user = await db.Users.FirstOrDefaultAsync(
@@ -48,8 +45,7 @@ public sealed class UserSeenOnChatRecorder(IApplicationDbContext db)
             return;
 
         DateTime seenAt = @event.OccurredAt.UtcDateTime;
-        bool colorChanged =
-            !string.IsNullOrEmpty(@event.ColorHex) && user.Color != @event.ColorHex;
+        bool colorChanged = !string.IsNullOrEmpty(@event.ColorHex) && user.Color != @event.ColorHex;
         bool seenStale = user.LastSeenAt is null || seenAt - user.LastSeenAt >= Throttle;
         if (!colorChanged && !seenStale)
             return;
