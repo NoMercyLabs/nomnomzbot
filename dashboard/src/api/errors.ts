@@ -114,6 +114,7 @@ export const apiOperations = {
   polls: 'liveOps',
   'poll history': 'liveOps',
   timers: 'liveOps',
+  'event responses': 'liveOps',
   'timer-toggle': 'liveOps',
   'poll-start': 'liveOps',
   predictions: 'liveOps',
