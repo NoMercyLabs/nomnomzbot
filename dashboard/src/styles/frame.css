@@ -96,6 +96,11 @@
   flex: 1 1 0;
   width: 100%;
 }
+/* A horizontal tabs block holds strip and content in a column: a zero basis there collapsed it in an auto-height
+   parent (the profile dialog showed no tab content on desktop, 2026-10-15). It grows from its content instead. */
+[data-slot='tabs'][data-orientation='horizontal'] {
+  flex-basis: auto;
+}
 /* Horizontal tabs stack strip over content: there the strip's grow would stretch it tall. */
 [data-slot='tabs'][data-orientation='horizontal'] > [data-slot='tabs-list'] {
   flex: none;

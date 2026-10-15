@@ -85,14 +85,12 @@ const fit = inDialog
 // below: a short window (a phone, the chat popout) otherwise squeezed the tabs or pushed the actions out of reach.
 // The desktop dialog keeps its full size.
 const body = inDialog
-  ? 'max-md:min-h-0 max-md:overflow-y-auto'
+  ? 'max-md:min-h-0 max-md:overflow-y-auto md:contents'
   : 'md:min-h-0';
 const strip = inDialog
   ? 'max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-popover'
   : '';
-const scroll = inDialog
-  ? ''
-  : 'md:overflow-y-auto';
+const scroll = 'md:overflow-y-auto';
 
 const { t, n, locale } = useI18n();
 const errors = useSaveErrorsStore();
