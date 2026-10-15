@@ -86,6 +86,43 @@ public sealed class ObsControlServiceTests
     }
 
     [Fact]
+    public async Task State_carries_the_stream_and_record_timecodes_of_their_own_outputs()
+    {
+        Harness harness = Build(request =>
+            request.RequestType switch
+            {
+                "GetStreamStatus" => new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["outputActive"] = true,
+                        ["outputTimecode"] = "01:02:03.456",
+                    },
+                    null
+                ),
+                "GetRecordStatus" => new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["outputActive"] = true,
+                        ["outputPaused"] = false,
+                        ["outputTimecode"] = "00:00:09.000",
+                    },
+                    null
+                ),
+                _ => new(true, null, null),
+            }
+        );
+
+        Result<ObsStateDto> state = await harness.Service.GetStateAsync(Channel);
+
+        state.IsSuccess.Should().BeTrue();
+        state.Value.StreamTimecode.Should().Be("01:02:03.456");
+        state.Value.RecordTimecode.Should().Be("00:00:09.000");
+        state.Value.Streaming.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Source_visibility_resolves_the_item_id_first_then_enables_with_it()
     {
         Harness h = Build(request =>

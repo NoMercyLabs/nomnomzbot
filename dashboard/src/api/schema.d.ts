@@ -90434,6 +90434,7 @@ export interface components {
             recordPaused: boolean;
             replayBufferActive: boolean;
             recordTimecode?: null | string;
+            streamTimecode?: null | string;
         };
         /**
          * @description OBS performance stats (obs-websocket v5 `GetStats`) — CPU/memory load and the

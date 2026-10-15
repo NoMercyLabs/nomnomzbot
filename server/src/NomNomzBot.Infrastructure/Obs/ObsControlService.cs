@@ -442,11 +442,22 @@ public class ObsControlService : IObsControlService
         string? timecode =
             results.ElementAtOrDefault(2)?.ResponseData?.GetValueOrDefault("outputTimecode")
             as string;
+        string? streamTimecode =
+            results.ElementAtOrDefault(1)?.ResponseData?.GetValueOrDefault("outputTimecode")
+            as string;
         // GetReplayBufferStatus fails when the buffer output doesn't exist — that reads as inactive.
         bool replayActive = GetBool(results.ElementAtOrDefault(3), "outputActive");
 
         return Result.Success(
-            new ObsStateDto(scene, streaming, recording, recordPaused, replayActive, timecode)
+            new ObsStateDto(
+                scene,
+                streaming,
+                recording,
+                recordPaused,
+                replayActive,
+                timecode,
+                streamTimecode
+            )
         );
     }
 

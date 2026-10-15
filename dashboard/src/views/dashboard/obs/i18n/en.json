@@ -55,6 +55,43 @@
         "preview": "Preview scene",
         "duration": "Duration (ms)",
         "cut": "Transition"
+      },
+      "outputs": {
+        "title": "Outputs",
+        "offline": "Outputs show once the OBS link is switched on.",
+        "loadError": "The outputs could not load.",
+        "stream": "Stream",
+        "record": "Recording",
+        "replay": "Replay buffer",
+        "virtualCam": "Virtual camera",
+        "offAir": "Off air",
+        "live": "Live",
+        "notRecording": "Not recording",
+        "recording": "Recording",
+        "paused": "Paused",
+        "active": "Running",
+        "inactive": "Stopped",
+        "goLive": "Go live",
+        "start": "Start",
+        "stop": "Stop",
+        "pause": "Pause",
+        "resume": "Resume",
+        "split": "Split file",
+        "saveClip": "Save clip",
+        "stopStream": {
+          "title": "Stop the stream?",
+          "description": "OBS ends the broadcast on every platform it streams to.",
+          "viewers": "Viewers see the stream end right away.",
+          "recording": "A recording keeps running; stop it separately.",
+          "action": "Stop stream"
+        }
+      },
+      "stats": {
+        "title": "OBS load",
+        "cpu": "CPU",
+        "fps": "FPS",
+        "render": "Skipped (render)",
+        "dropped": "Dropped (output)"
       }
     }
   }

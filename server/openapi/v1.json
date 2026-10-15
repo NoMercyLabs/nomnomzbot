@@ -116215,6 +116215,12 @@
               "null",
               "string"
             ]
+          },
+          "streamTimecode": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Live OBS state for the dashboard and the `{{obs.*}}` template vars."

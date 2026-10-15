@@ -55,6 +55,43 @@
         "preview": "Voorbeeldscene",
         "duration": "Duur (ms)",
         "cut": "Overgang starten"
+      },
+      "outputs": {
+        "title": "Uitvoer",
+        "offline": "De uitvoer verschijnt zodra de OBS-koppeling aan staat.",
+        "loadError": "De uitvoer kon niet laden.",
+        "stream": "Stream",
+        "record": "Opname",
+        "replay": "Replay-buffer",
+        "virtualCam": "Virtuele camera",
+        "offAir": "Niet in de lucht",
+        "live": "Live",
+        "notRecording": "Neemt niet op",
+        "recording": "Neemt op",
+        "paused": "Gepauzeerd",
+        "active": "Actief",
+        "inactive": "Gestopt",
+        "goLive": "Ga live",
+        "start": "Start",
+        "stop": "Stop",
+        "pause": "Pauzeer",
+        "resume": "Hervat",
+        "split": "Bestand splitsen",
+        "saveClip": "Clip opslaan",
+        "stopStream": {
+          "title": "De stream stoppen?",
+          "description": "OBS beeindigt de uitzending op elk platform waarnaar het streamt.",
+          "viewers": "Kijkers zien de stream meteen stoppen.",
+          "recording": "Een opname loopt door; stop die apart.",
+          "action": "Stop stream"
+        }
+      },
+      "stats": {
+        "title": "OBS-belasting",
+        "cpu": "CPU",
+        "fps": "FPS",
+        "render": "Overgeslagen (render)",
+        "dropped": "Gedropt (uitvoer)"
       }
     }
   }
