@@ -12,6 +12,7 @@
 // This device: what stays in this browser, with a link back into the Channel list.
 import ArrowLeft from '~icons/nnz/arrow-left';
 import BookOpenText from '~icons/nnz/book-open';
+import UserCircle from '~icons/nnz/user-circle';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -24,6 +25,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePageView } from '@/composables/usePageView';
 
+import ChatIdentityView from './ChatIdentityView.vue';
 import DeviceView from './DeviceView.vue';
 import ReadabilityView from './ReadabilityView.vue';
 
@@ -38,7 +40,17 @@ const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
 // On a phone the section list is the first screen; a picked section opens over it.
 const opened = ref(false);
 
+type Section = 'readability' | 'chatIdentity';
+
+const section = ref<Section>('readability');
+
+function pick(next: Section): void {
+  section.value = next;
+  opened.value = true;
+}
+
 function openReadability(): void {
+  section.value = 'readability';
   opened.value = true;
   view.value = 'channel';
 }
@@ -55,11 +67,19 @@ function openReadability(): void {
         <RowGroup>
           <SummaryRow
             pick
-            selected
+            :selected="section === 'readability'"
             :title="$t('dashboard.settings.nav.readability')"
-            @click="opened = true"
+            @click="pick('readability')"
           >
             <template #leading><BookOpenText class="size-4 shrink-0" /></template>
+          </SummaryRow>
+          <SummaryRow
+            pick
+            :selected="section === 'chatIdentity'"
+            :title="$t('dashboard.settings.nav.chatIdentity')"
+            @click="pick('chatIdentity')"
+          >
+            <template #leading><UserCircle class="size-4 shrink-0" /></template>
           </SummaryRow>
         </RowGroup>
       </PanelCard>
@@ -70,7 +90,8 @@ function openReadability(): void {
           <ArrowLeft aria-hidden="true" />
           {{ $t('dashboard.settings.back') }}
         </Button>
-        <ReadabilityView />
+        <ReadabilityView v-if="section === 'readability'" />
+        <ChatIdentityView v-else />
       </div>
     </template>
   </ListDetail>

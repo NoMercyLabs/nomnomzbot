@@ -15,6 +15,198 @@
  */
 
 export interface paths {
+    "/api/v{version}/channels/{channelId}/chat-identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The owner's chat color, the named colors, and the badges on their latest chat line. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfChatIdentityDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/chat-identity/color": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the owner's chat color: a named color, or a hex value for Turbo and Prime users. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateChatColorDto"];
+                    "text/json": components["schemas"]["UpdateChatColorDto"];
+                    "application/*+json": components["schemas"]["UpdateChatColorDto"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfChatIdentityDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/oauth-relay": {
         parameters: {
             query?: never;
@@ -86364,6 +86556,22 @@ export interface components {
             /** Format: int32 */
             chatters: number | string;
         };
+        ChatIdentityBadgeDto: {
+            setId: string;
+            id: string;
+            info?: null | string;
+            urls: {
+                [key: string]: string;
+            };
+        };
+        ChatIdentityDto: {
+            displayName: string;
+            color?: null | string;
+            canManageColor: boolean;
+            colorScope: string;
+            namedColors: components["schemas"]["ChatNamedColorDto"][];
+            badges: components["schemas"]["ChatIdentityBadgeDto"][];
+        };
         /** @description OpenGraph link-preview data (chat-decoration spec §3.5); fields are null when the page exposes no tags. */
         ChatLinkPreviewDto: {
             host: string;
@@ -86380,6 +86588,10 @@ export interface components {
             username: string;
             displayName: string;
             color?: null | string;
+        };
+        ChatNamedColorDto: {
+            name: string;
+            hex: string;
         };
         /**
          * @description A 7TV paint, already flattened to the CSS a widget applies directly — the wire mirror of
@@ -89770,6 +89982,19 @@ export interface components {
         RemovedSongsDto: {
             /** Format: int32 */
             removedCount: number | string;
+        };
+        StatusResponseDtoOfChatIdentityDto: {
+            status?: string;
+            data?: null | components["schemas"]["ChatIdentityDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
         };
         StatusResponseDtoOfRemovedSongsDto: {
             status?: string;
@@ -99432,6 +99657,9 @@ export interface components {
             autoJoin?: null | boolean;
             /** @description The streamer's IANA timezone (e.g. `Europe/Amsterdam`). Null leaves it unchanged. */
             timezone?: null | string;
+        };
+        UpdateChatColorDto: {
+            color: string;
         };
         /** @description Patches an existing chat filter — only the supplied fields change. */
         UpdateChatFilterRequest: {

@@ -184,6 +184,7 @@ public abstract class BaseController : ControllerBase
             or "tier_limit_reached"
             or "EGRESS_NOT_ALLOWED"
             or "MISSING_SCOPE"
+            or "CHAT_COLOR_NEEDS_TURBO"
             or TwitchErrorCodes.MissingScope
             or "PREMIUM_REQUIRED"
             or "NOT_ELIGIBLE"

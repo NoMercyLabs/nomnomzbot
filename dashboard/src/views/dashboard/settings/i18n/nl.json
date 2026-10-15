@@ -10,7 +10,28 @@
       "back": "Terug naar instellingen",
       "nav": {
         "you": "Jij",
-        "readability": "Leesbaarheid"
+        "readability": "Leesbaarheid",
+        "chatIdentity": "Chat-identiteit"
+      },
+      "chatIdentity": {
+        "title": "Chat-identiteit",
+        "description": "Hoe je eruitziet in de Twitch-chat: je naamkleur en de badges die je draagt.",
+        "loading": "Je chat-identiteit wordt geladen...",
+        "loadFailed": "Je chat-identiteit kon niet worden geladen.",
+        "preview": "Voorbeeld",
+        "sample": ": Zo zien je berichten eruit.",
+        "color": "Naamkleur",
+        "needsScope": "Je kleur wijzigen heeft de Twitch-toestemming {scope} nodig. Geef die opnieuw om door te gaan.",
+        "enterCode": "Voer deze code in op Twitch: {code}",
+        "approved": "Toestemming gegeven. Laad je identiteit opnieuw om door te gaan.",
+        "regrantFailed": "De toestemmingsaanvraag is mislukt. Probeer het opnieuw.",
+        "regrant": "Toestemming opnieuw geven",
+        "hex": "Eigen kleur in hex",
+        "applyHex": "Kleur toepassen",
+        "hexNote": "Twitch geeft iedereen 15 benoemde kleuren. Elke hex-kleur vraagt Twitch Turbo of Prime.",
+        "badges": "Badges",
+        "noBadges": "Je draagt geen badges in dit kanaal.",
+        "badgeNote": "Badges komen van dit kanaal en van Twitch. Twitch laat je niet kiezen welke zichtbaar zijn."
       },
       "device": {
         "title": "Dit apparaat",
