@@ -21,6 +21,7 @@ public interface IDashboardClient
     Task ModAction(ModActionDto action);
     Task CommandExecuted(CommandExecutedDto evt);
     Task RewardRedeemed(RewardRedeemedDto evt);
+    Task RedemptionActivity(RedemptionActivityDto evt);
     Task RedemptionStatusChanged(RedemptionStatusChangedDto evt);
     Task StreamStatusChanged(StreamStatusDto status);
     Task AlertTriggered(AlertDto alert);

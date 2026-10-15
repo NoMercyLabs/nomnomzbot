@@ -133,7 +133,19 @@ try {
     [bool]$green = ($conclusion -eq 'success')
 
     if ($conclusion -eq 'cancelled') {
-        Write-Host "CANCELLED: run $runId was cancelled (a newer push, or the early stop). Nothing deployed from it."
+        # The "Stop the run early" step cancels the whole run after a failed step, so a red build also ends
+        # as cancelled. Tell the two apart by the run's error lines.
+        # gh writes "log not found" for cancelled jobs to stderr; under Stop that would throw.
+        $ErrorActionPreference = 'Continue'
+        [string[]]$errors = @(gh run view $runId --log 2>&1 | Select-String -Pattern '##\[error\]' |
+            Where-Object { $_ -notmatch 'Process completed with exit code' } | Select-Object -First 10 |
+            ForEach-Object { $_.ToString() })
+        if ($errors.Count -gt 0) {
+            Write-Host "CI RED: run $runId failed and the early stop cancelled it. Nothing deployed from it."
+            $errors | Out-Host
+            exit 1
+        }
+        Write-Host "CANCELLED: run $runId was cancelled by a newer push. Nothing deployed from it."
         exit 1
     }
 

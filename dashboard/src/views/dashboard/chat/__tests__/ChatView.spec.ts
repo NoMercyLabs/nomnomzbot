@@ -146,6 +146,22 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/chat/search'))
         return searchAnswer(options);
 
+      if (path.endsWith('/chat-identity')) {
+        return {
+          data: {
+            data: {
+              displayName: 'Stoney_Eagle',
+              color: '#0000FF',
+              canManageColor: true,
+              colorScope: 'user:manage:chat_color',
+              namedColors: [{ name: 'blue', hex: '#0000FF' }],
+              badges: [],
+            },
+          },
+          response: { status: 200, ok: true },
+        };
+      }
+
       if (path.endsWith('/chat/emotes'))
         return { data: { data: emoteList }, response: { status: 200, ok: true } };
 
@@ -2474,6 +2490,36 @@ describe('ChatView dock layout', () => {
 
 // Stoney 2026-10-15: "mobile and popout/obs pannel need to have the controls at the bottom instead of the top so it
 // matches with twitch": the feed and the send box come first, the controls row sits under them.
+// Stoney 2026-10-15: "chat identity belongs in chat". It opens from the chat page, like Twitch, not from Settings.
+describe('ChatView chat identity panel', () => {
+  const toggles = (): HTMLButtonElement[] =>
+    [...document.body.querySelectorAll<HTMLButtonElement>('[data-identity-toggle]')];
+  const panel = (): HTMLElement | null => document.body.querySelector('[data-identity-panel]');
+
+  it('opens the identity panel with the owner name and color swatches from the header toggle', async () => {
+    await open();
+    expect(panel()).toBeNull();
+
+    toggles()[0]!.click();
+    await settle();
+
+    expect(toggles()[0]!.getAttribute('aria-pressed')).toBe('true');
+    expect(panel()!.textContent).toContain('Stoney_Eagle');
+    expect(panel()!.querySelector('[data-test="swatch-blue"]')).not.toBeNull();
+  });
+
+  it('puts the same toggle in the docked bar', async () => {
+    await open('/popout/chat');
+
+    const inBar = document.body.querySelector('[data-dock-bar] [data-identity-toggle]') as HTMLButtonElement;
+
+    inBar.click();
+    await settle();
+
+    expect(panel()!.textContent).toContain('Stoney_Eagle');
+  });
+});
+
 describe('ChatView controls at the bottom', () => {
   const realMatchMedia = window.matchMedia;
 

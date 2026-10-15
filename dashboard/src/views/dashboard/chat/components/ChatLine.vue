@@ -49,7 +49,7 @@ import {
   type AssetCard,
   type EmoteImages,
 } from '@/lib/assetCards';
-import { emoteHeights, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
+import { emoteHeights, gigantifiedEmoteHeight, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
 
 const props = defineProps<{
   line: ChatLine;
@@ -71,7 +71,7 @@ const emit = defineEmits<{
   reply: [line: ChatLine];
 }>();
 
-const { t, locale } = useI18n();
+const { t, te, locale } = useI18n();
 const timeouts = useTimeoutUser(() => props.channelId);
 const deletes = useDeleteChatMessage(() => props.channelId);
 const profile = useProfileDialogStore();
@@ -197,7 +197,10 @@ const emoteCards = computed<(AssetCard | null)[]>(() =>
 
 // Every part of a line centers on one line height: the emote height on a line with emotes, else 1.5rem.
 const lineStyle = computed(() => {
-  const emoteHeight = emoteHeights[props.display.emoteSize];
+  // A Gigantified Emote Power-up shows its emote large, like Twitch does.
+  const emoteHeight = props.line.messageType === 'power_ups_gigantified_emote'
+    ? gigantifiedEmoteHeight
+    : emoteHeights[props.display.emoteSize];
   const hasEmote = props.line.fragments.some((fragment) => fragment.emote || fragment.type === 'html');
 
   return {
@@ -221,6 +224,15 @@ const replyParent = computed<string | null>(() => {
   return name && message
     ? t('dashboard.chat.reply.parent', { name, message })
     : t('dashboard.chat.reply.earlier');
+});
+
+// A message sent with a Power-up says so above its text.
+const powerUp = computed<string | null>(() => {
+  const key = `dashboard.chat.redemption.powerUp.${props.line.messageType}`;
+
+  return te(key)
+    ? t(key)
+    : null;
 });
 
 // A timeout or ban says what happened, with the timeout's length; other removals only strike the line.
@@ -345,6 +357,11 @@ function pick(event: MouseEvent): void {
         <EmailReply class="size-3.5 flex-none" aria-hidden="true" />
         <span class="truncate">{{ replyParent }}</span>
       </p>
+      <p
+        v-if="powerUp"
+        data-power-up
+        class="text-xs leading-5 text-muted-foreground"
+      >{{ powerUp }}</p>
       <p
         class="wrap-anywhere"
         :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
