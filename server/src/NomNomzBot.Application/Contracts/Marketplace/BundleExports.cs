@@ -51,10 +51,8 @@ public sealed record CommandExport
 
     public int CooldownSeconds { get; init; }
 
-    /// <summary>The per-chatter window, applied when <see cref="CooldownPerUser"/> is true.</summary>
+    /// <summary>The per-chatter window, 0 = off.</summary>
     public int UserCooldownSeconds { get; init; }
-
-    public bool CooldownPerUser { get; init; }
     public string? Description { get; init; }
     public IReadOnlyList<string> Aliases { get; init; } = [];
     public bool IsEnabled { get; init; } = true;

@@ -293,6 +293,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             int cooldownSeconds = isReserved
                 ? builtin.DefaultCooldownSeconds
                 : ctx.BuiltinCooldownSeconds(commandName, builtin.DefaultCooldownSeconds);
+            int userCooldownSeconds = isReserved
+                ? builtin.DefaultUserCooldownSeconds
+                : ctx.BuiltinUserCooldownSeconds(commandName, builtin.DefaultUserCooldownSeconds);
 
             if (!await level.MeetsAsync(minPermissionLevel))
             {
@@ -300,7 +303,26 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 return;
             }
 
-            if (_cooldowns.IsOnCooldown(cooldownChannelKey, commandName, IsCooldownExempt(@event)))
+            bool cooldownExemptForBuiltin = IsCooldownExempt(@event);
+            if (
+                (
+                    cooldownSeconds > 0
+                    && _cooldowns.IsOnCooldown(
+                        cooldownChannelKey,
+                        commandName,
+                        cooldownExemptForBuiltin
+                    )
+                )
+                || (
+                    userCooldownSeconds > 0
+                    && _cooldowns.IsOnCooldown(
+                        cooldownChannelKey,
+                        commandName,
+                        cooldownExemptForBuiltin,
+                        @event.UserId
+                    )
+                )
+            )
             {
                 await SendCooldownNoticeAsync(@event, ctx, cancellationToken);
                 return;
@@ -311,6 +333,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     cooldownChannelKey,
                     commandName,
                     TimeSpan.FromSeconds(cooldownSeconds)
+                );
+            if (userCooldownSeconds > 0)
+                _cooldowns.SetCooldown(
+                    cooldownChannelKey,
+                    commandName,
+                    TimeSpan.FromSeconds(userCooldownSeconds),
+                    @event.UserId
                 );
 
             BuiltinCommandContext builtinCtx = new()

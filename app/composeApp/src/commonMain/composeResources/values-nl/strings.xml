@@ -1062,9 +1062,8 @@
     <string name="commands_dialog_alias_placeholder">alias</string>
     <string name="commands_dialog_alias_add">Alias toevoegen</string>
     <string name="commands_dialog_alias_remove">Alias %1$s verwijderen</string>
-    <string name="commands_dialog_cooldown_label">Afkoeltijd (seconden)</string>
-    <string name="commands_dialog_cooldown_per_user_label">Aparte afkoeltijd per gebruiker</string>
-    <string name="commands_dialog_user_cooldown_label">Afkoeltijd per gebruiker (seconden)</string>
+    <string name="commands_dialog_cooldown_label">Afkoeltijd voor iedereen (seconden, 0 = uit)</string>
+    <string name="commands_dialog_user_cooldown_label">Afkoeltijd per kijker (seconden, 0 = uit)</string>
     <string name="commands_dialog_shadow_warning_title">Deze naam komt overeen met een ingebouwde opdracht</string>
     <string name="commands_dialog_shadow_warning_body">Er bestaat al een ingebouwde opdracht !%1$s. Als je deze opdracht opslaat, antwoordt die van jou in plaats daarvan — de ingebouwde opdracht wordt stil voor dit kanaal. Ga alleen door als je dat wilt.</string>
     <string name="commands_dialog_shadow_acknowledge">Ik begrijp het — toch opslaan</string>

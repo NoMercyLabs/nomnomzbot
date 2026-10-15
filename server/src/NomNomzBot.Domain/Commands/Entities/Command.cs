@@ -83,8 +83,6 @@ public class Command : SoftDeletableEntity, ITenantScoped
 
     public int UserCooldownSeconds { get; set; }
 
-    public bool CooldownPerUser { get; set; }
-
     public bool IsEnabled { get; set; } = true;
 
     /// <summary>Whether a template reply is also sent through the TTS pipeline.</summary>

@@ -213,7 +213,7 @@ public sealed class BuiltinCommandServiceTests
         Result<BuiltinCommandDto> result = await sut.UpdateSettingsAsync(
             Channel.ToString(),
             OrdinaryKey,
-            new(CooldownSeconds: 60, MinPermissionLevel: "Subscriber")
+            new(CooldownSeconds: 60, UserCooldownSeconds: null, MinPermissionLevel: "Subscriber")
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -240,7 +240,7 @@ public sealed class BuiltinCommandServiceTests
         Result<BuiltinCommandDto> result = await sut.UpdateSettingsAsync(
             Channel.ToString(),
             OrdinaryKey,
-            new(CooldownSeconds: 5, MinPermissionLevel: "Everyone")
+            new(CooldownSeconds: 5, UserCooldownSeconds: null, MinPermissionLevel: "Everyone")
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -259,7 +259,7 @@ public sealed class BuiltinCommandServiceTests
         Result<BuiltinCommandDto> result = await sut.UpdateSettingsAsync(
             Channel.ToString(),
             ModOnlyKey,
-            new(CooldownSeconds: null, MinPermissionLevel: "Everyone")
+            new(CooldownSeconds: null, UserCooldownSeconds: null, MinPermissionLevel: "Everyone")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -278,7 +278,7 @@ public sealed class BuiltinCommandServiceTests
         Result<BuiltinCommandDto> result = await sut.UpdateSettingsAsync(
             Channel.ToString(),
             ModOnlyKey,
-            new(CooldownSeconds: null, MinPermissionLevel: "Broadcaster")
+            new(CooldownSeconds: null, UserCooldownSeconds: null, MinPermissionLevel: "Broadcaster")
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -301,7 +301,7 @@ public sealed class BuiltinCommandServiceTests
         Result<BuiltinCommandDto> result = await sut.UpdateSettingsAsync(
             Channel.ToString(),
             OrdinaryKey,
-            new(cooldown, floor)
+            new(cooldown, null, floor)
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -316,7 +316,7 @@ public sealed class BuiltinCommandServiceTests
         Result<BuiltinCommandDto> result = await sut.UpdateSettingsAsync(
             Channel.ToString(),
             ReservedKey,
-            new(CooldownSeconds: 60, MinPermissionLevel: null)
+            new(CooldownSeconds: 60, UserCooldownSeconds: null, MinPermissionLevel: null)
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -375,7 +375,7 @@ public sealed class BuiltinCommandServiceTests
             await sut.UpdateSettingsAsync(
                 Channel.ToString(),
                 OrdinaryKey,
-                new(CooldownSeconds: 90, MinPermissionLevel: "Vip")
+                new(CooldownSeconds: 90, UserCooldownSeconds: null, MinPermissionLevel: "Vip")
             )
         )
             .IsSuccess.Should()
@@ -399,7 +399,11 @@ public sealed class BuiltinCommandServiceTests
             await sut.UpdateSettingsAsync(
                 Channel.ToString(),
                 SongRequestKey,
-                new(CooldownSeconds: 120, MinPermissionLevel: "Subscriber")
+                new(
+                    CooldownSeconds: 120,
+                    UserCooldownSeconds: null,
+                    MinPermissionLevel: "Subscriber"
+                )
             )
         )
             .IsSuccess.Should()

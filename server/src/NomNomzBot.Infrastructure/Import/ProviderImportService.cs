@@ -111,9 +111,7 @@ public sealed class ProviderImportService : IProviderImportService
                 continue;
             }
 
-            // SE has both a global and a per-user cooldown, and so does a command here: both carry over, and
-            // a per-user window switches the per-user cooldown on.
-            bool perUser = source.UserCooldown is > 0;
+            // SE has both a global and a per-user cooldown, and so does a command here: both carry over.
             int cooldown = Math.Clamp(source.Cooldown ?? 0, 0, 86400);
             int userCooldown = Math.Clamp(source.UserCooldown ?? 0, 0, 86400);
 
@@ -128,7 +126,6 @@ public sealed class ProviderImportService : IProviderImportService
                 TemplateResponse = source.Response,
                 CooldownSeconds = cooldown,
                 UserCooldownSeconds = userCooldown,
-                CooldownPerUser = perUser,
                 Aliases = source
                     .Aliases?.Select(NormalizeCommandName)
                     .Where(a => a.Length > 0)

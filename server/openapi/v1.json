@@ -7341,6 +7341,134 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/analytics/channel/top-commands": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Rank the channel's commands by successful runs over a date range.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "top",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfTopCommandDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/analytics/channel/top-viewers": {
       "get": {
         "tags": [
@@ -22256,7 +22384,7 @@
         "tags": [
           "Chat"
         ],
-        "summary": "One person's full stored chat history in this channel, newest first, paged by an opaque keyset cursor.",
+        "summary": "One person's full stored chat history in this channel, newest first, paged by an opaque keyset cursor\r\n(`before`; `nextCursor` is null at the first line). `userId` is the platform user id that\r\n`ChatMessage.UserId` stores (the Twitch id), or the internal User.Id the profile carries\r\n(`internalUserId`), which is resolved to the platform id first.",
         "parameters": [
           {
             "name": "channelId",
@@ -101908,6 +102036,7 @@
           "name",
           "isEnabled",
           "defaultCooldownSeconds",
+          "defaultUserCooldownSeconds",
           "defaultMinPermissionLevel",
           "replyGroup",
           "speakWithTts",
@@ -101934,7 +102063,16 @@
               "integer",
               "string"
             ],
-            "description": "The catalogue cooldown.",
+            "description": "The catalogue global cooldown.",
+            "format": "int32"
+          },
+          "defaultUserCooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The catalogue per-user cooldown.",
             "format": "int32"
           },
           "defaultMinPermissionLevel": {
@@ -101960,7 +102098,17 @@
               "integer",
               "string"
             ],
-            "description": "The channel's own cooldown; null = the default applies.",
+            "description": "The channel's own global cooldown; null = the default applies.",
+            "format": "int32"
+          },
+          "userCooldownSecondsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The channel's own per-user cooldown; null = the default applies.",
             "format": "int32"
           },
           "minPermissionLevelOverride": {
@@ -104657,7 +104805,6 @@
           "matchMode",
           "cooldownSeconds",
           "userCooldownSeconds",
-          "cooldownPerUser",
           "aliases",
           "useCount",
           "createdAt",
@@ -104739,9 +104886,6 @@
             ],
             "format": "int32"
           },
-          "cooldownPerUser": {
-            "type": "boolean"
-          },
           "description": {
             "type": [
               "null",
@@ -104794,7 +104938,6 @@
           "matchMode",
           "cooldownSeconds",
           "userCooldownSeconds",
-          "cooldownPerUser",
           "aliases",
           "useCount",
           "createdAt"
@@ -104851,9 +104994,6 @@
               "string"
             ],
             "format": "int32"
-          },
-          "cooldownPerUser": {
-            "type": "boolean"
           },
           "description": {
             "type": [
@@ -104923,7 +105063,6 @@
           "minPermissionLevel",
           "cooldownSeconds",
           "userCooldownSeconds",
-          "cooldownPerUser",
           "aliases",
           "prefixMode",
           "matchMode"
@@ -104972,9 +105111,6 @@
               "string"
             ],
             "format": "int32"
-          },
-          "cooldownPerUser": {
-            "type": "boolean"
           },
           "aliases": {
             "type": "array",
@@ -105675,11 +105811,8 @@
               "integer",
               "string"
             ],
-            "description": "Per-user cooldown duration in seconds; applied when bool CreateCommandDto.CooldownPerUser is true.",
+            "description": "Per-user cooldown duration in seconds; 0 = off.",
             "format": "int32"
-          },
-          "cooldownPerUser": {
-            "type": "boolean"
           },
           "description": {
             "maxLength": 500,
@@ -130801,6 +130934,42 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfTopCommandDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TopCommandDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfTopViewerDto": {
         "type": "object",
         "properties": {
@@ -139563,6 +139732,45 @@
         },
         "description": "Lightweight timer info for list views."
       },
+      "TopCommandDto": {
+        "required": [
+          "name",
+          "uses",
+          "users",
+          "failed"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "uses": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "users": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One command in the \"what chat runs\" ranking: long TopCommandDto.Uses counts the runs that worked,\r\nint TopCommandDto.Users the distinct people who ran it, long TopCommandDto.Failed the runs that did not work."
+      },
       "TopViewerDto": {
         "required": [
           "viewerUserId",
@@ -141353,6 +141561,15 @@
             ],
             "format": "int32"
           },
+          "userCooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "minPermissionLevel": {
             "type": [
               "null",
@@ -141782,14 +141999,8 @@
               "integer",
               "string"
             ],
-            "description": "Per-user cooldown duration in seconds; applied when bool? UpdateCommandDto.CooldownPerUser is true.",
+            "description": "Per-user cooldown duration in seconds; 0 = off.",
             "format": "int32"
-          },
-          "cooldownPerUser": {
-            "type": [
-              "null",
-              "boolean"
-            ]
           },
           "description": {
             "maxLength": 500,

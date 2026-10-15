@@ -6281,6 +6281,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/analytics/channel/top-commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rank the channel's commands by successful runs over a date range. */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    top?: number | string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfTopCommandDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/analytics/channel/top-viewers": {
         parameters: {
             query?: never;
@@ -19418,7 +19515,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One person's full stored chat history in this channel, newest first, paged by an opaque keyset cursor. */
+        /**
+         * One person's full stored chat history in this channel, newest first, paged by an opaque keyset cursor
+         *     (`before`; `nextCursor` is null at the first line). `userId` is the platform user id that
+         *     `ChatMessage.UserId` stores (the Twitch id), or the internal User.Id the profile carries
+         *     (`internalUserId`), which is resolved to the platform id first.
+         */
         get: {
             parameters: {
                 query?: {
@@ -84801,9 +84903,14 @@ export interface components {
             isEnabled: boolean;
             /**
              * Format: int32
-             * @description The catalogue cooldown.
+             * @description The catalogue global cooldown.
              */
             defaultCooldownSeconds: number | string;
+            /**
+             * Format: int32
+             * @description The catalogue per-user cooldown.
+             */
+            defaultUserCooldownSeconds: number | string;
             /** @description The catalogue permission floor (rung name). */
             defaultMinPermissionLevel: string;
             /** @description The reply group the built-in speaks with (e.g. `unlurk` → `lurk`). */
@@ -84814,9 +84921,14 @@ export interface components {
             isReserved: boolean;
             /**
              * Format: int32
-             * @description The channel's own cooldown; null = the default applies.
+             * @description The channel's own global cooldown; null = the default applies.
              */
             cooldownSecondsOverride?: null | number | string;
+            /**
+             * Format: int32
+             * @description The channel's own per-user cooldown; null = the default applies.
+             */
+            userCooldownSecondsOverride?: null | number | string;
             /** @description The channel's own floor (rung name); null = the default applies. */
             minPermissionLevelOverride?: null | string;
             /**
@@ -85742,7 +85854,6 @@ export interface components {
             cooldownSeconds: number | string;
             /** Format: int32 */
             userCooldownSeconds: number | string;
-            cooldownPerUser: boolean;
             description?: null | string;
             aliases: string[];
             /** Format: int64 */
@@ -85777,7 +85888,6 @@ export interface components {
             cooldownSeconds: number | string;
             /** Format: int32 */
             userCooldownSeconds: number | string;
-            cooldownPerUser: boolean;
             description?: null | string;
             aliases: string[];
             /** Format: int64 */
@@ -85811,7 +85921,6 @@ export interface components {
             cooldownSeconds: number | string;
             /** Format: int32 */
             userCooldownSeconds: number | string;
-            cooldownPerUser: boolean;
             aliases: string[];
             prefixMode: string;
             matchMode: string;
@@ -86030,10 +86139,9 @@ export interface components {
             cooldownSeconds?: number | string;
             /**
              * Format: int32
-             * @description Per-user cooldown duration in seconds; applied when bool CreateCommandDto.CooldownPerUser is true.
+             * @description Per-user cooldown duration in seconds; 0 = off.
              */
             userCooldownSeconds?: number | string;
-            cooldownPerUser?: boolean;
             description?: null | string;
             aliases?: null | string[];
             /** @description Whether the command is live on creation (default true). */
@@ -94645,6 +94753,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfTopCommandDto: {
+            status?: string;
+            data?: null | components["schemas"]["TopCommandDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfIReadOnlyListOfTopViewerDto: {
             status?: string;
             data?: null | components["schemas"]["TopViewerDto"][];
@@ -97726,6 +97847,19 @@ export interface components {
             /** @description True when the timer was installed from a platform template, so it can be restored to it. */
             hasPlatformDefault?: boolean;
         };
+        /**
+         * @description One command in the "what chat runs" ranking: long TopCommandDto.Uses counts the runs that worked,
+         *     int TopCommandDto.Users the distinct people who ran it, long TopCommandDto.Failed the runs that did not work.
+         */
+        TopCommandDto: {
+            name: string;
+            /** Format: int64 */
+            uses: number | string;
+            /** Format: int32 */
+            users: number | string;
+            /** Format: int64 */
+            failed: number | string;
+        };
         /** @description A channel's top viewer over a range by the chosen metric (analytics.md §4) — not the economy board. */
         TopViewerDto: {
             /**
@@ -98299,6 +98433,8 @@ export interface components {
         UpdateBuiltinSettingsRequest: {
             /** Format: int32 */
             cooldownSeconds?: null | number | string;
+            /** Format: int32 */
+            userCooldownSeconds?: null | number | string;
             minPermissionLevel?: null | string;
         };
         /** @description Partial update of a catalog item (PATCH semantics — null = unchanged) (economy.md §4). */
@@ -98410,10 +98546,9 @@ export interface components {
             cooldownSeconds?: null | number | string;
             /**
              * Format: int32
-             * @description Per-user cooldown duration in seconds; applied when bool? UpdateCommandDto.CooldownPerUser is true.
+             * @description Per-user cooldown duration in seconds; 0 = off.
              */
             userCooldownSeconds?: null | number | string;
-            cooldownPerUser?: null | boolean;
             description?: null | string;
             aliases?: null | string[];
             isEnabled?: null | boolean;

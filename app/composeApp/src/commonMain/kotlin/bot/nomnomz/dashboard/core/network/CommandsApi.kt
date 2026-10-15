@@ -89,7 +89,6 @@ data class CommandPreset(
     val minPermissionLevel: String = "Everyone",
     val cooldownSeconds: Int = 0,
     val userCooldownSeconds: Int = 0,
-    val cooldownPerUser: Boolean = false,
     val aliases: List<String> = emptyList(),
     val prefixMode: String = "Default",
     val matchMode: String = "StartsWith",
@@ -101,8 +100,8 @@ data class CommandPreset(
  * are the essentials. [tier] names the authoring kind (template | pipeline | code). [minPermissionLevel] is the rung NAME (Everyone/Subscriber/Vip/Artist/Moderator/LeadModerator/Editor/Broadcaster) —
  * unified-ladder value a chatter must clear (0 = everyone). [prefixMode] (Default | Custom | None) with an
  * optional [customPrefix], and [matchMode] (StartsWith | Exact | Contains | Regex) with an optional
- * [matchPattern] (required for Regex), govern how the trigger is recognized. [cooldownSeconds] is the global
- * spam guard; [cooldownPerUser] scopes a separate [userCooldownSeconds] per chatter. [aliases] are alternate
+ * [matchPattern] (required for Regex), govern how the trigger is recognized. [cooldownSeconds] is the cooldown
+ * for everyone and [userCooldownSeconds] the cooldown per chatter (0 = off for each). [aliases] are alternate
  * trigger names. [isEnabled] lets a command be created already-on (the default). `explicitNulls = false` on the
  * shared Json omits the null fields from the wire body.
  */
@@ -120,7 +119,6 @@ data class CreateCommandBody(
     val pipelineId: String? = null,
     val cooldownSeconds: Int = 0,
     val userCooldownSeconds: Int = 0,
-    val cooldownPerUser: Boolean = false,
     val description: String? = null,
     val aliases: List<String>? = null,
     val isEnabled: Boolean = true,
@@ -148,7 +146,6 @@ data class UpdateCommandBody(
     val pipelineId: String? = null,
     val cooldownSeconds: Int? = null,
     val userCooldownSeconds: Int? = null,
-    val cooldownPerUser: Boolean? = null,
     val description: String? = null,
     val aliases: List<String>? = null,
     val isEnabled: Boolean? = null,
@@ -160,8 +157,8 @@ data class UpdateCommandBody(
  * schema (ApiContractTest), whose fields it is a subset of. Carries every field the edit dialog pre-fills so it
  * can open without a separate detail fetch: the trigger [name], [tier], the [minPermissionLevel] floor, the
  * [prefixMode]/[customPrefix] and [matchMode]/[matchPattern] recognition config, the [templateResponse] (single)
- * or [templateResponses] (random list), the attached [pipelineId], the [cooldownSeconds] guard plus the
- * per-user [cooldownPerUser]/[userCooldownSeconds] pair, the [description], [aliases], live flag, and usage.
+ * or [templateResponses] (random list), the attached [pipelineId], the [cooldownSeconds] (everyone) and
+ * [userCooldownSeconds] (per viewer) cooldowns, the [description], [aliases], live flag, and usage.
  */
 @Serializable
 data class CommandSummary(
@@ -177,7 +174,6 @@ data class CommandSummary(
     val matchPattern: String? = null,
     val cooldownSeconds: Int = 0,
     val userCooldownSeconds: Int = 0,
-    val cooldownPerUser: Boolean = false,
     val description: String? = null,
     val aliases: List<String> = emptyList(),
     val useCount: Long = 0,

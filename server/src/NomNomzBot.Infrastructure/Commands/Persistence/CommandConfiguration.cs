@@ -45,8 +45,6 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
 
         builder.Property(e => e.CooldownSeconds).IsRequired();
 
-        builder.Property(e => e.CooldownPerUser).IsRequired();
-
         builder.Property(e => e.Aliases).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
 
         builder.Property(e => e.IsPlatform).IsRequired();

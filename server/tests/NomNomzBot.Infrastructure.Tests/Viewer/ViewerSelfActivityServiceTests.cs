@@ -317,11 +317,13 @@ public sealed class ViewerSelfActivityServiceTests
             name,
             enabled,
             cooldown,
+            0,
             minLevel,
             "group",
             false,
             false,
             cooldownOverride,
+            null,
             null,
             0
         );

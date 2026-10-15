@@ -578,7 +578,6 @@ public sealed class AdminSupportService(
                 c.MatchPattern,
                 c.CooldownSeconds,
                 c.UserCooldownSeconds,
-                c.CooldownPerUser,
                 c.Description,
                 c.Aliases,
                 c.UseCount,

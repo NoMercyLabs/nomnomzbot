@@ -184,7 +184,6 @@ public sealed class CommandPresetService(
             PermissionLevelNames.ToLevelValue(preset.MinPermissionLevel) ?? 0;
         command.CooldownSeconds = preset.CooldownSeconds;
         command.UserCooldownSeconds = preset.UserCooldownSeconds;
-        command.CooldownPerUser = preset.CooldownPerUser;
         command.Aliases = [.. preset.Aliases ?? []];
         command.PrefixMode = preset.PrefixMode;
         command.CustomPrefix = null;
@@ -229,7 +228,6 @@ public sealed class CommandPresetService(
             preset.MinPermissionLevel,
             preset.CooldownSeconds,
             preset.UserCooldownSeconds,
-            preset.CooldownPerUser,
             [.. preset.Aliases ?? []],
             preset.PrefixMode,
             preset.MatchMode

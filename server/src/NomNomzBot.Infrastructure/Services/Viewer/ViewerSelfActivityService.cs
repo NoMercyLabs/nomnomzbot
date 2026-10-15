@@ -79,7 +79,7 @@ public sealed class ViewerSelfActivityService(
             .Select(c => new ViewerCommandDto(
                 c.Name,
                 c.Description,
-                c.CooldownSeconds > 0 ? c.CooldownSeconds : null,
+                ShownCooldown(c.CooldownSeconds, c.UserCooldownSeconds),
                 null
             ))
             .ToListAsync(ct);
@@ -129,12 +129,22 @@ public sealed class ViewerSelfActivityService(
                 .Select(b => new ViewerCommandDto(
                     b.Name,
                     null,
-                    (b.CooldownSecondsOverride ?? b.DefaultCooldownSeconds) is > 0 and int cooldown
-                        ? cooldown
-                        : null,
+                    ShownCooldown(
+                        b.CooldownSecondsOverride ?? b.DefaultCooldownSeconds,
+                        b.UserCooldownSecondsOverride ?? b.DefaultUserCooldownSeconds
+                    ),
                     null
                 )),
         ];
+    }
+
+    /// <summary>The window a viewer waits: the channel-wide one when set, else their own.</summary>
+    private static int? ShownCooldown(int globalSeconds, int userSeconds)
+    {
+        if (globalSeconds > 0)
+            return globalSeconds;
+
+        return userSeconds > 0 ? userSeconds : null;
     }
 
     private static int MinLevel(BuiltinCommandDto builtin) =>

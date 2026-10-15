@@ -463,7 +463,6 @@ public class BundleImportService : IBundleImportService
                         : null,
                     CooldownSeconds = export.CooldownSeconds,
                     UserCooldownSeconds = export.UserCooldownSeconds,
-                    CooldownPerUser = export.CooldownPerUser,
                     Description = export.Description,
                     Aliases = [.. export.Aliases],
                 };

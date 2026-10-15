@@ -168,7 +168,6 @@ class CommandsControllerTest {
                 pipelineId = null,
                 cooldownSeconds = 30,
                 userCooldownSeconds = 15,
-                cooldownPerUser = true,
                 description = "greeting",
                 aliases = listOf("!hey", "!yo"),
                 isEnabled = true,
@@ -189,7 +188,6 @@ class CommandsControllerTest {
         assertEquals("^hi$", body.matchPattern)
         assertEquals(30, body.cooldownSeconds)
         assertEquals(15, body.userCooldownSeconds)
-        assertEquals(true, body.cooldownPerUser)
         assertEquals("greeting", body.description)
         assertEquals(listOf("!hey", "!yo"), body.aliases)
 
@@ -605,6 +603,19 @@ class CommandsControllerTest {
         assertEquals("greeter", created?.name)
         assertEquals("greeter", codeScriptsApi.lastCreatedName)
     }
+
+    @Test
+    fun the_command_wire_body_carries_two_cooldown_values_and_no_per_user_switch() {
+        val body: CreateCommandBody = CreateCommandBody(name = "!hi", cooldownSeconds = 30, userCooldownSeconds = 15)
+
+        val wire: kotlinx.serialization.json.JsonObject =
+            kotlinx.serialization.json.Json { encodeDefaults = true }
+                .encodeToJsonElement(CreateCommandBody.serializer(), body) as kotlinx.serialization.json.JsonObject
+
+        assertEquals("30", (wire["cooldownSeconds"] as kotlinx.serialization.json.JsonPrimitive).content)
+        assertEquals("15", (wire["userCooldownSeconds"] as kotlinx.serialization.json.JsonPrimitive).content)
+        assertEquals(false, wire.containsKey("cooldownPerUser"))
+    }
 }
 
 // ── Fakes ────────────────────────────────────────────────────────────────────────────────────────
@@ -624,7 +635,6 @@ private fun failedFormInput(name: String): CommandInput =
         pipelineId = null,
         cooldownSeconds = 0,
         userCooldownSeconds = 0,
-        cooldownPerUser = false,
         description = "",
         aliases = emptyList(),
         isEnabled = true,

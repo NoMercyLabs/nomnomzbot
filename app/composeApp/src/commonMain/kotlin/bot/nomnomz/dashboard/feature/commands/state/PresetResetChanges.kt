@@ -41,8 +41,7 @@ fun presetResetChanges(command: CommandSummary, preset: CommandPreset): List<Pre
         if (command.minPermissionLevel != preset.minPermissionLevel) add(PresetResetField.Permission)
         if (
             command.cooldownSeconds != preset.cooldownSeconds ||
-                command.userCooldownSeconds != preset.userCooldownSeconds ||
-                command.cooldownPerUser != preset.cooldownPerUser
+                command.userCooldownSeconds != preset.userCooldownSeconds
         ) {
             add(PresetResetField.Cooldown)
         }
