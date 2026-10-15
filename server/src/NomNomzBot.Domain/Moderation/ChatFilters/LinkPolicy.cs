@@ -104,14 +104,15 @@ public sealed record LinkPolicy
         {
             if (!MatchBareDomains && !HasScheme(link))
                 continue;
-            if (!IsAllowed(link.Host))
+            if (!AllowsHost(link.Host))
                 return true;
         }
 
         return false;
     }
 
-    private bool IsAllowed(string host) =>
+    /// <summary>True when <paramref name="host"/> is an allowed domain or a sub-domain of one.</summary>
+    public bool AllowsHost(string host) =>
         AllowedDomains.Any(allowed =>
         {
             string domain = allowed.Trim().TrimEnd('.');

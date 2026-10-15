@@ -81,7 +81,10 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
                 continue;
             }
 
-            string sanitised = ChatHtmlSanitizer.Sanitize(BuildCombinedHtml(span));
+            string sanitised = ChatHtmlSanitizer.Sanitize(
+                BuildCombinedHtml(span),
+                LinkRule(context)
+            );
             rebuilt.Add(new() { Type = "html", Text = sanitised });
             anySpan = true;
             i = nextIndex;
@@ -196,10 +199,14 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
             context.Fragments[i] = new()
             {
                 Type = "html",
-                Text = ChatHtmlSanitizer.Sanitize(fragment.Text),
+                Text = ChatHtmlSanitizer.Sanitize(fragment.Text, LinkRule(context)),
             };
         }
     }
+
+    // Which link hosts survive: any host for a sender who may link anywhere, otherwise only the channel's allowlist.
+    private static Predicate<string> LinkRule(ChatDecorationContext context) =>
+        context.SenderMayLinkExternally ? _ => true : context.LinkAllowlist.AllowsHost;
 
     // Best-scale emote url: prefer 3x, then 2x, then 1x; null when the emote carries no url at all.
     private static string? ResolveEmoteUrl(ChatEmote emote)

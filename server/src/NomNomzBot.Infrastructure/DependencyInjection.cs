@@ -455,6 +455,8 @@ public static class DependencyInjection
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
+        // Scoped: reads the channel's link-filter allowlist through the scoped db context, for chat-HTML links.
+        services.AddScoped<Application.Chat.Services.IChatLinkAllowlist, ChatLinkAllowlist>();
         // Operator chat sender (scoped — resolves the operator identity via ITwitchIdentityResolver; chat-client.md §3.3).
         services.AddScoped<Application.Chat.Services.IOperatorChatSender, OperatorChatSender>();
         // Operator message deleter (scoped — deletes AS the operator so Twitch attributes it to them; chat-client.md §3.5).

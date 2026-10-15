@@ -79,6 +79,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
                 row.FloorLevel = seed.FloorLevel;
                 row.FloorTier = seed.Tier;
                 row.IsGrantableViaPermit = seed.Grant;
+                row.Description = seed.Description ?? row.Description;
             }
             else
             {
@@ -91,6 +92,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
                         FloorLevel = seed.FloorLevel,
                         FloorTier = seed.Tier,
                         IsGrantableViaPermit = seed.Grant,
+                        Description = seed.Description,
                     }
                 );
             }
@@ -555,6 +557,21 @@ public sealed class ActionDefinitionSeeder : ISeeder
                 AuthPlane.Community
             )
         );
+        // A link in chat HTML to a host off the channel's link allowlist. It defaults to the Moderator rung: a link
+        // can lead viewers to phishing or malware, so only people the channel already trusts get it by default. A
+        // broadcaster grants it to one person, or lowers the rung, when they trust them; without it the link is
+        // unwrapped to its text.
+        s.Add(
+            new(
+                ChatDecorationCapabilities.LinkExternally,
+                Mod,
+                Everyone,
+                DangerTier.Low,
+                true,
+                AuthPlane.Community,
+                "Keep links to sites that are not on the channel's link allowlist in chat HTML. Without it, such a link shows as plain text."
+            )
+        );
 
         // Pronouns (pronouns.md §5) — a viewer setting their OWN pronoun/override. The special-category
         // consent gate is enforced in the service layer, not the role floor.
@@ -569,6 +586,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         int FloorLevel,
         DangerTier Tier,
         bool Grant,
-        AuthPlane Plane
+        AuthPlane Plane,
+        string? Description = null
     );
 }

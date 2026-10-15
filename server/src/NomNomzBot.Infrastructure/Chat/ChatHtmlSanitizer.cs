@@ -9,6 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using System.Runtime.CompilerServices;
+using AngleSharp.Dom;
+using AngleSharp.Html.Dom;
+using AngleSharp.Html.Parser;
 using Ganss.Xss;
 
 namespace NomNomzBot.Infrastructure.Chat;
@@ -151,6 +154,44 @@ public static class ChatHtmlSanitizer
 
     /// <summary>Returns a sanitised copy of <paramref name="html"/> containing only the allow-listed, https-guarded subset.</summary>
     public static string Sanitize(string html) => Sanitizer.Sanitize(html);
+
+    /// <summary>
+    /// Sanitises <paramref name="html"/> like <see cref="Sanitize(string)"/>, then unwraps every link whose host
+    /// <paramref name="keepLinkToHost"/> rejects: the link goes, its content stays in place as plain markup.
+    /// </summary>
+    public static string Sanitize(string html, Predicate<string> keepLinkToHost)
+    {
+        string clean = Sanitize(html);
+        if (!clean.Contains("<a", StringComparison.OrdinalIgnoreCase))
+            return clean;
+
+        IHtmlDocument document = new HtmlParser().ParseDocument(clean);
+        IHtmlElement? body = document.Body;
+        if (body is null)
+            return clean;
+
+        foreach (IElement link in body.QuerySelectorAll("a").ToList())
+            if (!KeepsLink(link, keepLinkToHost))
+                Unwrap(link);
+
+        return body.InnerHtml;
+    }
+
+    // A link with no href is no link and stays; a link whose href is not an absolute url with a host the rule keeps goes.
+    private static bool KeepsLink(IElement link, Predicate<string> keepLinkToHost)
+    {
+        string? href = link.GetAttribute("href");
+        if (href is null)
+            return true;
+
+        return Uri.TryCreate(href, UriKind.Absolute, out Uri? uri) && keepLinkToHost(uri.Host);
+    }
+
+    private static void Unwrap(IElement link)
+    {
+        INode[] content = [.. link.ChildNodes];
+        link.Replace(content);
+    }
 
     private static HtmlSanitizer Build()
     {

@@ -75,6 +75,7 @@ public sealed class ChatDecorationFeatureTogglingTests
             cache,
             Substitute.For<IUserService>(),
             Substitute.For<IRoleResolver>(),
+            Substitute.For<IChatLinkAllowlist>(),
             NullLogger<ChatMessageDecorator>.Instance
         );
 
@@ -129,6 +130,7 @@ public sealed class ChatDecorationFeatureTogglingTests
             cache,
             Substitute.For<IUserService>(),
             Substitute.For<IRoleResolver>(),
+            Substitute.For<IChatLinkAllowlist>(),
             NullLogger<ChatMessageDecorator>.Instance
         );
 
@@ -178,6 +180,7 @@ public sealed class ChatDecorationFeatureTogglingTests
             cache,
             Substitute.For<IUserService>(),
             Substitute.For<IRoleResolver>(),
+            Substitute.For<IChatLinkAllowlist>(),
             NullLogger<ChatMessageDecorator>.Instance
         );
 

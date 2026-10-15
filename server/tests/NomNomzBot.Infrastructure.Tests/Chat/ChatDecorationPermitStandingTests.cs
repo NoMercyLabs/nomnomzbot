@@ -21,6 +21,7 @@ using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Chat.Adapters;
 using NSubstitute;
@@ -39,6 +40,8 @@ public sealed class ChatDecorationPermitStandingTests
     private static readonly Guid Channel = Guid.CreateVersion7();
     private static readonly Guid ViewerUser = Guid.CreateVersion7();
     private const string TwitchUserId = "u-viewer";
+    private static readonly Guid OtherUser = Guid.CreateVersion7();
+    private const string OtherTwitchUserId = "u-other";
 
     [Fact]
     public async Task A_badge_less_viewer_holding_the_html_capability_has_inline_html_rendered()
@@ -209,9 +212,120 @@ public sealed class ChatDecorationPermitStandingTests
         result.Fragments.Should().ContainSingle().Which.Type.Should().Be("text");
     }
 
-    private static IRoleResolver Roles(bool html, bool links)
+    private const string HtmlWithTwoLinks =
+        @"<a href=""https://nomercy.tv/live"">ok</a> <a href=""https://evil.example/x"">bad</a>";
+
+    [Fact]
+    public async Task A_viewer_without_the_external_link_grant_has_an_off_allowlist_link_unwrapped_and_an_allowlisted_one_kept()
+    {
+        IRoleResolver roles = Roles(html: true, links: false);
+        ChatMessageDecorator decorator = Decorator(
+            [new HtmlFragmentAdapter()],
+            roles,
+            ("use_chat_html", true)
+        );
+
+        DecoratedChatMessage result = await decorator.DecorateAsync(Event(HtmlWithTwoLinks));
+
+        ChatMessageFragment fragment = result.Fragments.Should().ContainSingle().Which;
+        fragment.Type.Should().Be("html");
+        fragment.Text.Should().Be(@"<a href=""https://nomercy.tv/live"">ok</a> bad");
+    }
+
+    [Fact]
+    public async Task The_external_link_grant_is_tied_to_the_user_who_holds_it_not_to_everyone_in_the_channel()
+    {
+        IRoleResolver roles = Roles(html: true, links: false, externalLinks: true);
+        roles
+            .HasCapabilityAsync(
+                OtherUser,
+                Channel,
+                ChatDecorationCapabilities.RenderHtml,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(true));
+        ChatMessageDecorator decorator = Decorator(
+            [new HtmlFragmentAdapter()],
+            roles,
+            ("use_chat_html", true)
+        );
+
+        DecoratedChatMessage granted = await decorator.DecorateAsync(Event(HtmlWithTwoLinks));
+        DecoratedChatMessage other = await decorator.DecorateAsync(
+            Event(HtmlWithTwoLinks, twitchUserId: OtherTwitchUserId)
+        );
+
+        granted.Fragments.Should().ContainSingle().Which.Text.Should().Be(HtmlWithTwoLinks);
+        other
+            .Fragments.Should()
+            .ContainSingle()
+            .Which.Text.Should()
+            .Be(@"<a href=""https://nomercy.tv/live"">ok</a> bad");
+        await roles
+            .Received(1)
+            .HasCapabilityAsync(
+                ViewerUser,
+                Channel,
+                ChatDecorationCapabilities.LinkExternally,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_subscriber_badge_renders_html_but_does_not_unlock_external_links()
+    {
+        IRoleResolver roles = Roles(html: false, links: false);
+        ChatMessageDecorator decorator = Decorator(
+            [new HtmlFragmentAdapter()],
+            roles,
+            ("use_chat_html", true)
+        );
+
+        DecoratedChatMessage result = await decorator.DecorateAsync(
+            Event(HtmlWithTwoLinks, isSubscriber: true)
+        );
+
+        ChatMessageFragment fragment = result.Fragments.Should().ContainSingle().Which;
+        fragment.Type.Should().Be("html");
+        fragment.Text.Should().Be(@"<a href=""https://nomercy.tv/live"">ok</a> bad");
+    }
+
+    [Fact]
+    public async Task A_moderator_badge_meets_the_default_role_and_keeps_external_links_without_asking_the_resolver()
+    {
+        IRoleResolver roles = Roles(html: false, links: false);
+        ChatMessageDecorator decorator = Decorator(
+            [new HtmlFragmentAdapter()],
+            roles,
+            ("use_chat_html", true)
+        );
+
+        DecoratedChatMessage result = await decorator.DecorateAsync(
+            Event(HtmlWithTwoLinks, isModerator: true)
+        );
+
+        result.Fragments.Should().ContainSingle().Which.Text.Should().Be(HtmlWithTwoLinks);
+        await roles
+            .DidNotReceive()
+            .HasCapabilityAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    private static IRoleResolver Roles(bool html, bool links, bool externalLinks = false)
     {
         IRoleResolver roles = Substitute.For<IRoleResolver>();
+        roles
+            .HasCapabilityAsync(
+                ViewerUser,
+                Channel,
+                ChatDecorationCapabilities.LinkExternally,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(externalLinks));
         roles
             .HasCapabilityAsync(
                 ViewerUser,
@@ -269,10 +383,29 @@ public sealed class ChatDecorationPermitStandingTests
                 )
             );
 
+        users
+            .GetOrCreateAsync(
+                OtherTwitchUserId,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new UserDto(OtherUser.ToString(), "other", "Other", null, null, now, now)
+                )
+            );
+
         ICacheService cache = Substitute.For<ICacheService>();
         cache
             .GetAsync<HashSet<string>>(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<HashSet<string>?>(null));
+
+        IChatLinkAllowlist allowlist = Substitute.For<IChatLinkAllowlist>();
+        allowlist
+            .GetAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new LinkPolicy { AllowedDomains = ["nomercy.tv"] }));
 
         return new(
             adapters,
@@ -280,17 +413,23 @@ public sealed class ChatDecorationPermitStandingTests
             cache,
             users,
             roles,
+            allowlist,
             NullLogger<ChatMessageDecorator>.Instance
         );
     }
 
-    private static ChatMessageReceivedEvent Event(string text, bool isSubscriber = false) =>
+    private static ChatMessageReceivedEvent Event(
+        string text,
+        bool isSubscriber = false,
+        bool isModerator = false,
+        string twitchUserId = TwitchUserId
+    ) =>
         new()
         {
             BroadcasterId = Channel,
             MessageId = "m1",
             TwitchBroadcasterId = "123",
-            UserId = TwitchUserId,
+            UserId = twitchUserId,
             UserDisplayName = "Viewer",
             UserLogin = "viewer",
             Message = text,
@@ -298,7 +437,7 @@ public sealed class ChatDecorationPermitStandingTests
             Badges = [],
             IsSubscriber = isSubscriber,
             IsVip = false,
-            IsModerator = false,
+            IsModerator = isModerator,
             IsBroadcaster = false,
         };
 }

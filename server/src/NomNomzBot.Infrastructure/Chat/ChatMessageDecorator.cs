@@ -20,6 +20,7 @@ using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Infrastructure.Chat.Adapters;
 
 namespace NomNomzBot.Infrastructure.Chat;
@@ -55,6 +56,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
     private readonly ICacheService _cache;
     private readonly IUserService _users;
     private readonly IRoleResolver _roles;
+    private readonly IChatLinkAllowlist _linkAllowlist;
     private readonly ILogger<ChatMessageDecorator> _logger;
 
     public ChatMessageDecorator(
@@ -63,6 +65,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         ICacheService cache,
         IUserService users,
         IRoleResolver roles,
+        IChatLinkAllowlist linkAllowlist,
         ILogger<ChatMessageDecorator> logger
     )
     {
@@ -71,6 +74,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         _cache = cache;
         _users = users;
         _roles = roles;
+        _linkAllowlist = linkAllowlist;
         _logger = logger;
     }
 
@@ -84,6 +88,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             ct
         );
         SenderStanding standing = await ResolveSenderStandingAsync(message, enabledFeatures, ct);
+        LinkPolicy linkAllowlist = await ResolveLinkAllowlistAsync(message, standing, ct);
 
         ChatDecorationContext context = new()
         {
@@ -94,6 +99,8 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             Badges = message.Badges,
             SenderMayRenderHtml = standing.RenderHtml,
             SenderMayPreviewLinks = standing.PreviewLinks,
+            SenderMayLinkExternally = standing.LinkExternally,
+            LinkAllowlist = linkAllowlist,
         };
 
         foreach (IChatDecorationAdapter adapter in _adapters)
@@ -118,7 +125,11 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         return new() { Fragments = context.Fragments, Badges = context.ResolvedBadges };
     }
 
-    private readonly record struct SenderStanding(bool RenderHtml, bool PreviewLinks);
+    private readonly record struct SenderStanding(
+        bool RenderHtml,
+        bool PreviewLinks,
+        bool LinkExternally
+    );
 
     // The sender's standing for the two viewer-gated steps, the same ladder the command gate walks: a live badge
     // (subscriber and above) wins outright and costs nothing; only when it is missing does the resolver answer
@@ -130,8 +141,9 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         CancellationToken ct
     )
     {
-        if (HasBadgeStanding(message))
-            return new(true, true);
+        // A moderator or broadcaster badge meets every step's default, the external-link rung included.
+        if (message.IsModerator || message.IsBroadcaster)
+            return new(true, true, true);
 
         bool htmlCandidate =
             enabledFeatures.Contains("use_chat_html")
@@ -139,35 +151,95 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         bool linkCandidate =
             enabledFeatures.Contains("use_link_preview")
             && message.Fragments.Any(LinkPreviewAdapter.ContainsHttpUrl);
+        bool badge = HasBadgeStanding(message);
+        // A badge holder only needs the resolver for the external-link rung, so a message with no HTML link skips it.
+        if (badge && !(htmlCandidate && ContainsHtmlLink(message)))
+            return new(true, true, false);
         if (!htmlCandidate && !linkCandidate)
-            return new(false, false);
+            return new(false, false, false);
 
         Guid? viewerUserId = await TryResolveViewerUserIdAsync(message, ct);
         if (viewerUserId is null)
-            return new(false, false);
+            return new(badge, badge, false);
 
         bool renderHtml =
             htmlCandidate
-            && await HoldsCapabilityAsync(
-                viewerUserId.Value,
-                message,
-                ChatDecorationCapabilities.RenderHtml,
-                ct
+            && (
+                badge
+                || await HoldsCapabilityAsync(
+                    viewerUserId.Value,
+                    message,
+                    ChatDecorationCapabilities.RenderHtml,
+                    ct
+                )
             );
         bool previewLinks =
-            linkCandidate
+            badge
+            || (
+                linkCandidate
+                && await HoldsCapabilityAsync(
+                    viewerUserId.Value,
+                    message,
+                    ChatDecorationCapabilities.PreviewLinks,
+                    ct
+                )
+            );
+        bool linkExternally =
+            renderHtml
+            && ContainsHtmlLink(message)
             && await HoldsCapabilityAsync(
                 viewerUserId.Value,
                 message,
-                ChatDecorationCapabilities.PreviewLinks,
+                ChatDecorationCapabilities.LinkExternally,
                 ct
             );
-        return new(renderHtml, previewLinks);
+        return new(renderHtml, previewLinks, linkExternally);
     }
 
-    // The live-badge leg of the standing ladder: a subscriber, VIP, moderator or broadcaster badge on the message.
+    // The live-badge leg of the standing ladder for HTML and previews: a subscriber or VIP badge (moderator and
+    // broadcaster are handled before it, since they also meet the external-link rung).
     private static bool HasBadgeStanding(ChatMessageReceivedEvent message) =>
-        message.IsSubscriber || message.IsVip || message.IsModerator || message.IsBroadcaster;
+        message.IsSubscriber || message.IsVip;
+
+    // Only a message that can carry an <a> needs the external-link rung resolved.
+    private static bool ContainsHtmlLink(ChatMessageReceivedEvent message) =>
+        message.Fragments.Any(fragment =>
+            fragment.Type == "text"
+            && fragment.Text.Contains("<a", StringComparison.OrdinalIgnoreCase)
+        );
+
+    // The channel allowlist is read only when it can change the outcome: HTML is rendered, it carries a link, and the
+    // sender may not link anywhere. A failed read leaves the allowlist empty, so links unwrap (fail closed).
+    private async Task<LinkPolicy> ResolveLinkAllowlistAsync(
+        ChatMessageReceivedEvent message,
+        SenderStanding standing,
+        CancellationToken ct
+    )
+    {
+        if (!standing.RenderHtml || standing.LinkExternally || !ContainsHtmlLink(message))
+            return LinkPolicy.Default;
+
+        try
+        {
+            Result<LinkPolicy> allowlist = await _linkAllowlist.GetAsync(message.BroadcasterId, ct);
+            return allowlist is { IsSuccess: true, Value: not null }
+                ? allowlist.Value
+                : LinkPolicy.Default;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Link allowlist read failed for {Channel}; chat HTML links are unwrapped",
+                message.BroadcasterId
+            );
+            return LinkPolicy.Default;
+        }
+    }
 
     // The event carries the platform user id; the resolver needs the internal User id. A chatter IS a (possibly
     // not-set-up) User row — the same get-or-create seam every chat-ingest handler uses. Null when it cannot

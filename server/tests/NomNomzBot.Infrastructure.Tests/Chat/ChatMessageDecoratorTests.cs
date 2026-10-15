@@ -211,6 +211,7 @@ public sealed class ChatMessageDecoratorTests
             cache,
             Substitute.For<IUserService>(),
             Substitute.For<IRoleResolver>(),
+            Substitute.For<IChatLinkAllowlist>(),
             NullLogger<ChatMessageDecorator>.Instance
         );
     }

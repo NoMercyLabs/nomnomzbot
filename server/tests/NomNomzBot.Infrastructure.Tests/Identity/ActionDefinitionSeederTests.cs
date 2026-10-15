@@ -64,6 +64,22 @@ public sealed class ActionDefinitionSeederTests
     }
 
     [Fact]
+    public async Task Seeds_external_chat_html_links_as_a_permittable_moderator_rung()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+
+        ActionDefinition row = await db.ActionDefinitions.SingleAsync(a =>
+            a.ActionKey == ChatDecorationCapabilities.LinkExternally
+        );
+        row.ActionKey.Should().Be("chat:html:external-links");
+        row.Plane.Should().Be(AuthPlane.Community);
+        row.DefaultLevel.Should().Be(10);
+        row.FloorLevel.Should().Be(0);
+        row.IsGrantableViaPermit.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Reseeding_is_idempotent_and_adds_no_duplicates()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();

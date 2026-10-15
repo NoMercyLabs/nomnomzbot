@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 
 namespace NomNomzBot.Application.Chat.Decoration;
 
@@ -44,6 +45,16 @@ public sealed class ChatDecorationContext
     /// <see cref="ChatDecorationCapabilities.RenderHtml"/> capability (a <c>!permit</c> grant or a resolved level).
     /// </summary>
     public bool SenderMayRenderHtml { get; init; }
+
+    /// <summary>
+    /// Whether the sender's rendered HTML may keep a link to a host off <see cref="LinkAllowlist"/>: a moderator or
+    /// broadcaster badge, or the <see cref="ChatDecorationCapabilities.LinkExternally"/> capability (a per-user grant
+    /// or a resolved level). Without it such a link is unwrapped to its text.
+    /// </summary>
+    public bool SenderMayLinkExternally { get; init; }
+
+    /// <summary>The channel's link allowlist; a link to one of its hosts is kept in rendered HTML for every sender.</summary>
+    public LinkPolicy LinkAllowlist { get; init; } = LinkPolicy.Default;
 
     /// <summary>
     /// Whether the sender may trigger a link preview fetch: a live badge (subscriber and above), or the
