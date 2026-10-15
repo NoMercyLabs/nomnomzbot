@@ -258,6 +258,7 @@ const storedNothing = (): Record<string, unknown> => ({
   },
   overrides: { shoutoutMessageTemplate: null, ttsVoice: null },
   commandUsage: { totalCommandsUsed: 0, lastUsedUtc: null },
+  raids: { timesRaidedThisChannel: 0, timesThisChannelRaidedThem: 0 },
   freeFormData: [],
   recentQuotes: [],
   totalQuoteCount: 0,
@@ -316,6 +317,7 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
       maxStreak: 6,
       lastSeenDate: '2026-10-01',
     },
+    raids: { timesRaidedThisChannel: 3, timesThisChannelRaidedThem: 1 },
   },
   g2: {
     ...storedNothing(),
@@ -1740,6 +1742,19 @@ describe('the Overview tab', () => {
     expect(swatch?.style.backgroundColor).toBe('rgb(255, 127, 80)');
   });
 
+  it('shows how many times the person raided this channel and how many times it raided them', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const rows = Array.from(overview().querySelectorAll('dt')).map((dt: Element) => [
+      dt.textContent,
+      dt.nextElementSibling?.textContent,
+    ]);
+
+    expect(rows).toContainEqual(['Raided this channel', '3']);
+    expect(rows).toContainEqual(['This channel raided them', '1']);
+  });
+
   it('says at the top how long the person has been around: account, follow and first sighting', async () => {
     await openPage();
     await openUser('u1');
@@ -1764,7 +1779,7 @@ describe('the Overview tab', () => {
     );
 
     // Facts the server does not return, an empty Twitch status, no color and not lurking are not worth a row.
-    for (const label of ['Role since', 'Twitch ID', 'Subscription', 'Nickname', 'Time zone', 'Chat color', 'Lurking', 'Bits cheered']) {
+    for (const label of ['Role since', 'Twitch ID', 'Subscription', 'Nickname', 'Time zone', 'Chat color', 'Lurking', 'Bits cheered', 'Raided this channel', 'This channel raided them']) {
       expect(labels).not.toContain(label);
     }
 

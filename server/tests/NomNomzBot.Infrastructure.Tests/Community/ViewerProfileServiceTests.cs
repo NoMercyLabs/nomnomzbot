@@ -19,12 +19,14 @@ using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Giveaways.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Infrastructure.Community;
+using NomNomzBot.Infrastructure.Stream.RaidSuggestions;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Community;
@@ -93,7 +95,16 @@ public sealed class ViewerProfileServiceTests
                 Errors.NotFound<Application.Tts.Dtos.UserTtsVoiceDto>("TTS voice assignment", "")
             );
 
-        ViewerProfileService sut = new(db, analytics, permits, quotes, tts, follows, spam);
+        ViewerProfileService sut = new(
+            db,
+            analytics,
+            permits,
+            quotes,
+            tts,
+            follows,
+            spam,
+            new RaidHistoryReader(db)
+        );
         return (sut, db, analytics, permits, quotes, tts);
     }
 
@@ -113,6 +124,71 @@ public sealed class ViewerProfileServiceTests
             }
         );
         await db.SaveChangesAsync();
+    }
+
+    private static long _journalPosition;
+
+    private static EventJournal RaidRow(Guid channel, string from, string to) =>
+        new()
+        {
+            EventId = Guid.NewGuid(),
+            BroadcasterId = channel,
+            StreamPosition = Interlocked.Increment(ref _journalPosition),
+            EventType = "channel.raid",
+            EventVersion = 1,
+            Source = "eventsub",
+            Payload =
+                $"{{\"from_broadcaster_user_id\":\"{from}\",\"to_broadcaster_user_id\":\"{to}\",\"viewers\":9}}",
+            Metadata = "{}",
+            OccurredAt = DateTime.UtcNow,
+            RecordedAt = DateTime.UtcNow,
+        };
+
+    [Fact]
+    public async Task GetProfileAsync_CountsRaidsInBothDirections_FromThisChannelsRaidRowsOnly()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedSubjectAsync(db);
+        Guid otherChannel = Guid.CreateVersion7();
+        db.Channels.Add(
+            new()
+            {
+                Id = Broadcaster,
+                OwnerUserId = Guid.CreateVersion7(),
+                Provider = AuthEnums.Platform.Twitch,
+                TwitchChannelId = "chan-twitch",
+                ExternalChannelId = "chan-twitch",
+                Name = "chan",
+                NameNormalized = "chan",
+            }
+        );
+        db.EventJournals.AddRange(
+            RaidRow(Broadcaster, "subject-twitch", "chan-twitch"),
+            RaidRow(Broadcaster, "subject-twitch", "chan-twitch"),
+            RaidRow(Broadcaster, "subject-twitch", "chan-twitch"),
+            RaidRow(Broadcaster, "chan-twitch", "subject-twitch"),
+            RaidRow(Broadcaster, "chan-twitch", "someone-else"),
+            RaidRow(Broadcaster, "someone-else", "chan-twitch"),
+            RaidRow(otherChannel, "subject-twitch", "chan-twitch")
+        );
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Raids.TimesRaidedThisChannel.Should().Be(3);
+        result.Value.Raids.TimesThisChannelRaidedThem.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_RaidCountsAreZero_WhenThereAreNoRaidRows()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.Value.Raids.Should().Be(new ViewerRaidsDto(0, 0));
     }
 
     [Fact]

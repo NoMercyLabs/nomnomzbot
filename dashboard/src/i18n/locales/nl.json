@@ -431,6 +431,8 @@
       "about": "Over",
       "lurking": "Lurkt",
       "bits": "Bits gegeven",
+      "raidedUs": "Heeft dit kanaal geraid",
+      "weRaided": "Dit kanaal heeft hen geraid",
       "setByChannel": "{value} (ingesteld door het kanaal)",
       "linkedOn": "{provider}: {name}, gekoppeld op {date}"
     },

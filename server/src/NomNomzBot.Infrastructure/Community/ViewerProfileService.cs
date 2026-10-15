@@ -20,6 +20,7 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
+using NomNomzBot.Application.Raids;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -42,7 +43,8 @@ public sealed class ViewerProfileService(
     IQuoteService quotes,
     ITtsConfigService tts,
     IFollowStateService follows,
-    ISpamDefenseService spam
+    ISpamDefenseService spam,
+    IRaidHistoryReader raidHistory
 ) : IViewerProfileService
 {
     private const int RecentQuotesPageSize = 10;
@@ -107,6 +109,8 @@ public sealed class ViewerProfileService(
             ct
         );
 
+        ViewerRaidsDto raids = await BuildRaidsAsync(broadcasterId, user, ct);
+
         List<ViewerDatumDto> freeFormData = await db
             .ViewerData.Where(d => d.BroadcasterId == broadcasterId && d.ViewerUserId == userId)
             .OrderBy(d => d.Key)
@@ -140,6 +144,7 @@ public sealed class ViewerProfileService(
                 viewerPermits,
                 overrides,
                 commandUsage,
+                raids,
                 freeFormData,
                 recentQuotes,
                 totalQuoteCount
@@ -432,6 +437,38 @@ public sealed class ViewerProfileService(
         }
 
         return new ViewerOverridesDto(shoutout, voice);
+    }
+
+    // Raid history is keyed by the remote side's Twitch id; the channel's own id tells the two directions apart.
+    private async Task<ViewerRaidsDto> BuildRaidsAsync(
+        Guid broadcasterId,
+        User user,
+        CancellationToken ct
+    )
+    {
+        string? ownTwitchId = await db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => c.ExternalChannelId)
+            .FirstOrDefaultAsync(ct);
+        if (string.IsNullOrEmpty(ownTwitchId) || user.TwitchUserId is null)
+            return new ViewerRaidsDto(0, 0);
+
+        Result<RaidHistory> history = await raidHistory.GetHistoryAsync(
+            broadcasterId,
+            ownTwitchId,
+            ct
+        );
+        if (!history.IsSuccess)
+            return new ViewerRaidsDto(0, 0);
+
+        int raidedUs = history.Value.Incoming.TryGetValue(user.TwitchUserId, out RaidStats? from)
+            ? from.Count
+            : 0;
+        int weRaided = history.Value.Outgoing.TryGetValue(user.TwitchUserId, out RaidStats? to)
+            ? to.Count
+            : 0;
+        return new ViewerRaidsDto(raidedUs, weRaided);
     }
 
     private async Task<ViewerCommandUsageDto> BuildCommandUsageAsync(

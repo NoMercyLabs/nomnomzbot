@@ -185,6 +185,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
         });
         b.Entity<ViewerProfile>(e => e.HasKey(p => p.Id));
         b.Entity<ChatterAssignedColor>(e => e.HasKey(c => c.Id));
+        b.Entity<EventJournal>(e => e.HasKey(j => j.EventId));
 
         b.Entity<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride>(e => e.HasKey(o => o.Id));
         b.Entity<ChannelCommunityStanding>(e => e.HasKey(s => s.Id));
@@ -279,6 +280,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
         // First seen, the cheered-bits total and the assigned chat color read these.
         typeof(ChatMessage),
         typeof(ViewerProfile),
+        typeof(EventJournal),
         typeof(ChatterAssignedColor),
     ];
 
@@ -452,7 +454,7 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
         throw new NotSupportedException();
     public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
-    public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
+    public DbSet<EventJournal> EventJournals => Set<EventJournal>();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();
     public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
