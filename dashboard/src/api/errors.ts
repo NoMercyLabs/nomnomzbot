@@ -128,6 +128,7 @@ export const apiOperations = {
   'blocked tracks': 'music',
   'music config': 'music',
   'music control': 'music',
+  'song requests': 'music',
   promote: 'music',
   move: 'music',
   'remove song': 'music',

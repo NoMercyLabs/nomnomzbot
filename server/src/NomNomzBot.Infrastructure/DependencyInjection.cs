@@ -415,6 +415,10 @@ public static class DependencyInjection
         // restore that replays it back into the (freshly empty) singleton store above before any live
         // traffic can reach it.
         services.AddScoped<ISongRequestQueuePersistence, SongRequestQueuePersistence>();
+        services.AddScoped<
+            Application.Music.Services.ISongRequestIntakeService,
+            SongRequestIntakeService
+        >();
         // The handover seam the reconciler uses to push the next request. Resolved FROM the registered
         // IMusicService so both views share one scoped instance — provider resolution, capability gating
         // and the queue store must be the same objects the request path used.
@@ -1246,6 +1250,8 @@ public static class DependencyInjection
         // Legacy parity (S068c): !bansong (mod+, blocks the playing track) and !whisper (mod+, DMs
         // a viewer) — both reuse existing domain capability (IBlockedTrackService, IPlatformDirectMessageSender).
         services.AddScoped<IBuiltinCommand, Commands.Builtins.BanSongBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.CloseQueueBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.OpenQueueBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.LeaderboardBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.PlaylistBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.WhisperBuiltin>();

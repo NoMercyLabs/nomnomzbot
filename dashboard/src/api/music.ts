@@ -74,7 +74,11 @@ async function readQueue(channelId: string): Promise<MusicQueue> {
   if (error !== undefined)
     throw failed('music queue', response.status, error);
 
-  return data?.data ?? { nowPlaying: null, queue: [] };
+  return data?.data ?? {
+    nowPlaying: null,
+    queue: [],
+    requestsOpen: true,
+  };
 }
 
 async function readBlocked(channelId: string): Promise<BlockedTrack[]> {
@@ -126,8 +130,12 @@ export function useBlockedTracks(
 }
 
 type QueueMutation = UseMutationReturnType<MusicQueue, Error, void, number>;
-type RowMutation<TInput = { position: number }> =
-  UseMutationReturnType<MusicQueue, Error, TInput, number>;
+type RowMutation<TInput = { position: number }> = UseMutationReturnType<
+  MusicQueue,
+  Error,
+  TInput,
+  number
+>;
 
 // Rows keep the position numbers the bot handed out, in order, so the next call names the row on screen.
 function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
@@ -138,7 +146,11 @@ function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
 }
 
 function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): MusicQueue {
-  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+  const base: MusicQueue = current ?? {
+    nowPlaying: null,
+    queue: [],
+    requestsOpen: true,
+  };
 
   return {
     ...base,
@@ -182,7 +194,11 @@ function transport(
     },
     apply: (current: MusicQueue | undefined): MusicQueue =>
       isPlaying === null
-        ? (current ?? { nowPlaying: null, queue: [] })
+        ? (current ?? {
+            nowPlaying: null,
+            queue: [],
+            requestsOpen: true,
+          })
         : withPlaying(current, isPlaying),
   });
 }
@@ -195,6 +211,41 @@ export function useResumeMusic(channelId: MaybeRefOrGetter<string | null>): Queu
   return transport(channelId, '/api/v{version}/channels/{channelId}/music/resume', true);
 }
 
+// Closing or opening the queue flips the badge at once; a refused change puts it back and reaches the error inbox.
+export function useSetRequestsOpen(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<MusicQueue, Error, { open: boolean }, number> {
+  return useOptimisticSave<MusicQueue, { open: boolean }>({
+    describe: ({ open }) => ({ key: open
+      ? 'openRequests'
+      : 'closeRequests' }),
+    queryKey: () => musicQueueKey(toValue(channelId)),
+    mutationFn: async ({ open }: { open: boolean }): Promise<MusicQueue> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/music/queue/requests-open',
+        {
+          params: { path: { version, channelId: id } },
+          body: { open },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('song requests', response.status, error);
+
+      return readQueue(id);
+    },
+    apply: (current: MusicQueue | undefined, { open }: { open: boolean }): MusicQueue => ({
+      ...(current ?? {
+        nowPlaying: null,
+        queue: [],
+        requestsOpen: true,
+      }),
+      requestsOpen: open,
+    }),
+  });
+}
+
 // A skip changes the track only when the bot answers, so nothing moves before then.
 export function useSkipMusic(channelId: MaybeRefOrGetter<string | null>): QueueMutation {
   return transport(channelId, '/api/v{version}/channels/{channelId}/music/skip', null);
@@ -202,7 +253,10 @@ export function useSkipMusic(channelId: MaybeRefOrGetter<string | null>): QueueM
 
 export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>): RowMutation {
   return useOptimisticSave<MusicQueue, { position: number }>({
-    describe: ({ position }) => ({ key: 'promoteQueueItem', params: { position: String(position) } }),
+    describe: ({ position }) => ({
+      key: 'promoteQueueItem',
+      params: { position: String(position) },
+    }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;
@@ -225,7 +279,11 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
       return readQueue(id);
     },
     apply: (current: MusicQueue | undefined, { position }: { position: number }): MusicQueue => {
-      const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+      const base: MusicQueue = current ?? {
+        nowPlaying: null,
+        queue: [],
+        requestsOpen: true,
+      };
       const moved = base.queue.find((item: QueueItem) => item.position === position);
 
       if (moved === undefined)
@@ -248,7 +306,10 @@ export function useMoveQueueItem(
   channelId: MaybeRefOrGetter<string | null>,
 ): RowMutation<QueueMove> {
   return useOptimisticSave<MusicQueue, QueueMove>({
-    describe: ({ position, toPosition }) => ({ key: 'moveQueueItem', params: { position: String(position), toPosition: String(toPosition) } }),
+    describe: ({ position, toPosition }) => ({
+      key: 'moveQueueItem',
+      params: { position: String(position), toPosition: String(toPosition) },
+    }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position, toPosition }: QueueMove): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;
@@ -272,7 +333,11 @@ export function useMoveQueueItem(
       return readQueue(id);
     },
     apply: (current: MusicQueue | undefined, { position, toPosition }: QueueMove): MusicQueue => {
-      const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+      const base: MusicQueue = current ?? {
+        nowPlaying: null,
+        queue: [],
+        requestsOpen: true,
+      };
       const from = base.queue.findIndex((item: QueueItem) => item.position === position);
       const to = base.queue.findIndex((item: QueueItem) => item.position === toPosition);
 
@@ -289,7 +354,11 @@ export function useMoveQueueItem(
 }
 
 function leavesQueue(current: MusicQueue | undefined, position: number): MusicQueue {
-  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+  const base: MusicQueue = current ?? {
+    nowPlaying: null,
+    queue: [],
+    requestsOpen: true,
+  };
   const rest = base.queue.filter((item: QueueItem) => item.position !== position);
 
   return { ...base, queue: renumbered(base.queue, rest) };
@@ -298,7 +367,10 @@ function leavesQueue(current: MusicQueue | undefined, position: number): MusicQu
 // A removed song leaves the queue at once; a refused remove puts it back and reaches the error inbox.
 export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): RowMutation {
   return useOptimisticSave<MusicQueue, { position: number }>({
-    describe: ({ position }) => ({ key: 'removeQueueItem', params: { position: String(position) } }),
+    describe: ({ position }) => ({
+      key: 'removeQueueItem',
+      params: { position: String(position) },
+    }),
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
       const id = toValue(channelId) as string;

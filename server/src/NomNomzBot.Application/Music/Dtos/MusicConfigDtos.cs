@@ -24,13 +24,17 @@ public sealed record MusicConfigDto(
     string? BangerPlaylistId = null,
     string? BangerPlaylistProvider = null,
     bool BangerAutoCreate = false,
-    IReadOnlyDictionary<string, int>? MaxRequestsPerRole = null
+    IReadOnlyDictionary<string, int>? MaxRequestsPerRole = null,
+    bool RequestsOpen = true
 );
 
 /// <summary>Request to update music configuration.</summary>
 public sealed record UpdateMusicConfigDto
 {
     public bool? IsEnabled { get; init; }
+
+    /// <summary>Opens or closes new song requests; the music keeps playing and the queue stays.</summary>
+    public bool? RequestsOpen { get; init; }
 
     [RegularExpression("^(auto|spotify|youtube)$")]
     public string? PreferredProvider { get; init; }

@@ -29,6 +29,10 @@
       "queue": {
         "title": "Request queue",
         "waiting": "{count} waiting",
+        "open": "Open",
+        "closed": "Closed",
+        "closeAction": "Close queue",
+        "openAction": "Open queue",
         "empty": "No songs are waiting.",
         "error": "The queue could not load.",
         "by": "Requested by {name}",

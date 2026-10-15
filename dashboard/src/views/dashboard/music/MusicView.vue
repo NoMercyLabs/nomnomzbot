@@ -19,6 +19,7 @@ import Cross from '~icons/nnz/cross';
 import { computed, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { useChannelAccess } from '@/api/access';
 import { useConnections } from '@/api/home';
 import {
   useMoveQueueItem,
@@ -27,6 +28,7 @@ import {
   useMusicQueue,
   useRemoveQueueItem,
   useResumeMusic,
+  useSetRequestsOpen,
   useSkipMusic,
   type MusicQueue,
   type QueueItem,
@@ -62,13 +64,15 @@ const skip = useSkipMusic(channelId);
 const promote = usePromoteQueueItem(channelId);
 const move = useMoveQueueItem(channelId);
 const remove = useRemoveQueueItem(channelId);
+const setRequests = useSetRequestsOpen(channelId);
+const access = useChannelAccess(channelId);
+const canModerateQueue = computed(() => access.can('music:queue:moderate'));
+const requestsOpen = computed(() => queueQuery.data.value?.requestsOpen ?? true);
 
 const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlaying']>(
   () => queueQuery.data.value?.nowPlaying ?? null,
 );
-const rows = computed<QueueItem[]>(
-  () => queueQuery.data.value?.queue ?? [],
-);
+const rows = computed<QueueItem[]>(() => queueQuery.data.value?.queue ?? []);
 
 // A song dragged by its handle lands where it was dropped (Stoney: "i need to be able to drag mine to the end").
 const queueList = useTemplateRef<HTMLElement>('queueList');
@@ -137,12 +141,15 @@ function confirmRemove(): void {
 
 const rulesOpen = ref(false);
 
-const panels = computed(() => [
-  { id: 'now', label: t('dashboard.music.now.title') },
-  { id: 'queue', label: t('dashboard.music.queue.title') },
-  { id: 'history', label: t('dashboard.music.history.title') },
-  { id: 'thanks', label: t('dashboard.music.thanks.title') },
-] as const satisfies readonly BoardPanel[]);
+const panels = computed(
+  () =>
+    [
+      { id: 'now', label: t('dashboard.music.now.title') },
+      { id: 'queue', label: t('dashboard.music.queue.title') },
+      { id: 'history', label: t('dashboard.music.history.title') },
+      { id: 'thanks', label: t('dashboard.music.thanks.title') },
+    ] as const satisfies readonly BoardPanel[],
+);
 </script>
 
 <template>
@@ -156,7 +163,7 @@ const panels = computed(() => [
         <SheetTrigger as-child>
           <Button variant="outline">
             <IconRules aria-hidden="true" />
-            {{ $t('dashboard.music.rules.title') }}
+            {{ $t("dashboard.music.rules.title") }}
           </Button>
         </SheetTrigger>
         <!-- h-dvh: a phone's browser bars change the visible height, so the footer must follow it. -->
@@ -165,7 +172,7 @@ const panels = computed(() => [
           :show-close-button="false"
           :aria-describedby="undefined"
         >
-          <SheetTitle class="sr-only">{{ $t('dashboard.music.rules.title') }}</SheetTitle>
+          <SheetTitle class="sr-only">{{ $t("dashboard.music.rules.title") }}</SheetTitle>
           <SheetClose as-child>
             <Button
               variant="ghost"
@@ -213,6 +220,31 @@ const panels = computed(() => [
         @retry="queueQuery.refetch()"
       >
         <RequesterBulkRemove :rows="rows" />
+        <template #actions>
+          <StatusBadge
+            :tone="requestsOpen ? 'ok' : 'off'"
+            :label="
+              $t(requestsOpen ? 'dashboard.music.queue.open' : 'dashboard.music.queue.closed')
+            "
+            data-requests-state
+          />
+          <Button
+            v-if="canModerateQueue"
+            variant="outline"
+            size="sm"
+            :disabled="setRequests.isPending.value"
+            data-toggle-requests
+            @click="setRequests.mutate({ open: !requestsOpen })"
+          >
+            {{
+              $t(
+                requestsOpen
+                  ? "dashboard.music.queue.closeAction"
+                  : "dashboard.music.queue.openAction",
+              )
+            }}
+          </Button>
+        </template>
         <div ref="queueList" data-queue-list>
           <SummaryRow
             v-for="item in rows"
@@ -261,7 +293,7 @@ const panels = computed(() => [
                 @click="promote.mutate({ position: Number(item.position) })"
               >
                 <ListEnd aria-hidden="true" />
-                {{ $t('dashboard.music.queue.next') }}
+                {{ $t("dashboard.music.queue.next") }}
               </Button>
               <Button
                 variant="ghost"
@@ -304,7 +336,9 @@ const panels = computed(() => [
         <Music class="size-4" aria-hidden="true" />
       </span>
       <span class="grid min-w-0">
-        <span data-confirm-song class="truncate text-sm font-semibold">{{ removing.trackName }}</span>
+        <span data-confirm-song class="truncate text-sm font-semibold">{{
+          removing.trackName
+        }}</span>
         <span class="truncate text-sm text-muted-foreground">{{ removing.artist }}</span>
       </span>
     </div>

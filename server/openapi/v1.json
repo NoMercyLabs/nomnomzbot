@@ -60982,6 +60982,130 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/music/queue/requests-open": {
+      "put": {
+        "tags": [
+          "Music"
+        ],
+        "summary": "Close or open the song queue to new requests. The music keeps playing and the queued songs stay.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRequestsOpenDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRequestsOpenDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRequestsOpenDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/music/queue/{position}": {
       "delete": {
         "tags": [
@@ -114588,6 +114712,10 @@
               ],
               "format": "int32"
             }
+          },
+          "requestsOpen": {
+            "type": "boolean",
+            "default": true
           }
         },
         "description": "Music configuration for a channel."
@@ -114685,6 +114813,10 @@
             "items": {
               "$ref": "#/components/schemas/QueueItemDto"
             }
+          },
+          "requestsOpen": {
+            "type": "boolean",
+            "default": true
           }
         },
         "description": "Full music queue including now playing and upcoming tracks."
@@ -123195,6 +123327,17 @@
           }
         },
         "description": "A StreamElements custom command. `AccessLevel` is SE's numeric permission ladder\r\n(0=everyone … 100=subscriber … 500=broadcaster), mapped to this project's role ladder on import.\r\nSE separates a global `Cooldown` from a per-user `UserCooldown` (both in seconds)."
+      },
+      "SetRequestsOpenDto": {
+        "required": [
+          "open"
+        ],
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "boolean"
+          }
+        }
       },
       "SeekDto": {
         "required": [
@@ -143601,6 +143744,13 @@
               "null",
               "boolean"
             ]
+          },
+          "requestsOpen": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Opens or closes new song requests; the music keeps playing and the queue stays."
           },
           "preferredProvider": {
             "pattern": "^(auto|spotify|youtube)$",

@@ -99,7 +99,11 @@ function answer(method: string, path: string): Answer {
     return ok(null);
 
   if (path.endsWith('/music/queue'))
-    return ok({ nowPlaying: null, queue: [] });
+    return ok({
+      nowPlaying: null,
+      queue: [],
+      requestsOpen: true,
+    });
 
   return ok([]);
 }
@@ -183,11 +187,13 @@ async function open(): Promise<void> {
   const blank = { template: '<div />' };
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{
-      path: '/app',
-      name: 'dashboard-home',
-      component: blank,
-    }],
+    routes: [
+      {
+        path: '/app',
+        name: 'dashboard-home',
+        component: blank,
+      },
+    ],
   });
 
   await router.push('/app');
@@ -219,7 +225,9 @@ const confirmBox = (): HTMLElement | null =>
 const field = (name: string): HTMLInputElement =>
   dialog().querySelector<HTMLInputElement>(`[data-prediction-field="${name}"]`) as HTMLInputElement;
 const outcomeInput = (index: number): HTMLInputElement =>
-  dialog().querySelector<HTMLInputElement>(`[data-prediction-outcome="${index}"]`) as HTMLInputElement;
+  dialog().querySelector<HTMLInputElement>(
+    `[data-prediction-outcome="${index}"]`,
+  ) as HTMLInputElement;
 const result = (title: string): HTMLElement =>
   dialog().querySelector<HTMLElement>(`[data-prediction-result="${title}"]`) as HTMLElement;
 const buttonIn = (root: HTMLElement, label: string): HTMLElement =>
@@ -411,7 +419,9 @@ describe('prediction dialog', () => {
 
     expect(resolve.disabled).toBe(true);
 
-    await click(dialog().querySelector<HTMLElement>('[data-prediction-pick="p1-b"]') as HTMLElement);
+    await click(
+      dialog().querySelector<HTMLElement>('[data-prediction-pick="p1-b"]') as HTMLElement,
+    );
 
     expect((buttonIn(dialog(), 'Resolve prediction') as HTMLButtonElement).disabled).toBe(false);
 
@@ -431,7 +441,11 @@ describe('prediction dialog', () => {
   it('keeps a locked prediction and reports a refused resolve', async () => {
     patchFails = true;
     await openRunning('LOCKED');
-    await click(dialog().querySelector<HTMLElement>('[data-prediction-pick="p1-a"]') as HTMLElement);
+
+    await click(
+      dialog().querySelector<HTMLElement>('[data-prediction-pick="p1-a"]') as HTMLElement,
+    );
+
     await pressDialog('Resolve prediction');
 
     expect(useSaveErrorsStore().items).toHaveLength(1);

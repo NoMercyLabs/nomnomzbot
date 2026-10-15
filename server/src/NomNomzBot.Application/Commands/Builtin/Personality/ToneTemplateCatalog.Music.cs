@@ -42,6 +42,90 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.QueueClosed,
+            variables: [],
+            informative: ["The song queue is closed."],
+            friendly: ["The song queue is closed for now — check back soon!"],
+            sassy: ["The queue is closed. The DJ is not taking requests."],
+            hype: ["THE SONG QUEUE IS CLOSED. NO MORE REQUESTS FOR NOW."],
+            chill: ["the queue is closed right now."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.CloseQueue.Key,
+            BuiltinResponseSlots.CloseQueue.Closed,
+            variables: [],
+            informative: ["The song queue is now closed."],
+            friendly: ["The song queue is closed for now. Thanks for all the requests!"],
+            sassy: ["Queue closed. The DJ needs a break."],
+            hype: ["SONG QUEUE CLOSED! THANKS FOR THE REQUESTS!"],
+            chill: ["the queue is closed now."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.CloseQueue.Key,
+            BuiltinResponseSlots.CloseQueue.AlreadyClosed,
+            variables: [],
+            informative: ["The song queue is already closed."],
+            friendly: ["The song queue was already closed!"],
+            sassy: ["Already closed. Nothing to close twice."],
+            hype: ["THE QUEUE IS ALREADY CLOSED!"],
+            chill: ["the queue was already closed."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.CloseQueue.Key,
+            BuiltinResponseSlots.CloseQueue.Failed,
+            variables: [],
+            informative: ["Could not close the song queue. Try again in a moment."],
+            friendly: ["Hmm, closing the queue did not work. Try again in a moment!"],
+            sassy: ["The queue refused to close. Try again."],
+            hype: ["CLOSING THE QUEUE FAILED! TRY AGAIN!"],
+            chill: ["could not close the queue. try again soon."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.OpenQueue.Key,
+            BuiltinResponseSlots.OpenQueue.Opened,
+            variables: [],
+            informative: ["The song queue is now open."],
+            friendly: ["The song queue is open again. Send in your requests!"],
+            sassy: ["Queue open. Make your picks count."],
+            hype: ["SONG QUEUE IS OPEN! SEND THOSE REQUESTS!"],
+            chill: ["the queue is open again."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.OpenQueue.Key,
+            BuiltinResponseSlots.OpenQueue.AlreadyOpen,
+            variables: [],
+            informative: ["The song queue is already open."],
+            friendly: ["The song queue was already open!"],
+            sassy: ["Already open. Go request something."],
+            hype: ["THE QUEUE IS ALREADY OPEN!"],
+            chill: ["the queue was already open."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.OpenQueue.Key,
+            BuiltinResponseSlots.OpenQueue.Failed,
+            variables: [],
+            informative: ["Could not open the song queue. Try again in a moment."],
+            friendly: ["Hmm, opening the queue did not work. Try again in a moment!"],
+            sassy: ["The queue refused to open. Try again."],
+            hype: ["OPENING THE QUEUE FAILED! TRY AGAIN!"],
+            chill: ["could not open the queue. try again soon."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.MinTrust,
             variables: ["trust.level"],
             informative: ["Song requests need at least {trust.level} right now."],

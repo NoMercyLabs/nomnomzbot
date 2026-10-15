@@ -78,4 +78,8 @@ public sealed record NowPlayingDto(
 );
 
 /// <summary>Full music queue including now playing and upcoming tracks.</summary>
-public sealed record MusicQueueDto(NowPlayingDto? NowPlaying, IReadOnlyList<QueueItemDto> Queue);
+public sealed record MusicQueueDto(
+    NowPlayingDto? NowPlaying,
+    IReadOnlyList<QueueItemDto> Queue,
+    bool RequestsOpen = true
+);

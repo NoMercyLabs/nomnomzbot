@@ -72,6 +72,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>Song requests are switched off in the channel — no variables.</summary>
         public const string RequestsOff = "requestsoff";
 
+        /// <summary>The queue is closed to new requests (<c>!closequeue</c>) — no variables.</summary>
+        public const string QueueClosed = "queueclosed";
+
         /// <summary>The requester's role is below the channel's minimum; <c>{trust.level}</c> is set.</summary>
         public const string MinTrust = "mintrust";
 
@@ -211,6 +214,36 @@ public static partial class BuiltinResponseSlots
         /// revoke notice) — no variables.
         /// </summary>
         public const string StrikeRevoked = "strikerevoked";
+    }
+
+    /// <summary><c>!closequeue</c> — close the song queue to new requests (mods+).</summary>
+    public static class CloseQueue
+    {
+        public const string Key = "closequeue";
+
+        /// <summary>The queue is now closed — no variables.</summary>
+        public const string Closed = "closed";
+
+        /// <summary>The queue was already closed — no variables.</summary>
+        public const string AlreadyClosed = "alreadyclosed";
+
+        /// <summary>The change could not be saved — no variables.</summary>
+        public const string Failed = "failed";
+    }
+
+    /// <summary><c>!openqueue</c> — open the song queue to new requests again (mods+).</summary>
+    public static class OpenQueue
+    {
+        public const string Key = "openqueue";
+
+        /// <summary>The queue is now open — no variables.</summary>
+        public const string Opened = "opened";
+
+        /// <summary>The queue was already open — no variables.</summary>
+        public const string AlreadyOpen = "alreadyopen";
+
+        /// <summary>The change could not be saved — no variables.</summary>
+        public const string Failed = "failed";
     }
 
     /// <summary><c>!banger</c> — add the playing track to the channel's bangers playlist.</summary>
