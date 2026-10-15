@@ -77,6 +77,21 @@ public sealed partial class EventResponseToneCatalogTests
     }
 
     [Theory]
+    [InlineData("friendly")]
+    [InlineData("sassy")]
+    [InlineData("hype")]
+    [InlineData("chill")]
+    public void A_named_gift_received_line_names_the_gifter_so_it_never_reads_as_anonymous(
+        string tone
+    )
+    {
+        foreach (
+            string line in EventResponseToneCatalog.Get(tone, "channel.subscription.gift.received")
+        )
+            line.Should().Contain("{gifter}", $"a named gifter must be credited in: {line}");
+    }
+
+    [Theory]
     [MemberData(nameof(Events))]
     public void Every_event_line_that_carries_also_said_ends_with_it(string eventType)
     {

@@ -250,30 +250,31 @@ public static class EventResponseToneCatalog
             [
                 // The old bot's one gifted-sub sentence, kept as the only Informative line so the default speaks it every time.
                 "@{user} been gifted a tier {tier} subscription!",
+                "{gifter} gifted a tier {tier} sub to {user}!",
             ],
             friendly:
             [
-                "{user} got a gifted tier {tier} sub. Welcome, and enjoy it!",
-                "Welcome {user}! A kind gifter just made your day with a tier {tier} sub!",
-                "A gifted tier {tier} sub for {user}. How lovely!",
+                "{user} got a gifted tier {tier} sub from {gifter}. Welcome, and enjoy it!",
+                "Welcome {user}! {gifter} just made your day with a tier {tier} sub!",
+                "A gifted tier {tier} sub for {user}, thanks to {gifter}. How lovely!",
             ],
             sassy:
             [
-                "{user} got a gifted tier {tier} sub. Free stuff, and it is not even a trap.",
-                "Someone picked {user} for a gifted sub. Tier {tier}, no strings. Lucky day, {user}.",
-                "{user} just got a tier {tier} sub for free. Some people just hand out good things. Rude, honestly.",
+                "{user} got a gifted tier {tier} sub from {gifter}. Free stuff, and it is not even a trap.",
+                "{gifter} picked {user} for a gifted sub. Tier {tier}, no strings. Lucky day, {user}.",
+                "{user} just got a tier {tier} sub for free. {gifter} just hands out good things. Rude, honestly.",
             ],
             hype:
             [
-                "{user} JUST GOT A GIFTED TIER {tier} SUB! LET'S GO!",
-                "A GIFTED SUB FOR {user}! WHAT A LEGEND OF A GIFTER!",
-                "WELCOME {user}! SOMEONE HOOKED YOU UP WITH A TIER {tier} SUB!",
+                "{user} JUST GOT A GIFTED TIER {tier} SUB FROM {gifter}! LET'S GO!",
+                "A GIFTED SUB FOR {user}! {gifter} IS A LEGEND OF A GIFTER!",
+                "WELCOME {user}! {gifter} HOOKED YOU UP WITH A TIER {tier} SUB!",
             ],
             chill:
             [
-                "{user} got a gifted tier {tier} sub. enjoy.",
-                "a gifted sub for {user}. nice.",
-                "{user} got gifted a tier {tier} sub. welcome.",
+                "{user} got a gifted tier {tier} sub from {gifter}. enjoy.",
+                "a gifted sub for {user} from {gifter}. nice.",
+                "{gifter} gifted {user} a tier {tier} sub. welcome.",
             ]
         );
 
