@@ -77,20 +77,27 @@ public interface IBuiltinCommandService
 }
 
 /// <summary>The channel's behaviour settings for one built-in; null = inherit the catalogue default.</summary>
-/// <param name="CooldownSeconds">Seconds between uses, 0–3600.</param>
+/// <param name="CooldownSeconds">Seconds the whole channel waits between uses (global), 0–3600; 0 = off.</param>
+/// <param name="UserCooldownSeconds">Seconds each chatter waits between their own uses, 0–3600; 0 = off.</param>
 /// <param name="MinPermissionLevel">A permission rung name (e.g. <c>Subscriber</c>), at or above the built-in's floor.</param>
-public sealed record BuiltinSettingsUpdate(int? CooldownSeconds, string? MinPermissionLevel);
+public sealed record BuiltinSettingsUpdate(
+    int? CooldownSeconds,
+    int? UserCooldownSeconds,
+    string? MinPermissionLevel
+);
 
 /// <summary>A built-in command as one channel sees it.</summary>
 /// <param name="BuiltinKey">The bare catalogue key (e.g. <c>sr</c>).</param>
 /// <param name="Name">The chat trigger (e.g. <c>!sr</c>).</param>
 /// <param name="IsEnabled">Whether the command answers in this channel.</param>
-/// <param name="DefaultCooldownSeconds">The catalogue cooldown.</param>
+/// <param name="DefaultCooldownSeconds">The catalogue global cooldown.</param>
+/// <param name="DefaultUserCooldownSeconds">The catalogue per-user cooldown.</param>
 /// <param name="DefaultMinPermissionLevel">The catalogue permission floor (rung name).</param>
 /// <param name="ReplyGroup">The reply group the built-in speaks with (e.g. <c>unlurk</c> → <c>lurk</c>).</param>
 /// <param name="SpeakWithTts">Whether the reply is also read out by TTS.</param>
 /// <param name="IsReserved">A data-rights command: always on, settings locked.</param>
-/// <param name="CooldownSecondsOverride">The channel's own cooldown; null = the default applies.</param>
+/// <param name="CooldownSecondsOverride">The channel's own global cooldown; null = the default applies.</param>
+/// <param name="UserCooldownSecondsOverride">The channel's own per-user cooldown; null = the default applies.</param>
 /// <param name="MinPermissionLevelOverride">The channel's own floor (rung name); null = the default applies.</param>
 /// <param name="ReplyOverrideCount">How many replies of its reply group the channel has reworded.</param>
 public sealed record BuiltinCommandDto(
@@ -98,11 +105,13 @@ public sealed record BuiltinCommandDto(
     string Name,
     bool IsEnabled,
     int DefaultCooldownSeconds,
+    int DefaultUserCooldownSeconds,
     string DefaultMinPermissionLevel,
     string ReplyGroup,
     bool SpeakWithTts,
     bool IsReserved,
     int? CooldownSecondsOverride,
+    int? UserCooldownSecondsOverride,
     string? MinPermissionLevelOverride,
     int ReplyOverrideCount
 );

@@ -98,7 +98,6 @@ public sealed class CommandsBuiltinTests
             null,
             0,
             0,
-            false,
             null,
             [],
             0,
@@ -234,7 +233,8 @@ public sealed class CommandsBuiltinTests
         int cooldown,
         string floor = "Everyone",
         string? floorOverride = null
-    ) => new(key, key, enabled, cooldown, floor, key, false, false, null, floorOverride, 0);
+    ) =>
+        new(key, key, enabled, cooldown, 0, floor, key, false, false, null, null, floorOverride, 0);
 
     private static CommandsBuiltin BuiltinOver(
         IReadOnlyList<CommandListItem> custom,

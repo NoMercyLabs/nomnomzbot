@@ -22,7 +22,12 @@ namespace NomNomzBot.Application.Commands.Builtin;
 public interface IBuiltinCommand
 {
     string BuiltinKey { get; }
+
+    /// <summary>Seconds one shared (global) cooldown holds the whole channel. 0 = no global cooldown.</summary>
     int DefaultCooldownSeconds { get; }
+
+    /// <summary>Seconds each chatter is held on their own clock. 0 (default) = no per-user cooldown.</summary>
+    int DefaultUserCooldownSeconds => 0;
     int DefaultMinPermissionLevel { get; }
 
     /// <summary>

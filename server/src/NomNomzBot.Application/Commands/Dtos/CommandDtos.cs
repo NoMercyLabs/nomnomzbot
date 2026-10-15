@@ -29,7 +29,6 @@ public sealed record CommandDto(
     Guid? PipelineId,
     int CooldownSeconds,
     int UserCooldownSeconds,
-    bool CooldownPerUser,
     string? Description,
     List<string> Aliases,
     long UseCount,
@@ -57,7 +56,6 @@ public sealed record CommandListItem(
     string? MatchPattern,
     int CooldownSeconds,
     int UserCooldownSeconds,
-    bool CooldownPerUser,
     string? Description,
     List<string> Aliases,
     long UseCount,
@@ -120,11 +118,9 @@ public sealed record CreateCommandDto
     [Range(0, 86400)]
     public int CooldownSeconds { get; init; }
 
-    /// <summary>Per-user cooldown duration in seconds; applied when <see cref="CooldownPerUser"/> is true.</summary>
+    /// <summary>Per-user cooldown duration in seconds; 0 = off.</summary>
     [Range(0, 86400)]
     public int UserCooldownSeconds { get; init; }
-
-    public bool CooldownPerUser { get; init; }
 
     [MaxLength(500)]
     public string? Description { get; init; }
@@ -177,11 +173,9 @@ public sealed record UpdateCommandDto
     [Range(0, 86400)]
     public int? CooldownSeconds { get; init; }
 
-    /// <summary>Per-user cooldown duration in seconds; applied when <see cref="CooldownPerUser"/> is true.</summary>
+    /// <summary>Per-user cooldown duration in seconds; 0 = off.</summary>
     [Range(0, 86400)]
     public int? UserCooldownSeconds { get; init; }
-
-    public bool? CooldownPerUser { get; init; }
 
     [MaxLength(500)]
     public string? Description { get; init; }

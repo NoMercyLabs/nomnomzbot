@@ -228,6 +228,13 @@ public class ChannelContext
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// The channel's own per-user cooldown (seconds) per built-in, keyed by the bare catalog key. Absence = the
+    /// built-in's catalog per-user cooldown. Populated from <c>OverridesJson.userCooldownSeconds</c>.
+    /// </summary>
+    public ConcurrentDictionary<string, int> BuiltinUserCooldownOverrides { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// The channel's own permission floor (unified-ladder value) per built-in, keyed by the bare catalog key.
     /// Absence = the built-in's catalog floor. Populated by <c>ChannelRegistry</c> from
     /// <c>OverridesJson.minPermissionLevel</c>; the write path never stores a value below the catalog floor.
@@ -238,6 +245,10 @@ public class ChannelContext
     /// <summary>The cooldown this channel applies to a built-in: its own when set, else <paramref name="catalogDefault"/>.</summary>
     public int BuiltinCooldownSeconds(string builtinKey, int catalogDefault) =>
         BuiltinCooldownOverrides.TryGetValue(builtinKey, out int own) ? own : catalogDefault;
+
+    /// <summary>The per-user cooldown this channel applies to a built-in: its own when set, else <paramref name="catalogDefault"/>.</summary>
+    public int BuiltinUserCooldownSeconds(string builtinKey, int catalogDefault) =>
+        BuiltinUserCooldownOverrides.TryGetValue(builtinKey, out int own) ? own : catalogDefault;
 
     /// <summary>
     /// The permission floor this channel applies to a built-in: its own when set, else

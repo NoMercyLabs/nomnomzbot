@@ -87,7 +87,11 @@ public sealed class BuiltinsController : BaseController
         Result<BuiltinCommandDto> result = await _builtins.UpdateSettingsAsync(
             channelId,
             builtinKey,
-            new BuiltinSettingsUpdate(body.CooldownSeconds, body.MinPermissionLevel),
+            new BuiltinSettingsUpdate(
+                body.CooldownSeconds,
+                body.UserCooldownSeconds,
+                body.MinPermissionLevel
+            ),
             ct
         );
         return ResultResponse(result);
@@ -230,4 +234,8 @@ public sealed record SetBuiltinReplyRequest(string? Template);
 public sealed record SetBuiltinSpeakWithTtsRequest(bool Enabled);
 
 /// <summary>The channel's cooldown and permission floor for a built-in; null = use the default.</summary>
-public sealed record UpdateBuiltinSettingsRequest(int? CooldownSeconds, string? MinPermissionLevel);
+public sealed record UpdateBuiltinSettingsRequest(
+    int? CooldownSeconds,
+    int? UserCooldownSeconds,
+    string? MinPermissionLevel
+);

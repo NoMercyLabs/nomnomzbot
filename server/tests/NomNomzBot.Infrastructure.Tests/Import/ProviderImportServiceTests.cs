@@ -154,7 +154,9 @@ public sealed class ProviderImportServiceTests
         discord.TemplateResponse.Should().Be("Join at discord.gg/nomnomz");
         discord.MinPermissionLevel.Should().Be(0, "accessLevel 0 → everyone");
         discord.CooldownSeconds.Should().Be(30);
-        discord.CooldownPerUser.Should().BeFalse("a global SE cooldown is not per-user");
+        discord
+            .UserCooldownSeconds.Should()
+            .Be(0, "a global-only SE cooldown has no per-user window");
         discord.Aliases.Should().ContainSingle().Which.Should().Be("disc", "the sigil is stripped");
 
         DomainCommand shoutout = await read.Commands.SingleAsync(c => c.NameNormalized == "so");
@@ -167,7 +169,6 @@ public sealed class ProviderImportServiceTests
         // Both SE windows carry over: the global guard and the separate per-chatter window.
         shoutout.CooldownSeconds.Should().Be(5);
         shoutout.UserCooldownSeconds.Should().Be(15);
-        shoutout.CooldownPerUser.Should().BeTrue();
 
         List<NomNomzBot.Domain.Quotes.Entities.Quote> storedQuotes = await read
             .Quotes.OrderBy(q => q.Number)

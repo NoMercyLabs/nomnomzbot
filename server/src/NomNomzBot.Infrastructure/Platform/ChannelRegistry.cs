@@ -142,6 +142,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         ctx.BuiltinReplyOverrides.Clear();
         ctx.BuiltinTtsEnabled.Clear();
         ctx.BuiltinCooldownOverrides.Clear();
+        ctx.BuiltinUserCooldownOverrides.Clear();
         ctx.BuiltinMinPermissionOverrides.Clear();
         await LoadBuiltinTogglesAsync(ctx, ct);
 
@@ -445,7 +446,6 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.TemplateResponses,
                 c.TemplateResponse,
                 c.SpeakWithTts,
-                c.CooldownPerUser,
                 c.CooldownSeconds,
                 c.UserCooldownSeconds,
                 c.MinPermissionLevel,
@@ -522,7 +522,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     // Two windows, as the command form sets them: the global spam guard always, and a
                     // separate per-chatter window when the per-user switch is on.
                     GlobalCooldown = c.CooldownSeconds,
-                    UserCooldown = c.CooldownPerUser ? c.UserCooldownSeconds : 0,
+                    UserCooldown = c.UserCooldownSeconds,
                     MinPermissionLevel = c.MinPermissionLevel,
                     Tier = c.Tier,
                     PipelineGraphJson = pipelineGraphJson,
@@ -663,6 +663,9 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
         if (overrides.CooldownSeconds is { } cooldown)
             ctx.BuiltinCooldownOverrides[key] = cooldown;
+
+        if (overrides.UserCooldownSeconds is { } userCooldown)
+            ctx.BuiltinUserCooldownOverrides[key] = userCooldown;
 
         if (overrides.MinPermissionLevel is { } floor)
             ctx.BuiltinMinPermissionOverrides[key] = floor;

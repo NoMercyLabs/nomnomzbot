@@ -1475,9 +1475,6 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<int>("ConfigSchemaVersion")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("CooldownPerUser")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("CooldownSeconds")
                         .HasColumnType("INTEGER");
 

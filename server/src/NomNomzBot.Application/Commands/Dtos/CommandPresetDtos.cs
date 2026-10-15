@@ -24,7 +24,6 @@ public sealed record CommandPresetDto(
     string MinPermissionLevel,
     int CooldownSeconds,
     int UserCooldownSeconds,
-    bool CooldownPerUser,
     List<string> Aliases,
     string PrefixMode,
     string MatchMode

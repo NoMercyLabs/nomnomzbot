@@ -19,8 +19,8 @@ using NomNomzBot.Infrastructure.Tests.Identity;
 namespace NomNomzBot.Infrastructure.Tests.Platform;
 
 /// <summary>
-/// V-B2.10: the command form promises two windows — the global guard, and a separate per-chatter window when
-/// the per-user switch is on. The chat hot path reads both from the command row, so the per-user value the
+/// V-B2.10: the command form promises two windows — the global guard and a separate per-chatter window, each
+/// applied when above 0. The chat hot path reads both from the command row, so the per-user value the
 /// streamer saved is the one a chatter is held to, and the global guard still applies beside it.
 /// </summary>
 public sealed class ChannelRegistryCommandCooldownTests
@@ -41,8 +41,9 @@ public sealed class ChannelRegistryCommandCooldownTests
                 CreatedAt = DateTime.UtcNow,
             }
         );
-        AddCommand(db, "both", cooldown: 10, userCooldown: 90, perUser: true);
-        AddCommand(db, "globalonly", cooldown: 30, userCooldown: 90, perUser: false);
+        AddCommand(db, "both", cooldown: 10, userCooldown: 90);
+        AddCommand(db, "globalonly", cooldown: 30, userCooldown: 90);
+        AddCommand(db, "useronly", cooldown: 0, userCooldown: 20);
         await db.SaveChangesAsync();
 
         ServiceCollection services = new();
@@ -58,18 +59,12 @@ public sealed class ChannelRegistryCommandCooldownTests
         ctx.Commands["both"].GlobalCooldown.Should().Be(10);
         ctx.Commands["both"].UserCooldown.Should().Be(90, "the saved per-user window is enforced");
         ctx.Commands["globalonly"].GlobalCooldown.Should().Be(30);
-        ctx.Commands["globalonly"]
-            .UserCooldown.Should()
-            .Be(0, "the per-user switch is off, so its value is not applied");
+        ctx.Commands["globalonly"].UserCooldown.Should().Be(90, "each window is applied as stored");
+        ctx.Commands["useronly"].GlobalCooldown.Should().Be(0);
+        ctx.Commands["useronly"].UserCooldown.Should().Be(20);
     }
 
-    private static void AddCommand(
-        AuthDbContext db,
-        string name,
-        int cooldown,
-        int userCooldown,
-        bool perUser
-    ) =>
+    private static void AddCommand(AuthDbContext db, string name, int cooldown, int userCooldown) =>
         db.Commands.Add(
             new()
             {
@@ -81,7 +76,6 @@ public sealed class ChannelRegistryCommandCooldownTests
                 TemplateResponse = "hi",
                 CooldownSeconds = cooldown,
                 UserCooldownSeconds = userCooldown,
-                CooldownPerUser = perUser,
                 IsEnabled = true,
             }
         );

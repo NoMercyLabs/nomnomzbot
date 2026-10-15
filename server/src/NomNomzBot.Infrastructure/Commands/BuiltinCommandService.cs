@@ -183,7 +183,10 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                 "VALIDATION_FAILED"
             );
 
-        if (update.CooldownSeconds is < 0 or > MaxCooldownSeconds)
+        if (
+            update.CooldownSeconds is < 0 or > MaxCooldownSeconds
+            || update.UserCooldownSeconds is < 0 or > MaxCooldownSeconds
+        )
             return Result.Failure<BuiltinCommandDto>(
                 $"A cooldown must be between 0 and {MaxCooldownSeconds} seconds.",
                 "VALIDATION_FAILED"
@@ -211,6 +214,10 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
             update.CooldownSeconds == command.DefaultCooldownSeconds
                 ? null
                 : update.CooldownSeconds;
+        int? userCooldown =
+            update.UserCooldownSeconds == command.DefaultUserCooldownSeconds
+                ? null
+                : update.UserCooldownSeconds;
         int? minPermission = floor == command.DefaultMinPermissionLevel ? null : floor;
 
         await WriteOverridesAsync(
@@ -220,6 +227,7 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                 overrides with
                 {
                     CooldownSeconds = cooldown,
+                    UserCooldownSeconds = userCooldown,
                     MinPermissionLevel = minPermission,
                 },
             ct
@@ -384,11 +392,13 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
             "!" + command.BuiltinKey,
             reserved || own is null || own.IsEnabled,
             command.DefaultCooldownSeconds,
+            command.DefaultUserCooldownSeconds,
             PermissionLevelNames.ToName(command.DefaultMinPermissionLevel),
             replyGroup,
             !reserved && overrides.SpeakWithTts,
             reserved,
             reserved ? null : overrides.CooldownSeconds,
+            reserved ? null : overrides.UserCooldownSeconds,
             reserved || overrides.MinPermissionLevel is not { } floor
                 ? null
                 : PermissionLevelNames.ToName(Math.Max(floor, command.DefaultMinPermissionLevel)),

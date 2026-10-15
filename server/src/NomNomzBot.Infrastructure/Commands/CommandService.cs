@@ -168,7 +168,6 @@ public class CommandService : ICommandService
             PipelineId = request.PipelineId,
             CooldownSeconds = request.CooldownSeconds,
             UserCooldownSeconds = request.UserCooldownSeconds,
-            CooldownPerUser = request.CooldownPerUser,
             Description = request.Description,
             Aliases = request.Aliases ?? [],
             IsEnabled = request.IsEnabled,
@@ -305,8 +304,6 @@ public class CommandService : ICommandService
             command.CooldownSeconds = request.CooldownSeconds.Value;
         if (request.UserCooldownSeconds.HasValue)
             command.UserCooldownSeconds = request.UserCooldownSeconds.Value;
-        if (request.CooldownPerUser.HasValue)
-            command.CooldownPerUser = request.CooldownPerUser.Value;
         if (request.Description is not null)
             command.Description = request.Description;
         if (request.Aliases is not null)
@@ -423,7 +420,6 @@ public class CommandService : ICommandService
                 c.MatchPattern,
                 c.CooldownSeconds,
                 c.UserCooldownSeconds,
-                c.CooldownPerUser,
                 c.Description,
                 c.Aliases,
                 c.UseCount,
@@ -683,7 +679,6 @@ public class CommandService : ICommandService
             c.PipelineId,
             c.CooldownSeconds,
             c.UserCooldownSeconds,
-            c.CooldownPerUser,
             c.Description,
             c.Aliases,
             c.UseCount,

@@ -257,7 +257,6 @@ public sealed class CommandServiceTests
             MatchMode = "Regex",
             MatchPattern = "^gr[ae]et$",
             CooldownSeconds = 60,
-            CooldownPerUser = true,
             UserCooldownSeconds = 15,
             MinPermissionLevel = "Moderator",
             IsEnabled = false,
@@ -271,7 +270,6 @@ public sealed class CommandServiceTests
         created.MatchMode.Should().Be("Regex");
         created.MatchPattern.Should().Be("^gr[ae]et$");
         created.UserCooldownSeconds.Should().Be(15);
-        created.CooldownPerUser.Should().BeTrue();
         created.MinPermissionLevel.Should().Be("Moderator");
         created.IsEnabled.Should().BeFalse();
 
@@ -282,7 +280,6 @@ public sealed class CommandServiceTests
         fetched.MatchMode.Should().Be("Regex");
         fetched.MatchPattern.Should().Be("^gr[ae]et$");
         fetched.UserCooldownSeconds.Should().Be(15);
-        fetched.CooldownPerUser.Should().BeTrue();
         fetched.IsEnabled.Should().BeFalse();
     }
 
@@ -301,7 +298,6 @@ public sealed class CommandServiceTests
                 MatchMode = "Regex",
                 MatchPattern = "^hey$",
                 UserCooldownSeconds = 42,
-                CooldownPerUser = true,
             }
         );
 
@@ -310,7 +306,6 @@ public sealed class CommandServiceTests
         fetched.MatchMode.Should().Be("Regex");
         fetched.MatchPattern.Should().Be("^hey$");
         fetched.UserCooldownSeconds.Should().Be(42);
-        fetched.CooldownPerUser.Should().BeTrue();
     }
 
     [Fact]

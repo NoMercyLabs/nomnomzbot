@@ -16,7 +16,7 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
 /// Reads and writes a channel's built-in overrides blob (<c>ChannelBuiltinCommand.OverridesJson</c>) —
-/// <c>{ "responses": { "&lt;slot&gt;": "&lt;template&gt;" }, "speakWithTts": true, "cooldownSeconds": 30,
+/// <c>{ "responses": { "&lt;slot&gt;": "&lt;template&gt;" }, "speakWithTts": true, "cooldownSeconds": 30, "userCooldownSeconds": 5,
 /// "minPermissionLevel": 2 }</c> (commands-pipelines.md §4.5 + §11). One codec, so the channel registry (which
 /// applies the overrides at runtime), the built-in services (which write them) and the platform-default blast
 /// radius (which counts the channels a slot protects) can never disagree about what counts as an override.
@@ -62,6 +62,7 @@ internal static class BuiltinOverridesJson
             responses,
             parsed.SpeakWithTts,
             parsed.CooldownSeconds,
+            parsed.UserCooldownSeconds,
             parsed.MinPermissionLevel
         );
     }
@@ -92,6 +93,7 @@ internal static class BuiltinOverridesJson
                     ),
                 overrides.SpeakWithTts ? true : null,
                 overrides.CooldownSeconds,
+                overrides.UserCooldownSeconds,
                 overrides.MinPermissionLevel
             ),
             WriteOptions
@@ -142,6 +144,7 @@ internal static class BuiltinOverridesJson
                 string.IsNullOrWhiteSpace(legacy) ? null : legacy,
                 speakWithTts,
                 ReadNonNegativeInt(root, "cooldownSeconds"),
+                ReadNonNegativeInt(root, "userCooldownSeconds"),
                 ReadNonNegativeInt(root, "minPermissionLevel")
             );
         }
@@ -167,6 +170,7 @@ internal static class BuiltinOverridesJson
         string? LegacyTemplate,
         bool SpeakWithTts,
         int? CooldownSeconds,
+        int? UserCooldownSeconds,
         int? MinPermissionLevel
     )
     {
@@ -174,6 +178,7 @@ internal static class BuiltinOverridesJson
             new Dictionary<string, string>(),
             null,
             false,
+            null,
             null,
             null
         );
@@ -183,6 +188,7 @@ internal static class BuiltinOverridesJson
         SortedDictionary<string, string>? Responses,
         bool? SpeakWithTts,
         int? CooldownSeconds,
+        int? UserCooldownSeconds,
         int? MinPermissionLevel
     );
 }
@@ -193,12 +199,14 @@ internal static class BuiltinOverridesJson
 /// </summary>
 /// <param name="Responses">Per-slot reply templates (commands-pipelines.md §11).</param>
 /// <param name="SpeakWithTts">Also queue the reply through TTS (S-OBS-12). Default off.</param>
-/// <param name="CooldownSeconds">The channel's cooldown for this built-in; null inherits the catalogue's.</param>
+/// <param name="CooldownSeconds">The channel's global cooldown for this built-in; null inherits the catalogue's.</param>
+/// <param name="UserCooldownSeconds">The channel's per-user cooldown for this built-in; null inherits the catalogue's.</param>
 /// <param name="MinPermissionLevel">The channel's permission floor (unified-ladder value); null inherits.</param>
 internal sealed record BuiltinOverrides(
     IReadOnlyDictionary<string, string> Responses,
     bool SpeakWithTts,
     int? CooldownSeconds,
+    int? UserCooldownSeconds,
     int? MinPermissionLevel
 )
 {
@@ -207,5 +215,6 @@ internal sealed record BuiltinOverrides(
         Responses.Count == 0
         && !SpeakWithTts
         && CooldownSeconds is null
+        && UserCooldownSeconds is null
         && MinPermissionLevel is null;
 }

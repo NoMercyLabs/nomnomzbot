@@ -1424,9 +1424,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int>("ConfigSchemaVersion")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("CooldownPerUser")
-                        .HasColumnType("boolean");
-
                     b.Property<int>("CooldownSeconds")
                         .HasColumnType("integer");
 
