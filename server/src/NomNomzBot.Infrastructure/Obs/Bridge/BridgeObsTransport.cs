@@ -79,8 +79,71 @@ public sealed class BridgeObsTransport : IObsTransport
                 result.ErrorMessage!,
                 result.ErrorCode!
             );
-        // The bridge folds a batch into one ack; per-item results ride the response data as JSON.
-        return Result.Success<IReadOnlyList<ObsResponse>>([result.Value]);
+        // The bridge folds a batch into one ack whose data is { results: [...] } — the raw OBS-WS
+        // RequestResponse list. Unpack it so callers index one response per request, like direct mode.
+        return Result.Success(ToBatchResponses(outcome: result.Value));
+    }
+
+    private static IReadOnlyList<ObsResponse> ToBatchResponses(ObsResponse outcome)
+    {
+        if (outcome.ResponseData?.GetValueOrDefault("results") is not string resultsJson)
+            return [outcome];
+
+        List<ObsResponse> responses = [];
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(resultsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return [outcome];
+
+            foreach (JsonElement item in doc.RootElement.EnumerateArray())
+                responses.Add(ToItemResponse(item));
+        }
+        catch (JsonException)
+        {
+            return [outcome];
+        }
+        return responses;
+    }
+
+    private static ObsResponse ToItemResponse(JsonElement item)
+    {
+        bool ok = false;
+        string? error = null;
+        if (
+            item.TryGetProperty("requestStatus", out JsonElement status)
+            && status.ValueKind == JsonValueKind.Object
+        )
+        {
+            ok =
+                status.TryGetProperty("result", out JsonElement resultEl)
+                && resultEl.ValueKind == JsonValueKind.True;
+            if (status.TryGetProperty("comment", out JsonElement commentEl))
+                error = commentEl.GetString();
+        }
+
+        Dictionary<string, object?>? data =
+            item.TryGetProperty("responseData", out JsonElement dataEl)
+            && dataEl.ValueKind == JsonValueKind.Object
+                ? ToDictionary(dataEl)
+                : null;
+        return new(ok, data, ok ? null : error ?? "OBS request failed.");
+    }
+
+    private static Dictionary<string, object?> ToDictionary(JsonElement obj)
+    {
+        Dictionary<string, object?> data = [];
+        foreach (JsonProperty property in obj.EnumerateObject())
+            data[property.Name] = property.Value.ValueKind switch
+            {
+                JsonValueKind.String => property.Value.GetString(),
+                JsonValueKind.Number => property.Value.GetDouble(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Null => null,
+                _ => property.Value.GetRawText(),
+            };
+        return data;
     }
 
     private async Task<Result<ObsResponse>> RoundTripAsync(
@@ -123,19 +186,7 @@ public sealed class BridgeObsTransport : IObsTransport
             {
                 using JsonDocument doc = JsonDocument.Parse(ack.DataJson);
                 if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                {
-                    data = new();
-                    foreach (JsonProperty property in doc.RootElement.EnumerateObject())
-                        data[property.Name] = property.Value.ValueKind switch
-                        {
-                            JsonValueKind.String => property.Value.GetString(),
-                            JsonValueKind.Number => property.Value.GetDouble(),
-                            JsonValueKind.True => true,
-                            JsonValueKind.False => false,
-                            JsonValueKind.Null => null,
-                            _ => property.Value.GetRawText(),
-                        };
-                }
+                    data = ToDictionary(doc.RootElement);
             }
             catch (JsonException)
             {

@@ -432,6 +432,13 @@ public class ObsControlService : IObsControlService
             return Result.Failure<ObsStateDto>(batch.ErrorMessage!, batch.ErrorCode!);
 
         IReadOnlyList<ObsResponse> results = batch.Value;
+        // A stream/record read that failed or never came back is unknown, never "off air".
+        if (results.ElementAtOrDefault(1)?.Ok != true || results.ElementAtOrDefault(2)?.Ok != true)
+            return Result.Failure<ObsStateDto>(
+                "OBS did not report its stream and record status.",
+                "OBS_STATE_UNREADABLE"
+            );
+
         string? scene =
             results
                 .ElementAtOrDefault(0)

@@ -187,6 +187,80 @@ public sealed class ObsBridgeTests
     }
 
     [Fact]
+    public async Task A_batch_ack_unpacks_into_one_response_per_request_in_order()
+    {
+        ObsBridgeRegistry registry = new(
+            new FakeCache(),
+            new RecordingEventBus(),
+            new FakeTimeProvider()
+        );
+        await registry.RegisterAsync(Channel, "leader-conn", T0);
+
+        ObsBridgeCommandBook commands = new();
+        IObsBridgePusher pusher = Substitute.For<IObsBridgePusher>();
+        // The real bridge script acks an op-9 batch as { results: [...] } with every OBS
+        // RequestResponse inside, and Ok=false when any one of them failed (here: no replay buffer).
+        const string batchAck = """
+            { "results": [
+              { "requestType": "GetCurrentProgramScene", "requestStatus": { "result": true, "code": 100 },
+                "responseData": { "currentProgramSceneName": "Live" } },
+              { "requestType": "GetStreamStatus", "requestStatus": { "result": true, "code": 100 },
+                "responseData": { "outputActive": true, "outputTimecode": "01:00:00.000" } },
+              { "requestType": "GetRecordStatus", "requestStatus": { "result": true, "code": 100 },
+                "responseData": { "outputActive": true, "outputPaused": false } },
+              { "requestType": "GetReplayBufferStatus",
+                "requestStatus": { "result": false, "code": 604, "comment": "Replay buffer is not available." } }
+            ] }
+            """;
+        pusher
+            .PushExecuteAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+            {
+                commands.Complete(
+                    Channel,
+                    ci.ArgAt<Guid>(1),
+                    new(false, batchAck, "One or more batch requests failed.")
+                );
+                return Task.CompletedTask;
+            });
+
+        BridgeObsTransport transport = new(
+            new ObsBridgeRoundTrip(
+                registry,
+                pusher,
+                commands,
+                new FakeTimeProvider(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ObsBridgeRoundTrip>.Instance
+            )
+        );
+        Result<IReadOnlyList<ObsResponse>> result = await transport.SendBatchAsync(
+            Channel,
+            Guid.CreateVersion7(),
+            new([
+                new("GetCurrentProgramScene", null),
+                new("GetStreamStatus", null),
+                new("GetRecordStatus", null),
+                new("GetReplayBufferStatus", null),
+            ])
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(4);
+        result.Value[0].ResponseData!["currentProgramSceneName"].Should().Be("Live");
+        result.Value[1].Ok.Should().BeTrue();
+        result.Value[1].ResponseData!["outputActive"].Should().Be(true);
+        result.Value[1].ResponseData!["outputTimecode"].Should().Be("01:00:00.000");
+        result.Value[2].ResponseData!["outputActive"].Should().Be(true);
+        result.Value[3].Ok.Should().BeFalse();
+        result.Value[3].Error.Should().Be("Replay buffer is not available.");
+    }
+
+    [Fact]
     public async Task A_leader_that_never_acks_is_evicted_and_the_command_reaches_the_live_bridge()
     {
         // Live 2026-10-08 12:08 UTC: the streamer's bridge reconnected (new connection), but the OLD socket
