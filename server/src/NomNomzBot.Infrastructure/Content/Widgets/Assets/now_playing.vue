@@ -112,6 +112,22 @@ function onTrackSavedChanged(d: NnzWidgetEventMap['track_saved_changed'] | null 
   heartPulseTimeout = window.setTimeout(() => { heartPulse.value = false }, 1600)
 }
 
+// A dashboard test fire (meta.test) is shown for a few seconds, then the real track is fetched back.
+// A real event during the preview ends the preview at once.
+const PREVIEW_MS = 8000
+let previewTimer: number | undefined
+
+function onNowPlayingEvent(d: NnzWidgetEventMap['now_playing'] | null | undefined, _type?: string, meta?: NnzEventMeta): void {
+  if (previewTimer) { window.clearTimeout(previewTimer); previewTimer = undefined }
+  if (meta && meta.test) previewTimer = window.setTimeout(endPreview, PREVIEW_MS)
+  onNowPlaying(d)
+}
+
+function endPreview(): void {
+  previewTimer = undefined
+  fetchCurrentState()
+}
+
 function onNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): void {
   const data: Partial<NnzWidgetEventMap['now_playing']> = d || {}
   if (cfg.provider && data.provider && data.provider !== cfg.provider) return
@@ -150,15 +166,16 @@ onMounted(() => {
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
 
   })
-  NomNomz.on('now_playing', onNowPlaying)
+  NomNomz.on('now_playing', onNowPlayingEvent)
   NomNomz.on('track_saved_changed', onTrackSavedChanged)
 })
 
 onUnmounted(() => {
   stopTicking()
+  if (previewTimer) window.clearTimeout(previewTimer)
   if (heartPulseTimeout) window.clearTimeout(heartPulseTimeout)
   if (typeof NomNomz === 'undefined') return
-  NomNomz.off('now_playing', onNowPlaying)
+  NomNomz.off('now_playing', onNowPlayingEvent)
   NomNomz.off('track_saved_changed', onTrackSavedChanged)
 })
 

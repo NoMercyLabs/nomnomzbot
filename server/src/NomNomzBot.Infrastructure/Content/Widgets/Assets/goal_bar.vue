@@ -52,12 +52,14 @@ function onGoal(d: NnzWidgetEventMap['goal']): void {
   if (isFinite(Number(d.value))) value.value = Number(d.value)
   if (isFinite(Number(d.target)) && Number(d.target) > 0) cfg.target = Number(d.target)
 }
-function onFollow(): void { if (cfg.metric === 'followers') value.value += 1 }
-function onSub(): void { if (cfg.metric === 'subs') value.value += 1 }
+// A dashboard test fire (meta.test) never moves the real goal.
+function isTest(meta?: NnzEventMeta): boolean { return !!meta && !!meta.test }
+function onFollow(_d?: unknown, _type?: string, meta?: NnzEventMeta): void { if (!isTest(meta) && cfg.metric === 'followers') value.value += 1 }
+function onSub(_d?: unknown, _type?: string, meta?: NnzEventMeta): void { if (!isTest(meta) && cfg.metric === 'subs') value.value += 1 }
 // GiftSubAlertDto — camelCase on the wire: count, not amount.
-function onGift(d: NnzWidgetEventMap['gift']): void { if (cfg.metric === 'subs') value.value += Math.max(1, Number(d && d.count) || 1) }
+function onGift(d: NnzWidgetEventMap['gift'], _type?: string, meta?: NnzEventMeta): void { if (!isTest(meta) && cfg.metric === 'subs') value.value += Math.max(1, Number(d && d.count) || 1) }
 // CheerAlertDto — camelCase on the wire: bits, not amount.
-function onCheer(d: NnzWidgetEventMap['cheer']): void { if (cfg.metric === 'bits') value.value += Math.max(0, Number(d && d.bits) || 0) }
+function onCheer(d: NnzWidgetEventMap['cheer'], _type?: string, meta?: NnzEventMeta): void { if (!isTest(meta) && cfg.metric === 'bits') value.value += Math.max(0, Number(d && d.bits) || 0) }
 
 onMounted(() => {
   value.value = cfg.start

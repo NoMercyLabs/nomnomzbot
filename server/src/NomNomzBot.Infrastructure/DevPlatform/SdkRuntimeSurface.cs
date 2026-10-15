@@ -287,6 +287,10 @@ internal static class SdkRuntimeSurface
             "  /** ISO time the replayed event really happened. Set only when replay is true. */"
         );
         sb.AppendLine("  occurredAt?: string;");
+        sb.AppendLine(
+            "  /** True for a dashboard test fire: show it, but never keep it as the widget's value or count. */"
+        );
+        sb.AppendLine("  test?: boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzOverlaySdk {");

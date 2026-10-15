@@ -96,6 +96,49 @@ function onPredEnd(d: NnzWidgetEventMap['prediction_end']): void {
   scheduleHide()
 }
 
+// A dashboard test fire (meta.test) is shown for a few seconds, then the real poll or prediction comes back
+// (or the widget hides again). A real event during the preview ends the preview at once.
+interface Snapshot { mode: string; title: string; bars: Bar[]; locked: boolean; ended: boolean }
+const PREVIEW_MS = 8000
+let previewTimer: number | undefined
+let saved: Snapshot | undefined
+
+function restore(): void {
+  previewTimer = undefined
+  if (hideTimer) { window.clearTimeout(hideTimer); hideTimer = undefined }
+  const s: Snapshot | undefined = saved
+  saved = undefined
+  if (!s) return
+  mode.value = s.mode
+  title.value = s.title
+  bars.value = s.bars
+  locked.value = s.locked
+  ended.value = s.ended
+}
+
+function guarded<T>(fn: (d: T) => void): (d: T, type?: string, meta?: NnzEventMeta) => void {
+  return (d: T, _type?: string, meta?: NnzEventMeta): void => {
+    if (!(meta && meta.test)) {
+      if (previewTimer) { window.clearTimeout(previewTimer); previewTimer = undefined }
+      saved = undefined
+      fn(d)
+      return
+    }
+    if (!saved) saved = { mode: mode.value, title: title.value, bars: bars.value, locked: locked.value, ended: ended.value }
+    fn(d)
+    if (previewTimer) window.clearTimeout(previewTimer)
+    previewTimer = window.setTimeout(restore, PREVIEW_MS)
+  }
+}
+
+const handlePollBegin = guarded(onPollBegin)
+const handlePollProgress = guarded(onPollProgress)
+const handlePollEnd = guarded(onPollEnd)
+const handlePredBegin = guarded(onPredBegin)
+const handlePredProgress = guarded(onPredProgress)
+const handlePredLock = guarded(onPredLock)
+const handlePredEnd = guarded(onPredEnd)
+
 onMounted(() => {
   if (typeof NomNomz === 'undefined') return
   NomNomz.onSettings((s: NnzWidgetSettings) => {
@@ -104,25 +147,26 @@ onMounted(() => {
     if (isObject<PollPredConfig['colors']>(s.colors)) cfg.colors = s.colors
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  NomNomz.on('poll_begin', onPollBegin)
-  NomNomz.on('poll_progress', onPollProgress)
-  NomNomz.on('poll_end', onPollEnd)
-  NomNomz.on('prediction_begin', onPredBegin)
-  NomNomz.on('prediction_progress', onPredProgress)
-  NomNomz.on('prediction_lock', onPredLock)
-  NomNomz.on('prediction_end', onPredEnd)
+  NomNomz.on('poll_begin', handlePollBegin)
+  NomNomz.on('poll_progress', handlePollProgress)
+  NomNomz.on('poll_end', handlePollEnd)
+  NomNomz.on('prediction_begin', handlePredBegin)
+  NomNomz.on('prediction_progress', handlePredProgress)
+  NomNomz.on('prediction_lock', handlePredLock)
+  NomNomz.on('prediction_end', handlePredEnd)
 })
 
 onUnmounted(() => {
   if (hideTimer) window.clearTimeout(hideTimer)
+  if (previewTimer) window.clearTimeout(previewTimer)
   if (typeof NomNomz === 'undefined') return
-  NomNomz.off('poll_begin', onPollBegin)
-  NomNomz.off('poll_progress', onPollProgress)
-  NomNomz.off('poll_end', onPollEnd)
-  NomNomz.off('prediction_begin', onPredBegin)
-  NomNomz.off('prediction_progress', onPredProgress)
-  NomNomz.off('prediction_lock', onPredLock)
-  NomNomz.off('prediction_end', onPredEnd)
+  NomNomz.off('poll_begin', handlePollBegin)
+  NomNomz.off('poll_progress', handlePollProgress)
+  NomNomz.off('poll_end', handlePollEnd)
+  NomNomz.off('prediction_begin', handlePredBegin)
+  NomNomz.off('prediction_progress', handlePredProgress)
+  NomNomz.off('prediction_lock', handlePredLock)
+  NomNomz.off('prediction_end', handlePredEnd)
 })
 </script>
 

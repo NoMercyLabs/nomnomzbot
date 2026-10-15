@@ -53,9 +53,27 @@ internal static class WidgetTestSamples
     /// <summary>The sample for <paramref name="eventType"/>, or a bare <c>{ user }</c> for a type nothing sends live
     /// (a custom widget's own event name).</summary>
     public static object For(string eventType, DateTimeOffset now) =>
-        Samples.TryGetValue(eventType, out Func<DateTimeOffset, object>? sample)
-            ? sample(now)
-            : Fallback();
+        MarkAsTest(
+            Samples.TryGetValue(eventType, out Func<DateTimeOffset, object>? sample)
+                ? sample(now)
+                : Fallback()
+        );
+
+    // Identity-based, so the wire shape of a sample stays exactly the live shape: the dispatch asks this to
+    // learn that a payload is a preview, and a test event then plays without changing any stored state.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        object,
+        object
+    > Marked = new();
+
+    private static object MarkAsTest(object payload)
+    {
+        Marked.AddOrUpdate(payload, payload);
+        return payload;
+    }
+
+    /// <summary>True when <paramref name="payload"/> came from <see cref="For"/>: a preview, not a real event.</summary>
+    public static bool IsTestPayload(object payload) => Marked.TryGetValue(payload, out _);
 
     /// <summary>The key under which <see cref="Table"/> carries the fallback sample.</summary>
     public const string FallbackKey = "_default";

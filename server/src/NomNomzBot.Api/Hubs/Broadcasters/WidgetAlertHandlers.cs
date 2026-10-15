@@ -93,8 +93,11 @@ internal static class WidgetAlertDispatch
         // one type that both fires at chat volume AND carries a real (never matchable) correlating id.
         // Standing state (custom.*, sr_queue, now_playing) is excluded for the same reason, to the same effect:
         // a re-pushed value would evict the real alerts and replay nothing worth replaying.
+        // A test fire (WidgetTestSamples) is a preview: it is never captured, so it can never be replayed from
+        // the activity feed as if it had happened.
         if (
             subscribers.Count > 0
+            && !WidgetTestSamples.IsTestPayload(data)
             && eventType != "ChatMessage"
             && !RenderedAlertCaptureLog.IsStandingState(eventType)
         )
@@ -152,12 +155,13 @@ internal static class WidgetAlertDispatch
     )
     {
         int pushed = 0;
+        bool isTest = WidgetTestSamples.IsTestPayload(data);
         foreach (Widget widget in widgets)
         {
             await notifier.SendWidgetEventAsync(
                 broadcasterId.ToString(),
                 widget.Id.ToString(),
-                new(widget.Id.ToString(), eventType, data),
+                new(widget.Id.ToString(), eventType, data, isTest),
                 cancellationToken
             );
             pushed++;

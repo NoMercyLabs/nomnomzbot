@@ -66,7 +66,8 @@ function chipFor(type: string, data: unknown): Chip | null {
   }
 }
 
-function handle(type: string, data: unknown): void {
+function handle(type: string, data: unknown, meta?: NnzEventMeta): void {
+  if (meta && meta.test) return // a dashboard test fire never joins the real ticker
   if (cfg.events.indexOf(type) === -1) return
   const chip: Chip | null = chipFor(type, data)
   if (!chip) return
@@ -92,7 +93,7 @@ function frame(t: number): void {
   raf = requestAnimationFrame(frame)
 }
 
-const handlers: Record<string, (d: unknown) => void> = {}
+const handlers: Record<string, (d: unknown, t?: string, meta?: NnzEventMeta) => void> = {}
 
 onMounted(() => {
   raf = requestAnimationFrame(frame)
@@ -105,7 +106,7 @@ onMounted(() => {
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
   ALL_EVENTS.forEach((type: string) => {
-    const fn = (d: unknown): void => handle(type, d)
+    const fn = (d: unknown, _t?: string, meta?: NnzEventMeta): void => handle(type, d, meta)
     handlers[type] = fn
     NomNomz.on(type, fn)
   })

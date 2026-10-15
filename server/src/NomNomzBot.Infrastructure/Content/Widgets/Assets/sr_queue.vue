@@ -35,9 +35,9 @@ function fmtDuration(sec: number): string {
 
 type SrQueueItem = NnzWidgetEventMap['sr_queue']['items'][number]
 
-function onQueue(d: NnzWidgetEventMap['sr_queue'] | null | undefined): void {
+function toItems(d: NnzWidgetEventMap['sr_queue'] | null | undefined): QueueItem[] {
   const raw: SrQueueItem[] = (d && Array.isArray(d.items)) ? d.items : []
-  items.value = raw
+  return raw
     .map((it: SrQueueItem | null | undefined) => ({
       title: (it && it.title) || '',
       requestedBy: (it && it.requestedBy) || '',
@@ -45,6 +45,26 @@ function onQueue(d: NnzWidgetEventMap['sr_queue'] | null | undefined): void {
       code: (it && it.code) || '',
     }))
     .filter((it: QueueItem) => !!it.title)
+}
+
+// A dashboard test fire (meta.test) is shown for a few seconds, then the real queue comes back.
+const PREVIEW_MS = 8000
+let previewTimer: number | undefined
+let realItems: QueueItem[] = []
+
+function onQueue(d: NnzWidgetEventMap['sr_queue'] | null | undefined, _type?: string, meta?: NnzEventMeta): void {
+  const next: QueueItem[] = toItems(d)
+  if (meta && meta.test) {
+    items.value = next
+    if (previewTimer) window.clearTimeout(previewTimer)
+    previewTimer = window.setTimeout(() => {
+      items.value = realItems
+      previewTimer = undefined
+    }, PREVIEW_MS)
+    return
+  }
+  realItems = next
+  if (!previewTimer) items.value = next
 }
 
 onMounted(() => {
@@ -60,6 +80,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (previewTimer) window.clearTimeout(previewTimer)
   if (typeof NomNomz === 'undefined') return
   NomNomz.off('sr_queue', onQueue)
 })
