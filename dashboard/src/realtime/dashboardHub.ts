@@ -22,12 +22,15 @@ import { attachHandlers, buildHub, retryDelay } from './hubConnection';
 import { dashboardHubStatus, dashboardJoinErrors } from './hubStatus';
 import { liveHandlers } from './liveSync';
 import type { JoinChannelResult } from './payloads';
+import { viewerHandlers } from './viewer';
 
 // server/src/NomNomzBot.Api/Program.cs: app.MapHub<DashboardHub>("/hubs/dashboard")
 const hubPath = '/hubs/dashboard';
 
 let connection: HubConnection | null = null;
 let joinedChannel: string | null = null;
+// The channel a viewer page follows for its queue pushes.
+let viewerMusicChannel: string | null = null;
 // The channels watched with their own event classes (the chat page). Separate from joinedChannel, which the other pages use.
 const watched = new Map();
 
@@ -112,6 +115,13 @@ function afterReconnect(queries: QueryClient): void {
   }
 
   void joinWatched();
+  void joinViewerMusic();
+}
+
+async function joinViewerMusic(): Promise<void> {
+  if (viewerMusicChannel) {
+    await send('JoinViewerMusic', viewerMusicChannel);
+  }
 }
 
 export async function startDashboardHub(queries: QueryClient): Promise<void> {
@@ -121,7 +131,7 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
 
   attachHandlers(
     hub,
-    merge(channelHandlers, communityHandlers, chatHandlers, liveHandlers),
+    merge(channelHandlers, communityHandlers, chatHandlers, liveHandlers, viewerHandlers),
     () => ({
       queries,
       channelId: joinedChannel,
@@ -153,6 +163,7 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
   }
 
   await joinWatched();
+  await joinViewerMusic();
 }
 
 // Makes the watched set equal to `channels`: new ids are joined with their classes, removed ids are left.
@@ -205,12 +216,32 @@ export async function watchChannel(channelId: string | null): Promise<void> {
   }
 }
 
+// The viewer pages follow one channel's queue. The server group needs no management right, only a sign-in.
+export async function watchViewerMusic(channelId: string | null): Promise<void> {
+  if (channelId === viewerMusicChannel) return;
+
+  const previous = viewerMusicChannel;
+
+  viewerMusicChannel = channelId;
+
+  if (!linked) return;
+
+  if (previous) {
+    await send('LeaveViewerMusic', previous);
+  }
+
+  if (channelId) {
+    await send('JoinViewerMusic', channelId);
+  }
+}
+
 export async function stopDashboardHub(): Promise<void> {
   const closing = connection;
 
   connection = null;
   linked = false;
   joinedChannel = null;
+  viewerMusicChannel = null;
   watched.clear();
   dashboardJoinErrors.value = [];
   await closing?.stop();

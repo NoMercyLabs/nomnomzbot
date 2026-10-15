@@ -9,8 +9,8 @@
 -->
 <script setup lang="ts">
 // A viewer's own page in one channel: their tiles and their songs in the queue. Both reads are the
-// viewer's own data only. The live connection is not used here: the queue push needs a management right
-// a viewer does not hold, so the page reads again on a focus return and on retry.
+// viewer's own data only. The queue pushes come through the viewer music group, which needs a sign-in only,
+// so an open or closed queue shows at once.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -29,6 +29,7 @@ import StatTile from '@/components/layout/StatTile.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { useViewerMusicLive } from '@/realtime/useViewerMusicLive';
 import { formatClock } from '@/views/dashboard/music/components/formatClock';
 
 const { t, locale } = useI18n();
@@ -37,6 +38,12 @@ const route = useRoute();
 const channelName = computed<string>(() => String(route.params.channel ?? ''));
 const channel = useViewerChannel(channelName);
 const channelId = computed<string | null>(() => channel.data.value?.broadcasterId ?? null);
+
+useViewerMusicLive(channelId);
+
+const requestsClosed = computed<boolean>(
+  () => channel.data.value?.isAcceptingRequests === false,
+);
 
 const summary = useViewerSummary(channelId);
 const queue = useViewerQueue(channelId);
@@ -121,6 +128,15 @@ function retry(): void {
       <StatTile :label="$t('viewer.me.stats.sub')" :value="subLine(summary.data.value)" />
       <StatTile :label="$t('viewer.me.stats.live')" :value="liveLine(summary.data.value)" />
     </StatStrip>
+
+    <p
+      v-if="requestsClosed"
+      class="rounded-lg border bg-muted p-3 text-sm text-muted-foreground"
+      role="status"
+      data-queue-closed
+    >
+      {{ $t('viewer.me.queue.closed') }}
+    </p>
 
     <PanelCard
       v-if="summary.data.value?.songRequestsEnabled !== false"
