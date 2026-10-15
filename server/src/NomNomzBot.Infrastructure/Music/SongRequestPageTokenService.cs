@@ -77,7 +77,8 @@ public sealed class SongRequestPageTokenService(
             channel.Id.ToString(),
             cancellationToken
         );
-        bool accepting = config is { IsSuccess: true, Value.IsEnabled: true };
+        bool accepting =
+            config is { IsSuccess: true, Value: { IsEnabled: true, RequestsOpen: true } };
         List<string> providers = [];
         if (config.IsSuccess)
         {

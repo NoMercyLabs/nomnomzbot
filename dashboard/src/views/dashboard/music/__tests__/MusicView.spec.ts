@@ -37,6 +37,8 @@ const calls: Call[] = [];
 let answers: Record<string, () => Answer> = {};
 let queue: Record<string, unknown>[] = [];
 let nowPlaying: Record<string, unknown> | null = null;
+let requestsOpen = true;
+let heldActionKeys: string[] = ['music:queue:moderate'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 const refused = (): Answer => ({
@@ -84,7 +86,13 @@ const playing = (overrides: Record<string, unknown> = {}): Record<string, unknow
 
 function freshAnswers(): Record<string, () => Answer> {
   return {
-    '/music/queue': () => ok({ nowPlaying, queue: queue.map((item) => ({ ...item })) }),
+    '/roles/effective/me': () => ok({ heldActionKeys }),
+    '/music/queue': () =>
+      ok({
+        nowPlaying,
+        queue: queue.map((item) => ({ ...item })),
+        requestsOpen,
+      }),
     '/music/history': () =>
       ok([
         {
@@ -179,6 +187,10 @@ function write(method: string, path: string, options?: Options): Answer {
     queue = moved(queue, options);
   }
 
+  if (path.endsWith('/requests-open')) {
+    requestsOpen = (options?.body as { open: boolean }).open;
+  }
+
   return { response: { status: 200, ok: true } };
 }
 
@@ -188,6 +200,7 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string) => read(path),
     POST: async (path: string, options?: Options) => write('POST', path, options),
     DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
+    PUT: async (path: string, options?: Options) => write('PUT', path, options),
   },
 }));
 
@@ -207,6 +220,8 @@ beforeEach(() => {
   ];
 
   nowPlaying = playing();
+  requestsOpen = true;
+  heldActionKeys = ['music:queue:moderate'];
   answers = freshAnswers();
   pinia = createPinia();
   setActivePinia(pinia);
@@ -292,14 +307,20 @@ describe('MusicView history panels', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]!.textContent).toContain('Strobe');
     expect(rows[0]!.textContent).toContain('deadmau5');
-    expect(rows[0]!.querySelector('[data-slot="user-name"]')?.getAttribute('data-user')).toBe('100');
+
+    expect(rows[0]!.querySelector('[data-slot="user-name"]')?.getAttribute('data-user')).toBe(
+      '100',
+    );
+
     expect(rows[1]!.textContent).toContain(en.dashboard.music.history.unknownTrack);
   });
 
   it('lists the top requesters with their counts and a bar scaled to the leader', async () => {
     await open();
 
-    const rows = [...panel('Thanks for the music').querySelectorAll<HTMLElement>('[data-top-requester]')];
+    const rows = [
+      ...panel('Thanks for the music').querySelectorAll<HTMLElement>('[data-top-requester]'),
+    ];
 
     expect(rows).toHaveLength(2);
     expect(rows[0]!.textContent).toContain('DukaSoft');
@@ -315,7 +336,9 @@ describe('MusicView history panels', () => {
       'Showing 2 recent requests',
     );
 
-    expect(panel('Thanks for the music').querySelector('a')?.getAttribute('href')).toBe('/app/people');
+    expect(panel('Thanks for the music').querySelector('a')?.getAttribute('href')).toBe(
+      '/app/people',
+    );
   });
 
   it('shows the empty text when nothing was requested yet', async () => {
@@ -353,6 +376,31 @@ describe('MusicView', () => {
     expect(writes()).toHaveLength(1);
     expect(writes()[0]!.method).toBe('POST');
     expect(writes()[0]!.path.endsWith('/music/skip')).toBe(true);
+  });
+
+  it('closes the queue with a PUT, then shows it closed and offers to open it', async () => {
+    await open();
+
+    expect(panel('Request queue').textContent).toContain('Open');
+
+    buttonIn(panel('Request queue'), 'Close queue').click();
+    await settle();
+
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0]!.method).toBe('PUT');
+    expect(writes()[0]!.path.endsWith('/music/queue/requests-open')).toBe(true);
+    expect(writes()[0]!.body).toEqual({ open: false });
+    expect(panel('Request queue').textContent).toContain('Closed');
+    expect(panel('Request queue').textContent).toContain('Open queue');
+  });
+
+  it('hides the queue state button from someone without the queue moderation grant', async () => {
+    heldActionKeys = ['music:queue:view'];
+
+    await open();
+
+    expect(panel('Request queue').textContent).toContain('Open');
+    expect(panel('Request queue').querySelector('[data-toggle-requests]')).toBeNull();
   });
 
   it('pauses a playing track and offers Play for a paused one', async () => {
@@ -427,8 +475,9 @@ describe('MusicView', () => {
     await open();
 
     const row = panel('Request queue').querySelector('[data-queue-item]');
-    const lines = [...(row?.querySelectorAll('span.block, span.flex.items-center.gap-2') ?? [])].map((line) =>
-      line.textContent?.trim());
+    const lines = [
+      ...(row?.querySelectorAll('span.block, span.flex.items-center.gap-2') ?? []),
+    ].map((line) => line.textContent?.trim());
 
     expect(lines).toHaveLength(3);
     expect(lines[2]).toBe('Requested by sample_viewer');
@@ -465,7 +514,9 @@ describe('MusicView', () => {
     answers = freshAnswers();
     await open();
 
-    expect(panel('Request queue').querySelectorAll('[data-queue-item] [data-drag-handle]')).toHaveLength(3);
+    expect(
+      panel('Request queue').querySelectorAll('[data-queue-item] [data-drag-handle]'),
+    ).toHaveLength(3);
 
     sortable.onUpdate?.({ oldIndex: 0, newIndex: 2 });
     await settle();
@@ -492,7 +543,7 @@ describe('MusicView', () => {
   });
 
   it('says nothing is playing when the server leaves the track out', async () => {
-    answers['/music/queue'] = () => ok({ queue: [] });
+    answers['/music/queue'] = () => ok({ queue: [], requestsOpen: true });
     await open();
 
     expect(panel('Now playing').querySelector('[data-slot="panel-empty"]')?.textContent).toContain(

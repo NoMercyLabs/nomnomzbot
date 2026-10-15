@@ -29,6 +29,10 @@
       "queue": {
         "title": "Aanvraagwachtrij",
         "waiting": "{count} wachtend",
+        "open": "Open",
+        "closed": "Gesloten",
+        "closeAction": "Wachtrij sluiten",
+        "openAction": "Wachtrij openen",
         "empty": "Er wachten geen nummers.",
         "error": "De wachtrij kon niet laden.",
         "by": "Aangevraagd door {name}",

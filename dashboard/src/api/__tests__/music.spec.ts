@@ -46,6 +46,7 @@ const channel = 'c1';
 
 const queue: MusicQueue = {
   nowPlaying: null,
+  requestsOpen: true,
   queue: [
     {
       position: 1,

@@ -41,6 +41,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 {
     /// <summary>Upper bound on the queue-changed snapshot — overlays render a top-of-queue list, never the full backlog.</summary>
     private const int QueueSnapshotSize = 10;
+    private const string RequestsClosedCode = "SR_CLOSED";
+    private const string RequestsClosedMessage = "The song queue is closed.";
     private const int MaxTrackDurationMs = 10 * 60 * 1000;
 
     private const string UnsupportedLinkMessage =
@@ -531,6 +533,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return InvalidChannelId();
 
+        MusicConfigDto? config = await GetConfigOrNullAsync(broadcasterId, cancellationToken);
+        if (config is { RequestsOpen: false })
+            return Result.Failure(RequestsClosedMessage, RequestsClosedCode);
+
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
             return NoProvider();
@@ -598,6 +604,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                     "Song requests are turned off in this channel.",
                     "SR_DISABLED"
                 );
+
+            if (!config.RequestsOpen)
+                return Result.Failure<MusicTrack>(RequestsClosedMessage, RequestsClosedCode);
 
             if (requesterRoleLevel is { } roleLevel)
             {
