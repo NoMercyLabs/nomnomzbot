@@ -145,6 +145,7 @@
         "replayResult": "Replayed {events} events: {chat} chat messages, {voice} voice, {overlays} overlays, {widgets} widgets.",
         "replayNotFound": "Nothing to replay for this event.",
         "replayFailed": "Could not replay this event.",
+        "replayNothing": "Found the event, but there was nothing to show again: no response is set up for it and no alert was saved.",
         "type": {
           "channel_follow": "Followed",
           "channel_subscribe": "Subscribed on Twitch",

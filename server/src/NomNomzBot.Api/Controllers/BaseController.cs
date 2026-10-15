@@ -338,7 +338,9 @@ public abstract class BaseController : ControllerBase
             or "ERASURE_ALREADY_COMPLETED"
             or "ERASURE_IN_PROGRESS"
             or "ERASURE_NOT_RETRYABLE"
-            or "NETWORK_BLOCK_ACTIVE" => ConflictResponse(
+            or "NETWORK_BLOCK_ACTIVE"
+            // A dashboard replay that found its event but re-performed nothing (no response, no capture).
+            or "NOTHING_REPLAYED" => ConflictResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
                 result.ErrorCode
             ),

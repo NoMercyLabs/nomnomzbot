@@ -57,7 +57,18 @@ async function replayEvent(eventId: string): Promise<void> {
 
     toast.success(message);
   } catch (error) {
-    toast.error(t(error instanceof ActivityReplayError && error.status === 404
+    const status = error instanceof ActivityReplayError
+      ? error.status
+      : null;
+
+    // 409: the event was found but nothing went out. A warning, so it never reads as a replay.
+    if (status === 409) {
+      toast.warning(t('dashboard.home.activity.replayNothing'));
+
+      return;
+    }
+
+    toast.error(t(status === 404
       ? 'dashboard.home.activity.replayNotFound'
       : 'dashboard.home.activity.replayFailed'));
   }

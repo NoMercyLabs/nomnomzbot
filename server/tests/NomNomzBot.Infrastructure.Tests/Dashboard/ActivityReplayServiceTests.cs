@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Widgets.Services;
@@ -35,6 +36,7 @@ using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
+using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -60,7 +62,8 @@ public sealed class ActivityReplayServiceTests
         IChatProvider Chat,
         IPipelineEngine Pipeline,
         IRenderedAlertReplayer Captures,
-        ITtsDispatchService Tts
+        ITtsDispatchService Tts,
+        ITwitchChatApi TwitchChat
     );
 
     private static Harness Build()
@@ -83,6 +86,15 @@ public sealed class ActivityReplayServiceTests
         chat.SendMessageAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
         IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        ITwitchChatApi twitchChat = Substitute.For<ITwitchChatApi>();
+        twitchChat
+            .SendAnnouncementAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
             .Returns(
@@ -150,9 +162,16 @@ public sealed class ActivityReplayServiceTests
             reader,
             new GiftBombChainResolver(db, reader),
             presenters,
-            captures
+            captures,
+            new ShoutoutReplayPresenter(
+                db,
+                twitchChat,
+                tts,
+                Substitute.For<IEventResponseOverlayNotifier>(),
+                NullLogger<ShoutoutReplayPresenter>.Instance
+            )
         );
-        return new(db, service, chat, pipeline, captures, tts);
+        return new(db, service, chat, pipeline, captures, tts, twitchChat);
     }
 
     // The real resolver's flat substitution, without its DI-backed helper pass.
@@ -545,8 +564,113 @@ public sealed class ActivityReplayServiceTests
 
         Result<ActivityReplayResult> result = await h.Service.ReplayAsync(ChannelId, giftedSubId);
 
-        result.IsSuccess.Should().BeTrue();
+        // Nothing was said live and nothing is said now, so it is a warning, not a success.
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOTHING_REPLAYED");
         SentChatLines(h.Chat).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_found_event_with_no_response_and_no_capture_is_nothing_replayed_not_success()
+    {
+        Harness h = Build();
+        NomNomzBot.Domain.Stream.Events.ShoutoutSentEvent cheer = new()
+        {
+            BroadcasterId = ChannelId,
+            ToUserId = "42",
+            ToDisplayName = "Kitte",
+        };
+        Journal(h.Db, cheer, BombAt);
+        h.Db.SaveChanges();
+
+        Result<ActivityReplayResult> result = await h.Service.ReplayAsync(
+            ChannelId,
+            cheer.EventId.ToString()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOTHING_REPLAYED");
+    }
+
+    [Fact]
+    public async Task Replaying_a_shoutout_row_repeats_chat_voice_and_overlay_without_calling_the_twitch_shoutout()
+    {
+        Harness h = Build();
+        string rowId = Guid.NewGuid().ToString();
+        h.Db.ChannelEvents.Add(
+            new ChannelEvent
+            {
+                Id = rowId,
+                ChannelId = ChannelId,
+                Type = "bot.shoutout.sent",
+                Data = System.Text.Json.JsonSerializer.Serialize(
+                    new ShoutoutSentRecord(
+                        "555",
+                        "pipeline",
+                        "Go follow Kitte!",
+                        "Kitte",
+                        "kitte",
+                        true
+                    )
+                ),
+            }
+        );
+        h.Db.SaveChanges();
+
+        Result<ActivityReplayResult> result = await h.Service.ReplayAsync(ChannelId, rowId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ChatMessagesSent.Should().Be(1);
+        result.Value.TtsQueued.Should().Be(1);
+        result.Value.OverlaysShown.Should().Be(1);
+        await h
+            .TwitchChat.Received(1)
+            .SendAnnouncementAsync(
+                ChannelId,
+                "Go follow Kitte!",
+                null,
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .TwitchChat.DidNotReceive()
+            .SendShoutoutAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await h
+            .Tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Speaker == TtsSpeaker.Bot && r.Text.Contains("Go follow")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_shoutout_row_from_before_the_text_was_kept_is_nothing_replayed()
+    {
+        Harness h = Build();
+        string rowId = Guid.NewGuid().ToString();
+        h.Db.ChannelEvents.Add(
+            new ChannelEvent
+            {
+                Id = rowId,
+                ChannelId = ChannelId,
+                Type = "bot.shoutout.sent",
+                Data = "{\"toUserId\":\"555\",\"source\":\"pipeline\"}",
+            }
+        );
+        h.Db.SaveChanges();
+
+        Result<ActivityReplayResult> result = await h.Service.ReplayAsync(ChannelId, rowId);
+
+        result.ErrorCode.Should().Be("NOTHING_REPLAYED");
+        await h
+            .TwitchChat.DidNotReceive()
+            .SendAnnouncementAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     private static void SwitchGiftResponseToPipeline(AuthDbContext db, Guid pipelineId)

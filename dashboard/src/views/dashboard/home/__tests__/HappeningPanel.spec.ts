@@ -41,10 +41,14 @@ let replayResult = {
 const post = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const toastSuccess = vi.fn<(message: string) => void>();
 const toastError = vi.fn<(message: string) => void>();
+const toastWarning = vi.fn<(message: string) => void>();
 
 vi.mock('vue-sonner', () => ({
-  toast: { success: (message: string) => toastSuccess(message),
-    error: (message: string) => toastError(message) },
+  toast: {
+    success: (message: string) => toastSuccess(message),
+    error: (message: string) => toastError(message),
+    warning: (message: string) => toastWarning(message),
+  },
 }));
 
 vi.mock('@/api/client', () => ({
@@ -92,6 +96,7 @@ beforeEach(() => {
   post.mockReset();
   toastSuccess.mockClear();
   toastError.mockClear();
+  toastWarning.mockClear();
 
   post.mockImplementation(async () => ({
     data: { data: replayResult },
@@ -154,24 +159,20 @@ describe('activity row actions', () => {
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
-  it('reports zero work without claiming a viewer effect', async () => {
+  it('warns, not succeeds, when the replay re-performed nothing', async () => {
     allowed = true;
-
-    replayResult = {
-      eventsReplayed: 1,
-      chatMessagesSent: 0,
-      ttsQueued: 0,
-      overlaysShown: 0,
-      widgetsNotified: 0,
-    };
+    replayStatus = 409;
 
     await rowsFor([event]);
     document.body.querySelector<HTMLButtonElement>('[data-activity-replay]')?.click();
     await flushPromises();
 
-    expect(toastSuccess).toHaveBeenCalledWith(
-      'Replayed 1 event: 0 chat messages, 0 voice, 0 overlays, 0 widgets.',
+    expect(toastWarning).toHaveBeenCalledWith(
+      'Found the event, but there was nothing to show again: no response is set up for it and no alert was saved.',
     );
+
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(toastError).not.toHaveBeenCalled();
   });
 });
 
