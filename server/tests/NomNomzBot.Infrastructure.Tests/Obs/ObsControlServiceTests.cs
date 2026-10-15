@@ -620,6 +620,94 @@ public sealed class ObsControlServiceTests
         result.ErrorMessage.Should().Be("studio mode not available");
     }
 
+    [Fact]
+    public async Task Get_scene_collections_parses_the_names_and_flags_the_current_one()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetSceneCollectionList"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["currentSceneCollectionName"] = "Gaming",
+                        ["sceneCollections"] = """["Chatting","Gaming"]""",
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<IReadOnlyList<ObsSceneCollectionDto>> result =
+            await h.Service.GetSceneCollectionsAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Should()
+            .Equal(new ObsSceneCollectionDto("Chatting", false), new("Gaming", true));
+    }
+
+    [Fact]
+    public async Task Set_scene_collection_sends_the_collection_name_to_obs()
+    {
+        Harness h = Build();
+
+        Result result = await h.Service.SetSceneCollectionAsync(Channel, "Gaming");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        h.Requests.Single().RequestType.Should().Be("SetCurrentSceneCollection");
+        h.Requests.Single().RequestData!["sceneCollectionName"].Should().Be("Gaming");
+    }
+
+    [Fact]
+    public async Task Get_profiles_parses_the_names_and_flags_the_current_one()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetProfileList"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["currentProfileName"] = "Untitled",
+                        ["profiles"] = """["Untitled","Low bitrate"]""",
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<IReadOnlyList<ObsProfileDto>> result = await h.Service.GetProfilesAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().Equal(new ObsProfileDto("Untitled", true), new("Low bitrate", false));
+    }
+
+    [Fact]
+    public async Task Set_profile_sends_the_profile_name_to_obs()
+    {
+        Harness h = Build();
+
+        Result result = await h.Service.SetProfileAsync(Channel, "Low bitrate");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        h.Requests.Single().RequestType.Should().Be("SetCurrentProfile");
+        h.Requests.Single().RequestData!["profileName"].Should().Be("Low bitrate");
+    }
+
+    [Fact]
+    public async Task Get_scene_collections_and_profiles_surface_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "not connected"));
+
+        Result<IReadOnlyList<ObsSceneCollectionDto>> collections =
+            await h.Service.GetSceneCollectionsAsync(Channel);
+        Result<IReadOnlyList<ObsProfileDto>> profiles = await h.Service.GetProfilesAsync(Channel);
+
+        collections.IsFailure.Should().BeTrue();
+        collections.ErrorMessage.Should().Be("not connected");
+        profiles.IsFailure.Should().BeTrue();
+        profiles.ErrorMessage.Should().Be("not connected");
+    }
+
     private static string? Name(ObsRequest request) =>
         request.RequestData?.GetValueOrDefault("inputName") as string;
 

@@ -43,6 +43,8 @@ public sealed class ObsStateBroadcastHandler : IEventHandler<ObsDashboardStateCh
             @event.SceneItemId,
             @event.Enabled,
             @event.SceneNames,
+            @event.Name,
+            @event.Names,
             @event.OccurredAt.ToString("O")
         );
 

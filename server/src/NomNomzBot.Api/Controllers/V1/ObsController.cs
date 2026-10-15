@@ -111,6 +111,22 @@ public class ObsController(
     public async Task<IActionResult> GetSceneTransitions(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetSceneTransitionListAsync(channelId, ct), []);
 
+    /// <summary>The scene collections OBS knows about, with the loaded one flagged.</summary>
+    [HttpGet("scene-collections")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsSceneCollectionDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetSceneCollections(Guid channelId, CancellationToken ct) =>
+        ObsReadResponse(await control.GetSceneCollectionsAsync(channelId, ct), []);
+
+    /// <summary>The OBS profiles, with the active one flagged.</summary>
+    [HttpGet("profiles")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsProfileDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProfiles(Guid channelId, CancellationToken ct) =>
+        ObsReadResponse(await control.GetProfilesAsync(channelId, ct), []);
+
     /// <summary>The filters attached to one source (scene or input).</summary>
     [HttpGet("source-filters")]
     [RequireAction("obs:control")]
@@ -284,6 +300,26 @@ public class ObsController(
         ResultResponse(
             await control.SetCurrentTransitionAsync(channelId, request.TransitionName, ct)
         );
+
+    /// <summary>Load one scene collection in OBS. OBS swaps every scene and source.</summary>
+    [HttpPost("scene-collections/current")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetCurrentSceneCollection(
+        Guid channelId,
+        [FromBody] ObsCurrentSceneCollectionRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetSceneCollectionAsync(channelId, request.Name, ct));
+
+    /// <summary>Make one OBS profile the active one (output and stream settings).</summary>
+    [HttpPost("profiles/current")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetCurrentProfile(
+        Guid channelId,
+        [FromBody] ObsCurrentProfileRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetProfileAsync(channelId, request.Name, ct));
 
     /// <summary>Enable/disable one filter on one source (scene or input).</summary>
     [HttpPost("source-filters/enabled")]

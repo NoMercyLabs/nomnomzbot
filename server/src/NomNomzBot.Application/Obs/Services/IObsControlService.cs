@@ -194,6 +194,32 @@ public interface IObsControlService
         CancellationToken ct = default
     );
 
+    /// <summary>The scene collections OBS knows about, with the loaded one flagged.</summary>
+    Task<Result<IReadOnlyList<ObsSceneCollectionDto>>> GetSceneCollectionsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Load one scene collection in OBS. OBS swaps every scene and source.</summary>
+    Task<Result> SetSceneCollectionAsync(
+        Guid broadcasterId,
+        string sceneCollectionName,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The OBS profiles, with the active one flagged.</summary>
+    Task<Result<IReadOnlyList<ObsProfileDto>>> GetProfilesAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Make one OBS profile the active one (output and stream settings).</summary>
+    Task<Result> SetProfileAsync(
+        Guid broadcasterId,
+        string profileName,
+        CancellationToken ct = default
+    );
+
     /// <summary>The filters attached to one source (scene or input).</summary>
     Task<Result<IReadOnlyList<ObsFilterDto>>> GetSourceFilterListAsync(
         Guid broadcasterId,

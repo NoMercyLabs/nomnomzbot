@@ -90,6 +90,28 @@ public sealed class ObsDashboardStateForwarder : IEventHandler<ObsEventReceivedE
             "InputMuteStateChanged" => Input(broadcasterId, ObsStateKinds.InputMute, data),
             "InputVolumeChanged" => Input(broadcasterId, ObsStateKinds.InputVolume, data),
             "SceneListChanged" => SceneList(broadcasterId, data),
+            "CurrentSceneCollectionChanged" => Named(
+                broadcasterId,
+                ObsStateKinds.SceneCollection,
+                GetString(data, "sceneCollectionName")
+            ),
+            "CurrentProfileChanged" => Named(
+                broadcasterId,
+                ObsStateKinds.Profile,
+                GetString(data, "profileName")
+            ),
+            "SceneCollectionListChanged" => NameList(
+                broadcasterId,
+                ObsStateKinds.SceneCollectionList,
+                data,
+                "sceneCollections"
+            ),
+            "ProfileListChanged" => NameList(
+                broadcasterId,
+                ObsStateKinds.ProfileList,
+                data,
+                "profiles"
+            ),
             "SceneItemEnableStateChanged" => SceneItem(broadcasterId, data),
             _ => null,
         };
@@ -171,6 +193,49 @@ public sealed class ObsDashboardStateForwarder : IEventHandler<ObsEventReceivedE
             BroadcasterId = broadcasterId,
             Kind = ObsStateKinds.SceneList,
             SceneNames = names,
+        };
+    }
+
+    private static ObsDashboardStateChangedEvent? Named(
+        Guid broadcasterId,
+        string kind,
+        string name
+    ) =>
+        name.Length == 0
+            ? null
+            : new()
+            {
+                BroadcasterId = broadcasterId,
+                Kind = kind,
+                Name = name,
+            };
+
+    private static ObsDashboardStateChangedEvent? NameList(
+        Guid broadcasterId,
+        string kind,
+        JsonElement data,
+        string property
+    )
+    {
+        if (
+            !data.TryGetProperty(property, out JsonElement items)
+            || items.ValueKind != JsonValueKind.Array
+        )
+            return null;
+
+        List<string> names = [];
+        foreach (JsonElement item in items.EnumerateArray())
+        {
+            string name = item.ValueKind == JsonValueKind.String ? item.GetString() ?? "" : "";
+            if (name.Length > 0)
+                names.Add(name);
+        }
+
+        return new()
+        {
+            BroadcasterId = broadcasterId,
+            Kind = kind,
+            Names = names,
         };
     }
 

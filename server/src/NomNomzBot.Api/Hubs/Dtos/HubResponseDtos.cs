@@ -221,6 +221,8 @@ public record ObsStateChangedDto(
     int? SceneItemId,
     bool? Enabled,
     IReadOnlyList<string>? SceneNames,
+    string? Name,
+    IReadOnlyList<string>? Names,
     string Timestamp
 );
 

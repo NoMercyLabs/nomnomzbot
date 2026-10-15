@@ -723,6 +723,111 @@ public class ObsControlService : IObsControlService
         return Result.Success<IReadOnlyList<ObsTransitionDto>>(transitions);
     }
 
+    public async Task<Result<IReadOnlyList<ObsSceneCollectionDto>>> GetSceneCollectionsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<(string? Current, List<string> Names)> list = await GetNameListAsync(
+            broadcasterId,
+            "GetSceneCollectionList",
+            "currentSceneCollectionName",
+            "sceneCollections",
+            ct
+        );
+        if (list.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsSceneCollectionDto>>(
+                list.ErrorMessage!,
+                list.ErrorCode!
+            );
+
+        return Result.Success<IReadOnlyList<ObsSceneCollectionDto>>(
+            list.Value.Names.ConvertAll(name => new ObsSceneCollectionDto(
+                name,
+                name == list.Value.Current
+            ))
+        );
+    }
+
+    public Task<Result> SetSceneCollectionAsync(
+        Guid broadcasterId,
+        string sceneCollectionName,
+        CancellationToken ct = default
+    ) =>
+        SendStatusAsync(
+            broadcasterId,
+            "SetCurrentSceneCollection",
+            new() { ["sceneCollectionName"] = sceneCollectionName },
+            ct
+        );
+
+    public async Task<Result<IReadOnlyList<ObsProfileDto>>> GetProfilesAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<(string? Current, List<string> Names)> list = await GetNameListAsync(
+            broadcasterId,
+            "GetProfileList",
+            "currentProfileName",
+            "profiles",
+            ct
+        );
+        if (list.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsProfileDto>>(
+                list.ErrorMessage!,
+                list.ErrorCode!
+            );
+
+        return Result.Success<IReadOnlyList<ObsProfileDto>>(
+            list.Value.Names.ConvertAll(name => new ObsProfileDto(name, name == list.Value.Current))
+        );
+    }
+
+    public Task<Result> SetProfileAsync(
+        Guid broadcasterId,
+        string profileName,
+        CancellationToken ct = default
+    ) =>
+        SendStatusAsync(
+            broadcasterId,
+            "SetCurrentProfile",
+            new() { ["profileName"] = profileName },
+            ct
+        );
+
+    // A list request whose answer is a current name plus a JSON array of plain name strings.
+    private async Task<Result<(string? Current, List<string> Names)>> GetNameListAsync(
+        Guid broadcasterId,
+        string requestType,
+        string currentField,
+        string listField,
+        CancellationToken ct
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new(requestType, null),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<(string?, List<string>)>(status.ErrorMessage!, status.ErrorCode!);
+
+        IReadOnlyDictionary<string, object?>? data = response.Value.ResponseData;
+        string? current = data?.GetValueOrDefault(currentField) as string;
+        List<string> names = [];
+        if (data?.GetValueOrDefault(listField) is string listJson)
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(listJson);
+            foreach (System.Text.Json.JsonElement item in doc.RootElement.EnumerateArray())
+                if (item.GetString() is { Length: > 0 } name)
+                    names.Add(name);
+        }
+        return Result.Success((current, names));
+    }
+
     public async Task<Result<IReadOnlyList<ObsFilterDto>>> GetSourceFilterListAsync(
         Guid broadcasterId,
         string sourceName,

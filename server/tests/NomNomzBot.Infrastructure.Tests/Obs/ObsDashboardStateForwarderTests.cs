@@ -140,6 +140,58 @@ public sealed class ObsDashboardStateForwarderTests
         published.SceneNames.Should().Equal("Ending", "Game", "Starting");
     }
 
+    [Theory]
+    [InlineData(
+        "CurrentSceneCollectionChanged",
+        """{"sceneCollectionName":"Gaming"}""",
+        "sceneCollection",
+        "Gaming"
+    )]
+    [InlineData(
+        "CurrentProfileChanged",
+        """{"profileName":"Low bitrate"}""",
+        "profile",
+        "Low bitrate"
+    )]
+    public async Task A_collection_or_profile_switch_publishes_the_new_name(
+        string type,
+        string data,
+        string kind,
+        string name
+    )
+    {
+        ObsDashboardStateChangedEvent? published = await Forward(type, data);
+
+        published!.Kind.Should().Be(kind);
+        published.Name.Should().Be(name);
+    }
+
+    [Theory]
+    [InlineData(
+        "SceneCollectionListChanged",
+        """{"sceneCollections":["Chatting","Gaming"]}""",
+        "sceneCollectionList"
+    )]
+    [InlineData("ProfileListChanged", """{"profiles":["Chatting","Gaming"]}""", "profileList")]
+    public async Task A_collection_or_profile_list_change_publishes_every_name_in_order(
+        string type,
+        string data,
+        string kind
+    )
+    {
+        ObsDashboardStateChangedEvent? published = await Forward(type, data);
+
+        published!.Kind.Should().Be(kind);
+        published.Names.Should().Equal("Chatting", "Gaming");
+    }
+
+    [Fact]
+    public async Task A_collection_or_profile_switch_without_a_name_publishes_nothing()
+    {
+        (await Forward("CurrentSceneCollectionChanged", "{}")).Should().BeNull();
+        (await Forward("CurrentProfileChanged", "{}")).Should().BeNull();
+    }
+
     [Fact]
     public async Task A_scene_item_visibility_change_carries_scene_item_and_flag()
     {
