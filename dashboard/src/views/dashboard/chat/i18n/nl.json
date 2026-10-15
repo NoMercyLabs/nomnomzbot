@@ -59,6 +59,27 @@
         "show": "Toon",
         "deletedTag": "(verwijderd)"
       },
+      "redemption": {
+        "redeemed": "heeft ingewisseld:",
+        "cost": {
+          "channel_points": "{amount} punten",
+          "bits": "{amount} Bits"
+        },
+        "types": {
+          "send_highlighted_message": "Mijn bericht markeren",
+          "single_message_bypass_sub_mode": "Bericht sturen in alleen-subs-modus",
+          "random_sub_emote_unlock": "Willekeurige sub-emote ontgrendelen",
+          "chosen_sub_emote_unlock": "Kies een emote om te ontgrendelen",
+          "chosen_modified_sub_emote_unlock": "Een emote aanpassen",
+          "message_effect": "Berichteffecten",
+          "gigantify_an_emote": "Een emote reusachtig maken",
+          "celebration": "Viering op het scherm"
+        },
+        "powerUp": {
+          "power_ups_message_effect": "Berichteffect",
+          "power_ups_gigantified_emote": "Reusachtige emote"
+        }
+      },
       "lengths": {
         "60": "1 min",
         "600": "10 min",

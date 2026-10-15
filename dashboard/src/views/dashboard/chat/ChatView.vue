@@ -45,6 +45,7 @@ import { useChatDisplay } from './chatDisplay';
 import ChatComposer from './components/ChatComposer.vue';
 import ChatDisplayPanel from './components/ChatDisplayPanel.vue';
 import ChatLine from './components/ChatLine.vue';
+import RedemptionLine from './components/RedemptionLine.vue';
 import ModToolsPanel from './components/ModToolsPanel.vue';
 import ViewerPanel from './components/ViewerPanel.vue';
 
@@ -438,7 +439,14 @@ async function confirmBan(): Promise<void> {
             :label="searching ? $t('dashboard.chat.search.label') : $t('dashboard.chat.feed.label')"
           >
             <template #default="{ item, index }">
+              <RedemptionLine
+                v-if="item.redemption"
+                :line="item"
+                :display="display"
+                :compact="poppedOut"
+              />
               <ChatLine
+                v-else
                 :line="item"
                 :channel-id="channelId"
                 :display="display"
