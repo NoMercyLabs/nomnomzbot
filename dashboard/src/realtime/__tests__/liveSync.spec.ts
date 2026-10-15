@@ -14,7 +14,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { actionRequiredKey } from '@/api/actionRequired';
 import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
 import { pollsKey, predictionsKey, timersKey } from '@/api/liveOps';
-import { musicConfigKey, musicQueueKey } from '@/api/music';
+import {
+  musicConfigKey,
+  musicHistoryKey,
+  musicQueueKey,
+  musicTopRequestersKey,
+} from '@/api/music';
 import { communityListsKey } from '@/api/people';
 import { pipelinesKey } from '@/api/pipelines';
 import { rewardsKey } from '@/api/rewards';
@@ -67,6 +72,8 @@ const everyKey: Keys[] = [
   predictionsKey,
   adScheduleKey,
   musicQueueKey,
+  musicHistoryKey,
+  musicTopRequestersKey,
   musicConfigKey,
   rewardsKey,
   eventResponsesKey,
@@ -77,9 +84,13 @@ const everyKey: Keys[] = [
 
 // Each hub event with the keys it must mark stale for the joined channel.
 const eventKeys: [string, unknown, Keys[]][] = [
-  ['MusicStateChanged', { isPlaying: true, currentTrack: null }, [musicQueueKey]],
+  [
+    'MusicStateChanged',
+    { isPlaying: true, currentTrack: null },
+    [musicQueueKey, musicHistoryKey, musicTopRequestersKey],
+  ],
   // Owner 2026-10-14: "i queued a song and it took too long to show up, why is this not socket based?"
-  ['sr_queue_changed', { items: [] }, [musicQueueKey]],
+  ['sr_queue_changed', { items: [] }, [musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
   ['RewardRedeemed', { broadcasterId: 'x' }, [homeStatsKey, activityKey, rewardsKey]],
   ['RedemptionStatusChanged', { broadcasterId: 'x' }, [homeStatsKey, activityKey, rewardsKey]],
   ['RewardChanged', { broadcasterId: 'x', action: 'updated' }, [rewardsKey]],

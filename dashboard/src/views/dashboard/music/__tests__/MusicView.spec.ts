@@ -86,6 +86,40 @@ const playing = (overrides: Record<string, unknown> = {}): Record<string, unknow
 function freshAnswers(): Record<string, () => Answer> {
   return {
     '/music/queue': () => ok({ nowPlaying, queue: queue.map((item) => ({ ...item })) }),
+    '/music/history': () =>
+      ok([
+        {
+          trackName: 'Strobe',
+          artist: 'deadmau5',
+          imageUrl: null,
+          provider: 'spotify',
+          requesterId: '100',
+          requesterName: 'DukaSoft',
+          requestedAt: '2026-10-01T12:00:00Z',
+        },
+        {
+          trackName: '',
+          artist: '',
+          imageUrl: null,
+          provider: 'spotify',
+          requesterId: '200',
+          requesterName: 'Bamo16',
+          requestedAt: '2026-09-30T12:00:00Z',
+        },
+      ]),
+    '/music/top-requesters': () =>
+      ok([
+        {
+          userId: '100',
+          displayName: 'DukaSoft',
+          count: 266,
+        },
+        {
+          userId: '200',
+          displayName: 'Bamo16',
+          count: 133,
+        },
+      ]),
     '/integrations/status': () =>
       ok([
         {
@@ -240,6 +274,49 @@ const buttonIn = (root: HTMLElement, label: string): HTMLButtonElement =>
   ) as HTMLButtonElement;
 const writes = (): Call[] => calls;
 
+describe('MusicView history panels', () => {
+  it('lists the stored requests with a profile-opening requester name', async () => {
+    await open();
+
+    const rows = [...panel('History').querySelectorAll<HTMLElement>('[data-history-item]')];
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain('Strobe');
+    expect(rows[0]!.textContent).toContain('deadmau5');
+    expect(rows[0]!.querySelector('[data-slot="user-name"]')?.getAttribute('data-user')).toBe('100');
+    expect(rows[1]!.textContent).toContain(en.dashboard.music.history.unknownTrack);
+  });
+
+  it('lists the top requesters with their counts and a bar scaled to the leader', async () => {
+    await open();
+
+    const rows = [...panel('Thanks for the music').querySelectorAll<HTMLElement>('[data-top-requester]')];
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain('DukaSoft');
+    expect(rows[0]!.textContent).toContain('266 songs');
+    expect(rows[0]!.querySelector<HTMLElement>('[data-bar]')?.style.width).toBe('100%');
+    expect(rows[1]!.querySelector<HTMLElement>('[data-bar]')?.style.width).toBe('50%');
+  });
+
+  it('counts the shown requests in the history footer and links the thanks footer to people', async () => {
+    await open();
+
+    expect(panel('History').querySelector('[data-history-count]')?.textContent?.trim()).toBe(
+      'Showing 2 recent requests',
+    );
+
+    expect(panel('Thanks for the music').querySelector('a')?.getAttribute('href')).toBe('/app/people');
+  });
+
+  it('shows the empty text when nothing was requested yet', async () => {
+    answers['/music/history'] = () => ok([]);
+    await open();
+
+    expect(panel('History').textContent).toContain(en.dashboard.music.history.empty);
+  });
+});
+
 describe('MusicView', () => {
   it('shows the playing track and the queue rows from the queue answer', async () => {
     await open();
@@ -327,7 +404,7 @@ describe('MusicView', () => {
     await open();
 
     const row = panel('Request queue').querySelector('[data-queue-item]');
-    const lines = [...(row?.querySelectorAll('span.block') ?? [])].map((line) =>
+    const lines = [...(row?.querySelectorAll('span.block, span.flex.items-center.gap-2') ?? [])].map((line) =>
       line.textContent?.trim());
 
     expect(lines).toHaveLength(3);
@@ -386,6 +463,8 @@ describe('MusicView', () => {
   });
 
   it('says why history and thanks are empty instead of showing made-up rows', async () => {
+    answers['/music/history'] = () => ok([]);
+    answers['/music/top-requesters'] = () => ok([]);
     await open();
 
     expect(panel('History').querySelector('[data-slot="panel-empty"]')?.textContent).toContain(

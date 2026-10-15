@@ -63,11 +63,18 @@
       },
       "history": {
         "title": "History",
-        "empty": "Not recorded yet. Played songs will show here."
+        "empty": "Not recorded yet. Song requests will show here.",
+        "error": "The history could not load.",
+        "unknownTrack": "Unknown song",
+        "showing": "Showing {count} recent requests"
       },
       "thanks": {
         "title": "Thanks for the music",
-        "empty": "Not recorded yet. Top requesters will show here."
+        "subtitle": "Most songs requested, all time",
+        "empty": "Not recorded yet. Top requesters will show here.",
+        "error": "The top requesters could not load.",
+        "songs": "{count} songs | {count} song | {count} songs",
+        "openPeople": "Open people"
       }
     }
   }

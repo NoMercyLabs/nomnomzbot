@@ -462,3 +462,61 @@ export function useSaveMusicConfig(
         : null,
   });
 }
+
+export type SongHistoryItem = components['schemas']['SongHistoryItemDto'];
+export type TopRequester = components['schemas']['TopRequesterDto'];
+
+const historyLimit = 12;
+const topRequesterLimit = 8;
+
+// Both panels read the stored request rows, so the realtime layer marks them stale together.
+export const musicHistoryKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'music-history',
+];
+export const musicTopRequestersKey = (channelId: string | null): unknown[] => [
+  'channels',
+  channelId,
+  'music-top-requesters',
+];
+
+async function readHistory(channelId: string): Promise<SongHistoryItem[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/music/history',
+    {
+      params: { path: { version, channelId }, query: { limit: historyLimit } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('music history', response.status);
+
+  return data?.data ?? [];
+}
+
+async function readTopRequesters(channelId: string): Promise<TopRequester[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/music/top-requesters',
+    {
+      params: { path: { version, channelId }, query: { limit: topRequesterLimit } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('top requesters', response.status);
+
+  return data?.data ?? [];
+}
+
+export function useMusicHistory(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<SongHistoryItem[], Error> {
+  return channelQuery(channelId, musicHistoryKey, readHistory);
+}
+
+export function useMusicTopRequesters(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<TopRequester[], Error> {
+  return channelQuery(channelId, musicTopRequestersKey, readTopRequesters);
+}

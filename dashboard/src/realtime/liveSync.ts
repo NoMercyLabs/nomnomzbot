@@ -14,7 +14,7 @@ import { currentUserQuery } from '@/api/auth';
 import { communityFirstPageKey } from '@/api/community';
 import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
 import { pollsKey, predictionsKey } from '@/api/liveOps';
-import { musicQueueKey } from '@/api/music';
+import { musicHistoryKey, musicQueueKey, musicTopRequestersKey } from '@/api/music';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { rewardsKey } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
@@ -45,6 +45,7 @@ function refreshing(event: string, keys: readonly QueryKeyBuilder[]): HubEventHa
 }
 
 const homeKeys = [homeStatsKey, activityKey] as const;
+const musicKeys = [musicQueueKey, musicHistoryKey, musicTopRequestersKey] as const;
 
 // A hub connection can hold several handlers for one event. These add the home and review refreshes to the
 // events that channels.ts, community.ts and chat.ts already handle for their own data.
@@ -54,8 +55,8 @@ const eventHandlers = [
   refreshing('ModAction', merge(homeKeys, [reviewQueueKey])),
   refreshing('StreamStatusChanged', merge(homeKeys, [botStatusKey, adScheduleKey])),
   refreshing('StreamInfoChanged', [homeStatsKey]),
-  refreshing('MusicStateChanged', [musicQueueKey]),
-  refreshing('sr_queue_changed', [musicQueueKey]),
+  refreshing('MusicStateChanged', musicKeys),
+  refreshing('sr_queue_changed', musicKeys),
   refreshing('RewardRedeemed', merge(homeKeys, [rewardsKey])),
   refreshing('RedemptionStatusChanged', merge(homeKeys, [rewardsKey])),
   refreshing('RewardChanged', [rewardsKey]),

@@ -41,7 +41,8 @@ public sealed class MusicControllerAddToQueueTests
             music,
             Substitute.For<IMusicConfigService>(),
             Substitute.For<ISongRequestPageTokenService>(),
-            Substitute.For<IBlockedTrackService>()
+            Substitute.For<IBlockedTrackService>(),
+            Substitute.For<IMusicHistoryReader>()
         )
         {
             ControllerContext = new()
