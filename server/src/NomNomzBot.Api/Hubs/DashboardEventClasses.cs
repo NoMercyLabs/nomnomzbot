@@ -48,6 +48,15 @@ public static class DashboardEventClasses
     /// <summary>The always-on base group every joined connection is in.</summary>
     public static string BaseGroup(string broadcasterId) => $"channel-{broadcasterId}";
 
+    /// <summary>
+    /// The viewer-safe music group any signed-in user may join: it carries only the pushes the public
+    /// song-request page already shows (queue + now-playing), never the gated <c>music</c> class.
+    /// </summary>
+    public static string ViewerMusicGroup(string broadcasterId) => $"viewer-music:{broadcasterId}";
+
+    /// <summary>The channel events mirrored into <see cref="ViewerMusicGroup"/>.</summary>
+    public static bool IsViewerMusicEvent(string method) => method == "sr_queue_changed";
+
     /// <summary>The per-class group a subscribed connection additionally joins.</summary>
     public static string ClassGroup(string broadcasterId, string eventClass) =>
         $"channel-{broadcasterId}:{eventClass}";

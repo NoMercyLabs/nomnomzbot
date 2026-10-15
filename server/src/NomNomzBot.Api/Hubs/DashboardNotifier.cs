@@ -116,24 +116,33 @@ public class DashboardNotifier : IDashboardNotifier
         CancellationToken ct = default,
         string? userId = null,
         string? userDisplayName = null
-    ) =>
-        _hub
+    )
+    {
+        ChannelEventDto evt = new(
+            method,
+            broadcasterId,
+            userId,
+            userDisplayName,
+            data,
+            _timeProvider.GetUtcNow().ToString("O")
+        );
+        Task classPush = _hub
             .Clients.Group(
                 DashboardEventClasses.ClassGroup(
                     broadcasterId,
                     DashboardEventClasses.ClassForChannelEvent(method)
                 )
             )
-            .ChannelEvent(
-                new(
-                    method,
-                    broadcasterId,
-                    userId,
-                    userDisplayName,
-                    data,
-                    _timeProvider.GetUtcNow().ToString("O")
-                )
-            );
+            .ChannelEvent(evt);
+        if (!DashboardEventClasses.IsViewerMusicEvent(method))
+            return classPush;
+
+        return Task.WhenAll(
+            classPush,
+            _hub.Clients.Group(DashboardEventClasses.ViewerMusicGroup(broadcasterId))
+                .ChannelEvent(evt)
+        );
+    }
 
     public Task SendChatMessageAsync(
         string broadcasterId,
@@ -169,7 +178,12 @@ public class DashboardNotifier : IDashboardNotifier
         string broadcasterId,
         MusicStateDto dto,
         CancellationToken ct = default
-    ) => ClassGroup(broadcasterId, DashboardEventClasses.Music).MusicStateChanged(dto);
+    ) =>
+        Task.WhenAll(
+            ClassGroup(broadcasterId, DashboardEventClasses.Music).MusicStateChanged(dto),
+            _hub.Clients.Group(DashboardEventClasses.ViewerMusicGroup(broadcasterId))
+                .MusicStateChanged(dto)
+        );
 
     // ── Core pushes: always-on for every joined connection, regardless of its class set ──
 

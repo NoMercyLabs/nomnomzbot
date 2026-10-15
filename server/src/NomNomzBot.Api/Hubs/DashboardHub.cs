@@ -215,6 +215,38 @@ public class DashboardHub : Hub<IDashboardClient>
         return granted;
     }
 
+    /// <summary>
+    /// Joins the viewer-safe <c>viewer-music:{channel}</c> group: any signed-in user receives the channel's
+    /// <c>sr_queue_changed</c> and <c>MusicStateChanged</c> pushes (the data the public song-request page
+    /// already shows) and nothing else. The gated <c>music</c> class is untouched. SignalR drops the group
+    /// membership on disconnect.
+    /// </summary>
+    public async Task<JoinChannelResponse> JoinViewerMusic(string broadcasterId)
+    {
+        if (CallerId == null)
+            return new(false, "Not authenticated", null);
+
+        if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
+            return new(false, "Access denied", null);
+
+        await Groups.AddToGroupAsync(
+            Context.ConnectionId,
+            DashboardEventClasses.ViewerMusicGroup(tenantId.ToString())
+        );
+        return new(true, null, null);
+    }
+
+    public async Task LeaveViewerMusic(string broadcasterId)
+    {
+        if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
+            return;
+
+        await Groups.RemoveFromGroupAsync(
+            Context.ConnectionId,
+            DashboardEventClasses.ViewerMusicGroup(tenantId.ToString())
+        );
+    }
+
     public async Task LeaveChannel(string broadcasterId)
     {
         if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
