@@ -151,6 +151,7 @@ public sealed class ChannelBitsUseTranslator(IEventBus bus, TimeProvider clock)
             Bits = payload.GetInt("bits"),
             Type = payload.GetRequiredString("type"),
             MessageText = ReadMessageText(payload),
+            PowerUpType = payload.GetObject("power_up")?.GetString("type"),
         };
 
         return PublishAsync(used, ct);

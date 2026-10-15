@@ -105,6 +105,73 @@ public sealed class RedemptionActivityBroadcastHandlersTests
     }
 
     [Fact]
+    public async Task Celebration_power_up_is_forwarded_as_a_power_up_line_in_bits()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        PowerUpBroadcastHandler handler = new(notifier);
+        Guid channel = Guid.CreateVersion7();
+
+        await handler.HandleAsync(
+            new BitsUsedEvent
+            {
+                BroadcasterId = channel,
+                OccurredAt = new(2026, 10, 15, 20, 0, 0, TimeSpan.Zero),
+                UserId = "u3",
+                UserLogin = "party",
+                UserDisplayName = "Party",
+                Bits = 250,
+                Type = "power_up",
+                PowerUpType = "celebration",
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .SendRedemptionActivityAsync(
+                channel.ToString(),
+                Arg.Is<RedemptionActivityDto>(dto =>
+                    dto.Kind == "power_up"
+                    && dto.Title == "celebration"
+                    && dto.UserLogin == "party"
+                    && dto.Cost == 250
+                    && dto.CostUnit == "bits"
+                    && dto.RedemptionId.Length > 0
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("cheer", null)]
+    [InlineData("power_up", "message_effect")]
+    [InlineData("power_up", "gigantify_an_emote")]
+    public async Task Cheers_and_power_ups_shown_on_their_own_chat_message_get_no_extra_line(
+        string type,
+        string? powerUpType
+    )
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        PowerUpBroadcastHandler handler = new(notifier);
+
+        await handler.HandleAsync(
+            new BitsUsedEvent
+            {
+                BroadcasterId = Guid.CreateVersion7(),
+                UserId = "u3",
+                UserLogin = "party",
+                UserDisplayName = "Party",
+                Bits = 100,
+                Type = type,
+                PowerUpType = powerUpType,
+            }
+        );
+
+        await notifier
+            .DidNotReceiveWithAnyArgs()
+            .SendRedemptionActivityAsync(default!, default!, default);
+    }
+
+    [Fact]
     public async Task An_event_with_no_channel_is_dropped()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();

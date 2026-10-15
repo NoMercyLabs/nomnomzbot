@@ -37,4 +37,10 @@ public sealed class BitsUsedEvent : DomainEventBase
 
     /// <summary>The accompanying chat message text (EventSub nests this under <c>message.text</c>), or <c>null</c>.</summary>
     public string? MessageText { get; init; }
+
+    /// <summary>
+    /// The Power-up kind for a <c>power_up</c> use (<c>message_effect</c>, <c>celebration</c> or
+    /// <c>gigantify_an_emote</c>, from <c>power_up.type</c>), or <c>null</c> for a cheer.
+    /// </summary>
+    public string? PowerUpType { get; init; }
 }

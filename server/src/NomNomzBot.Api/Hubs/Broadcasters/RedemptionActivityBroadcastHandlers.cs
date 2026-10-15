@@ -48,6 +48,51 @@ public sealed class AutomaticRewardBroadcastHandler : IEventHandler<AutomaticRew
 }
 
 /// <summary>
+/// Sends a Twitch Power-up that has no chat message of its own (the On-Screen Celebration) to the dashboard
+/// as a <see cref="RedemptionActivityDto"/>. Twitch reports Power-ups only on <c>channel.bits.use</c> (the
+/// automatic-reward v2 event dropped them). A Message Effect and a Gigantified Emote already show on their
+/// chat message (its <c>message_type</c>), so they get no second line; a cheer is not a Power-up.
+/// </summary>
+public sealed class PowerUpBroadcastHandler : IEventHandler<BitsUsedEvent>
+{
+    private static readonly HashSet<string> ChatMessagePowerUps = new(StringComparer.Ordinal)
+    {
+        "message_effect",
+        "gigantify_an_emote",
+    };
+
+    private readonly IDashboardNotifier _notifier;
+
+    public PowerUpBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+
+    public Task HandleAsync(BitsUsedEvent @event, CancellationToken ct = default)
+    {
+        if (@event.BroadcasterId == Guid.Empty || @event.Type != "power_up")
+            return Task.CompletedTask;
+
+        string powerUp = @event.PowerUpType ?? string.Empty;
+        if (ChatMessagePowerUps.Contains(powerUp))
+            return Task.CompletedTask;
+
+        RedemptionActivityDto dto = new(
+            BroadcasterId: @event.BroadcasterId.ToString(),
+            Kind: "power_up",
+            RedemptionId: @event.EventId.ToString(),
+            Title: powerUp,
+            UserId: @event.UserId,
+            UserLogin: @event.UserLogin,
+            UserDisplayName: @event.UserDisplayName,
+            Cost: @event.Bits,
+            CostUnit: "bits",
+            UserInput: @event.MessageText,
+            Timestamp: @event.OccurredAt.ToString("O")
+        );
+
+        return _notifier.SendRedemptionActivityAsync(@event.BroadcasterId.ToString(), dto, ct);
+    }
+}
+
+/// <summary>
 /// Sends a custom Power-up redemption (priced in Bits) to the dashboard as a
 /// <see cref="RedemptionActivityDto"/>, so the chat page can show it as a line.
 /// </summary>

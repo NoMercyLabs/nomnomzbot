@@ -33,7 +33,7 @@ const reward: RewardRedeemedPayload = {
   timestamp: '2026-10-15T20:00:00Z',
 };
 
-const activity: RedemptionActivityPayload = {
+const activity = {
   broadcasterId: 'A',
   kind: 'custom_power_up',
   redemptionId: 'pu1',
@@ -45,7 +45,7 @@ const activity: RedemptionActivityPayload = {
   costUnit: 'bits',
   userInput: null,
   timestamp: '2026-10-15T20:01:00Z',
-};
+} as const satisfies RedemptionActivityPayload;
 
 async function started(): Promise<[Hub, QueryClient, FakeHubConnection]> {
   const hub = await import('../dashboardHub');
@@ -79,7 +79,12 @@ describe('redemptions in chat', () => {
         displayName: 'Stoney',
         message: 'drink water',
         timestamp: '2026-10-15T20:00:00Z',
-        redemption: { kind: 'reward', title: 'Hydrate', cost: 100, costUnit: 'channel_points' },
+        redemption: {
+          kind: 'reward',
+          title: 'Hydrate',
+          cost: 100,
+          costUnit: 'channel_points',
+        },
       },
     ]);
   });
@@ -94,7 +99,12 @@ describe('redemptions in chat', () => {
         id: 'redemption:pu1',
         username: 'fan',
         message: '',
-        redemption: { kind: 'custom_power_up', title: 'Confetti', cost: 50, costUnit: 'bits' },
+        redemption: {
+          kind: 'custom_power_up',
+          title: 'Confetti',
+          cost: 50,
+          costUnit: 'bits',
+        },
       },
     ]);
   });

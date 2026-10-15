@@ -163,10 +163,10 @@ export type RewardRedeemedPayload = {
 };
 
 // HubResponseDtos.cs: RedemptionActivityDto. An automatic reward (title is Twitch's reward type, channel points)
-// or a custom Power-up (title is its name, Bits).
+// a custom Power-up (title is its name, Bits) or a Twitch Power-up such as a celebration (title is its type, Bits).
 export type RedemptionActivityPayload = {
   broadcasterId: string;
-  kind: 'automatic_reward' | 'custom_power_up';
+  kind: 'automatic_reward' | 'custom_power_up' | 'power_up';
   redemptionId: string;
   title: string;
   userId: string;

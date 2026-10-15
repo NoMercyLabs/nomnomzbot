@@ -43,7 +43,7 @@ export type ChatLineMark = { removed: ChatLineRemoval; timeoutSeconds?: number }
 // It is built from a live hub event, so a line from the stored history never carries one.
 export type ChatLineRedemption = {
   redemption: {
-    kind: 'reward' | 'automatic_reward' | 'custom_power_up';
+    kind: 'reward' | 'automatic_reward' | 'custom_power_up' | 'power_up';
     title: string;
     cost: number;
     costUnit: 'channel_points' | 'bits';

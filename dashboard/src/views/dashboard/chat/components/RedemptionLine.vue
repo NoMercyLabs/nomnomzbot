@@ -26,11 +26,14 @@ const props = defineProps<{
 
 const { t, te, locale } = useI18n();
 
-// Twitch's fixed automatic reward types have a name here; a streamer's own title shows as written.
+// Twitch's fixed reward and Power-up types have a name here; a streamer's own title shows as written.
+const fixedKinds = new Set(['automatic_reward', 'power_up']);
+
 const title = computed<string>(() => {
   const key = `dashboard.chat.redemption.types.${props.line.redemption?.title}`;
+  const fixed = fixedKinds.has(props.line.redemption?.kind ?? '');
 
-  return props.line.redemption?.kind === 'automatic_reward' && te(key)
+  return fixed && te(key)
     ? t(key)
     : (props.line.redemption?.title ?? '');
 });

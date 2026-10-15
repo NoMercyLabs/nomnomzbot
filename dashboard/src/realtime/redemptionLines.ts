@@ -50,7 +50,12 @@ export function rewardLine(reward: RewardRedeemedPayload): ChatLine {
       timestamp: reward.timestamp,
       message: reward.userInput ?? '',
     },
-    { kind: 'reward', title: reward.rewardTitle, cost: reward.cost, costUnit: 'channel_points' },
+    {
+      kind: 'reward',
+      title: reward.rewardTitle,
+      cost: reward.cost,
+      costUnit: 'channel_points',
+    },
   );
 }
 
