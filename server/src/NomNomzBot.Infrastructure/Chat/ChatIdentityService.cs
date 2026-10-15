@@ -30,10 +30,9 @@ public sealed partial class ChatIdentityService(
 {
     private static readonly IReadOnlyList<ChatNamedColorDto> NamedColors =
     [
-        .. ChatColorPalette.Names.Select((name, i) => new ChatNamedColorDto(
-            name,
-            ChatColorPalette.Colors[i]
-        )),
+        .. ChatColorPalette.Names.Select(
+            (name, i) => new ChatNamedColorDto(name, ChatColorPalette.Colors[i])
+        ),
     ];
 
     public async Task<Result<ChatIdentityDto>> GetAsync(

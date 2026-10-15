@@ -44,12 +44,24 @@ public sealed class ChatIdentityServiceTests : IAsyncDisposable
         helix.Chat.Returns(_chat);
         _chat
             .GetUserChatColorAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new TwitchUserChatColor(OwnerTwitchId, "stoney", "Stoney", "#FF69B4")));
+            .Returns(
+                Result.Success(
+                    new TwitchUserChatColor(OwnerTwitchId, "stoney", "Stoney", "#FF69B4")
+                )
+            );
         _tokens
-            .HasScopeAsync(Broadcaster, TwitchScopes.UserManageChatColor, Arg.Any<CancellationToken>())
+            .HasScopeAsync(
+                Broadcaster,
+                TwitchScopes.UserManageChatColor,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(true);
         _badges
-            .ResolveAsync(Broadcaster, Arg.Any<IReadOnlyList<ChatBadge>>(), Arg.Any<CancellationToken>())
+            .ResolveAsync(
+                Broadcaster,
+                Arg.Any<IReadOnlyList<ChatBadge>>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(call =>
                 call.Arg<IReadOnlyList<ChatBadge>>()
                     .Select(b => new ResolvedChatBadge(
@@ -69,7 +81,11 @@ public sealed class ChatIdentityServiceTests : IAsyncDisposable
     public async Task Get_returns_the_color_the_palette_and_the_badges_of_the_owners_latest_line()
     {
         await AddLineAsync("old", [new("premium", "1")], DateTime.UtcNow.AddMinutes(-10));
-        await AddLineAsync("new", [new("broadcaster", "1"), new("subscriber", "12", "14")], DateTime.UtcNow);
+        await AddLineAsync(
+            "new",
+            [new("broadcaster", "1"), new("subscriber", "12", "14")],
+            DateTime.UtcNow
+        );
 
         Result<ChatIdentityDto> result = await _service.GetAsync(Broadcaster);
 
@@ -92,9 +108,15 @@ public sealed class ChatIdentityServiceTests : IAsyncDisposable
     {
         _chat
             .GetUserChatColorAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new TwitchUserChatColor(OwnerTwitchId, "stoney", "Stoney", "")));
+            .Returns(
+                Result.Success(new TwitchUserChatColor(OwnerTwitchId, "stoney", "Stoney", ""))
+            );
         _tokens
-            .HasScopeAsync(Broadcaster, TwitchScopes.UserManageChatColor, Arg.Any<CancellationToken>())
+            .HasScopeAsync(
+                Broadcaster,
+                TwitchScopes.UserManageChatColor,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(false);
 
         ChatIdentityDto identity = (await _service.GetAsync(Broadcaster)).Value;
@@ -115,7 +137,9 @@ public sealed class ChatIdentityServiceTests : IAsyncDisposable
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Color.Should().Be("#FF69B4");
-        await _chat.Received(1).UpdateUserChatColorAsync(Broadcaster, "hot_pink", Arg.Any<CancellationToken>());
+        await _chat
+            .Received(1)
+            .UpdateUserChatColorAsync(Broadcaster, "hot_pink", Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -33,7 +33,11 @@ const regrant = useStartScopeRegrant();
 const identity = computed(() => identityQuery.data.value ?? null);
 const hex = ref('');
 const shownColor = computed(() => identity.value?.color ?? undefined);
-const refusal = computed(() => setColor.error.value?.detail ?? setColor.error.value?.message ?? null);
+const refusal = computed(() => {
+  const error = setColor.error.value;
+
+  return error?.detail ?? error?.message ?? null;
+});
 
 const regrantCode = computed(() => regrant.data.value ?? null);
 const approval = useQuery(computed(() => deviceApprovalQuery('twitch', regrantCode.value)));
@@ -46,8 +50,7 @@ function isCurrent(colorHex: string): boolean {
 function applyHex(): void {
   const value = hex.value.trim();
 
-  if (value === '')
-    return;
+  if (value === '') return;
 
   setColor.mutate(value.startsWith('#')
     ? value
@@ -84,7 +87,9 @@ function badgeImage(urls: Record<string, string>): string | undefined {
           />
           <span class="font-semibold" data-test="name" :style="{ color: shownColor }">
             {{ identity.displayName }}</span>
-          <span class="text-muted-foreground">: {{ $t('dashboard.settings.chatIdentity.sample') }}</span>
+          <span class="text-muted-foreground">
+            {{ $t('dashboard.settings.chatIdentity.sample') }}
+          </span>
         </div>
       </section>
 

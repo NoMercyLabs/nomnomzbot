@@ -120,10 +120,10 @@ internal sealed class ChatColorTestDbContext : DbContext, IApplicationDbContext
                 .HasConversion(
                     badges => System.Text.Json.JsonSerializer.Serialize(badges, JsonOptions),
                     json =>
-                        System.Text.Json.JsonSerializer.Deserialize<List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>>(
-                            json,
-                            JsonOptions
-                        ) ?? new List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>()
+                        System.Text.Json.JsonSerializer.Deserialize<
+                            List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>
+                        >(json, JsonOptions)
+                        ?? new List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>()
                 );
         });
         b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>(e =>

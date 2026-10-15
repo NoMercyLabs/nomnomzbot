@@ -71,8 +71,11 @@ export function useSetChatColor(channelId: MaybeRefOrGetter<string | null>) {
 
       return data?.data ?? null;
     },
-    onSuccess: (identity) =>
-      queries.setQueryData(chatIdentityKey(toValue(channelId)), identity),
+    onSuccess: (identity) => {
+      const key = chatIdentityKey(toValue(channelId));
+
+      queries.setQueryData(key, identity);
+    },
   });
 }
 

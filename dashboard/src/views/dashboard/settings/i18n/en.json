@@ -10,7 +10,28 @@
       "back": "Back to settings",
       "nav": {
         "you": "You",
-        "readability": "Readability"
+        "readability": "Readability",
+        "chatIdentity": "Chat identity"
+      },
+      "chatIdentity": {
+        "title": "Chat identity",
+        "description": "How you look in Twitch chat: your name color and the badges you wear.",
+        "loading": "Loading your chat identity...",
+        "loadFailed": "Your chat identity could not be loaded.",
+        "preview": "Preview",
+        "sample": ": This is how your messages look.",
+        "color": "Name color",
+        "needsScope": "Changing your color needs the Twitch permission {scope}. Grant it again to continue.",
+        "enterCode": "Enter this code on Twitch: {code}",
+        "approved": "Permission granted. Reload your identity to continue.",
+        "regrantFailed": "The permission request failed. Try again.",
+        "regrant": "Grant permission again",
+        "hex": "Custom color in hex",
+        "applyHex": "Apply color",
+        "hexNote": "Twitch gives everyone 15 named colors. Any hex color needs Twitch Turbo or Prime.",
+        "badges": "Badges",
+        "noBadges": "You wear no badges in this channel.",
+        "badgeNote": "Badges come from this channel and from Twitch. Twitch has no way to choose which ones show."
       },
       "device": {
         "title": "This device",
