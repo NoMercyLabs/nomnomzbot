@@ -36,16 +36,19 @@ public class MusicController : BaseController
     private readonly ISongRequestPageTokenService _srPageTokens;
     private readonly IBlockedTrackService _blockedTracks;
     private readonly IMusicHistoryReader _history;
+    private readonly ISongRequestIntakeService _intake;
 
     public MusicController(
         IMusicService musicService,
         IMusicConfigService configService,
         ISongRequestPageTokenService srPageTokens,
         IBlockedTrackService blockedTracks,
-        IMusicHistoryReader history
+        IMusicHistoryReader history,
+        ISongRequestIntakeService intake
     )
     {
         _history = history;
+        _intake = intake;
         _musicService = musicService;
         _configService = configService;
         _srPageTokens = srPageTokens;
@@ -158,7 +161,9 @@ public class MusicController : BaseController
             ),
         ];
 
-        MusicQueueDto dto = new(nowPlaying, items);
+        Result<MusicConfigDto> config = await _configService.GetConfigAsync(channelId, ct);
+        bool requestsOpen = config.IsFailure || config.Value.RequestsOpen;
+        MusicQueueDto dto = new(nowPlaying, items, requestsOpen);
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });
     }
 
@@ -193,6 +198,26 @@ public class MusicController : BaseController
             return ResultResponse(requested);
 
         return Ok(new StatusResponseDto<object> { Message = "Song added to queue." });
+    }
+
+    /// <summary>
+    /// Close or open the song queue to new requests. The music keeps playing and the queued songs stay.
+    /// </summary>
+    [RequireAction("music:queue:moderate")]
+    [HttpPut("queue/requests-open")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetRequestsOpen(
+        string channelId,
+        [FromBody] SetRequestsOpenDto request,
+        CancellationToken ct
+    )
+    {
+        Result<bool> changed = await _intake.SetRequestsOpenAsync(channelId, request.Open, ct);
+        if (changed.IsFailure)
+            return ResultResponse(changed);
+
+        string message = request.Open ? "The song queue is open." : "The song queue is closed.";
+        return Ok(new StatusResponseDto<object> { Message = message });
     }
 
     /// <summary>Remove a queued song at the given position, for moderators clearing bad requests.</summary>
@@ -615,6 +640,8 @@ public class MusicController : BaseController
 // ─── Request DTOs ─────────────────────────────────────────────────────────────
 
 public sealed record SeekDto(int PositionMs);
+
+public sealed record SetRequestsOpenDto(bool Open);
 
 public sealed record ShuffleDto(bool Enabled);
 

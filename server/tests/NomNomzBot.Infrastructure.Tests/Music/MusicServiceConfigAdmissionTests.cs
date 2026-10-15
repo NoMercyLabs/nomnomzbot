@@ -61,6 +61,33 @@ public sealed class MusicServiceConfigAdmissionTests
     }
 
     [Fact]
+    public async Task A_closed_queue_refuses_new_requests_and_keeps_the_existing_queue()
+    {
+        (MusicService sutOpen, RecordingHttpHandler openHandler) = Build(
+            new MusicConfigDto(true, "auto", 50, 5, true, true, "everyone")
+        );
+        RouteTrackResolve(openHandler);
+        (await sutOpen.RequestTrackAsync(ChannelId.ToString(), "spotify:track:q1"))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        (MusicService sutClosed, RecordingHttpHandler closedHandler) = Build(
+            new MusicConfigDto(true, "auto", 50, 5, true, true, "everyone", RequestsOpen: false)
+        );
+
+        Result<MusicTrack> result = await sutClosed.RequestTrackAsync(
+            ChannelId.ToString(),
+            "spotify:track:q2"
+        );
+        Result added = await sutClosed.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q2");
+
+        result.ErrorCode.Should().Be("SR_CLOSED");
+        added.ErrorCode.Should().Be("SR_CLOSED");
+        closedHandler.RequestUrls.Should().BeEmpty();
+        (await sutClosed.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task A_requester_below_the_min_trust_level_floor_is_refused()
     {
         (MusicService sut, _) = Build(

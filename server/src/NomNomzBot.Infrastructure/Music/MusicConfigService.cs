@@ -61,6 +61,8 @@ public class MusicConfigService : IMusicConfigService
 
         if (request.IsEnabled.HasValue)
             current.IsEnabled = request.IsEnabled.Value;
+        if (request.RequestsOpen.HasValue)
+            current.RequestsOpen = request.RequestsOpen.Value;
         if (request.PreferredProvider is not null)
             current.PreferredProvider = request.PreferredProvider;
         if (request.MaxQueueSize.HasValue)
@@ -158,7 +160,8 @@ public class MusicConfigService : IMusicConfigService
             d.BangerPlaylistId,
             d.BangerPlaylistProvider,
             d.BangerAutoCreate,
-            d.MaxRequestsPerRole.Count == 0 ? null : d.MaxRequestsPerRole
+            d.MaxRequestsPerRole.Count == 0 ? null : d.MaxRequestsPerRole,
+            d.RequestsOpen
         );
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
@@ -166,6 +169,7 @@ public class MusicConfigService : IMusicConfigService
     private sealed class MusicConfigData
     {
         public bool IsEnabled { get; set; } = true;
+        public bool RequestsOpen { get; set; } = true;
         public string PreferredProvider { get; set; } = "auto";
         public int MaxQueueSize { get; set; } = 50;
         public int MaxRequestsPerUser { get; set; } = 5;

@@ -51645,6 +51645,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/music/queue/requests-open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Close or open the song queue to new requests. The music keeps playing and the queued songs stay. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SetRequestsOpenDto"];
+                    "text/json": components["schemas"]["SetRequestsOpenDto"];
+                    "application/*+json": components["schemas"]["SetRequestsOpenDto"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/music/queue/{position}": {
         parameters: {
             query?: never;
@@ -89567,6 +89675,8 @@ export interface components {
             maxRequestsPerRole?: null | {
                 [key: string]: number | string;
             };
+            /** @default true */
+            requestsOpen: boolean;
         };
         MusicDeviceDto: {
             id: string;
@@ -89594,6 +89704,8 @@ export interface components {
         MusicQueueDto: {
             nowPlaying: null | components["schemas"]["NowPlayingDto"];
             queue: components["schemas"]["QueueItemDto"][];
+            /** @default true */
+            requestsOpen: boolean;
         };
         /** @description An item in the music playback queue. Cost is 0 for a free request. */
         MusicQueueItem: {
@@ -92280,6 +92392,9 @@ export interface components {
         SeekDto: {
             /** Format: int32 */
             positionMs: number | string;
+        };
+        SetRequestsOpenDto: {
+            open: boolean;
         };
         SelfStandingDto: {
             standing: string;
@@ -99343,6 +99458,8 @@ export interface components {
         /** @description Request to update music configuration. */
         UpdateMusicConfigDto: {
             isEnabled?: null | boolean;
+            /** @description Opens or closes new song requests; the music keeps playing and the queue stays. */
+            requestsOpen?: null | boolean;
             preferredProvider?: null | string;
             /** Format: int32 */
             maxQueueSize?: null | number | string;

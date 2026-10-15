@@ -84,6 +84,13 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
+            "SR_CLOSED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.QueueClosed,
+                "The song queue is closed.",
+                null,
+                ct
+            ),
             "MIN_TRUST_LEVEL" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.MinTrust,

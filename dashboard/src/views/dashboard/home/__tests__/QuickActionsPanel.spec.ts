@@ -484,7 +484,7 @@ describe('QuickActionsPanel', () => {
 
   it('invents nothing: empty sources say so and show no numbers', async () => {
     answers['/ads/schedule'] = () => ok(null);
-    answers['/music/queue'] = () => ok({ nowPlaying: null, queue: [] });
+    answers['/music/queue'] = () => ok({ nowPlaying: null, queue: [], requestsOpen: true });
     answers['/timers'] = () => ok([]);
     await open();
 

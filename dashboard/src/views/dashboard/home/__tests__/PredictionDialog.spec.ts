@@ -99,7 +99,7 @@ function answer(method: string, path: string): Answer {
     return ok(null);
 
   if (path.endsWith('/music/queue'))
-    return ok({ nowPlaying: null, queue: [] });
+    return ok({ nowPlaying: null, queue: [], requestsOpen: true });
 
   return ok([]);
 }

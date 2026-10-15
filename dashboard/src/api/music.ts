@@ -74,7 +74,7 @@ async function readQueue(channelId: string): Promise<MusicQueue> {
   if (error !== undefined)
     throw failed('music queue', response.status, error);
 
-  return data?.data ?? { nowPlaying: null, queue: [] };
+  return data?.data ?? { nowPlaying: null, queue: [], requestsOpen: true };
 }
 
 async function readBlocked(channelId: string): Promise<BlockedTrack[]> {
@@ -138,7 +138,7 @@ function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
 }
 
 function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): MusicQueue {
-  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+  const base: MusicQueue = current ?? { nowPlaying: null, queue: [], requestsOpen: true };
 
   return {
     ...base,
@@ -182,7 +182,7 @@ function transport(
     },
     apply: (current: MusicQueue | undefined): MusicQueue =>
       isPlaying === null
-        ? (current ?? { nowPlaying: null, queue: [] })
+        ? (current ?? { nowPlaying: null, queue: [], requestsOpen: true })
         : withPlaying(current, isPlaying),
   });
 }
@@ -193,6 +193,35 @@ export function usePauseMusic(channelId: MaybeRefOrGetter<string | null>): Queue
 
 export function useResumeMusic(channelId: MaybeRefOrGetter<string | null>): QueueMutation {
   return transport(channelId, '/api/v{version}/channels/{channelId}/music/resume', true);
+}
+
+// Closing or opening the queue flips the badge at once; a refused change puts it back and reaches the error inbox.
+export function useSetRequestsOpen(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<MusicQueue, Error, { open: boolean }, number> {
+  return useOptimisticSave<MusicQueue, { open: boolean }>({
+    describe: ({ open }) => ({ key: open ? 'openRequests' : 'closeRequests' }),
+    queryKey: () => musicQueueKey(toValue(channelId)),
+    mutationFn: async ({ open }: { open: boolean }): Promise<MusicQueue> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/music/queue/requests-open',
+        {
+          params: { path: { version, channelId: id } },
+          body: { open },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('song requests', response.status, error);
+
+      return readQueue(id);
+    },
+    apply: (current: MusicQueue | undefined, { open }: { open: boolean }): MusicQueue => ({
+      ...(current ?? { nowPlaying: null, queue: [], requestsOpen: true }),
+      requestsOpen: open,
+    }),
+  });
 }
 
 // A skip changes the track only when the bot answers, so nothing moves before then.
@@ -225,7 +254,7 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
       return readQueue(id);
     },
     apply: (current: MusicQueue | undefined, { position }: { position: number }): MusicQueue => {
-      const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+      const base: MusicQueue = current ?? { nowPlaying: null, queue: [], requestsOpen: true };
       const moved = base.queue.find((item: QueueItem) => item.position === position);
 
       if (moved === undefined)
@@ -272,7 +301,7 @@ export function useMoveQueueItem(
       return readQueue(id);
     },
     apply: (current: MusicQueue | undefined, { position, toPosition }: QueueMove): MusicQueue => {
-      const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+      const base: MusicQueue = current ?? { nowPlaying: null, queue: [], requestsOpen: true };
       const from = base.queue.findIndex((item: QueueItem) => item.position === position);
       const to = base.queue.findIndex((item: QueueItem) => item.position === toPosition);
 
@@ -289,7 +318,7 @@ export function useMoveQueueItem(
 }
 
 function leavesQueue(current: MusicQueue | undefined, position: number): MusicQueue {
-  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+  const base: MusicQueue = current ?? { nowPlaying: null, queue: [], requestsOpen: true };
   const rest = base.queue.filter((item: QueueItem) => item.position !== position);
 
   return { ...base, queue: renumbered(base.queue, rest) };

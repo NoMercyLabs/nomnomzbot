@@ -789,6 +789,8 @@
         "promoteQueueItem": "Nummer op positie {position} vooraan zetten",
         "moveQueueItem": "Nummer van positie {position} naar {toPosition} verplaatsen",
         "removeQueueItem": "Nummer op positie {position} uit de wachtrij verwijderen",
+        "closeRequests": "De wachtrij sluiten voor nieuwe aanvragen",
+        "openRequests": "De wachtrij openen voor nieuwe aanvragen",
         "banQueueItem": "Nummer op positie {position} blokkeren",
         "blockTrack": "{title} blokkeren",
         "unblockTrack": "Nummer {id} deblokkeren",

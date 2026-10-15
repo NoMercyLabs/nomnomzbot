@@ -37,6 +37,7 @@ const calls: Call[] = [];
 let answers: Record<string, () => Answer> = {};
 let queue: Record<string, unknown>[] = [];
 let nowPlaying: Record<string, unknown> | null = null;
+let requestsOpen = true;
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 const refused = (): Answer => ({
@@ -84,7 +85,11 @@ const playing = (overrides: Record<string, unknown> = {}): Record<string, unknow
 
 function freshAnswers(): Record<string, () => Answer> {
   return {
-    '/music/queue': () => ok({ nowPlaying, queue: queue.map((item) => ({ ...item })) }),
+    '/music/queue': () => ok({
+      nowPlaying,
+      queue: queue.map((item) => ({ ...item })),
+      requestsOpen,
+    }),
     '/music/history': () =>
       ok([
         {
@@ -179,6 +184,10 @@ function write(method: string, path: string, options?: Options): Answer {
     queue = moved(queue, options);
   }
 
+  if (path.endsWith('/requests-open')) {
+    requestsOpen = (options?.body as { open: boolean }).open;
+  }
+
   return { response: { status: 200, ok: true } };
 }
 
@@ -188,6 +197,7 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string) => read(path),
     POST: async (path: string, options?: Options) => write('POST', path, options),
     DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
+    PUT: async (path: string, options?: Options) => write('PUT', path, options),
   },
 }));
 
@@ -207,6 +217,7 @@ beforeEach(() => {
   ];
 
   nowPlaying = playing();
+  requestsOpen = true;
   answers = freshAnswers();
   pinia = createPinia();
   setActivePinia(pinia);
@@ -355,6 +366,22 @@ describe('MusicView', () => {
     expect(writes()[0]!.path.endsWith('/music/skip')).toBe(true);
   });
 
+  it('closes the queue with a PUT, then shows it closed and offers to open it', async () => {
+    await open();
+
+    expect(panel('Request queue').textContent).toContain('Open');
+
+    buttonIn(panel('Request queue'), 'Close queue').click();
+    await settle();
+
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0]!.method).toBe('PUT');
+    expect(writes()[0]!.path.endsWith('/music/queue/requests-open')).toBe(true);
+    expect(writes()[0]!.body).toEqual({ open: false });
+    expect(panel('Request queue').textContent).toContain('Closed');
+    expect(panel('Request queue').textContent).toContain('Open queue');
+  });
+
   it('pauses a playing track and offers Play for a paused one', async () => {
     await open();
 
@@ -468,7 +495,7 @@ describe('MusicView', () => {
   });
 
   it('says nothing is playing when the server leaves the track out', async () => {
-    answers['/music/queue'] = () => ok({ queue: [] });
+    answers['/music/queue'] = () => ok({ queue: [], requestsOpen: true });
     await open();
 
     expect(panel('Now playing').querySelector('[data-slot="panel-empty"]')?.textContent).toContain(

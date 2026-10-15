@@ -27,6 +27,7 @@ import {
   useMusicQueue,
   useRemoveQueueItem,
   useResumeMusic,
+  useSetRequestsOpen,
   useSkipMusic,
   type MusicQueue,
   type QueueItem,
@@ -60,6 +61,8 @@ const skip = useSkipMusic(channelId);
 const promote = usePromoteQueueItem(channelId);
 const move = useMoveQueueItem(channelId);
 const remove = useRemoveQueueItem(channelId);
+const setRequests = useSetRequestsOpen(channelId);
+const requestsOpen = computed(() => queueQuery.data.value?.requestsOpen ?? true);
 
 const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlaying']>(
   () => queueQuery.data.value?.nowPlaying ?? null,
@@ -210,6 +213,24 @@ const panels = computed(() => [
         :error-text="$t('dashboard.music.queue.error')"
         @retry="queueQuery.refetch()"
       >
+        <template #actions>
+          <StatusBadge
+            :tone="requestsOpen ? 'ok' : 'off'"
+            :label="$t(requestsOpen ? 'dashboard.music.queue.open' : 'dashboard.music.queue.closed')"
+            data-requests-state
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="setRequests.isPending.value"
+            data-toggle-requests
+            @click="setRequests.mutate({ open: !requestsOpen })"
+          >
+            {{
+              $t(requestsOpen ? 'dashboard.music.queue.closeAction' : 'dashboard.music.queue.openAction')
+            }}
+          </Button>
+        </template>
         <div ref="queueList" data-queue-list>
           <SummaryRow
             v-for="item in rows"

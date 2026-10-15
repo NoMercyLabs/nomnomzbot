@@ -789,6 +789,8 @@
         "promoteQueueItem": "Move song at position {position} to the front",
         "moveQueueItem": "Move song from position {position} to {toPosition}",
         "removeQueueItem": "Remove song at position {position} from the queue",
+        "closeRequests": "Close the song queue to new requests",
+        "openRequests": "Open the song queue to new requests",
         "banQueueItem": "Ban song at position {position}",
         "blockTrack": "Block {title}",
         "unblockTrack": "Unblock track {id}",
