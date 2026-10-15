@@ -613,4 +613,66 @@ public sealed class PipelineServiceWriteSymmetryTests
         reloadedElse.ParentStepId.Should().Be(reloadedIf.Id);
         reloadedElse.ActionType.Should().Be("shoutout");
     }
+
+    [Fact]
+    public async Task Create_and_Update_persist_continue_on_error_so_a_failed_step_does_not_stop_the_refund()
+    {
+        (PipelineService service, PipelineTestRunDbContext db) = Build();
+
+        Result<PipelineDto> created = await service.CreateAsync(
+            Broadcaster.ToString(),
+            new()
+            {
+                Name = "voice-swap",
+                TriggerKind = "command",
+                IsEnabled = true,
+                GraphJsonCache = JsonSerializer.SerializeToElement(
+                    new
+                    {
+                        steps = new object[]
+                        {
+                            new
+                            {
+                                action = new { type = "send_message" },
+                                continue_on_error = true,
+                            },
+                            new { action = new { type = "shoutout" } },
+                        },
+                    }
+                ),
+            }
+        );
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+
+        List<PipelineStep> afterCreate = await db
+            .PipelineSteps.Where(s => s.PipelineId == created.Value.Id)
+            .OrderBy(s => s.Order)
+            .ToListAsync();
+        afterCreate.Select(s => s.ContinueOnError).Should().Equal(true, false);
+
+        Result<PipelineDto> updated = await service.UpdateAsync(
+            Broadcaster.ToString(),
+            created.Value.Id,
+            new()
+            {
+                GraphJsonCache = JsonSerializer.SerializeToElement(
+                    new
+                    {
+                        steps = new object[]
+                        {
+                            new { action = new { type = "send_message" } },
+                            new { action = new { type = "shoutout" }, continue_on_error = true },
+                        },
+                    }
+                ),
+            }
+        );
+        updated.IsSuccess.Should().BeTrue(updated.ErrorMessage);
+
+        List<PipelineStep> afterUpdate = await db
+            .PipelineSteps.Where(s => s.PipelineId == created.Value.Id)
+            .OrderBy(s => s.Order)
+            .ToListAsync();
+        afterUpdate.Select(s => s.ContinueOnError).Should().Equal(false, true);
+    }
 }
