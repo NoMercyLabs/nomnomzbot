@@ -66,9 +66,15 @@ function popOut(): void {
   window.open(router.resolve({ name: 'popout-chat' }).href, 'nnz-chat', 'popup,width=440,height=760');
 }
 
-// The dock keeps its search field shut until the person asks for it; the page always shows it.
+// A phone is narrow AND touch (the `phone:` variant); a narrow desktop window keeps the desktop page.
+const phone = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
+
+// The popout, the OBS dock and a phone put the controls under the feed and the send box, as Twitch does.
+const docked = computed(() => poppedOut.value || phone.value);
+
+// The docked bar keeps its search field shut until the person asks for it; the desktop page always shows it.
 const dockSearchOpen = ref(false);
-const searchShown = computed(() => !poppedOut.value || dockSearchOpen.value);
+const searchShown = computed(() => !docked.value || dockSearchOpen.value);
 
 function toggleDockSearch(): void {
   dockSearchOpen.value = !dockSearchOpen.value;
@@ -297,66 +303,14 @@ async function confirmBan(): Promise<void> {
 </script>
 
 <template>
-  <!-- The dock (a small window, an OBS dock): one slim bar of icon buttons, then the feed edge to edge. -->
-  <div v-if="poppedOut" data-dock-bar class="flex flex-none items-center gap-1 border-b border-border px-2 py-1">
-    <StatusBadge
-      :tone="live ? 'live' : 'off'"
-      :label="live ? $t('dashboard.chat.status.live') : $t('dashboard.chat.status.offline')"
-    />
-    <div class="ml-auto flex items-center gap-1">
-      <Button
-        v-if="focusedUserId !== null"
-        data-focus-clear
-        variant="ghost"
-        size="icon"
-        :aria-label="$t('dashboard.chat.viewer.clearFocus', { name: focusedName })"
-        @click="focusedUserId = null"
-      >
-        <Cross class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        data-dock-search-toggle
-        variant="ghost"
-        size="icon"
-        :aria-pressed="dockSearchOpen"
-        :aria-label="$t('dashboard.chat.dock.search')"
-        @click="toggleDockSearch"
-      >
-        <SearchMagnifyingGlass class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        data-mod-tools-toggle
-        variant="ghost"
-        size="icon"
-        :aria-pressed="modToolsOpen"
-        :aria-label="$t('dashboard.chat.modTools.title')"
-        @click="modToolsOpen = !modToolsOpen"
-      >
-        <Moderator class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        data-display-toggle
-        variant="ghost"
-        size="icon"
-        :aria-pressed="displayOpen"
-        :aria-label="$t('dashboard.chat.display.toggle')"
-        @click="displayOpen = !displayOpen"
-      >
-        <SettingsFader class="size-5" aria-hidden="true" />
-      </Button>
-    </div>
-  </div>
-  <div v-if="poppedOut && searchShown" class="flex-none border-b border-border p-2">
-    <SearchField v-model="search" :placeholder="$t('dashboard.chat.search.placeholder')" />
-  </div>
-  <PageHeader v-else-if="!poppedOut" :title="$t('dashboard.chat.title')" :crumb="$t('dashboard.chat.crumb')">
+  <PageHeader v-if="!poppedOut" :title="$t('dashboard.chat.title')" :crumb="$t('dashboard.chat.crumb')">
     <template #status>
       <StatusBadge
         :tone="live ? 'live' : 'off'"
         :label="live ? $t('dashboard.chat.status.live') : $t('dashboard.chat.status.offline')"
       />
     </template>
-    <template #bar>
+    <template v-if="!docked" #bar>
       <!-- A phone has no second window to dock or pop out into; its toggles keep only their icons. -->
       <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2 phone:ml-0 phone:flex-1">
         <SearchField
@@ -495,6 +449,60 @@ async function confirmBan(): Promise<void> {
       <SidePanel v-model:open="modToolsOpen" data-mod-tools-panel :label="$t('dashboard.chat.modTools.title')">
         <ModToolsPanel :channel-id="channelId" :channel-name="current?.login ?? ''" />
       </SidePanel>
+    </div>
+  </div>
+  <!-- The docked controls (a small window, an OBS dock, a phone): the search field, then one slim bar of icon
+       buttons, under the feed and the send box. -->
+  <div v-if="docked && searchShown" class="flex-none border-t border-border p-2">
+    <SearchField v-model="search" :placeholder="$t('dashboard.chat.search.placeholder')" />
+  </div>
+  <div v-if="docked" data-dock-bar class="flex flex-none items-center gap-1 border-t border-border px-2 py-1">
+    <StatusBadge
+      v-if="poppedOut"
+      :tone="live ? 'live' : 'off'"
+      :label="live ? $t('dashboard.chat.status.live') : $t('dashboard.chat.status.offline')"
+    />
+    <div class="ml-auto flex items-center gap-1">
+      <Button
+        v-if="focusedUserId !== null"
+        data-focus-clear
+        variant="ghost"
+        size="icon"
+        :aria-label="$t('dashboard.chat.viewer.clearFocus', { name: focusedName })"
+        @click="focusedUserId = null"
+      >
+        <Cross class="size-5" aria-hidden="true" />
+      </Button>
+      <Button
+        data-dock-search-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="dockSearchOpen"
+        :aria-label="$t('dashboard.chat.dock.search')"
+        @click="toggleDockSearch"
+      >
+        <SearchMagnifyingGlass class="size-5" aria-hidden="true" />
+      </Button>
+      <Button
+        data-mod-tools-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="modToolsOpen"
+        :aria-label="$t('dashboard.chat.modTools.title')"
+        @click="modToolsOpen = !modToolsOpen"
+      >
+        <Moderator class="size-5" aria-hidden="true" />
+      </Button>
+      <Button
+        data-display-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="displayOpen"
+        :aria-label="$t('dashboard.chat.display.toggle')"
+        @click="displayOpen = !displayOpen"
+      >
+        <SettingsFader class="size-5" aria-hidden="true" />
+      </Button>
     </div>
   </div>
   <ConfirmDialog

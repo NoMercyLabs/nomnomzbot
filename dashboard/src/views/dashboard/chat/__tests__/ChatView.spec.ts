@@ -2471,3 +2471,67 @@ describe('ChatView dock layout', () => {
     expect(dockSearchToggle()).toBeNull();
   });
 });
+
+// Stoney 2026-10-15: "mobile and popout/obs pannel need to have the controls at the bottom instead of the top so it
+// matches with twitch": the feed and the send box come first, the controls row sits under them.
+describe('ChatView controls at the bottom', () => {
+  const realMatchMedia = window.matchMedia;
+
+  function stubPhone(isPhone: boolean): void {
+    window.matchMedia = ((query: string): MediaQueryList => ({
+      matches: isPhone && !query.includes('min-width'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      onchange: null,
+    }) as MediaQueryList) as typeof window.matchMedia;
+  }
+
+  afterEach(() => {
+    window.matchMedia = realMatchMedia;
+  });
+
+  function follows(later: string, earlier: string): boolean {
+    const first = document.body.querySelector(earlier)!;
+    const second = document.body.querySelector(later)!;
+
+    return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
+
+  it('puts the dock bar under the feed and the send box in the popout', async () => {
+    stubPhone(false);
+    await open('/popout/chat');
+
+    expect(follows('[data-dock-bar]', '[data-composer]')).toBe(true);
+  });
+
+  it('opens the dock search field under the feed too', async () => {
+    stubPhone(false);
+    await open('/popout/chat');
+    document.body.querySelector<HTMLButtonElement>('[data-dock-search-toggle]')!.click();
+    await settle();
+
+    expect(follows('[data-slot="search-field"]', '[data-composer]')).toBe(true);
+    expect(follows('[data-dock-bar]', '[data-slot="search-field"]')).toBe(true);
+  });
+
+  it('moves the controls under the send box on a phone and leaves the header bar empty', async () => {
+    stubPhone(true);
+    await open();
+
+    expect(document.body.querySelector('[data-slot="page-bar"]')).toBeNull();
+    expect(follows('[data-dock-bar]', '[data-composer]')).toBe(true);
+    expect(document.body.querySelector('[data-chat-controls]')).toBeNull();
+  });
+
+  it('keeps the controls in the header bar on a desktop page', async () => {
+    stubPhone(false);
+    await open();
+
+    expect(document.body.querySelector('[data-slot="page-bar"] [data-chat-controls]')).not.toBeNull();
+    expect(document.body.querySelector('[data-dock-bar]')).toBeNull();
+  });
+});
