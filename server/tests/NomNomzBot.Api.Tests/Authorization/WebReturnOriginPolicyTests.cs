@@ -63,4 +63,46 @@ public sealed class WebReturnOriginPolicyTests
 
         Assert.False(listed);
     }
+
+    /// <summary>The Vue page navigates the browser straight to the bot, so the request host is the bot's own.</summary>
+    private static HttpRequest DirectSignIn(string? referer)
+    {
+        DefaultHttpContext context = new();
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString("dev.nomnomz.bot");
+        if (referer is not null)
+            context.Request.Headers.Referer = referer;
+        return context.Request;
+    }
+
+    private static IConfiguration DevBot() =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["App:BaseUrl"] = "https://dev.nomnomz.bot" }
+            )
+            .Build();
+
+    [Fact]
+    public void ADirectSignInFromTheVuePage_ReturnsToTheVueOrigin()
+    {
+        string? origin = WebReturnOriginPolicy.Capture(
+            DirectSignIn("https://vue.nomnomz.bot/login"),
+            DevBot(),
+            Production()
+        );
+
+        Assert.Equal(VueOrigin, origin);
+    }
+
+    [Fact]
+    public void ADirectSignInFromAnUnlistedPage_ReturnsToTheBaseUrl()
+    {
+        string? origin = WebReturnOriginPolicy.Capture(
+            DirectSignIn("https://evil.example/login"),
+            DevBot(),
+            Production()
+        );
+
+        Assert.Null(origin);
+    }
 }

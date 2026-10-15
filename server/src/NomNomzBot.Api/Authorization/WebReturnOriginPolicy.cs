@@ -47,8 +47,21 @@ public static class WebReturnOriginPolicy
     )
     {
         string? origin = BrowserOrigin(request);
-        return IsCrossOriginTarget(origin, request, configuration, environment) ? origin : null;
+        if (IsCrossOriginTarget(origin, request, configuration, environment))
+            return origin;
+
+        // A dashboard on another origin navigates the browser straight to the bot, so the host is the
+        // bot's own; the page it came from is only in the Referer.
+        string? referer = RefererOrigin(request);
+        return IsCrossOriginTarget(referer, request, configuration, environment) ? referer : null;
     }
+
+    private static string? RefererOrigin(HttpRequest request) =>
+        Uri.TryCreate(request.Headers.Referer.ToString(), UriKind.Absolute, out Uri? uri)
+        && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+        && uri.UserInfo.Length == 0
+            ? $"{uri.Scheme}://{uri.Authority}"
+            : null;
 
     /// <summary>True when <paramref name="origin"/> is a cross-origin return target that is still listed.</summary>
     public static bool IsCrossOriginTarget(
