@@ -41,9 +41,11 @@ public sealed class MusicServiceQueuePromoteBanTests
     [Fact]
     public async Task PromoteToTop_moves_the_targeted_entry_to_the_front_of_the_real_queue()
     {
-        (MusicService sut, RecordingEventBus bus, MusicTestDbContext _) = Build();
+        SongRequestQueueStore store = new();
+        (MusicService sut, RecordingEventBus bus, MusicTestDbContext _) = Build(store);
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q2", "viewer2");
+        store.SetInFlight(ChannelId.ToString(), null);
 
         bool moved = await sut.PromoteToTopAsync(ChannelId.ToString(), 1);
 
@@ -58,6 +60,64 @@ public sealed class MusicServiceQueuePromoteBanTests
             .Last();
         last.Items.Should().HaveCount(2);
         last.Items[0].RequestedBy.Should().Be("viewer2");
+    }
+
+    /// <summary>Live 2026-10-15: a bump landed ahead of the song already handed to Spotify, so when that
+    /// song started, "drop everything through the playing track" deleted the bumped songs too.</summary>
+    [Fact]
+    public async Task PromoteToTop_never_jumps_the_in_flight_song_and_the_bump_survives_its_start()
+    {
+        SongRequestQueueStore store = new();
+        (MusicService sut, RecordingEventBus bus, MusicTestDbContext _) = Build(store);
+        string channel = ChannelId.ToString();
+        await sut.AddToQueueAsync(channel, "spotify:track:q1", "viewer1");
+        await sut.AddToQueueAsync(channel, "spotify:track:q2", "viewer2");
+        FairQueue<SongRequestEntry> queue = store.TryGet(channel)!;
+        store.SetInFlight(channel, queue.Peek());
+
+        await sut.PromoteToTopAsync(channel, 1);
+
+        (await QueueOrder(sut)).Should().Equal("viewer1", "viewer2");
+
+        SongRequestQueueReconciler reconciler = new(
+            store,
+            sut,
+            new NoOpSongRequestQueuePersistence(),
+            bus
+        );
+        await reconciler.HandleAsync(
+            new()
+            {
+                BroadcasterId = ChannelId,
+                IsPlaying = true,
+                TrackUri = "spotify:track:q1",
+                TrackName = "Song Q1",
+                Provider = "spotify",
+                ObservedAt = DateTimeOffset.UtcNow,
+            }
+        );
+
+        (await QueueOrder(sut)).Should().Equal("viewer2");
+        store.GetInFlight(channel)!.TrackUri.Should().Be("spotify:track:q2");
+    }
+
+    [Fact]
+    public async Task Move_onto_the_in_flight_song_lands_just_behind_it_and_the_in_flight_song_cannot_move()
+    {
+        SongRequestQueueStore store = new();
+        (MusicService sut, RecordingEventBus _, MusicTestDbContext _) = Build(store);
+        string channel = ChannelId.ToString();
+        await sut.AddToQueueAsync(channel, "spotify:track:q1", "viewer1");
+        await sut.AddToQueueAsync(channel, "spotify:track:q2", "viewer2");
+        await sut.AddToQueueAsync(channel, "spotify:track:q3", "viewer3");
+        store.SetInFlight(channel, store.TryGet(channel)!.Peek());
+
+        Result moved = await sut.MoveAsync(channel, 2, 0);
+        Result movedInFlight = await sut.MoveAsync(channel, 0, 2);
+
+        moved.IsSuccess.Should().BeTrue();
+        movedInFlight.IsFailure.Should().BeTrue();
+        (await QueueOrder(sut)).Should().Equal("viewer1", "viewer3", "viewer2");
     }
 
     [Fact]
@@ -119,10 +179,13 @@ public sealed class MusicServiceQueuePromoteBanTests
 
     private static async Task<(MusicService Sut, RecordingEventBus Bus)> BuildWithThreeQueued()
     {
-        (MusicService sut, RecordingEventBus bus, MusicTestDbContext _) = Build();
+        SongRequestQueueStore store = new();
+        (MusicService sut, RecordingEventBus bus, MusicTestDbContext _) = Build(store);
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q2", "viewer2");
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q3", "viewer3");
+        // The first add hands q1 to the player; these cases cover a queue nothing was handed from yet.
+        store.SetInFlight(ChannelId.ToString(), null);
         return (sut, bus);
     }
 
@@ -216,7 +279,9 @@ public sealed class MusicServiceQueuePromoteBanTests
         (await QueueOrder(sut)).Should().Equal("viewer2", "viewer3", "viewer1", "viewer1");
     }
 
-    private static (MusicService Sut, RecordingEventBus Bus, MusicTestDbContext Db) Build()
+    private static (MusicService Sut, RecordingEventBus Bus, MusicTestDbContext Db) Build(
+        SongRequestQueueStore? store = null
+    )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -255,7 +320,7 @@ public sealed class MusicServiceQueuePromoteBanTests
             db,
             bus,
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            store ?? new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),

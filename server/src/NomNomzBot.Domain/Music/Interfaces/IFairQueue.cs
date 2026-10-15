@@ -60,17 +60,20 @@ public interface IFairQueue<T>
     /// "play this one next" override, outside the fair-scheduler's normal rank ordering. Every
     /// owner's rank is recalculated afterward so the invariant (rank = that owner's 1-based position
     /// among their own remaining items) still holds. Returns false when the position is out of range;
-    /// a no-op promote of the item already at position 0 returns true.
+    /// a no-op promote of the item already at position 0 returns true. When
+    /// <paramref name="isPinnedHead"/> matches the head, the item lands at index 1, behind it.
     /// </summary>
-    bool MoveToFront(int position);
+    bool MoveToFront(int position, Func<T, bool>? isPinnedHead = null);
 
     /// <summary>
     /// Places the item at <paramref name="from"/> exactly at index <paramref name="to"/> (the index it
     /// has after the move) — a moderator's drag-and-drop. Ranks are re-derived from the new order, so
     /// the fair-ranking rule for later enqueues is unchanged. Returns false when either index is out
-    /// of range; moving an item onto its own index returns true and changes nothing.
+    /// of range; moving an item onto its own index returns true and changes nothing. When
+    /// <paramref name="isPinnedHead"/> matches the head, the head cannot move (false) and a target of
+    /// index 0 lands at index 1.
     /// </summary>
-    bool MoveTo(int from, int to);
+    bool MoveTo(int from, int to, Func<T, bool>? isPinnedHead = null);
 
     /// <summary>Returns a snapshot of all items in fair-schedule order.</summary>
     IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot();

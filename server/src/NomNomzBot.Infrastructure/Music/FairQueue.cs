@@ -204,38 +204,60 @@ public sealed class FairQueue<T> : IFairQueue<T>
         }
     }
 
-    public bool MoveToFront(int position)
+    public bool MoveToFront(int position, Func<T, bool>? isPinnedHead = null)
     {
         lock (_lock)
         {
             if (position < 0 || position >= _queue.Count)
                 return false;
-            if (position == 0)
-                return true;
 
-            QueueEntry entry = _queue[position];
-            _queue.RemoveAt(position);
-            _queue.Insert(0, entry);
-            RecalculateRanks();
-            return true;
+            return MoveUnderLock(position, FirstMovableIndex(isPinnedHead));
         }
     }
 
-    public bool MoveTo(int from, int to)
+    public bool MoveTo(int from, int to, Func<T, bool>? isPinnedHead = null)
     {
         lock (_lock)
         {
             if (from < 0 || from >= _queue.Count || to < 0 || to >= _queue.Count)
                 return false;
-            if (from == to)
-                return true;
 
-            QueueEntry entry = _queue[from];
-            _queue.RemoveAt(from);
-            _queue.Insert(to, entry);
-            RecalculateRanks();
-            return true;
+            int floor = FirstMovableIndex(isPinnedHead);
+            if (from < floor)
+                return false;
+
+            return MoveUnderLock(from, Math.Max(to, floor));
         }
+    }
+
+    /// <summary>
+    /// Appends in the given order, ranked by position, without fair re-ranking. Restore uses it so the
+    /// persisted order, operator moves included, comes back exactly as it was saved.
+    /// </summary>
+    public void Append(string ownerKey, T item)
+    {
+        lock (_lock)
+        {
+            int rank = _queue.Count(e => e.Key == KeyOf(ownerKey)) + 1;
+            _queue.Add(new(ownerKey, item, rank));
+        }
+    }
+
+    /// <summary>A pinned head (the song already handed to the provider) stays at index 0: when it starts
+    /// playing, everything up to it leaves the queue, so an entry placed ahead of it would be lost.</summary>
+    private int FirstMovableIndex(Func<T, bool>? isPinnedHead) =>
+        isPinnedHead is not null && _queue.Count > 0 && isPinnedHead(_queue[0].Item) ? 1 : 0;
+
+    private bool MoveUnderLock(int from, int to)
+    {
+        if (from == to)
+            return true;
+
+        QueueEntry entry = _queue[from];
+        _queue.RemoveAt(from);
+        _queue.Insert(to, entry);
+        RecalculateRanks();
+        return true;
     }
 
     /// <summary>
