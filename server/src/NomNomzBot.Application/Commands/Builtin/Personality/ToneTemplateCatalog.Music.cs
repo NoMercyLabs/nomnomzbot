@@ -89,6 +89,54 @@ public static partial class ToneTemplateCatalog
 
         Add(
             catalog,
+            BuiltinResponseSlots.ClearSongs.Key,
+            BuiltinResponseSlots.ClearSongs.Usage,
+            variables: [],
+            informative: ["Usage: !clearsongs <user>"],
+            friendly: ["Tell me whose songs to clear! !clearsongs <user>"],
+            sassy: ["Whose songs? Try: !clearsongs <user>"],
+            hype: ["WHOSE SONGS? !clearsongs <user>"],
+            chill: ["whose songs? !clearsongs <user>"]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.ClearSongs.Key,
+            BuiltinResponseSlots.ClearSongs.Cleared,
+            variables: ["count", "target"],
+            informative: ["Removed {count} songs requested by {target}."],
+            friendly: ["All done! Removed {count} songs requested by {target}."],
+            sassy: ["Gone. {count} songs from {target} are out of the queue."],
+            hype: ["{count} SONGS FROM {target} CLEARED OUT!"],
+            chill: ["cleared {count} songs from {target}."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.ClearSongs.Key,
+            BuiltinResponseSlots.ClearSongs.NothingQueued,
+            variables: ["target"],
+            informative: ["{target} has no songs in the queue."],
+            friendly: ["{target} does not have any songs in the queue!"],
+            sassy: ["{target} has nothing queued. Nothing to clear."],
+            hype: ["{target} HAS NO SONGS IN THE QUEUE!"],
+            chill: ["{target} has nothing queued."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.ClearSongs.Key,
+            BuiltinResponseSlots.ClearSongs.Failed,
+            variables: ["target"],
+            informative: ["Could not remove the songs of {target}. Try again in a moment."],
+            friendly: ["Hmm, clearing the songs of {target} did not work. Try again in a moment!"],
+            sassy: ["The songs of {target} refused to leave. Try again."],
+            hype: ["CLEARING THE SONGS OF {target} FAILED! TRY AGAIN!"],
+            chill: ["could not clear the songs of {target}. try again soon."]
+        );
+
+        Add(
+            catalog,
             BuiltinResponseSlots.OpenQueue.Key,
             BuiltinResponseSlots.OpenQueue.Opened,
             variables: [],
@@ -906,6 +954,8 @@ public static partial class ToneTemplateCatalog
 
     private static void AddMusicSamples(Dictionary<string, string> samples)
     {
+        samples["count"] = "3";
+        samples["target"] = "SomeViewer";
         samples["song.name"] = "Never Gonna Give You Up";
         samples["song.artist"] = "Rick Astley";
         samples["song.link"] = "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT";

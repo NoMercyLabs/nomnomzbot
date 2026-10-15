@@ -1252,6 +1252,7 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, Commands.Builtins.BanSongBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.CloseQueueBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.OpenQueueBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.ClearSongsBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.LeaderboardBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.PlaylistBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.WhisperBuiltin>();

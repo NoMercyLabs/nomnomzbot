@@ -231,6 +231,24 @@ public static partial class BuiltinResponseSlots
         public const string Failed = "failed";
     }
 
+    /// <summary><c>!clearsongs &lt;user&gt;</c> — remove every queued song of one requester (mods+).</summary>
+    public static class ClearSongs
+    {
+        public const string Key = "clearsongs";
+
+        /// <summary>No user name was given — no variables.</summary>
+        public const string Usage = "usage";
+
+        /// <summary>The songs were removed — variables: <c>count</c>, <c>target</c>.</summary>
+        public const string Cleared = "cleared";
+
+        /// <summary>That user had nothing queued — variables: <c>target</c>.</summary>
+        public const string NothingQueued = "nothingqueued";
+
+        /// <summary>The removal failed — variables: <c>target</c>.</summary>
+        public const string Failed = "failed";
+    }
+
     /// <summary><c>!openqueue</c> — open the song queue to new requests again (mods+).</summary>
     public static class OpenQueue
     {
