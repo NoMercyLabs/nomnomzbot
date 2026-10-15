@@ -77,19 +77,18 @@ const inDialog = injectDialogRootContext(null) !== null;
 // Every panel stays mounted in one grid cell, so the view takes the tallest tab's size up front and never jumps.
 // A phone page and the dialog scroll as a whole, so there a short tab drops the others' height instead of trailing
 // empty space.
-const PANEL_CLASS = inDialog
-  ? 'col-start-1 row-start-1 data-[state=inactive]:hidden'
-  : 'col-start-1 row-start-1 data-[state=inactive]:invisible max-md:data-[state=inactive]:hidden';
+const PANEL_CLASS = 'col-start-1 row-start-1 data-[state=inactive]:invisible max-md:data-[state=inactive]:hidden';
 const fit = inDialog
   ? 'min-h-0'
   : 'md:min-h-0';
-// The dialog scrolls header and tabs as one, under a sticky tab strip, and keeps the actions pinned below: a short
-// window (a phone, the chat popout) otherwise squeezed the tabs or pushed the actions out of reach.
+// Below md the dialog scrolls header and tabs as one, under a sticky tab strip, and keeps the actions pinned
+// below: a short window (a phone, the chat popout) otherwise squeezed the tabs or pushed the actions out of reach.
+// The desktop dialog keeps its full size.
 const body = inDialog
-  ? 'min-h-0 overflow-y-auto'
+  ? 'max-md:min-h-0 max-md:overflow-y-auto'
   : 'md:min-h-0';
 const strip = inDialog
-  ? 'sticky top-0 z-10 bg-popover'
+  ? 'max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-popover'
   : '';
 const scroll = inDialog
   ? ''

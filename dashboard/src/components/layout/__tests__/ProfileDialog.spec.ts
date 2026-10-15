@@ -841,8 +841,9 @@ describe('the profile dialog', () => {
   });
 
   // Audit 2026-10-15: on a phone the dialog scrolled past the tallest tab's empty space and pushed the actions out
-  // of reach. The dialog scrolls as one, the actions stay pinned below, and a hidden tab takes no room.
-  it('scrolls header and tabs as one, keeps the actions outside it, and gives a hidden tab no room', async () => {
+  // of reach. Below md the dialog scrolls as one, the actions stay pinned below, and a hidden tab takes no room.
+  // Owner 2026-10-15: the desktop dialog keeps its full size, so none of this applies from md up.
+  it('on a phone scrolls header and tabs as one, keeps the actions outside it, and gives a hidden tab no room', async () => {
     await openPage();
     await openUser('u1');
 
@@ -850,12 +851,15 @@ describe('the profile dialog', () => {
     const body = dialog.querySelector<HTMLElement>('[data-profile-body]')!;
     const panels: HTMLElement[] = Array.from(dialog.querySelectorAll('[role="tabpanel"]'));
 
-    expect(body.classList).toContain('overflow-y-auto');
+    expect(body.classList).toContain('max-md:overflow-y-auto');
+    expect(body.classList).not.toContain('overflow-y-auto');
     expect(body.contains(dialog.querySelector('[role="tablist"]'))).toBe(true);
     expect(body.contains(dialog.querySelector('[data-profile-ban]'))).toBe(false);
     expect(panels).toHaveLength(7);
+
     expect(panels.filter((panel) => panel.dataset.state === 'inactive').every((panel) =>
-      panel.classList.contains('data-[state=inactive]:hidden'))).toBe(true);
+      panel.classList.contains('max-md:data-[state=inactive]:hidden') &&
+      panel.classList.contains('data-[state=inactive]:invisible'))).toBe(true);
   });
 
   // The live API leaves a never-asked consent out of the answer; the tab once printed profile.yesNo.undefined.
