@@ -59,7 +59,6 @@ const command = (name: string, overrides: Row = {}): Row => ({
   matchPattern: null,
   cooldownSeconds: 5,
   userCooldownSeconds: 10,
-  cooldownPerUser: false,
   description: null,
   aliases: [],
   useCount: 0,

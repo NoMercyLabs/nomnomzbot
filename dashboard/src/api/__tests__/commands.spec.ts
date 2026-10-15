@@ -63,7 +63,6 @@ function row(name: string, over: Partial<CommandListItem> = {}): CommandListItem
     matchPattern: null,
     cooldownSeconds: 5,
     userCooldownSeconds: 0,
-    cooldownPerUser: false,
     description: null,
     aliases: [],
     useCount: 3,
