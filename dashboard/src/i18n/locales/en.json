@@ -618,6 +618,7 @@
       "chat": "Chat",
       "stream": "Stream",
       "analytics": "Analytics",
+      "polls": "Polls",
       "obs": "OBS",
       "vtubeStudio": "VTube Studio",
       "commands": "Commands",

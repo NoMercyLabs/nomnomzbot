@@ -25,6 +25,7 @@ import { dashboardObsRoute } from '@/views/dashboard/obs/route';
 import { dashboardOverlaysRoute } from '@/views/dashboard/overlays/route';
 import { dashboardPeopleRoute } from '@/views/dashboard/people/route';
 import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboard/pipelines/route';
+import { dashboardPollsRoute } from '@/views/dashboard/polls/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
 import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
 import { scaffoldRoutes } from '@/views/dashboard/scaffold/route';
@@ -45,6 +46,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardPeopleRoute,
   dashboardOverlaysRoute,
   dashboardObsRoute,
+  dashboardPollsRoute,
   dashboardPipelinesRoute,
   dashboardPipelineRoute,
   dashboardScriptsRoute,
