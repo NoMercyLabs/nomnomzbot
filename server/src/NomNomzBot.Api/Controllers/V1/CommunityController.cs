@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -994,7 +995,7 @@ public partial class CommunityController : BaseController
 
         // userId is the Twitch user id (the list DTOs) or the internal User.Id (the activity feed). A Twitch id is
         // numeric, so it never parses as a Guid.
-        User? user = Guid.TryParse(userId, out Guid internalId)
+        User? user = GuidUlidCodec.TryDecode(userId, out Guid internalId)
             ? await _db.Users.FirstOrDefaultAsync(u => u.Id == internalId, ct)
             : await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
         if (user?.TwitchUserId is null)

@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -354,9 +355,9 @@ public class ChatController : BaseController
         return Ok(new StatusResponseDto<ChatSearchResultDto> { Data = new(messages, nextCursor) });
     }
 
-    // A Guid is the internal User.Id (resolved to its Twitch id); anything else is already a platform id.
+    // A ULID or Guid is the internal User.Id (resolved to its Twitch id); anything else is already a platform id.
     private async Task<string?> ResolvePlatformUserIdAsync(string userId, CancellationToken ct) =>
-        Guid.TryParse(userId, out Guid internalId)
+        GuidUlidCodec.TryDecode(userId, out Guid internalId)
             ? await _db
                 .Users.Where(u => u.Id == internalId)
                 .Select(u => u.TwitchUserId)

@@ -234,8 +234,38 @@ public sealed class QuoteService : IQuoteService
         CancellationToken ct = default
     )
     {
+        // A quote is credited by free-text name; UserId is only set when the resolver matched at add/edit time.
+        // Older rows stay unlinked, so an unlinked quote also counts when its credited name is this viewer's.
+        var viewer = await _db
+            .Users.Where(u => u.Id == userId)
+            .Select(u => new { u.UsernameNormalized, u.DisplayName })
+            .FirstOrDefaultAsync(ct);
+        List<string> names = [];
+        if (viewer is not null)
+        {
+            foreach (
+                string name in new[]
+                {
+                    viewer.UsernameNormalized,
+                    viewer.DisplayName.ToLowerInvariant(),
+                }
+            )
+            {
+                names.Add(name);
+                names.Add("@" + name);
+            }
+        }
+
         IQueryable<Quote> query = _db.Quotes.Where(q =>
-            q.BroadcasterId == broadcasterId && q.UserId == userId
+            q.BroadcasterId == broadcasterId
+            && (
+                q.UserId == userId
+                || (
+                    q.UserId == null
+                    && q.QuotedDisplayName != null
+                    && names.Contains(q.QuotedDisplayName.ToLower())
+                )
+            )
         );
 
         int total = await query.CountAsync(ct);
@@ -289,6 +319,7 @@ public sealed class QuoteService : IQuoteService
         // Number is immutable (quotes.md §3) — only the body and attribution change.
         quote.Text = text;
         quote.QuotedDisplayName = request.QuotedDisplayName?.Trim();
+        quote.UserId = await ResolveQuotedUserIdAsync(broadcasterId, quote.QuotedDisplayName, ct);
         quote.ContextGame = request.ContextGame?.Trim();
 
         await _db.SaveChangesAsync(ct);
@@ -353,7 +384,7 @@ public sealed class QuoteService : IQuoteService
         if (string.IsNullOrWhiteSpace(displayName))
             return null;
 
-        string term = displayName.Trim().ToLowerInvariant();
+        string term = displayName.Trim().TrimStart('@').ToLowerInvariant();
         List<Guid> matches = await _db
             .Users.Where(u =>
                 (u.UsernameNormalized == term || u.DisplayName.ToLower() == term)

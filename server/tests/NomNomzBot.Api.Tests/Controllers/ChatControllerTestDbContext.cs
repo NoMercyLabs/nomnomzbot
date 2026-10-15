@@ -101,6 +101,7 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     public DbSet<Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
     public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
@@ -131,6 +132,14 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
             e.Ignore(c => c.Events);
         });
 
+        b.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.Ignore(u => u.Pronoun);
+            e.Ignore(u => u.AltPronoun);
+            e.Ignore(u => u.Channel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -139,7 +148,12 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
         b.ApplySqliteCompatibility();
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(ChatMessage), typeof(Channel)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(ChatMessage),
+        typeof(Channel),
+        typeof(User),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [
@@ -154,7 +168,6 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();

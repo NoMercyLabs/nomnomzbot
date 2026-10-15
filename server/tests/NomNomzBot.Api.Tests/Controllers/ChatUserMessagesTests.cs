@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Hubs;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Chat.Decoration;
@@ -113,6 +114,36 @@ public sealed class ChatUserMessagesTests
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         return ((StatusResponseDto<ChatController.ChatSearchResultDto>)ok.Value!).Data!;
+    }
+
+    [Fact]
+    public async Task A_ulid_internal_user_id_returns_that_persons_lines()
+    {
+        ChatControllerTestDbContext db = await Seed(
+            Row("a", Day1),
+            Row("other-person", Day1.AddMinutes(1), userId: "u2")
+        );
+        Guid internalId = Guid.CreateVersion7();
+        db.Users.Add(
+            new()
+            {
+                Id = internalId,
+                TwitchUserId = "u1",
+                Username = "viewer1",
+                UsernameNormalized = "viewer1",
+                DisplayName = "Viewer1",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IActionResult result = await Build(db)
+            .GetUserMessages(Broadcaster.ToString(), GuidUlidCodec.Encode(internalId), 50, null);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ChatController.ChatSearchResultDto page = (
+            (StatusResponseDto<ChatController.ChatSearchResultDto>)ok.Value!
+        ).Data!;
+        page.Messages.Select(m => m.Id).Should().Equal("a");
     }
 
     [Fact]

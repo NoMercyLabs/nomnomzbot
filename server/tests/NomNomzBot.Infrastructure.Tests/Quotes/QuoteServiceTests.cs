@@ -538,4 +538,69 @@ public sealed class QuoteServiceTests
             .And.Contain(q => q.Text == "by stoney one")
             .And.Contain(q => q.Text == "by stoney two");
     }
+
+    /// <summary>
+    /// Old quotes were credited by free-text name and never got a UserId. The profile list still finds them
+    /// by the viewer's name (case-insensitive, leading "@" ignored) and never shows another person's.
+    /// </summary>
+    [Fact]
+    public async Task ListByUserAsync_AlsoFindsUnlinkedQuotesCreditedByTheViewersName()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid aliceId = await SeedChatterAsync(database, channel, "alice", "Alice");
+        await using (QuoteTestDbContext seed = database.NewContext())
+        {
+            seed.Quotes.AddRange(
+                NamedQuote(channel, 1, "ALICE"),
+                NamedQuote(channel, 2, "@alice"),
+                NamedQuote(channel, 3, "bob")
+            );
+            await seed.SaveChangesAsync();
+        }
+
+        await using QuoteTestDbContext reader = database.NewContext();
+        Result<PagedList<QuoteDto>> byUser = await NewService(reader, new RecordingEventBus())
+            .ListByUserAsync(channel, aliceId, new(1, 25));
+
+        byUser.IsSuccess.Should().BeTrue(byUser.ErrorMessage);
+        byUser.Value.TotalCount.Should().Be(2);
+        byUser.Value.Items.Select(q => q.Number).Should().BeEquivalentTo([2, 1]);
+    }
+
+    /// <summary>Fixing the credited name on an edit links the quote to that chatter.</summary>
+    [Fact]
+    public async Task EditAsync_ResolvesUserId_WhenTheNewNameMatchesAKnownChatter()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid aliceId = await SeedChatterAsync(database, channel, "alice", "Alice");
+        await using (QuoteTestDbContext seed = database.NewContext())
+        {
+            seed.Quotes.Add(NamedQuote(channel, 1, "someone"));
+            await seed.SaveChangesAsync();
+        }
+
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            Result<QuoteDto> edited = await NewService(db, new RecordingEventBus())
+                .EditAsync(channel, 1, new("quote 1", "alice", null));
+            edited.IsSuccess.Should().BeTrue(edited.ErrorMessage);
+            edited.Value.UserId.Should().Be(aliceId);
+        }
+
+        await using QuoteTestDbContext reader = database.NewContext();
+        (await reader.Quotes.SingleAsync()).UserId.Should().Be(aliceId);
+    }
+
+    private static Quote NamedQuote(Guid channel, int number, string credited) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = channel,
+            Number = number,
+            Text = "quote " + number,
+            QuotedDisplayName = credited,
+            QuotedAt = Clock.GetUtcNow().UtcDateTime,
+        };
 }

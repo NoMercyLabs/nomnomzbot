@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -124,7 +125,7 @@ public class ViewerDataController : BaseController
     /// </summary>
     private async Task<Guid?> ResolveViewerUserIdAsync(string viewerId, CancellationToken ct)
     {
-        if (Guid.TryParse(viewerId, out Guid internalId))
+        if (GuidUlidCodec.TryDecode(viewerId, out Guid internalId))
             return internalId;
 
         return await _db
