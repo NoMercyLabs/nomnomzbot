@@ -30,6 +30,9 @@ const MODES = ['dashboard', 'admin', 'viewer', 'settings'] as const satisfies re
 // Dashboard groups the owner asked for that the mockup ledger does not list (Discord, 2026-10-15).
 const beyondMockup: ReadonlySet<string> = new Set(['connect']);
 
+// Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15).
+const pagesBeyondMockup: ReadonlySet<string> = new Set(['dashboard-polls']);
+
 const stub = defineComponent({ render: () => h('div') });
 
 // The real route table, without the admin guard and the lazy page loaders, so the sidebar reads real names and meta.
@@ -102,9 +105,12 @@ describe('every planned page is reachable from its sidebar', () => {
       it('has a route in the right mode for every planned entry, in the mockup order', async () => {
         const router = realRouter();
         const navigation = await openMode(router, mode);
-        const shown = navigation.groups.value.filter(
-          (group) => group.key !== 'back' && !beyondMockup.has(group.key),
-        );
+        const shown = navigation.groups.value
+          .filter((group) => group.key !== 'back' && !beyondMockup.has(group.key))
+          .map((group) => ({
+            ...group,
+            entries: group.entries.filter((entry) => !pagesBeyondMockup.has(entry.route)),
+          }));
 
         // Group by group: the same number of groups, the same titles, the same entry count.
         expect(shown.map((group) => group.entries.length)).toEqual(

@@ -282,6 +282,9 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
         typeof(ViewerProfile),
         typeof(EventJournal),
         typeof(ChatterAssignedColor),
+        // The poll and prediction history lists the bot's own chat polls with their vote counts.
+        typeof(NomNomzBot.Domain.Community.Entities.ChatPoll),
+        typeof(NomNomzBot.Domain.Community.Entities.ChatPollVote),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -338,9 +341,9 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChatFilter>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Community.Entities.ChatPoll>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Community.Entities.ChatPollVote>();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>

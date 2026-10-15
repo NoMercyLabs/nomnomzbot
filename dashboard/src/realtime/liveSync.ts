@@ -12,8 +12,14 @@ import type { QueryClient } from '@tanstack/vue-query';
 
 import { currentUserQuery } from '@/api/auth';
 import { communityFirstPageKey } from '@/api/community';
-import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
-import { pollsKey, predictionsKey } from '@/api/liveOps';
+import {
+  activityKey,
+  botStatusKey,
+  connectionsKey,
+  homeStatsKey,
+  reviewQueueKey,
+} from '@/api/home';
+import { pollHistoryKey, pollsKey, predictionsKey } from '@/api/liveOps';
 import { musicHistoryKey, musicQueueKey, musicTopRequestersKey } from '@/api/music';
 import { obsBridgeKey, obsConnectionKey, obsScenesKey, obsStateKey } from '@/api/obs';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
@@ -24,7 +30,11 @@ import { merge } from '@/lib/array';
 
 import { channelPrefixes, configDomainKeys } from './configDomains';
 import type { HubEventHandler, QueryKeyBuilder } from './hubEvent';
-import type { ConfigChangedPayload, DashboardHubEvents, PermissionChangedPayload } from './payloads';
+import type {
+  ConfigChangedPayload,
+  DashboardHubEvents,
+  PermissionChangedPayload,
+} from './payloads';
 
 function invalidateKeys(
   queries: QueryClient,
@@ -67,7 +77,10 @@ const eventHandlers = [
   refreshing('RewardRedeemed', merge(homeKeys, [rewardsKey])),
   refreshing('RedemptionStatusChanged', merge(homeKeys, [rewardsKey])),
   refreshing('RewardChanged', [rewardsKey]),
-  refreshing('AlertTriggered', merge(homeKeys, [reviewQueueKey, pollsKey, predictionsKey, adScheduleKey])),
+  refreshing(
+    'AlertTriggered',
+    merge(homeKeys, [reviewQueueKey, pollsKey, predictionsKey, pollHistoryKey, adScheduleKey]),
+  ),
   refreshing('ObsBridgeStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
 ] as const;

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { Component } from 'vue';
+import BarChart from '~icons/nnz/bar-chart';
 import ChartLine from '~icons/nnz/chart-positive';
 import ChatBubble from '~icons/nnz/chat-bubble';
 import ChatMessages from '~icons/nnz/chat-messages';
@@ -87,6 +88,11 @@ export const dashboardNav: readonly NavGroup[] = [
         route: 'dashboard-analytics',
         label: 'analytics',
         icon: ChartLine,
+      },
+      {
+        route: 'dashboard-polls',
+        label: 'polls',
+        icon: BarChart,
       },
       {
         route: 'dashboard-obs',

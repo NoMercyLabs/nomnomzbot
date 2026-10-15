@@ -1,0 +1,37 @@
+{
+  "dashboard": {
+    "polls": {
+      "title": "Polls and predictions",
+      "listTitle": "Every poll and prediction",
+      "filterLabel": "Show",
+      "kinds": {
+        "all": "All",
+        "poll": "Twitch polls",
+        "prediction": "Predictions",
+        "chat-poll": "Chat polls"
+      },
+      "kind": {
+        "poll": "Twitch poll",
+        "prediction": "Prediction",
+        "chat-poll": "Chat poll"
+      },
+      "status": {
+        "active": "Running",
+        "open": "Open",
+        "locked": "Locked",
+        "completed": "Completed",
+        "resolved": "Resolved",
+        "closed": "Closed",
+        "terminated": "Ended early",
+        "archived": "Archived",
+        "canceled": "Canceled",
+        "unfinished": "No result recorded"
+      },
+      "votes": "{count} vote | {count} votes",
+      "points": "{count} point | {count} points",
+      "winner": "Winner",
+      "empty": "No polls or predictions yet.",
+      "error": "The polls and predictions could not be loaded."
+    }
+  }
+}

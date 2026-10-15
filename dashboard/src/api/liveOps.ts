@@ -52,6 +52,36 @@ async function readPolls(channelId: string): Promise<Poll[]> {
   return [...(data?.data ?? [])];
 }
 
+export type PollHistoryItem = components['schemas']['PollPredictionHistoryItemDto'];
+export type PollHistoryOption = components['schemas']['PollPredictionOptionDto'];
+
+export const pollHistoryKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'live-ops-history',
+];
+
+async function readPollHistory(channelId: string): Promise<PollHistoryItem[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/live-ops/history',
+    {
+      params: { path: { version, channelId } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('poll history', response.status, error);
+
+  return [...(data?.data ?? [])];
+}
+
+// Every Twitch poll and prediction the bot saw, plus its own chat polls, newest first.
+export function usePollHistory(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PollHistoryItem[], Error> {
+  return channelQuery(channelId, pollHistoryKey, readPollHistory);
+}
+
 // The channel's polls, active and ended. Use isRunning to pick the one that still takes votes.
 export function usePolls(
   channelId: MaybeRefOrGetter<string | null>,
@@ -269,11 +299,13 @@ async function endPrediction(
   const { error, response } = await client.PATCH(
     '/api/v{version}/channels/{channelId}/live-ops/predictions/{predictionId}/end',
     {
-      params: { path: {
-        version,
-        channelId,
-        predictionId,
-      } },
+      params: {
+        path: {
+          version,
+          channelId,
+          predictionId,
+        },
+      },
       body,
     },
   );
@@ -359,11 +391,13 @@ export function useEndPoll(
       const { error, response } = await client.PATCH(
         '/api/v{version}/channels/{channelId}/live-ops/polls/{pollId}/end',
         {
-          params: { path: {
-            version,
-            channelId: id,
-            pollId,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              pollId,
+            },
+          },
           body: { status: 'TERMINATED' },
         },
       );

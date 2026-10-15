@@ -1,0 +1,37 @@
+{
+  "dashboard": {
+    "polls": {
+      "title": "Polls en voorspellingen",
+      "listTitle": "Alle polls en voorspellingen",
+      "filterLabel": "Toon",
+      "kinds": {
+        "all": "Alles",
+        "poll": "Twitch-polls",
+        "prediction": "Voorspellingen",
+        "chat-poll": "Chatpolls"
+      },
+      "kind": {
+        "poll": "Twitch-poll",
+        "prediction": "Voorspelling",
+        "chat-poll": "Chatpoll"
+      },
+      "status": {
+        "active": "Loopt",
+        "open": "Open",
+        "locked": "Gesloten voor inzet",
+        "completed": "Afgerond",
+        "resolved": "Uitgekeerd",
+        "closed": "Gesloten",
+        "terminated": "Vroeg gestopt",
+        "archived": "Gearchiveerd",
+        "canceled": "Geannuleerd",
+        "unfinished": "Geen uitslag bekend"
+      },
+      "votes": "{count} stem | {count} stemmen",
+      "points": "{count} punt | {count} punten",
+      "winner": "Winnaar",
+      "empty": "Nog geen polls of voorspellingen.",
+      "error": "De polls en voorspellingen konden niet worden geladen."
+    }
+  }
+}

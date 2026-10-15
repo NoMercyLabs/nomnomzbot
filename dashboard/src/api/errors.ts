@@ -108,6 +108,7 @@ export const apiOperations = {
   activity: 'home',
   resolve: 'home',
   polls: 'liveOps',
+  'poll history': 'liveOps',
   timers: 'liveOps',
   'timer-toggle': 'liveOps',
   'poll-start': 'liveOps',
@@ -229,8 +230,8 @@ function fieldErrorsOf(body: JsonObject): Record<string, string[]> | undefined {
   if (!isRecord(value))
     return undefined;
 
-  const entries = Object.entries(value).filter(
-    (entry): entry is [string, string[]] => Array.isArray(entry[1]),
+  const entries = Object.entries(value).filter((entry): entry is [string, string[]] =>
+    Array.isArray(entry[1]),
   );
 
   return entries.length > 0
@@ -254,9 +255,7 @@ export function parseProblem(body: unknown): ApiProblem {
     traceId: textOf(body, 'traceId'),
   };
 
-  return Object.fromEntries(
-    Object.entries(problem).filter(([, value]) => value !== undefined),
-  );
+  return Object.fromEntries(Object.entries(problem).filter(([, value]) => value !== undefined));
 }
 
 function messageKeyOf(status: number | undefined, detail: string | undefined): string {
