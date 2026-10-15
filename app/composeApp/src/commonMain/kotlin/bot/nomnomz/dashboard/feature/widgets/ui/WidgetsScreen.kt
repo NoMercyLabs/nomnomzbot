@@ -82,6 +82,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.GalleryPage
+import bot.nomnomz.dashboard.core.network.TestEventResult
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
@@ -162,7 +163,10 @@ import nomnomzbot.composeapp.generated.resources.widgets_settings_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_test_action
 import nomnomzbot.composeapp.generated.resources.widgets_test_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_test_error
+import nomnomzbot.composeapp.generated.resources.widgets_test_not_listening
 import nomnomzbot.composeapp.generated.resources.widgets_test_result
+import nomnomzbot.composeapp.generated.resources.widgets_test_sent
+import nomnomzbot.composeapp.generated.resources.widgets_test_sent_detached
 import nomnomzbot.composeapp.generated.resources.widgets_clone_dismiss
 import nomnomzbot.composeapp.generated.resources.widgets_clone_message
 import nomnomzbot.composeapp.generated.resources.widgets_create_action
@@ -598,7 +602,7 @@ private fun ReadyContent(
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
     onCatalogueAction: (WidgetSummary) -> Unit,
-    onTest: suspend (WidgetSummary, String) -> ApiResult<String>,
+    onTest: suspend (WidgetSummary, String) -> ApiResult<TestEventResult>,
     onRotateToken: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -637,7 +641,7 @@ internal fun WidgetList(
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
     onCatalogueAction: (WidgetSummary) -> Unit,
-    onTest: suspend (WidgetSummary, String) -> ApiResult<String>,
+    onTest: suspend (WidgetSummary, String) -> ApiResult<TestEventResult>,
     onRotateToken: (WidgetSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -688,7 +692,7 @@ private fun WidgetRow(
     onVersions: () -> Unit,
     onSettings: () -> Unit,
     onCatalogueAction: () -> Unit,
-    onTest: suspend (String) -> ApiResult<String>,
+    onTest: suspend (String) -> ApiResult<TestEventResult>,
     onRotateToken: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -697,7 +701,7 @@ private fun WidgetRow(
     val rowScope = rememberCoroutineScope()
     // The last "Test" fire's reach description (or error) — a read-like action local to this row, so it never
     // disturbs the page's Ready list the way a real mutation would.
-    var testResult: ApiResult<String>? by remember(widget.id) { mutableStateOf(null) }
+    var testResult: ApiResult<TestEventResult>? by remember(widget.id) { mutableStateOf(null) }
 
     val catalogueAction: CatalogueRowAction = widget.catalogueRowAction()
 
@@ -844,13 +848,22 @@ private fun WidgetRow(
 
 // The name/state/last-ran/test-result text block for one overlay row — split out of [WidgetRow] so it can be
 // given either a weight(1f) (beside the actions, Expanded) or a fillMaxWidth() (above the actions, Compact).
+/** The translated line for what a test did for this one widget: not listening, sent and heard, or sent into the void. */
+@Composable
+private fun testOutcomeText(outcome: TestEventResult): String =
+    when {
+        !outcome.delivered -> stringResource(Res.string.widgets_test_not_listening)
+        outcome.attached -> stringResource(Res.string.widgets_test_sent)
+        else -> stringResource(Res.string.widgets_test_sent_detached)
+    }
+
 @Composable
 private fun WidgetRowInfo(
     widget: WidgetSummary,
     widgetDisplayName: String,
     stateLabel: String,
     lastRanText: String,
-    testResult: ApiResult<String>?,
+    testResult: ApiResult<TestEventResult>?,
     modifier: Modifier = Modifier,
 ) {
     val tokens = LocalTokens.current
@@ -927,11 +940,11 @@ private fun WidgetRowInfo(
                 }
             }
         }
-        when (val result: ApiResult<String>? = testResult) {
+        when (val result: ApiResult<TestEventResult>? = testResult) {
             null -> {}
             is ApiResult.Ok ->
                 Text(
-                    text = stringResource(Res.string.widgets_test_result, result.value),
+                    text = stringResource(Res.string.widgets_test_result, testOutcomeText(result.value)),
                     style = typography.xs,
                     color = tokens.mutedForeground,
                     maxLines = 2,

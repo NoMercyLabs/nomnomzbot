@@ -68,7 +68,10 @@
           "titleOne": "Reacts to 1 event",
           "none": "This overlay does not react to any event.",
           "test": "Test",
-          "testLabel": "Test {event}"
+          "testLabel": "Test {event}",
+          "testSent": "Sent to this overlay",
+          "testSentDetached": "Sent, but no browser source has it open",
+          "testNotListening": "This overlay does not react to this event"
         },
         "preview": {
           "title": "Preview",

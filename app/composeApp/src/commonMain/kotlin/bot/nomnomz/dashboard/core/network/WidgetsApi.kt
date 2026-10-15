@@ -153,12 +153,11 @@ interface WidgetsApi {
 
     /**
      * Fire a representative sample of [eventType] through the exact same dispatch a real event uses
-     * (backend `WidgetTestEventController`) — the "Test" row action. Returns a human-readable reach
-     * description (who actually could have received it: no subscriber / subscriber with no browser
-     * source open / delivered), not a bare success flag, so a test that reached nothing reads
-     * differently from one the overlay actually heard.
+     * (backend `WidgetTestEventController`) at the one widget [widgetId] — the "Test" row action. Returns a typed
+     * [TestEventResult] (sent to that widget or not, browser source open or not), so a test that reached nothing
+     * reads differently from one the overlay actually heard.
      */
-    suspend fun testEvent(channelId: String, eventType: String): ApiResult<String>
+    suspend fun testEvent(channelId: String, widgetId: String, eventType: String): ApiResult<TestEventResult>
 
     /**
      * The sample payload of every event type, keyed by type, plus the fallback under `_default` (backend
@@ -310,9 +309,9 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
         client.postEnvelope("api/v1/channels/$channelId/widgets/$widgetId/update-from-gallery", Unit)
 
     // No custom payload — omitting `data` makes the backend pick its own representative sample for eventType.
-    override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> =
+    override suspend fun testEvent(channelId: String, widgetId: String, eventType: String): ApiResult<TestEventResult> =
         client.postEnvelope(
-            "api/v1/channels/$channelId/widgets/test-event",
+            "api/v1/channels/$channelId/widgets/$widgetId/test-event",
             TestEventBody(eventType = eventType),
         )
 
@@ -344,6 +343,10 @@ data class PreviewActionResponse(
 /** The test-fire request body (backend `WidgetTestEventRequest`). [data] is always omitted — a sample is used. */
 @Serializable
 data class TestEventBody(val eventType: String, val data: JsonObject? = null)
+
+/** What a test fire did for the one widget it targeted (backend `WidgetTestEventResult`). */
+@Serializable
+data class TestEventResult(val delivered: Boolean, val attached: Boolean)
 
 /**
  * The update-widget request body (backend `UpdateWidgetRequest`) — every field nullable so an update is a

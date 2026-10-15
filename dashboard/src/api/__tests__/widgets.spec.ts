@@ -319,16 +319,25 @@ describe('useSaveWidgetSettings', () => {
 });
 
 describe('useTestWidgetEvent', () => {
-  it('sends the event type without data and resolves to the text the bot answers', async () => {
-    http.POST.mockResolvedValue({ data: { data: 'Sent to 1 overlay' }, response: ok });
+  it('sends the event type to one widget without data and resolves to the typed answer', async () => {
+    const answer = {
+      delivered: true,
+      attached: false,
+    };
+
+    http.POST.mockResolvedValue({ data: { data: answer }, response: ok });
     const { hook } = mount(() => useTestWidgetEvent(channel));
 
-    const result: string = await hook.mutateAsync({ eventType: 'channel.follow' });
+    const result = await hook.mutateAsync({ widgetId: 'w9', eventType: 'channel.follow' });
 
-    expect(result).toBe('Sent to 1 overlay');
-    const [path, init] = http.POST.mock.calls[0] as [string, { body: Record<string, unknown> }];
+    expect(result).toEqual({ delivered: true, attached: false });
+    const [path, init] = http.POST.mock.calls[0] as [
+      string,
+      { body: Record<string, unknown>; params: { path: Record<string, string> } },
+    ];
 
-    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/test-event');
+    expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}/test-event');
+    expect(init.params.path.widgetId).toBe('w9');
     expect(init.body).toEqual({ eventType: 'channel.follow' });
     expect('data' in init.body).toBe(false);
   });
@@ -341,6 +350,6 @@ describe('useTestWidgetEvent', () => {
 
     const { hook } = mount(() => useTestWidgetEvent(channel));
 
-    await expect(hook.mutateAsync({ eventType: '' })).rejects.toThrow('eventType is required');
+    await expect(hook.mutateAsync({ widgetId: 'w9', eventType: '' })).rejects.toThrow('eventType is required');
   });
 });

@@ -68,7 +68,10 @@
           "titleOne": "Reageert op 1 gebeurtenis",
           "none": "Deze overlay reageert op geen enkele gebeurtenis.",
           "test": "Test",
-          "testLabel": "Test {event}"
+          "testLabel": "Test {event}",
+          "testSent": "Naar deze overlay gestuurd",
+          "testSentDetached": "Gestuurd, maar geen browserbron heeft hem open",
+          "testNotListening": "Deze overlay reageert niet op dit evenement"
         },
         "preview": {
           "title": "Voorbeeld",

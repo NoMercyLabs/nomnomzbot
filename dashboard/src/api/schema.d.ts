@@ -8443,6 +8443,7 @@ export interface paths {
                     client?: string;
                     return_to?: string;
                     return_route?: string;
+                    mode?: string;
                 };
                 header?: never;
                 path: {
@@ -79240,6 +79241,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/viewer/me/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's own songs in the channel's song-request queue, with their place in line. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfViewerQueueDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/voice-triggers/listener-link": {
         parameters: {
             query?: never;
@@ -84105,7 +84199,7 @@ export interface paths {
         };
         /**
          * The sample payload of every event type, keyed by type, plus the fallback under "_default". The
-         *         editor preview fires from this table, so a preview test sends what Task&lt;IActionResult&gt; WidgetTestEventController.Fire(string channelId, WidgetTestEventRequest request, CancellationToken ct) sends.
+         *         editor preview fires from this table, so a preview test sends what Task&lt;IActionResult&gt; WidgetTestEventController.Fire(string channelId, string widgetId, WidgetTestEventRequest request, CancellationToken ct) sends.
          */
         get: {
             parameters: {
@@ -84192,7 +84286,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/channels/{channelId}/widgets/test-event": {
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/test-event": {
         parameters: {
             query?: never;
             header?: never;
@@ -84201,13 +84295,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fire a sample event of request.EventType to the channel's subscribed widgets. */
+        /** Fire a sample event of request.EventType at the one widget widgetId. */
         post: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
                     channelId: string;
+                    widgetId: string;
                     version: string;
                 };
                 cookie?: never;
@@ -84226,7 +84321,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfstring"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfWidgetTestEventResult"];
                     };
                 };
                 /** @description Bad Request */
@@ -97469,6 +97564,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfViewerQueueDto: {
+            status?: string;
+            data?: null | components["schemas"]["ViewerQueueDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfViewerReportDto: {
             status?: string;
             data?: null | components["schemas"]["ViewerReportDto"];
@@ -97602,6 +97710,19 @@ export interface components {
         StatusResponseDtoOfWidgetSettingsSchema: {
             status?: string;
             data?: null | components["schemas"]["WidgetSettingsSchema"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfWidgetTestEventResult: {
+            status?: string;
+            data?: null | components["schemas"]["WidgetTestEventResult"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -99995,6 +100116,23 @@ export interface components {
             /** Format: int32 */
             totalQuoteCount: number | string;
         };
+        /** @description One of the caller's own songs in the queue. `Position` is 1-based: 1 plays next. */
+        ViewerQueuedSongDto: {
+            /** Format: int32 */
+            position: number | string;
+            trackName: string;
+            artist: string;
+            imageUrl?: null | string;
+            /** Format: int32 */
+            durationMs: number | string;
+            code: string;
+        };
+        /** @description The caller's own songs in one channel's queue, plus the full queue length for context. */
+        ViewerQueueDto: {
+            /** Format: int32 */
+            queueLength: number | string;
+            songs: components["schemas"]["ViewerQueuedSongDto"][];
+        };
         /**
          * @description Completed raids between this person's channel and this channel, counted from the journaled EventSub
          *     `channel.raid` rows (the executed signal, not the countdown start). Zero means none were recorded.
@@ -100323,6 +100461,14 @@ export interface components {
             data?: null | {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * @description What a test fire did for the one overlay it targeted: whether the overlay reacts to the event (so it
+         *         was sent), and whether a browser source had it open to play it.
+         */
+        WidgetTestEventResult: {
+            delivered: boolean;
+            attached: boolean;
         };
         /**
          * @description Result of rotating one widget's overlay token (audit B5). string WidgetTokenRotationResult.PreviousUrl stays live until

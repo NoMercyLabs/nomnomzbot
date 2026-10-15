@@ -65,12 +65,13 @@ public sealed class WidgetTestEventController : BaseController
             }
         );
 
-    /// <summary>Fire a sample event of <paramref name="request"/>.EventType to the channel's subscribed widgets.</summary>
+    /// <summary>Fire a sample event of <paramref name="request"/>.EventType at the one widget <paramref name="widgetId"/>.</summary>
     [RequireAction("widget:write")]
-    [HttpPost("test-event")]
-    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    [HttpPost("{widgetId}/test-event")]
+    [ProducesResponseType<StatusResponseDto<WidgetTestEventResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Fire(
         string channelId,
+        string widgetId,
         [FromBody] WidgetTestEventRequest request,
         CancellationToken ct
     )
@@ -86,56 +87,49 @@ public sealed class WidgetTestEventController : BaseController
         )
             return BadRequestResponse("Invalid channel id.");
 
+        if (
+            !GuidUlidCodec.TryDecode(widgetId, out Guid targetId)
+            && !Guid.TryParse(widgetId, out targetId)
+        )
+            return BadRequestResponse("Invalid widget id.");
+
+        Widget? widget = await _db
+            .Widgets.AsNoTracking()
+            .FirstOrDefaultAsync(w => w.Id == targetId && w.BroadcasterId == broadcasterId, ct);
+        if (widget is null)
+            return NotFoundResponse("Widget not found.");
+
         // A custom payload arrives as JsonElement values (parsed from the body); normalize them to plain CLR so
         // the WidgetEvent serializes as real values, not {"ValueKind":...} — otherwise a widget driven by the
         // payload (chat box / poll / emote wall reading message + fragments) receives garbage and renders nothing.
         object data = request.Data is { } custom
             ? custom.ToDictionary(pair => pair.Key, pair => Normalize(pair.Value))
             : WidgetTestSamples.For(request.EventType, _clock.GetUtcNow());
-        await WidgetAlertDispatch.RouteAsync(
-            _db,
+
+        // The same push a real event makes, but to this one widget's hub group only: a test on one overlay's
+        // page must never play on the channel's other overlays. Only a widget that is on and subscribes the
+        // event is sent it, as it would be live; the answer says which of the three outcomes happened.
+        List<Widget> listening = WidgetAlertRouting
+            .Subscribers([widget], request.EventType)
+            .ToList();
+        int pushed = await WidgetAlertDispatch.PushAsync(
             _notifier,
             broadcasterId,
+            listening,
             request.EventType,
             data,
-            // A manual test fire from the dashboard — no originating ChannelEvent row.
-            excludeWidgetId: null,
-            channelEventId: null,
             ct
         );
+
         return Ok(
-            new StatusResponseDto<string>
+            new StatusResponseDto<WidgetTestEventResult>
             {
-                Data = await DescribeReachAsync(broadcasterId, request.EventType, ct),
+                Data = new WidgetTestEventResult(
+                    pushed > 0,
+                    pushed > 0 && _presence.IsWidgetAttached(broadcasterId, widget.Id)
+                ),
             }
         );
-    }
-
-    /// <summary>
-    /// Says who could actually have received the test event. Reporting a bare "fired {eventType}" made a test
-    /// that reached NOTHING look identical to one the stream heard: a channel with no subscribing widget, and a
-    /// channel whose browser source is not open, both read as success — which is exactly how two identically
-    /// configured channels appear to behave differently. The dispatch is the same either way; only the report
-    /// changes, and it now names the reason nothing played.
-    /// </summary>
-    private async Task<string> DescribeReachAsync(
-        Guid broadcasterId,
-        string eventType,
-        CancellationToken ct
-    )
-    {
-        List<Widget> widgets = await _db
-            .Widgets.AsNoTracking()
-            .Where(w => w.BroadcasterId == broadcasterId)
-            .ToListAsync(ct);
-        List<Widget> subscribers = WidgetAlertRouting.Subscribers(widgets, eventType).ToList();
-        if (subscribers.Count == 0)
-            return $"fired {eventType} — no widget on this channel subscribes it";
-
-        int attached = subscribers.Count(w => _presence.IsWidgetAttached(broadcasterId, w.Id));
-        return attached == 0
-            ? $"fired {eventType} to {subscribers.Count} widget(s) — none has a browser source open, so nothing played it"
-            : $"fired {eventType} to {subscribers.Count} widget(s), {attached} with a browser source open";
     }
 
     /// <summary>Coerce a value (a <see cref="JsonElement"/> when it came from the request body) to a plain CLR
@@ -166,3 +160,7 @@ public sealed class WidgetTestEventController : BaseController
 
 /// <summary>The test-fire request: an event type, and an optional explicit payload (a sample is used when omitted).</summary>
 public sealed record WidgetTestEventRequest(string EventType, Dictionary<string, object?>? Data);
+
+/// <summary>What a test fire did for the one overlay it targeted: whether the overlay reacts to the event (so it
+/// was sent), and whether a browser source had it open to play it.</summary>
+public sealed record WidgetTestEventResult(bool Delivered, bool Attached);

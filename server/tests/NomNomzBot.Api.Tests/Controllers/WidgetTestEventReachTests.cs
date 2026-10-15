@@ -31,9 +31,10 @@ public sealed class WidgetTestEventReachTests
 {
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
 
-    private static async Task<string> FireAsync(
+    private static async Task<WidgetTestEventResult> FireAsync(
         ApiTestDbContext db,
-        IOverlayPresenceRegistry presence
+        IOverlayPresenceRegistry presence,
+        Guid widgetId
     )
     {
         WidgetTestEventController controller = new(
@@ -44,18 +45,22 @@ public sealed class WidgetTestEventReachTests
         );
         IActionResult result = await controller.Fire(
             Broadcaster.ToString(),
+            widgetId.ToString(),
             new WidgetTestEventRequest("tts_speak", null),
             CancellationToken.None
         );
-        return ((StatusResponseDto<string>)((ObjectResult)result).Value!).Data!;
+        return ((StatusResponseDto<WidgetTestEventResult>)((ObjectResult)result).Value!).Data!;
     }
 
-    private static async Task<Widget> SeedSubscriberAsync(ApiTestDbContext db)
+    private static async Task<Widget> SeedSubscriberAsync(
+        ApiTestDbContext db,
+        string name = "TTS Audio"
+    )
     {
         Widget widget = new()
         {
             BroadcasterId = Broadcaster,
-            Name = "TTS Audio",
+            Name = name,
             EventSubscriptions = ["tts_speak"],
         };
         db.Widgets.Add(widget);
@@ -90,6 +95,7 @@ public sealed class WidgetTestEventReachTests
 
         await controller.Fire(
             Broadcaster.ToString(),
+            widget.Id.ToString(),
             new WidgetTestEventRequest("ChatMessage", null),
             CancellationToken.None
         );
@@ -113,41 +119,116 @@ public sealed class WidgetTestEventReachTests
     }
 
     [Fact]
-    public async Task A_channel_with_no_subscribing_widget_is_told_so()
+    public async Task A_test_reaches_only_the_overlay_it_targets_not_every_subscriber()
     {
         using ApiTestDbContext db = ApiTestDbContext.New();
-        IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
+        Widget target = await SeedSubscriberAsync(db, "Emote Wall");
+        Widget other = await SeedSubscriberAsync(db, "Chat Box");
+        IWidgetNotifier notifier = Substitute.For<IWidgetNotifier>();
+        WidgetTestEventController controller = new(
+            db,
+            notifier,
+            Substitute.For<IOverlayPresenceRegistry>(),
+            TimeProvider.System
+        );
 
-        string report = await FireAsync(db, presence);
+        await controller.Fire(
+            Broadcaster.ToString(),
+            target.Id.ToString(),
+            new WidgetTestEventRequest("tts_speak", null),
+            CancellationToken.None
+        );
 
-        report.Should().Contain("no widget on this channel subscribes it");
+        List<string> receivers = notifier
+            .ReceivedCalls()
+            .Select(call => (string)call.GetArguments()[1]!)
+            .ToList();
+        receivers.Should().Equal(target.Id.ToString());
+        receivers.Should().NotContain(other.Id.ToString());
     }
 
     [Fact]
-    public async Task A_subscribing_widget_with_no_browser_source_open_is_reported_as_unheard()
+    public async Task An_overlay_that_does_not_react_to_the_event_is_not_sent_it()
     {
         using ApiTestDbContext db = ApiTestDbContext.New();
-        await SeedSubscriberAsync(db);
+        Widget silent = new() { BroadcasterId = Broadcaster, Name = "Goal" };
+        db.Widgets.Add(silent);
+        await db.SaveChangesAsync();
+        IWidgetNotifier notifier = Substitute.For<IWidgetNotifier>();
+        WidgetTestEventController controller = new(
+            db,
+            notifier,
+            Substitute.For<IOverlayPresenceRegistry>(),
+            TimeProvider.System
+        );
+
+        IActionResult result = await controller.Fire(
+            Broadcaster.ToString(),
+            silent.Id.ToString(),
+            new WidgetTestEventRequest("tts_speak", null),
+            CancellationToken.None
+        );
+
+        StatusResponseDto<WidgetTestEventResult> body =
+            (StatusResponseDto<WidgetTestEventResult>)((ObjectResult)result).Value!;
+        body.Data.Should().Be(new WidgetTestEventResult(false, false));
+        notifier.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_widget_of_another_channel_is_not_found_and_nothing_is_sent()
+    {
+        using ApiTestDbContext db = ApiTestDbContext.New();
+        Widget foreign = new()
+        {
+            BroadcasterId = Guid.CreateVersion7(),
+            Name = "Theirs",
+            EventSubscriptions = ["tts_speak"],
+        };
+        db.Widgets.Add(foreign);
+        await db.SaveChangesAsync();
+        IWidgetNotifier notifier = Substitute.For<IWidgetNotifier>();
+        WidgetTestEventController controller = new(
+            db,
+            notifier,
+            Substitute.For<IOverlayPresenceRegistry>(),
+            TimeProvider.System
+        );
+
+        IActionResult result = await controller.Fire(
+            Broadcaster.ToString(),
+            foreign.Id.ToString(),
+            new WidgetTestEventRequest("tts_speak", null),
+            CancellationToken.None
+        );
+
+        ((ObjectResult)result).StatusCode.Should().Be(404);
+        notifier.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_subscribing_widget_with_no_browser_source_open_is_sent_but_not_attached()
+    {
+        using ApiTestDbContext db = ApiTestDbContext.New();
+        Widget widget = await SeedSubscriberAsync(db);
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsWidgetAttached(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(false);
 
-        string report = await FireAsync(db, presence);
+        WidgetTestEventResult answer = await FireAsync(db, presence, widget.Id);
 
-        report.Should().Contain("1 widget(s)");
-        report.Should().Contain("nothing played it");
+        answer.Should().Be(new WidgetTestEventResult(true, false));
     }
 
     [Fact]
-    public async Task An_attached_browser_source_is_reported_as_reached()
+    public async Task An_attached_browser_source_is_reported_as_attached()
     {
         using ApiTestDbContext db = ApiTestDbContext.New();
         Widget widget = await SeedSubscriberAsync(db);
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsWidgetAttached(Broadcaster, widget.Id).Returns(true);
 
-        string report = await FireAsync(db, presence);
+        WidgetTestEventResult answer = await FireAsync(db, presence, widget.Id);
 
-        report.Should().Contain("1 with a browser source open");
-        report.Should().NotContain("nothing played it");
+        answer.Should().Be(new WidgetTestEventResult(true, true));
     }
 }
