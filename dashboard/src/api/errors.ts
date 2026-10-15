@@ -31,6 +31,7 @@ export type ApiOrigin =
   'moderation' |
   'modTools' |
   'music' |
+  'obs' |
   'people' |
   'pipelineRuns' |
   'pipelines' |
@@ -158,6 +159,10 @@ export const apiOperations = {
   categories: 'stream',
   'stream info': 'stream',
   connect: 'stream',
+  'obs connection': 'obs',
+  'obs bridge': 'obs',
+  'obs state': 'obs',
+  'obs scenes': 'obs',
   'tts config': 'tts',
   'tts overlay': 'tts',
   'tts voices': 'tts',

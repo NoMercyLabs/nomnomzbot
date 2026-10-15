@@ -1,0 +1,53 @@
+{
+  "dashboard": {
+    "obs": {
+      "title": "OBS",
+      "crumb": "Stream",
+      "overall": {
+        "ok": "Alles is geladen",
+        "warn": "Er is iets niet geladen",
+        "bad": "Er is iets mislukt",
+        "off": "OBS is niet gekoppeld"
+      },
+      "connection": {
+        "title": "Verbinding",
+        "obs": "OBS",
+        "off": "De koppeling met OBS staat uit",
+        "error": "De koppeling met OBS is mislukt",
+        "unreachable": "Gekoppeld, maar OBS antwoordde niet",
+        "connected": "Verbonden",
+        "loadError": "De OBS-verbinding kon niet laden."
+      },
+      "bridge": {
+        "title": "Browserbron-brug",
+        "off": "Uit zolang OBS niet gekoppeld is",
+        "none": "Er is geen brugpagina open in OBS",
+        "noLeader": "{count} open, geen enkele leidt",
+        "leader": "{count} open, een leidt"
+      },
+      "live": {
+        "title": "In de lucht",
+        "streaming": "Aan het streamen",
+        "notStreaming": "Niet aan het streamen",
+        "recording": "Neemt op"
+      },
+      "sources": {
+        "title": "Browserbronnen",
+        "count": "{count} overlays",
+        "off": "Uitgeschakeld",
+        "failed": "Mislukt bij de laatste run",
+        "loaded": "Geladen in OBS",
+        "notLoaded": "Niet geladen in OBS",
+        "empty": "Dit kanaal heeft nog geen overlays.",
+        "loadError": "De browserbronnen konden niet laden."
+      },
+      "scenes": {
+        "title": "Scenes",
+        "current": "In de lucht",
+        "offline": "Scenes verschijnen zodra de OBS-koppeling aan staat.",
+        "empty": "OBS meldt geen scenes.",
+        "loadError": "De scenes konden niet laden."
+      }
+    }
+  }
+}

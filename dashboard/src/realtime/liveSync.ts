@@ -15,9 +15,11 @@ import { communityFirstPageKey } from '@/api/community';
 import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
 import { pollsKey, predictionsKey } from '@/api/liveOps';
 import { musicHistoryKey, musicQueueKey, musicTopRequestersKey } from '@/api/music';
+import { obsBridgeKey, obsConnectionKey, obsScenesKey, obsStateKey } from '@/api/obs';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { rewardsKey } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
+import { widgetsKey } from '@/api/widgets';
 import { merge } from '@/lib/array';
 
 import { channelPrefixes, configDomainKeys } from './configDomains';
@@ -49,6 +51,8 @@ function refreshing<TEvent extends keyof DashboardHubEvents>(
 
 const homeKeys = [homeStatsKey, activityKey] as const;
 const musicKeys = [musicQueueKey, musicHistoryKey, musicTopRequestersKey] as const;
+// An overlay's browser source opens and closes with the OBS bridge, so the widgets list (isAttached) follows it.
+const obsKeys = [obsConnectionKey, obsBridgeKey, obsStateKey, obsScenesKey, widgetsKey] as const;
 
 // A hub connection can hold several handlers for one event. These add the home and review refreshes to the
 // events that channels.ts, community.ts and chat.ts already handle for their own data.
@@ -64,8 +68,8 @@ const eventHandlers = [
   refreshing('RedemptionStatusChanged', merge(homeKeys, [rewardsKey])),
   refreshing('RewardChanged', [rewardsKey]),
   refreshing('AlertTriggered', merge(homeKeys, [reviewQueueKey, pollsKey, predictionsKey, adScheduleKey])),
-  refreshing('ObsBridgeStateChanged', [connectionsKey, botStatusKey]),
-  refreshing('ObsLiveStateChanged', [connectionsKey, botStatusKey]),
+  refreshing('ObsBridgeStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
+  refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
 ] as const;
 
 const permissionChanged = {

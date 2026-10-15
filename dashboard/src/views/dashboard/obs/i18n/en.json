@@ -1,0 +1,53 @@
+{
+  "dashboard": {
+    "obs": {
+      "title": "OBS",
+      "crumb": "Stream",
+      "overall": {
+        "ok": "Everything is loaded",
+        "warn": "Something is not loaded",
+        "bad": "Something failed",
+        "off": "OBS is not linked"
+      },
+      "connection": {
+        "title": "Connection",
+        "obs": "OBS",
+        "off": "The link to OBS is switched off",
+        "error": "The link to OBS failed",
+        "unreachable": "Linked, but OBS did not answer",
+        "connected": "Connected",
+        "loadError": "The OBS connection could not load."
+      },
+      "bridge": {
+        "title": "Browser source bridge",
+        "off": "Off while OBS is not linked",
+        "none": "No bridge page is open in OBS",
+        "noLeader": "{count} open, none is leading",
+        "leader": "{count} open, one is leading"
+      },
+      "live": {
+        "title": "On air",
+        "streaming": "Streaming",
+        "notStreaming": "Not streaming",
+        "recording": "Recording"
+      },
+      "sources": {
+        "title": "Browser sources",
+        "count": "{count} overlays",
+        "off": "Switched off",
+        "failed": "Failed on its last run",
+        "loaded": "Loaded in OBS",
+        "notLoaded": "Not loaded in OBS",
+        "empty": "This channel has no overlays yet.",
+        "loadError": "The browser sources could not load."
+      },
+      "scenes": {
+        "title": "Scenes",
+        "current": "On air",
+        "offline": "Scenes show once the OBS link is switched on.",
+        "empty": "OBS reports no scenes.",
+        "loadError": "The scenes could not load."
+      }
+    }
+  }
+}
