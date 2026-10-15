@@ -325,6 +325,44 @@ export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): 
   });
 }
 
+export type RequesterRemoval = { name: string };
+
+function withoutRequester(current: MusicQueue | undefined, name: string): MusicQueue {
+  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+  const rest = base.queue.filter(
+    (item: QueueItem): boolean => item.requestedBy?.toLowerCase() !== name.toLowerCase(),
+  );
+
+  return { ...base, queue: renumbered(base.queue, rest) };
+}
+
+// Every queued song of one requester leaves at once; the playing track stays. A refusal puts them back.
+export function useRemoveRequesterSongs(
+  channelId: MaybeRefOrGetter<string | null>,
+): RowMutation<RequesterRemoval> {
+  return useOptimisticSave<MusicQueue, RequesterRemoval>({
+    describe: ({ name }) => ({ key: 'removeRequesterSongs', params: { name } }),
+    queryKey: () => musicQueueKey(toValue(channelId)),
+    mutationFn: async ({ name }: RequesterRemoval): Promise<MusicQueue> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/music/queue/remove-by-requester',
+        {
+          params: { path: { version, channelId: id } },
+          body: { requestedBy: name },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('remove requester songs', response.status, error);
+
+      return readQueue(id);
+    },
+    apply: (current: MusicQueue | undefined, { name }: RequesterRemoval): MusicQueue =>
+      withoutRequester(current, name),
+  });
+}
+
 // Banning a queued song takes it out of the queue and adds it to the blocked list.
 export function useBanQueueItem(channelId: MaybeRefOrGetter<string | null>): RowMutation {
   const queries = useQueryClient();

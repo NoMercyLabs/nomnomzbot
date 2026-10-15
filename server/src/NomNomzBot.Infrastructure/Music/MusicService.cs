@@ -1608,6 +1608,48 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         await RetractRequestAsync(broadcasterId, position, cancellationToken)
         != RequestRetraction.NotRemoved;
 
+    public async Task<int> RemoveAllFromRequesterAsync(
+        string broadcasterId,
+        string requestedBy,
+        CancellationToken cancellationToken = default
+    )
+    {
+        int removedCount = 0;
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        int guard = queue?.GetSnapshot().Count ?? 0;
+
+        for (int attempt = 0; attempt < guard; attempt++)
+        {
+            IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot =
+                queue!.GetSnapshot();
+            int position = -1;
+            for (int index = 0; index < snapshot.Count; index++)
+            {
+                if (
+                    string.Equals(
+                        snapshot[index].Item.RequestedBy,
+                        requestedBy,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+                {
+                    position = index;
+                    break;
+                }
+            }
+
+            if (
+                position < 0
+                || !await RemoveFromQueueAsync(broadcasterId, position, cancellationToken)
+            )
+                break;
+
+            removedCount++;
+        }
+
+        return removedCount;
+    }
+
     public async Task<RequestRetraction> RetractRequestAsync(
         string broadcasterId,
         int position,

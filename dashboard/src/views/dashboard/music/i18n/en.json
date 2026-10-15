@@ -38,7 +38,12 @@
         "remove": "Remove {title}",
         "confirmTitle": "Remove this song?",
         "confirmBody": "{title} leaves the queue. The person who asked will not hear it.",
-        "confirmAction": "Remove"
+        "confirmAction": "Remove",
+        "pickRequester": "Pick a requester",
+        "requesterOption": "{name} ({count})",
+        "removeAll": "Remove all",
+        "removeAllTitle": "Remove {count} songs from {name}?",
+        "removeAllBody": "Every song they queued leaves the queue. The song playing now keeps playing."
       },
       "rules": {
         "title": "Request rules",
