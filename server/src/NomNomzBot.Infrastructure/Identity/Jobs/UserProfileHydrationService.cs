@@ -161,7 +161,12 @@ public sealed class UserProfileHydrationService : BackgroundService
                 }
             }
 
-            if (stamped > 0)
+            ITwitchChatApi chatApi = scope
+                .ServiceProvider.GetRequiredService<ITwitchHelixClient>()
+                .Chat;
+            int colored = await BackfillColorsAsync(chatApi, pending, ct);
+
+            if (stamped > 0 || colored > 0)
             {
                 await db.SaveChangesAsync(ct);
                 _logger.LogDebug(
@@ -178,6 +183,47 @@ public sealed class UserProfileHydrationService : BackgroundService
                 "User profile hydration iteration failed; retrying at the next interval."
             );
         }
+    }
+
+    /// <summary>
+    /// Fills <see cref="User.Color"/> for users that have none, via Helix Get User Chat Color (app token), 100 ids
+    /// per call. A user Twitch has no color for (empty reply) stays null; a failed call is skipped and retried at the
+    /// next refresh. Returns how many users received a color.
+    /// </summary>
+    internal static async Task<int> BackfillColorsAsync(
+        ITwitchChatApi chat,
+        IReadOnlyList<User> users,
+        CancellationToken ct
+    )
+    {
+        int filled = 0;
+        IEnumerable<User> missing = users.Where(u =>
+            string.IsNullOrEmpty(u.Color) && !string.IsNullOrEmpty(u.TwitchUserId)
+        );
+        foreach (User[] batch in missing.Chunk(HelixBatchSize))
+        {
+            List<string> ids = [.. batch.Select(u => u.TwitchUserId!)];
+            Result<IReadOnlyList<TwitchUserChatColor>> result = await chat.GetUserChatColorsAsync(
+                ids,
+                ct
+            );
+            if (result.IsFailure)
+                continue;
+
+            Dictionary<string, string> byId = result
+                .Value.Where(c => !string.IsNullOrEmpty(c.Color))
+                .ToDictionary(c => c.UserId, c => c.Color);
+            foreach (User user in batch)
+            {
+                if (!byId.TryGetValue(user.TwitchUserId!, out string? color))
+                    continue;
+
+                user.Color = color;
+                filled++;
+            }
+        }
+
+        return filled;
     }
 
     /// <summary>
