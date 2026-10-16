@@ -91,7 +91,57 @@ public sealed class OutboundChatShaperTests
             chunks.Select((c, i) => i == 0 ? c[BotEmittedLine.Marker.Length..] : c)
         );
         Assert.Equal(body, reassembled);
-        Assert.All(chunks, c => Assert.True(c.Replace(BotEmittedLine.Marker, "").Length <= 500));
+        Assert.All(chunks, c => Assert.True(c.Length <= 500));
+    }
+
+    private static readonly string[] ViewerQueue =
+    [
+        "#1 Sandstorm by Darude (in ~2 min)",
+        "#2 Blue (Da Ba Dee) by Eiffel 65 (in ~5 min)",
+        "#3 Rapture by Pendulum, Dr. Peacock (in ~8 min)",
+        "#4 Wild Wild West by Da Tweekaz (in ~11 min)",
+        "#5 Jägermeister by Da Tweekaz (in ~15 min)",
+        "#6 Smile by SMiLE.dk (in ~17 min)",
+        "#7 Halibo by Billx, Dr. Peacock (in ~20 min)",
+        "#8 Headhunterz Dragonborn by Headhunterz (in ~24 min)",
+        "#9 Wildstylez Year of Summer by Wildstylez, Niels Geusebroek (in ~27 min)",
+        "#10 Kernkraft 400 by Zombie Nation (in ~30 min)",
+        "#11 Epic Sax Guy by Sergey Stepanov (in ~33 min)",
+        "#12 Rave in the Grave by Da Tweekaz, Frequencerz (in ~36 min)",
+        "#13 Teenie Weenie by Brojob (in ~45 min)",
+        "#14 Demolisher by Slaughter to Prevail (in ~48 min)",
+        "#15 Hardcore Vibes by Dune (in ~51 min)",
+    ];
+
+    [Fact]
+    public void A_long_queue_reply_splits_only_between_entries_and_every_sent_chunk_fits_500()
+    {
+        OutboundChatShaper shaper = new();
+        string body =
+            "@finwo_: "
+            + string.Join(" | ", ViewerQueue.Concat(ViewerQueue.Select(e => e + " again")));
+        string stamped = BotEmittedLine.Stamp(body);
+
+        IReadOnlyList<string> chunks = shaper.Shape("twitch", QueueKey, stamped);
+
+        Assert.True(chunks.Count > 1);
+        // Counted exactly as sent: the marker is a real character Twitch counts.
+        Assert.All(chunks, c => Assert.True(c.Length <= 500));
+        // Every later chunk starts at the start of an entry, and every chunk ends at the end of one.
+        Assert.All(chunks.Skip(1), c => Assert.True(c[0] == '#' && char.IsDigit(c[1])));
+        Assert.All(
+            chunks,
+            c =>
+            {
+                string tail = c.TrimEnd('​');
+                Assert.True(tail.EndsWith("min)") || tail.EndsWith("min) again"));
+            }
+        );
+        string reassembled = string.Join(
+            " | ",
+            chunks.Select((c, i) => i == 0 ? c[BotEmittedLine.Marker.Length..] : c)
+        );
+        Assert.Equal(body, reassembled);
     }
 
     [Fact]
