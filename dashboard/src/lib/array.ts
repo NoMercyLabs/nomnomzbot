@@ -37,3 +37,14 @@ export function merge<const Lists extends readonly List[]>(...lists: Lists): Mer
 export function keysOf<T extends object>(value: T): (keyof T)[] {
   return Object.keys(value) as (keyof T)[];
 }
+
+// A list cut into runs of at most `size`, in order.
+export function chunk<T>(items: readonly T[], size: number): T[][] {
+  const runs: T[][] = [];
+
+  for (let start = 0; start < items.length; start += size) {
+    runs.push(items.slice(start, start + size));
+  }
+
+  return runs;
+}

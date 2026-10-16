@@ -30,6 +30,7 @@ import { merge } from '@/lib/array';
 
 import { channelPrefixes, configDomainKeys } from './configDomains';
 import type { HubEventHandler, QueryKeyBuilder } from './hubEvent';
+import { redemptionRedeemed, redemptionStatusChanged } from './redemptionQueue';
 import type {
   ChannelEventPayload,
   ConfigChangedPayload,
@@ -75,8 +76,9 @@ const eventHandlers = [
   refreshing('StreamInfoChanged', [homeStatsKey]),
   refreshing('MusicStateChanged', musicKeys),
   refreshing('sr_queue_changed', musicKeys),
-  refreshing('RewardRedeemed', merge(homeKeys, [rewardsKey])),
-  refreshing('RedemptionStatusChanged', merge(homeKeys, [rewardsKey])),
+  // The redemption queue itself is written from the event (redemptionQueue.ts), so it is not refetched.
+  refreshing('RewardRedeemed', homeKeys),
+  refreshing('RedemptionStatusChanged', homeKeys),
   refreshing('RewardChanged', [rewardsKey]),
   refreshing(
     'AlertTriggered',
@@ -126,6 +128,8 @@ const configChanged = {
 } as const satisfies HubEventHandler<ConfigChangedPayload>;
 
 export const liveHandlers = merge(eventHandlers, [
+  redemptionRedeemed,
+  redemptionStatusChanged,
   pollEventsChanged,
   permissionChanged,
   configChanged,

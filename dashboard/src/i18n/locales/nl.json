@@ -797,6 +797,8 @@
         "unblockTrack": "Nummer {id} deblokkeren",
         "saveMusicSettings": "Muziekinstellingen opslaan",
         "updateReward": "De beloning opslaan",
+        "completeRedemptions": "{count} inwisselingen afronden",
+        "rejectRedemptions": "{count} inwisselingen afwijzen",
         "addUserNote": "Notitie voor gebruiker {userId} toevoegen",
         "editUserNote": "Notitie voor gebruiker {userId} bewerken",
         "deleteUserNote": "Notitie voor gebruiker {userId} verwijderen",

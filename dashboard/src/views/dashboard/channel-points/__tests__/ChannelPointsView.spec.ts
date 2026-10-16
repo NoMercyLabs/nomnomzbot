@@ -162,17 +162,14 @@ describe('ChannelPointsView', () => {
     expect(patch?.body).toEqual({ cost: 750 });
   });
 
-  it('shows the viewer name and status, and fulfills only the waiting redemption', async () => {
+  it('lists only the waiting redemption and completes it', async () => {
     const view = await open();
-    const rows = view.findAll('[data-redemption-item]').map((body) => body.element.parentElement!);
+    const rows = view.findAll('[data-redemption-item]');
 
-    expect(rows).toHaveLength(2);
-    expect(rows[0]!.textContent).toContain('DukaSoft');
-    expect(rows[0]!.textContent).toContain('Waiting');
-    expect(rows[1]!.textContent).toContain('Fulfilled');
-    expect(rows[1]!.querySelector('[data-redemption-fulfill]')).toBeNull();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.text()).toContain('DukaSoft');
 
-    (rows[0]!.querySelector('[data-redemption-fulfill]') as HTMLElement).click();
+    await rows[0]!.get('[data-redemption-complete]').trigger('click');
     await flushPromises();
 
     const post = calls.find((call) => call.method === 'POST');
@@ -185,8 +182,8 @@ describe('ChannelPointsView', () => {
 
     const view = await open();
 
-    expect(view.find('[data-redemption-fulfill]').exists()).toBe(false);
-    expect(view.find('[data-redemption-refund]').exists()).toBe(false);
+    expect(view.find('[data-redemption-complete]').exists()).toBe(false);
+    expect(view.find('[data-redemption-reject]').exists()).toBe(false);
     expect(view.get('[data-reward-cost]').element.closest('fieldset')?.disabled).toBe(true);
   });
 });
