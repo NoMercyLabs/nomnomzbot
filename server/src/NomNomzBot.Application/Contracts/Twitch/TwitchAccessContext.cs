@@ -19,5 +19,6 @@ public sealed record TwitchAccessContext(
     string AccessToken,
     Guid? BroadcasterId,
     string ServiceName,
-    string TokenBucketKey
+    string TokenBucketKey,
+    Guid? ConnectionId = null
 );

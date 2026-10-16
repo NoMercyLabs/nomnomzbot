@@ -148,8 +148,9 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
-        // A personal viewer/moderator grant has no channel; (null, twitch) names many accounts, so a refresh
-        // by that pair could rotate another user's token. Those grants re-consent at sign-in instead.
+        // A personal viewer/moderator grant has no channel; (null, twitch) names many accounts, so a lookup
+        // by that pair could rotate another user's token. Those grants refresh by connection id instead
+        // (RefreshConnectionAsync), which names exactly one row.
         if (broadcasterId is null && provider == TwitchProvider)
             return null;
 
@@ -160,6 +161,33 @@ public sealed class TwitchAuthService : ITwitchAuthService
         );
         if (connection is null)
             return null;
+
+        return await RefreshResolvedAsync(connection, ct);
+    }
+
+    /// <summary>
+    /// Refresh exactly one vaulted connection, named by its id. This is the only safe refresh for a personal
+    /// (no channel) Twitch grant: the id belongs to one user's row, so no other user's token is read or rotated.
+    /// </summary>
+    public async Task<TokenResult?> RefreshConnectionAsync(
+        Guid connectionId,
+        CancellationToken ct = default
+    )
+    {
+        IntegrationConnection? connection = await ResolveConnectionByIdAsync(connectionId, ct);
+        if (connection is null || !IsTwitchFamily(connection.Provider))
+            return null;
+
+        return await RefreshResolvedAsync(connection, ct);
+    }
+
+    private async Task<TokenResult?> RefreshResolvedAsync(
+        IntegrationConnection connection,
+        CancellationToken ct
+    )
+    {
+        Guid? broadcasterId = connection.BroadcasterId;
+        string provider = connection.Provider;
 
         // Already flagged for re-login: don't hammer Twitch's token endpoint on every subsequent 401 while the
         // operator re-auths. StoreTokensAsync resets this to connected the moment a fresh grant is vaulted.
@@ -176,11 +204,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         // Re-check after acquiring the gate: if another caller refreshed this exact connection while we were
         // waiting, its result is already vaulted — hand back that token instead of posting a second refresh
         // (which would be racing against a refresh token Twitch already rotated out from under us).
-        IntegrationConnection? afterWait = await ResolveConnectionAsync(
-            broadcasterId,
-            provider,
-            ct
-        );
+        IntegrationConnection? afterWait = await ResolveConnectionByIdAsync(connection.Id, ct);
         if (
             afterWait is not null
             && afterWait.LastRefreshedAt is { } refreshedAt
@@ -414,6 +438,15 @@ public sealed class TwitchAuthService : ITwitchAuthService
             provider
         );
     }
+
+    private async Task<IntegrationConnection?> ResolveConnectionByIdAsync(
+        Guid connectionId,
+        CancellationToken ct
+    ) =>
+        await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == connectionId && c.DeletedAt == null, ct);
 
     private async Task<IntegrationConnection?> ResolveConnectionAsync(
         Guid? broadcasterId,

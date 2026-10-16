@@ -24,6 +24,10 @@ public interface ITwitchAuthService
         string serviceName,
         CancellationToken ct = default
     );
+
+    // Refreshes exactly the one vaulted connection with this id. The only safe refresh for a personal
+    // (no channel) Twitch grant, because (null, twitch) names many users' rows.
+    Task<TokenResult?> RefreshConnectionAsync(Guid connectionId, CancellationToken ct = default);
     Task RefreshExpiringTokensAsync(CancellationToken ct = default);
     Task RevokeTokenAsync(Guid? broadcasterId, string serviceName, CancellationToken ct = default);
 }
