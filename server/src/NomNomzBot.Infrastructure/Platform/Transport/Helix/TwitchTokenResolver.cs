@@ -58,6 +58,9 @@ public sealed class TwitchTokenResolver(
     internal const string AppServiceName = "twitch_app";
     private const string PlatformSubject = "_platform";
 
+    // A personal token this close to expiry is refreshed before the call, not after a 401.
+    private static readonly TimeSpan ExpirySkew = TimeSpan.FromMinutes(2);
+
     // (broadcaster, scope) -> fingerprint of the grant the gap was last reported against. Process-wide because the
     // resolver is scoped but the snapshot builders re-check the same gap every few minutes.
     private static readonly ConcurrentDictionary<(Guid, string), string> ReportedGaps = new();
@@ -187,11 +190,18 @@ public sealed class TwitchTokenResolver(
             return await GetAppTokenAsync(ct);
         }
 
-        TokenResult? refreshed = await authService.RefreshTokenAsync(
-            context.BroadcasterId,
-            context.ServiceName,
-            ct
-        );
+        // A personal viewer/moderator grant (no channel) refreshes by its own connection id; the
+        // (null, twitch) pair names many users and must never pick the row.
+        TokenResult? refreshed =
+            context.BroadcasterId is null
+            && context.ServiceName == UserProvider
+            && context.ConnectionId is { } connectionId
+                ? await authService.RefreshConnectionAsync(connectionId, ct)
+                : await authService.RefreshTokenAsync(
+                    context.BroadcasterId,
+                    context.ServiceName,
+                    ct
+                );
 
         if (refreshed is null)
         {
@@ -349,16 +359,31 @@ public sealed class TwitchTokenResolver(
         }
 
         // A personal (no channel) Twitch grant is rate-limited per account, so it keys by the account id.
-        string bucketKey =
-            connection.BroadcasterId is null && connection.Provider == UserProvider
-                ? DeriveBucketKey($"{UserProvider}:{connection.ProviderAccountId}", null)
-                : DeriveBucketKey(connection.Provider, connection.BroadcasterId);
+        bool isPersonal = connection.BroadcasterId is null && connection.Provider == UserProvider;
+        string bucketKey = isPersonal
+            ? DeriveBucketKey($"{UserProvider}:{connection.ProviderAccountId}", null)
+            : DeriveBucketKey(connection.Provider, connection.BroadcasterId);
+
+        string accessToken = token.Value.Value;
+        if (
+            isPersonal
+            && token.Value.ExpiresAt is { } expiresAt
+            && expiresAt <= DateTime.UtcNow.Add(ExpirySkew)
+        )
+        {
+            // Refresh this one row by its own id before the send, so the caller never posts a dead token.
+            TokenResult? refreshed = await authService.RefreshConnectionAsync(connection.Id, ct);
+            if (refreshed is not null)
+                accessToken = refreshed.AccessToken;
+        }
+
         return Result.Success(
             new TwitchAccessContext(
-                token.Value.Value,
+                accessToken,
                 connection.BroadcasterId,
                 connection.Provider,
-                bucketKey
+                bucketKey,
+                connection.Id
             )
         );
     }
