@@ -13,6 +13,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type InfiniteData,
   type UseInfiniteQueryReturnType,
   type UseQueryReturnType,
@@ -92,6 +93,32 @@ function mergeHistory(history: ChatLine[], live: ChatLine[] | undefined): ChatLi
     .slice(-chatLineLimit);
 }
 
+async function readChatHistory(queries: QueryClient, id: string): Promise<ChatLine[]> {
+  const { data } = await client.GET('/api/v{version}/channels/{channelId}/chat/messages', {
+    params: { path: { version: '1', channelId: id }, query: { limit: chatLineLimit } },
+  });
+
+  const live = queries.getQueryData<ChatLine[]>(chatKey(id));
+
+  return mergeHistory(data?.data ?? [], live);
+}
+
+// The realtime layer keeps this entry current, so it never goes stale by age; a prefetch fills it once.
+export function chatHistoryOptions(
+  queries: QueryClient,
+  id: string,
+): {
+  queryKey: KeyParts;
+  queryFn: () => Promise<ChatLine[]>;
+  staleTime: number;
+} {
+  return {
+    queryKey: chatKey(id),
+    queryFn: () => readChatHistory(queries, id),
+    staleTime: Infinity,
+  };
+}
+
 export function useChatHistory(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ChatLine[], Error> {
@@ -99,16 +126,7 @@ export function useChatHistory(
 
   return useQuery({
     queryKey: computed(() => chatKey(toValue(channelId))),
-    queryFn: async (): Promise<ChatLine[]> => {
-      const id = toValue(channelId) as string;
-      const { data } = await client.GET('/api/v{version}/channels/{channelId}/chat/messages', {
-        params: { path: { version: '1', channelId: id }, query: { limit: chatLineLimit } },
-      });
-
-      const live = queries.getQueryData<ChatLine[]>(chatKey(id));
-
-      return mergeHistory(data?.data ?? [], live);
-    },
+    queryFn: () => readChatHistory(queries, toValue(channelId) as string),
     enabled: computed(() => toValue(channelId) !== null),
     staleTime: Infinity,
   });
@@ -122,23 +140,41 @@ export type ChatEmoteEntry = NonNullable<ChatEmotesBody['data']>[number];
 
 // The emotes you can use here, your own cross-channel emotes included. The dashboard only ever speaks as you:
 // a "send as the bot" choice would let anyone with dashboard access get the owner's bot banned (Stoney 2026-10-14).
+async function readChatEmotes(id: string): Promise<ChatEmoteEntry[]> {
+  const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/emotes', {
+    params: {
+      path: { version: '1', channelId: id },
+      query: { senderIdentity: 'you' },
+    },
+  });
+
+  ensureOk(response, 'chat emotes', error);
+
+  return [...(data?.data ?? [])];
+}
+
+const chatEmotesKey = (channelId: string | null): KeyParts => [...chatKey(channelId), 'emotes'];
+
+export function chatEmotesOptions(
+  id: string,
+): {
+  queryKey: KeyParts;
+  queryFn: () => Promise<ChatEmoteEntry[]>;
+  staleTime: number;
+} {
+  return {
+    queryKey: chatEmotesKey(id),
+    queryFn: () => readChatEmotes(id),
+    staleTime: 5 * 60_000,
+  };
+}
+
 export function useChatEmotes(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ChatEmoteEntry[], Error> {
   return useQuery({
-    queryKey: computed(() => [...chatKey(toValue(channelId)), 'emotes']),
-    queryFn: async (): Promise<ChatEmoteEntry[]> => {
-      const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/emotes', {
-        params: {
-          path: { version: '1', channelId: toValue(channelId) as string },
-          query: { senderIdentity: 'you' },
-        },
-      });
-
-      ensureOk(response, 'chat emotes', error);
-
-      return [...(data?.data ?? [])];
-    },
+    queryKey: computed(() => chatEmotesKey(toValue(channelId))),
+    queryFn: () => readChatEmotes(toValue(channelId) as string),
     enabled: computed(() =>
       toValue(channelId) !== null),
     staleTime: 5 * 60_000,
@@ -192,7 +228,7 @@ export function useChatSearch(
   });
 }
 
-const userChatKey = (channelId: string | null, userId: string | null): KeyParts => [
+export const userChatKey = (channelId: string | null, userId: string | null): KeyParts => [
   'channels',
   channelId,
   'chat',
@@ -233,10 +269,24 @@ export function useUserChat(
     queryFn: ({ pageParam }: { pageParam: string | undefined }): Promise<ChatSearchPage> =>
       readUserChatPage(toValue(channelId) as string, toValue(userId) as string, pageParam),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last: ChatSearchPage): string | undefined =>
-      last.nextCursor ?? undefined,
+    getNextPageParam: nextUserChatPage,
     enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
   });
+}
+
+const nextUserChatPage = (last: ChatSearchPage): string | undefined =>
+  last.nextCursor ?? undefined;
+
+// The first page of the profile's Chat tab for one internal user id, as a prefetch warms it.
+export function userChatOptions(channelId: string, userId: string) {
+  return {
+    queryKey: userChatKey(channelId, userId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }): Promise<ChatSearchPage> =>
+      readUserChatPage(channelId, userId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: nextUserChatPage,
+    pages: 1,
+  };
 }
 
 export function useSendChat(

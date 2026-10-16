@@ -43,6 +43,13 @@ export function rangeDates(range: AnalyticsRange): RangeDates {
   return { from: start.toString(), to: end.toString() };
 }
 
+const analyticsKey = (channelId: string | null, what: string, range: AnalyticsRange) => [
+  'analytics',
+  channelId,
+  what,
+  range,
+];
+
 function rangeQuery<T>(
   channelId: MaybeRefOrGetter<string | null>,
   range: MaybeRefOrGetter<AnalyticsRange>,
@@ -50,7 +57,7 @@ function rangeQuery<T>(
   fetch: (channelId: string, dates: RangeDates) => Promise<T>,
 ): UseQueryReturnType<T, Error> {
   return useQuery({
-    queryKey: computed(() => ['analytics', toValue(channelId), what, toValue(range)]),
+    queryKey: computed(() => analyticsKey(toValue(channelId), what, toValue(range))),
     queryFn: (): Promise<T> => {
       const dates = rangeDates(toValue(range));
 
@@ -58,6 +65,26 @@ function rangeQuery<T>(
     },
     enabled: computed(() => toValue(channelId) !== null),
   });
+}
+
+// The overview tab's reads for one range: what the page runs first and what a prefetch warms.
+export function analyticsOverviewOptions(channelId: string, range: AnalyticsRange) {
+  const dates = rangeDates(range);
+
+  return [
+    {
+      queryKey: analyticsKey(channelId, 'summary', range),
+      queryFn: () => readSummary(channelId, dates),
+    },
+    {
+      queryKey: analyticsKey(channelId, 'daily', range),
+      queryFn: () => readDays(channelId, dates),
+    },
+    {
+      queryKey: analyticsKey(channelId, 'streams', range),
+      queryFn: () => readStreams(channelId, dates),
+    },
+  ] as const;
 }
 
 async function readSummary(channelId: string, dates: RangeDates): Promise<AnalyticsSummary | null> {

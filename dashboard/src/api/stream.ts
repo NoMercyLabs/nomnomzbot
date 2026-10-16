@@ -19,7 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed } from './channelQuery';
+import { channelOptions, channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -69,20 +69,24 @@ export const categorySearchKey = (channelId: string | null, query: string): KeyP
 export function useStreamInfo(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<StreamInfo | null, Error> {
-  return channelQuery(channelId, streamInfoKey, async (id: string): Promise<StreamInfo | null> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/stream',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('stream', response.status, error);
-
-    return data?.data ?? null;
-  });
+  return channelQuery(channelId, streamInfoKey, readStreamInfo);
 }
+
+async function readStreamInfo(id: string): Promise<StreamInfo | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/stream',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('stream', response.status, error);
+
+  return data?.data ?? null;
+}
+
+export const streamInfoOptions = (id: string) => channelOptions(streamInfoKey, readStreamInfo, id);
 
 async function readAdSchedule(channelId: string): Promise<AdSchedule | null> {
   const { data, error, response } = await client.GET(
@@ -140,20 +144,25 @@ export function useSnoozeAd(
 export function useStreamHistory(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<PastStream[], Error> {
-  return channelQuery(channelId, streamHistoryKey, async (id: string): Promise<PastStream[]> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/analytics/streams',
-      {
-        params: { path: { version, channelId: id }, query: { PageSize: historySize } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('stream history', response.status, error);
-
-    return [...(data?.data ?? [])];
-  });
+  return channelQuery(channelId, streamHistoryKey, readStreamHistory);
 }
+
+async function readStreamHistory(id: string): Promise<PastStream[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/analytics/streams',
+    {
+      params: { path: { version, channelId: id }, query: { PageSize: historySize } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('stream history', response.status, error);
+
+  return [...(data?.data ?? [])];
+}
+
+export const streamHistoryOptions = (id: string) =>
+  channelOptions(streamHistoryKey, readStreamHistory, id);
 
 // Twitch does the searching; an empty search asks nothing.
 export function useCategorySearch(

@@ -18,6 +18,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
+import { channelOptions } from './channelQuery';
 import { client } from './client';
 import { failed } from './errors';
 import type { components } from './schema';
@@ -104,24 +105,27 @@ export function useMusicQueue(
 export function useMusicConfig(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<MusicConfig | null, Error> {
-  return channelQuery(
-    channelId,
-    musicConfigKey,
-    async (id: string): Promise<MusicConfig | null> => {
-      const { data, error, response } = await client.GET(
-        '/api/v{version}/channels/{channelId}/music/config',
-        {
-          params: { path: { version, channelId: id } },
-        },
-      );
+  return channelQuery(channelId, musicConfigKey, readConfig);
+}
 
-      if (error !== undefined)
-        throw failed('music config', response.status, error);
-
-      return data?.data ?? null;
+async function readConfig(id: string): Promise<MusicConfig | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/music/config',
+    {
+      params: { path: { version, channelId: id } },
     },
   );
+
+  if (error !== undefined)
+    throw failed('music config', response.status, error);
+
+  return data?.data ?? null;
 }
+
+export const musicQueueOptions = (id: string) => channelOptions(musicQueueKey, readQueue, id);
+export const musicConfigOptions = (id: string) => channelOptions(musicConfigKey, readConfig, id);
+export const blockedTracksOptions = (id: string) =>
+  channelOptions(blockedTracksKey, readBlocked, id);
 
 export function useBlockedTracks(
   channelId: MaybeRefOrGetter<string | null>,
@@ -639,3 +643,7 @@ export function useMusicTopRequesters(
 ): UseQueryReturnType<TopRequester[], Error> {
   return channelQuery(channelId, musicTopRequestersKey, readTopRequesters);
 }
+
+export const musicHistoryOptions = (id: string) => channelOptions(musicHistoryKey, readHistory, id);
+export const musicTopRequestersOptions = (id: string) =>
+  channelOptions(musicTopRequestersKey, readTopRequesters, id);

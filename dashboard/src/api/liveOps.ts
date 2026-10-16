@@ -13,7 +13,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed } from './channelQuery';
+import { channelOptions, channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -81,6 +81,9 @@ export function usePollHistory(
 ): UseQueryReturnType<PollHistoryItem[], Error> {
   return channelQuery(channelId, pollHistoryKey, readPollHistory);
 }
+
+export const pollHistoryOptions = (id: string) =>
+  channelOptions(pollHistoryKey, readPollHistory, id);
 
 // The channel's polls, active and ended. Use isRunning to pick the one that still takes votes.
 export function usePolls(

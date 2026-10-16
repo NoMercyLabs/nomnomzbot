@@ -59,8 +59,13 @@ export async function fetchCodeScripts(): Promise<CodeScriptSummary[]> {
   return [...(data?.data ?? [])];
 }
 
+export const codeScriptsOptions = () => ({
+  queryKey: codeScriptsKey,
+  queryFn: fetchCodeScripts,
+});
+
 export function useCodeScripts(): UseQueryReturnType<CodeScriptSummary[], Error> {
-  return useQuery({ queryKey: codeScriptsKey, queryFn: fetchCodeScripts });
+  return useQuery(codeScriptsOptions());
 }
 
 async function readScript(id: string): Promise<CodeScriptDetail> {

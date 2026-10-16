@@ -60,6 +60,16 @@ async function fetchMember(channelId: string, userId: string): Promise<Community
   return data?.data ?? null;
 }
 
+export function communityMemberOptions(
+  channelId: string,
+  userId: string,
+): { queryKey: KeyParts; queryFn: () => Promise<CommunityMember | null> } {
+  return {
+    queryKey: memberKey(channelId, userId),
+    queryFn: () => fetchMember(channelId, userId),
+  };
+}
+
 export function useCommunityMember(
   channelId: MaybeRefOrGetter<string | null>,
   userId: MaybeRefOrGetter<string | null>,
@@ -79,25 +89,42 @@ export function usePersonEmotes(
   userId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<PersonEmote[], Error> {
   return useQuery({
-    queryKey: computed(() => [...memberKey(toValue(channelId), toValue(userId)), 'emotes']),
-    queryFn: async (): Promise<PersonEmote[]> => {
-      const { data, error, response } = await client.GET(
-        '/api/v{version}/channels/{channelId}/community/{userId}/emotes',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId)!,
-          userId: toValue(userId)!,
-        } } },
-      );
-
-      if (!response.ok)
-        throw failed('community emotes', response.status, error);
-
-      return [...(data?.data ?? [])];
-    },
+    queryKey: computed(() => personEmotesKey(toValue(channelId), toValue(userId))),
+    queryFn: () => readPersonEmotes(toValue(channelId)!, toValue(userId)!),
     enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
-    staleTime: 5 * 60_000,
+    staleTime: personEmotesStaleMs,
   });
+}
+
+const personEmotesStaleMs = 5 * 60_000;
+
+export const personEmotesKey = (channelId: string | null, userId: string | null) => [
+  ...memberKey(channelId, userId),
+  'emotes',
+];
+
+async function readPersonEmotes(channelId: string, userId: string): Promise<PersonEmote[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/community/{userId}/emotes',
+    { params: { path: {
+      version,
+      channelId,
+      userId,
+    } } },
+  );
+
+  if (!response.ok)
+    throw failed('community emotes', response.status, error);
+
+  return [...(data?.data ?? [])];
+}
+
+export function personEmotesOptions(channelId: string, userId: string) {
+  return {
+    queryKey: personEmotesKey(channelId, userId),
+    queryFn: () => readPersonEmotes(channelId, userId),
+    staleTime: personEmotesStaleMs,
+  };
 }
 
 // The first page of the channel's community, as the catalog and any picker need it.

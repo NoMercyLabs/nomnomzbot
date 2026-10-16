@@ -11,7 +11,7 @@
 import type { UseMutationReturnType, UseQueryReturnType } from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
 
-import { channelQuery, failed } from './channelQuery';
+import { channelOptions, channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
@@ -77,6 +77,10 @@ export function useRedemptions(
 ): UseQueryReturnType<Redemption[], Error> {
   return channelQuery(channelId, redemptionsKey, readRedemptions);
 }
+
+export const rewardsOptions = (id: string) => channelOptions(rewardsKey, readRewards, id);
+export const redemptionsOptions = (id: string) =>
+  channelOptions(redemptionsKey, readRedemptions, id);
 
 export type RewardEdit = { rewardId: string; change: RewardChange };
 

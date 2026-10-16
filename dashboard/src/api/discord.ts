@@ -19,6 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
+import { channelOptions, channelQuery } from './channelQuery';
 import { client } from './client';
 import { failed } from './errors';
 import type { components } from './schema';
@@ -64,22 +65,23 @@ const discordPickersKey = (
 export function useDiscordConnections(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<DiscordConnection[], Error> {
-  return useQuery({
-    queryKey: computed(() => discordConnectionsKey(toValue(channelId))),
-    queryFn: async (): Promise<DiscordConnection[]> => {
-      const { data, error, response } = await client.GET(
-        '/api/v{version}/channels/{channelId}/discord/connections',
-        { params: { path: { version, channelId: toValue(channelId) as string } } },
-      );
-
-      if (error !== undefined)
-        throw failed('discord connections', response.status, error);
-
-      return data?.data ?? [];
-    },
-    enabled: computed(() => toValue(channelId) !== null),
-  });
+  return channelQuery(channelId, discordConnectionsKey, readDiscordConnections);
 }
+
+async function readDiscordConnections(id: string): Promise<DiscordConnection[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/discord/connections',
+    { params: { path: { version, channelId: id } } },
+  );
+
+  if (error !== undefined)
+    throw failed('discord connections', response.status, error);
+
+  return data?.data ?? [];
+}
+
+export const discordConnectionsOptions = (id: string) =>
+  channelOptions(discordConnectionsKey, readDiscordConnections, id);
 
 export function useDiscordRules(
   channelId: MaybeRefOrGetter<string | null>,

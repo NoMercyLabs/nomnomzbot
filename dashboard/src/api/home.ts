@@ -13,7 +13,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed } from './channelQuery';
+import { channelOptions, channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -63,98 +63,113 @@ export const activityKey = (channelId: string | null): KeyParts => [
   'activity',
 ];
 
+async function readHomeStats(id: string): Promise<HomeStats | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/dashboard/{channelId}/stats',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('stats', response.status, error);
+
+  return data?.data ?? null;
+}
+
+async function readReviewQueue(id: string): Promise<ReviewQueueItem[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/moderation/automod/queue',
+    {
+      params: { path: { version, channelId: id }, query: { status: 'pending' } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('review queue', response.status, error);
+
+  return data?.data ?? [];
+}
+
+async function readConnections(id: string): Promise<IntegrationStatus[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/integrations/status',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('connections', response.status, error);
+
+  return [...(data?.data ?? [])];
+}
+
+async function readBotStatus(id: string): Promise<BotStatus | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/bot/status',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('bot status', response.status, error);
+
+  return data?.data ?? null;
+}
+
+async function readActivity(id: string): Promise<ActivityEvent[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/dashboard/{channelId}/activity',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('activity', response.status, error);
+
+  return data?.data ?? [];
+}
+
+// The home page reads these five; the intent prefetch warms the same entries with the same readers.
+export const homeStatsOptions = (id: string) => channelOptions(homeStatsKey, readHomeStats, id);
+export const reviewQueueOptions = (id: string) =>
+  channelOptions(reviewQueueKey, readReviewQueue, id);
+export const connectionsOptions = (id: string) =>
+  channelOptions(connectionsKey, readConnections, id);
+export const botStatusOptions = (id: string) => channelOptions(botStatusKey, readBotStatus, id);
+export const activityOptions = (id: string) => channelOptions(activityKey, readActivity, id);
+
 export function useHomeStats(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<HomeStats | null, Error> {
-  return channelQuery(channelId, homeStatsKey, async (id: string): Promise<HomeStats | null> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/dashboard/{channelId}/stats',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('stats', response.status, error);
-
-    return data?.data ?? null;
-  }, statsRefreshMs);
+  return channelQuery(channelId, homeStatsKey, readHomeStats, statsRefreshMs);
 }
 
 export function useReviewQueue(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ReviewQueueItem[], Error> {
-  return channelQuery(channelId, reviewQueueKey, async (id: string): Promise<ReviewQueueItem[]> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/moderation/automod/queue',
-      {
-        params: { path: { version, channelId: id }, query: { status: 'pending' } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('review queue', response.status, error);
-
-    return data?.data ?? [];
-  });
+  return channelQuery(channelId, reviewQueueKey, readReviewQueue);
 }
 
 export function useConnections(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<IntegrationStatus[], Error> {
-  return channelQuery(
-    channelId,
-    connectionsKey,
-    async (id: string): Promise<IntegrationStatus[]> => {
-      const { data, error, response } = await client.GET(
-        '/api/v{version}/channels/{channelId}/integrations/status',
-        {
-          params: { path: { version, channelId: id } },
-        },
-      );
-
-      if (error !== undefined)
-        throw failed('connections', response.status, error);
-
-      return [...(data?.data ?? [])];
-    },
-  );
+  return channelQuery(channelId, connectionsKey, readConnections);
 }
 
 export function useBotStatus(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<BotStatus | null, Error> {
-  return channelQuery(channelId, botStatusKey, async (id: string): Promise<BotStatus | null> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/bot/status',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('bot status', response.status, error);
-
-    return data?.data ?? null;
-  });
+  return channelQuery(channelId, botStatusKey, readBotStatus);
 }
 
 export function useActivity(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ActivityEvent[], Error> {
-  return channelQuery(channelId, activityKey, async (id: string): Promise<ActivityEvent[]> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/dashboard/{channelId}/activity',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('activity', response.status, error);
-
-    return data?.data ?? [];
-  });
+  return channelQuery(channelId, activityKey, readActivity);
 }
 
 export const supporterActivityKey = (channelId: string | null): KeyParts => [
@@ -174,27 +189,28 @@ const supporterActivityTypes = [
 export function useSupporterActivity(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ActivityEvent[], Error> {
-  return channelQuery(
-    channelId,
-    supporterActivityKey,
-    async (id: string): Promise<ActivityEvent[]> => {
-      const { data, error, response } = await client.GET(
-        '/api/v{version}/dashboard/{channelId}/activity',
-        {
-          params: {
-            path: { version, channelId: id },
-            query: { types: supporterActivityTypes },
-          },
-        },
-      );
+  return channelQuery(channelId, supporterActivityKey, readSupporterActivity);
+}
 
-      if (error !== undefined)
-        throw failed('activity', response.status, error);
-
-      return data?.data ?? [];
+async function readSupporterActivity(id: string): Promise<ActivityEvent[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/dashboard/{channelId}/activity',
+    {
+      params: {
+        path: { version, channelId: id },
+        query: { types: supporterActivityTypes },
+      },
     },
   );
+
+  if (error !== undefined)
+    throw failed('activity', response.status, error);
+
+  return data?.data ?? [];
 }
+
+export const supporterActivityOptions = (id: string) =>
+  channelOptions(supporterActivityKey, readSupporterActivity, id);
 
 export function useActivityReplay(
   channelId: MaybeRefOrGetter<string | null>,

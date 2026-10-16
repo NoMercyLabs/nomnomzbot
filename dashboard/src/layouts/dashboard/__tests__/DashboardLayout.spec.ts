@@ -48,6 +48,9 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   }),
 }));
 
+// The intent prefetch has its own spec; these tests cover the frame, which has no query client here.
+vi.mock('@/composables/useIntentPrefetch', () => ({ useIntentPrefetch: () => undefined }));
+
 const stub = (slot: string) => defineComponent({ render: () => h('div', { 'data-stub': slot }) });
 
 function mountLayout(width: number): VueWrapper {

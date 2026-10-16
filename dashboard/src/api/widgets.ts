@@ -19,7 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { numberOrNull } from '@/lib/number';
 
-import { channelQuery, failed, refusal } from './channelQuery';
+import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import type { ApiOperation } from './errors';
 import { client } from './client';
 import type { components } from './schema';
@@ -78,6 +78,8 @@ export function useWidgets(
 ): UseQueryReturnType<Widget[], Error> {
   return channelQuery(channelId, widgetsKey, readWidgets);
 }
+
+export const widgetsOptions = (id: string) => channelOptions(widgetsKey, readWidgets, id);
 
 // The schema is read per widget; a widget without one returns an empty field list.
 export function useWidgetSchema(
