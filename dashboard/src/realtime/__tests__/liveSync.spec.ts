@@ -20,7 +20,7 @@ import {
   musicQueueKey,
   musicTopRequestersKey,
 } from '@/api/music';
-import { communityListsKey } from '@/api/people';
+import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { pipelinesKey } from '@/api/pipelines';
 import { redemptionsKey, rewardsKey, type Redemption } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
@@ -291,6 +291,25 @@ const domainKeys: [string, Keys[]][] = [
   ['viewer-reports', [reviewQueueKey, communityListsKey]],
   ['raid-assessments', [reviewQueueKey, communityListsKey]],
 ];
+
+describe('a saved or removed shoutout message refreshes the open profiles', () => {
+  it.each(['updated', 'deleted'])('the shoutouts domain (%s) marks the profiles of the joined channel stale only', async (action) => {
+    const [queries, connection] = await started();
+
+    seed(queries, [viewerProfilesKey, timersKey]);
+
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'x',
+      domain: 'shoutouts',
+      entityId: null,
+      action,
+    });
+
+    expect(staleFor(queries, [viewerProfilesKey], 'c1')).toEqual([true]);
+    expect(staleFor(queries, [viewerProfilesKey], 'other')).toEqual([false]);
+    expect(staleFor(queries, [timersKey], 'c1')).toEqual([false]);
+  });
+});
 
 describe('every ConfigChanged domain refreshes its page', () => {
   it.each(domainKeys)('the %s domain marks its keys stale for the joined channel only', async (domain, keys) => {

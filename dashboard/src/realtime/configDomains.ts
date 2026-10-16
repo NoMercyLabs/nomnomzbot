@@ -13,7 +13,7 @@ import { builtinsKey, commandsKey } from '@/api/commands';
 import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
 import { timersKey } from '@/api/liveOps';
 import { musicConfigKey, musicQueueKey } from '@/api/music';
-import { communityListsKey } from '@/api/people';
+import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { pipelinesKey } from '@/api/pipelines';
 import { ttsConfigKey } from '@/api/tts';
 import { widgetsKey } from '@/api/widgets';
@@ -49,6 +49,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'unban-requests': [reviewQueueKey, communityListsKey],
   'viewer-reports': [reviewQueueKey, communityListsKey],
   'raid-assessments': [reviewQueueKey, communityListsKey],
+  shoutouts: [viewerProfilesKey],
 };
 
 // A domain with no page key of its own (catalog, earning-rules, economy-config, quotes, savings-jar, picklists, or a

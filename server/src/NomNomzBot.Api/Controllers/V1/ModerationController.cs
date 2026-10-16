@@ -26,6 +26,8 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Trust.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -57,6 +59,7 @@ public class ModerationController : BaseController
     private readonly IMassBanConsentService _massBan;
     private readonly IEnumerable<ICommandAction> _actions;
     private readonly IShoutoutSuggestionService _shoutoutSuggestions;
+    private readonly IEventBus _eventBus;
 
     public ModerationController(
         IModerationService moderationService,
@@ -74,9 +77,11 @@ public class ModerationController : BaseController
         IModerationHistoryService history,
         IMassBanConsentService massBan,
         IEnumerable<ICommandAction> actions,
-        IShoutoutSuggestionService shoutoutSuggestions
+        IShoutoutSuggestionService shoutoutSuggestions,
+        IEventBus eventBus
     )
     {
+        _eventBus = eventBus;
         _shoutoutSuggestions = shoutoutSuggestions;
         _massBan = massBan;
         _twitchModeration = twitchModeration;
@@ -2070,8 +2075,27 @@ public class ModerationController : BaseController
 
         channel.ShoutoutTemplate = normalizedTemplate;
         await _db.SaveChangesAsync(ct);
+        await PublishShoutoutsChangedAsync(broadcasterId, null, "updated", ct);
         return NoContent();
     }
+
+    /// <summary>Tells every open dashboard of the channel that a shoutout message changed.</summary>
+    private Task PublishShoutoutsChangedAsync(
+        Guid broadcasterId,
+        string? entityId,
+        string action,
+        CancellationToken ct
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "shoutouts",
+                EntityId = entityId,
+                Action = action,
+            },
+            ct
+        );
 
     public record ShoutoutOverrideDto(
         string TargetTwitchUserId,
@@ -2158,6 +2182,12 @@ public class ModerationController : BaseController
             existing.MessageTemplate = request.MessageTemplate.Trim();
         }
         await _db.SaveChangesAsync(ct);
+        await PublishShoutoutsChangedAsync(
+            broadcasterId,
+            request.TargetTwitchUserId,
+            existing is null ? "created" : "updated",
+            ct
+        );
         return NoContent();
     }
 
@@ -2188,6 +2218,7 @@ public class ModerationController : BaseController
 
         _db.ShoutoutOverrides.Remove(existing);
         await _db.SaveChangesAsync(ct);
+        await PublishShoutoutsChangedAsync(broadcasterId, targetTwitchUserId, "deleted", ct);
         return NoContent();
     }
 }
