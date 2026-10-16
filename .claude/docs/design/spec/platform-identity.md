@@ -217,7 +217,7 @@ registry seam. Endpoints/flows verified against each provider's live docs (verif
 
 | Provider | Flow | Authorize / device | Token / poll | Identity (userinfo) | Login scopes |
 |---|---|---|---|---|---|
-| **twitch** | DeviceCode + AuthCode | `id.twitch.tv/oauth2/device` | `id.twitch.tv/oauth2/token` | Helix `GET /helix/users` | `user:read:email` |
+| **twitch** | DeviceCode + AuthCode | `id.twitch.tv/oauth2/device` | `id.twitch.tv/oauth2/token` | Helix `GET /helix/users` | no email scope (see `role-login-scopes.md`) |
 | **youtube** (Google) | DeviceCode | `oauth2.googleapis.com/device/code` | `oauth2.googleapis.com/token` (poll; `authorization_pending`/`slow_down`) | `openidconnect.googleapis.com/v1/userinfo` | `openid email profile` |
 | **kick** | AuthCode + PKCE (S256) | `id.kick.com/oauth/authorize` | `id.kick.com/oauth/token` | Kick `GET /public/v1/users` (docs.kick.com) | `user:read` |
 | **twitter / x** | AuthCode + PKCE (S256) | `twitter.com/i/oauth2/authorize` | `api.x.com/2/oauth2/token` | `api.x.com/2/users/me` | `users.read tweet.read offline.access` |
