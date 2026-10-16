@@ -306,7 +306,7 @@ public sealed class HelpBuiltinTests
             { "quote", "!quote [add <text> | #number] — View or add stream quotes." },
             { "skip", "!skip — (Mod) Skips the currently playing song." },
             { "song", "!song — Shows the current song playing on stream." },
-            { "sr", "!sr <spotify url or song name> — Request a song to be added to the queue." },
+            { "sr", "!sr <song name or link> — Request a song to be added to the queue." },
             { "stats", "!stats [@user] — Shows chat stats for yourself or another user." },
             { "update", "!update [@user] — Updates user info from Twitch." },
             {
@@ -405,7 +405,7 @@ public sealed class HelpBuiltinTests
             result
                 .Value.Should()
                 .Contain(
-                    "!sr <spotify url or song name> — Request a song to be added to the queue.",
+                    "!sr <song name or link> — Request a song to be added to the queue.",
                     tone
                 );
         }

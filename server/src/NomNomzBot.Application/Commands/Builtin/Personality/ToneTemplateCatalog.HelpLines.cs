@@ -41,7 +41,7 @@ public static partial class ToneTemplateCatalog
             ("resume", "— (Mod) Resumes the paused music."),
             ("skip", "— (Mod) Skips the currently playing song."),
             ("song", "— Shows the current song playing on stream."),
-            ("sr", "<spotify url or song name> — Request a song to be added to the queue."),
+            ("sr", "<song name or link> — Request a song to be added to the queue."),
             ("stats", "[@user] — Shows chat stats for yourself or another user."),
             ("update", "[@user] — Updates user info from Twitch."),
             ("voice", "languages | get <lang> | set <voice> | current — Manage your TTS voice."),
