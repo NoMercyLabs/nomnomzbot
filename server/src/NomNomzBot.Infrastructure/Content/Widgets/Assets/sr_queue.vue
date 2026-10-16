@@ -22,7 +22,7 @@ const cfg = reactive<SrQueueConfig>({
   accentColor: '#9146ff',
 })
 
-interface QueueItem { title: string; requestedBy: string; durationSec: number; code: string }
+interface QueueItem { title: string; requestedBy: string; durationSec: number; number: number; code: string }
 
 const items = ref<QueueItem[]>([])
 
@@ -42,6 +42,7 @@ function toItems(d: NnzWidgetEventMap['sr_queue'] | null | undefined): QueueItem
       title: (it && it.title) || '',
       requestedBy: (it && it.requestedBy) || '',
       durationSec: Number(it && it.durationSec) || 0,
+      number: Number(it && it.number) || 0,
       code: (it && it.code) || '',
     }))
     .filter((it: QueueItem) => !!it.title)
@@ -90,7 +91,7 @@ onUnmounted(() => {
   <div v-if="items.length" class="nnz-srqueue" :style="{ '--accent': cfg.accentColor }">
     <div class="header">Up Next</div>
     <div v-for="(it, i) in items.slice(0, cfg.count)" :key="i" class="row">
-      <span class="pos">{{ i + 1 }}</span>
+      <span class="pos">#{{ it.number }}</span>
       <span v-if="it.code" class="code" title="Say this code to name this request, e.g. !wrongsong">{{ it.code }}</span>
       <span class="title">{{ it.title }}</span>
       <span v-if="cfg.showRequester && it.requestedBy" class="req">{{ it.requestedBy }}</span>
@@ -134,7 +135,7 @@ onUnmounted(() => {
 }
 .pos {
   flex: none;
-  width: 18px;
+  min-width: 26px;
   font-weight: 700;
   color: var(--accent, #9146ff);
 }

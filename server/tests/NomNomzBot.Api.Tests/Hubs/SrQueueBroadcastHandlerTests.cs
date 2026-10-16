@@ -59,8 +59,8 @@ public sealed class SrQueueBroadcastHandlerTests
                 BroadcasterId = channel,
                 Items =
                 [
-                    new("Song A", "viewer1", 210, "K7QM"),
-                    new("Song B", "viewer2", 185, "N4PT"),
+                    new("Song A", "viewer1", 210, 1, "K7QM"),
+                    new("Song B", "viewer2", 185, 2, "N4PT"),
                 ],
             }
         );
@@ -108,6 +108,8 @@ public sealed class SrQueueBroadcastHandlerTests
             && items[0].GetProperty("title").GetString() == "Song A"
             && items[0].GetProperty("requestedBy").GetString() == "viewer1"
             && items[0].GetProperty("durationSec").GetInt32() == 210
+            && items[0].GetProperty("number").GetInt32() == 1
+            && items[1].GetProperty("number").GetInt32() == 2
             && items[0].GetProperty("code").GetString() == "K7QM"
             && items[1].GetProperty("title").GetString() == "Song B"
             && items[1].GetProperty("code").GetString() == "N4PT";

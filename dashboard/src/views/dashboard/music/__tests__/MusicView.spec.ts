@@ -53,6 +53,7 @@ const track = (
   requestedBy: string,
 ): Record<string, unknown> => ({
   position,
+  number: position,
   trackName,
   artist,
   imageUrl: null,
@@ -528,6 +529,23 @@ describe('MusicView', () => {
     expect(lines).toHaveLength(3);
     expect(lines[2]).toBe('Requested by sample_viewer');
     expect(lines[1]).not.toContain('Requested');
+  });
+
+  // Bamo 2026-10-16: "are the tracks not numbered in this list?" The number is the server's, the same one
+  // !queue prints and !wrongsong reads back, so it is shown as given and never counted from the row index.
+  it('shows the number the server gave each queued song as #N', async () => {
+    queue = [
+      { ...track(1, 'Strobe', 'deadmau5', 'Bamo'), number: 4 },
+      { ...track(2, 'Opus', 'Eric Prydz', 'Spotify'), number: 5 },
+    ];
+
+    await open();
+
+    const numbers = [...panel('Request queue').querySelectorAll('[data-queue-number]')].map(
+      (node) => node.textContent?.trim(),
+    );
+
+    expect(numbers).toEqual(['#4', '#5']);
   });
 
   // Bamo 2026-10-15: name colors in the music queue; a click opens the profile.

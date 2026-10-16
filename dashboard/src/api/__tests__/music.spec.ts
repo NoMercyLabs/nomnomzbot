@@ -50,6 +50,7 @@ const queue: MusicQueue = {
   queue: [
     {
       position: 1,
+      number: 1,
       trackName: 'One',
       artist: 'A',
       imageUrl: null,
@@ -59,6 +60,7 @@ const queue: MusicQueue = {
     },
     {
       position: 2,
+      number: 2,
       trackName: 'Two',
       artist: 'B',
       imageUrl: null,
@@ -68,6 +70,7 @@ const queue: MusicQueue = {
     },
     {
       position: 3,
+      number: 3,
       trackName: 'Three',
       artist: 'C',
       imageUrl: null,

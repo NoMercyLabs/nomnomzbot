@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
@@ -59,6 +60,22 @@ public sealed class MusicServiceQueueSnapshotTests
         item.Code.Should().NotBeNullOrEmpty().And.HaveLength(SongCode.Length);
         // The accepted-request fact still rides its own event alongside the snapshot.
         bus.Published.OfType<SongRequestedEvent>().Single().TrackName.Should().Be("Song Q");
+    }
+
+    [Fact]
+    public async Task Snapshot_numbers_entries_from_one_in_play_order()
+    {
+        (MusicService sut, _) = Build();
+        await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
+        await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q2", "viewer2");
+
+        IReadOnlyList<SongRequestQueueSnapshotItem> items = sut.SnapshotQueue(ChannelId.ToString());
+
+        items
+            .Select(i => i.Number)
+            .Should()
+            .Equal(QueueNumbering.NumberOf(0), QueueNumbering.NumberOf(1));
+        items.Select(i => i.Number).Should().Equal(1, 2);
     }
 
     [Fact]
@@ -163,8 +180,11 @@ public sealed class MusicServiceQueueSnapshotTests
     /// fair queue records), currently-playing returns "nothing playing" (204), every mutation returns 204.</summary>
     private sealed class QueueFakeSpotifyHandler : HttpMessageHandler
     {
-        private const string SearchJson = """
-            {"tracks":{"items":[{"name":"Song Q","uri":"spotify:track:q1","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
+        private int _searches;
+
+        private static string SearchJson(int n) =>
+            $$$"""
+            {"tracks":{"items":[{"name":"Song Q","uri":"spotify:track:q{{{n}}}","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
             """;
 
         protected override Task<HttpResponseMessage> SendAsync(
@@ -180,7 +200,7 @@ public sealed class MusicServiceQueueSnapshotTests
             HttpResponseMessage response = isSearch
                 ? new(HttpStatusCode.OK)
                 {
-                    Content = new StringContent(SearchJson, Encoding.UTF8, "application/json"),
+                    Content = new StringContent(SearchJson(Interlocked.Increment(ref _searches)), Encoding.UTF8, "application/json"),
                 }
                 : new HttpResponseMessage(HttpStatusCode.NoContent);
             return Task.FromResult(response);

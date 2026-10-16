@@ -16,6 +16,7 @@ import { requestersIn } from '../components/requesters';
 
 const song = (position: number, requestedBy: string | null): QueueItem => ({
   position,
+  number: position + 1,
   trackName: `Song ${position}`,
   artist: 'Artist',
   imageUrl: null,

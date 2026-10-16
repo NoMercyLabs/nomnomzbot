@@ -315,6 +315,12 @@ const panels = computed(
               >
                 <Grip class="size-4" aria-hidden="true" />
               </span>
+              <span
+                data-queue-number
+                class="w-8 flex-none text-sm tabular-nums text-muted-foreground"
+              >
+                {{ `#${item.number}` }}
+              </span>
               <img
                 v-if="item.imageUrl"
                 :src="item.imageUrl"

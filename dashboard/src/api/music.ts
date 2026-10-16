@@ -142,6 +142,7 @@ function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
   return rows.map((row: QueueItem, index: number): QueueItem => ({
     ...row,
     position: original[index]?.position ?? row.position,
+    number: original[index]?.number ?? row.number,
   }));
 }
 

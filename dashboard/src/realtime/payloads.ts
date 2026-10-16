@@ -141,6 +141,7 @@ export type SrQueueChangedPayload = {
     title: string;
     requestedBy: string;
     durationSec: number;
+    number: number;
     code: string;
   }[];
 };

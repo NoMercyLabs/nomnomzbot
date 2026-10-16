@@ -27,7 +27,7 @@
         "empty": "Je hebt geen nummers in de wachtrij.",
         "closed": "Verzoekjes zijn nu gesloten.",
         "error": "Je wachtrij is niet geladen.",
-        "position": "Eerstvolgende | {n} in de rij",
+        "position": "#{n} · eerstvolgende | #{n}",
         "total": "{count} nummers in de hele wachtrij"
       }
     }
