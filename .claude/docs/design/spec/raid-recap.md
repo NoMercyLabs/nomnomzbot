@@ -112,6 +112,13 @@ Stoney, verbatim: "can you make it a bit more on brand with my overlay?" and "ca
 - The look copies the channel's own Leaderboard and Logo badge widgets: one hue `--base` with five shades (`--color-100` to `--color-900`), the 45-degree see-through card gradient with blur, the same font.
 - The hue is fixed per stream, not animated: `(day - 1) * 360 / 31` degrees, where `day` is the day of the month the stream started (Amsterdam time). Day 1 is red; day 15 is green.
 
+Stoney, verbatim, on preview v4 (avatar watermark, bottom-left of the Subscriptions card): "this needs to be more dynamic/fluid and react according to what happened every stream. i don't get 22 subs every stream. i like it but it may needs some fluid behavior. this also needs to be generated at the end of the stream live on my obs scene"
+
+- Fluid layout: the grid is built from the blocks that have data this stream. Empty blocks are gone and the others grow to fill the space. A quiet stream (no subs, no raids) still fills the screen without gaps; a busy one scrolls its long lists.
+- Card size follows content weight: a block with many rows gets more space than a block with one.
+- The channel avatar is a faint watermark in the bottom-left of the first tall card.
+- Trigger: the screen is generated live at the end of every stream, raid or no raid (this answers the S6 question). Sources: the "Raid committed" signal and the stream-offline signal, whichever comes first; it is shown once per stream.
+
 ## 5. API
 
 New read endpoint, additive: `GET /api/v1/dashboard/{channelId}/stream-recap?streamId=` next to `DashboardController.cs:98` (`stats`). It returns `StreamRecapDto`. Default `streamId` is the latest stream, ended or live. The numbers are counted from the event journal and tables in the Stream window (`StartedAt` to `EndedAt`, or now). The journal has no stream id (EventJournal.cs fields at :27-77), so the window is by time.
@@ -147,6 +154,6 @@ Each slice is one vertical piece with a test that can fail for the right reason.
 - S3 The widget. `raid_recap.vue`, catalogue entry, system-surface key, settings schema, translation keys in English and Dutch, empty-block hiding. Done when: a Vitest mount test renders every block from a fixture DTO, hides empty blocks, shows a dash for a missing stat, contains no subscribe text, and honors `holdSeconds`; `compileKotlinWasmJs` not needed (server widget).
 - S4 Pipeline action and seeder. `show_raid_recap` action, first step in `RaidCommitFlowSeeder`, platform content version bump. Done when: a test runs the action and asserts the exact `raid_recap.show` event and payload reach the notifier; the seeder test asserts the new step is first, and that a customized pipeline is left unchanged.
 - S5 Live proof on the dev box. A throwaway channel row (never a real channel), one fake raid-out event through the real hub, a screenshot of the browser source. Done when: the screenshot shows the real numbers matching the endpoint; the throwaway row is deleted and the delete confirmed by a read.
-- S6 Owner decisions, after S5: show the screen on stream end without a raid? Add rolling credits for follower names? Both are new ideas for the tracker, not part of this spec.
+- S6 Stream-end trigger without a raid (decided 2026-10-16, §4.1): the stream-offline signal also sends `raid_recap.show`, once per stream. Done when: a test proves offline sends it, and a raid followed by offline sends it only once.
 
 Not checked in this run: whether `MusicHistoryReader.GetRecentAsync` takes a time window; the exact current widget event names in `NnzWidgetEventMap`; the Streamer.bot and StreamElements page bodies in a real browser.
