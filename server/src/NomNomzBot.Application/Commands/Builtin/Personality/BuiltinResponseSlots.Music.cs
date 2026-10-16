@@ -95,6 +95,12 @@ public static partial class BuiltinResponseSlots
         /// <summary>The track is explicit and the channel blocks explicit songs; <c>{track.name}</c> is set.</summary>
         public const string TrackExplicit = "trackexplicit";
 
+        /// <summary>The video's uploader does not allow it on other sites, so the overlay player can never play it; <c>{track.name}</c> is set.</summary>
+        public const string NotEmbeddable = "notembeddable";
+
+        /// <summary>The video is age-restricted, which YouTube never plays in an embedded player; <c>{track.name}</c> is set.</summary>
+        public const string AgeRestricted = "agerestricted";
+
         /// <summary>The requester used up their requests for this stream; <c>{request.limit}</c> is set.</summary>
         public const string PerStreamLimit = "perstreamlimit";
 

@@ -333,6 +333,48 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.NotEmbeddable,
+            variables: ["track.name"],
+            informative:
+            [
+                "\"{track.name}\" can't be played here — its uploader doesn't allow it on other sites. Try another upload of the song.",
+            ],
+            friendly:
+            [
+                "Sorry, \"{track.name}\" can't play on stream, its uploader blocks that. Another upload of it might work!",
+            ],
+            sassy:
+            [
+                "\"{track.name}\" is locked to YouTube by its uploader. Find an upload that actually plays.",
+            ],
+            hype: ["\"{track.name}\" IS LOCKED BY ITS UPLOADER. FIND ANOTHER UPLOAD!"],
+            chill: ["\"{track.name}\" can't play here, the uploader blocks it. try another upload."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.AgeRestricted,
+            variables: ["track.name"],
+            informative:
+            [
+                "\"{track.name}\" is age-restricted on YouTube, so it can't play on stream. Try another upload of the song.",
+            ],
+            friendly:
+            [
+                "Sorry, \"{track.name}\" is age-restricted on YouTube and can't play on stream. Another upload might work!",
+            ],
+            sassy:
+            [
+                "\"{track.name}\" is age-restricted. Not playing that one. Find another upload.",
+            ],
+            hype: ["\"{track.name}\" IS AGE-RESTRICTED. CAN'T PLAY IT. FIND ANOTHER UPLOAD!"],
+            chill: ["\"{track.name}\" is age-restricted, can't play it here. try another upload."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.PerStreamLimit,
             variables: ["request.limit"],
             informative:

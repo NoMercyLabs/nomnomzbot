@@ -85,6 +85,20 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 trackName,
                 ct
             ),
+            "TRACK_NOT_EMBEDDABLE" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NotEmbeddable,
+                "\"{track.name}\" can't be played here — its uploader doesn't allow it on other sites. Try another upload of the song.",
+                trackName,
+                ct
+            ),
+            "TRACK_AGE_RESTRICTED" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.AgeRestricted,
+                "\"{track.name}\" is age-restricted on YouTube, so it can't play on stream. Try another upload of the song.",
+                trackName,
+                ct
+            ),
             "PER_STREAM_LIMIT" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.PerStreamLimit,

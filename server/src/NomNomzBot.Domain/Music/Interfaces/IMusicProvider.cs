@@ -324,8 +324,10 @@ public class TrackInfo
     /// <summary>Provider-flagged age restriction (YouTube) — enforces the <c>BlockAgeRestricted</c> gate.</summary>
     public bool IsAgeRestricted { get; init; }
 
-    /// <summary>Whether the track can play in the embedded player (YouTube) — enforces the <c>EmbeddableOnly</c> gate.</summary>
-    public bool IsEmbeddable { get; init; }
+    /// <summary>Whether the track can play in the embedded player (YouTube) — enforces the <c>EmbeddableOnly</c> gate.
+    /// True unless a provider says otherwise: a track with no embed constraint (Spotify, a placeholder entry)
+    /// must never be refused as "not embeddable".</summary>
+    public bool IsEmbeddable { get; init; } = true;
 
     // Only meaningful on a GetCurrentTrackAsync result (the provider's "currently playing" read) — a
     // SearchAsync hit is not "playing" anything, so it is left at the default (false / 0) there.

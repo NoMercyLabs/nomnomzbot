@@ -873,6 +873,25 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         return Math.Max(1, (int)minutes);
     }
 
+    /// <summary>A track the provider flagged as unplayable in an embedded player; null when it can play.</summary>
+    private static Result? RefuseIfUnplayable(TrackInfo trackInfo)
+    {
+        MusicRequestRefusal refusal = new(trackInfo.TrackName, trackInfo.Artist);
+        if (!trackInfo.IsEmbeddable)
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" does not allow playback outside its own site.",
+                "TRACK_NOT_EMBEDDABLE",
+                errorData: refusal
+            );
+        if (trackInfo.IsAgeRestricted)
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" is age-restricted and cannot play in an embedded player.",
+                "TRACK_AGE_RESTRICTED",
+                errorData: refusal
+            );
+        return null;
+    }
+
     /// <summary>
     /// The shared admission path once a track has already been resolved: blocklist gate, fair-queue
     /// enqueue, provider-side push when the queue was empty, and the SongRequested + queue-changed events.
@@ -900,6 +919,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "TRACK_BLOCKED",
                 errorData: new MusicRequestRefusal(trackInfo.TrackName, trackInfo.Artist)
             );
+
+        // Playability gates: the overlay's embedded player can never play these, so no role skips them —
+        // queuing one would announce "added" and then silently fail when its turn comes.
+        Result? unplayable = RefuseIfUnplayable(trackInfo);
+        if (unplayable is not null)
+            return unplayable;
 
         // Broadcaster and moderators are trusted operators: like a command cooldown, the length, queue and
         // per-user limits exist to stop viewer abuse and never hold them (same ladder rung as the cooldown).
