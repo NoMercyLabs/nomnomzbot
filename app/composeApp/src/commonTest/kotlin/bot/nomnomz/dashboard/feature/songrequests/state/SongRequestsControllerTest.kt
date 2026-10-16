@@ -335,6 +335,31 @@ class SongRequestsControllerTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun subscribe_to_hub_reloads_the_queue_when_a_request_is_added_while_the_same_song_plays() = runTest {
+        val before = listOf(QueuedSong(position = 0, trackName = "A"))
+        val after = listOf(QueuedSong(position = 0, trackName = "A"), QueuedSong(position = 1, trackName = "New request"))
+        val songRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+
+        val events: MutableSharedFlow<HubEvent> = MutableSharedFlow(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // A viewer's !sr changes the queue without changing the playing track: the server pushes
+        // sr_queue_changed (SrQueueBroadcastHandler) and nothing else.
+        events.emit(HubEvent.SrQueueChanged)
+
+        assertEquals(2, songRequestsApi.queueCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("A", "New request"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun subscribe_to_hub_skips_reload_when_the_current_track_is_unchanged() = runTest {
         val queue = listOf(QueuedSong(position = 0, trackName = "A"))
         val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(queue)))

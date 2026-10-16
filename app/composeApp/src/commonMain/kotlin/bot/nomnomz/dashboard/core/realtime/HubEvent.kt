@@ -69,6 +69,12 @@ sealed interface HubEvent {
     /** The AutoMod review queue changed — a new hold, or a resolution (any moderator, or Twitch expiry). */
     data class AutoModQueueChanged(val change: HubAutoModQueueChange) : HubEvent
 
+    /**
+     * The channel's song-request queue changed (a request added, removed, reordered, or played). Its payload is
+     * the queue's top items, which the dashboard re-reads in full, so it is not carried.
+     */
+    data object SrQueueChanged : HubEvent
+
     /** A bot-run chat poll opened, got a vote, or closed; the payload carries the whole poll. */
     data class ChatPollChanged(val poll: HubChatPollChanged) : HubEvent
 
@@ -99,6 +105,7 @@ sealed interface HubEvent {
                     "ConfigChanged" -> ConfigChanged(json.decodeFromString(first))
                     "RewardChanged" -> RewardChanged(json.decodeFromString(first))
                     "automod_queue_changed" -> AutoModQueueChanged(json.decodeFromString(first))
+                    "sr_queue_changed" -> SrQueueChanged
                     "ChatPollChanged" -> ChatPollChanged(json.decodeFromString(first))
                     else -> Unknown(target, first)
                 }

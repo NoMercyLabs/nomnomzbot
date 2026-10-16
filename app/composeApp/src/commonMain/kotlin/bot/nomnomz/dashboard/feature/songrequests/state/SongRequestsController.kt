@@ -314,16 +314,22 @@ class SongRequestsController(
         ApiResult.Failure(ApiError(0, null, getString(Res.string.songrequests_no_channel_error)))
 
     /**
-     * Subscribe to [hubEvents] so the queue refreshes when the current track changes. A play/pause toggle
-     * does not advance the queue so it is skipped — only a new (or cleared) track triggers a reload.
+     * Subscribe to [hubEvents] so the queue refreshes live: on every queue change (a viewer's request, a mod's
+     * remove or promote), and when the current track changes. A play/pause toggle does not advance the queue
+     * so it is skipped — only a new (or cleared) track triggers a reload.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.collect { evt ->
-            if (evt !is HubEvent.MusicStateChanged) return@collect
-            val incomingId: String? = evt.state.currentTrack?.trackName
-            if (incomingId == lastTrackId) return@collect
-            lastTrackId = incomingId
-            if (channelId != null) load()
+            when (evt) {
+                is HubEvent.SrQueueChanged -> if (channelId != null) load()
+                is HubEvent.MusicStateChanged -> {
+                    val incomingId: String? = evt.state.currentTrack?.trackName
+                    if (incomingId == lastTrackId) return@collect
+                    lastTrackId = incomingId
+                    if (channelId != null) load()
+                }
+                else -> Unit
+            }
         }
     }
 
