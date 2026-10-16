@@ -133,6 +133,17 @@ public sealed class AudioYouTubePlayerGuardTests
     }
 
     [Fact]
+    public void A_video_the_player_cannot_play_is_reported_as_an_error_so_the_queue_moves_on()
+    {
+        // Embedding disabled, removed, private or region-blocked videos fail through onError, never through
+        // onStateChange; without this the bot waits on a song that will never start.
+        string source = Source();
+
+        source.Should().Contain("onError: (e) => reportYouTubeError(");
+        source.Should().Contain("NomNomz.reportYouTubePlayerState(videoId, 'ERROR'");
+    }
+
+    [Fact]
     public void The_report_carries_the_position_in_milliseconds()
     {
         Source().Should().Contain("getCurrentTime() * 1000");

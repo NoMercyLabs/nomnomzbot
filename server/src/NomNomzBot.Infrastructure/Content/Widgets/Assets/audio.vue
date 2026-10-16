@@ -40,13 +40,14 @@ interface YouTubePlayerHandle {
   getVideoData(): { video_id: string }
 }
 interface YouTubeStateEvent { data: number, target: YouTubePlayerHandle }
+interface YouTubeErrorEvent { data: number, target: YouTubePlayerHandle }
 interface YouTubeNamespace {
   Player: new (el: HTMLElement, options: {
     width: string
     height: string
     videoId: string
     playerVars: Record<string, number>
-    events: { onStateChange: (e: YouTubeStateEvent) => void }
+    events: { onStateChange: (e: YouTubeStateEvent) => void, onError: (e: YouTubeErrorEvent) => void }
   }) => YouTubePlayerHandle
 }
 declare const YT: YouTubeNamespace
@@ -112,6 +113,18 @@ function reportYouTubeHeartbeat(): void {
     .catch(() => { /* offline: the next beat reports again */ })
 }
 
+// Embedding disabled (101/150/153), removed or private (100), a bad id (2) or a player fault (5): the video will
+// never start, so the bot is told at once and moves on to the next request. The player may not know the video
+// id of a video it refused, so the one the bot asked for is reported.
+function reportYouTubeError(player: YouTubePlayerHandle, code: number): void {
+  const videoId: string = ytRequestedVideoId || player.getVideoData().video_id
+  ytLoading = false
+  ytPendingSeekSeconds = null
+  console.warn('[audio] YouTube player error', code, videoId)
+  NomNomz.reportYouTubePlayerState(videoId, 'ERROR', 0)
+    .catch(() => { /* offline: the bot's in-flight check releases the request */ })
+}
+
 async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undefined): Promise<void> {
   const videoId: string = d?.videoId || ''
   if (!videoId) return
@@ -141,6 +154,7 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
     playerVars: { autoplay: 1, controls: 0 },
     events: {
       onStateChange: (e) => reportYouTubeState(e.target, e.data),
+      onError: (e) => reportYouTubeError(e.target, e.data),
     },
   })
 }

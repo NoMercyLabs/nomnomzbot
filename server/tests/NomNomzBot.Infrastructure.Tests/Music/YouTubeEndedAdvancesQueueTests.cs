@@ -336,4 +336,29 @@ public sealed class YouTubeEndedAdvancesQueueTests
             .Should()
             .Equal(Watch(Third));
     }
+
+    [Fact]
+    public async Task A_video_the_player_cannot_play_is_announced_and_the_next_request_plays()
+    {
+        Rig rig = await TwoQueuedAsync();
+
+        await ReportAsync(rig, First, "error");
+
+        SongPlaybackFailedEvent failed = rig
+            .Bus.Published.OfType<SongPlaybackFailedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        failed.BroadcasterId.Should().Be(Broadcaster);
+        failed.TrackUri.Should().Be(Watch(First));
+        failed.TrackName.Should().Be("First Song");
+        rig.Bus.Published.IndexOf(failed)
+            .Should()
+            .BeLessThan(
+                rig.Bus.Published.FindIndex(e => e is PlaybackStateChangedEvent),
+                "the notice must read the request before the queue drops it"
+            );
+        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
+        QueuedUris(rig).Should().Equal(Watch(Second));
+    }
 }

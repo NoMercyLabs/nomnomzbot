@@ -79,6 +79,17 @@ public sealed class YouTubePlayerReportService(
         if (ended && !(changed && ResumePending(broadcasterId, videoId)))
             await players.HandOverNextAsync(broadcasterId, cancellationToken);
 
+        // Announced before the playback change below, whose queue reconciler drops the failed request.
+        if (changed && parsed == YouTubePlayerState.Error)
+            await eventBus.PublishAsync(
+                new SongPlaybackFailedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    TrackUri = YouTubeMusicProvider.WatchUrl(videoId),
+                    TrackName = known?.Title ?? string.Empty,
+                },
+                cancellationToken
+            );
         if (changed)
             await PublishAsync(
                 broadcasterId,
