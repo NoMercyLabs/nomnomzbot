@@ -144,6 +144,20 @@ public sealed class AudioYouTubePlayerGuardTests
     }
 
     [Fact]
+    public void Commands_that_arrive_before_the_player_is_ready_or_while_it_loads_are_held_not_lost()
+    {
+        // The IFrame player has no methods until onReady; a pause, stop or second play before then threw. A
+        // resumed paused song arrives as play + seek + pause, and a pause during loading is ignored by YouTube,
+        // so the song played instead of staying paused.
+        string source = Source();
+
+        source.Should().Contain("onReady: (e) => onYouTubeReady(e.target, startedWith)");
+        source.Should().NotContain("ytPlayer = new YT.Player(");
+        source.Should().Contain("if (ytLoading || !ytPlayer) { ytPendingPause = true; return }");
+        source.Should().Contain("if (ytPendingPause) player.pauseVideo()");
+    }
+
+    [Fact]
     public void The_report_carries_the_position_in_milliseconds()
     {
         Source().Should().Contain("getCurrentTime() * 1000");

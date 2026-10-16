@@ -47,7 +47,11 @@ interface YouTubeNamespace {
     height: string
     videoId: string
     playerVars: Record<string, number>
-    events: { onStateChange: (e: YouTubeStateEvent) => void, onError: (e: YouTubeErrorEvent) => void }
+    events: {
+      onReady: (e: { target: YouTubePlayerHandle }) => void
+      onStateChange: (e: YouTubeStateEvent) => void
+      onError: (e: YouTubeErrorEvent) => void
+    }
   }) => YouTubePlayerHandle
 }
 declare const YT: YouTubeNamespace
@@ -57,13 +61,17 @@ interface YouTubeWindow extends Window {
 }
 
 const ytMount = ref<HTMLElement | null>(null)
+// Set only once the player is ready: before onReady the IFrame player has no methods to call.
 let ytPlayer: YouTubePlayerHandle | null = null
 let ytApiPromise: Promise<void> | null = null
+// The API is loading or the player is being created; later commands update what it starts with.
 let ytStarting = false
 let ytRequestedVideoId: string | null = null
-// A video was handed over and has not reported PLAYING yet; a seek that arrives meanwhile waits for it.
+// A video was handed over and has not reported PLAYING yet. A seek or pause that arrives meanwhile waits for it:
+// YouTube ignores a pause before playback starts, and a paused song is resumed as play + seek + pause.
 let ytLoading: boolean = false
 let ytPendingSeekSeconds: number | null = null
+let ytPendingPause: boolean = false
 
 // IFrame API state codes: 0 ended, 1 playing, 2 paused.
 const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'PAUSED' }
@@ -71,10 +79,6 @@ const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'P
 // request over this one. A playing or paused video is re-reported well inside that window.
 const YT_HEARTBEAT_MS: number = 5000
 let ytHeartbeat: number | undefined
-
-function currentYouTubePlayer(): YouTubePlayerHandle | null {
-  return ytPlayer
-}
 
 function loadYouTubeApi(): Promise<void> {
   if (ytApiPromise) return ytApiPromise
@@ -90,17 +94,18 @@ function loadYouTubeApi(): Promise<void> {
   return ytApiPromise
 }
 
-function applyPendingYouTubeSeek(player: YouTubePlayerHandle): void {
+function applyPendingYouTubeCommands(player: YouTubePlayerHandle): void {
   ytLoading = false
-  if (ytPendingSeekSeconds === null) return
-  player.seekTo(ytPendingSeekSeconds, true)
+  if (ytPendingSeekSeconds !== null) player.seekTo(ytPendingSeekSeconds, true)
   ytPendingSeekSeconds = null
+  if (ytPendingPause) player.pauseVideo()
+  ytPendingPause = false
 }
 
 function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
   const state: string | undefined = YT_STATE_NAMES[code]
   if (!state) return
-  if (state === 'PLAYING') applyPendingYouTubeSeek(player)
+  if (state === 'PLAYING') applyPendingYouTubeCommands(player)
   NomNomz.reportYouTubePlayerState(player.getVideoData().video_id, state, Math.round(player.getCurrentTime() * 1000))
     .catch(() => { /* offline: the next state change reports again */ })
 }
@@ -120,6 +125,7 @@ function reportYouTubeError(player: YouTubePlayerHandle, code: number): void {
   const videoId: string = ytRequestedVideoId || player.getVideoData().video_id
   ytLoading = false
   ytPendingSeekSeconds = null
+  ytPendingPause = false
   console.warn('[audio] YouTube player error', code, videoId)
   NomNomz.reportYouTubePlayerState(videoId, 'ERROR', 0)
     .catch(() => { /* offline: the bot's in-flight check releases the request */ })
@@ -131,6 +137,7 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
   ytRequestedVideoId = videoId
   ytLoading = true
   ytPendingSeekSeconds = null
+  ytPendingPause = false
   if (ytPlayer) { ytPlayer.loadVideoById(videoId); return }
   if (ytStarting) return
   ytStarting = true
@@ -141,30 +148,37 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
     ytStarting = false
     return
   }
-  ytStarting = false
-  if (!ytRequestedVideoId) return
-  // Another play event may have created the player while the API loaded; read it fresh (TS narrowed it to null).
-  const created: YouTubePlayerHandle | null = currentYouTubePlayer()
-  if (created) { created.loadVideoById(ytRequestedVideoId || videoId); return }
-  if (!ytMount.value) return
-  ytPlayer = new YT.Player(ytMount.value, {
+  if (!ytRequestedVideoId || !ytMount.value) { ytStarting = false; return }
+  const startedWith: string = ytRequestedVideoId
+  new YT.Player(ytMount.value, {
     width: '100%',
     height: '100%',
-    videoId: ytRequestedVideoId || videoId,
+    videoId: startedWith,
     playerVars: { autoplay: 1, controls: 0 },
     events: {
+      onReady: (e) => onYouTubeReady(e.target, startedWith),
       onStateChange: (e) => reportYouTubeState(e.target, e.data),
       onError: (e) => reportYouTubeError(e.target, e.data),
     },
   })
 }
 
+// The bot may have stopped the video, or handed over another one, while the player was being created.
+function onYouTubeReady(player: YouTubePlayerHandle, startedWith: string): void {
+  ytPlayer = player
+  ytStarting = false
+  if (!ytRequestedVideoId) player.stopVideo()
+  else if (ytRequestedVideoId !== startedWith) player.loadVideoById(ytRequestedVideoId)
+}
+
 // The player's own state changes then report PAUSED / PLAYING back to the bot.
 function onYouTubePause(): void {
-  ytPlayer?.pauseVideo()
+  if (ytLoading || !ytPlayer) { ytPendingPause = true; return }
+  ytPlayer.pauseVideo()
 }
 
 function onYouTubeResume(): void {
+  ytPendingPause = false
   ytPlayer?.playVideo()
 }
 
@@ -178,12 +192,23 @@ function onYouTubeSeek(d: NnzWidgetEventMap['youtube.seek'] | null | undefined):
 
 // stopVideo() emits state 5 (cued), which YT_STATE_NAMES ignores, so the end is reported explicitly.
 function onYouTubeStop(d?: NnzWidgetEventMap['youtube.stop'] | null): void {
+  const requested: string | null = ytRequestedVideoId
+  const handoff: boolean = Boolean((d as { handoff?: boolean } | null)?.handoff)
   ytRequestedVideoId = null
-  if (!ytPlayer) return
+  ytLoading = false
+  ytPendingSeekSeconds = null
+  ytPendingPause = false
+  if (!ytPlayer) {
+    // Stopped before the player was ready: onYouTubeReady stops it, and the bot still hears the end.
+    if (requested && !handoff)
+      NomNomz.reportYouTubePlayerState(requested, 'ENDED', 0)
+        .catch(() => { /* offline: the bot keeps the video as playing until the next report */ })
+    return
+  }
   const videoId: string = ytPlayer.getVideoData().video_id
   const positionMs: number = Math.round(ytPlayer.getCurrentTime() * 1000)
   ytPlayer.stopVideo()
-  if ((d as { handoff?: boolean } | null)?.handoff) return
+  if (handoff) return
   NomNomz.reportYouTubePlayerState(videoId, 'ENDED', positionMs)
     .catch(() => { /* offline: the bot keeps the video as playing until the next report */ })
 }
