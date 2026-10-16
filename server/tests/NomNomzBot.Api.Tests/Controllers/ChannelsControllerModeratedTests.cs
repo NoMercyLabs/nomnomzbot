@@ -156,7 +156,8 @@ public sealed class ChannelsControllerModeratedTests
             Substitute.For<Application.Contracts.Authorization.IMembershipService>(),
             Substitute.For<IUserService>(),
             Substitute.For<IChannelDeletePreviewService>(),
-            Substitute.For<ICurrentUserService>()
+            Substitute.For<ICurrentUserService>(),
+            Substitute.For<IViewAsScope>()
         )
         {
             ControllerContext = new()

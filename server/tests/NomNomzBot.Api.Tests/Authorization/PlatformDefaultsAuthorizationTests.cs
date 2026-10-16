@@ -114,7 +114,7 @@ public sealed class PlatformDefaultsAuthorizationTests
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.IsAuthenticated.Returns(true);
         currentUser.UserId.Returns(OperatorUser.ToString());
-        return (new(iam, currentUser), db);
+        return (new(iam, currentUser, Substitute.For<IViewAsScope>()), db);
     }
 
     private static AuthorizationHandlerContext Context()

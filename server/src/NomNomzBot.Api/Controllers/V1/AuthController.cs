@@ -19,6 +19,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -49,6 +50,7 @@ public class AuthController : BaseController
     private readonly ISessionService _sessions;
     private readonly ISystemCredentialsProvider _credentials;
     private readonly IImpersonationSessionService _impersonation;
+    private readonly IViewAsScope _viewAs;
 
     public AuthController(
         IUserService userService,
@@ -64,7 +66,8 @@ public class AuthController : BaseController
         IExternalLoginService externalLogin,
         ISessionService sessions,
         ISystemCredentialsProvider credentials,
-        IImpersonationSessionService impersonation
+        IImpersonationSessionService impersonation,
+        IViewAsScope viewAs
     )
     {
         _userService = userService;
@@ -81,6 +84,7 @@ public class AuthController : BaseController
         _sessions = sessions;
         _credentials = credentials;
         _impersonation = impersonation;
+        _viewAs = viewAs;
     }
 
     private ILoginIdentityProvider? FindLoginImpl(string key) =>
@@ -134,6 +138,11 @@ public class AuthController : BaseController
     public async Task<IActionResult> GetCurrentUser(CancellationToken ct)
     {
         Result<CurrentUserDto> result = await _userService.GetCurrentUserAsync(ct);
+
+        // "View as" is a full identity swap: the previewed role never sees the platform-admin flag.
+        if (result.IsSuccess && _viewAs.CeilingLevel is not null)
+            return ResultResponse(Result.Success(result.Value with { IsAdmin = false }));
+
         return ResultResponse(result);
     }
 

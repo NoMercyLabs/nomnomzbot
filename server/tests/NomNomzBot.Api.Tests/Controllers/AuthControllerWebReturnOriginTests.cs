@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -212,7 +213,8 @@ public sealed class AuthControllerWebReturnOriginTests
                 Substitute.For<IExternalLoginService>(),
                 Substitute.For<ISessionService>(),
                 Substitute.For<ISystemCredentialsProvider>(),
-                Substitute.For<IImpersonationSessionService>()
+                Substitute.For<IImpersonationSessionService>(),
+                Substitute.For<IViewAsScope>()
             )
             {
                 ControllerContext = new() { HttpContext = http },

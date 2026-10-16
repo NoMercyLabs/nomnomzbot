@@ -132,7 +132,8 @@ public sealed class ChannelsControllerImpersonationTests
             memberships,
             Substitute.For<IUserService>(),
             Substitute.For<IChannelDeletePreviewService>(),
-            currentUser
+            currentUser,
+            Substitute.For<Application.Abstractions.Auth.IViewAsScope>()
         )
         {
             ControllerContext = new()

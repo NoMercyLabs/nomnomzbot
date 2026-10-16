@@ -30,7 +30,8 @@ namespace NomNomzBot.Api.Authorization;
 /// </summary>
 public sealed class PlatformIamAuthorizationHandler(
     IPlatformIamService iam,
-    ICurrentUserService currentUser
+    ICurrentUserService currentUser,
+    IViewAsScope viewAs
 ) : AuthorizationHandler<PlatformIamRequirement>
 {
     /// <summary>The role claim value minted for <c>User.IsPlatformPrincipal</c> (SessionService.RolesFor).</summary>
@@ -42,6 +43,10 @@ public sealed class PlatformIamAuthorizationHandler(
     )
     {
         if (!currentUser.IsAuthenticated || !Guid.TryParse(currentUser.UserId, out Guid userId))
+            return;
+
+        // "View as" is a full identity swap: while the owner previews a smaller role the platform plane is closed.
+        if (viewAs.CeilingLevel is not null)
             return;
 
         // The platform-principal marker gates ENTRY to this plane; without it the IAM service is never
