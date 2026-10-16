@@ -25,6 +25,7 @@
       "unreachable": "This bot does not answer. Check that it runs, then try again.",
       "noProviders": "This bot has no sign-in switched on yet. Its owner sets one up in the bot settings.",
       "retry": "Try again",
+      "rateLimited": "Too many sign-in tries. Try again in {seconds} second. | Too many sign-in tries. Try again in {seconds} seconds.",
       "device": {
         "starting": "Getting a code…",
         "instruction": "Go to {site} and enter this code.",

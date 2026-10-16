@@ -25,6 +25,7 @@ let accessToken: string | null = null;
 // Follows the sign-in for the live connection; a token swapped by the 401 retry does not move it.
 const signedIn = ref(false);
 let restoring: Promise<boolean> | null = null;
+let refreshRefused = false;
 
 // A copy of each request, kept until its response, so a 401 can be sent again with a new token.
 const pending = new Map<string, Request>();
@@ -107,6 +108,7 @@ export function getAccessToken(): string {
 // A sign-in that finished on this page (the device code) hands its access token over here.
 export function acceptAccessToken(token: string): void {
   accessToken = token;
+  refreshRefused = false;
   signedIn.value = true;
 }
 
@@ -163,6 +165,11 @@ async function signInAgain(): Promise<boolean> {
   if (code && await exchange(code))
     return true;
 
+  // A refresh the bot refused with 401 has no cookie to give; asking again on every 401 only
+  // fills the rate limit. One answer per page load stands until a sign-in succeeds.
+  if (refreshRefused)
+    return false;
+
   return refresh();
 }
 
@@ -186,9 +193,13 @@ async function refreshNow(): Promise<boolean> {
   // The OpenAPI document declares no 200 body for refresh yet, so the envelope is typed here.
   const token = result.data?.data?.accessToken;
 
-  if (!response.ok || typeof token !== 'string')
-    return false;
+  if (!response.ok || typeof token !== 'string') {
+    refreshRefused = response.status === 401;
 
+    return false;
+  }
+
+  refreshRefused = false;
   accessToken = token;
   signedIn.value = true;
 

@@ -25,6 +25,7 @@
       "unreachable": "Deze bot reageert niet. Controleer of hij draait en probeer het opnieuw.",
       "noProviders": "Op deze bot staat nog geen aanmelding aan. De eigenaar stelt er een in bij de botinstellingen.",
       "retry": "Opnieuw proberen",
+      "rateLimited": "Te veel aanmeldpogingen. Probeer het over {seconds} seconde opnieuw. |Te veel aanmeldpogingen. Probeer het over {seconds} seconden opnieuw.",
       "device": {
         "starting": "Code ophalen…",
         "instruction": "Ga naar {site} en voer deze code in.",

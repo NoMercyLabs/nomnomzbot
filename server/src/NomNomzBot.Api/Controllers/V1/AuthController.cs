@@ -849,7 +849,7 @@ public class AuthController : BaseController
     /// </summary>
     [HttpGet("providers")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(RateLimitPolicyNames.Anonymous)]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<LoginProviderDto>>>(
         StatusCodes.Status200OK
     )]

@@ -9,12 +9,13 @@
 -->
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
-import { computed, ref } from 'vue';
+import { useIntervalFn } from '@vueuse/core';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { activeBot } from '@/api/activeBot';
-import { providersQuery, signInUrl, type LoginProvider, type LoginRole } from '@/api/signIn';
+import { providersQuery, RateLimitedError, signInUrl, type LoginProvider, type LoginRole } from '@/api/signIn';
 import AppMark from '@/components/layout/AppMark.vue';
 import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -45,6 +46,40 @@ const botDetail = computed<string>(() => {
 // Platforms return only to https or localhost (a secure context), so a plain http network address uses one too.
 const otherBot = computed(() => activeBot.value !== servedOrigin);
 const codeOnly = computed(() => otherBot.value || !window.isSecureContext);
+
+// A 429 is "not now", so the page counts the wait down and enables the retry at 0.
+const waitSeconds = ref(0);
+const { pause, resume } = useIntervalFn(
+  () => {
+    waitSeconds.value = Math.max(waitSeconds.value - 1, 0);
+
+    if (waitSeconds.value === 0) {
+      pause();
+    }
+  },
+  1000,
+  { immediate: false },
+);
+
+watch(
+  () => providers.error.value,
+  (error) => {
+    if (!(error instanceof RateLimitedError)) return;
+
+    waitSeconds.value = error.retryAfterSeconds;
+    resume();
+  },
+  { immediate: true },
+);
+
+const problemLine = computed<string>(() => {
+  if (providers.error.value instanceof RateLimitedError)
+    return t('site.login.rateLimited', { seconds: waitSeconds.value }, waitSeconds.value);
+
+  return t(providers.isError.value
+    ? 'site.login.unreachable'
+    : 'site.login.noProviders');
+});
 
 const returnTo = computed(() => returnPath(route.query.return_to));
 const enabled = computed<LoginProvider[]>(() =>
@@ -163,10 +198,13 @@ function signIn(provider: LoginProvider): void {
           class="flex flex-col gap-3"
           role="alert"
         >
-          <p class="text-sm">
-            {{ $t(providers.isError.value ? 'site.login.unreachable' : 'site.login.noProviders') }}
-          </p>
-          <Button variant="outline" class="w-full" @click="providers.refetch()">{{
+          <p class="text-sm">{{ problemLine }}</p>
+          <Button
+            variant="outline"
+            class="w-full"
+            :disabled="waitSeconds > 0"
+            @click="providers.refetch()"
+          >{{
             $t('site.login.retry')
           }}</Button>
         </div>
