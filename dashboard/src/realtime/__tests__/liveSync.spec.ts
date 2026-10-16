@@ -22,7 +22,7 @@ import {
 } from '@/api/music';
 import { communityListsKey } from '@/api/people';
 import { pipelinesKey } from '@/api/pipelines';
-import { rewardsKey } from '@/api/rewards';
+import { redemptionsKey, rewardsKey, type Redemption } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
 
 import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
@@ -92,8 +92,8 @@ const eventKeys: [string, unknown, Keys[]][] = [
   ],
   // Owner 2026-10-14: "i queued a song and it took too long to show up, why is this not socket based?"
   ['sr_queue_changed', { items: [] }, [musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
-  ['RewardRedeemed', { broadcasterId: 'x' }, [homeStatsKey, activityKey, rewardsKey]],
-  ['RedemptionStatusChanged', { broadcasterId: 'x' }, [homeStatsKey, activityKey, rewardsKey]],
+  ['RewardRedeemed', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
+  ['RedemptionStatusChanged', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
   ['RewardChanged', { broadcasterId: 'x', action: 'updated' }, [rewardsKey]],
   ['AlertTriggered', {
     type: 'poll_begin',
@@ -208,6 +208,70 @@ describe('live events refresh the data they change', () => {
     const untouched = everyKey.filter((key) => !keys.includes(key));
 
     expect(staleFor(queries, untouched, 'c1')).toEqual(untouched.map(() => false));
+  });
+});
+
+describe('the redemption queue follows the hub without a refetch', () => {
+  const row = (redemptionId: string, status: string): Redemption => ({
+    redemptionId,
+    rewardId: 'r1',
+    rewardTitle: 'Hydrate',
+    userId: 'u1',
+    userDisplayName: 'Viewer',
+    cost: 500,
+    status,
+    redeemedAt: '2026-10-15T12:00:00Z',
+  });
+
+  it('puts a new redemption at the top as waiting, once', async () => {
+    const [queries, connection] = await started();
+
+    queries.setQueryData(redemptionsKey('c1'), [row('d1', 'unfulfilled')]);
+
+    const payload = {
+      broadcasterId: 'x',
+      rewardId: 'r1',
+      rewardTitle: 'Hydrate',
+      redemptionId: 'd2',
+      userId: 'u2',
+      userDisplayName: 'Other',
+      cost: 500,
+      userInput: 'hello',
+      timestamp: '2026-10-15T12:05:00Z',
+    };
+
+    connection.receive('RewardRedeemed', payload);
+    connection.receive('RewardRedeemed', payload);
+
+    const rows = queries.getQueryData<Redemption[]>(redemptionsKey('c1')) ?? [];
+
+    expect(rows.map((entry) => [entry.redemptionId, entry.status, entry.userInput])).toEqual([
+      ['d2', 'unfulfilled', 'hello'],
+      ['d1', 'unfulfilled', undefined],
+    ]);
+
+    expect(queries.getQueryState(redemptionsKey('c1'))?.isInvalidated).toBe(false);
+  });
+
+  it('rewrites the status of the row Twitch changed', async () => {
+    const [queries, connection] = await started();
+
+    queries.setQueryData(redemptionsKey('c1'), [row('d1', 'unfulfilled'), row('d2', 'unfulfilled')]);
+
+    connection.receive('RedemptionStatusChanged', {
+      broadcasterId: 'x',
+      redemptionId: 'd1',
+      rewardId: 'r1',
+      status: 'CANCELED',
+      timestamp: '2026-10-15T12:06:00Z',
+    });
+
+    const rows = queries.getQueryData<Redemption[]>(redemptionsKey('c1')) ?? [];
+
+    expect(rows.map((entry) => [entry.redemptionId, entry.status])).toEqual([
+      ['d1', 'canceled'],
+      ['d2', 'unfulfilled'],
+    ]);
   });
 });
 

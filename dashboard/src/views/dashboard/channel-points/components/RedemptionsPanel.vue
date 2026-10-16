@@ -8,63 +8,161 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The redemption queue, newest first. Only a pending redemption can be fulfilled or refunded.
-import { computed } from 'vue';
+// The pending-rewards queue, laid out like Twitch's own reward queue: on the left a filter (All, then every
+// reward with its pending count), on the right the unfulfilled requests of that filter. Complete marks a
+// request done; reject refunds the viewer's points, so it asks first.
+import { useLocalStorage } from '@vueuse/core';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import Check from '~icons/nnz/check';
-import Refund from '~icons/nnz/arrow-back-up';
+import CheckDouble from '~icons/nnz/check-double';
+import Clock from '~icons/nnz/clock';
+import Cross from '~icons/nnz/cross';
+import Gem from '~icons/nnz/gem';
+import Inbox from '~icons/nnz/inbox';
 
 import { useChannelAccess } from '@/api/access';
-import { useRedemptionAction, useRedemptions, type Redemption } from '@/api/rewards';
+import {
+  useRedemptionDecision,
+  useRedemptions,
+  useRewards,
+  type Redemption,
+  type RedemptionAction,
+  type Reward,
+} from '@/api/rewards';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
-import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { agoText } from '@/lib/time';
+
+const allRewards = 'all';
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 const access = useChannelAccess(channelId);
 
-const query = useRedemptions(channelId);
-const fulfill = useRedemptionAction(channelId, 'fulfill');
-const refund = useRedemptionAction(channelId, 'refund');
+const queue = useRedemptions(channelId);
+const rewards = useRewards(channelId);
+const decision = useRedemptionDecision(channelId);
 
 const canManage = computed(() => access.can('reward:manage'));
-const state = usePanelState(query, (rows: Redemption[]): boolean =>
-  rows.length === 0);
+const state = usePanelState(queue);
 
-const tones = {
-  unfulfilled: 'live',
-  fulfilled: 'ok',
-  canceled: 'off',
-} as const satisfies Record<string, StatusTone>;
+// The chosen filter is a view preference, so it is kept across reloads and page switches.
+const chosen = useLocalStorage('nnz.channelPoints.redemptionFilter', allRewards);
+const selected = ref<string[]>([]);
+const rejecting = ref<string[]>([]);
 
-function toneOf(status: string): StatusTone {
-  return tones[status as keyof typeof tones] ?? 'off';
-}
+const pending = computed<Redemption[]>(() =>
+  (queue.data.value ?? []).filter((row: Redemption) =>
+    row.status === 'unfulfilled'));
 
-function statusLabel(status: string): string {
-  return t(`dashboard.channelPoints.redemptions.status.${status}`, status);
-}
+type Filter = {
+  id: string;
+  title: string;
+  count: number;
+  reward: Reward | null;
+};
 
-function meta(item: Redemption): string {
-  return t('dashboard.channelPoints.redemptions.meta', {
-    count: Number(item.cost),
-    when: when(item.redeemedAt),
+const filters = computed<Filter[]>(() => {
+  const perReward = (reward: Reward): Filter => ({
+    id: reward.id,
+    title: reward.title,
+    count: pending.value.filter((row: Redemption) =>
+      row.rewardId === reward.id).length,
+    reward,
   });
+  const everything: Filter = {
+    id: allRewards,
+    title: t('dashboard.channelPoints.redemptions.all'),
+    count: pending.value.length,
+    reward: null,
+  };
+
+  return [everything, ...(rewards.data.value ?? []).map(perReward)];
+});
+
+// A remembered reward that no longer exists falls back to All.
+const filter = computed<string>(() =>
+  filters.value.some((entry: Filter) =>
+    entry.id === chosen.value)
+    ? chosen.value
+    : allRewards);
+
+const visible = computed<Redemption[]>(() =>
+  filter.value === allRewards
+    ? pending.value
+    : pending.value.filter((row: Redemption) =>
+        row.rewardId === filter.value));
+
+const chosenIds = computed<string[]>(() =>
+  visible.value
+    .map((row: Redemption) => row.redemptionId)
+    .filter((id: string) =>
+      selected.value.includes(id)));
+
+const allChosen = computed<boolean | 'indeterminate'>(() => {
+  if (chosenIds.value.length === 0)
+    return false;
+
+  return chosenIds.value.length === visible.value.length
+    ? true
+    : 'indeterminate';
+});
+
+function pick(id: string): void {
+  chosen.value = id;
+  selected.value = [];
 }
 
-function when(redeemedAt: string): string {
-  return new Intl.DateTimeFormat(locale.value, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(redeemedAt));
+function toggle(id: string, on: boolean | 'indeterminate'): void {
+  const others = selected.value.filter((entry: string) =>
+    entry !== id);
+
+  selected.value = on === true
+    ? [...others, id]
+    : others;
+}
+
+function toggleAll(on: boolean | 'indeterminate'): void {
+  selected.value = on === true
+    ? visible.value.map((row: Redemption) =>
+        row.redemptionId)
+    : [];
+}
+
+function decide(ids: string[], action: RedemptionAction): void {
+  decision.mutate(
+    { ids, action },
+    {
+      onError: () => {
+        void queue.refetch();
+      },
+    },
+  );
+
+  selected.value = selected.value.filter((id: string) =>
+    !ids.includes(id));
+}
+
+function confirmReject(): void {
+  decide(rejecting.value, 'refund');
+  rejecting.value = [];
+}
+
+function when(row: Redemption): string {
+  return agoText(row.redeemedAt, new Date(), locale.value);
+}
+
+function rejectOpen(open: boolean): void {
+  if (!open) {
+    rejecting.value = [];
+  }
 }
 </script>
 
@@ -72,50 +170,155 @@ function when(redeemedAt: string): string {
   <PanelCard
     :title="$t('dashboard.channelPoints.redemptions.title')"
     :state="state"
-    :empty-text="$t('dashboard.channelPoints.redemptions.empty')"
     :error-text="$t('dashboard.channelPoints.redemptions.error')"
-    @retry="query.refetch()"
+    @retry="queue.refetch()"
   >
-    <SummaryRow
-      v-for="item in query.data.value"
-      :key="item.redemptionId"
-      :title="item.rewardTitle"
-      :detail="item.userInput || undefined"
-      data-redemption-item
-    >
-      <template #title>
-        {{ item.rewardTitle }}
-      </template>
-      <template #end>
-        <span class="flex flex-none flex-col items-end gap-0.5 text-xs text-muted-foreground">
-          <UserName :user-id="item.userId" :name="item.userDisplayName" :color="item.userColor" />
-          <span>{{ meta(item) }}</span>
-        </span>
-      </template>
-      <template #trailing>
-        <StatusBadge :tone="toneOf(item.status)" :label="statusLabel(item.status)" />
-        <template v-if="canManage && item.status === 'unfulfilled'">
-          <Button
-            variant="outline"
-            size="sm"
-            :aria-label="$t('dashboard.channelPoints.redemptions.fulfillRow', { title: item.rewardTitle, name: item.userDisplayName })"
-            data-redemption-fulfill
-            @click="fulfill.mutate({ redemptionId: item.redemptionId })"
+    <div class="grid min-h-0 flex-1 grid-cols-[minmax(10rem,14rem)_minmax(0,1fr)] divide-x divide-border">
+      <nav
+        class="flex min-h-0 flex-col gap-0.5 overflow-y-auto p-2"
+        :aria-label="$t('dashboard.channelPoints.redemptions.filterLabel')"
+      >
+        <button
+          v-for="entry in filters"
+          :key="entry.id"
+          type="button"
+          :data-redemption-filter="entry.id"
+          :aria-pressed="filter === entry.id"
+          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none
+            hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50
+            aria-pressed:bg-accent aria-pressed:font-medium"
+          @click="pick(entry.id)"
+        >
+          <span
+            class="grid size-8 flex-none place-content-center overflow-hidden rounded-md bg-muted text-muted-foreground"
+            :style="entry.reward?.backgroundColor
+              ? { backgroundColor: entry.reward.backgroundColor }
+              : undefined"
           >
-            <Check aria-hidden="true" />
-            {{ $t('dashboard.channelPoints.redemptions.fulfill') }}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.channelPoints.redemptions.refundRow', { title: item.rewardTitle, name: item.userDisplayName })"
-            data-redemption-refund
-            @click="refund.mutate({ redemptionId: item.redemptionId })"
+            <Inbox v-if="entry.reward === null" class="size-5" aria-hidden="true" />
+            <img
+              v-else-if="entry.reward.imageUrl"
+              :src="entry.reward.imageUrl"
+              alt=""
+              class="size-full object-cover"
+            >
+            <Gem v-else class="size-5 text-white" aria-hidden="true" />
+          </span>
+          <span class="min-w-0 flex-1 truncate">{{ entry.title }}</span>
+          <span data-redemption-count class="flex-none text-xs text-muted-foreground tabular-nums">
+            {{ entry.count }}
+          </span>
+        </button>
+      </nav>
+
+      <div class="flex min-h-0 min-w-0 flex-col">
+        <div class="flex flex-none items-center gap-3 border-b border-border px-3 py-2">
+          <Checkbox
+            v-if="canManage"
+            data-redemption-select-all
+            :model-value="allChosen"
+            :disabled="visible.length === 0"
+            :aria-label="$t('dashboard.channelPoints.redemptions.selectAll')"
+            @update:model-value="toggleAll"
+          />
+          <span class="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {{ $t('dashboard.channelPoints.redemptions.range', { count: visible.length }) }}
+          </span>
+          <template v-if="canManage && chosenIds.length > 0">
+            <Button
+              variant="destructive"
+              size="sm"
+              data-redemption-bulk-reject
+              @click="rejecting = chosenIds"
+            >
+              <Cross aria-hidden="true" />
+              {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: chosenIds.length }) }}
+            </Button>
+            <Button size="sm" data-redemption-bulk-complete @click="decide(chosenIds, 'fulfill')">
+              <CheckDouble aria-hidden="true" />
+              {{ $t('dashboard.channelPoints.redemptions.completeAll', { count: chosenIds.length }) }}
+            </Button>
+          </template>
+        </div>
+
+        <p
+          v-if="visible.length === 0"
+          class="p-6 text-center text-sm text-muted-foreground"
+        >
+          {{ $t(filter === 'all'
+            ? 'dashboard.channelPoints.redemptions.empty'
+            : 'dashboard.channelPoints.redemptions.emptyFilter') }}
+        </p>
+
+        <ul v-else class="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+          <li
+            v-for="row in visible"
+            :key="row.redemptionId"
+            :data-redemption-item="row.redemptionId"
+            class="flex items-start gap-3 px-3 py-2.5"
           >
-            <Refund class="size-5" aria-hidden="true" />
-          </Button>
-        </template>
-      </template>
-    </SummaryRow>
+            <Checkbox
+              v-if="canManage"
+              class="mt-1"
+              data-redemption-select
+              :model-value="selected.includes(row.redemptionId)"
+              :aria-label="$t('dashboard.channelPoints.redemptions.selectRow', { title: row.rewardTitle, name: row.userDisplayName })"
+              @update:model-value="toggle(row.redemptionId, $event)"
+            />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-baseline gap-2">
+                <span class="min-w-0 truncate text-sm font-medium">{{ row.rewardTitle }}</span>
+                <span class="flex flex-none items-center gap-1 text-xs text-muted-foreground">
+                  <Clock class="size-4" aria-hidden="true" />
+                  {{ when(row) }}
+                </span>
+              </div>
+              <div class="text-xs text-muted-foreground">
+                <UserName
+                  :user-id="row.userId"
+                  :name="row.userDisplayName"
+                  :color="row.userColor"
+                />
+                <span>{{ $t('dashboard.channelPoints.redemptions.cost', { count: Number(row.cost) }) }}</span>
+              </div>
+              <p v-if="row.userInput" class="mt-1 text-sm break-words">
+                {{ row.userInput }}
+              </p>
+            </div>
+            <div v-if="canManage" class="flex flex-none items-center gap-1.5">
+              <Button
+                variant="destructive"
+                size="sm"
+                :aria-label="$t('dashboard.channelPoints.redemptions.rejectRow', { title: row.rewardTitle, name: row.userDisplayName })"
+                data-redemption-reject
+                @click="rejecting = [row.redemptionId]"
+              >
+                {{ $t('dashboard.channelPoints.redemptions.reject') }}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                :aria-label="$t('dashboard.channelPoints.redemptions.completeRow', { title: row.rewardTitle, name: row.userDisplayName })"
+                data-redemption-complete
+                @click="decide([row.redemptionId], 'fulfill')"
+              >
+                <Check aria-hidden="true" />
+                {{ $t('dashboard.channelPoints.redemptions.complete') }}
+              </Button>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
   </PanelCard>
+
+  <ConfirmDialog
+    :open="rejecting.length > 0"
+    :title="$t('dashboard.channelPoints.redemptions.rejectTitle', { count: rejecting.length })"
+    :description="$t('dashboard.channelPoints.redemptions.rejectDescription')"
+    :consequences="[$t('dashboard.channelPoints.redemptions.rejectRefund')]"
+    :action="$t('dashboard.channelPoints.redemptions.rejectConfirm', { count: rejecting.length })"
+    @update:open="rejectOpen"
+    @confirm="confirmReject"
+  />
 </template>

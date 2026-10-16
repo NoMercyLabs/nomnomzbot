@@ -13,18 +13,26 @@
         "enabled": "{title} aan of uit zetten"
       },
       "redemptions": {
-        "title": "Inwisselingen",
-        "empty": "Niemand heeft al een beloning ingewisseld.",
+        "title": "Wachtende beloningen",
+        "all": "Alle verzoeken",
+        "filterLabel": "Filter op beloning",
+        "empty": "Er wachten geen verzoeken.",
+        "emptyFilter": "Er wachten geen verzoeken voor deze beloning.",
         "error": "De inwisselingen konden niet laden.",
-        "meta": "{count} punten · {when}",
-        "fulfill": "Afhandelen",
-        "fulfillRow": "{title} afhandelen voor {name}",
-        "refundRow": "{title} terugbetalen aan {name}",
-        "status": {
-          "unfulfilled": "Wachtend",
-          "fulfilled": "Afgehandeld",
-          "canceled": "Terugbetaald"
-        }
+        "range": "{count} wachtend",
+        "cost": " · {count} punten",
+        "selectAll": "Selecteer alle verzoeken",
+        "selectRow": "Selecteer {title} van {name}",
+        "complete": "Afronden",
+        "completeRow": "Rond {title} af voor {name}",
+        "completeAll": "{count} afronden",
+        "reject": "Afwijzen",
+        "rejectRow": "Wijs {title} van {name} af",
+        "rejectAll": "{count} afwijzen",
+        "rejectTitle": "{count} verzoeken afwijzen?",
+        "rejectDescription": "Twitch annuleert elk verzoek en geeft de punten terug.",
+        "rejectRefund": "Elke kijker krijgt zijn kanaalpunten terug.",
+        "rejectConfirm": "{count} afwijzen"
       }
     }
   }

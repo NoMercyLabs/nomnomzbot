@@ -8,19 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import {
-  useMutation,
-  useQueryClient,
-  type UseMutationReturnType,
-  type UseQueryReturnType,
-} from '@tanstack/vue-query';
+import type { UseMutationReturnType, UseQueryReturnType } from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
-import type { KeyParts } from '@/lib/array';
+import { chunk, type KeyParts } from '@/lib/array';
 
 export type Reward = components['schemas']['RewardDetail'];
 export type Redemption = components['schemas']['RedemptionListItem'];
@@ -131,34 +126,70 @@ export function useUpdateReward(
 }
 
 export type RedemptionAction = 'fulfill' | 'refund';
+export type RedemptionDecision = { ids: string[]; action: RedemptionAction };
 
-// Fulfil marks the redemption done; refund gives the viewer their points back. Twitch decides the new status,
-// so the queue is read again instead of guessed.
-export function useRedemptionAction(
-  channelId: MaybeRefOrGetter<string | null>,
+// Complete marks the redemptions done; reject refunds the viewers' points (Helix status CANCELED).
+const decidedStatus = {
+  fulfill: 'fulfilled',
+  refund: 'canceled',
+} as const satisfies Record<RedemptionAction, string>;
+
+// The bot takes one redemption per call, so a bulk decision goes out in short runs of parallel calls.
+const callsAtOnce = 10;
+
+async function decide(
+  channelId: string,
+  redemptionId: string,
   action: RedemptionAction,
-) {
-  const queries = useQueryClient();
+): Promise<void> {
+  const path = action === 'fulfill'
+    ? '/api/v{version}/channels/{channelId}/rewards/redemptions/{redemptionId}/fulfill'
+    : '/api/v{version}/channels/{channelId}/rewards/redemptions/{redemptionId}/refund';
+  const { error, response } = await client.POST(path, {
+    params: { path: {
+      version,
+      channelId,
+      redemptionId,
+    } },
+  });
 
-  return useMutation<void, Error, { redemptionId: string }>({
-    mutationFn: async ({ redemptionId }: { redemptionId: string }): Promise<void> => {
+  if (error !== undefined)
+    throw failed(`${action} redemption`, response.status, error);
+}
+
+export function withDecision(
+  rows: Redemption[] | undefined,
+  { ids, action }: RedemptionDecision,
+): Redemption[] {
+  return (rows ?? []).map((row: Redemption): Redemption =>
+    ids.includes(row.redemptionId)
+      ? { ...row, status: decidedStatus[action] }
+      : row);
+}
+
+// The rows leave the pending list at once. A refusal puts them back and reaches the error inbox; the queue
+// is then read again, because some of a bulk decision may have gone through.
+export function useRedemptionDecision(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Redemption[], Error, RedemptionDecision, number> {
+  return useOptimisticSave<Redemption[], RedemptionDecision>({
+    describe: ({ ids, action }: RedemptionDecision) => ({
+      key: action === 'fulfill'
+        ? 'completeRedemptions'
+        : 'rejectRedemptions',
+      params: { count: String(ids.length) },
+    }),
+    queryKey: () => redemptionsKey(toValue(channelId)),
+    mutationFn: async ({ ids, action }: RedemptionDecision): Promise<Redemption[]> => {
       const id = toValue(channelId) as string;
-      const path = action === 'fulfill'
-        ? '/api/v{version}/channels/{channelId}/rewards/redemptions/{redemptionId}/fulfill'
-        : '/api/v{version}/channels/{channelId}/rewards/redemptions/{redemptionId}/refund';
-      const { error, response } = await client.POST(path, {
-        params: { path: {
-          version,
-          channelId: id,
-          redemptionId,
-        } },
-      });
 
-      if (error !== undefined)
-        throw failed(`${action} redemption`, response.status, error);
+      for (const run of chunk(ids, callsAtOnce)) {
+        await Promise.all(run.map((redemptionId: string) =>
+          decide(id, redemptionId, action)));
+      }
+
+      return readRedemptions(id);
     },
-    onSettled: async (): Promise<void> => {
-      await queries.invalidateQueries({ queryKey: redemptionsKey(toValue(channelId)) });
-    },
+    apply: withDecision,
   });
 }
