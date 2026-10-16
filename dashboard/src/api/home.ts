@@ -157,6 +157,45 @@ export function useActivity(
   });
 }
 
+export const supporterActivityKey = (channelId: string | null): KeyParts => [
+  ...activityKey(channelId),
+  'supporters',
+];
+
+// Subs, gifts and cheers only, from a deeper window than the home feed, so a run of redemptions or shoutouts
+// cannot push a gift off the Supporters page. It sits under activityKey, so the live refresh reaches it too.
+const supporterActivityTypes = [
+  'channel.subscribe',
+  'channel.subscription.message',
+  'channel.subscription.gift',
+  'channel.cheer',
+].join(',');
+
+export function useSupporterActivity(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<ActivityEvent[], Error> {
+  return channelQuery(
+    channelId,
+    supporterActivityKey,
+    async (id: string): Promise<ActivityEvent[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/dashboard/{channelId}/activity',
+        {
+          params: {
+            path: { version, channelId: id },
+            query: { types: supporterActivityTypes },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('activity', response.status, error);
+
+      return data?.data ?? [];
+    },
+  );
+}
+
 export function useActivityReplay(
   channelId: MaybeRefOrGetter<string | null>,
 ) {

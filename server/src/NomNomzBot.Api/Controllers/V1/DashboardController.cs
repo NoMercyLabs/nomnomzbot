@@ -245,18 +245,30 @@ public class DashboardController : BaseController
     [HttpGet("{channelId}/activity")]
     [RequireAction("dashboard:read")]
     [ProducesResponseType<StatusResponseDto<List<ActivityEventDto>>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetActivity(string channelId, CancellationToken ct)
+    public async Task<IActionResult> GetActivity(
+        string channelId,
+        [FromQuery] string? types,
+        CancellationToken ct
+    )
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
+        // A page that wants only some kinds (Supporters: subs, gifts, cheers) names them in `types` and gets a
+        // deeper window of just those; the home feed passes none and keeps its newest-20 behavior.
+        List<string>? wantedTypes = ParseActivityTypes(types);
+        int windowSize = wantedTypes is null ? 40 : 200;
+        int feedSize = wantedTypes is null ? 20 : 100;
+
         // Chat messages (channel.chat.message) are excluded — they live in the Chat page.
         // Activity shows stream milestones only: follows, subs, raids, cheers, redemptions, etc.
         // Pull a few extra rows so that after collapsing duplicate follows below the feed still fills ~20.
-        List<ChannelEvent> recent = await _db
-            .ChannelEvents.Where(e => e.ChannelId == tenantId && e.Type != "channel.chat.message")
-            .OrderByDescending(e => e.CreatedAt)
-            .Take(40)
+        List<ChannelEvent> recent = await RecentActivityWindow(
+                _db.ChannelEvents,
+                tenantId,
+                wantedTypes,
+                windowSize
+            )
             .ToListAsync(ct);
 
         // A viewer is either following or not, so a SECOND channel.follow for the same user is a Twitch
@@ -271,7 +283,7 @@ public class DashboardController : BaseController
             if (isFollow && e.UserId is { } followerId && !seenFollowers.Add(followerId))
                 continue;
             events.Add(e);
-            if (events.Count >= 20)
+            if (events.Count >= feedSize)
                 break;
         }
 
@@ -435,6 +447,56 @@ public class DashboardController : BaseController
             .Distinct()
             .OrderBy(p => p)
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// The newest non-chat events of a channel, newest first. A <paramref name="types"/> filter narrows the window to
+    /// those event types before the cut, so a busy stretch of redemptions cannot push a sub or gift out of a page
+    /// that only wants subs and gifts.
+    /// </summary>
+    internal static IQueryable<ChannelEvent> RecentActivityWindow(
+        IQueryable<ChannelEvent> source,
+        Guid tenantId,
+        IReadOnlyCollection<string>? types,
+        int take
+    )
+    {
+        IQueryable<ChannelEvent> channelRows = source.Where(e =>
+            e.ChannelId == tenantId && e.Type != "channel.chat.message"
+        );
+        if (types is { Count: > 0 })
+        {
+            // Legacy imported rows carry the short names the feed normalizes; keep them in the window.
+            List<string> wanted =
+            [
+                .. types,
+                .. LegacyActivityTypes.Where(p => types.Contains(p.Value)).Select(p => p.Key),
+            ];
+            channelRows = channelRows.Where(e => wanted.Contains(e.Type));
+        }
+
+        return channelRows.OrderByDescending(e => e.CreatedAt).Take(take);
+    }
+
+    private static readonly Dictionary<string, string> LegacyActivityTypes = new()
+    {
+        ["raid"] = "channel.raid",
+        ["follow"] = "channel.follow",
+        ["subscribe"] = "channel.subscribe",
+        ["cheer"] = "channel.cheer",
+    };
+
+    /// <summary>Splits the comma-separated <c>types</c> query; blank means no filter.</summary>
+    internal static List<string>? ParseActivityTypes(string? raw)
+    {
+        List<string> types =
+        [
+            .. (raw ?? "").Split(
+                ',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            ),
+        ];
+        return types.Count == 0 ? null : types;
     }
 
     /// <summary>
