@@ -44,8 +44,11 @@ const adminLink: RouteLocationRaw = { name: 'dashboard-admin-channels' };
 
 // The two links appear when their page exists, like every other entry of the frame.
 const hasReadability = computed<boolean>(() => router.hasRoute('dashboard-settings'));
+// A previewed role is a full identity swap: only the banner shows the real admin.
+const previewing = computed<boolean>(() => preview.role.value !== '');
 const hasAdmin = computed<boolean>(
-  () => user.value?.isAdmin === true && router.hasRoute('dashboard-admin-channels'),
+  () =>
+    !previewing.value && user.value?.isAdmin === true && router.hasRoute('dashboard-admin-channels'),
 );
 
 const initials = computed<string>(() =>
@@ -61,7 +64,7 @@ const role = computed<string>(() =>
 );
 
 // Only the owner of the channel can preview a smaller role; a moderator already sees theirs.
-const isOwner = computed<boolean>(() => current.value?.kind === 'own');
+const isOwner = computed<boolean>(() => !previewing.value && current.value?.kind === 'own');
 
 async function startPreview(role: ViewAsRole): Promise<void> {
   open.value = false;

@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -248,7 +249,8 @@ public sealed class AuthControllerWebFlowTests
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>(),
             Substitute.For<ISystemCredentialsProvider>(),
-            Substitute.For<IImpersonationSessionService>()
+            Substitute.For<IImpersonationSessionService>(),
+            Substitute.For<IViewAsScope>()
         )
         {
             ControllerContext = new() { HttpContext = http },

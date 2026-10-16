@@ -28,6 +28,7 @@ import FrameActions from './dashboard/FrameActions.vue';
 import NavRail from './dashboard/NavRail.vue';
 import ProfileMenu from './dashboard/ProfileMenu.vue';
 import ShortcutsDialog from './dashboard/ShortcutsDialog.vue';
+import { useReadableRedirect } from './dashboard/useReadableRedirect';
 import ViewAsBanner from './dashboard/ViewAsBanner.vue';
 
 // Three frames (spec frontend-vue-components.md section 2): sidebar from 840 px, icon rail from 600 px, bottom bar below.
@@ -42,6 +43,7 @@ watchEffect(() => applyAccent(current.value?.chatColor ?? defaultAccent));
 provide(frameActionsKey, FrameActions);
 useRealtime();
 useIntentPrefetch();
+useReadableRedirect();
 </script>
 
 <template>

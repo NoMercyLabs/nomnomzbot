@@ -12,6 +12,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
 
+import { useViewAs } from '@/api/viewAs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Command,
@@ -30,6 +31,9 @@ defineProps<{ compact?: boolean }>();
 const { t } = useI18n();
 const { channels, current, isPending, choose } = useCurrentChannel();
 const open = ref(false);
+// A previewed role has no other channels to switch to: the channel name stays, the list goes.
+const { role: previewRole } = useViewAs();
+const previewing = computed<boolean>(() => previewRole.value !== '');
 
 const own = computed<ChannelChoice[]>(() => channels.value.filter((row) => row.kind === 'own'));
 // Live channels first: a moderator opens the one that needs them now.
@@ -88,7 +92,22 @@ async function pick(row: ChannelChoice): Promise<void> {
 </script>
 
 <template>
-  <Popover v-model:open="open">
+  <div
+    v-if="previewing"
+    data-slot="channel-switch-static"
+    class="flex min-h-11 w-full min-w-0 items-center gap-2 p-2"
+  >
+    <Avatar class="size-8 rounded-lg">
+      <AvatarImage v-if="current?.profileImageUrl" :src="current.profileImageUrl" :alt="''" />
+      <AvatarFallback class="rounded-lg">{{
+        current ? initials(current.displayName) : ''
+      }}</AvatarFallback>
+    </Avatar>
+    <span class="block min-w-0 flex-1 truncate text-sm font-medium">{{
+      current?.displayName ?? t('frame.channel.none')
+    }}</span>
+  </div>
+  <Popover v-else v-model:open="open">
     <PopoverTrigger as-child>
       <button
         type="button"

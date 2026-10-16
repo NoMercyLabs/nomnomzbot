@@ -21,6 +21,7 @@ import SettingsFader from '~icons/nnz/settings-fader';
 import Moderator from '~icons/nnz/moderator';
 import UserCircle from '~icons/nnz/user-circle';
 
+import { useChannelAccess } from '@/api/access';
 import { useCurrentUser } from '@/api/auth';
 import {
   chatSearchMinLength,
@@ -60,10 +61,15 @@ const { channelId: openChannelId, current } = useCurrentChannel();
 
 // The viewer chat is this page for a participant: their own voice, no search, no moderation and no
 // per-person history (chat-client.md 9a). Under the viewer frame the channel comes from its name in the address.
-const viewerMode = route.meta.viewerChat === true;
+const viewerRoute = route.meta.viewerChat === true;
+// Every moderation control needs the action behind it; a previewed viewer holds none, so none shows.
+const access = useChannelAccess(openChannelId);
+const viewerMode = computed<boolean>(
+  () => viewerRoute || (access.known.value && !access.can('moderation:chat:settings:read')),
+);
 const channelName = computed(() =>
   String(route.params.channel ?? ''));
-const namedChannel = viewerMode && channelName.value !== ''
+const namedChannel = viewerRoute && channelName.value !== ''
   ? useViewerChannel(channelName)
   : null;
 const channelId = computed(() =>
@@ -71,12 +77,12 @@ const channelId = computed(() =>
     ? namedChannel.data.value?.broadcasterId ?? null
     : openChannelId.value);
 
-const history = viewerMode
+const history = viewerRoute
   ? useViewerChatHistory(channelId)
   : useChatHistory(channelId);
 const banner = useBanUser(channelId);
 
-if (viewerMode) {
+if (viewerRoute) {
   useViewerChatLive(channelId);
 }
 
@@ -86,7 +92,7 @@ const poppedOut = computed(() => route.meta.popout === true);
 
 // The full address an OBS Custom Browser Dock opens.
 const dockUrl = computed(() =>
-  viewerMode
+  viewerRoute
     ? ''
     : location.origin + router.resolve({ name: 'popout-chat' }).href);
 
@@ -143,7 +149,7 @@ const visible = computed<ChatLineData[]>(() =>
     (line: ChatLineData) =>
       !(!display.value.commands && line.isCommand) &&
       !(display.value.deleted === 'hide' && line.removed === 'deleted') &&
-      !(viewerMode && line.removed !== undefined),
+      !(viewerRoute && line.removed !== undefined),
   ));
 
 const panelState = usePanelState(history, () =>

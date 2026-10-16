@@ -53,6 +53,9 @@ let history: ChatLine[] = [];
 let sendOk: boolean = true;
 // Who is signed in; the channel belongs to stoney_eagle.
 let signedInAs: string = 'stoney_eagle';
+// The actions the bot says the signed-in person holds in this channel.
+const moderatorKeys = ['moderation:chat:settings:read'];
+let heldKeys: string[] = moderatorKeys;
 // The search answer per `before` cursor; the first page has no cursor. A cursor with no page fails.
 let searchPages: Record<string, SearchPage> = {};
 
@@ -170,6 +173,13 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/community/{userId}'))
         return { data: { data: memberOf(options) }, response: { status: 200, ok: true } };
+
+      if (path.endsWith('/roles/effective/me')) {
+        return {
+          data: { data: { heldActionKeys: heldKeys } },
+          response: { status: 200, ok: true },
+        };
+      }
 
       if (path.endsWith('/auth/me')) {
         return { data: { data: { username: signedInAs } }, response: { status: 200, ok: true } };
@@ -306,6 +316,7 @@ beforeEach(() => {
   localStorage.clear();
   sendOk = true;
   signedInAs = 'stoney_eagle';
+  heldKeys = moderatorKeys;
   searchPages = {};
 
   history = [
@@ -831,6 +842,28 @@ describe('ChatView', () => {
     expect(bar.querySelector('[data-display-toggle]')).not.toBeNull();
 
     expect(document.body.querySelector('[role="switch"]')).toBeNull();
+  });
+
+  // Stoney 2026-10-16: "When I view as a viewer, I must not still see buttons a viewer has no access to."
+  it('hides every moderator control in the header for a person without the chat moderation action', async () => {
+    heldKeys = [];
+    await open();
+    const bar = document.body.querySelector('[data-slot="page-bar"]')!;
+
+    expect(bar.querySelector('[data-mod-tools-toggle]')).toBeNull();
+    expect(bar.querySelector('[data-identity-toggle]')).toBeNull();
+    expect(bar.querySelector('[data-chat-popout]')).toBeNull();
+    expect(bar.querySelector('input[type="search"], [data-slot="search-field"]')).toBeNull();
+    expect(bar.querySelector('[data-display-toggle]')).not.toBeNull();
+  });
+
+  it('shows the moderator controls in the header for a person who holds the chat moderation action', async () => {
+    await open();
+    const bar = document.body.querySelector('[data-slot="page-bar"]')!;
+
+    expect(bar.querySelector('[data-mod-tools-toggle]')).not.toBeNull();
+    expect(bar.querySelector('[data-identity-toggle]')).not.toBeNull();
+    expect(bar.querySelector('[data-chat-popout]')).not.toBeNull();
   });
 
   // Stoney 2026-10-13: "searching messages should also be possible and go all the way back from the

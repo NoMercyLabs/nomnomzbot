@@ -40,6 +40,7 @@ public class ChannelsController : BaseController
     private readonly IUserService _users;
     private readonly IChannelDeletePreviewService _deletePreview;
     private readonly ICurrentUserService _currentUser;
+    private readonly IViewAsScope _viewAs;
 
     public ChannelsController(
         IChannelService channelService,
@@ -49,7 +50,8 @@ public class ChannelsController : BaseController
         IMembershipService memberships,
         IUserService users,
         IChannelDeletePreviewService deletePreview,
-        ICurrentUserService currentUser
+        ICurrentUserService currentUser,
+        IViewAsScope viewAs
     )
     {
         _channelService = channelService;
@@ -60,6 +62,7 @@ public class ChannelsController : BaseController
         _users = users;
         _deletePreview = deletePreview;
         _currentUser = currentUser;
+        _viewAs = viewAs;
     }
 
     /// <summary>List all channels the current user owns or moderates.</summary>
@@ -113,7 +116,23 @@ public class ChannelsController : BaseController
         );
         if (result.IsFailure)
             return ResultResponse(result);
+
+        // "View as" is a full identity swap: no channel shows a broadcaster role while a smaller role is previewed.
+        if (_viewAs.CeilingLevel is not null)
+            return GetPaginatedResponse(AsPreviewedRole(result.Value), request);
+
         return GetPaginatedResponse(result.Value, request);
+    }
+
+    // The moderator preview lists every channel in the moderated shape; the viewer preview lists them as a viewer.
+    private PagedList<ChannelSummaryDto> AsPreviewedRole(PagedList<ChannelSummaryDto> page)
+    {
+        string role =
+            _viewAs.CeilingLevel == PermissionLevel.Moderator.ToLevelValue()
+                ? "moderator"
+                : "viewer";
+        List<ChannelSummaryDto> items = [.. page.Items.Select(c => c with { Role = role })];
+        return new PagedList<ChannelSummaryDto>(items, page.Page, page.PageSize, page.TotalCount);
     }
 
     // A caller who moderates an onboarded channel on Twitch should hold the Moderator management role there

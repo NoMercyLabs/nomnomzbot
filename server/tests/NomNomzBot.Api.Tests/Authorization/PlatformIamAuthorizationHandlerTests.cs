@@ -56,7 +56,7 @@ public sealed class PlatformIamAuthorizationHandlerTests
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.IsAuthenticated.Returns(true);
         currentUser.UserId.Returns(userId.ToString());
-        return (new(iam, currentUser), db);
+        return (new(iam, currentUser, Substitute.For<IViewAsScope>()), db);
     }
 
     private static AuthorizationHandlerContext Context(bool platformMarked)
@@ -110,7 +110,11 @@ public sealed class PlatformIamAuthorizationHandlerTests
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.IsAuthenticated.Returns(true);
         currentUser.UserId.Returns(OperatorUser.ToString());
-        PlatformIamAuthorizationHandler handler = new(iam, currentUser);
+        PlatformIamAuthorizationHandler handler = new(
+            iam,
+            currentUser,
+            Substitute.For<IViewAsScope>()
+        );
         AuthorizationHandlerContext context = Context(platformMarked: false);
 
         await handler.HandleAsync(context);
@@ -243,7 +247,11 @@ public sealed class PlatformIamAuthorizationHandlerTests
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.IsAuthenticated.Returns(false);
         currentUser.UserId.Returns((string?)null);
-        PlatformIamAuthorizationHandler handler = new(iam, currentUser);
+        PlatformIamAuthorizationHandler handler = new(
+            iam,
+            currentUser,
+            Substitute.For<IViewAsScope>()
+        );
         AuthorizationHandlerContext context = Context(platformMarked: true);
 
         await handler.HandleAsync(context);
