@@ -220,6 +220,7 @@ public sealed class SongWrongSpotifyQueueTests
             h.Sut,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
         PipelineExecutionContext ctx = new()

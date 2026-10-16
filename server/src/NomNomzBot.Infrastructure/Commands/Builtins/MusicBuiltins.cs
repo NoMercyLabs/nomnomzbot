@@ -330,7 +330,10 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
     {
         IEnumerable<string> preview = items
             .Take(PreviewSize)
-            .Select((item, i) => $"{i + 1}. {Describe(item)}{RequesterSuffix(item)}");
+            .Select(
+                (item, i) =>
+                    $"{QueueNumbering.NumberOf(i)}. {Describe(item)}{RequesterSuffix(item)}"
+            );
         string more =
             items.Count > PreviewSize ? $"+{items.Count - PreviewSize} more" : string.Empty;
         string list = string.Join(" | ", preview) + (more.Length > 0 ? $" ({more})" : string.Empty);
@@ -359,7 +362,7 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
     )
     {
         IEnumerable<string> mine = positions.Select(position =>
-            $"#{position + 1} {Describe(queue.Queue[position])} ({FormatWait(WaitBefore(queue, position))})"
+            $"#{QueueNumbering.NumberOf(position)} {Describe(queue.Queue[position])} ({FormatWait(WaitBefore(queue, position))})"
         );
 
         return composer.ComposeAsync(
