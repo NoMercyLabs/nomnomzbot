@@ -314,6 +314,7 @@ public sealed class AuthService : IAuthService
 
         (User user, _) = await UpsertTwitchUserAsync(twitchUser, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
+        await VaultOwnTwitchTokenAsync(user, twitchUser, tokens, cancellationToken);
 
         Result<SessionTokensDto> session = await _sessions.CreateSessionAsync(
             user.Id,
@@ -325,6 +326,43 @@ public sealed class AuthService : IAuthService
             return session.WithValue<AuthResultDto>(null!);
 
         return Result.Success(BuildAuthResult(session.Value, user));
+    }
+
+    /// <summary>
+    /// Keeps the viewer's or moderator's own Twitch grant, bound to their account and to no channel, so the
+    /// composer sends as them (<c>TwitchTokenResolver.GetUserTokenAsync</c> finds it by account id).
+    /// </summary>
+    private async Task VaultOwnTwitchTokenAsync(
+        User user,
+        TwitchUserInfo twitchUser,
+        TokenResult tokens,
+        CancellationToken cancellationToken
+    )
+    {
+        string? clientId = await _credentials.GetClientIdAsync(TwitchProvider, cancellationToken);
+        Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
+            new(
+                BroadcasterId: null,
+                TwitchProvider,
+                twitchUser.Id,
+                twitchUser.Login,
+                tokens.Scopes,
+                clientId,
+                IsByok: false,
+                user.Id,
+                SettingsJson: null
+            ),
+            cancellationToken
+        );
+        if (connection.IsFailure)
+            return;
+
+        await _vault.StoreTokensAsync(
+            connection.Value.Id,
+            new(tokens.AccessToken, tokens.RefreshToken, AppToken: null, tokens.ExpiresAt),
+            tokens.Scopes,
+            cancellationToken
+        );
     }
 
     /// <summary>Find or create the User for a Twitch account and refresh its live profile fields.</summary>

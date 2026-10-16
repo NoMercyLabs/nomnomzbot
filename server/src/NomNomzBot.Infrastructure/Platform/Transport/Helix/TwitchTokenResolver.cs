@@ -348,7 +348,11 @@ public sealed class TwitchTokenResolver(
             );
         }
 
-        string bucketKey = DeriveBucketKey(connection.Provider, connection.BroadcasterId);
+        // A personal (no channel) Twitch grant is rate-limited per account, so it keys by the account id.
+        string bucketKey =
+            connection.BroadcasterId is null && connection.Provider == UserProvider
+                ? DeriveBucketKey($"{UserProvider}:{connection.ProviderAccountId}", null)
+                : DeriveBucketKey(connection.Provider, connection.BroadcasterId);
         return Result.Success(
             new TwitchAccessContext(
                 token.Value.Value,
