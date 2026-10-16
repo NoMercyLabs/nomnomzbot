@@ -19,3 +19,9 @@ const delegatedProps = reactiveOmit(props, 'class')
     <slot />
   </TabsContent>
 </template>
+
+<style scoped>
+[role="tabpanel"][data-state="inactive"] {
+  display: none;
+}
+</style>
