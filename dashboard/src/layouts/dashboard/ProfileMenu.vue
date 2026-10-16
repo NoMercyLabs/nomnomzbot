@@ -25,6 +25,8 @@ import { Separator } from '@/components/ui/separator';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { loginRoute } from '@/views/site/login/route';
 
+import FullscreenToggle from './FullscreenToggle.vue';
+
 // icon: only the picture, for the narrow header.
 defineProps<{ icon?: boolean }>();
 
@@ -99,6 +101,7 @@ async function leave(): Promise<void> {
           <span class="text-sm">{{ t('common.language') }}</span>
           <LanguagePicker />
         </div>
+        <FullscreenToggle />
         <Button v-if="hasAdmin" variant="ghost" class="justify-start" as-child>
           <RouterLink :to="adminLink" @click="open = false">
             <Shield aria-hidden="true" />

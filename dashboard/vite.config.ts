@@ -14,6 +14,7 @@ import { defineConfig, type ProxyOptions } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueDevTools from 'vite-plugin-vue-devtools';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import Icons from 'unplugin-icons/vite';
 import { FileSystemIconLoader } from 'unplugin-icons/loaders';
 
@@ -59,6 +60,17 @@ const blockWrites: NonNullable<ProxyOptions['bypass']> = (req) => {
   return false;
 };
 
+// The bot's own paths: live data, sign-in, the editor page and the health check. A service worker never
+// answers for them. Workbox copies these matchers into sw.js as text, so each one must carry everything it
+// uses inside its own body (a constant defined out here would not exist there).
+const isLivePath = ({ url }: { url: URL }): boolean =>
+  /^\/(?:api\/|hubs\/|editor|health)/.test(url.pathname);
+
+const isEmojiFont = ({ url }: { url: URL }): boolean =>
+  url.pathname.startsWith('/assets/noto-color-emoji-');
+
+const isPage = ({ request }: { request: Request }): boolean => request.mode === 'navigate';
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -66,6 +78,57 @@ export default defineConfig({
     vueDevTools(),
     tailwindcss(),
     Icons({ compiler: 'vue3', customCollections: { nnz: designerIcons } }),
+    VitePWA({
+      // The page asks first; a new deploy shows a toast and the user picks the moment to reload.
+      registerType: 'prompt',
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
+      manifest: {
+        name: 'NomNomzBot',
+        short_name: 'NomNomzBot',
+        description: 'Run your stream bot: commands, events, overlays and chat in one dashboard.',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        display_override: ['fullscreen', 'standalone'],
+        theme_color: '#121212',
+        background_color: '#121212',
+        icons: [
+          { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'maskable-icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        // Only the hashed build files are precached (cache-first; a new hash is a new URL). index.html is
+        // left out on purpose: it names the current hashes, so it is fetched network-first below.
+        globPatterns: ['**/*.{js,css,woff2,png,svg,ico}'],
+        // The color emoji font is 5.8 MB: too big to fetch up front on every install, so it is cached on
+        // first use instead (cache-first; its name carries a hash, so it never goes stale).
+        globIgnores: ['**/noto-color-emoji-*'],
+        navigateFallback: null,
+        cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          // Network only: live data, sign-in responses, the editor page and the health check.
+          { urlPattern: isLivePath, handler: 'NetworkOnly' },
+          {
+            urlPattern: isEmojiFont,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'emoji-font',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 8 },
+            },
+          },
+          { urlPattern: isPage, handler: 'NetworkFirst', options: { cacheName: 'pages' } },
+        ],
+      },
+    }),
   ],
   // 5090 is the registered OAuth origin; the proxy keeps the refresh cookie same-origin.
   // xfwd tells the bot the address the browser used (a phone on the network is not localhost), so its
