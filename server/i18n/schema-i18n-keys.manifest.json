@@ -468,6 +468,8 @@
     "builtin.reply.sr.tracktoolongrefunded.label",
     "builtin.reply.sr.unreachable.description",
     "builtin.reply.sr.unreachable.label",
+    "builtin.reply.sr.unreadablelink.description",
+    "builtin.reply.sr.unreadablelink.label",
     "builtin.reply.sr.unsupportedcontent.description",
     "builtin.reply.sr.unsupportedcontent.label",
     "builtin.reply.sr.unsupportedlink.description",

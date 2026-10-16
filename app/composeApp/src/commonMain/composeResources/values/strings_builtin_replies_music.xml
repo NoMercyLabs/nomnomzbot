@@ -42,6 +42,8 @@
     <string name="builtin_reply_sr_livebroadcast_description">The link is a live stream or a premiere, which has no fixed song to queue.</string>
     <string name="builtin_reply_sr_trackmissing_label">Video missing or private</string>
     <string name="builtin_reply_sr_trackmissing_description">The linked video was deleted or is private.</string>
+    <string name="builtin_reply_sr_unreadablelink_label">Unreadable link</string>
+    <string name="builtin_reply_sr_unreadablelink_description">The link is for this channel's music service, but no song could be read from it.</string>
     <string name="builtin_reply_sr_perstreamlimit_label">Stream request limit reached</string>
     <string name="builtin_reply_sr_perstreamlimit_description">The viewer already requested as many songs as one stream allows.</string>
     <string name="builtin_reply_sr_addedwithcode_label">Song added with its code</string>

@@ -44,6 +44,7 @@ public sealed class YouTubeOEmbedTitleLookupTests
     [InlineData("https://youtu.be/Kg8NeUI-aQQ")]
     [InlineData("https://music.youtube.com/watch?v=Kg8NeUI-aQQ")]
     [InlineData("https://www.youtube.com/shorts/Kg8NeUI-aQQ")]
+    [InlineData("https://www.youtube.com/live/Kg8NeUI-aQQ")]
     public async Task Every_youtube_link_shape_is_looked_up(string link)
     {
         RecordingHttpHandler handler = new();

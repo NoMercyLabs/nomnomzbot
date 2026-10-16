@@ -107,6 +107,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>The linked video was deleted or is private — no variables.</summary>
         public const string TrackMissing = "trackmissing";
 
+        /// <summary>The text is a link for this channel's music service, but no song could be read from it — no variables.</summary>
+        public const string UnreadableLink = "unreadablelink";
+
         /// <summary>The requester used up their requests for this stream; <c>{request.limit}</c> is set.</summary>
         public const string PerStreamLimit = "perstreamlimit";
 

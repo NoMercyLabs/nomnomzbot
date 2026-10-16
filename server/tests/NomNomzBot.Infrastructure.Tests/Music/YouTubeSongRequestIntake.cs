@@ -103,7 +103,7 @@ internal sealed class YouTubeSongRequestIntake
                 MessageId = "msg-1",
             }
         );
-        return reply.Value!;
+        return reply.Value;
     }
 
     public async Task<List<string>> QueuedTitlesAsync() =>

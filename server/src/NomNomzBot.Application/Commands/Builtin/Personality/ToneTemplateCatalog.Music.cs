@@ -405,6 +405,24 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.UnreadableLink,
+            variables: [],
+            informative:
+            [
+                "I couldn't read that link. Paste the full video link, or send the song name instead.",
+            ],
+            friendly:
+            [
+                "Hmm, I couldn't read that link. Try the full video link, or just the song name!",
+            ],
+            sassy: ["That link is unreadable. Full video link or the song name, please."],
+            hype: ["CAN'T READ THAT LINK! SEND THE FULL VIDEO LINK OR THE SONG NAME!"],
+            chill: ["couldn't read that link. send the full video link or the song name."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.PerStreamLimit,
             variables: ["request.limit"],
             informative:

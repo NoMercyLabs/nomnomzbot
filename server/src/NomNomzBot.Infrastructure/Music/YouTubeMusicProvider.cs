@@ -392,7 +392,7 @@ public sealed class YouTubeMusicProvider
         // Parse the id BEFORE any config/HTTP so garbage input fails closed without a call.
         string? videoId = ExtractVideoId(uriOrId);
         if (videoId is null)
-            return (null, MusicProviderFailureReason.None); // not a link — legitimately nothing to resolve.
+            return (null, WhyNoVideoId(uriOrId)); // plain text resolves to nothing, so it is searched.
         string? apiKey = await ApiKeyAsync(cancellationToken);
         if (apiKey is null)
             return (null, MusicProviderFailureReason.NotConfigured);
@@ -1393,52 +1393,95 @@ public sealed class YouTubeMusicProvider
         if (string.IsNullOrWhiteSpace(uriOrId))
             return null;
 
-        string value = uriOrId.Trim();
+        string value = ChatLinkText.Normalize(uriOrId);
 
         if (IsVideoId(value))
             return value;
 
-        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? url))
+        Uri? url = YouTubeUrl(value);
+        if (url is null)
             return null;
 
-        string host = url.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
-            ? url.Host[4..]
-            : url.Host;
-
         // youtu.be/<id>
-        if (string.Equals(host, "youtu.be", StringComparison.OrdinalIgnoreCase))
+        if (IsShortHost(url))
         {
             string shortId = url.AbsolutePath.Trim('/');
             return IsVideoId(shortId) ? shortId : null;
         }
-
-        bool isYouTubeHost =
-            string.Equals(host, "youtube.com", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(host, "music.youtube.com", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(host, "m.youtube.com", StringComparison.OrdinalIgnoreCase);
-        if (!isYouTubeHost)
-            return null;
 
         // watch?v=<id> (ignores any other params like t=, list=, index=)
         string? watchId = QueryValue(url.Query, "v");
         if (watchId is not null && IsVideoId(watchId))
             return watchId;
 
-        // /shorts/<id>, /embed/<id>, /v/<id>
+        // /shorts/<id>, /embed/<id>, /v/<id>, /live/<id>
         string[] segments = url.AbsolutePath.Trim('/').Split('/');
         if (
             segments.Length == 2
-            && (
-                string.Equals(segments[0], "shorts", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(segments[0], "embed", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(segments[0], "v", StringComparison.OrdinalIgnoreCase)
-            )
+            && VideoPathPrefixes.Contains(segments[0], StringComparer.OrdinalIgnoreCase)
             && IsVideoId(segments[1])
         )
             return segments[1];
 
         return null;
     }
+
+    private static readonly string[] VideoPathPrefixes = ["shorts", "embed", "v", "live"];
+
+    private static readonly string[] NonVideoPathPrefixes =
+    [
+        "playlist",
+        "channel",
+        "c",
+        "user",
+        "@",
+    ];
+
+    /// <summary>
+    /// Why a YouTube link carries no readable video id: a playlist or channel page is real content of the
+    /// wrong kind; anything else on a YouTube host is a link we could not read. A link to another site (or
+    /// plain text) is not this provider's to judge, so it stays <see cref="MusicProviderFailureReason.None"/>.
+    /// </summary>
+    private static MusicProviderFailureReason WhyNoVideoId(string uriOrId)
+    {
+        Uri? url = YouTubeUrl(ChatLinkText.Normalize(uriOrId));
+        if (url is null)
+            return MusicProviderFailureReason.None;
+
+        string firstSegment = url.AbsolutePath.Trim('/').Split('/')[0];
+        bool isNonVideoPage =
+            !IsShortHost(url)
+            && NonVideoPathPrefixes.Any(prefix =>
+                prefix == "@"
+                    ? firstSegment.StartsWith('@')
+                    : string.Equals(firstSegment, prefix, StringComparison.OrdinalIgnoreCase)
+            );
+        return isNonVideoPage
+            ? MusicProviderFailureReason.UnsupportedContentType
+            : MusicProviderFailureReason.UnreadableLink;
+    }
+
+    /// <summary>The absolute URL when it is on a YouTube host (youtube.com, m./music./www., youtu.be); else null.</summary>
+    private static Uri? YouTubeUrl(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? url))
+            return null;
+        if (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)
+            return null;
+
+        string host = url.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
+            ? url.Host[4..]
+            : url.Host;
+        bool isYouTubeHost =
+            string.Equals(host, "youtu.be", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "youtube.com", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "music.youtube.com", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "m.youtube.com", StringComparison.OrdinalIgnoreCase);
+        return isYouTubeHost ? url : null;
+    }
+
+    private static bool IsShortHost(Uri url) =>
+        url.Host.EndsWith("youtu.be", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsVideoId(string value) =>
         value.Length == 11 && value.All(c => char.IsLetterOrDigit(c) || c is '_' or '-');

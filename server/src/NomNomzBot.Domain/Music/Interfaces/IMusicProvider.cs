@@ -61,6 +61,9 @@ public enum MusicProviderFailureReason
     /// <summary>The link parsed to a real id shape, but the provider has nothing public behind it — the
     /// video was deleted or is private. One answer covers both: telling them apart costs another call.</summary>
     TrackMissing,
+
+    /// <summary>The text is a link to this provider's own site, but no track id could be read from it. It is never searched as text: a URL searched by name finds an unrelated song.</summary>
+    UnreadableLink,
 }
 
 /// <summary>

@@ -169,4 +169,70 @@ public sealed class YouTubeSongRequestIntakeTests
 
         (await intake.QueuedTitlesAsync()).Should().Equal("Mostly Fine");
     }
+
+    [Theory]
+    [InlineData("www.youtube.com/watch?v=dQw4w9WgXcQ")]
+    [InlineData("youtube.com/watch?v=dQw4w9WgXcQ")]
+    [InlineData("youtu.be/dQw4w9WgXcQ")]
+    [InlineData("<https://www.youtube.com/watch?v=dQw4w9WgXcQ>")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ.")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ,")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ)")]
+    [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ!")]
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ?si=abcDEF123")]
+    public async Task Every_way_a_viewer_pastes_a_video_link_queues_that_video_without_a_search(
+        string pasted
+    )
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteVideos(YouTubeSongRequestIntake.Video(VideoId, "Never Gonna Give You Up"));
+        intake.RouteSearch("aaaaaaaaaaa");
+        intake.RouteVideos(YouTubeSongRequestIntake.Video("aaaaaaaaaaa", "Unrelated Song"));
+
+        await intake.SayAsync(pasted);
+
+        (await intake.QueuedTitlesAsync()).Should().Equal("Never Gonna Give You Up");
+        intake.DataApiCalls.Should().NotContain("search");
+        intake
+            .Http.RequestUrls.Should()
+            .OnlyContain(url => url.Contains("id=" + VideoId, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?v=tooShort")]
+    [InlineData("youtube.com/feed/trending")]
+    [InlineData("https://youtu.be/")]
+    public async Task A_youtube_link_without_a_readable_video_is_refused_and_never_searched(
+        string pasted
+    )
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteSearch("aaaaaaaaaaa");
+        intake.RouteVideos(YouTubeSongRequestIntake.Video("aaaaaaaaaaa", "Unrelated Song"));
+
+        string reply = await intake.SayAsync(pasted);
+
+        reply
+            .Should()
+            .Be(
+                "I couldn't read that link. Paste the full video link, or send the song name instead."
+            );
+        intake.DataApiCalls.Should().BeEmpty();
+        (await intake.QueuedTitlesAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_youtube_playlist_link_is_told_to_send_one_song()
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteSearch("aaaaaaaaaaa");
+        intake.RouteVideos(YouTubeSongRequestIntake.Video("aaaaaaaaaaa", "Unrelated Song"));
+
+        string reply = await intake.SayAsync("https://www.youtube.com/playlist?list=PLabcdef");
+
+        reply.Should().StartWith("Song requests only take individual tracks");
+        intake.DataApiCalls.Should().BeEmpty();
+        (await intake.QueuedTitlesAsync()).Should().BeEmpty();
+    }
 }

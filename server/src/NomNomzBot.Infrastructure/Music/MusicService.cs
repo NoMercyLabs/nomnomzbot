@@ -785,18 +785,26 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         CancellationToken cancellationToken
     )
     {
+        // A pasted link is read the way chat writes it (<wrapped>, trailing "." or ")", no https://), so
+        // the provider and the title lookup both see a plain absolute URL.
+        string input = ChatLinkText.Normalize(queryOrUri);
+
         (TrackInfo? resolved, MusicProviderFailureReason resolveFailure) =
-            await provider.ResolveTrackAsync(tenantId, queryOrUri, cancellationToken);
+            await provider.ResolveTrackAsync(tenantId, input, cancellationToken);
         if (resolveFailure != MusicProviderFailureReason.None)
             return (null, resolveFailure);
         if (resolved is not null)
             return (resolved, MusicProviderFailureReason.None);
 
-        string searchText = queryOrUri;
-        if (IsWebLink(queryOrUri) && !provider.OwnsLink(queryOrUri))
+        string searchText = input;
+        if (IsWebLink(input))
         {
-            // A link the provider did not claim is never searched as text: its URL finds an unrelated song.
-            string? title = await _linkTitles.TryGetTitleAsync(queryOrUri, cancellationToken);
+            // A link is never searched as text: its URL finds an unrelated song. One the provider claims
+            // but found nothing behind is "not found"; any other is searched by its title, when it has one.
+            if (provider.OwnsLink(input))
+                return (null, MusicProviderFailureReason.None);
+
+            string? title = await _linkTitles.TryGetTitleAsync(input, cancellationToken);
             if (string.IsNullOrWhiteSpace(title))
                 return (null, MusicProviderFailureReason.UnsupportedLink);
             searchText = title;
@@ -820,7 +828,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             is MusicProviderFailureReason.UnsupportedLink
                 or MusicProviderFailureReason.LiveBroadcast
                 or MusicProviderFailureReason.TrackMissing
-                or MusicProviderFailureReason.NotPlayableInRegion;
+                or MusicProviderFailureReason.NotPlayableInRegion
+                or MusicProviderFailureReason.UnreadableLink
+                or MusicProviderFailureReason.UnsupportedContentType;
 
     private static bool IsWebLink(string query) =>
         Uri.TryCreate(query.Trim(), UriKind.Absolute, out Uri? uri)
@@ -880,6 +890,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             MusicProviderFailureReason.TrackMissing => Result.Failure<T>(
                 "That video doesn't exist or is private.",
                 "TRACK_MISSING"
+            ),
+            MusicProviderFailureReason.UnreadableLink => Result.Failure<T>(
+                "No track could be read from that link.",
+                "UNREADABLE_LINK"
             ),
             _ => Result.Failure<T>(
                 "The music provider is temporarily unavailable.",

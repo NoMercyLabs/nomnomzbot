@@ -113,6 +113,13 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
+            "UNREADABLE_LINK" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.UnreadableLink,
+                "I couldn't read that link. Paste the full video link, or send the song name instead.",
+                null,
+                ct
+            ),
             "PER_STREAM_LIMIT" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.PerStreamLimit,

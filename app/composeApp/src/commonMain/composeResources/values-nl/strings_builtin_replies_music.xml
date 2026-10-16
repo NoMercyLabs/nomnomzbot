@@ -42,6 +42,8 @@
     <string name="builtin_reply_sr_livebroadcast_description">De link is een livestream of premiere, zonder vast nummer om in de wachtrij te zetten.</string>
     <string name="builtin_reply_sr_trackmissing_label">Video weg of privé</string>
     <string name="builtin_reply_sr_trackmissing_description">De gelinkte video is verwijderd of privé.</string>
+    <string name="builtin_reply_sr_unreadablelink_label">Onleesbare link</string>
+    <string name="builtin_reply_sr_unreadablelink_description">De link is voor de muziekdienst van dit kanaal, maar er kon geen nummer uit gelezen worden.</string>
     <string name="builtin_reply_sr_perstreamlimit_label">Verzoeklimiet per stream bereikt</string>
     <string name="builtin_reply_sr_perstreamlimit_description">De kijker heeft al zoveel nummers aangevraagd als één stream toestaat.</string>
     <string name="builtin_reply_sr_addedwithcode_label">Nummer toegevoegd met code</string>

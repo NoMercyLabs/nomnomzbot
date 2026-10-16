@@ -82,6 +82,7 @@ public sealed class YouTubeOEmbedTitleLookup(IHttpClientFactory httpClientFactor
             return false;
 
         return uri.AbsolutePath.StartsWith("/watch", StringComparison.Ordinal)
-            || uri.AbsolutePath.StartsWith("/shorts/", StringComparison.Ordinal);
+            || uri.AbsolutePath.StartsWith("/shorts/", StringComparison.Ordinal)
+            || uri.AbsolutePath.StartsWith("/live/", StringComparison.Ordinal);
     }
 }

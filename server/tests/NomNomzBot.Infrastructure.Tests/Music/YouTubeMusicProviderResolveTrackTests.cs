@@ -189,8 +189,6 @@ public sealed class YouTubeMusicProviderResolveTrackTests
     [InlineData("not a video id")]
     [InlineData("https://example.com/watch?v=dQw4w9WgXcQ")]
     [InlineData("https://vimeo.com/123456789")]
-    [InlineData("https://www.youtube.com/watch?v=tooShort")]
-    [InlineData("https://www.youtube.com/watch?v=waaaaaaytoolong")]
     public async Task Garbage_input_resolves_to_null_without_any_http_call(string input)
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
@@ -203,6 +201,45 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         track.Should().BeNull();
         failure.Should().Be(MusicProviderFailureReason.None);
         handler.RequestUrls.Should().BeEmpty("garbage input must not become an API request");
+    }
+
+    [Theory]
+    [InlineData(
+        "https://www.youtube.com/watch?v=tooShort",
+        MusicProviderFailureReason.UnreadableLink
+    )]
+    [InlineData(
+        "https://www.youtube.com/watch?v=waaaaaaytoolong",
+        MusicProviderFailureReason.UnreadableLink
+    )]
+    [InlineData("youtube.com/feed/trending", MusicProviderFailureReason.UnreadableLink)]
+    [InlineData(
+        "https://www.youtube.com/playlist?list=PLabc",
+        MusicProviderFailureReason.UnsupportedContentType
+    )]
+    [InlineData(
+        "https://www.youtube.com/@RickAstleyYT",
+        MusicProviderFailureReason.UnsupportedContentType
+    )]
+    [InlineData(
+        "https://www.youtube.com/channel/UC123",
+        MusicProviderFailureReason.UnsupportedContentType
+    )]
+    public async Task A_youtube_link_without_a_video_id_says_why_without_any_http_call(
+        string input,
+        MusicProviderFailureReason expected
+    )
+    {
+        (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
+
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            input
+        );
+
+        track.Should().BeNull();
+        failure.Should().Be(expected);
+        handler.RequestUrls.Should().BeEmpty();
     }
 
     [Fact]
