@@ -11,8 +11,10 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -25,6 +27,7 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 public sealed class SongResumeAction : ICommandAction
 {
     private readonly IMusicService _music;
+    private readonly IChatProvider _chat;
     private readonly ILogger<SongResumeAction> _logger;
 
     public string ActionType => "song_resume";
@@ -33,9 +36,10 @@ public sealed class SongResumeAction : ICommandAction
 
     public LocalizedText Description => new("pipeline.song_resume.description");
 
-    public SongResumeAction(IMusicService music, ILogger<SongResumeAction> logger)
+    public SongResumeAction(IMusicService music, IChatProvider chat, ILogger<SongResumeAction> logger)
     {
         _music = music;
+        _chat = chat;
         _logger = logger;
     }
 
@@ -49,7 +53,17 @@ public sealed class SongResumeAction : ICommandAction
             ctx.CancellationToken
         );
         if (resumed.IsFailure)
+        {
+            // A success stays quiet (automations pause/resume on go-live and raids); a failure is said out
+            // loud, or a closed Audio widget looks like the bot ignoring the command.
+            await PlaybackControlFailureReply.SendAsync(
+                _chat,
+                ctx,
+                BuiltinResponseSlots.Resume.Key,
+                resumed
+            );
             return ActionResult.Failure(resumed.ErrorMessage ?? "resume failed");
+        }
 
         return ActionResult.Success("resumed");
     }

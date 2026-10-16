@@ -112,49 +112,114 @@ public sealed class MusicPipelineActionsTests
     // ─── song_pause / song_resume / song_previous ─────────────────────────────
 
     [Fact]
-    public async Task Song_pause_invokes_PauseAsync_and_succeeds()
+    public async Task Song_pause_invokes_PauseAsync_and_succeeds_without_chatter()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
             .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        SongPauseAction action = new(music, NullLogger<SongPauseAction>.Instance);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongPauseAction action = new(music, chat, NullLogger<SongPauseAction>.Instance);
 
-        ActionResult result = await action.ExecuteAsync(Ctx(), Def("song_pause"));
+        PipelineExecutionContext ctx = Ctx();
+        ActionResult result = await action.ExecuteAsync(ctx, Def("song_pause"));
 
         result.Succeeded.Should().BeTrue();
+        ctx.RepliedToChat.Should().BeFalse();
         await music.Received(1).PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
     }
 
     [Fact]
-    public async Task Song_pause_propagates_the_typed_failure()
+    public async Task Song_pause_propagates_the_typed_failure_and_tells_chat()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
             .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure("No active music provider.", "SERVICE_UNAVAILABLE"));
-        SongPauseAction action = new(music, NullLogger<SongPauseAction>.Instance);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(default, default!, default).ReturnsForAnyArgs(true);
+        SongPauseAction action = new(music, chat, NullLogger<SongPauseAction>.Instance);
+
+        PipelineExecutionContext ctx = Ctx();
+        ActionResult result = await action.ExecuteAsync(ctx, Def("song_pause"));
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Be("No active music provider.");
+        ctx.RepliedToChat.Should().BeTrue();
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "No music service is set up for this channel.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>The silent failure this fixes: a pause with the Audio widget closed did nothing and said
+    /// nothing, so the streamer could not tell why the music kept playing.</summary>
+    [Fact]
+    public async Task Song_pause_with_no_player_open_tells_chat_the_player_isnt_open()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE"));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongPauseAction action = new(music, chat, NullLogger<SongPauseAction>.Instance);
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("song_pause"));
 
         result.Succeeded.Should().BeFalse();
-        result.ErrorMessage.Should().Be("No active music provider.");
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "The music player isn't open — add the Audio widget to OBS, or open Spotify.",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
-    public async Task Song_resume_invokes_PlayAsync_and_propagates_failure()
+    public async Task Song_resume_invokes_PlayAsync_and_propagates_failure_to_chat()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
             .PlayAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure("Spotify Premium required.", "PREMIUM_REQUIRED"));
-        SongResumeAction action = new(music, NullLogger<SongResumeAction>.Instance);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongResumeAction action = new(music, chat, NullLogger<SongResumeAction>.Instance);
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("song_resume"));
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Be("Spotify Premium required.");
         await music.Received(1).PlayAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "The music service needs a Premium account for that.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_resume_with_no_player_open_tells_chat_the_player_isnt_open()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .PlayAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE"));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongResumeAction action = new(music, chat, NullLogger<SongResumeAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Def("song_resume"));
+
+        result.Succeeded.Should().BeFalse();
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "The music player isn't open — add the Audio widget to OBS, or open Spotify.",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
