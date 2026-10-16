@@ -20,6 +20,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -51,7 +52,8 @@ public sealed class ModerationControllerAutoShoutoutTests
             Substitute.For<IModerationHistoryService>(),
             Substitute.For<IMassBanConsentService>(),
             shoutoutAction is null ? [] : [shoutoutAction],
-            Substitute.For<IShoutoutSuggestionService>()
+            Substitute.For<IShoutoutSuggestionService>(),
+            Substitute.For<IEventBus>()
         );
 
     private static Guid SeedChannel(ApiTestDbContext db, string name, bool autoShoutout)

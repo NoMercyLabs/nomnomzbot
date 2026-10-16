@@ -168,6 +168,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Streams)
             .Ignore(e => e.Events);
 
+        b.Entity<Domain.Stream.Entities.ShoutoutOverride>().HasKey(e => e.Id);
+
         b.Entity<ChannelEvent>().HasKey(e => e.Id);
         b.Entity<ChannelEvent>().Ignore(e => e.Channel).Ignore(e => e.User);
 
@@ -220,6 +222,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(Domain.Platform.Entities.Configuration),
         typeof(Channel),
         typeof(ChannelEvent),
+        typeof(Domain.Stream.Entities.ShoutoutOverride),
         typeof(DiscordGuildConnection),
         typeof(SavingsJar),
         typeof(SavingsJarMembership),
@@ -327,7 +330,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
-        throw new NotSupportedException();
+        Set<Domain.Stream.Entities.ShoutoutOverride>();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<Domain.Commands.Entities.Timer> Timers => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
