@@ -3,6 +3,7 @@
     "me": {
       "title": "Jouw cijfers in {channel}",
       "notFound": "Dit kanaal is hier niet ingesteld.",
+      "chat": "Chat openen",
       "retry": "Opnieuw proberen",
       "stats": {
         "messages": "Berichten",

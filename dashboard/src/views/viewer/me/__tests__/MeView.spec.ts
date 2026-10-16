@@ -101,7 +101,14 @@ async function mountPage(): Promise<VueWrapper> {
   i18n.global.mergeLocaleMessage('en', en);
   const router: Router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/me/:channel', component: MeView }],
+    routes: [
+      { path: '/me/:channel', component: MeView },
+      {
+        path: '/me/:channel/chat',
+        name: 'viewer-chat',
+        component: MeView,
+      },
+    ],
   });
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

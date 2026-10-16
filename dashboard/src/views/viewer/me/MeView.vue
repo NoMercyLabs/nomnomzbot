@@ -91,7 +91,19 @@ function retry(): void {
 </script>
 
 <template>
-  <h1 class="text-xl font-semibold">{{ $t('viewer.me.title', { channel: shown }) }}</h1>
+  <div class="flex items-center justify-between gap-3">
+    <h1 class="text-xl font-semibold">{{ $t('viewer.me.title', { channel: shown }) }}</h1>
+    <Button v-if="channel.data.value"
+            variant="outline"
+            size="sm"
+            as-child
+            data-viewer-chat-link
+    >
+      <RouterLink :to="{ name: 'viewer-chat', params: { channel: channelName } }">
+        {{ $t('viewer.me.chat') }}
+      </RouterLink>
+    </Button>
+  </div>
 
   <div v-if="channel.isError.value" class="flex flex-col items-start gap-3" role="alert">
     <p class="text-sm">{{ $t('viewer.me.notFound') }}</p>

@@ -26,7 +26,14 @@ import { useI18n } from 'vue-i18n';
 import Cross from '~icons/nnz/cross';
 import EmailReply from '~icons/nnz/email-reply';
 
-import { chatMessageMaxLength, useChatEmotes, useSendChat, type ChatLine } from '@/api/chat';
+import {
+  chatMessageMaxLength,
+  useChatEmotes,
+  useSendChat,
+  useSendViewerChat,
+  useViewerChatEmotes,
+  type ChatLine,
+} from '@/api/chat';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Spinner } from '@/components/ui/spinner';
@@ -42,18 +49,27 @@ import EmotePicker from './EmotePicker.vue';
 
 const COUNT_FROM: number = 400;
 
-const props = defineProps<{ channelId: string | null; chatters: readonly string[] }>();
+const props = defineProps<{
+  channelId: string | null;
+  chatters: readonly string[];
+  // The viewer chat: send through the participant endpoint, with the viewer's own emotes.
+  viewer?: boolean;
+}>();
 const replyTo = defineModel<ChatLine | null>('replyTo', { default: null });
 
 const { t } = useI18n();
-const sender = useSendChat(() => props.channelId);
+const sender = props.viewer
+  ? useSendViewerChat(() => props.channelId)
+  : useSendChat(() => props.channelId);
 const listId = useId();
 
 const text = ref('');
 const caret = ref(0);
 const failed = ref(false);
 
-const emotes = useChatEmotes(() => props.channelId);
+const emotes = props.viewer
+  ? useViewerChatEmotes(() => props.channelId)
+  : useChatEmotes(() => props.channelId);
 const list = useComposerSuggestions(text, caret, () => emotes.data.value ?? [], () =>
   props.chatters);
 const listOpen = computed(() => list.suggestions.value.length > 0);
@@ -280,7 +296,6 @@ async function submit(): Promise<void> {
   try {
     await sender.mutateAsync({
       message: text.value,
-      senderIdentity: 'you',
       replyToMessageId: replyTo.value?.id ?? null,
     });
 

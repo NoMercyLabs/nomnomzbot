@@ -23,6 +23,8 @@ declare module 'vue-router' {
     navMode?: NavMode;
     // Words key under frame.nav of a page that is planned and not built yet.
     comingSoon?: string;
+    // The chat page as a viewer sees it: read and send in your own voice, no moderation (chat-client.md 9a).
+    viewerChat?: boolean;
   }
 }
 

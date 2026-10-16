@@ -3,6 +3,7 @@
     "me": {
       "title": "Your stats in {channel}",
       "notFound": "This channel is not set up here.",
+      "chat": "Open chat",
       "retry": "Try again",
       "stats": {
         "messages": "Messages",

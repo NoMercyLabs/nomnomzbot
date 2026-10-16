@@ -635,6 +635,7 @@
       "moreHelp": "Alle pagina's van het dashboard",
       "home": "Start",
       "chat": "Chat",
+      "viewerChat": "Kijkerchat",
       "stream": "Stream",
       "analytics": "Statistieken",
       "polls": "Polls",
@@ -690,6 +691,7 @@
       },
       "viewer": {
         "myChannel": "Mijn kanaal",
+        "chat": "Chat",
         "nowPlaying": "Nu aan het spelen",
         "leaderboards": "Ranglijsten",
         "pointsStore": "Punten en winkel",

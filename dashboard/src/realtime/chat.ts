@@ -8,7 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { chatKey, chatLineLimit, type ChatLine, type ChatLineMark } from '@/api/chat';
+import { chatKey, chatLineLimit, viewerChatKey, type ChatLine, type ChatLineMark } from '@/api/chat';
+import type { KeyParts } from '@/lib/array';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type {
@@ -29,12 +30,18 @@ function markLines(
   mark: ChatLineMark,
   applies: (line: ChatLine) => boolean,
 ): void {
-  queries.setQueryData<ChatLine[]>(chatKey(channelId), (feed) =>
-    feed?.map((line) =>
-      applies(line)
-        ? { ...line, ...mark }
-        : line),
-  );
+  for (const key of feedKeys(channelId)) {
+    queries.setQueryData<ChatLine[]>(key, (feed) =>
+      feed?.map((line) =>
+        applies(line)
+          ? { ...line, ...mark }
+          : line));
+  }
+}
+
+// One channel has two feeds: the operator chat and the viewer chat. A push updates whichever is loaded.
+function feedKeys(channelId: string): KeyParts[] {
+  return [chatKey(channelId), viewerChatKey(channelId)];
 }
 
 // A line goes in by its time, not by when it arrived: an old line sent again after a restart lands in its
@@ -65,11 +72,13 @@ function modActionMark(action: ModActionPayload): ChatLineMark | null {
 
 // A new line joins its channel's feed once, by its place in time; a feed never loaded has no cache to join.
 function appendLine(queries: HubEventContext['queries'], line: ChatLine): void {
-  queries.setQueryData<ChatLine[]>(chatKey(line.channelId), (feed) =>
-    feed && !feed.some((existing) => existing.id === line.id)
-      ? inOrder(feed, line).slice(-chatLineLimit)
-      : feed,
-  );
+  for (const key of feedKeys(line.channelId)) {
+    queries.setQueryData<ChatLine[]>(key, (feed) =>
+      feed && !feed.some((existing) =>
+        existing.id === line.id)
+        ? inOrder(feed, line).slice(-chatLineLimit)
+        : feed);
+  }
 }
 
 // One connection watches many channels, so every handler files by the channel the payload names, not the joined one.

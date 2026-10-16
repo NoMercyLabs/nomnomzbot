@@ -181,6 +181,88 @@ export function useChatEmotes(
   });
 }
 
+// The viewer chat (spec chat-client.md section 9a): the same feed for a signed-in viewer, read and sent through the
+// participant endpoints. Its own cache, so it never mixes with the operator feed; the hub files into both.
+export const viewerChatKey = (channelId: string | null): KeyParts => [...chatKey(channelId), 'viewer'];
+
+export const viewerChatLineLimit = 100;
+
+export type ViewerSendInput = Pick<SendChatInput, 'message' | 'replyToMessageId'>;
+
+async function readViewerChat(queries: QueryClient, id: string): Promise<ChatLine[]> {
+  const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/viewer/messages', {
+    params: { path: { version: '1', channelId: id }, query: { limit: viewerChatLineLimit } },
+  });
+
+  ensureOk(response, 'viewer chat', error);
+
+  const live = queries.getQueryData<ChatLine[]>(viewerChatKey(id));
+
+  return mergeHistory(data?.data ?? [], live);
+}
+
+export function useViewerChatHistory(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<ChatLine[], Error> {
+  const queries = useQueryClient();
+
+  return useQuery({
+    queryKey: computed(() =>
+      viewerChatKey(toValue(channelId))),
+    queryFn: () =>
+      readViewerChat(queries, toValue(channelId) as string),
+    enabled: computed(() =>
+      toValue(channelId) !== null),
+    staleTime: Infinity,
+  });
+}
+
+async function readViewerChatEmotes(id: string): Promise<ChatEmoteEntry[]> {
+  const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/chat/viewer/emotes', {
+    params: { path: { version: '1', channelId: id } },
+  });
+
+  ensureOk(response, 'viewer chat emotes', error);
+
+  return [...(data?.data ?? [])];
+}
+
+export function useViewerChatEmotes(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<ChatEmoteEntry[], Error> {
+  return useQuery({
+    queryKey: computed(() =>
+      [...viewerChatKey(toValue(channelId)), 'emotes']),
+    queryFn: () =>
+      readViewerChatEmotes(toValue(channelId) as string),
+    enabled: computed(() =>
+      toValue(channelId) !== null),
+    staleTime: 5 * 60_000,
+  });
+}
+
+// A viewer only ever speaks as themselves, on their own Twitch account: the body has no sender choice.
+export function useSendViewerChat(
+  channelId: MaybeRefOrGetter<string | null>,
+) {
+  return useMutation({
+    mutationFn: async (input: ViewerSendInput): Promise<void> => {
+      if (input.message.length > chatMessageMaxLength)
+        throw failed('chat message too long', 400);
+
+      const { error, response } = await client.POST('/api/v{version}/channels/{channelId}/chat/viewer/messages', {
+        params: { path: { version: '1', channelId: toValue(channelId) as string } },
+        body: {
+          message: input.message,
+          replyToMessageId: input.replyToMessageId ?? null,
+        },
+      });
+
+      ensureOk(response, 'viewer chat send', error);
+    },
+  });
+}
+
 // A search page may come back short with a cursor (the server scans a bounded slice per call), so the
 // reader keeps going back until the cursor is null: then the first message has been searched.
 export type ChatSearchPage = { messages: ChatLine[]; nextCursor: string | null };

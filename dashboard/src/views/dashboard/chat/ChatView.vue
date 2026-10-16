@@ -27,8 +27,11 @@ import {
   useBanUser,
   useChatHistory,
   useChatSearch,
+  useViewerChatHistory,
   type ChatLine as ChatLineData,
 } from '@/api/chat';
+import { useViewerChannel } from '@/api/viewer';
+import { useViewerChatLive } from '@/realtime/useViewerChatLive';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
@@ -52,18 +55,40 @@ import ModToolsPanel from './components/ModToolsPanel.vue';
 import ViewerPanel from './components/ViewerPanel.vue';
 
 const { t } = useI18n();
-const { channelId, current } = useCurrentChannel();
+const route = useRoute();
+const { channelId: openChannelId, current } = useCurrentChannel();
 
-const history = useChatHistory(channelId);
+// The viewer chat is this page for a participant: their own voice, no search, no moderation and no
+// per-person history (chat-client.md 9a). Under the viewer frame the channel comes from its name in the address.
+const viewerMode = route.meta.viewerChat === true;
+const channelName = computed(() =>
+  String(route.params.channel ?? ''));
+const namedChannel = viewerMode && channelName.value !== ''
+  ? useViewerChannel(channelName)
+  : null;
+const channelId = computed(() =>
+  namedChannel
+    ? namedChannel.data.value?.broadcasterId ?? null
+    : openChannelId.value);
+
+const history = viewerMode
+  ? useViewerChatHistory(channelId)
+  : useChatHistory(channelId);
 const banner = useBanUser(channelId);
 
+if (viewerMode) {
+  useViewerChatLive(channelId);
+}
+
 // The chat in its own window, for a second monitor (owner 2026-10-14: "where is the chat popout?").
-const route = useRoute();
 const router = useRouter();
 const poppedOut = computed(() => route.meta.popout === true);
 
 // The full address an OBS Custom Browser Dock opens.
-const dockUrl = computed(() => location.origin + router.resolve({ name: 'popout-chat' }).href);
+const dockUrl = computed(() =>
+  viewerMode
+    ? ''
+    : location.origin + router.resolve({ name: 'popout-chat' }).href);
 
 function popOut(): void {
   window.open(router.resolve({ name: 'popout-chat' }).href, 'nnz-chat', 'popup,width=440,height=760');
@@ -117,7 +142,8 @@ const visible = computed<ChatLineData[]>(() =>
   lines.value.filter(
     (line: ChatLineData) =>
       !(!display.value.commands && line.isCommand) &&
-      !(display.value.deleted === 'hide' && line.removed === 'deleted'),
+      !(display.value.deleted === 'hide' && line.removed === 'deleted') &&
+      !(viewerMode && line.removed !== undefined),
   ));
 
 const panelState = usePanelState(history, () =>
@@ -323,11 +349,13 @@ async function confirmBan(): Promise<void> {
       <!-- A phone has no second window to dock or pop out into; its toggles keep only their icons. -->
       <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2 phone:ml-0 phone:flex-1">
         <SearchField
+          v-if="!viewerMode"
           v-model="search"
           class="w-64 phone:w-auto phone:min-w-0 phone:flex-1"
           :placeholder="$t('dashboard.chat.search.placeholder')"
         />
         <Button
+          v-if="!viewerMode"
           data-mod-tools-toggle
           variant="outline"
           size="sm"
@@ -339,6 +367,7 @@ async function confirmBan(): Promise<void> {
           <span class="phone:sr-only">{{ $t('dashboard.chat.modTools.title') }}</span>
         </Button>
         <Button
+          v-if="!viewerMode"
           data-identity-toggle
           variant="outline"
           size="sm"
@@ -361,12 +390,13 @@ async function confirmBan(): Promise<void> {
           <span class="phone:sr-only">{{ $t('dashboard.chat.display.toggle') }}</span>
         </Button>
         <CopyLinkButton
-          v-if="!poppedOut"
+          v-if="!poppedOut && !viewerMode"
           class="phone:hidden"
           :url="dockUrl"
           :label="$t('dashboard.chat.copyDockLink')"
         />
-        <Button data-chat-popout
+        <Button v-if="!viewerMode"
+                data-chat-popout
                 class="phone:hidden"
                 variant="outline"
                 size="sm"
@@ -390,6 +420,7 @@ async function confirmBan(): Promise<void> {
     :count-label="feedPanel.description"
     :clear-focus-label="focusedUserId === null ? null : $t('dashboard.chat.viewer.clearFocus', { name: focusedName })"
     :show-frame-actions="!poppedOut"
+    :viewer="viewerMode"
     @clear-focus="focusedUserId = null"
   />
   <!-- Docked: the search field opens under the header, so the feed keeps the rest of the height. -->
@@ -447,6 +478,7 @@ async function confirmBan(): Promise<void> {
                 :channel-login="current?.login ?? null"
                 :focus="focusOf(item)"
                 :parent="parentOf(item)"
+                :viewer="viewerMode"
                 @ban="askBan"
                 @focus="pickChatter"
                 @reply="replyTo = $event"
@@ -475,10 +507,16 @@ async function confirmBan(): Promise<void> {
             v-model:reply-to="replyTo"
             :channel-id="channelId"
             :chatters="chatters"
+            :viewer="viewerMode"
           />
         </template>
       </PanelCard>
-      <SidePanel v-model:open="viewerOpen" data-viewer-panel :label="focusedName">
+      <SidePanel
+        v-if="!viewerMode"
+        v-model:open="viewerOpen"
+        data-viewer-panel
+        :label="focusedName"
+      >
         <ViewerPanel
           v-if="focusedUserId !== null"
           :user-id="focusedUserId"
@@ -491,10 +529,10 @@ async function confirmBan(): Promise<void> {
       <SidePanel v-model:open="displayOpen" see-through data-display-panel :label="$t('dashboard.chat.display.title')">
         <ChatDisplayPanel v-model="display" />
       </SidePanel>
-      <SidePanel v-model:open="modToolsOpen" data-mod-tools-panel :label="$t('dashboard.chat.modTools.title')">
+      <SidePanel v-if="!viewerMode" v-model:open="modToolsOpen" data-mod-tools-panel :label="$t('dashboard.chat.modTools.title')">
         <ModToolsPanel :channel-id="channelId" :channel-name="current?.login ?? ''" />
       </SidePanel>
-      <SidePanel v-model:open="identityOpen" data-identity-panel :label="$t('dashboard.chat.identity.title')">
+      <SidePanel v-if="!viewerMode" v-model:open="identityOpen" data-identity-panel :label="$t('dashboard.chat.identity.title')">
         <ChatIdentityPanel />
       </SidePanel>
     </div>

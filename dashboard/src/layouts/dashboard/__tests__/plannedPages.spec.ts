@@ -30,8 +30,9 @@ const MODES = ['dashboard', 'admin', 'viewer', 'settings'] as const satisfies re
 // Dashboard groups the owner asked for that the mockup ledger does not list (Discord, 2026-10-15).
 const beyondMockup: ReadonlySet<string> = new Set(['connect']);
 
-// Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15).
-const pagesBeyondMockup: ReadonlySet<string> = new Set(['dashboard-polls']);
+// Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15;
+// the viewer chat, 2026-10-16).
+const pagesBeyondMockup: ReadonlySet<string> = new Set(['dashboard-polls', 'dashboard-viewer-chat']);
 
 const stub = defineComponent({ render: () => h('div') });
 

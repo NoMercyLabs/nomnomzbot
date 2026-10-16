@@ -635,6 +635,7 @@
       "moreHelp": "All pages of the dashboard",
       "home": "Home",
       "chat": "Chat",
+      "viewerChat": "Viewer chat",
       "stream": "Stream",
       "analytics": "Analytics",
       "polls": "Polls",
@@ -690,6 +691,7 @@
       },
       "viewer": {
         "myChannel": "My channel",
+        "chat": "Chat",
         "nowPlaying": "Now playing",
         "leaderboards": "Leaderboards",
         "pointsStore": "Points and store",

@@ -63,6 +63,8 @@ const props = defineProps<{
   parent?: ChatLine | null;
   // The popped-out dock: tighter row padding, the tray close to the edge.
   compact?: boolean;
+  // The viewer chat: a participant's line carries no moderation and no profile (the profile dialog reads operator data), only reply.
+  viewer?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -475,7 +477,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.reply.tip') }}</TooltipContent>
         </Tooltip>
-        <DropdownMenu v-if="canSanctionLine">
+        <DropdownMenu v-if="!viewer && canSanctionLine">
           <Tooltip>
             <TooltipTrigger as-child>
               <DropdownMenuTrigger as-child>
@@ -503,7 +505,7 @@ function pick(event: MouseEvent): void {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Tooltip>
+        <Tooltip v-if="!viewer">
           <TooltipTrigger as-child>
             <Button
               data-line-action="delete"
@@ -517,7 +519,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.delete.label') }}</TooltipContent>
         </Tooltip>
-        <Tooltip v-if="canSanctionLine">
+        <Tooltip v-if="!viewer && canSanctionLine">
           <TooltipTrigger as-child>
             <Button
               data-line-action="ban"
@@ -531,7 +533,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.ban.tip') }}</TooltipContent>
         </Tooltip>
-        <Tooltip>
+        <Tooltip v-if="!viewer">
           <TooltipTrigger as-child>
             <Button
               data-line-action="profile"

@@ -48,7 +48,13 @@ export function useNavigation(): Navigation {
 
   // A page the person may not read has no entry. Until the bot has answered, nothing is hidden.
   function readable(entry: NavEntry): boolean {
-    return !access.known.value || entry.action === undefined || access.can(entry.action);
+    if (!access.known.value)
+      return true;
+
+    if (entry.unless !== undefined && access.can(entry.unless))
+      return false;
+
+    return entry.action === undefined || access.can(entry.action);
   }
 
   // A page that is not built yet has no route, so it has no entry (pages appear as they land).

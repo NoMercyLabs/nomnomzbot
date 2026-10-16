@@ -24,6 +24,22 @@ export const dashboardChatRoute = {
   component: chatPage,
 } as const satisfies RouteRecordRaw;
 
+// The same page as a viewer sees it, for a person without the operator chat (chat-client.md 9a).
+export const dashboardViewerChatRoute = {
+  path: 'viewer-chat',
+  name: 'dashboard-viewer-chat',
+  component: chatPage,
+  meta: { viewerChat: true },
+} as const satisfies RouteRecordRaw;
+
+// The viewer chat under the viewer frame, for one channel by its name.
+export const viewerChatRoute = {
+  path: ':channel/chat',
+  name: 'viewer-chat',
+  component: chatPage,
+  meta: { viewerChat: true },
+} as const satisfies RouteRecordRaw;
+
 // The same page in its own window, under the popout frame.
 export const popoutChatRoute = {
   path: 'chat',

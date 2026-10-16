@@ -32,6 +32,7 @@ let connection: HubConnection | null = null;
 let joinedChannel: string | null = null;
 // The channel a viewer page follows for its queue pushes.
 let viewerMusicChannel: string | null = null;
+let viewerChatChannel: string | null = null;
 // The channels watched with their own event classes (the chat page). Separate from joinedChannel, which the other pages use.
 const watched = new Map();
 
@@ -122,6 +123,10 @@ function afterReconnect(queries: QueryClient): void {
 async function joinViewerMusic(): Promise<void> {
   if (viewerMusicChannel) {
     await send('JoinViewerMusic', viewerMusicChannel);
+  }
+
+  if (viewerChatChannel) {
+    await send('JoinViewerChat', viewerChatChannel);
   }
 }
 
@@ -243,6 +248,25 @@ export async function watchViewerMusic(channelId: string | null): Promise<void> 
   }
 }
 
+// The viewer chat follows one channel's chat lines and removals. The server group needs `chat:viewer:read` only.
+export async function watchViewerChat(channelId: string | null): Promise<void> {
+  if (channelId === viewerChatChannel) return;
+
+  const previous = viewerChatChannel;
+
+  viewerChatChannel = channelId;
+
+  if (!linked) return;
+
+  if (previous) {
+    await send('LeaveViewerChat', previous);
+  }
+
+  if (channelId) {
+    await send('JoinViewerChat', channelId);
+  }
+}
+
 export async function stopDashboardHub(): Promise<void> {
   const closing = connection;
 
@@ -250,6 +274,7 @@ export async function stopDashboardHub(): Promise<void> {
   linked = false;
   joinedChannel = null;
   viewerMusicChannel = null;
+  viewerChatChannel = null;
   watched.clear();
   dashboardJoinErrors.value = [];
   await closing?.stop();

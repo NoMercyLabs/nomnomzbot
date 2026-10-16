@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import ArrowLeft from '~icons/nnz/arrow-left';
+import ChatMessages from '~icons/nnz/chat-messages';
 import Dices from '~icons/nnz/dices';
 import Gem from '~icons/nnz/gem';
 import Home from '~icons/nnz/home';
@@ -28,6 +29,7 @@ export const viewerNav: readonly NavGroup[] = [
     key: 'viewer',
     entries: [
       navEntry('dashboard-viewer-my-channel', 'viewer.myChannel', Home),
+      navEntry('dashboard-viewer-chat', 'viewer.chat', ChatMessages),
       navEntry('dashboard-viewer-now-playing', 'viewer.nowPlaying', NoteEighthPair),
       navEntry('dashboard-viewer-leaderboards', 'viewer.leaderboards', Trophy),
       navEntry('dashboard-viewer-points-store', 'viewer.pointsStore', Gem),

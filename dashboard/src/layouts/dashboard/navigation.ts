@@ -51,6 +51,8 @@ export type NavEntry = {
   exact?: boolean;
   // The action key that lets a person read the page. Without it the entry shows for everyone.
   action?: string;
+  // The action key that hides the entry when the person holds it (the viewer chat gives way to the operator chat).
+  unless?: string;
 };
 
 export type NavGroup = {
@@ -81,6 +83,13 @@ export const dashboardNav: readonly NavGroup[] = [
         icon: ChatMessages,
         action: 'chat:read',
         bottom: true,
+      },
+      {
+        route: 'dashboard-viewer-chat',
+        label: 'viewerChat',
+        icon: ChatMessages,
+        action: 'chat:viewer:read',
+        unless: 'chat:read',
       },
       {
         route: 'dashboard-stream',

@@ -36,6 +36,8 @@ defineProps<{
   countLabel: string;
   clearFocusLabel: string | null;
   showFrameActions: boolean;
+  // A viewer has no moderator tools and no sending identity to open.
+  viewer?: boolean;
 }>();
 
 const searchOpen = defineModel<boolean>('searchOpen', { required: true });
@@ -81,6 +83,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
       </Button>
       <div class="hidden items-center gap-1 @md:flex">
         <Button
+          v-if="!viewer"
           data-mod-tools-toggle
           variant="ghost"
           size="icon"
@@ -91,6 +94,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
           <Moderator class="size-5" aria-hidden="true" />
         </Button>
         <Button
+          v-if="!viewer"
           data-identity-toggle
           variant="ghost"
           size="icon"
@@ -124,11 +128,11 @@ const frameActions: Component | null = inject(frameActionsKey, null);
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuCheckboxItem v-model="modToolsOpen" data-more-mod-tools>
+          <DropdownMenuCheckboxItem v-if="!viewer" v-model="modToolsOpen" data-more-mod-tools>
             <Moderator aria-hidden="true" />
             {{ $t('dashboard.chat.modTools.title') }}
           </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem v-model="identityOpen" data-more-identity>
+          <DropdownMenuCheckboxItem v-if="!viewer" v-model="identityOpen" data-more-identity>
             <UserCircle aria-hidden="true" />
             {{ $t('dashboard.chat.identity.title') }}
           </DropdownMenuCheckboxItem>
