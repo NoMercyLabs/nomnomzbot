@@ -292,6 +292,24 @@ const panel = (title: string): HTMLElement =>
   [...document.body.querySelectorAll<HTMLElement>('[data-slot="panel-card"]')].find((card) =>
     card.querySelector('h2')?.textContent?.includes(title),
   ) as HTMLElement;
+
+// Drops a row the way Sortable does: it moves the node itself, then reports the indexes.
+function drop(oldIndex: number, newIndex: number): void {
+  const list = panel('Request queue').querySelector('[data-queue-list]') as HTMLElement;
+  const item = list.children[oldIndex] as HTMLElement;
+
+  list.insertBefore(item, list.children[newIndex + (newIndex > oldIndex
+    ? 1
+    : 0)] ?? null);
+
+  sortable.onUpdate?.({
+    oldIndex,
+    newIndex,
+    item,
+    from: list,
+  } as never);
+}
+
 const buttonIn = (root: HTMLElement, label: string): HTMLButtonElement =>
   [...root.querySelectorAll<HTMLButtonElement>('button')].find(
     (b) => b.textContent?.trim() === label || b.getAttribute('aria-label') === label,
@@ -518,7 +536,7 @@ describe('MusicView', () => {
       panel('Request queue').querySelectorAll('[data-queue-item] [data-drag-handle]'),
     ).toHaveLength(3);
 
-    sortable.onUpdate?.({ oldIndex: 0, newIndex: 2 });
+    drop(0, 2);
     await settle();
 
     expect(writes()).toHaveLength(1);
@@ -533,10 +551,30 @@ describe('MusicView', () => {
     expect(titles).toEqual(['Opus', 'Lose Yourself', 'Strobe']);
   });
 
+  // Sortable moves the dragged node itself. The page must put it back so Vue, not the library, owns the
+  // order on screen; otherwise the rows show the dragged order while the server holds another.
+  it('shows the rows in the order the server now holds after a drag, not the library-moved DOM order', async () => {
+    queue.push(track(3, 'Lose Yourself', 'Eminem', 'Stoney_Eagle'));
+    answers = freshAnswers();
+    await open();
+
+    const list = panel('Request queue').querySelector('[data-queue-list]') as HTMLElement;
+
+    drop(0, 2);
+
+    await settle();
+
+    const titles: string[] = [...list.querySelectorAll('[data-queue-item]')].map(
+      (row) => row.querySelector('.font-medium')?.textContent ?? '',
+    );
+
+    expect(titles).toEqual(['Opus', 'Lose Yourself', 'Strobe']);
+  });
+
   it('sends nothing when a song is dropped where it started', async () => {
     await open();
 
-    sortable.onUpdate?.({ oldIndex: 1, newIndex: 1 });
+    drop(1, 1);
     await settle();
 
     expect(writes()).toHaveLength(0);
