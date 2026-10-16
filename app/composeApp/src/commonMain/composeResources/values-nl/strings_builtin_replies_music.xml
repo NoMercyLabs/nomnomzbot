@@ -29,9 +29,13 @@
     <string name="builtin_reply_sr_duplicate_label">Staat al in de wachtrij</string>
     <string name="builtin_reply_sr_duplicate_description">Het gevraagde nummer staat al in de wachtrij.</string>
     <string name="builtin_reply_sr_tracktoolong_label">Nummer te lang</string>
-    <string name="builtin_reply_sr_tracktoolong_description">Het gevraagde nummer duurt langer dan 10 minuten en is niet toegevoegd.</string>
+    <string name="builtin_reply_sr_tracktoolong_description">Het gevraagde nummer is langer dan de maximale nummerlengte van het kanaal en is niet toegevoegd.</string>
     <string name="builtin_reply_sr_tracktoolongrefunded_label">Nummer te lang, punten terug</string>
-    <string name="builtin_reply_sr_tracktoolongrefunded_description">Een ingewisseld nummer duurt langer dan 10 minuten, is niet toegevoegd en de punten zijn teruggegeven.</string>
+    <string name="builtin_reply_sr_tracktoolongrefunded_description">Een ingewisseld nummer is langer dan de maximale nummerlengte van het kanaal, is niet toegevoegd en de punten zijn teruggegeven.</string>
+    <string name="builtin_reply_sr_trackexplicit_label">Expliciet nummer geweigerd</string>
+    <string name="builtin_reply_sr_trackexplicit_description">Het gevraagde nummer is als expliciet gemarkeerd en dit kanaal staat geen expliciete nummers toe.</string>
+    <string name="builtin_reply_sr_perstreamlimit_label">Verzoeklimiet per stream bereikt</string>
+    <string name="builtin_reply_sr_perstreamlimit_description">De kijker heeft al zoveel nummers aangevraagd als één stream toestaat.</string>
     <string name="builtin_reply_sr_addedwithcode_label">Nummer toegevoegd met code</string>
     <string name="builtin_reply_sr_addedwithcode_description">Een beloning of pipeline voegde een nummer toe, en het antwoord geeft de verzoekcode die !wrongsong gebruikt.</string>
     <string name="builtin_reply_sr_alreadyplaying_label">Speelt al</string>
@@ -52,6 +56,7 @@
     <string name="builtin_reply_var_song_artist">De artiest van het nummer</string>
     <string name="builtin_reply_var_song_status">Speelt of gepauzeerd</string>
     <string name="builtin_reply_var_track_name">De titel van het nummer</string>
+    <string name="builtin_reply_var_track_max">De langste toegestane nummerlengte</string>
     <string name="builtin_reply_var_track_artist">De artiest van het nummer</string>
     <string name="builtin_reply_var_track_link">Een link naar het nummer</string>
     <string name="builtin_reply_var_requested_by">Wie het als eerste aanvroeg</string>
@@ -164,6 +169,7 @@
     <string name="builtin_reply_var_trust_level">De laagste rol die mag aanvragen</string>
     <string name="builtin_reply_var_volume_level">Het volume, van 0 tot 100</string>
     <string name="builtin_reply_var_playlist_url">Een link naar de bangers-afspeellijst</string>
+    <string name="builtin_reply_var_playlist_name">De naam van de bangers-afspeellijst</string>
     <string name="builtin_reply_var_song_requester">Wie het nummer aanvroeg</string>
     <string name="builtin_reply_var_song_source">Verzoek of automatisch</string>
     <string name="builtin_reply_var_song_provider">De muziekdienst</string>

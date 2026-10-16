@@ -69,6 +69,13 @@ public class MusicConfigService : IMusicConfigService
             current.MaxQueueSize = request.MaxQueueSize.Value;
         if (request.MaxRequestsPerUser.HasValue)
             current.MaxRequestsPerUser = request.MaxRequestsPerUser.Value;
+        if (request.MaxSongSeconds.HasValue)
+            current.MaxSongSeconds = request.MaxSongSeconds.Value;
+        if (request.AllowExplicit.HasValue)
+            current.AllowExplicit = request.AllowExplicit.Value;
+        if (request.PerStreamLimit.HasValue)
+            current.PerStreamLimit =
+                request.PerStreamLimit.Value == 0 ? null : request.PerStreamLimit;
         if (request.AllowYouTube.HasValue)
             current.AllowYouTube = request.AllowYouTube.Value;
         if (request.AllowSpotify.HasValue)
@@ -161,7 +168,10 @@ public class MusicConfigService : IMusicConfigService
             d.BangerPlaylistProvider,
             d.BangerAutoCreate,
             d.MaxRequestsPerRole.Count == 0 ? null : d.MaxRequestsPerRole,
-            d.RequestsOpen
+            d.RequestsOpen,
+            d.MaxSongSeconds,
+            d.AllowExplicit,
+            d.PerStreamLimit
         );
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
@@ -173,6 +183,9 @@ public class MusicConfigService : IMusicConfigService
         public string PreferredProvider { get; set; } = "auto";
         public int MaxQueueSize { get; set; } = 50;
         public int MaxRequestsPerUser { get; set; } = 5;
+        public int MaxSongSeconds { get; set; } = 360;
+        public bool AllowExplicit { get; set; } = true;
+        public int? PerStreamLimit { get; set; }
         public bool AllowYouTube { get; set; } = true;
         public bool AllowSpotify { get; set; } = true;
         public string MinTrustLevel { get; set; } = "everyone";

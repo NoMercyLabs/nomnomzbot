@@ -29,9 +29,13 @@
     <string name="builtin_reply_sr_duplicate_label">Already in queue</string>
     <string name="builtin_reply_sr_duplicate_description">The requested song is already in the queue.</string>
     <string name="builtin_reply_sr_tracktoolong_label">Song too long</string>
-    <string name="builtin_reply_sr_tracktoolong_description">The requested song is longer than 10 minutes, so it was not added.</string>
+    <string name="builtin_reply_sr_tracktoolong_description">The requested song is longer than the channel's longest-song limit, so it was not added.</string>
     <string name="builtin_reply_sr_tracktoolongrefunded_label">Song too long, points refunded</string>
-    <string name="builtin_reply_sr_tracktoolongrefunded_description">A redeemed song is longer than 10 minutes, so it was not added and the points went back.</string>
+    <string name="builtin_reply_sr_tracktoolongrefunded_description">A redeemed song is longer than the channel's longest-song limit, so it was not added and the points went back.</string>
+    <string name="builtin_reply_sr_trackexplicit_label">Explicit song blocked</string>
+    <string name="builtin_reply_sr_trackexplicit_description">The requested song is marked explicit, and this channel does not allow explicit songs.</string>
+    <string name="builtin_reply_sr_perstreamlimit_label">Stream request limit reached</string>
+    <string name="builtin_reply_sr_perstreamlimit_description">The viewer already requested as many songs as one stream allows.</string>
     <string name="builtin_reply_sr_addedwithcode_label">Song added with its code</string>
     <string name="builtin_reply_sr_addedwithcode_description">A reward or pipeline added a song, and the reply gives the request code that !wrongsong uses.</string>
     <string name="builtin_reply_sr_alreadyplaying_label">Already playing</string>
@@ -52,6 +56,7 @@
     <string name="builtin_reply_var_song_artist">The song's artist</string>
     <string name="builtin_reply_var_song_status">Playing or paused</string>
     <string name="builtin_reply_var_track_name">The track's title</string>
+    <string name="builtin_reply_var_track_max">The longest song length allowed</string>
     <string name="builtin_reply_var_track_artist">The track's artist</string>
     <string name="builtin_reply_var_track_link">A link to the track</string>
     <string name="builtin_reply_var_requested_by">Who requested it first</string>
@@ -164,6 +169,7 @@
     <string name="builtin_reply_var_trust_level">The lowest role allowed to request</string>
     <string name="builtin_reply_var_volume_level">The volume, from 0 to 100</string>
     <string name="builtin_reply_var_playlist_url">A link to the bangers playlist</string>
+    <string name="builtin_reply_var_playlist_name">The name of the bangers playlist</string>
     <string name="builtin_reply_var_song_requester">Who requested the song</string>
     <string name="builtin_reply_var_song_source">Request or autoplay</string>
     <string name="builtin_reply_var_song_provider">The music service</string>

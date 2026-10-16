@@ -37,10 +37,17 @@ public sealed class MusicServiceCapacityTests
 {
     private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-0000000ad001");
 
-    internal static string SearchJson(string id, int durationMs = 200000) =>
+    internal static string SearchJson(
+        string id,
+        int durationMs = 200000,
+        bool isExplicit = false
+    ) =>
         """
-            {"tracks":{"items":[{"name":"Song __ID__","uri":"spotify:track:__ID__","duration_ms":__DUR__,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
-            """.Replace("__ID__", id).Replace("__DUR__", durationMs.ToString());
+            {"tracks":{"items":[{"name":"Song __ID__","uri":"spotify:track:__ID__","duration_ms":__DUR__,"explicit":__EXP__,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
+            """.Replace("__ID__", id).Replace("__DUR__", durationMs.ToString()).Replace(
+            "__EXP__",
+            isExplicit ? "true" : "false"
+        );
 
     [Fact]
     public async Task A_queue_at_its_configured_cap_refuses_the_next_request_before_pushing_it()
@@ -99,14 +106,15 @@ public sealed class MusicServiceCapacityTests
         RecordingHttpHandler handler,
         string trackId,
         string requestedBy,
-        int durationMs = 200000
+        int durationMs = 200000,
+        bool isExplicit = false
     )
     {
         handler.ClearRoutes();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
             HttpStatusCode.OK,
-            SearchJson(trackId, durationMs)
+            SearchJson(trackId, durationMs, isExplicit)
         );
         handler.RespondWhen(
             r =>
@@ -120,7 +128,10 @@ public sealed class MusicServiceCapacityTests
         return await sut.AddToQueueAsync(ChannelId.ToString(), $"song {trackId}", requestedBy);
     }
 
-    internal static (MusicService Sut, RecordingHttpHandler Handler) Build(MusicConfigDto config)
+    internal static (MusicService Sut, RecordingHttpHandler Handler) Build(
+        MusicConfigDto config,
+        ISongRequestQueueStore? store = null
+    )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -164,7 +175,7 @@ public sealed class MusicServiceCapacityTests
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            store ?? new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),

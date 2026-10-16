@@ -25,7 +25,10 @@ public sealed record MusicConfigDto(
     string? BangerPlaylistProvider = null,
     bool BangerAutoCreate = false,
     IReadOnlyDictionary<string, int>? MaxRequestsPerRole = null,
-    bool RequestsOpen = true
+    bool RequestsOpen = true,
+    int MaxSongSeconds = 360,
+    bool AllowExplicit = true,
+    int? PerStreamLimit = null
 );
 
 /// <summary>Request to update music configuration.</summary>
@@ -44,6 +47,20 @@ public sealed record UpdateMusicConfigDto
 
     [Range(1, 50)]
     public int? MaxRequestsPerUser { get; init; }
+
+    /// <summary>The longest song a viewer may request, in seconds. The broadcaster and moderators are not held to it.</summary>
+    [Range(30, 3600)]
+    public int? MaxSongSeconds { get; init; }
+
+    /// <summary>When false, a song the provider marks explicit is refused.</summary>
+    public bool? AllowExplicit { get; init; }
+
+    /// <summary>
+    /// The most songs one viewer may request in one stream, counting songs that already played. 0 turns the
+    /// cap off (null leaves the current value alone); a value of 1 to 100 turns it on.
+    /// </summary>
+    [Range(0, 100)]
+    public int? PerStreamLimit { get; init; }
 
     public bool? AllowYouTube { get; init; }
     public bool? AllowSpotify { get; init; }

@@ -301,39 +301,72 @@ public static partial class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.TrackTooLong,
-            variables: ["track.name", "user"],
+            variables: ["track.name", "track.max", "user"],
             informative:
             [
-                "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of 10 minutes.",
+                "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of {track.max}.",
             ],
             friendly:
             [
-                "Sorry, \"{track.name}\" is longer than the 10 minute limit, so I could not add it. Pick a shorter one!",
+                "Sorry, \"{track.name}\" is longer than the {track.max} limit, so I could not add it. Pick a shorter one!",
             ],
-            sassy: ["\"{track.name}\" is over 10 minutes. This is a queue, not a marathon."],
-            hype: ["\"{track.name}\" IS OVER 10 MINUTES. TOO LONG. FIND A SHORTER BANGER."],
-            chill: ["\"{track.name}\" is over 10 minutes. too long, pick a shorter one."]
+            sassy: ["\"{track.name}\" is over {track.max}. This is a queue, not a marathon."],
+            hype: ["\"{track.name}\" IS OVER {track.max}. TOO LONG. FIND A SHORTER BANGER."],
+            chill: ["\"{track.name}\" is over {track.max}. too long, pick a shorter one."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.TrackExplicit,
+            variables: ["track.name"],
+            informative: ["\"{track.name}\" is explicit, and explicit songs are not allowed here."],
+            friendly:
+            [
+                "Sorry, \"{track.name}\" is marked explicit and this channel does not take those. Pick a clean one!",
+            ],
+            sassy: ["\"{track.name}\" is explicit. This channel does not do explicit."],
+            hype: ["\"{track.name}\" IS EXPLICIT. NOT HERE. FIND A CLEAN BANGER."],
+            chill: ["\"{track.name}\" is explicit. not allowed here, pick a clean one."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.PerStreamLimit,
+            variables: ["request.limit"],
+            informative:
+            [
+                "You already requested {request.limit} song(s) this stream. That is the limit.",
+            ],
+            friendly:
+            [
+                "You have used your {request.limit} request(s) for this stream. Come back next stream!",
+            ],
+            sassy: ["{request.limit} request(s) per stream. You have had yours."],
+            hype: ["THAT IS YOUR {request.limit} REQUEST(S) FOR THIS STREAM. SEE YOU NEXT TIME!"],
+            chill: ["you used your {request.limit} request(s) for this stream."]
         );
 
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.TrackTooLongRefunded,
-            variables: ["track.name", "user"],
+            variables: ["track.name", "track.max", "user"],
             informative:
             [
-                "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of 10 minutes, your point has been refunded.",
+                "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of {track.max}, your point has been refunded.",
             ],
             friendly:
             [
-                "Sorry, \"{track.name}\" is longer than the 10 minute limit, so I could not add it. Your points are back, pick a shorter one!",
+                "Sorry, \"{track.name}\" is longer than the {track.max} limit, so I could not add it. Your points are back, pick a shorter one!",
             ],
             sassy:
             [
-                "\"{track.name}\" is over 10 minutes. This is a queue, not a marathon. Points refunded.",
+                "\"{track.name}\" is over {track.max}. This is a queue, not a marathon. Points refunded.",
             ],
-            hype: ["\"{track.name}\" IS OVER 10 MINUTES. TOO LONG. POINTS REFUNDED, GO AGAIN."],
-            chill: ["\"{track.name}\" is over 10 minutes. points refunded, pick a shorter one."]
+            hype: ["\"{track.name}\" IS OVER {track.max}. TOO LONG. POINTS REFUNDED, GO AGAIN."],
+            chill: ["\"{track.name}\" is over {track.max}. points refunded, pick a shorter one."]
         );
 
         Add(
@@ -992,6 +1025,7 @@ public static partial class ToneTemplateCatalog
         samples["song.status"] = "Now playing:";
         samples["track.name"] = "Never Gonna Give You Up";
         samples["track.artist"] = "Rick Astley";
+        samples["track.max"] = "6 minutes";
         samples["track.link"] = "https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8";
         samples["playlist.name"] = "Road Trip";
         samples["requested.by"] = "StreamFan42";

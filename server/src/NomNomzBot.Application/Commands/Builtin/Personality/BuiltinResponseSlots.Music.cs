@@ -87,11 +87,17 @@ public static partial class BuiltinResponseSlots
         /// <summary>The music service needs a Premium account for this; <c>{track.name}</c> is set.</summary>
         public const string PremiumRequired = "premiumrequired";
 
-        /// <summary>The track is longer than the 10 minute cap; <c>{track.name}</c>/<c>{user}</c> are set.</summary>
+        /// <summary>The track is longer than the channel's longest-song limit; <c>{track.name}</c>/<c>{track.max}</c>/<c>{user}</c> are set.</summary>
         public const string TrackTooLong = "tracktoolong";
 
+        /// <summary>The track is explicit and the channel blocks explicit songs; <c>{track.name}</c> is set.</summary>
+        public const string TrackExplicit = "trackexplicit";
+
+        /// <summary>The requester used up their requests for this stream; <c>{request.limit}</c> is set.</summary>
+        public const string PerStreamLimit = "perstreamlimit";
+
         /// <summary>
-        /// Same refusal on the reward path, where the redeemed points go back; <c>{track.name}</c>/<c>{user}</c> are set.
+        /// Same refusal on the reward path, where the redeemed points go back; <c>{track.name}</c>/<c>{track.max}</c>/<c>{user}</c> are set.
         /// </summary>
         public const string TrackTooLongRefunded = "tracktoolongrefunded";
 

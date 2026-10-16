@@ -115756,6 +115756,28 @@
           "requestsOpen": {
             "type": "boolean",
             "default": true
+          },
+          "maxSongSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 360
+          },
+          "allowExplicit": {
+            "type": "boolean",
+            "default": true
+          },
+          "perStreamLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "Music configuration for a channel."
@@ -145025,6 +145047,37 @@
               "string"
             ],
             "format": "int32"
+          },
+          "maxSongSeconds": {
+            "maximum": 3600,
+            "minimum": 30,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "description": "The longest song a viewer may request, in seconds. The broadcaster and moderators are not held to it."
+          },
+          "allowExplicit": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "When false, a song the provider marks explicit is refused."
+          },
+          "perStreamLimit": {
+            "maximum": 100,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "description": "The most songs one viewer may request in one stream, counting songs that already played. 0 turns the cap off (null leaves the current value alone); a value of 1 to 100 turns it on."
           },
           "allowYouTube": {
             "type": [
