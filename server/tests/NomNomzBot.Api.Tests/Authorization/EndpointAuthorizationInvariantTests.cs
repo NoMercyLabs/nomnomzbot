@@ -92,6 +92,8 @@ public sealed class EndpointAuthorizationInvariantTests
             "JWT-self-scoped in body: lists channels the CALLER owns/moderates (ids from the caller's claims only)",
         ["ChannelsController.GetModeratedChannels"] =
             "JWT-self-scoped in body: the caller's own moderated-channel list from their broadcaster_id claim",
+        ["ChannelsController.SearchDirectory"] =
+            "public directory for any signed-in user: active channels with only the public fields every visitor sees (chat-client.md §9a)",
         ["ChannelsController.OnboardChannel"] =
             "self-scoped in body (caller==request.BroadcasterId or admin): a user onboards only their own channel",
         ["CommunityController.GetMyStanding"] =
