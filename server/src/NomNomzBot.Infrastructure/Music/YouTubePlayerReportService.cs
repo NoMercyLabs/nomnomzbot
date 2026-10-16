@@ -53,6 +53,13 @@ public sealed class YouTubePlayerReportService(
 
         // Looked up before an ended video hands over to the next one, which replaces the pushed track.
         YouTubeQueuedTrack? known = store.PushedTrack(broadcasterId, videoId);
+        // A report about a video the bot has already replaced (a retried ENDED, a heartbeat in flight while the
+        // next video was pushed) describes nothing current; acting on it would hand over the song after next.
+        if (known is null && store.HasPushed(broadcasterId))
+            return Result.Failure(
+                "The report is about a video the player has already moved past.",
+                "STALE_VIDEO"
+            );
         YouTubePlayerReport? previous = store.Report(
             broadcasterId,
             widgetId,

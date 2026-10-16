@@ -38,6 +38,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
     private static readonly Guid PlayerWidget = Guid.Parse("0192b000-0000-7000-8000-0000000a7c02");
     private const string First = "dQw4w9WgXcQ";
     private const string Second = "9bZkp7q19f0";
+    private const string Third = "kJQP7kiw5Fk";
 
     private sealed class RecordingWidgetEventNotifier : IWidgetEventNotifier
     {
@@ -141,6 +142,13 @@ public sealed class YouTubeEndedAdvancesQueueTests
                 && r.RequestUri.Query.Contains(Second),
             System.Net.HttpStatusCode.OK,
             VideoJson(Second, "Second Song")
+        );
+        handler.RespondWhen(
+            r =>
+                r.RequestUri!.AbsolutePath.EndsWith("/videos")
+                && r.RequestUri.Query.Contains(Third),
+            System.Net.HttpStatusCode.OK,
+            VideoJson(Third, "Third Song")
         );
         YouTubeMusicProvider provider = YouTubeProviderFactory.Create(
             apiKey: "test-key",
@@ -295,5 +303,37 @@ public sealed class YouTubeEndedAdvancesQueueTests
         rig.Notifier.PlayedVideoIds.Should().Equal(First);
         QueuedUris(rig).Should().BeEmpty();
         rig.Queues.GetInFlight(Broadcaster.ToString()).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_late_ended_report_for_a_video_already_replaced_does_not_skip_the_one_playing()
+    {
+        Rig rig = await TwoQueuedAsync();
+        (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(Third), "viewer3"))
+            .IsSuccess.Should()
+            .BeTrue();
+        await ReportAsync(rig, First, "playing");
+        await ReportAsync(rig, First, "ended");
+        await ReportAsync(rig, Second, "playing");
+
+        // The first video's ENDED arrives again (a retry after a network blip, or a second report).
+        int published = rig.Bus.Published.Count;
+        Result late = await rig.Reports.ReportAsync(
+            Broadcaster,
+            PlayerWidget,
+            First,
+            "ended",
+            1000
+        );
+
+        late.ErrorCode.Should().Be("STALE_VIDEO");
+        rig.Bus.Published.Should().HaveCount(published, "a stale report changes nothing");
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First, Second], "the third request waits until the second ends");
+        (await rig.Provider.GetCurrentTrackAsync(Broadcaster))!.TrackUri.Should().Be(Watch(Second));
+        (await rig.Provider.GetQueueAsync(Broadcaster))!
+            .Select(t => t.TrackUri)
+            .Should()
+            .Equal(Watch(Third));
     }
 }
