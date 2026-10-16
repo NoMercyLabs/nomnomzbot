@@ -305,4 +305,41 @@ public sealed class SongRequestLostAtProviderTests
         sent.Should().ContainSingle();
         sent[0].Should().StartWith("@anda_six ").And.Contain("\"family ties\"");
     }
+
+    [Fact]
+    public async Task A_request_restored_after_a_restart_that_the_provider_still_holds_is_not_pushed_again()
+    {
+        Harness h = Build();
+        FairQueue<SongRequestEntry> queue = h.Store.GetOrCreate(h.Channel);
+        List<(string OwnerKey, SongRequestEntry Entry)> rows =
+        [
+            .. queue.GetSnapshot().Select(e => (e.Item.RequestedBy.ToLowerInvariant(), e.Item)),
+        ];
+        h.Store.Restore(h.Channel, rows, inFlightIndex: 0);
+        h.ProviderQueue = [Track("spotify:track:family")];
+
+        await h.Sut.HandOverNextAsync(h.Channel);
+        await h.Sut.HandOverNextAsync(h.Channel);
+
+        h.Pushed.Should().BeEmpty("the provider's own queue kept it through the restart");
+        h.Store.GetInFlight(h.Channel)!.TrackName.Should().Be("family ties");
+    }
+
+    [Fact]
+    public async Task A_request_restored_after_a_restart_that_the_provider_no_longer_holds_is_handed_over_again()
+    {
+        Harness h = Build();
+        FairQueue<SongRequestEntry> queue = h.Store.GetOrCreate(h.Channel);
+        List<(string OwnerKey, SongRequestEntry Entry)> rows =
+        [
+            .. queue.GetSnapshot().Select(e => (e.Item.RequestedBy.ToLowerInvariant(), e.Item)),
+        ];
+        h.Store.Restore(h.Channel, rows, inFlightIndex: 0);
+        h.ProviderQueue = [];
+
+        await h.Sut.HandOverNextAsync(h.Channel);
+
+        h.Pushed.Should().Equal("spotify:track:family");
+        h.Events.Published.OfType<SongRequestLostAtProviderEvent>().Should().BeEmpty();
+    }
 }

@@ -361,4 +361,48 @@ public sealed class YouTubeEndedAdvancesQueueTests
         rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
         QueuedUris(rig).Should().Equal(Watch(Second));
     }
+
+    [Fact]
+    public async Task A_request_handed_to_the_player_before_a_bot_restart_is_handed_to_it_again_once()
+    {
+        // A fresh rig is the restarted bot: the player's memory is empty, the queue comes back from the
+        // database with its head marked as already handed over.
+        Rig rig = await BuildAsync();
+        SongRequestEntry first = new(
+            Watch(First),
+            "First Song",
+            "Some Channel",
+            null,
+            180_000,
+            "viewer1",
+            0,
+            null,
+            "AB12"
+        );
+        SongRequestEntry second = new(
+            Watch(Second),
+            "Second Song",
+            "Some Channel",
+            null,
+            180_000,
+            "viewer2",
+            0,
+            null,
+            "CD34"
+        );
+        rig.Queues.Restore(
+            Broadcaster.ToString(),
+            [("viewer1", first), ("viewer2", second)],
+            inFlightIndex: 0
+        );
+
+        await rig.Music.HandOverNextAsync(Broadcaster.ToString());
+        await rig.Music.HandOverNextAsync(Broadcaster.ToString());
+
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First], "the restored request plays, and only once");
+        rig.Queues.GetInFlight(Broadcaster.ToString()).Should().BeSameAs(first);
+        QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
+        rig.Bus.Published.OfType<SongRequestLostAtProviderEvent>().Should().BeEmpty();
+    }
 }

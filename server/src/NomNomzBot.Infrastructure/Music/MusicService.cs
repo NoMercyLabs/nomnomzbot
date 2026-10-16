@@ -2472,6 +2472,16 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // that fire on a cadence (the playback poller's recovery tick) can therefore call this freely. The
         // one way past it is proof the in-flight request is gone from the provider for good.
         SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
+        if (inFlight is not null && _queueStore.IsRestoredInFlight(broadcasterId))
+        {
+            await RecoverRestoredInFlightAsync(
+                tenantId,
+                broadcasterId,
+                inFlight,
+                cancellationToken
+            );
+            return;
+        }
         if (
             inFlight is not null
             && !await ReleaseIfLostAtProviderAsync(
@@ -2492,6 +2502,28 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null)
             return;
 
+        if (!await TryPushAsync(provider, tenantId, broadcasterId, next, cancellationToken))
+            return;
+
+        _queueStore.SetInFlight(broadcasterId, next);
+        // Persist the in-flight flag immediately — without this a restart right after hand-over forgets
+        // that `next` was already pushed to the provider and re-hands it over a second time
+        // (S-SR-INFLIGHT-DURABLE).
+        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
+    }
+
+    /// <summary>
+    /// Hands one request to the provider. False when the provider cannot take it right now (no device or
+    /// player, dead token, non-Premium); the request then keeps its place and a later tick tries again.
+    /// </summary>
+    private async Task<bool> TryPushAsync(
+        IMusicProvider provider,
+        Guid tenantId,
+        string broadcasterId,
+        SongRequestEntry entry,
+        CancellationToken cancellationToken
+    )
+    {
         // This runs with no person present — off the reconciler's playback-changed reaction or the
         // poller's recovery tick, never inside an HTTP request — so it carries no ambient sanction of
         // its own. The broadcaster already opted in by enabling song requests; handing the next accepted
@@ -2506,8 +2538,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         try
         {
-            if (!await provider.AddToQueueAsync(tenantId, next.TrackUri, cancellationToken))
-                return;
+            return await provider.AddToQueueAsync(tenantId, entry.TrackUri, cancellationToken);
         }
         catch (Exception ex)
             when (ex
@@ -2523,17 +2554,48 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             _logger.LogDebug(
                 ex,
                 "Could not hand '{Track}' to the provider for {BroadcasterId} — it stays queued.",
-                next.TrackName,
+                entry.TrackName,
                 broadcasterId
             );
-            return;
+            return false;
         }
+    }
 
-        _queueStore.SetInFlight(broadcasterId, next);
-        // Persist the in-flight flag immediately — without this a restart right after hand-over forgets
-        // that `next` was already pushed to the provider and re-hands it over a second time
-        // (S-SR-INFLIGHT-DURABLE).
-        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
+    /// <summary>
+    /// The request in flight when the bot stopped. A provider whose queue lives on its own side (Spotify)
+    /// still holds it, so it is only confirmed; one whose queue lived in the bot's memory (the YouTube
+    /// overlay player) lost it with the restart, so it is handed over again rather than taken for lost.
+    /// Unknown answers keep the marker, and the next tick asks again.
+    /// </summary>
+    private async Task RecoverRestoredInFlightAsync(
+        Guid tenantId,
+        string broadcasterId,
+        SongRequestEntry inFlight,
+        CancellationToken cancellationToken
+    )
+    {
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return;
+
+        IReadOnlyList<TrackInfo>? providerQueue = await provider.GetQueueAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (providerQueue is null)
+            return;
+
+        bool stillHeld =
+            providerQueue.Any(t => IsSameTrack(t.TrackUri, inFlight.TrackUri))
+            || IsSameTrack(
+                (await provider.GetCurrentTrackAsync(tenantId, cancellationToken))?.TrackUri,
+                inFlight.TrackUri
+            );
+        if (
+            stillHeld
+            || await TryPushAsync(provider, tenantId, broadcasterId, inFlight, cancellationToken)
+        )
+            _queueStore.ConfirmRestoredInFlight(broadcasterId);
     }
 
     /// <summary>

@@ -153,6 +153,15 @@ public interface ISongRequestQueueStore
         IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries,
         int? inFlightIndex = null
     );
+
+    /// <summary>
+    /// True while the in-flight request is the one <see cref="Restore"/> brought back and no hand-over has
+    /// confirmed it reached the provider since the restart.
+    /// </summary>
+    bool IsRestoredInFlight(string broadcasterId);
+
+    /// <summary>The restored in-flight request is known to be at the provider again.</summary>
+    void ConfirmRestoredInFlight(string broadcasterId);
 }
 
 /// <inheritdoc cref="ISongRequestQueueStore"/>
@@ -171,6 +180,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     > _inFlightChecks = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlightSeen = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _playingRequests = new();
+    private readonly ConcurrentDictionary<string, SongRequestEntry> _restoredInFlight = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _handoverLocks = new();
     private readonly ConcurrentDictionary<
         (string BroadcasterId, string TrackUri),
@@ -342,7 +352,18 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
                 ? orderedEntries[index].Entry
                 : null;
         SetInFlight(broadcasterId, inFlight);
+        if (inFlight is null)
+            _restoredInFlight.TryRemove(broadcasterId, out _);
+        else
+            _restoredInFlight[broadcasterId] = inFlight;
     }
+
+    public bool IsRestoredInFlight(string broadcasterId) =>
+        _restoredInFlight.TryGetValue(broadcasterId, out SongRequestEntry? restored)
+        && ReferenceEquals(restored, GetInFlight(broadcasterId));
+
+    public void ConfirmRestoredInFlight(string broadcasterId) =>
+        _restoredInFlight.TryRemove(broadcasterId, out _);
 }
 
 /// <summary>An item in the per-channel song request queue. <see cref="Cost"/>/<see cref="RequesterUserId"/>
