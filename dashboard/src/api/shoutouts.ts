@@ -11,12 +11,14 @@
 import {
   useMutation,
   useQueryClient,
+  type QueryClient,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
+import { viewerProfilesKey } from './people';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
@@ -72,5 +74,61 @@ export function useDismissShoutoutSuggestion(
     },
     onSuccess: () =>
       queries.invalidateQueries({ queryKey: shoutoutSuggestionsKey(toValue(channelId)) }),
+  });
+}
+
+export type ShoutoutLine = {
+  targetTwitchUserId: string;
+  targetDisplayName: string;
+  messageTemplate: string;
+};
+
+// The new line shows on the person's profile once the profile is read again.
+function profilesChanged(queries: QueryClient, channelId: string | null): void {
+  void queries.invalidateQueries({ queryKey: viewerProfilesKey(channelId) });
+}
+
+// This channel's own shoutout line for one person; the shoutout and a raid from them both use it.
+export function useSetShoutoutLine(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (line: ShoutoutLine): Promise<void> => {
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/moderation/shoutout-overrides',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: line,
+        },
+      );
+
+      if (!response.ok)
+        throw failed('set shoutout line', response.status, error);
+    },
+    onSuccess: () =>
+      profilesChanged(queries, toValue(channelId)),
+  });
+}
+
+// Without the line, a shoutout falls back to the channel default.
+export function useRemoveShoutoutLine(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (targetTwitchUserId: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/moderation/shoutout-overrides/{targetTwitchUserId}',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          targetTwitchUserId,
+        } } },
+      );
+
+      if (!response.ok)
+        throw failed('remove shoutout line', response.status, error);
+    },
+    onSuccess: () =>
+      profilesChanged(queries, toValue(channelId)),
   });
 }

@@ -355,7 +355,7 @@ async function banNow(): Promise<void> {
             </TabsContent>
 
             <TabsContent value="data" force-mount :class="PANEL_CLASS">
-              <ProfileData :profile="viewerProfile" />
+              <ProfileData :profile="viewerProfile" :twitch-user-id="userId" :name="title" />
             </TabsContent>
           </template>
 

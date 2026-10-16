@@ -174,6 +174,8 @@ export const apiOperations = {
   shield: 'shield',
   'shoutout suggestions': 'shoutouts',
   'dismiss suggestion': 'shoutouts',
+  'set shoutout line': 'shoutouts',
+  'remove shoutout line': 'shoutouts',
   stream: 'stream',
   'ad schedule': 'stream',
   snooze: 'stream',

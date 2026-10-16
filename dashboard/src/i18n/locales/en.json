@@ -487,7 +487,19 @@
     "shoutout": {
       "button": "Shout out",
       "done": "Shouted out {name}.",
-      "failed": "The shoutout for {name} did not go out."
+      "failed": "The shoutout for {name} did not go out.",
+      "channelDefault": "Uses the channel shoutout line.",
+      "add": "Write line",
+      "change": "Edit",
+      "remove": "Remove",
+      "noWrite": "Your role cannot change a shoutout line.",
+      "editTitle": "Shoutout line for {name}",
+      "help": "Variables: {'{'}name{'}'} their name, {'{'}Subject{'}'} they or she or he, {'{'}verb:is{'|'}are{'}'} a verb that follows the pronoun, {'{'}game{'}'} their last game. Type {'{'} to see them all.",
+      "label": "Shoutout line",
+      "placeholder": "Go follow {'{'}name{'}'}! {'{'}Subject{'}'} last played {'{'}game{'}'}.",
+      "save": "Save line",
+      "removeTitle": "Remove the shoutout line for {name}?",
+      "removeEffect": "Shoutouts and raids from them use the channel line again."
     },
     "warn": {
       "button": "Warn",

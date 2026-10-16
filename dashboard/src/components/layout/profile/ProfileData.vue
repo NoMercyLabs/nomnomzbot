@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { PersonProfile } from '@/api/people';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import ProfileShoutoutLine from '@/components/layout/profile/ProfileShoutoutLine.vue';
 import { shortDate } from '@/lib/time';
 
 type Quote = PersonProfile['recentQuotes'][number];
@@ -24,7 +25,11 @@ type Permit = PersonProfile['permits']['activePermits'][number];
 const ROLE_GRANT = 0;
 const ROLES = ['moderator', 'leadmoderator', 'editor', 'broadcaster'] as const;
 
-const props = defineProps<{ profile: PersonProfile }>();
+const props = defineProps<{
+  profile: PersonProfile;
+  twitchUserId: string;
+  name: string;
+}>();
 
 const { t, n, locale } = useI18n();
 
@@ -73,7 +78,6 @@ function permitText(permit: Permit): string {
 const permits = computed<Permit[]>(() => props.profile.permits.activePermits);
 
 const lines = computed<KeyValueItem[]>(() => [
-  { label: t('profile.data.shoutout'), value: props.profile.overrides.shoutoutMessageTemplate },
   { label: t('profile.data.ttsVoice'), value: props.profile.overrides.ttsVoice?.voiceId },
 ]);
 
@@ -120,6 +124,12 @@ const moreQuotes = computed<number>(() =>
 
     <section class="grid content-start gap-2">
       <h3 class="text-sm font-semibold">{{ $t('profile.data.lines') }}</h3>
+      <h4 class="text-sm text-muted-foreground">{{ $t('profile.data.shoutout') }}</h4>
+      <ProfileShoutoutLine
+        :twitch-user-id="twitchUserId"
+        :name="name"
+        :line="profile.overrides.shoutoutMessageTemplate ?? null"
+      />
       <KeyValueList :items="lines" />
     </section>
 
