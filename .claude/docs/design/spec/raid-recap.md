@@ -107,6 +107,11 @@ Stoney, verbatim, on preview v2: "no, the person who gifted and the amount, and 
 - Fewer blocks: one card per topic, no second list inside a card.
 - A list only scrolls when it is longer than its card.
 
+Stoney, verbatim: "can you make it a bit more on brand with my overlay?" and "can we pick a rainbow color for 31 days and pick the color of the current stream day?"
+
+- The look copies the channel's own Leaderboard and Logo badge widgets: one hue `--base` with five shades (`--color-100` to `--color-900`), the 45-degree see-through card gradient with blur, the same font.
+- The hue is fixed per stream, not animated: `(day - 1) * 360 / 31` degrees, where `day` is the day of the month the stream started (Amsterdam time). Day 1 is red; day 15 is green.
+
 ## 5. API
 
 New read endpoint, additive: `GET /api/v1/dashboard/{channelId}/stream-recap?streamId=` next to `DashboardController.cs:98` (`stats`). It returns `StreamRecapDto`. Default `streamId` is the latest stream, ended or live. The numbers are counted from the event journal and tables in the Stream window (`StartedAt` to `EndedAt`, or now). The journal has no stream id (EventJournal.cs fields at :27-77), so the window is by time.
