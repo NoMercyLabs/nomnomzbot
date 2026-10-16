@@ -510,6 +510,7 @@ internal static class YouTubeProviderFactory
                     store
                 ),
             new YouTubeQuotaCooldown(time ?? TimeProvider.System),
+            new YouTubeVideoCache(time ?? TimeProvider.System),
             NullLogger<YouTubeMusicProvider>.Instance
         );
     }

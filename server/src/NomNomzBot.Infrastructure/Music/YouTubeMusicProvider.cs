@@ -75,6 +75,7 @@ public sealed class YouTubeMusicProvider
     private readonly IYouTubePlayerStateStore _playerState;
     private readonly IYouTubePlayerDispatcher _players;
     private readonly IYouTubeQuotaCooldown _quota;
+    private readonly IYouTubeVideoCache _videos;
 
     public YouTubeMusicProvider(
         IHttpClientFactory httpClientFactory,
@@ -83,10 +84,12 @@ public sealed class YouTubeMusicProvider
         IYouTubePlayerStateStore playerState,
         IYouTubePlayerDispatcher players,
         IYouTubeQuotaCooldown quota,
+        IYouTubeVideoCache videos,
         ILogger<YouTubeMusicProvider> logger
     )
     {
         _quota = quota;
+        _videos = videos;
         _playerState = playerState;
         _players = players;
         _http = httpClientFactory.CreateClient("youtube");
@@ -385,7 +388,9 @@ public sealed class YouTubeMusicProvider
             )
                 continue;
 
-            results.Add(MapToTrackInfo(video));
+            TrackInfo track = MapToTrackInfo(video);
+            _videos.Put(track); // the picked hit's hand-over to the player reads it from here.
+            results.Add(track);
         }
 
         return (results, MusicProviderFailureReason.None);
@@ -406,6 +411,11 @@ public sealed class YouTubeMusicProvider
         string? apiKey = await ApiKeyAsync(cancellationToken);
         if (apiKey is null)
             return (null, MusicProviderFailureReason.NotConfigured);
+
+        // Only videos that passed the gates below are cached; their embed/age flags travel with them.
+        TrackInfo? cached = _videos.Get(videoId);
+        if (cached is not null)
+            return (cached, MusicProviderFailureReason.None);
         if (_quota.TryGetCoolingUntil(out _))
             return (null, MusicProviderFailureReason.QuotaExhausted);
 
@@ -449,7 +459,9 @@ public sealed class YouTubeMusicProvider
         // Unlike search, resolve keeps a found on-demand video and returns it WITH its gate flags
         // (embeddable/age/explicit) so the SR pipeline can reject with the precise reason (§3.5.2
         // failure taxonomy: not_embeddable / age_restricted), rather than a bare "not found".
-        return (MapToTrackInfo(video), MusicProviderFailureReason.None);
+        TrackInfo track = MapToTrackInfo(video);
+        _videos.Put(track);
+        return (track, MusicProviderFailureReason.None);
     }
 
     public async Task<bool> AddToQueueAsync(

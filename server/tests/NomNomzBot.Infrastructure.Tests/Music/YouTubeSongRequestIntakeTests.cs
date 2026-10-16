@@ -321,4 +321,29 @@ public sealed class YouTubeSongRequestIntakeTests
             .Should()
             .Equal(213_000);
     }
+
+    [Fact]
+    public async Task A_link_request_spends_one_videos_list_call_including_the_hand_over_to_the_player()
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteVideos(YouTubeSongRequestIntake.Video(VideoId, "Never Gonna Give You Up"));
+
+        await intake.SayAsync(Link);
+
+        (await intake.QueuedTitlesAsync()).Should().Equal("Never Gonna Give You Up");
+        intake.DataApiCalls.Should().Equal("videos");
+    }
+
+    [Fact]
+    public async Task A_word_request_spends_one_search_and_one_videos_list_call_including_the_hand_over()
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteSearch(VideoId);
+        intake.RouteVideos(YouTubeSongRequestIntake.Video(VideoId, "Never Gonna Give You Up"));
+
+        await intake.SayAsync("never gonna give you up");
+
+        (await intake.QueuedTitlesAsync()).Should().Equal("Never Gonna Give You Up");
+        intake.DataApiCalls.Should().Equal("search", "videos");
+    }
 }
