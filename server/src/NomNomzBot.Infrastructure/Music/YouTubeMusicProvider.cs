@@ -367,7 +367,12 @@ public sealed class YouTubeMusicProvider
             // SR gates (§3.5/§3.5.2): a candidate the viewer could pick must actually be playable in the
             // browser-source player — exclude non-embeddable (can never render), age-restricted (YouTube
             // blocks embedded playback of these), and live/upcoming (no fixed track, not a song).
-            if (!IsEmbeddable(video) || IsAgeRestricted(video) || !IsOnDemand(video.Snippet))
+            if (
+                !IsEmbeddable(video)
+                || IsAgeRestricted(video)
+                || !IsOnDemand(video.Snippet)
+                || IsPlayableNowhere(video)
+            )
                 continue;
 
             results.Add(MapToTrackInfo(video));
@@ -421,6 +426,9 @@ public sealed class YouTubeMusicProvider
         // A live or upcoming broadcast is not a resolvable on-demand track.
         if (!IsOnDemand(video.Snippet))
             return (null, MusicProviderFailureReason.LiveBroadcast);
+
+        if (IsPlayableNowhere(video))
+            return (null, MusicProviderFailureReason.NotPlayableInRegion);
 
         // Unlike search, resolve keeps a found on-demand video and returns it WITH its gate flags
         // (embeddable/age/explicit) so the SR pipeline can reject with the precise reason (§3.5.2
@@ -1339,6 +1347,14 @@ public sealed class YouTubeMusicProvider
             StringComparison.OrdinalIgnoreCase
         );
 
+    /// <summary>
+    /// <c>contentDetails.regionRestriction.allowed</c> present but empty: the video plays in no country at
+    /// all. A partial block (a non-empty <c>allowed</c>, or a <c>blocked</c> list) can only be judged against
+    /// the streamer's country, which no channel setting records yet — so it is not refused here.
+    /// </summary>
+    private static bool IsPlayableNowhere(YouTubeVideo video) =>
+        video.ContentDetails?.RegionRestriction?.Allowed is { Count: 0 };
+
     /// <summary>A normal video-on-demand item — <c>liveBroadcastContent</c> is "none" (or absent);
     /// "live"/"upcoming" are broadcasts, not requestable tracks.</summary>
     private static bool IsOnDemand(YouTubeSnippet? snippet) =>
@@ -1526,6 +1542,20 @@ public sealed class YouTubeMusicProvider
 
         [JsonPropertyName("contentRating")]
         public YouTubeContentRating? ContentRating { get; set; }
+
+        [JsonPropertyName("regionRestriction")]
+        public YouTubeRegionRestriction? RegionRestriction { get; set; }
+    }
+
+    /// <summary>ISO 3166-1 alpha-2 country lists; YouTube sends <c>allowed</c> or <c>blocked</c>.
+    /// <c>Blocked</c> is read but not yet judged: that needs the streamer's country.</summary>
+    private sealed class YouTubeRegionRestriction
+    {
+        [JsonPropertyName("allowed")]
+        public List<string>? Allowed { get; set; }
+
+        [JsonPropertyName("blocked")]
+        public List<string>? Blocked { get; set; }
     }
 
     private sealed class YouTubeContentRating

@@ -819,7 +819,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         failure
             is MusicProviderFailureReason.UnsupportedLink
                 or MusicProviderFailureReason.LiveBroadcast
-                or MusicProviderFailureReason.TrackMissing;
+                or MusicProviderFailureReason.TrackMissing
+                or MusicProviderFailureReason.NotPlayableInRegion;
 
     private static bool IsWebLink(string query) =>
         Uri.TryCreate(query.Trim(), UriKind.Absolute, out Uri? uri)

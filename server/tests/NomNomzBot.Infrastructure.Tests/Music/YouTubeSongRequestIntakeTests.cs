@@ -128,4 +128,45 @@ public sealed class YouTubeSongRequestIntakeTests
         result.ErrorCode.Should().Be("TRACK_IS_LIVE");
         (await intake.QueuedTitlesAsync()).Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task A_video_blocked_in_every_country_is_refused_and_not_queued()
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteVideos(
+            YouTubeSongRequestIntake.Video(
+                VideoId,
+                "Withdrawn Song",
+                extraContentDetails: "\"regionRestriction\":{\"allowed\":[]}"
+            )
+        );
+
+        string reply = await intake.SayAsync(Link);
+
+        reply
+            .Should()
+            .Be(
+                "That track can't play in the streamer's country. Try a different version of the song."
+            );
+        (await intake.QueuedTitlesAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_video_blocked_only_in_some_countries_is_still_queued()
+    {
+        // No channel country setting exists yet, so a partial block cannot be judged; only a video that
+        // plays nowhere is refused.
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteVideos(
+            YouTubeSongRequestIntake.Video(
+                VideoId,
+                "Mostly Fine",
+                extraContentDetails: "\"regionRestriction\":{\"blocked\":[\"DE\"]}"
+            )
+        );
+
+        await intake.SayAsync(Link);
+
+        (await intake.QueuedTitlesAsync()).Should().Equal("Mostly Fine");
+    }
 }
