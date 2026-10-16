@@ -901,10 +901,7 @@ public static class DependencyInjection
         // The song-request history rebuilds. Explicit because AddServicesByConvention only binds interfaces
         // whose name ENDS in "Service", and these two are named for what they do (a backfill, an importer)
         // rather than padded to fit the scan.
-        services.AddScoped<
-            Application.Music.Services.IMusicHistoryReader,
-            Music.MusicHistoryReader
-        >();
+        services.AddScoped<Application.Music.Services.IMusicHistoryReader, MusicHistoryReader>();
         services.AddScoped<
             Application.Music.Services.ISongRequestHistoryBackfill,
             Music.Replay.SongRequestHistoryBackfill
@@ -1750,10 +1747,7 @@ public static class DependencyInjection
             Identity.ActAsMembershipOverlay
         >();
         // The owner's "View as" ceiling for one request (X-View-As header); the resolver caps the level with it.
-        services.AddScoped<
-            Application.Abstractions.Auth.IViewAsScope,
-            Platform.Auth.HttpViewAsScope
-        >();
+        services.AddScoped<IViewAsScope, HttpViewAsScope>();
 
         // Twitch management snapshot builder (moderators + editors) — shared by the onboarding seed and the
         // periodic ManagementRoleReconcileService. Not an I<X>Service; scoped (composes IUserService + Helix).
