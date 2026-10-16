@@ -148,7 +148,7 @@ public sealed class YouTubePlayerOwnerTests
         rig.Store.Report(Broadcaster, Audio, First, YouTubePlayerState.Playing, 42_000);
         rig.Store.SetNext(Broadcaster, new YouTubeQueuedTrack(Second, "Second", "Artist"));
 
-        (await rig.Players.ReplayCurrentAsync(Broadcaster, allowStale: false)).Should().BeTrue();
+        (await rig.Players.ReplayCurrentAsync(Broadcaster, pageIsPlaying: false)).Should().BeTrue();
 
         rig.Notifier.Sent.Select(s => s.EventType).Should().Equal("youtube.play", "youtube.seek");
         rig.Notifier.Sent.Should().OnlyContain(s => s.Widget == Audio);
@@ -158,17 +158,66 @@ public sealed class YouTubePlayerOwnerTests
     }
 
     [Fact]
-    public async Task A_stale_report_is_replayed_only_during_an_active_audio_page_transfer()
+    public async Task An_audio_page_reopened_after_obs_restarted_resumes_the_song_where_it_would_be_now()
     {
         Rig rig = await BuildAsync();
         rig.Store.Report(Broadcaster, Audio, First, YouTubePlayerState.Playing, 42_000);
-        rig.Clock.Advance(TimeSpan.FromSeconds(16));
+        rig.Store.SetNext(Broadcaster, new YouTubeQueuedTrack(Second, "Second", "Artist"));
+        rig.Clock.Advance(TimeSpan.FromSeconds(60));
 
-        (await rig.Players.ReplayCurrentAsync(Broadcaster, allowStale: false)).Should().BeFalse();
-        rig.Notifier.Sent.Should().BeEmpty();
+        (await rig.Players.ReplayCurrentAsync(Broadcaster, pageIsPlaying: false)).Should().BeTrue();
 
-        (await rig.Players.ReplayCurrentAsync(Broadcaster, allowStale: true)).Should().BeTrue();
         rig.Notifier.Sent.Select(s => s.EventType).Should().Equal("youtube.play", "youtube.seek");
+        VideoOf(rig.Notifier.Sent[0].Data).Should().Be(First);
+        rig.Notifier.Sent[1]
+            .Data.Should()
+            .BeEquivalentTo(
+                new YouTubeSeekWidgetPayload(102_000),
+                "the song kept time while the page was closed; past its end the player reports ENDED"
+            );
+        rig.Store.PeekNext(Broadcaster)!
+            .VideoId.Should()
+            .Be(Second, "the next request still waits");
+    }
+
+    [Fact]
+    public async Task A_paused_song_comes_back_paused_at_the_same_position()
+    {
+        Rig rig = await BuildAsync();
+        rig.Store.Report(Broadcaster, Audio, First, YouTubePlayerState.Paused, 42_000);
+        rig.Clock.Advance(TimeSpan.FromMinutes(5));
+
+        (await rig.Players.ReplayCurrentAsync(Broadcaster, pageIsPlaying: false)).Should().BeTrue();
+
+        rig.Notifier.Sent.Select(s => s.EventType)
+            .Should()
+            .Equal("youtube.play", "youtube.seek", "youtube.pause");
+        rig.Notifier.Sent[1].Data.Should().BeEquivalentTo(new YouTubeSeekWidgetPayload(42_000));
+    }
+
+    [Fact]
+    public async Task A_page_that_already_reports_its_video_playing_is_left_alone()
+    {
+        Rig rig = await BuildAsync();
+        rig.Store.Report(Broadcaster, Audio, First, YouTubePlayerState.Playing, 42_000);
+
+        (await rig.Players.ReplayCurrentAsync(Broadcaster, pageIsPlaying: true)).Should().BeTrue();
+
+        rig.Notifier.Sent.Should().BeEmpty("reloading a song that never stopped would stutter it");
+    }
+
+    [Fact]
+    public async Task A_song_from_an_earlier_stream_is_not_resumed()
+    {
+        Rig rig = await BuildAsync();
+        rig.Store.Report(Broadcaster, Audio, First, YouTubePlayerState.Playing, 42_000);
+        rig.Clock.Advance(YouTubePlayerStateStore.ResumeWindow + TimeSpan.FromMinutes(1));
+
+        (await rig.Players.ReplayCurrentAsync(Broadcaster, pageIsPlaying: false))
+            .Should()
+            .BeFalse();
+
+        rig.Notifier.Sent.Should().BeEmpty();
     }
 
     [Fact]

@@ -62,10 +62,15 @@ public interface IYouTubePlayerDispatcher
     /// </summary>
     Task<bool> HandOverNextAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
 
-    /// <summary>Resumes the current track on a newly selected Audio page. An old report is trusted only while another Audio page was still open.</summary>
+    /// <summary>
+    /// Puts the current song back on an Audio page that just became ready: a reloaded page or a restarted OBS
+    /// picks it up where it would be now. True when a song is on the page, so the next request keeps waiting.
+    /// A page that already reported its video playing (it kept playing through a dropped connection) is left
+    /// alone.
+    /// </summary>
     Task<bool> ReplayCurrentAsync(
         Guid broadcasterId,
-        bool allowStale,
+        bool pageIsPlaying,
         CancellationToken cancellationToken = default
     );
 
@@ -183,14 +188,14 @@ public sealed class YouTubePlayerDispatcher(
 
     public async Task<bool> ReplayCurrentAsync(
         Guid broadcasterId,
-        bool allowStale,
+        bool pageIsPlaying,
         CancellationToken cancellationToken = default
     )
     {
-        YouTubePlayerReport? current = allowStale
-            ? store.Latest(broadcasterId)
-            : store.GetFresh(broadcasterId);
-        if (current?.State is not (YouTubePlayerState.Playing or YouTubePlayerState.Paused))
+        if (pageIsPlaying)
+            return true;
+        YouTubePlayerReport? current = store.ResumePoint(broadcasterId);
+        if (current is null)
             return false;
         IReadOnlyList<Guid> open = await FindPlayersAsync(broadcasterId, cancellationToken);
         if (open.Count == 0)

@@ -17,6 +17,8 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -438,7 +440,43 @@ public sealed class OverlayAudioRoutingTests
         await second.Hub.WidgetReady(audioWidget.ToString(), requests, players);
         await players
             .Received(1)
+            .ReplayCurrentAsync(Broadcaster, false, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_audio_page_that_reported_its_video_playing_is_not_made_to_reload_it()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Joined page = await ConnectedPageAsync(db, "audio-conn");
+        await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+        IYouTubePlayerReportService reports = Substitute.For<IYouTubePlayerReportService>();
+        reports
+            .ReportAsync(default, default, default!, default!, default)
+            .ReturnsForAnyArgs(Result.Success());
+
+        // A page that kept playing through a bot restart reports its video as it rejoins, before WidgetReady.
+        (
+            await page.Hub.ReportYouTubePlayerState(
+                audioWidget.ToString(),
+                "dQw4w9WgXcQ",
+                "PLAYING",
+                61_000,
+                reports
+            )
+        )
+            .Should()
+            .BeTrue();
+        ISongRequestHandover requests = Substitute.For<ISongRequestHandover>();
+        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
+        players.ReplayCurrentAsync(Broadcaster, true, Arg.Any<CancellationToken>()).Returns(true);
+
+        await page.Hub.WidgetReady(audioWidget.ToString(), requests, players);
+
+        await players
+            .Received(1)
             .ReplayCurrentAsync(Broadcaster, true, Arg.Any<CancellationToken>());
+        await players.DidNotReceiveWithAnyArgs().HandOverNextAsync(default);
     }
 
     [Fact]

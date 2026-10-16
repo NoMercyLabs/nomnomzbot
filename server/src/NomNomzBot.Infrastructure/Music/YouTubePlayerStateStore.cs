@@ -49,8 +49,11 @@ public interface IYouTubePlayerStateStore
 
     YouTubePlayerReport? GetFresh(Guid broadcasterId);
 
-    /// <summary>The last report, including an old one, for transferring a still-open Audio page.</summary>
-    YouTubePlayerReport? Latest(Guid broadcasterId);
+    /// <summary>
+    /// Where a newly opened Audio page picks the song up: the last playing or paused report within
+    /// <see cref="YouTubePlayerStateStore.ResumeWindow"/>, a playing one moved on by the time since, else null.
+    /// </summary>
+    YouTubePlayerReport? ResumePoint(Guid broadcasterId);
 
     /// <summary>The widget whose report the store accepted last, or null when none has reported.</summary>
     Guid? ReportingWidget(Guid broadcasterId);
@@ -79,6 +82,9 @@ public interface IYouTubePlayerStateStore
 public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
 {
     public static readonly TimeSpan Staleness = TimeSpan.FromSeconds(15);
+
+    /// <summary>A song reported this long ago belongs to an earlier stream and is not picked up again.</summary>
+    public static readonly TimeSpan ResumeWindow = TimeSpan.FromHours(4);
 
     private sealed class ChannelPlayer
     {
@@ -125,11 +131,25 @@ public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
             return FreshOrNull(player.Last);
     }
 
-    public YouTubePlayerReport? Latest(Guid broadcasterId)
+    public YouTubePlayerReport? ResumePoint(Guid broadcasterId)
     {
         ChannelPlayer player = PlayerOf(broadcasterId);
         lock (player)
-            return player.Last;
+        {
+            YouTubePlayerReport? last = player.Last;
+            if (last?.State is not (YouTubePlayerState.Playing or YouTubePlayerState.Paused))
+                return null;
+            TimeSpan since = _clock.GetUtcNow() - last.ReportedAt;
+            if (since > ResumeWindow)
+                return null;
+            // The song kept time while no page played it; past its end the player reports ENDED by itself.
+            return last.State == YouTubePlayerState.Playing
+                ? last with
+                {
+                    PositionMs = last.PositionMs + (long)since.TotalMilliseconds,
+                }
+                : last;
+        }
     }
 
     public Guid? ReportingWidget(Guid broadcasterId)

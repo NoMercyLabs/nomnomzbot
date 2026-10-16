@@ -35,6 +35,7 @@ public class OverlayHub : Hub<IOverlayClient>
     // poll cadence.
     private const string NowPlayingEventKey = "now_playing";
     private const string WrongWidgetError = "This overlay token is scoped to a different widget";
+    private const string YouTubePlayingItem = "YouTubePlaying";
 
     private readonly IApplicationDbContext _db;
     private readonly IWidgetService _widgetService;
@@ -190,7 +191,6 @@ public class OverlayHub : Hub<IOverlayClient>
         {
             string? previousAudio = _presence.GetAudioTarget(broadcasterId);
             Guid? previousWidget = _presence.GetAudioWidgetId(broadcasterId);
-            Context.Items["AudioMusicTransfer"] = false;
             _presence.MarkAudioSource(Context.ConnectionId, widget!.Id);
             if (
                 previousAudio is not null
@@ -198,7 +198,6 @@ public class OverlayHub : Hub<IOverlayClient>
                 && previousWidget is not null
             )
             {
-                Context.Items["AudioMusicTransfer"] = true;
                 await Clients
                     .Client(previousAudio)
                     .WidgetEvent(
@@ -384,8 +383,15 @@ public class OverlayHub : Hub<IOverlayClient>
             positionMs,
             Context.ConnectionAborted
         );
+        // This connection's page has a video on: WidgetReady then leaves it alone instead of reloading it.
+        if (reported.IsSuccess && IsOnThePlayer(state))
+            Context.Items[YouTubePlayingItem] = true;
         return reported.IsSuccess;
     }
+
+    private static bool IsOnThePlayer(string state) =>
+        state.Equals("playing", StringComparison.OrdinalIgnoreCase)
+        || state.Equals("paused", StringComparison.OrdinalIgnoreCase);
 
     public async Task LeaveWidget(string widgetId)
     {
@@ -425,10 +431,9 @@ public class OverlayHub : Hub<IOverlayClient>
         )
             return;
 
-        bool allowStale = Context.Items["AudioMusicTransfer"] is true;
         bool replayed = await players.ReplayCurrentAsync(
             broadcasterId,
-            allowStale,
+            Context.Items.TryGetValue(YouTubePlayingItem, out object? playing) && playing is true,
             Context.ConnectionAborted
         );
         if (!replayed)
