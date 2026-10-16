@@ -59,7 +59,6 @@
     <string name="builtin_reply_var_track_max">The longest song length allowed</string>
     <string name="builtin_reply_var_track_artist">The track's artist</string>
     <string name="builtin_reply_var_track_link">A link to the track</string>
-    <string name="builtin_reply_var_playlist_name">The playlist's name</string>
     <string name="builtin_reply_var_requested_by">Who requested it first</string>
     <string name="builtin_reply_var_query">What the viewer searched for</string>
     <string name="builtin_reply_var_queue_list">The songs in the queue</string>
