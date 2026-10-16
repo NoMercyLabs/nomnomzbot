@@ -24,6 +24,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item';
+import { splitBottomBar, type BottomBarSplit } from './bottomBarSplit';
 import type { NavEntry } from './navigation';
 import { useNavigation } from './useNavigation';
 
@@ -32,12 +33,9 @@ const { entries, isCurrent } = useNavigation();
 const more = ref(false);
 
 // The pages a thumb needs most stay in the bar; the rest open in the sheet.
-const barEntries = computed<NavEntry[]>(() =>
-  entries.value.filter((entry) => entry.bottom).slice(0, 4),
-);
-const sheetEntries = computed<NavEntry[]>(() =>
-  entries.value.filter((entry) => !barEntries.value.includes(entry)),
-);
+const split = computed<BottomBarSplit>(() => splitBottomBar(entries.value));
+const barEntries = computed<NavEntry[]>(() => split.value.bar);
+const sheetEntries = computed<NavEntry[]>(() => split.value.sheet);
 </script>
 
 <template>
