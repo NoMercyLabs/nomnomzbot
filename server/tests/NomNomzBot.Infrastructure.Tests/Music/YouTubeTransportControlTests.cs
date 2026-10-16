@@ -332,6 +332,26 @@ public sealed class YouTubeTransportControlTests
         rig.Notifier.Sent.Should().ContainSingle().Which.Widget.Should().Be(OwnerWidget);
     }
 
+    /// <summary>The overlay player can pause, resume, skip forward and seek — and nothing else. The now-playing
+    /// state the dashboard renders must say so, or it shows previous/shuffle/repeat buttons that do nothing.</summary>
+    [Fact]
+    public async Task Now_playing_offers_only_the_controls_the_overlay_player_can_do()
+    {
+        Rig rig = await PlayingFirstWithSecondQueuedAsync();
+
+        NowPlaying? playing = await rig.Music.GetNowPlayingAsync(Broadcaster.ToString());
+
+        playing.Should().NotBeNull();
+        playing!.TrackUri.Should().Be(Watch(First));
+        playing.CanSkipPrevious.Should().BeFalse();
+        playing.CanSetShuffle.Should().BeFalse();
+        playing.CanSetRepeat.Should().BeFalse();
+        playing.CanSkipNext.Should().BeTrue();
+        playing.CanPause.Should().BeTrue();
+        playing.CanResume.Should().BeTrue();
+        playing.CanSeek.Should().BeTrue();
+    }
+
     [Fact]
     public async Task Pause_sends_youtube_pause_to_the_owner_only_and_succeeds()
     {

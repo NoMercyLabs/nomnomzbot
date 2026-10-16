@@ -253,6 +253,8 @@ public sealed class YouTubeMusicProvider
         bool isBackgroundPoll = false
     )
     {
+        // The overlay player has no previous, shuffle or repeat (see Capabilities), so the now-playing state says
+        // so and the dashboard hides those controls instead of showing buttons that do nothing.
         // §3.5.2: the Data API has no "currently playing" concept. The channel's overlay IFrame player reports
         // it over the OverlayHub; a report counts only while it is fresh (a closed page goes silent).
         YouTubePlayerReport? report = _playerState.GetFresh(broadcasterId);
@@ -280,6 +282,9 @@ public sealed class YouTubeMusicProvider
                     ProgressMs = reportIsForPending
                         ? (int)Math.Clamp(report!.PositionMs, 0, int.MaxValue)
                         : 0,
+                    CanSkipPrevious = false,
+                    CanSetShuffle = false,
+                    CanSetRepeat = false,
                 }
             );
         }
@@ -299,6 +304,9 @@ public sealed class YouTubeMusicProvider
                 ProviderTrackId = report.VideoId,
                 IsPlaying = report.State == YouTubePlayerState.Playing,
                 ProgressMs = (int)Math.Clamp(report.PositionMs, 0, int.MaxValue),
+                CanSkipPrevious = false,
+                CanSetShuffle = false,
+                CanSetRepeat = false,
             }
         );
     }
