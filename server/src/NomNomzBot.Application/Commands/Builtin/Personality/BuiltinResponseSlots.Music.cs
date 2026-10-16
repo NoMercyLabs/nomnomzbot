@@ -113,6 +113,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>The video reports no readable length, so the length limit cannot be checked — no variables.</summary>
         public const string LengthUnknown = "lengthunknown";
 
+        /// <summary>The music service's daily request limit is used up; <c>{retry.time}</c> is when it resets.</summary>
+        public const string QuotaExhausted = "quotaexhausted";
+
         /// <summary>The requester used up their requests for this stream; <c>{request.limit}</c> is set.</summary>
         public const string PerStreamLimit = "perstreamlimit";
 

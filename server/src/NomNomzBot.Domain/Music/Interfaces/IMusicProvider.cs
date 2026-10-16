@@ -68,6 +68,11 @@ public enum MusicProviderFailureReason
     /// <summary>The track is on demand, but the provider reports no readable length (zero or malformed). It
     /// would pass the channel's length cap as "0 seconds", so it is refused rather than admitted unchecked.</summary>
     UnknownLength,
+
+    /// <summary>The provider's daily request quota is used up (YouTube: <c>quotaExceeded</c>). Every call
+    /// fails until it resets, so none is sent until then; <see cref="IMusicProvider.TryGetCoolingUntil"/>
+    /// says when. Distinct from <see cref="RateLimited"/>: the wait is hours, not minutes.</summary>
+    QuotaExhausted,
 }
 
 /// <summary>

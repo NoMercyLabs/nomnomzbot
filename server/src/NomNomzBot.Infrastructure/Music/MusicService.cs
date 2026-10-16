@@ -923,11 +923,20 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "The track's length could not be read, so the length limit cannot be checked.",
                 "TRACK_LENGTH_UNKNOWN"
             ),
+            MusicProviderFailureReason.QuotaExhausted => Result.Failure<T>(
+                "The music service's daily request limit is used up.",
+                "PROVIDER_QUOTA_EXHAUSTED",
+                errorData: new MusicRequestRefusal(RetryAt: CoolingUntil(provider, tenantId))
+            ),
             _ => Result.Failure<T>(
                 "The music provider is temporarily unavailable.",
                 "PROVIDER_UNAVAILABLE"
             ),
         };
+
+    /// <summary>When the provider lets this channel call again; null when it tracks no cooldown.</summary>
+    private static DateTimeOffset? CoolingUntil(IMusicProvider provider, Guid tenantId) =>
+        provider.TryGetCoolingUntil(tenantId, out DateTimeOffset until) ? until : null;
 
     /// <summary>Whole minutes until the provider lets this channel call again, never below one: a
     /// cooldown the provider does not track (or that just ended) still reads as "try again in a minute".</summary>

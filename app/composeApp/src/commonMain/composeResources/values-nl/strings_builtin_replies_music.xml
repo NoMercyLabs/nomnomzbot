@@ -46,6 +46,8 @@
     <string name="builtin_reply_sr_unreadablelink_description">De link is voor de muziekdienst van dit kanaal, maar er kon geen nummer uit gelezen worden.</string>
     <string name="builtin_reply_sr_lengthunknown_label">Videolengte onbekend</string>
     <string name="builtin_reply_sr_lengthunknown_description">De video geeft geen leesbare lengte, dus de maximale nummerlengte kan niet gecontroleerd worden.</string>
+    <string name="builtin_reply_sr_quotaexhausted_label">Daglimiet verzoeken op</string>
+    <string name="builtin_reply_sr_quotaexhausted_description">De daglimiet van de muziekdienst is op; het antwoord zegt wanneer die weer vrijkomt.</string>
     <string name="builtin_reply_sr_perstreamlimit_label">Verzoeklimiet per stream bereikt</string>
     <string name="builtin_reply_sr_perstreamlimit_description">De kijker heeft al zoveel nummers aangevraagd als één stream toestaat.</string>
     <string name="builtin_reply_sr_addedwithcode_label">Nummer toegevoegd met code</string>
@@ -177,6 +179,7 @@
     <string name="builtin_reply_var_request_limit">Het maximale aantal verzoeken per kijker</string>
     <string name="builtin_reply_var_request_position">De plek in de wachtrij die de kijker typte</string>
     <string name="builtin_reply_var_retry_minutes">Minuten tot de muziekdienst weer aanvragen aanneemt</string>
+    <string name="builtin_reply_var_retry_time">Wanneer de muziekdienst weer aanvragen aanneemt (UTC-tijd)</string>
     <string name="builtin_reply_var_request_code">De code van het verzoek die !wrongsong gebruikt</string>
     <string name="builtin_reply_var_trust_level">De laagste rol die mag aanvragen</string>
     <string name="builtin_reply_var_volume_level">Het volume, van 0 tot 100</string>

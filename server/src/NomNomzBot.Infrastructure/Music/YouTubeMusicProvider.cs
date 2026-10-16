@@ -74,6 +74,7 @@ public sealed class YouTubeMusicProvider
     private readonly ILogger<YouTubeMusicProvider> _logger;
     private readonly IYouTubePlayerStateStore _playerState;
     private readonly IYouTubePlayerDispatcher _players;
+    private readonly IYouTubeQuotaCooldown _quota;
 
     public YouTubeMusicProvider(
         IHttpClientFactory httpClientFactory,
@@ -81,9 +82,11 @@ public sealed class YouTubeMusicProvider
         IYouTubeAccessTokenProvider accessTokens,
         IYouTubePlayerStateStore playerState,
         IYouTubePlayerDispatcher players,
+        IYouTubeQuotaCooldown quota,
         ILogger<YouTubeMusicProvider> logger
     )
     {
+        _quota = quota;
         _playerState = playerState;
         _players = players;
         _http = httpClientFactory.CreateClient("youtube");
@@ -111,6 +114,10 @@ public sealed class YouTubeMusicProvider
         | MusicProviderCapabilities.PlaybackControl
         | MusicProviderCapabilities.Skip
         | MusicProviderCapabilities.Seek;
+
+    /// <summary>The daily Data API quota is the deployment's, not the channel's: every channel waits for the same reset.</summary>
+    public bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until) =>
+        _quota.TryGetCoolingUntil(out until);
 
     /// <summary>The app-level Data API key (saved first, then configuration), read per request; null when unset.</summary>
     private Task<string?> ApiKeyAsync(CancellationToken cancellationToken) =>
@@ -328,6 +335,8 @@ public sealed class YouTubeMusicProvider
             return ([], MusicProviderFailureReason.NotConfigured);
         if (string.IsNullOrWhiteSpace(query))
             return ([], MusicProviderFailureReason.None);
+        if (_quota.TryGetCoolingUntil(out _))
+            return ([], MusicProviderFailureReason.QuotaExhausted);
 
         int limit = Math.Clamp(maxResults, 1, MaxSearchResults);
         string searchUrl =
@@ -397,6 +406,8 @@ public sealed class YouTubeMusicProvider
         string? apiKey = await ApiKeyAsync(cancellationToken);
         if (apiKey is null)
             return (null, MusicProviderFailureReason.NotConfigured);
+        if (_quota.TryGetCoolingUntil(out _))
+            return (null, MusicProviderFailureReason.QuotaExhausted);
 
         string videosUrl =
             $"{YouTubeApiBase}/videos?part=snippet,contentDetails,status"
@@ -1302,6 +1313,16 @@ public sealed class YouTubeMusicProvider
             HttpResponseMessage response = await _http.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                if (await IsQuotaExhaustedAsync(response, cancellationToken))
+                {
+                    _quota.CoolUntilQuotaReset();
+                    _logger.LogWarning(
+                        "YouTube Data API {Operation} refused: the daily quota is used up",
+                        operation
+                    );
+                    return (null, MusicProviderFailureReason.QuotaExhausted);
+                }
+
                 _logger.LogWarning(
                     "YouTube Data API {Operation} failed: {Status}",
                     operation,
@@ -1320,6 +1341,24 @@ public sealed class YouTubeMusicProvider
             _logger.LogError(ex, "YouTube Data API {Operation} threw", operation);
             return (null, MusicProviderFailureReason.Unavailable);
         }
+    }
+
+    /// <summary>A 403 whose error reason is <c>quotaExceeded</c> or <c>dailyLimitExceeded</c>; any other 403
+    /// (a disabled API, a restricted key) stays an outage.</summary>
+    private static async Task<bool> IsQuotaExhaustedAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        if (response.StatusCode != HttpStatusCode.Forbidden)
+            return false;
+
+        YouTubeErrorResponse? body = await response.Content.ReadFromJsonAsync<YouTubeErrorResponse>(
+            cancellationToken: cancellationToken
+        );
+        return body?.Error?.Errors?.Any(error =>
+                error.Reason is "quotaExceeded" or "dailyLimitExceeded"
+            ) == true;
     }
 
     // ─── Mapping / gates ──────────────────────────────────────────────────────
@@ -1527,6 +1566,24 @@ public sealed class YouTubeMusicProvider
     {
         [JsonPropertyName("videoId")]
         public string? VideoId { get; set; }
+    }
+
+    private sealed class YouTubeErrorResponse
+    {
+        [JsonPropertyName("error")]
+        public YouTubeErrorBody? Error { get; set; }
+    }
+
+    private sealed class YouTubeErrorBody
+    {
+        [JsonPropertyName("errors")]
+        public List<YouTubeErrorItem>? Errors { get; set; }
+    }
+
+    private sealed class YouTubeErrorItem
+    {
+        [JsonPropertyName("reason")]
+        public string? Reason { get; set; }
     }
 
     private sealed class YouTubeVideoListResponse

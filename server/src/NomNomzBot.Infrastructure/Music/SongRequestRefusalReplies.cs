@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -247,6 +248,14 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 new Dictionary<string, string> { ["retry.minutes"] = RetryMinutesText(data) },
                 ct
             ),
+            // Hours, not minutes: the requester gets the reset time, never "try again in a moment".
+            "PROVIDER_QUOTA_EXHAUSTED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.QuotaExhausted,
+                "YouTube's daily request limit is used up; song requests resume after {retry.time}.",
+                new Dictionary<string, string> { ["retry.time"] = RetryTimeText(data) },
+                ct
+            ),
             // A real playlist/album/episode/show/artist link — never a search miss.
             "UNSUPPORTED_CONTENT_TYPE" => ComposeAsync(
                 context,
@@ -350,6 +359,12 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
         int minutes = total / 60;
         return minutes == 1 ? "1 minute" : $"{minutes} minutes";
     }
+
+    /// <summary>The reset as a UTC clock time ("07:00 UTC"): chat is worldwide, so no local zone is assumed.</summary>
+    private static string RetryTimeText(MusicRequestRefusal? data) =>
+        data?.RetryAt is DateTimeOffset at
+            ? at.ToUniversalTime().ToString("HH:mm 'UTC'", CultureInfo.InvariantCulture)
+            : "midnight Pacific time";
 
     private static string RetryMinutesText(MusicRequestRefusal? data) =>
         data?.RetryMinutes?.ToString() ?? "a few";

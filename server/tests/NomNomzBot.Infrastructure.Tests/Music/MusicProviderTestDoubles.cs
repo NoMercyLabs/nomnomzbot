@@ -470,7 +470,8 @@ internal static class YouTubeProviderFactory
         FakeIntegrationTokenVault? vault = null,
         IYouTubePlayerStateStore? playerState = null,
         IYouTubePlayerDispatcher? players = null,
-        IYouTubeApiKeyResolver? keyResolver = null
+        IYouTubeApiKeyResolver? keyResolver = null,
+        TimeProvider? time = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -508,6 +509,7 @@ internal static class YouTubeProviderFactory
                     Substitute.For<IWidgetEventNotifier>(),
                     store
                 ),
+            new YouTubeQuotaCooldown(time ?? TimeProvider.System),
             NullLogger<YouTubeMusicProvider>.Instance
         );
     }

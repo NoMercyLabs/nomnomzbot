@@ -46,6 +46,8 @@
     <string name="builtin_reply_sr_unreadablelink_description">The link is for this channel's music service, but no song could be read from it.</string>
     <string name="builtin_reply_sr_lengthunknown_label">Video length unknown</string>
     <string name="builtin_reply_sr_lengthunknown_description">The video reports no readable length, so the song length limit cannot be checked.</string>
+    <string name="builtin_reply_sr_quotaexhausted_label">Daily request limit used up</string>
+    <string name="builtin_reply_sr_quotaexhausted_description">The music service's daily request limit is used up; the reply says when it resets.</string>
     <string name="builtin_reply_sr_perstreamlimit_label">Stream request limit reached</string>
     <string name="builtin_reply_sr_perstreamlimit_description">The viewer already requested as many songs as one stream allows.</string>
     <string name="builtin_reply_sr_addedwithcode_label">Song added with its code</string>
@@ -177,6 +179,7 @@
     <string name="builtin_reply_var_request_limit">The most requests one viewer may queue</string>
     <string name="builtin_reply_var_request_position">The queue position the viewer typed</string>
     <string name="builtin_reply_var_retry_minutes">Minutes until the music service accepts calls again</string>
+    <string name="builtin_reply_var_retry_time">When the music service accepts requests again (UTC clock time)</string>
     <string name="builtin_reply_var_request_code">The request's code that !wrongsong uses</string>
     <string name="builtin_reply_var_trust_level">The lowest role allowed to request</string>
     <string name="builtin_reply_var_volume_level">The volume, from 0 to 100</string>

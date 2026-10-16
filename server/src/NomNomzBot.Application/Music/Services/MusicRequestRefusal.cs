@@ -24,6 +24,8 @@ namespace NomNomzBot.Application.Music.Services;
 /// <param name="IsPlayingNow">True when the duplicate is the track that is playing right now, not a queued one.</param>
 /// <param name="Limit">The configured limit that was hit (queue size or requests per viewer).</param>
 /// <param name="TrustLevel">The minimum role a requester needs (for example "Follower").</param>
+/// <param name="RetryMinutes">Minutes until a rate-limited provider takes calls again.</param>
+/// <param name="RetryAt">When a provider whose daily quota is used up takes calls again.</param>
 public sealed record MusicRequestRefusal(
     string? TrackName = null,
     string? Artist = null,
@@ -31,5 +33,6 @@ public sealed record MusicRequestRefusal(
     bool IsPlayingNow = false,
     int? Limit = null,
     string? TrustLevel = null,
-    int? RetryMinutes = null
+    int? RetryMinutes = null,
+    DateTimeOffset? RetryAt = null
 );

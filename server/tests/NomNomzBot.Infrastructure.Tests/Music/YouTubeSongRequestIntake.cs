@@ -39,7 +39,7 @@ internal sealed class YouTubeSongRequestIntake
 
     private readonly SongRequestBuiltin _builtin;
 
-    public YouTubeSongRequestIntake(MusicConfigDto? config = null)
+    public YouTubeSongRequestIntake(MusicConfigDto? config = null, TimeProvider? time = null)
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -54,7 +54,7 @@ internal sealed class YouTubeSongRequestIntake
         );
         db.SaveChanges();
 
-        Provider = YouTubeProviderFactory.Create("test-key", Http, db);
+        Provider = YouTubeProviderFactory.Create("test-key", Http, db, time: time);
         Music = new MusicService(
             [Provider],
             db,

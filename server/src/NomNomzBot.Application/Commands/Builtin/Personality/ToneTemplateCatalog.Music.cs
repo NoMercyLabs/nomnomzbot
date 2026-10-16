@@ -444,6 +444,24 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.QuotaExhausted,
+            variables: ["retry.time"],
+            informative:
+            [
+                "YouTube's daily request limit is used up; song requests resume after {retry.time}.",
+            ],
+            friendly:
+            [
+                "YouTube says we've used up today's requests! Song requests are back after {retry.time}.",
+            ],
+            sassy: ["YouTube cut us off for today. Song requests are back after {retry.time}."],
+            hype: ["YOUTUBE LIMIT HIT FOR TODAY! SONG REQUESTS BACK AFTER {retry.time}!"],
+            chill: ["youtube's daily limit is used up. song requests are back after {retry.time}."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.PerStreamLimit,
             variables: ["request.limit"],
             informative:
@@ -1275,6 +1293,7 @@ public static partial class ToneTemplateCatalog
         samples["request.code"] = "K7QM";
         samples["request.position"] = "2";
         samples["retry.minutes"] = "2";
+        samples["retry.time"] = "07:00 UTC";
         samples["trust.level"] = "Follower";
         samples["volume.level"] = "60";
         samples["playlist.url"] = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M";
