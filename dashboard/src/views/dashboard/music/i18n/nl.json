@@ -82,7 +82,28 @@
           "words": "Geblokkeerde woorden"
         },
         "save": "Opslaan",
-        "discard": "Weggooien"
+        "discard": "Weggooien",
+        "open": "Aanvragen staan open",
+        "limits": "Limieten",
+        "queueSize": "Nummers in de wachtrij, maximaal",
+        "perRoleHelp": "Nummers per persoon per rol. Laat een vak leeg voor de limiet hierboven.",
+        "sameAsPerPerson": "Gelijk",
+        "roles": {
+          "viewer": "Kijkers",
+          "subscriber": "Abonnees",
+          "vip": "VIP's",
+          "moderator": "Moderators",
+          "broadcaster": "Ik"
+        },
+        "sources": "Bronnen",
+        "allowSpotify": "Spotify-nummers toestaan",
+        "allowYouTube": "YouTube-nummers toestaan",
+        "preferred": "Eerst zoeken bij",
+        "providers": {
+          "auto": "Automatisch",
+          "spotify": "Spotify",
+          "youtube": "YouTube"
+        }
       },
       "history": {
         "title": "Geschiedenis",
