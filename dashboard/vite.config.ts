@@ -38,6 +38,9 @@ const sameHostOrigin: NonNullable<ProxyOptions['configure']> = (proxy) => {
     const origin: string | undefined = req.headers.origin;
     const host: string | undefined = req.headers.host;
     if (!origin || !host || !URL.canParse(origin) || new URL(origin).host !== host) return;
+
+    // A login code is bound to the page's real origin (from its Referer), so it keeps the browser's one.
+    if (req.url?.includes('/auth/web/exchange')) return;
     proxyReq.setHeader('origin', `${new URL(api).protocol}//${host}`);
   });
 };
