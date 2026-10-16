@@ -139,6 +139,12 @@ public sealed class ObsDashboardStateChangedEvent : DomainEventBase
 
     /// <summary>The full scene list in OBS display order, top first.</summary>
     public IReadOnlyList<string>? SceneNames { get; init; }
+
+    /// <summary>The scene collection or profile OBS switched to.</summary>
+    public string? Name { get; init; }
+
+    /// <summary>The full scene collection or profile list, in OBS order.</summary>
+    public IReadOnlyList<string>? Names { get; init; }
 }
 
 /// <summary>The <see cref="ObsDashboardStateChangedEvent.Kind"/> values; the dashboard switches on them.</summary>
@@ -157,4 +163,8 @@ public static class ObsStateKinds
     public const string SceneItemVisibility = "sceneItemVisibility";
     public const string SceneItemLock = "sceneItemLock";
     public const string SourceFilter = "sourceFilter";
+    public const string SceneCollection = "sceneCollection";
+    public const string SceneCollectionList = "sceneCollectionList";
+    public const string Profile = "profile";
+    public const string ProfileList = "profileList";
 }

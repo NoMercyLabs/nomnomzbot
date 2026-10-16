@@ -54,6 +54,52 @@ public sealed class ObsStateBroadcastHandlerTests
     }
 
     [Fact]
+    public async Task A_collection_switch_carries_its_name_and_a_profile_list_carries_its_names()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        Guid channel = Guid.CreateVersion7();
+        ObsStateBroadcastHandler handler = new(notifier);
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Kind = ObsStateKinds.SceneCollection,
+                Name = "Gaming",
+            }
+        );
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Kind = ObsStateKinds.ProfileList,
+                Names = ["Untitled", "Low bitrate"],
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .SendObsStateAsync(
+                channel.ToString(),
+                Arg.Is<ObsStateChangedDto>(dto =>
+                    dto.Kind == "sceneCollection" && dto.Name == "Gaming"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await notifier
+            .Received(1)
+            .SendObsStateAsync(
+                channel.ToString(),
+                Arg.Is<ObsStateChangedDto>(dto =>
+                    dto.Kind == "profileList"
+                    && dto.Names != null
+                    && dto.Names.SequenceEqual(new[] { "Untitled", "Low bitrate" })
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_scene_list_change_carries_every_scene_in_order()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();

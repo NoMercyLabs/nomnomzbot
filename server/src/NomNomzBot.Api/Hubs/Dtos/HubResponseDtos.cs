@@ -224,6 +224,8 @@ public record ObsStateChangedDto(
     string? SourceName,
     string? FilterName,
     IReadOnlyList<string>? SceneNames,
+    string? Name,
+    IReadOnlyList<string>? Names,
     string Timestamp
 );
 

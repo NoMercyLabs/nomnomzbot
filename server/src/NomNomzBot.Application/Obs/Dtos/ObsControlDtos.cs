@@ -96,6 +96,12 @@ public sealed record ObsVirtualCamStatusDto(bool OutputActive);
 /// mirrors <see cref="ObsSceneDto"/>'s shape: name + whether it is the one currently selected.</summary>
 public sealed record ObsTransitionDto(string Name, bool IsCurrent);
 
+/// <summary>One scene collection (obs-websocket v5 <c>GetSceneCollectionList</c>), the loaded one flagged.</summary>
+public sealed record ObsSceneCollectionDto(string Name, bool IsCurrent);
+
+/// <summary>One OBS profile (obs-websocket v5 <c>GetProfileList</c>), with the active one flagged.</summary>
+public sealed record ObsProfileDto(string Name, bool IsCurrent);
+
 /// <summary>One filter attached to a source (obs-websocket v5 <c>GetSourceFilterList</c>) — name,
 /// kind, whether it's enabled, and its position in the source's filter chain. <c>filterSettings</c>
 /// is provider-specific free-form data the dashboard's filter list has no use for, so it's left out.</summary>
@@ -151,6 +157,12 @@ public sealed record ObsStudioTransitionRequest(int? DurationMs);
 
 /// <summary>REST body for the scene-transition-select route: make one transition the active one.</summary>
 public sealed record ObsCurrentTransitionRequest(string TransitionName);
+
+/// <summary>REST body for the scene-collection-select route: load one scene collection in OBS.</summary>
+public sealed record ObsCurrentSceneCollectionRequest(string Name);
+
+/// <summary>REST body for the profile-select route: make one OBS profile the active one.</summary>
+public sealed record ObsCurrentProfileRequest(string Name);
 
 /// <summary>REST body for the filter-enable route: enable/disable one filter on one source.</summary>
 public sealed record ObsFilterEnabledRequest(string SourceName, string FilterName, bool Enabled);
