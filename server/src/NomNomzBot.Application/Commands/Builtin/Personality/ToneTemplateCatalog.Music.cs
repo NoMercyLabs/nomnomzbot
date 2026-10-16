@@ -633,18 +633,13 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.Skip.NoPlayer,
             variables: [],
             informative: [NoPlayerLine],
-            friendly:
-            [
-                "The music player isn't open yet — add the Audio widget to OBS, or open Spotify!",
-            ],
-            sassy:
-            [
-                "Can't skip a player that isn't open. Add the Audio widget to OBS, or open Spotify.",
-            ],
-            hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS OR OPEN SPOTIFY!"],
-            chill: ["the player isn't open. add the audio widget to obs, or open spotify."]
+            friendly: ["The music player isn't open yet — add the Audio widget to OBS!"],
+            sassy: ["Can't skip a player that isn't open. Add the Audio widget to OBS."],
+            hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS!"],
+            chill: ["the player isn't open. add the audio widget to obs."]
         );
 
+        AddNoSpotifyDeviceSlot(catalog, BuiltinResponseSlots.Skip.Key, "skip");
         AddPlaybackControlSlots(catalog);
 
         Add(
@@ -1036,7 +1031,28 @@ public static partial class ToneTemplateCatalog
     }
 
     private const string NoPlayerLine =
-        "The music player isn't open — add the Audio widget to OBS, or open Spotify.";
+        "The music player isn't open — add the Audio widget to OBS.";
+
+    private const string NoSpotifyDeviceLine =
+        "No Spotify device is playing — open Spotify on a device.";
+
+    /// <summary>The "no Spotify device" reply for one playback-control command.</summary>
+    private static void AddNoSpotifyDeviceSlot(
+        Dictionary<(string, string), SlotEntry> catalog,
+        string builtinKey,
+        string verb
+    ) =>
+        Add(
+            catalog,
+            builtinKey,
+            BuiltinResponseSlots.PlaybackControl.NoSpotifyDevice,
+            variables: [],
+            informative: [NoSpotifyDeviceLine],
+            friendly: ["No Spotify device is playing yet — open Spotify on a device!"],
+            sassy: [$"Can't {verb} Spotify when no device is playing it. Open Spotify."],
+            hype: ["NO SPOTIFY DEVICE! OPEN SPOTIFY!"],
+            chill: ["no spotify device playing. open spotify."]
+        );
 
     /// <summary><c>!pause</c> / <c>!resume</c>: one success slot each, plus the shared failure slots.</summary>
     private static void AddPlaybackControlSlots(Dictionary<(string, string), SlotEntry> catalog)
@@ -1078,17 +1094,12 @@ public static partial class ToneTemplateCatalog
                 BuiltinResponseSlots.PlaybackControl.NoPlayer,
                 variables: [],
                 informative: [NoPlayerLine],
-                friendly:
-                [
-                    "The music player isn't open yet — add the Audio widget to OBS, or open Spotify!",
-                ],
-                sassy:
-                [
-                    $"Can't {verb} a player that isn't open. Add the Audio widget to OBS, or open Spotify.",
-                ],
-                hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS OR OPEN SPOTIFY!"],
-                chill: ["the player isn't open. add the audio widget to obs, or open spotify."]
+                friendly: ["The music player isn't open yet — add the Audio widget to OBS!"],
+                sassy: [$"Can't {verb} a player that isn't open. Add the Audio widget to OBS."],
+                hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS!"],
+                chill: ["the player isn't open. add the audio widget to obs."]
             );
+            AddNoSpotifyDeviceSlot(catalog, key, verb);
             Add(
                 catalog,
                 key,

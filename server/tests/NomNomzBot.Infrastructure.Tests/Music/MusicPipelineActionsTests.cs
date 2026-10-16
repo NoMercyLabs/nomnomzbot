@@ -164,7 +164,11 @@ public sealed class MusicPipelineActionsTests
         music
             .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(
-                Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE")
+                Result.Failure(
+                    "Nothing is playing on any device right now.",
+                    "NO_ACTIVE_DEVICE",
+                    errorData: new NoActivePlayerRefusal("youtube")
+                )
             );
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongPauseAction action = new(music, chat, NullLogger<SongPauseAction>.Instance);
@@ -172,10 +176,16 @@ public sealed class MusicPipelineActionsTests
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("song_pause"));
 
         result.Succeeded.Should().BeFalse();
+        await chat.DidNotReceive()
+            .SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<string>(m => m.Contains("Spotify")),
+                Arg.Any<CancellationToken>()
+            );
         await chat.Received(1)
             .SendMessageAsync(
                 ChannelId,
-                "The music player isn't open — add the Audio widget to OBS, or open Spotify.",
+                "The music player isn't open — add the Audio widget to OBS.",
                 Arg.Any<CancellationToken>()
             );
     }
@@ -204,13 +214,17 @@ public sealed class MusicPipelineActionsTests
     }
 
     [Fact]
-    public async Task Song_resume_with_no_player_open_tells_chat_the_player_isnt_open()
+    public async Task Song_resume_on_Spotify_with_no_device_tells_chat_to_open_Spotify()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
             .PlayAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(
-                Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE")
+                Result.Failure(
+                    "Nothing is playing on any device right now.",
+                    "NO_ACTIVE_DEVICE",
+                    errorData: new NoActivePlayerRefusal("spotify")
+                )
             );
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongResumeAction action = new(music, chat, NullLogger<SongResumeAction>.Instance);
@@ -221,7 +235,7 @@ public sealed class MusicPipelineActionsTests
         await chat.Received(1)
             .SendMessageAsync(
                 ChannelId,
-                "The music player isn't open — add the Audio widget to OBS, or open Spotify.",
+                "No Spotify device is playing — open Spotify on a device.",
                 Arg.Any<CancellationToken>()
             );
     }

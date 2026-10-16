@@ -226,9 +226,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             return PremiumRequired(ex);
         }
-        catch (NoActiveDeviceException)
+        catch (NoActiveDeviceException ex)
         {
-            return NothingPlaying();
+            return NothingPlaying(ex.Provider);
         }
 
         await PublishPlaybackStateChangedAsync(
@@ -300,9 +300,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             return PremiumRequired(ex);
         }
-        catch (NoActiveDeviceException)
+        catch (NoActiveDeviceException ex)
         {
-            return NothingPlaying();
+            return NothingPlaying(ex.Provider);
         }
         catch (MusicAuthenticationFailedException)
         {
@@ -352,9 +352,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             return PremiumRequired(ex);
         }
-        catch (NoActiveDeviceException)
+        catch (NoActiveDeviceException ex)
         {
-            return NothingPlaying();
+            return NothingPlaying(ex.Provider);
         }
 
         await PublishPlaybackStateChangedAsync(
@@ -430,9 +430,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             return PremiumRequired(ex);
         }
-        catch (NoActiveDeviceException)
+        catch (NoActiveDeviceException ex)
         {
-            return NothingPlaying();
+            return NothingPlaying(ex.Provider);
         }
 
         if (skippedTrack?.TrackName is { } skippedTrackName)
@@ -1588,8 +1588,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             "CAPABILITY_UNSUPPORTED"
         );
 
-    private static Result NothingPlaying() =>
-        Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE");
+    /// <summary>NO_ACTIVE_DEVICE, naming the provider that found no player so chat can say how to fix it.</summary>
+    private static Result NothingPlaying(string provider) =>
+        Result.Failure(
+            "Nothing is playing on any device right now.",
+            "NO_ACTIVE_DEVICE",
+            errorData: new NoActivePlayerRefusal(provider)
+        );
 
     private static Result PremiumRequired(PremiumRequiredException ex) =>
         Result.Failure(ex.Message, "PREMIUM_REQUIRED");

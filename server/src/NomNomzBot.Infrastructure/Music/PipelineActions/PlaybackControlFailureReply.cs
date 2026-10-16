@@ -29,7 +29,10 @@ internal static class PlaybackControlFailureReply
         Result failure
     )
     {
-        string slot = BuiltinResponseSlots.PlaybackControl.FailureSlotFor(failure.ErrorCode);
+        string slot = BuiltinResponseSlots.PlaybackControl.FailureSlotFor(
+            failure.ErrorCode,
+            failure.ErrorData
+        );
         string reply = ToneTemplateCatalog.Get(PersonalityTone.Informative, builtinKey, slot)[0];
         ctx.RepliedToChat |= await chat.SendMessageAsync(
             ctx.BroadcasterId,

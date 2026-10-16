@@ -92,7 +92,10 @@ internal static class PlaybackControlReply
         Result outcome = await control();
         string slot = outcome.IsSuccess
             ? successSlot
-            : BuiltinResponseSlots.PlaybackControl.FailureSlotFor(outcome.ErrorCode);
+            : BuiltinResponseSlots.PlaybackControl.FailureSlotFor(
+                outcome.ErrorCode,
+                outcome.ErrorData
+            );
 
         // The service's own sentence stays in logs; chat hears the slot's reply.
         string fallback = ToneTemplateCatalog.Get(PersonalityTone.Informative, builtinKey, slot)[0];

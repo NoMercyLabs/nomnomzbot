@@ -12,6 +12,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -139,6 +140,21 @@ public sealed class SkipBuiltin(
             )
         );
 
+    /// <summary>No player to skip on: the overlay Audio widget is closed, or (Spotify) no device is playing.</summary>
+    private Task<string> ComposeNoPlayerAsync(
+        BuiltinCommandContext context,
+        Result skipped,
+        CancellationToken ct
+    )
+    {
+        string slot = BuiltinResponseSlots.PlaybackControl.FailureSlotFor(
+            skipped.ErrorCode,
+            skipped.ErrorData
+        );
+        string fallback = ToneTemplateCatalog.Get(PersonalityTone.Informative, BuiltinKey, slot)[0];
+        return composer.ComposeAsync(context, BuiltinKey, slot, fallback, ct: ct);
+    }
+
     /// <summary>Phrases a failed skip from the service's typed error code — the service's own sentence stays in logs.</summary>
     private Task<string> SkipFailureReplyAsync(
         BuiltinCommandContext context,
@@ -154,13 +170,7 @@ public sealed class SkipBuiltin(
                 "No active music provider.",
                 ct: ct
             ),
-            "NO_ACTIVE_DEVICE" => composer.ComposeAsync(
-                context,
-                BuiltinKey,
-                BuiltinResponseSlots.Skip.NoPlayer,
-                "The music player isn't open — add the Audio widget to OBS, or open Spotify.",
-                ct: ct
-            ),
+            "NO_ACTIVE_DEVICE" => ComposeNoPlayerAsync(context, skipped, ct),
             "PREMIUM_REQUIRED" => composer.ComposeAsync(
                 context,
                 BuiltinKey,

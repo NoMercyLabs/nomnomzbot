@@ -241,15 +241,43 @@ public sealed class SkipBuiltinTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(
-                Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE")
+                Result.Failure(
+                    "Nothing is playing on any device right now.",
+                    "NO_ACTIVE_DEVICE",
+                    errorData: new NoActivePlayerRefusal("youtube")
+                )
             );
         SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
-        result
-            .Value.Should()
-            .Be("The music player isn't open — add the Audio widget to OBS, or open Spotify.");
+        result.Value.Should().Be("The music player isn't open — add the Audio widget to OBS.");
+        result.Value.Should().NotContainEquivalentOf("spotify");
+    }
+
+    [Fact]
+    public async Task A_skip_with_no_Spotify_device_playing_tells_chat_to_open_Spotify()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure(
+                    "Nothing is playing on any device right now.",
+                    "NO_ACTIVE_DEVICE",
+                    errorData: new NoActivePlayerRefusal("spotify")
+                )
+            );
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
+
+        result.Value.Should().Be("No Spotify device is playing — open Spotify on a device.");
     }
 
     [Fact]

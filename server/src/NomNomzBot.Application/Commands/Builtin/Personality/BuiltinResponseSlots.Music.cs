@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Music.Services;
+
 namespace NomNomzBot.Application.Commands.Builtin.Personality;
 
 /// <summary>Reply slots of the music built-ins (<c>!song</c>, <c>!queue</c>, <c>!sr</c>, <c>!skip</c>, …).</summary>
@@ -191,8 +193,11 @@ public static partial class BuiltinResponseSlots
         /// <summary>A viewer tried to skip while nothing is playing — no variables.</summary>
         public const string NothingPlaying = "nothingplaying";
 
-        /// <summary>No music player is open (Audio widget closed, no Spotify device) — no variables.</summary>
+        /// <summary>The overlay Audio widget isn't open — no variables.</summary>
         public const string NoPlayer = PlaybackControl.NoPlayer;
+
+        /// <summary>No Spotify device is playing — no variables.</summary>
+        public const string NoSpotifyDevice = PlaybackControl.NoSpotifyDevice;
 
         /// <summary>The caller's own request was removed; <c>{user}</c>/<c>{track.name}</c>/<c>{track.artist}</c> are set.</summary>
         public const string Removed = "removed";
@@ -327,8 +332,11 @@ public static partial class BuiltinResponseSlots
     /// </summary>
     public static class PlaybackControl
     {
-        /// <summary>No music player is open (Audio widget closed, no Spotify device) — no variables.</summary>
+        /// <summary>The overlay Audio widget isn't open (YouTube, or any provider that plays there) — no variables.</summary>
         public const string NoPlayer = "noplayer";
+
+        /// <summary>Spotify has no device playing — no variables.</summary>
+        public const string NoSpotifyDevice = "nospotifydevice";
 
         /// <summary>No music service is set up for the channel — no variables.</summary>
         public const string NoProvider = "noprovider";
@@ -339,10 +347,17 @@ public static partial class BuiltinResponseSlots
         /// <summary>Any other failure — no variables.</summary>
         public const string Failed = "failed";
 
-        /// <summary>The slot that phrases a failed playback-control call, from its result error code.</summary>
-        public static string FailureSlotFor(string? errorCode) =>
+        /// <summary>
+        /// The slot that phrases a failed playback-control call, from its result error code. A missing player
+        /// splits by provider (<see cref="NoActivePlayerRefusal"/>): Spotify needs a Spotify device, every other
+        /// provider plays in the overlay Audio widget — so a YouTube-only channel never hears about Spotify.
+        /// </summary>
+        public static string FailureSlotFor(string? errorCode, object? errorData) =>
             errorCode switch
             {
+                "NO_ACTIVE_DEVICE"
+                    when errorData is NoActivePlayerRefusal { Provider: "spotify" } =>
+                    NoSpotifyDevice,
                 "NO_ACTIVE_DEVICE" => NoPlayer,
                 "SERVICE_UNAVAILABLE" => NoProvider,
                 "PREMIUM_REQUIRED" => PremiumRequired,

@@ -387,6 +387,7 @@ public sealed class YouTubeTransportControlTests
 
         paused.IsSuccess.Should().BeFalse();
         paused.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
+        paused.ErrorData.Should().Be(new NoActivePlayerRefusal("youtube"));
         rig.Notifier.Sent.Should().BeEmpty();
     }
 

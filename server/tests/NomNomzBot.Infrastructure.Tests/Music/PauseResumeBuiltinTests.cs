@@ -139,10 +139,53 @@ public sealed class PauseResumeBuiltinTests
     }
 
     [Theory]
-    [InlineData(
-        "NO_ACTIVE_DEVICE",
-        "The music player isn't open — add the Audio widget to OBS, or open Spotify."
-    )]
+    [InlineData("youtube", "pause")]
+    [InlineData("youtube", "resume")]
+    public async Task A_YouTube_channel_with_no_player_open_hears_about_the_Audio_widget_never_Spotify(
+        string provider,
+        string command
+    )
+    {
+        Result noPlayer = Result.Failure(
+            "Nothing is playing on any device right now.",
+            "NO_ACTIVE_DEVICE",
+            errorData: new NoActivePlayerRefusal(provider)
+        );
+        IMusicService music = MusicAnswering(noPlayer, noPlayer);
+
+        Result<string> result =
+            command == "pause"
+                ? await Pause(music).ExecuteAsync(Ctx(ModeratorLevel))
+                : await Resume(music).ExecuteAsync(Ctx(ModeratorLevel));
+
+        result.Value.Should().Be("The music player isn't open — add the Audio widget to OBS.");
+        result.Value.Should().NotContainEquivalentOf("spotify");
+    }
+
+    [Theory]
+    [InlineData("pause")]
+    [InlineData("resume")]
+    public async Task A_Spotify_channel_with_no_device_playing_is_told_to_open_Spotify(
+        string command
+    )
+    {
+        Result noDevice = Result.Failure(
+            "Nothing is playing on any device right now.",
+            "NO_ACTIVE_DEVICE",
+            errorData: new NoActivePlayerRefusal("spotify")
+        );
+        IMusicService music = MusicAnswering(noDevice, noDevice);
+
+        Result<string> result =
+            command == "pause"
+                ? await Pause(music).ExecuteAsync(Ctx(ModeratorLevel))
+                : await Resume(music).ExecuteAsync(Ctx(ModeratorLevel));
+
+        result.Value.Should().Be("No Spotify device is playing — open Spotify on a device.");
+    }
+
+    [Theory]
+    [InlineData("NO_ACTIVE_DEVICE", "The music player isn't open — add the Audio widget to OBS.")]
     [InlineData("SERVICE_UNAVAILABLE", "No music service is set up for this channel.")]
     [InlineData("PREMIUM_REQUIRED", "The music service needs a Premium account for that.")]
     [InlineData("CAPABILITY_UNSUPPORTED", "Couldn't pause the music.")]
@@ -164,10 +207,7 @@ public sealed class PauseResumeBuiltinTests
     }
 
     [Theory]
-    [InlineData(
-        "NO_ACTIVE_DEVICE",
-        "The music player isn't open — add the Audio widget to OBS, or open Spotify."
-    )]
+    [InlineData("NO_ACTIVE_DEVICE", "The music player isn't open — add the Audio widget to OBS.")]
     [InlineData("SERVICE_UNAVAILABLE", "No music service is set up for this channel.")]
     [InlineData("PREMIUM_REQUIRED", "The music service needs a Premium account for that.")]
     [InlineData("CAPABILITY_UNSUPPORTED", "Couldn't resume the music.")]
