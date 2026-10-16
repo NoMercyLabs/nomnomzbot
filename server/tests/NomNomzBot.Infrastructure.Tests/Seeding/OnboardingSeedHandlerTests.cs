@@ -523,7 +523,7 @@ public sealed class OnboardingSeedHandlerTests
     // ── Bot mod-grant backfill (shared bot connects AFTER channels onboarded) ─
 
     [Fact]
-    public async Task DefaultCommands_handler_seeds_the_five_music_builtins_for_the_event_broadcaster()
+    public async Task DefaultCommands_handler_seeds_the_default_music_builtins_for_the_event_broadcaster()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
@@ -539,13 +539,13 @@ public sealed class OnboardingSeedHandlerTests
             .ChannelBuiltinCommands.Where(c => c.BroadcasterId == Broadcaster)
             .ToListAsync();
 
-        seeded.Should().HaveCount(6);
+        seeded.Should().HaveCount(8);
         // BARE keys — the canonical format the dashboard toggle UI queries by (item 24c: bang-prefixed
         // seeded rows were orphaned from the toggle surface).
         seeded
             .Select(c => c.BuiltinKey)
             .Should()
-            .BeEquivalentTo(["sr", "skip", "queue", "volume", "song", "banger"]);
+            .BeEquivalentTo(["sr", "skip", "queue", "volume", "song", "banger", "pause", "resume"]);
         seeded.Should().OnlyContain(c => c.IsEnabled);
     }
 
@@ -565,7 +565,7 @@ public sealed class OnboardingSeedHandlerTests
 
         (await db.ChannelBuiltinCommands.CountAsync(c => c.BroadcasterId == Broadcaster))
             .Should()
-            .Be(6);
+            .Be(8);
     }
 
     [Fact]
