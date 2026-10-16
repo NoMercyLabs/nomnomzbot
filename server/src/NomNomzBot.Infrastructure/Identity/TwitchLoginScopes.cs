@@ -19,12 +19,11 @@ namespace NomNomzBot.Infrastructure.Identity;
 /// </summary>
 public static class TwitchLoginScopes
 {
-    // `openid` is the one scope Twitch's OIDC flow requires in the list (dev.twitch.tv getting-tokens-oidc).
     // Chatting is the viewer's minimum: the dashboard chat composer reads chat, sends as the viewer
-    // (OperatorChatSender) and lists the viewer's own emotes.
+    // (OperatorChatSender) and lists the viewer's own emotes. No `openid`: no sign-in reads an OIDC token, and
+    // Twitch's consent screen lists the user's email for it.
     private static readonly string[] Viewer =
     [
-        "openid",
         TwitchScopes.UserReadChat,
         TwitchScopes.UserWriteChat,
         TwitchScopes.UserReadEmotes,

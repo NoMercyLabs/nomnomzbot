@@ -44,7 +44,7 @@ public sealed class AuthServiceViewerLoginTests
         Uri uri = new(url.Value);
         System.Collections.Specialized.NameValueCollection query =
             System.Web.HttpUtility.ParseQueryString(uri.Query);
-        query["scope"].Should().Be("openid user:read:chat user:write:chat user:read:emotes");
+        query["scope"].Should().Be("user:read:chat user:write:chat user:read:emotes");
         query["state"].Should().Be("state-1");
     }
 

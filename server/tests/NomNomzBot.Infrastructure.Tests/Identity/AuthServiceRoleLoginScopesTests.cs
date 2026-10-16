@@ -46,9 +46,7 @@ public sealed class AuthServiceRoleLoginScopesTests
     {
         string[] requested = await RequestedScopesAsync(TwitchLoginRole.Viewer, null);
 
-        requested
-            .Should()
-            .BeEquivalentTo("openid", "user:read:chat", "user:write:chat", "user:read:emotes");
+        requested.Should().BeEquivalentTo("user:read:chat", "user:write:chat", "user:read:emotes");
         requested.Should().NotContain(s => s.StartsWith("moderator:") || s.StartsWith("channel:"));
     }
 

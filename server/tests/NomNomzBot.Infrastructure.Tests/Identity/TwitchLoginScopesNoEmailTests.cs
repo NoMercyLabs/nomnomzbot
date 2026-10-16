@@ -35,5 +35,9 @@ public sealed class TwitchLoginScopesNoEmailTests
                 scope => scope.Contains("email", StringComparison.OrdinalIgnoreCase),
                 "no sign-in asks for the user's email"
             );
+        // Twitch's consent screen lists the email for `openid` alone, and no sign-in reads an OIDC token.
+        scopes
+            .Should()
+            .NotContain("openid", "openid makes Twitch show the email on the consent screen");
     }
 }
