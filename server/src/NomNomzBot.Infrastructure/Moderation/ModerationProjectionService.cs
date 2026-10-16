@@ -404,11 +404,15 @@ public sealed class ModerationProjectionService(
         // the calculator's own violation penalties, so a punished viewer always scores below a clean one
         // of equal tenure. Richer community signals (follow age, sub/VIP) enrich this the same way later.
         // The Twitch broadcaster type (affiliate / partner) is the Helix value the user row already
-        // caches. YouTube sends a verified flag only per live chat message (authorDetails.isVerified);
-        // nothing stores it on the user yet, so IsYouTubeChannelVerified stays false rather than being faked.
+        // caches. The YouTube verified flag is stored on the user from each live chat line.
         var subject = await db
             .Users.Where(u => u.Id == subjectUserId)
-            .Select(u => new { u.CreatedAt, u.BroadcasterType })
+            .Select(u => new
+            {
+                u.CreatedAt,
+                u.BroadcasterType,
+                u.IsYouTubeChannelVerified,
+            })
             .FirstOrDefaultAsync(ct);
         DateTime firstKnown = subject?.CreatedAt ?? default;
         double tenureMonths =
@@ -418,6 +422,7 @@ public sealed class ModerationProjectionService(
             {
                 AccountAgeMonths = tenureMonths,
                 TwitchBroadcasterType = subject?.BroadcasterType ?? "",
+                IsYouTubeChannelVerified = subject?.IsYouTubeChannelVerified ?? false,
                 TimeoutCount = history.TimeoutCount,
                 BanCount = history.BanCount,
             },

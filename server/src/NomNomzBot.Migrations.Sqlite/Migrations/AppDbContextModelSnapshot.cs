@@ -7031,6 +7031,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<bool>("IsPlatformPrincipal")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsYouTubeChannelVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime?>("LastSeenAt")
                         .HasColumnType("TEXT");
 

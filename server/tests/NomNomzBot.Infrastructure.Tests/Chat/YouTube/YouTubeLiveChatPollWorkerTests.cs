@@ -769,6 +769,43 @@ public sealed class YouTubeLiveChatPollWorkerTests
             .Be(2, "the timed-out channel must not stop the sweep from reaching the other channel");
     }
 
+    [Fact]
+    public async Task A_verified_author_publishes_with_the_verified_flag_and_an_unverified_one_does_not()
+    {
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus bus,
+            _,
+            FakeTimeProvider time,
+            _
+        ) = await BuildConnectedAsync();
+        client.LivenessResults.Enqueue(
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
+        );
+        client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-1", 1000)));
+        client.PageResults.Enqueue(
+            Result.Success(
+                new YouTubeLiveChatPage(
+                    [Message("v-1", "hi", isVerified: true), Message("v-2", "hello")],
+                    "tok-2",
+                    1000
+                )
+            )
+        );
+
+        await worker.TickAsync(CancellationToken.None);
+        await worker.TickAsync(CancellationToken.None);
+        time.Advance(TimeSpan.FromSeconds(6));
+        await worker.TickAsync(CancellationToken.None);
+
+        List<ChatMessageReceivedEvent> published =
+        [
+            .. bus.Published.OfType<ChatMessageReceivedEvent>(),
+        ];
+        published.Select(e => e.IsYouTubeChannelVerified).Should().Equal(true, false);
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static async Task<(
@@ -852,7 +889,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
         string id,
         string text,
         bool isOwner = false,
-        bool isMember = false
+        bool isMember = false,
+        bool isVerified = false
     ) =>
         new(
             id,
@@ -862,7 +900,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
             Start,
             IsModerator: false,
             IsOwner: isOwner,
-            IsMember: isMember
+            IsMember: isMember,
+            IsVerified: isVerified
         );
 
     /// <summary>Scripted transport: queued liveness/page results plus call + cursor recording, so each

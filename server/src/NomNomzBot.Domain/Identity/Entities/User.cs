@@ -68,6 +68,10 @@ public class User : BaseEntity
     [MaxLength(50)]
     public string BroadcasterType { get; set; } = "";
 
+    // YouTube's verified flag for this chatter's channel (live chat authorDetails.isVerified). Refreshed
+    // on every YouTube chat line; feeds the trust score's verified-channel boost.
+    public bool IsYouTubeChannelVerified { get; set; }
+
     // Twitch staff classification — "" | "staff" | "admin" | "global_mod" (Helix Get Users `type`). Used by
     // the 18+ gambling gate's personnel inference (economy.md §3.6); revocable, so re-read live.
     [MaxLength(20)]

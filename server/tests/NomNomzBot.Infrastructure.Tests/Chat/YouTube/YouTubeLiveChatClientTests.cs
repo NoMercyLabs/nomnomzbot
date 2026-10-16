@@ -195,8 +195,14 @@ public sealed class YouTubeLiveChatClientTests
                         "displayName": "Viewer One",
                         "isChatModerator": true,
                         "isChatOwner": false,
-                        "isChatSponsor": true
+                        "isChatSponsor": true,
+                        "isVerified": true
                       }
+                    },
+                    {
+                      "id": "msg2",
+                      "snippet": { "displayMessage": "hi", "publishedAt": "2026-07-10T12:00:01Z" },
+                      "authorDetails": { "channelId": "UCother", "displayName": "Other" }
                     }
                   ]
                 }
@@ -208,9 +214,10 @@ public sealed class YouTubeLiveChatClientTests
         Result<YouTubeLiveChatPage> result = await sut.ListMessagesAsync(Token, "chat123", null);
 
         result.IsSuccess.Should().BeTrue();
+        result.Value.Messages.Select(m => m.IsVerified).Should().Equal(true, false);
         result.Value.PollingIntervalMs.Should().Be(3000);
         result.Value.NextPageToken.Should().Be("TOKEN2");
-        result.Value.Messages.Should().ContainSingle();
+        result.Value.Messages.Should().HaveCount(2);
         YouTubeLiveChatMessage message = result.Value.Messages[0];
         message.Id.Should().Be("msg1");
         message.AuthorChannelId.Should().Be("UCauthor");

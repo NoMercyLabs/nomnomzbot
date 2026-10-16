@@ -181,6 +181,29 @@ public sealed class ModerationProjectionServiceTests
         );
 
     [Fact]
+    public async Task A_verified_YouTube_channel_scores_the_policy_boost_above_an_unverified_one()
+    {
+        (ModerationProjectionService verifiedSut, ModerationServiceTestDbContext verifiedDb, _) =
+            Build();
+        await SeedSubjectAsync(verifiedDb);
+        (await verifiedDb.Users.SingleAsync()).IsYouTubeChannelVerified = true;
+        await verifiedDb.SaveChangesAsync();
+        (ModerationProjectionService plainSut, ModerationServiceTestDbContext plainDb, _) = Build();
+        await SeedSubjectAsync(plainDb);
+
+        // A warn keeps the score inside the [0, 100] clamp; a ban floors both to 0 and hides the boost.
+        await verifiedSut.ApplyActionAsync(Channel, SubjectTwitchId, "warn", T0);
+        await plainSut.ApplyActionAsync(Channel, SubjectTwitchId, "warn", T0);
+
+        decimal verified = (await verifiedDb.UserTrustScores.SingleAsync()).TrustScore;
+        decimal plain = (await plainDb.UserTrustScores.SingleAsync()).TrustScore;
+        plain.Should().BeInRange(1m, 89m, "the boost must land inside the clamp to be measured");
+        (verified - plain)
+            .Should()
+            .Be((decimal)TrustScoreCalculator.DefaultPolicy.VerifiedYouTubeBoost);
+    }
+
+    [Fact]
     public async Task A_ban_rolls_up_heats_40_and_drops_the_trust_below_a_clean_slate()
     {
         (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();

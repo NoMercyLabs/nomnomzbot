@@ -577,6 +577,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                     IsVip = false,
                     IsModerator = message.IsModerator,
                     IsBroadcaster = message.IsOwner,
+                    IsYouTubeChannelVerified = message.IsVerified,
                 },
                 ct
             );
