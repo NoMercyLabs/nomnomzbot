@@ -173,7 +173,8 @@ public sealed record YouTubeLiveChatMessage(
     YouTubeNewSponsorDetails? NewSponsorDetails = null,
     YouTubeMemberMilestoneChatDetails? MemberMilestoneChatDetails = null,
     YouTubeMembershipGiftingDetails? MembershipGiftingDetails = null,
-    YouTubeGiftMembershipReceivedDetails? GiftMembershipReceivedDetails = null
+    YouTubeGiftMembershipReceivedDetails? GiftMembershipReceivedDetails = null,
+    bool IsVerified = false
 );
 
 /// <summary><c>snippet.superChatDetails</c> — a paid Super Chat.</summary>

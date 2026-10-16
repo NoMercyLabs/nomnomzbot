@@ -518,7 +518,8 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
             MapNewSponsor(item.Snippet.NewSponsorDetails),
             MapMemberMilestone(item.Snippet.MemberMilestoneChatDetails),
             MapMembershipGifting(item.Snippet.MembershipGiftingDetails),
-            MapGiftMembershipReceived(item.Snippet.GiftMembershipReceivedDetails)
+            MapGiftMembershipReceived(item.Snippet.GiftMembershipReceivedDetails),
+            item.AuthorDetails.IsVerified
         );
 
     private static YouTubeSuperChatDetails? MapSuperChat(LiveChatSuperChatDetails? d) =>
@@ -816,6 +817,9 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 
         [JsonPropertyName("isChatSponsor")]
         public bool IsChatSponsor { get; set; }
+
+        [JsonPropertyName("isVerified")]
+        public bool IsVerified { get; set; }
     }
 
     // The liveChatBans.insert response — only the resource id matters (the liveChatBans.delete key).

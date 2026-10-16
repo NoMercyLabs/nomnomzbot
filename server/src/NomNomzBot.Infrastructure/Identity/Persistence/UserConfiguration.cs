@@ -52,6 +52,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(e => e.BroadcasterType).IsRequired().HasMaxLength(50).HasDefaultValue("");
 
+        builder.Property(e => e.IsYouTubeChannelVerified).HasDefaultValue(false);
+
         builder.Property(e => e.Enabled).HasDefaultValue(true);
 
         builder.Property(e => e.PronounManualOverride).IsRequired();

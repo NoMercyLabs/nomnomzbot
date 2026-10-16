@@ -81,6 +81,9 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
     /// <summary>True when the viewer is the channel owner.</summary>
     public required bool IsBroadcaster { get; init; }
 
+    /// <summary>True when YouTube marks the author's channel as verified (<c>authorDetails.isVerified</c>); false on every other platform.</summary>
+    public bool IsYouTubeChannelVerified { get; init; }
+
     /// <summary>Bits cheered in this message, or 0.</summary>
     public int Bits { get; init; }
 
