@@ -11,6 +11,7 @@
 using System.Reflection;
 using FluentAssertions;
 using NomNomzBot.Infrastructure.Content.Widgets;
+using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
@@ -111,6 +112,24 @@ public sealed class AudioYouTubePlayerGuardTests
 
         source.Should().Contain("NomNomz.reportYouTubePlayerState(");
         source.Should().Contain($"'{state}'");
+    }
+
+    [Fact]
+    public void A_playing_or_paused_video_is_re_reported_well_inside_the_bots_staleness_window()
+    {
+        // The bot treats a report older than Staleness as a closed page and an idle player; a song longer
+        // than that is then cut off by the next request. The widget must heartbeat faster than that.
+        string source = Source();
+        System.Text.RegularExpressions.Match heartbeat = System.Text.RegularExpressions.Regex.Match(
+            source,
+            @"const YT_HEARTBEAT_MS: number = (\d+)"
+        );
+        heartbeat.Success.Should().BeTrue("the widget must declare its heartbeat interval");
+
+        TimeSpan interval = TimeSpan.FromMilliseconds(int.Parse(heartbeat.Groups[1].Value));
+        interval.Should().BeLessThan(YouTubePlayerStateStore.Staleness / 2);
+        source.Should().Contain("window.setInterval(reportYouTubeHeartbeat, YT_HEARTBEAT_MS)");
+        source.Should().Contain("window.clearInterval(ytHeartbeat)");
     }
 
     [Fact]

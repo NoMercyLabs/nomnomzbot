@@ -36,6 +36,7 @@ interface YouTubePlayerHandle {
   stopVideo(): void
   seekTo(seconds: number, allowSeekAhead: boolean): void
   getCurrentTime(): number
+  getPlayerState(): number
   getVideoData(): { video_id: string }
 }
 interface YouTubeStateEvent { data: number, target: YouTubePlayerHandle }
@@ -65,6 +66,10 @@ let ytPendingSeekSeconds: number | null = null
 
 // IFrame API state codes: 0 ended, 1 playing, 2 paused.
 const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'PAUSED' }
+// The bot counts a player silent for 15 s as a closed page with nothing playing, and would then start the next
+// request over this one. A playing or paused video is re-reported well inside that window.
+const YT_HEARTBEAT_MS: number = 5000
+let ytHeartbeat: number | undefined
 
 function currentYouTubePlayer(): YouTubePlayerHandle | null {
   return ytPlayer
@@ -97,6 +102,14 @@ function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
   if (state === 'PLAYING') applyPendingYouTubeSeek(player)
   NomNomz.reportYouTubePlayerState(player.getVideoData().video_id, state, Math.round(player.getCurrentTime() * 1000))
     .catch(() => { /* offline: the next state change reports again */ })
+}
+
+function reportYouTubeHeartbeat(): void {
+  if (!ytPlayer || ytLoading) return
+  const state: string | undefined = YT_STATE_NAMES[ytPlayer.getPlayerState()]
+  if (state !== 'PLAYING' && state !== 'PAUSED') return
+  NomNomz.reportYouTubePlayerState(ytPlayer.getVideoData().video_id, state, Math.round(ytPlayer.getCurrentTime() * 1000))
+    .catch(() => { /* offline: the next beat reports again */ })
 }
 
 async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undefined): Promise<void> {
@@ -341,6 +354,7 @@ onMounted(() => {
   NomNomz.on('youtube.resume', onYouTubeResume)
   NomNomz.on('youtube.pause', onYouTubePause)
   NomNomz.on('youtube.play', onYouTubePlay)
+  ytHeartbeat = window.setInterval(reportYouTubeHeartbeat, YT_HEARTBEAT_MS)
 })
 
 onUnmounted(() => {
@@ -352,6 +366,7 @@ onUnmounted(() => {
   if (typeof NomNomz !== 'undefined') NomNomz.off('youtube.play', onYouTubePlay)
   if (typeof NomNomz !== 'undefined') NomNomz.off('now_playing', onAudioNowPlaying)
   if (musicPoll) window.clearInterval(musicPoll)
+  if (ytHeartbeat) window.clearInterval(ytHeartbeat)
   disconnectSpotify()
   if (clearTimer) window.clearTimeout(clearTimer)
 })

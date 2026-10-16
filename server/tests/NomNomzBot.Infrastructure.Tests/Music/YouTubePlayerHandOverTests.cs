@@ -227,6 +227,42 @@ public sealed class YouTubePlayerHandOverTests
     }
 
     [Fact]
+    public async Task A_player_that_keeps_reporting_stays_busy_and_a_new_request_waits_behind_it()
+    {
+        Rig rig = await BuildAsync();
+        await rig.Provider.AddToQueueAsync(Broadcaster, Watch("dQw4w9WgXcQ"));
+        await rig.Reports.ReportAsync(Broadcaster, PlayerWidget, "dQw4w9WgXcQ", "playing", 0);
+
+        // Two minutes of heartbeats: the song is long past the staleness window, but the page says it plays.
+        for (int second = 10; second <= 120; second += 10)
+        {
+            rig.Clock.Advance(TimeSpan.FromSeconds(10));
+            await rig.Reports.ReportAsync(
+                Broadcaster,
+                PlayerWidget,
+                "dQw4w9WgXcQ",
+                "playing",
+                second * 1000L
+            );
+        }
+        await rig.Provider.AddToQueueAsync(Broadcaster, Watch("9bZkp7q19f0"));
+
+        rig.Notifier.Sent.Should()
+            .ContainSingle("the playing song must not be cut off by the next request");
+        (await rig.Provider.GetQueueAsync(Broadcaster))
+            .Should()
+            .ContainSingle()
+            .Which.TrackUri.Should()
+            .Be(Watch("9bZkp7q19f0"));
+        TrackInfo? current = await rig.Provider.GetCurrentTrackAsync(Broadcaster);
+        current!.TrackUri.Should().Be(Watch("dQw4w9WgXcQ"));
+        current.ProgressMs.Should().Be(120_000);
+        rig.Bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Should()
+            .ContainSingle("a heartbeat repeats the state, it is not a change");
+    }
+
+    [Fact]
     public async Task Without_an_audio_page_the_request_stays_queued_and_nothing_is_pushed()
     {
         Rig rig = await BuildAsync(pageAttached: false);
