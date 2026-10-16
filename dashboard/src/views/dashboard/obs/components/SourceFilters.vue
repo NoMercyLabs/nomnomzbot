@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // The filters on one open source, each with an on/off switch.
-import { toast } from 'vue-sonner';
+import { toastObsError } from '../obsToast';
 
 import { useObsFilterEnabled, useObsSourceFilters, type ObsFilter } from '@/api/obsSources';
 import { Switch } from '@/components/ui/switch';
@@ -27,7 +27,7 @@ function toggle(filter: ObsFilter, enabled: boolean): void {
     sourceName: props.sourceName,
     filterName: filter.name,
     enabled,
-  }, { onError: (error: Error) => toast.error(error.message) });
+  }, { onError: toastObsError });
 }
 </script>
 

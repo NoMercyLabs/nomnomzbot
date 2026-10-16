@@ -13,7 +13,7 @@
 // A slider drag shows at once; one write goes out when the drag pauses, and a refusal puts the old level back.
 import { useDebounceFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
-import { toast } from 'vue-sonner';
+import { toastObsError } from '../obsToast';
 
 import {
   useObsInputs,
@@ -74,7 +74,7 @@ function level(input: ObsInput): number {
 }
 
 function fail(error: Error): void {
-  toast.error(error.message);
+  toastObsError(error);
 }
 
 function toggleMute(input: ObsInput): void {

@@ -30,6 +30,7 @@ const calls: string[] = [];
 let connection: Record<string, unknown> = {};
 let widgets: Record<string, unknown>[] = [];
 let liveFails: boolean = false;
+let bridgeCount: number = 1;
 
 const widget = (
   id: string,
@@ -63,7 +64,7 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/obs/bridge/status'))
         return {
-          data: { data: { instanceCount: 1, hasLeader: true } },
+          data: { data: { instanceCount: bridgeCount, hasLeader: bridgeCount > 0 } },
           response: { status: 200, ok: true },
         };
 
@@ -97,10 +98,11 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   calls.length = 0;
   liveFails = false;
+  bridgeCount = 1;
 
   connection = {
     isEnabled: true,
-    mode: 'websocket',
+    mode: 'direct',
     host: 'localhost',
     port: 4455,
     lastError: null,
@@ -211,6 +213,27 @@ describe('ObsView', () => {
     await open();
 
     expect(dotsOf('connection')).toEqual(['dot warn']);
+  });
+
+  // Stoney 2026-10-16: OBS connected, no bridge page open, the header said "Something is not loaded".
+  it('keeps the connection green and the bridge gray when OBS is direct and no bridge page is open', async () => {
+    bridgeCount = 0;
+    widgets = [widget('w1', 'Chat', { isAttached: true })];
+    await open();
+
+    expect(dotsOf('connection')).toEqual(['dot ok']);
+    expect(dotsOf('bridge')).toEqual(['dot']);
+    expect(document.querySelector('[data-obs-overall] .dot')?.className).toContain('ok');
+    expect(document.querySelector('[data-obs-overall]')?.textContent).toContain(en.dashboard.obs.overall.ok);
+    expect(document.querySelector('[data-obs-connection]')?.textContent).toContain(en.dashboard.obs.bridge.optional);
+  });
+
+  it('still turns the bridge orange when OBS is driven through the bridge and no page is open', async () => {
+    bridgeCount = 0;
+    connection = { ...connection, mode: 'bridge' };
+    await open();
+
+    expect(dotsOf('bridge')).toEqual(['dot warn']);
   });
 
   it('reads no scenes or state while the OBS link is switched off', async () => {

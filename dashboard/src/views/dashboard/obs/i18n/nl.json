@@ -3,6 +3,7 @@
     "obs": {
       "title": "OBS",
       "crumb": "Stream",
+      "unavailable": "OBS gaf geen antwoord. Controleer de verbinding.",
       "overall": {
         "ok": "Alles is geladen",
         "warn": "Er is iets niet geladen",
@@ -22,6 +23,7 @@
         "title": "Browserbron-brug",
         "off": "Uit zolang OBS niet gekoppeld is",
         "none": "Er is geen brugpagina open in OBS",
+        "optional": "Er is geen brugpagina open in OBS. Alleen browserbronnen hebben die nodig.",
         "noLeader": "{count} open, geen enkele leidt",
         "leader": "{count} open, een leidt"
       },

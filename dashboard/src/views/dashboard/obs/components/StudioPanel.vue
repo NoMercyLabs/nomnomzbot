@@ -11,7 +11,7 @@
 // Studio mode and transitions. The transition picker always works. With studio mode on, a preview scene
 // waits next to the program scene and the one primary button, Transition, cuts it to air.
 import { computed, ref } from 'vue';
-import { toast } from 'vue-sonner';
+import { toastObsError } from '../obsToast';
 
 import {
   useObsSetPreviewScene,
@@ -49,7 +49,7 @@ const previewScene = ref<string>('');
 const duration = ref<string>('');
 
 function fail(error: Error): void {
-  toast.error(error.message);
+  toastObsError(error);
 }
 
 function toggleStudio(enabled: boolean): void {

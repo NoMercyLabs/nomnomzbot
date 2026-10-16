@@ -59,8 +59,12 @@ export function bridgeHealth(
   if (!connection?.isEnabled)
     return { dot: '', reason: 'bridge.off' };
 
-  if (!bridge || Number(bridge.instanceCount) === 0)
-    return { dot: 'warn', reason: 'bridge.none' };
+  if (!bridge || Number(bridge.instanceCount) === 0) {
+    // In direct mode OBS is driven by its own socket; the bridge page only serves browser sources.
+    return connection.mode === 'bridge'
+      ? { dot: 'warn', reason: 'bridge.none' }
+      : { dot: '', reason: 'bridge.optional' };
+  }
 
   return bridge.hasLeader
     ? { dot: 'ok', reason: 'bridge.leader' }

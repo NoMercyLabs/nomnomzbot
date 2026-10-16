@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The sources in the scene on air. Each one can be shown or hidden, locked or unlocked, and opened to switch its filters.
 import { computed, ref } from 'vue';
-import { toast } from 'vue-sonner';
+import { toastObsError } from '../obsToast';
 import ChevronDown from '~icons/nnz/chevron-down';
 import ChevronRight from '~icons/nnz/chevron-right';
 import ClosedEye from '~icons/nnz/closed-eye';
@@ -45,7 +45,7 @@ const setLocked = useObsSceneItemFlag(channelId, 'locked');
 const open = ref<number | null>(null);
 
 const showError = (error: Error): void => {
-  toast.error(error.message);
+  toastObsError(error);
 };
 
 function toggleShown(item: ObsSceneItem): void {
