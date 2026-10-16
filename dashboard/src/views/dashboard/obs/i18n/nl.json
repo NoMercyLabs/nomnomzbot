@@ -48,6 +48,20 @@
         "empty": "OBS meldt geen scenes.",
         "loadError": "De scenes konden niet laden."
       },
+      "sourceItems": {
+        "title": "Bronnen in de scene",
+        "hidden": "Verborgen",
+        "offline": "Bronnen verschijnen zodra OBS een scene in de lucht meldt.",
+        "empty": "Deze scene heeft geen bronnen.",
+        "loadError": "De bronnen konden niet laden.",
+        "shown": "{name} tonen of verbergen",
+        "locked": "{name} vergrendelen of ontgrendelen",
+        "filters": "Filters van {name}",
+        "filterEnabled": "Filter {name} aan of uit",
+        "filtersLoading": "Filters laden…",
+        "filtersError": "De filters konden niet laden.",
+        "noFilters": "Deze bron heeft geen filters."
+      },
       "studio": {
         "title": "Studiomodus",
         "mode": "Studiomodus",

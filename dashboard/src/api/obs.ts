@@ -203,10 +203,10 @@ export function useObsTransitions(
   });
 }
 
-type Rollback<T> = { key: KeyParts; previous: T | undefined };
+export type Rollback<T> = { key: KeyParts; previous: T | undefined };
 
 // Writes a new value into a cached read right away and hands back the old one for the rollback.
-async function applyOptimistic<T>(
+export async function applyOptimistic<T>(
   queries: QueryClient,
   key: KeyParts,
   update: (old: T) => T,
@@ -237,7 +237,7 @@ function markCurrent<T extends { name: string; isCurrent: boolean }>(
   return list.map((item: T) => ({ ...item, isCurrent: item.name === name }));
 }
 
-function rollBack<T>(queries: QueryClient, context: Rollback<T> | undefined): void {
+export function rollBack<T>(queries: QueryClient, context: Rollback<T> | undefined): void {
   if (context?.previous !== undefined) {
     queries.setQueryData<T>(context.key, context.previous);
   }

@@ -148,6 +148,62 @@ public sealed class ObsControlServiceTests
     }
 
     [Fact]
+    public async Task Set_scene_item_enabled_sends_the_item_id_directly_without_a_lookup()
+    {
+        Harness h = Build();
+
+        Result result = await h.Service.SetSceneItemEnabledAsync(Channel, "Live", 42, true);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        ObsRequest sent = h.Requests.Single();
+        sent.RequestType.Should().Be("SetSceneItemEnabled");
+        sent.RequestData!["sceneName"].Should().Be("Live");
+        sent.RequestData!["sceneItemId"].Should().Be(42);
+        sent.RequestData!["sceneItemEnabled"].Should().Be(true);
+    }
+
+    [Fact]
+    public async Task Set_scene_item_locked_sends_the_lock_flag_for_the_item()
+    {
+        Harness h = Build();
+
+        Result result = await h.Service.SetSceneItemLockedAsync(Channel, "Live", 42, true);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        ObsRequest sent = h.Requests.Single();
+        sent.RequestType.Should().Be("SetSceneItemLocked");
+        sent.RequestData!["sceneName"].Should().Be("Live");
+        sent.RequestData!["sceneItemId"].Should().Be(42);
+        sent.RequestData!["sceneItemLocked"].Should().Be(true);
+    }
+
+    [Fact]
+    public async Task Get_scene_item_list_parses_the_locked_flag_per_item()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetSceneItemList"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["sceneItems"] =
+                            """[{"sceneItemId":1,"sourceName":"Webcam","sceneItemEnabled":true,"sceneItemLocked":true},{"sceneItemId":2,"sourceName":"Overlay","sceneItemEnabled":true}]""",
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<IReadOnlyList<ObsSceneItemDto>> result = await h.Service.GetSceneItemListAsync(
+            Channel,
+            "Live"
+        );
+
+        result.Value.Single(i => i.SourceName == "Webcam").Locked.Should().BeTrue();
+        result.Value.Single(i => i.SourceName == "Overlay").Locked.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Volume_takes_db_xor_multiplier()
     {
         Harness h = Build();

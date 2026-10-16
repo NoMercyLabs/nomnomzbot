@@ -25,6 +25,7 @@ import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
 import ObsConnectionPanel from './components/ObsConnectionPanel.vue';
 import OutputsPanel from './components/OutputsPanel.vue';
 import ScenesPanel from './components/ScenesPanel.vue';
+import SourcesPanel from './components/SourcesPanel.vue';
 import StudioPanel from './components/StudioPanel.vue';
 import StatsStrip from './components/StatsStrip.vue';
 import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
@@ -108,6 +109,11 @@ function retry(): void {
       @retry="retry"
     />
     <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
+    <SourcesPanel
+      class="lg:col-span-2"
+      :scene-name="state.data.value?.currentScene ?? null"
+      :offline="!enabled"
+    />
     <BrowserSourcesPanel
       class="lg:col-span-2"
       :widgets="widgets.data.value"

@@ -83,6 +83,60 @@ public sealed class ObsStateBroadcastHandlerTests
     }
 
     [Fact]
+    public async Task A_filter_toggle_and_a_lock_change_carry_their_new_values()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        Guid channel = Guid.CreateVersion7();
+        ObsStateBroadcastHandler handler = new(notifier);
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Kind = ObsStateKinds.SourceFilter,
+                SourceName = "Mic",
+                FilterName = "Noise Gate",
+                Enabled = true,
+            }
+        );
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Kind = ObsStateKinds.SceneItemLock,
+                SceneName = "Game",
+                SceneItemId = 7,
+                Locked = true,
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .SendObsStateAsync(
+                channel.ToString(),
+                Arg.Is<ObsStateChangedDto>(dto =>
+                    dto.Kind == "sourceFilter"
+                    && dto.SourceName == "Mic"
+                    && dto.FilterName == "Noise Gate"
+                    && dto.Enabled == true
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await notifier
+            .Received(1)
+            .SendObsStateAsync(
+                channel.ToString(),
+                Arg.Is<ObsStateChangedDto>(dto =>
+                    dto.Kind == "sceneItemLock"
+                    && dto.SceneName == "Game"
+                    && dto.SceneItemId == 7
+                    && dto.Locked == true
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_platform_level_event_never_reaches_the_hub()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();

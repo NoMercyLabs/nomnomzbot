@@ -91,6 +91,8 @@ public sealed class ObsDashboardStateForwarder : IEventHandler<ObsEventReceivedE
             "InputVolumeChanged" => Input(broadcasterId, ObsStateKinds.InputVolume, data),
             "SceneListChanged" => SceneList(broadcasterId, data),
             "SceneItemEnableStateChanged" => SceneItem(broadcasterId, data),
+            "SceneItemLockStateChanged" => SceneItemLock(broadcasterId, data),
+            "SourceFilterEnableStateChanged" => SourceFilter(broadcasterId, data),
             _ => null,
         };
 
@@ -189,6 +191,44 @@ public sealed class ObsDashboardStateForwarder : IEventHandler<ObsEventReceivedE
             SceneName = GetString(data, "sceneName"),
             SceneItemId = sceneItemId,
             Enabled = GetBool(data, "sceneItemEnabled"),
+        };
+    }
+
+    private static ObsDashboardStateChangedEvent? SceneItemLock(
+        Guid broadcasterId,
+        JsonElement data
+    )
+    {
+        if (
+            !data.TryGetProperty("sceneItemId", out JsonElement id)
+            || !id.TryGetInt32(out int sceneItemId)
+        )
+            return null;
+
+        return new()
+        {
+            BroadcasterId = broadcasterId,
+            Kind = ObsStateKinds.SceneItemLock,
+            SceneName = GetString(data, "sceneName"),
+            SceneItemId = sceneItemId,
+            Locked = GetBool(data, "sceneItemLocked"),
+        };
+    }
+
+    private static ObsDashboardStateChangedEvent? SourceFilter(Guid broadcasterId, JsonElement data)
+    {
+        string sourceName = GetString(data, "sourceName");
+        string filterName = GetString(data, "filterName");
+        if (sourceName.Length == 0 || filterName.Length == 0)
+            return null;
+
+        return new()
+        {
+            BroadcasterId = broadcasterId,
+            Kind = ObsStateKinds.SourceFilter,
+            SourceName = sourceName,
+            FilterName = filterName,
+            Enabled = GetBool(data, "filterEnabled"),
         };
     }
 

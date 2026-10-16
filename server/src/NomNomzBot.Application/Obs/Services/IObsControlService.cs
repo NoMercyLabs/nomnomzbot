@@ -40,6 +40,25 @@ public interface IObsControlService
         CancellationToken ct = default
     );
 
+    /// <summary>Show or hide one scene item by its numeric id — no name lookup, so it also works when two
+    /// items in the scene share a source.</summary>
+    Task<Result> SetSceneItemEnabledAsync(
+        Guid broadcasterId,
+        string sceneName,
+        int sceneItemId,
+        bool enabled,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Lock or unlock one scene item in the OBS preview.</summary>
+    Task<Result> SetSceneItemLockedAsync(
+        Guid broadcasterId,
+        string sceneName,
+        int sceneItemId,
+        bool locked,
+        CancellationToken ct = default
+    );
+
     // ── Audio / inputs ──
     Task<Result> SetInputMuteAsync(
         Guid broadcasterId,

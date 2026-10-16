@@ -43,7 +43,11 @@ public sealed class ObsControllerSceneItemsTests
     [Fact]
     public async Task GetSceneItems_forwards_the_scene_name_and_returns_the_items()
     {
-        IReadOnlyList<ObsSceneItemDto> items = [new(1, "Webcam", true), new(2, "Overlay", false)];
+        IReadOnlyList<ObsSceneItemDto> items =
+        [
+            new(1, "Webcam", true, false),
+            new(2, "Overlay", false, true),
+        ];
         IObsControlService control = Substitute.For<IObsControlService>();
         control
             .GetSceneItemListAsync(Channel, "Live", Arg.Any<CancellationToken>())
@@ -100,6 +104,44 @@ public sealed class ObsControllerSceneItemsTests
             .Received(1)
             .SetSourceVisibleAsync(Channel, "Live", "Webcam", false, Arg.Any<CancellationToken>());
         result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public async Task SetSceneItemEnabled_forwards_scene_item_id_and_flag_to_the_service()
+    {
+        IObsControlService control = Substitute.For<IObsControlService>();
+        control
+            .SetSceneItemEnabledAsync(Channel, "Live", 7, false, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        IActionResult result = await Build(control)
+            .SetSceneItemEnabled(
+                Channel,
+                new ObsSceneItemEnabledRequest("Live", 7, false),
+                default
+            );
+
+        await control
+            .Received(1)
+            .SetSceneItemEnabledAsync(Channel, "Live", 7, false, Arg.Any<CancellationToken>());
+        result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public async Task SetSceneItemLocked_forwards_and_surfaces_a_refusal_as_non_2xx()
+    {
+        IObsControlService control = Substitute.For<IObsControlService>();
+        control
+            .SetSceneItemLockedAsync(Channel, "Live", 7, true, Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("OBS refused.", "OBS_ERROR"));
+
+        IActionResult result = await Build(control)
+            .SetSceneItemLocked(Channel, new ObsSceneItemLockedRequest("Live", 7, true), default);
+
+        await control
+            .Received(1)
+            .SetSceneItemLockedAsync(Channel, "Live", 7, true, Arg.Any<CancellationToken>());
+        result.Should().NotBeOfType<OkObjectResult>();
     }
 
     [Fact]
