@@ -18,6 +18,7 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Application.Integrations.Services;
@@ -47,6 +48,7 @@ public sealed class OAuthForwardedOriginTests
             .IssueAsync(Arg.Any<TwitchOAuthFlowState>(), Arg.Any<CancellationToken>())
             .Returns("nonce");
         auth.GetTwitchOAuthUrl(
+                Arg.Any<TwitchLoginRole>(),
                 "nonce",
                 Arg.Any<string>(),
                 Arg.Any<Guid?>(),
@@ -79,7 +81,7 @@ public sealed class OAuthForwardedOriginTests
             client: "web",
             return_to: null,
             return_route: null,
-            mode: null,
+            role: null,
             default
         );
 
@@ -87,6 +89,7 @@ public sealed class OAuthForwardedOriginTests
         // redirect_uri (…/api/v1/auth/twitch/callback) is the domain, exactly what the owner registers.
         await auth.Received(1)
             .GetTwitchOAuthUrl(
+                TwitchLoginRole.Broadcaster,
                 "nonce",
                 TunnelOrigin,
                 Arg.Any<Guid?>(),
@@ -109,6 +112,7 @@ public sealed class OAuthForwardedOriginTests
             .IssueAsync(Arg.Any<TwitchOAuthFlowState>(), Arg.Any<CancellationToken>())
             .Returns("nonce");
         auth.GetTwitchOAuthUrl(
+                Arg.Any<TwitchLoginRole>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<Guid?>(),
@@ -141,7 +145,7 @@ public sealed class OAuthForwardedOriginTests
             client: "web",
             return_to: null,
             return_route: returnRoute,
-            mode: null,
+            role: null,
             default
         );
 

@@ -86,15 +86,6 @@ public sealed class AuthService : IAuthService
     // via ScopeNotificationService.RecordMissingScopeAsync (a live 403), or proactively via the dashboard's
     // "N more permissions" banner (GetMissingScopesAsync) and its one-click additive re-grant
     // (BuildRegrantScopeSetAsync → StartTwitchDeviceLoginForScopesAsync), which never forces a logout.
-    private static readonly string[] MinimalLoginScopes =
-    [
-        "user:read:chat", // EventSub channel.chat.message — the bot cannot read chat at all without this
-        "user:write:chat", // HelixChatProvider send — the bot cannot type in chat at all without this
-        // The channel switcher's "channels you moderate" list is part of signing in for a moderator-of-many:
-        // without it they land on a dashboard that silently claims they moderate nothing.
-        "user:read:moderated_channels",
-    ];
-
     private readonly string[] _requiredScopes;
 
     private static readonly string[] BotScopes =
@@ -155,21 +146,22 @@ public sealed class AuthService : IAuthService
 
         // The base streamer LOGIN grant is intentionally minimal (see MinimalLoginScopes above) — the full
         // catalogue (scopeRegistry.FullCatalogue) is requested on demand instead, never up front.
-        _requiredScopes = MinimalLoginScopes;
+        _requiredScopes = TwitchLoginScopes.For(TwitchLoginRole.Broadcaster);
     }
 
     // ─── User OAuth ──────────────────────────────────────────────────────────
 
     public async Task<Result<string>> GetTwitchOAuthUrl(
+        TwitchLoginRole role,
         string? state = null,
         string? baseUrl = null,
         Guid? broadcasterHint = null,
         CancellationToken cancellationToken = default
     ) =>
         await BuildAuthorizeUrlAsync(
-            broadcasterHint is { } channel
+            role == TwitchLoginRole.Broadcaster && broadcasterHint is { } channel
                 ? await WidenedStreamerScopesAsync(channel, cancellationToken)
-                : _requiredScopes,
+                : TwitchLoginScopes.For(role),
             state,
             baseUrl,
             forceVerify: false,
@@ -287,16 +279,6 @@ public sealed class AuthService : IAuthService
     }
 
     // ─── Viewer login (identity only) ────────────────────────────────────────
-
-    // A viewer only proves who they are. `openid` is the one scope Twitch's OIDC flow requires in the list
-    // (dev.twitch.tv getting-tokens-oidc: "The list must include the openid scope"); it grants no Helix access.
-    private static readonly string[] ViewerLoginScopes = ["openid"];
-
-    public Task<Result<string>> GetTwitchViewerOAuthUrl(
-        string? state = null,
-        string? baseUrl = null,
-        CancellationToken cancellationToken = default
-    ) => BuildAuthorizeUrlAsync(ViewerLoginScopes, state, baseUrl, false, cancellationToken);
 
     /// <summary>
     /// The viewer sign-in: writes the viewer's own User row and opens a session bound to no channel. It never

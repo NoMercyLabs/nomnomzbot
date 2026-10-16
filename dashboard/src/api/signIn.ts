@@ -54,27 +54,23 @@ export const providersQuery = queryOptions({
   queryFn: fetchProviders,
 });
 
+export type LoginRole = 'viewer' | 'moderator' | 'broadcaster';
+
 // Twitch has its own route; every other provider goes through the shared PKCE authorize route.
-export function signInUrl(provider: string, returnTo: string): string {
+// A role asks the platform for only the scopes that role uses (Twitch is the one platform with roles so far).
+export function signInUrl(provider: string, returnTo: string, role?: LoginRole): string {
   const query = new URLSearchParams({ client: 'web', return_to: returnTo });
+
+  if (role) {
+    query.set('role', role);
+  }
+
   const path =
     provider === 'twitch'
       ? 'auth/twitch'
       : `auth/${encodeURIComponent(provider)}/authorize`;
 
   return `${activeBot.value}/api/v1/${path}?${query}`;
-}
-
-// A viewer's sign-in asks the platform for the smallest scope, so the bot reads the viewer's own identity
-// and nothing else. It is a Twitch flow; the viewer page is the return path.
-export function viewerSignInUrl(returnTo: string): string {
-  const query = new URLSearchParams({
-    client: 'web',
-    mode: 'viewer',
-    return_to: returnTo,
-  });
-
-  return `${activeBot.value}/api/v1/auth/twitch?${query}`;
 }
 
 export async function startDeviceSignIn(provider: string): Promise<DeviceCode | null> {

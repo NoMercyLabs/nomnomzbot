@@ -11,7 +11,11 @@
       "loading": "Loading the sign-in options…",
       "with": "Continue with {provider}",
       "useCode": "Sign in with a code instead",
-      "viewer": "Sign in as a viewer",
+      "role": {
+        "broadcaster": "Continue as broadcaster",
+        "moderator": "Continue as moderator",
+        "viewer": "Continue as viewer"
+      },
       "codeWith": "Get a {provider} code",
       "codeChoose": "Which account do you want a code for?",
       "codeOnly": "{host} has its own sign-in page. From here, you sign in with a code.",

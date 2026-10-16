@@ -81,31 +81,29 @@ beforeEach(() => {
   asked.query = {};
 });
 
-describe('signing in as a viewer', () => {
-  it('offers the small viewer sign-in, returning to the viewer page, when the visitor came from one', async () => {
+describe('signing in by role', () => {
+  it.each([
+    ['Continue as broadcaster', 'broadcaster'],
+    ['Continue as moderator', 'moderator'],
+    ['Continue as viewer', 'viewer'],
+  ])('%s starts Twitch with the %s role and returns to the page asked for', async (label, role) => {
     asked.query = { return_to: '/me/stoney_eagle' };
     vi.stubGlobal('isSecureContext', true);
+    const assign = vi.fn<(url: string) => void>();
+
+    vi.stubGlobal('location', { ...window.location, assign });
     stubBot();
     const wrapper = await mountLogin();
-    const findLink = () => wrapper.findAll('a').find((a) => a.text() === 'Sign in as a viewer');
+    const button = wrapper.findAll('button').find((b) => b.text() === label);
 
-    await vi.waitFor(() => expect(findLink()).toBeDefined());
+    await button!.trigger('click');
 
-    const link = findLink();
-
-    const url = new URL(link!.attributes('href')!);
+    const url = new URL(assign.mock.calls[0]![0]);
 
     expect(url.pathname).toBe('/api/v1/auth/twitch');
     expect(url.searchParams.get('client')).toBe('web');
-    expect(url.searchParams.get('mode')).toBe('viewer');
+    expect(url.searchParams.get('role')).toBe(role);
     expect(url.searchParams.get('return_to')).toBe('/me/stoney_eagle');
-  });
-
-  it('does not offer it on a plain sign-in', async () => {
-    stubBot();
-    const wrapper = await mountLogin();
-
-    expect(wrapper.text()).not.toContain('Sign in as a viewer');
   });
 });
 
