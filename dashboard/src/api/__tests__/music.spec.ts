@@ -91,6 +91,9 @@ const config: MusicConfig = {
   minTrustLevel: 'everyone',
   bangerAutoCreate: false,
   requestsOpen: true,
+  maxSongSeconds: 600,
+  allowExplicit: true,
+  perStreamLimit: 0,
 };
 
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
