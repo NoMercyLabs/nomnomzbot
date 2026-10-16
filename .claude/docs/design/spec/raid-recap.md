@@ -100,6 +100,13 @@ Stoney, verbatim: "Some small changes for the end credits like who subbed themse
 - Add leaderboards: the most-used commands, and similar top lists.
 - The screen moves: long lists scroll and loop, end-credits style. The fixed grid above becomes the frame; lists inside it scroll and repeat.
 
+Stoney, verbatim, on preview v2: "no, the person who gifted and the amount, and then each user who subscribed themselves. music is a top 5, not individual titles, just user. you are trying to fit too much into this page now". And: "please use CET" (shown as local Amsterdam time; CEST in summer).
+
+- Subscriptions card: each gifter with their gift count, then each person who subscribed themselves. Gift recipients are not listed.
+- Music card: top 5 requesters by request count. No song titles.
+- Fewer blocks: one card per topic, no second list inside a card.
+- A list only scrolls when it is longer than its card.
+
 ## 5. API
 
 New read endpoint, additive: `GET /api/v1/dashboard/{channelId}/stream-recap?streamId=` next to `DashboardController.cs:98` (`stats`). It returns `StreamRecapDto`. Default `streamId` is the latest stream, ended or live. The numbers are counted from the event journal and tables in the Stream window (`StartedAt` to `EndedAt`, or now). The journal has no stream id (EventJournal.cs fields at :27-77), so the window is by time.
