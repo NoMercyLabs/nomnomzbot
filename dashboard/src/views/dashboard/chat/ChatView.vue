@@ -19,7 +19,6 @@ import ArrowUpRight from '~icons/nnz/arrow-up-right';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
 import Moderator from '~icons/nnz/moderator';
-import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 import UserCircle from '~icons/nnz/user-circle';
 
 import { useCurrentUser } from '@/api/auth';
@@ -43,6 +42,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
 import { useChatDisplay } from './chatDisplay';
+import ChatDockHeader from './components/ChatDockHeader.vue';
 import ChatComposer from './components/ChatComposer.vue';
 import ChatDisplayPanel from './components/ChatDisplayPanel.vue';
 import ChatIdentityPanel from './components/ChatIdentityPanel.vue';
@@ -72,20 +72,19 @@ function popOut(): void {
 // A phone is narrow AND touch (the `phone:` variant); a narrow desktop window keeps the desktop page.
 const phone = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
 
-// The popout, the OBS dock and a phone put the controls under the feed and the send box, as Twitch does.
+// The popout, the OBS dock and a phone share one slim header, so the feed keeps the height.
 const docked = computed(() => poppedOut.value || phone.value);
 
-// The docked bar keeps its search field shut until the person asks for it; the desktop page always shows it.
+// The docked header keeps the search field shut until the person asks for it; the desktop page always shows it.
 const dockSearchOpen = ref(false);
 const searchShown = computed(() => !docked.value || dockSearchOpen.value);
 
-function toggleDockSearch(): void {
-  dockSearchOpen.value = !dockSearchOpen.value;
-
-  if (!dockSearchOpen.value) {
+// Closing the docked search clears what was typed.
+watch(dockSearchOpen, (open) => {
+  if (!open) {
     search.value = '';
   }
-}
+});
 
 const display = useChatDisplay();
 const displayOpen = ref(false);
@@ -313,7 +312,7 @@ async function confirmBan(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader v-if="!poppedOut" :title="$t('dashboard.chat.title')" :crumb="$t('dashboard.chat.crumb')">
+  <PageHeader v-if="!docked" :title="$t('dashboard.chat.title')" :crumb="$t('dashboard.chat.crumb')">
     <template #status>
       <StatusBadge
         :tone="live ? 'live' : 'off'"
@@ -379,24 +378,42 @@ async function confirmBan(): Promise<void> {
       </div>
     </template>
   </PageHeader>
+  <ChatDockHeader
+    v-else
+    v-model:search-open="dockSearchOpen"
+    v-model:mod-tools-open="modToolsOpen"
+    v-model:identity-open="identityOpen"
+    v-model:display-open="displayOpen"
+    :title="$t('dashboard.chat.title')"
+    :live="live"
+    :status-label="live ? $t('dashboard.chat.status.live') : $t('dashboard.chat.status.offline')"
+    :count-label="feedPanel.description"
+    :clear-focus-label="focusedUserId === null ? null : $t('dashboard.chat.viewer.clearFocus', { name: focusedName })"
+    :show-frame-actions="!poppedOut"
+    @clear-focus="focusedUserId = null"
+  />
+  <!-- Docked: the search field opens under the header, so the feed keeps the rest of the height. -->
+  <div v-if="docked && searchShown" class="flex-none border-b border-border p-2">
+    <SearchField v-model="search" :placeholder="$t('dashboard.chat.search.placeholder')" />
+  </div>
   <div
     data-page-body
     class="flex min-h-0 flex-1 flex-col"
-    :class="poppedOut ? 'gap-0 p-0' : 'gap-3 p-6 max-md:py-0'"
+    :class="docked ? 'gap-0 p-0' : 'gap-3 p-6 max-md:py-0'"
   >
     <p v-if="banFailed" role="alert" class="text-sm text-destructive max-md:px-4 max-md:pt-3">
       {{ $t('dashboard.chat.ban.failed') }}
     </p>
     <div class="flex min-h-0 flex-1 gap-3">
       <PanelCard
-        :class="poppedOut ? 'min-h-0 flex-1' : 'min-h-96 flex-1'"
+        :class="docked ? 'min-h-0 flex-1' : 'min-h-96 flex-1'"
         tier="lead"
-        :headless="poppedOut"
-        :flush="poppedOut"
+        :headless="docked"
+        :flush="docked"
         v-bind="feedPanel"
         @retry="retryFeed"
       >
-        <template v-if="focusedUserId !== null && !poppedOut" #actions>
+        <template v-if="focusedUserId !== null && !docked" #actions>
           <Button data-focus-clear variant="ghost" size="sm" @click="focusedUserId = null">
             <Cross class="size-4" aria-hidden="true" />
             {{ $t('dashboard.chat.viewer.clearFocus', { name: focusedName }) }}
@@ -480,70 +497,6 @@ async function confirmBan(): Promise<void> {
       <SidePanel v-model:open="identityOpen" data-identity-panel :label="$t('dashboard.chat.identity.title')">
         <ChatIdentityPanel />
       </SidePanel>
-    </div>
-  </div>
-  <!-- The docked controls (a small window, an OBS dock, a phone): the search field, then one slim bar of icon
-       buttons, under the feed and the send box. -->
-  <div v-if="docked && searchShown" class="flex-none border-t border-border p-2">
-    <SearchField v-model="search" :placeholder="$t('dashboard.chat.search.placeholder')" />
-  </div>
-  <div v-if="docked" data-dock-bar class="flex flex-none items-center gap-1 border-t border-border px-2 py-1">
-    <StatusBadge
-      v-if="poppedOut"
-      :tone="live ? 'live' : 'off'"
-      :label="live ? $t('dashboard.chat.status.live') : $t('dashboard.chat.status.offline')"
-    />
-    <div class="ml-auto flex items-center gap-1">
-      <Button
-        v-if="focusedUserId !== null"
-        data-focus-clear
-        variant="ghost"
-        size="icon"
-        :aria-label="$t('dashboard.chat.viewer.clearFocus', { name: focusedName })"
-        @click="focusedUserId = null"
-      >
-        <Cross class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        data-dock-search-toggle
-        variant="ghost"
-        size="icon"
-        :aria-pressed="dockSearchOpen"
-        :aria-label="$t('dashboard.chat.dock.search')"
-        @click="toggleDockSearch"
-      >
-        <SearchMagnifyingGlass class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        data-mod-tools-toggle
-        variant="ghost"
-        size="icon"
-        :aria-pressed="modToolsOpen"
-        :aria-label="$t('dashboard.chat.modTools.title')"
-        @click="modToolsOpen = !modToolsOpen"
-      >
-        <Moderator class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        data-identity-toggle
-        variant="ghost"
-        size="icon"
-        :aria-pressed="identityOpen"
-        :aria-label="$t('dashboard.chat.identity.title')"
-        @click="identityOpen = !identityOpen"
-      >
-        <UserCircle class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        data-display-toggle
-        variant="ghost"
-        size="icon"
-        :aria-pressed="displayOpen"
-        :aria-label="$t('dashboard.chat.display.toggle')"
-        @click="displayOpen = !displayOpen"
-      >
-        <SettingsFader class="size-5" aria-hidden="true" />
-      </Button>
     </div>
   </div>
   <ConfirmDialog

@@ -138,7 +138,8 @@
         "error": "The chat could not load."
       },
       "dock": {
-        "search": "Search chat"
+        "search": "Search chat",
+        "more": "More chat tools"
       },
       "search": {
         "placeholder": "Search chat",

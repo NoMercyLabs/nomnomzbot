@@ -138,7 +138,8 @@
         "error": "De chat kon niet laden."
       },
       "dock": {
-        "search": "Zoek in de chat"
+        "search": "Zoek in de chat",
+        "more": "Meer chatgereedschap"
       },
       "search": {
         "placeholder": "Zoek in de chat",

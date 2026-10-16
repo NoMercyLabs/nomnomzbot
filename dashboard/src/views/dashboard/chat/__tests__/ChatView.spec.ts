@@ -2453,12 +2453,14 @@ describe('ChatView dock layout', () => {
   const dockSearchToggle = (): HTMLButtonElement | null =>
     document.body.querySelector('[data-dock-search-toggle]');
 
-  it('drops the page title and the panel header in the popped-out window', async () => {
+  it('folds the title and the panel header into one slim header in the popped-out window', async () => {
     await open('/popout/chat');
 
-    expect(document.body.querySelector('h1')).toBeNull();
+    expect(document.body.querySelectorAll('h1')).toHaveLength(1);
+    expect(document.body.querySelector('[data-dock-header] h1')).not.toBeNull();
+    expect(document.body.querySelector('[data-slot="page-actions"]')).toBeNull();
     expect(document.body.querySelector('[data-slot="panel-card"] h2')).toBeNull();
-    expect(document.body.querySelector('[data-dock-bar]')).not.toBeNull();
+    expect(document.body.querySelector('[data-dock-bar]')).toBeNull();
   });
 
   it('hides the search field until its toggle is pressed', async () => {
@@ -2508,10 +2510,10 @@ describe('ChatView chat identity panel', () => {
     expect(panel()!.querySelector('[data-test="swatch-blue"]')).not.toBeNull();
   });
 
-  it('puts the same toggle in the docked bar', async () => {
+  it('puts the same toggle in the docked header', async () => {
     await open('/popout/chat');
 
-    const inBar = document.body.querySelector('[data-dock-bar] [data-identity-toggle]') as HTMLButtonElement;
+    const inBar = document.body.querySelector('[data-dock-header] [data-identity-toggle]') as HTMLButtonElement;
 
     inBar.click();
     await settle();
@@ -2547,29 +2549,33 @@ describe('ChatView controls at the bottom', () => {
     return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
   }
 
-  it('puts the dock bar under the feed and the send box in the popout', async () => {
+  it('puts the one slim header above the feed and keeps the send box under it in the popout', async () => {
     stubPhone(false);
     await open('/popout/chat');
 
-    expect(follows('[data-dock-bar]', '[data-composer]')).toBe(true);
+    expect(follows('[data-composer]', '[data-dock-header]')).toBe(true);
   });
 
-  it('opens the dock search field under the feed too', async () => {
+  it('opens the dock search field under the header', async () => {
     stubPhone(false);
     await open('/popout/chat');
     document.body.querySelector<HTMLButtonElement>('[data-dock-search-toggle]')!.click();
     await settle();
 
-    expect(follows('[data-slot="search-field"]', '[data-composer]')).toBe(true);
-    expect(follows('[data-dock-bar]', '[data-slot="search-field"]')).toBe(true);
+    expect(follows('[data-slot="search-field"]', '[data-dock-header]')).toBe(true);
+    expect(follows('[data-composer]', '[data-slot="search-field"]')).toBe(true);
   });
 
-  it('moves the controls under the send box on a phone and leaves the header bar empty', async () => {
+  it('folds the controls into the one header on a phone and leaves the page header out', async () => {
     stubPhone(true);
     await open();
 
     expect(document.body.querySelector('[data-slot="page-bar"]')).toBeNull();
-    expect(follows('[data-dock-bar]', '[data-composer]')).toBe(true);
+    expect(document.body.querySelector('[data-slot="page-actions"]')).toBeNull();
+    expect(document.body.querySelector('[data-dock-header] [data-mod-tools-toggle]')).not.toBeNull();
+    expect(document.body.querySelector('[data-dock-header] [data-display-toggle]')).not.toBeNull();
+    expect(document.body.querySelector('[data-dock-header] [data-dock-more]')).not.toBeNull();
+    expect(follows('[data-composer]', '[data-dock-header]')).toBe(true);
     expect(document.body.querySelector('[data-chat-controls]')).toBeNull();
   });
 
