@@ -104,6 +104,44 @@ public class ObsControlService : IObsControlService
         );
     }
 
+    public Task<Result> SetSceneItemEnabledAsync(
+        Guid broadcasterId,
+        string sceneName,
+        int sceneItemId,
+        bool enabled,
+        CancellationToken ct = default
+    ) =>
+        SendStatusAsync(
+            broadcasterId,
+            "SetSceneItemEnabled",
+            new()
+            {
+                ["sceneName"] = sceneName,
+                ["sceneItemId"] = sceneItemId,
+                ["sceneItemEnabled"] = enabled,
+            },
+            ct
+        );
+
+    public Task<Result> SetSceneItemLockedAsync(
+        Guid broadcasterId,
+        string sceneName,
+        int sceneItemId,
+        bool locked,
+        CancellationToken ct = default
+    ) =>
+        SendStatusAsync(
+            broadcasterId,
+            "SetSceneItemLocked",
+            new()
+            {
+                ["sceneName"] = sceneName,
+                ["sceneItemId"] = sceneItemId,
+                ["sceneItemLocked"] = locked,
+            },
+            ct
+        );
+
     // ── Audio / inputs ──────────────────────────────────────────────────────
 
     public Task<Result> SetInputMuteAsync(
@@ -641,7 +679,13 @@ public class ObsControlService : IObsControlService
                         "sceneItemEnabled",
                         out System.Text.Json.JsonElement enabledEl
                     ) && enabledEl.GetBoolean();
-                items.Add(new(sceneItemId, sourceName, enabled));
+                bool locked =
+                    item.TryGetProperty(
+                        "sceneItemLocked",
+                        out System.Text.Json.JsonElement lockedEl
+                    )
+                    && lockedEl.ValueKind == System.Text.Json.JsonValueKind.True;
+                items.Add(new(sceneItemId, sourceName, enabled, locked));
             }
         }
         return Result.Success<IReadOnlyList<ObsSceneItemDto>>(items);

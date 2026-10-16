@@ -247,6 +247,44 @@ public class ObsController(
             )
         );
 
+    /// <summary>Show or hide one scene item by its numeric id.</summary>
+    [HttpPost("scene-items/enabled")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetSceneItemEnabled(
+        Guid channelId,
+        [FromBody] ObsSceneItemEnabledRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SetSceneItemEnabledAsync(
+                channelId,
+                request.SceneName,
+                request.SceneItemId,
+                request.Enabled,
+                ct
+            )
+        );
+
+    /// <summary>Lock or unlock one scene item in the OBS preview.</summary>
+    [HttpPost("scene-items/locked")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetSceneItemLocked(
+        Guid channelId,
+        [FromBody] ObsSceneItemLockedRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SetSceneItemLockedAsync(
+                channelId,
+                request.SceneName,
+                request.SceneItemId,
+                request.Locked,
+                ct
+            )
+        );
+
     /// <summary>Set the studio-mode preview scene (distinct from the program scene <c>POST scene</c>
     /// switches) — the scene queued up to become program on the next studio transition.</summary>
     [HttpPost("scene/preview")]

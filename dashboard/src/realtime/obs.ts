@@ -18,6 +18,12 @@ import {
   type ObsScene,
   type ObsState,
 } from '@/api/obs';
+import {
+  obsSceneItemsKey,
+  obsSourceFiltersKey,
+  type ObsFilter,
+  type ObsSceneItem,
+} from '@/api/obsSources';
 
 import type { HubEventHandler } from './hubEvent';
 import type { ObsStateChangedPayload } from './payloads';
@@ -113,6 +119,54 @@ function patchInputs(
     inputs?.map(apply));
 }
 
+const sceneItemFlags = {
+  sceneItemVisibility: (change) => ({ enabled: change.enabled === true }),
+  sceneItemLock: (change) => ({ locked: change.locked === true }),
+} as const satisfies Partial<Record<ObsStateChangedPayload['kind'], (change: ObsStateChangedPayload) => Partial<ObsSceneItem>>>;
+
+function isSceneItemKind(kind: ObsStateChangedPayload['kind']): kind is keyof typeof sceneItemFlags {
+  return kind in sceneItemFlags;
+}
+
+function patchSceneItems(
+  queries: QueryClient,
+  channelId: string | null,
+  change: ObsStateChangedPayload,
+): void {
+  if (!isSceneItemKind(change.kind) || change.sceneItemId == null) return;
+
+  const flags = sceneItemFlags[change.kind](change);
+  const key = obsSceneItemsKey(channelId, change.sceneName ?? null);
+
+  queries.setQueryData<ObsSceneItem[]>(key, (items) =>
+    items?.map((item) =>
+      item.sceneItemId === change.sceneItemId
+        ? {
+            ...item,
+            ...flags,
+          }
+        : item));
+}
+
+function patchFilters(
+  queries: QueryClient,
+  channelId: string | null,
+  change: ObsStateChangedPayload,
+): void {
+  if (change.kind !== 'sourceFilter') return;
+
+  const key = obsSourceFiltersKey(channelId, change.sourceName ?? null);
+
+  queries.setQueryData<ObsFilter[]>(key, (filters) =>
+    filters?.map((filter) =>
+      filter.name === change.filterName
+        ? {
+            ...filter,
+            enabled: change.enabled === true,
+          }
+        : filter));
+}
+
 // OBS pushes each live change with its new value; the loaded OBS reads take it in place, without a refetch.
 export const obsStateChanged = {
   event: 'ObsStateChanged',
@@ -120,6 +174,8 @@ export const obsStateChanged = {
     patchScenes(queries, channelId, change);
     patchState(queries, channelId, change);
     patchInputs(queries, channelId, change);
+    patchSceneItems(queries, channelId, change);
+    patchFilters(queries, channelId, change);
   },
 } as const satisfies HubEventHandler<ObsStateChangedPayload>;
 

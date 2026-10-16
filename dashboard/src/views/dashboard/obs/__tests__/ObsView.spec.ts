@@ -194,7 +194,7 @@ describe('ObsView', () => {
     const scenes = Array.from(document.querySelectorAll('[data-obs-scene]'));
 
     expect(scenes.map((scene) => scene.getAttribute('data-current'))).toEqual(['false', 'true']);
-    expect(calls).toEqual([]);
+    expect(calls.filter((path) => path.endsWith('/obs/scenes'))).toEqual([]);
   });
 
   it('turns the connection red with the bot reason and the header dot red when OBS reports an error', async () => {

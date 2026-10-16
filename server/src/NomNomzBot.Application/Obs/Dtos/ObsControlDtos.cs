@@ -86,7 +86,7 @@ public sealed record ObsInputDto(string Name, string Kind, bool? Muted, double? 
 /// <summary>One item (source instance) placed in a scene — the per-scene visibility state
 /// <see cref="ObsInputDto"/> cannot express, since a global input can appear in several scenes with a
 /// different <c>sceneItemEnabled</c> in each.</summary>
-public sealed record ObsSceneItemDto(int SceneItemId, string SourceName, bool Enabled);
+public sealed record ObsSceneItemDto(int SceneItemId, string SourceName, bool Enabled, bool Locked);
 
 /// <summary>Virtual camera output status (obs-websocket v5 <c>GetVirtualCamStatus</c>) — the same
 /// single <c>outputActive</c> shape the stream/record/replay-buffer status requests answer with.</summary>
@@ -134,6 +134,13 @@ public sealed record ObsInputVolumeRequest(string InputName, double VolumeDb);
 
 /// <summary>REST body for the per-source visibility route: hide/show one item within one scene.</summary>
 public sealed record ObsSourceVisibilityRequest(string SceneName, string SourceName, bool Visible);
+
+/// <summary>REST body for the scene-item visibility route: show/hide one item by its numeric id (two
+/// items in one scene can share a source name, so the id is the only exact handle).</summary>
+public sealed record ObsSceneItemEnabledRequest(string SceneName, int SceneItemId, bool Enabled);
+
+/// <summary>REST body for the scene-item lock route: lock/unlock one item in the OBS preview.</summary>
+public sealed record ObsSceneItemLockedRequest(string SceneName, int SceneItemId, bool Locked);
 
 /// <summary>REST body for the studio-mode route: turn studio mode on or off.</summary>
 public sealed record ObsStudioModeRequest(bool Enabled);

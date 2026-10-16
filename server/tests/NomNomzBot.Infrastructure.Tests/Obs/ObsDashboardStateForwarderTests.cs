@@ -155,6 +155,55 @@ public sealed class ObsDashboardStateForwarderTests
     }
 
     [Fact]
+    public async Task A_scene_item_lock_change_carries_scene_item_and_flag()
+    {
+        ObsDashboardStateChangedEvent? published = await Forward(
+            "SceneItemLockStateChanged",
+            """{"sceneName":"Game","sceneItemId":7,"sceneItemLocked":true}"""
+        );
+
+        published!.Kind.Should().Be(ObsStateKinds.SceneItemLock);
+        published.SceneName.Should().Be("Game");
+        published.SceneItemId.Should().Be(7);
+        published.Locked.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_source_filter_toggle_carries_source_filter_and_flag()
+    {
+        ObsDashboardStateChangedEvent? published = await Forward(
+            "SourceFilterEnableStateChanged",
+            """{"sourceName":"Mic","filterName":"Noise Gate","filterEnabled":true}"""
+        );
+
+        published!.Kind.Should().Be(ObsStateKinds.SourceFilter);
+        published.SourceName.Should().Be("Mic");
+        published.FilterName.Should().Be("Noise Gate");
+        published.Enabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_filter_toggle_without_a_source_or_filter_name_publishes_nothing()
+    {
+        (
+            await Forward(
+                "SourceFilterEnableStateChanged",
+                """{"filterName":"x","filterEnabled":true}"""
+            )
+        )
+            .Should()
+            .BeNull();
+        (
+            await Forward(
+                "SourceFilterEnableStateChanged",
+                """{"sourceName":"x","filterEnabled":true}"""
+            )
+        )
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
     public async Task An_unrelated_or_unparsable_event_publishes_nothing()
     {
         (await Forward("InputCreated", """{"inputName":"Mic"}""")).Should().BeNull();

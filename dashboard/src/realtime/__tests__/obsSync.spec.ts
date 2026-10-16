@@ -19,6 +19,12 @@ import {
   type ObsScene,
   type ObsState,
 } from '@/api/obs';
+import {
+  obsSceneItemsKey,
+  obsSourceFiltersKey,
+  type ObsFilter,
+  type ObsSceneItem,
+} from '@/api/obsSources';
 
 import type { ObsStateChangedPayload } from '../payloads';
 
@@ -214,5 +220,85 @@ describe('ObsStateChanged patches the OBS caches in place', () => {
 
     expect(queries.getQueryData(obsStateKey('c1'))).toBeUndefined();
     expect(queries.getQueryData(obsScenesKey('c1'))).toBeUndefined();
+  });
+});
+
+describe('ObsStateChanged patches the scene items and filters in place', () => {
+  const items: ObsSceneItem[] = [
+    {
+      sceneItemId: 1,
+      sourceName: 'Webcam',
+      enabled: true,
+      locked: false,
+    },
+    {
+      sceneItemId: 2,
+      sourceName: 'Overlay',
+      enabled: true,
+      locked: false,
+    },
+  ];
+  const filters: ObsFilter[] = [
+    {
+      name: 'Color',
+      kind: 'color_filter',
+      enabled: true,
+      index: 0,
+    },
+  ];
+
+  async function loaded(): Promise<[QueryClient, FakeHubConnection]> {
+    const [queries, connection] = await started();
+
+    queries.setQueryData(obsSceneItemsKey('c1', 'Main'), items);
+    queries.setQueryData(obsSourceFiltersKey('c1', 'Webcam'), filters);
+
+    return [queries, connection];
+  }
+
+  const item = (queries: QueryClient, id: number): ObsSceneItem | undefined =>
+    queries.getQueryData<ObsSceneItem[]>(obsSceneItemsKey('c1', 'Main'))?.find((entry) => entry.sceneItemId === id);
+
+  it('a visibility change hides only that item', async () => {
+    const [queries, connection] = await loaded();
+
+    send(connection, {
+      kind: 'sceneItemVisibility',
+      sceneName: 'Main',
+      sceneItemId: 1,
+      enabled: false,
+    });
+
+    expect(item(queries, 1)?.enabled).toBe(false);
+    expect(item(queries, 2)?.enabled).toBe(true);
+  });
+
+  it('a lock change locks only that item', async () => {
+    const [queries, connection] = await loaded();
+
+    send(connection, {
+      kind: 'sceneItemLock',
+      sceneName: 'Main',
+      sceneItemId: 2,
+      locked: true,
+    });
+
+    expect(item(queries, 2)?.locked).toBe(true);
+    expect(item(queries, 1)?.locked).toBe(false);
+  });
+
+  it('a filter change switches that filter on its source', async () => {
+    const [queries, connection] = await loaded();
+
+    send(connection, {
+      kind: 'sourceFilter',
+      sourceName: 'Webcam',
+      filterName: 'Color',
+      enabled: false,
+    });
+
+    const color = queries.getQueryData<ObsFilter[]>(obsSourceFiltersKey('c1', 'Webcam'))?.[0];
+
+    expect(color?.enabled).toBe(false);
   });
 });

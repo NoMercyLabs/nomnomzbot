@@ -48,6 +48,20 @@
         "empty": "OBS reports no scenes.",
         "loadError": "The scenes could not load."
       },
+      "sourceItems": {
+        "title": "Sources in the scene",
+        "hidden": "Hidden",
+        "offline": "Sources show once OBS reports a scene on air.",
+        "empty": "This scene has no sources.",
+        "loadError": "The sources could not load.",
+        "shown": "Show or hide {name}",
+        "locked": "Lock or unlock {name}",
+        "filters": "Filters of {name}",
+        "filterEnabled": "Turn filter {name} on or off",
+        "filtersLoading": "Loading filters…",
+        "filtersError": "The filters could not load.",
+        "noFilters": "This source has no filters."
+      },
       "studio": {
         "title": "Studio mode",
         "mode": "Studio mode",

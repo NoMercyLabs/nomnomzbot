@@ -244,7 +244,9 @@ export type ObsStateChangedPayload = {
     'inputMute' |
     'inputVolume' |
     'sceneList' |
-    'sceneItemVisibility';
+    'sceneItemVisibility' |
+    'sceneItemLock' |
+    'sourceFilter';
   sceneName?: string | null;
   active?: boolean | null;
   paused?: boolean | null;
@@ -253,6 +255,9 @@ export type ObsStateChangedPayload = {
   volumeDb?: number | null;
   sceneItemId?: number | null;
   enabled?: boolean | null;
+  locked?: boolean | null;
+  sourceName?: string | null;
+  filterName?: string | null;
   sceneNames?: string[] | null;
   timestamp: string;
 };

@@ -616,8 +616,8 @@ public sealed class AutomationCommandServiceTests
         h.Obs.GetSceneItemListAsync(Channel, "Game Scene", Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<ObsSceneItemDto>>([
-                    new(1, "Webcam", true),
-                    new(2, "Overlay", false),
+                    new(1, "Webcam", true, false),
+                    new(2, "Overlay", false, false),
                 ])
             );
 

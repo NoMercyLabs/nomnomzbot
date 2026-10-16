@@ -125,8 +125,17 @@ public sealed class ObsDashboardStateChangedEvent : DomainEventBase
     /// <summary>The scene item whose visibility changed.</summary>
     public int? SceneItemId { get; init; }
 
-    /// <summary>The scene item's new visibility.</summary>
+    /// <summary>The scene item's new visibility, or a source filter's new enabled state.</summary>
     public bool? Enabled { get; init; }
+
+    /// <summary>The scene item's new lock state.</summary>
+    public bool? Locked { get; init; }
+
+    /// <summary>The source whose filter changed.</summary>
+    public string? SourceName { get; init; }
+
+    /// <summary>The filter whose enabled state changed.</summary>
+    public string? FilterName { get; init; }
 
     /// <summary>The full scene list in OBS display order, top first.</summary>
     public IReadOnlyList<string>? SceneNames { get; init; }
@@ -146,4 +155,6 @@ public static class ObsStateKinds
     public const string InputVolume = "inputVolume";
     public const string SceneList = "sceneList";
     public const string SceneItemVisibility = "sceneItemVisibility";
+    public const string SceneItemLock = "sceneItemLock";
+    public const string SourceFilter = "sourceFilter";
 }

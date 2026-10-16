@@ -220,6 +220,9 @@ public record ObsStateChangedDto(
     double? VolumeDb,
     int? SceneItemId,
     bool? Enabled,
+    bool? Locked,
+    string? SourceName,
+    string? FilterName,
     IReadOnlyList<string>? SceneNames,
     string Timestamp
 );
