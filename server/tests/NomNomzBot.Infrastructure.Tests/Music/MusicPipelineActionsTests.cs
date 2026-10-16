@@ -127,7 +127,7 @@ public sealed class MusicPipelineActionsTests
         result.Succeeded.Should().BeTrue();
         ctx.RepliedToChat.Should().BeFalse();
         await music.Received(1).PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class MusicPipelineActionsTests
             .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure("No active music provider.", "SERVICE_UNAVAILABLE"));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        chat.SendMessageAsync(default, default!, default).ReturnsForAnyArgs(true);
+        chat.SendMessageAsync(default, default!).ReturnsForAnyArgs(true);
         SongPauseAction action = new(music, chat, NullLogger<SongPauseAction>.Instance);
 
         PipelineExecutionContext ctx = Ctx();

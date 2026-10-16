@@ -342,7 +342,7 @@ public sealed class YouTubeTransportControlTests
         NowPlaying? playing = await rig.Music.GetNowPlayingAsync(Broadcaster.ToString());
 
         playing.Should().NotBeNull();
-        playing!.TrackUri.Should().Be(Watch(First));
+        playing.TrackUri.Should().Be(Watch(First));
         playing.CanSkipPrevious.Should().BeFalse();
         playing.CanSetShuffle.Should().BeFalse();
         playing.CanSetRepeat.Should().BeFalse();
