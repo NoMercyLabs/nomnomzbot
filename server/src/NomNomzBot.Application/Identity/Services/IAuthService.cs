@@ -31,9 +31,11 @@ public interface IAuthService
     /// requested scope set widens to <c>base ∪ currently-granted ∪ recorded-missing</c> (identity-auth §3.4a):
     /// a returning operator's redirect re-auth is then ADDITIVE — it clears every recorded gap (even a
     /// runtime-detected scope outside the base set) and never silently drops an extra scope the connection
-    /// already holds. A fresh login (no hint) requests the standard base set.
+    /// already holds. A fresh login (no hint) requests the standard base set. A viewer or moderator start never widens: it asks
+    /// only the scopes of <paramref name="role"/> (see <c>TwitchLoginScopes</c>).
     /// </summary>
     Task<Result<string>> GetTwitchOAuthUrl(
+        TwitchLoginRole role,
         string? state = null,
         string? baseUrl = null,
         Guid? broadcasterHint = null,
@@ -43,13 +45,6 @@ public interface IAuthService
     Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(
         OAuthCallbackDto callback,
         AuthContextDto context,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>The viewer sign-in authorize URL: identity only (<c>openid</c>), no Helix scope.</summary>
-    Task<Result<string>> GetTwitchViewerOAuthUrl(
-        string? state = null,
-        string? baseUrl = null,
         CancellationToken cancellationToken = default
     );
 

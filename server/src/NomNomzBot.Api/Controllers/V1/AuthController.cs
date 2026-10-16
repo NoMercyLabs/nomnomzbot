@@ -361,14 +361,18 @@ public class AuthController : BaseController
         [FromQuery] string? client,
         [FromQuery] string? return_to,
         [FromQuery] string? return_route,
-        [FromQuery] string? mode,
+        [FromQuery] string? role,
         CancellationToken ct
     )
     {
         if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
             return BadRequest("Disallowed redirect_uri.");
 
-        bool viewer = string.Equals(mode, "viewer", StringComparison.OrdinalIgnoreCase);
+        TwitchLoginRole loginRole = Enum.TryParse(role, true, out TwitchLoginRole parsed)
+            ? parsed
+            : TwitchLoginRole.Broadcaster;
+        // Only a broadcaster sign-in opens a channel; a viewer or moderator runs the identity-only callback.
+        bool viewer = loginRole != TwitchLoginRole.Broadcaster;
 
         // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch, and
         // the flow + optional mobile redirect + client class are held server-side so the callback can route
@@ -386,14 +390,13 @@ public class AuthController : BaseController
             ct
         );
 
-        Result<string> authUrl = viewer
-            ? await _authService.GetTwitchViewerOAuthUrl(state, GetPublicBaseUrl(), ct)
-            : await _authService.GetTwitchOAuthUrl(
-                state,
-                GetPublicBaseUrl(),
-                await ResolveArrivingBroadcasterAsync(ct),
-                ct
-            );
+        Result<string> authUrl = await _authService.GetTwitchOAuthUrl(
+            loginRole,
+            state,
+            GetPublicBaseUrl(),
+            await ResolveArrivingBroadcasterAsync(ct),
+            ct
+        );
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
         return Redirect(authUrl.Value);

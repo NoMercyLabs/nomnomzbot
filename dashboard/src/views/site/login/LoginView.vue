@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { activeBot } from '@/api/activeBot';
-import { providersQuery, signInUrl, viewerSignInUrl, type LoginProvider } from '@/api/signIn';
+import { providersQuery, signInUrl, type LoginProvider, type LoginRole } from '@/api/signIn';
 import AppMark from '@/components/layout/AppMark.vue';
 import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -78,11 +78,16 @@ const shown = computed(() =>
     ? codeProviders.value
     : enabled.value);
 
-// A link to a viewer page (/me/<channel>) offers the small viewer sign-in beside the full one.
-const viewerReturn = computed<string | null>(() =>
-  returnTo.value.startsWith('/me/')
-    ? returnTo.value
-    : null);
+// Twitch offers three roles; each asks Twitch for only the scopes that role uses.
+const roles: LoginRole[] = ['broadcaster', 'moderator', 'viewer'];
+
+function hasRoles(provider: LoginProvider): boolean {
+  return provider.key === 'twitch' && !codeOnly.value;
+}
+
+function signInAs(provider: LoginProvider, role: LoginRole): void {
+  window.location.assign(signInUrl(provider.key, returnTo.value, role));
+}
 
 function signIn(provider: LoginProvider): void {
   if (!codeOnly.value) {
@@ -173,16 +178,29 @@ function signIn(provider: LoginProvider): void {
                 : $t('site.login.codeInsecure')
             }}
           </p>
-          <Button
-            v-for="provider in shown"
-            :key="provider.key"
-            :variant="shown.length === 1 ? 'default' : 'outline'"
-            class="w-full"
-            @click="signIn(provider)"
-          >
-            <PlatformLogo :platform="provider.key" :mono="shown.length === 1" />
-            {{ $t('site.login.with', { provider: provider.displayName }) }}
-          </Button>
+          <template v-for="provider in shown" :key="provider.key">
+            <template v-if="hasRoles(provider)">
+              <Button
+                v-for="role in roles"
+                :key="role"
+                :variant="role === 'broadcaster' ? 'default' : 'outline'"
+                class="w-full"
+                @click="signInAs(provider, role)"
+              >
+                <PlatformLogo :platform="provider.key" :mono="role === 'broadcaster'" />
+                {{ $t(`site.login.role.${role}`) }}
+              </Button>
+            </template>
+            <Button
+              v-else
+              :variant="shown.length === 1 ? 'default' : 'outline'"
+              class="w-full"
+              @click="signIn(provider)"
+            >
+              <PlatformLogo :platform="provider.key" :mono="shown.length === 1" />
+              {{ $t('site.login.with', { provider: provider.displayName }) }}
+            </Button>
+          </template>
           <Button
             v-if="!codeOnly && codeProviders.length > 0"
             variant="ghost"
@@ -190,15 +208,6 @@ function signIn(provider: LoginProvider): void {
             @click="useCode"
           >
             {{ $t('site.login.useCode') }}
-          </Button>
-          <Button
-            v-if="!codeOnly && viewerReturn"
-            variant="link"
-            class="w-full text-muted-foreground"
-            as="a"
-            :href="viewerSignInUrl(viewerReturn)"
-          >
-            {{ $t('site.login.viewer') }}
           </Button>
         </div>
       </div>

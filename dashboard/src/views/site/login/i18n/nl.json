@@ -11,7 +11,11 @@
       "loading": "De aanmeldopties laden…",
       "with": "Ga verder met {provider}",
       "useCode": "Gebruik in plaats daarvan een code",
-      "viewer": "Inloggen als kijker",
+      "role": {
+        "broadcaster": "Verder als streamer",
+        "moderator": "Verder als moderator",
+        "viewer": "Verder als kijker"
+      },
       "codeWith": "Vraag een {provider}-code aan",
       "codeChoose": "Voor welk account wil je een code?",
       "codeOnly": "{host} heeft een eigen aanmeldpagina. Vanaf hier meld je je aan met een code.",

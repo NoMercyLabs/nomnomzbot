@@ -165,6 +165,7 @@ public sealed class AuthControllerWebReturnOriginTests
             string issued = string.Empty;
             _auth
                 .GetTwitchOAuthUrl(
+                    Arg.Any<TwitchLoginRole>(),
                     Arg.Do<string>(s => issued = s),
                     Arg.Any<string>(),
                     Arg.Any<Guid?>(),

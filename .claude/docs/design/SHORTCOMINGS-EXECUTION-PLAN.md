@@ -237,9 +237,30 @@ Arc's reading (not settled):
 - Each choice asks the platform only for the scopes that role uses in the bot. A viewer grants identity only; a moderator grants the moderation scopes the bot uses on the moderator's behalf; a broadcaster grants the channel scopes.
 - A role change later (viewer made moderator) asks for the extra scopes in place, by the redirect flow, without a logout (rule never-logout-for-scope-or-schema-changes).
 
-### S-ROLE-LOGIN-SPEC — settle the role-based login spec before any code
-- **Input:** the scope inventory per platform and per role, built from the code (every scope the bot requests today, and every call that needs one, mapped to the role that triggers it).
-- **Done-when:** a spec page lists, per platform and role, the exact scope set with the bot feature that needs each scope, the sign-in screen, and the upgrade path between roles; Stoney accepts it.
+Owner, verbatim (2026-10-16): "how do i login as a regular viewer or just a mod without the motherload of permissions?"
+
+Owner, verbatim (2026-10-16): "a viewer needs to be able to interact with chat at minimum and i am pretty sure that a viewer also needs to be presented with what features they want in the bot that do require other twitch scopes? they don't all need to be enabled from the start but chatting is the minimum, and everything that is not permitted needs to still show and expose the requires extra twitch permissions and then flows them through and then redirect back. this must be frictionless"
+
+Arc's reading (Twitch sign-in scopes, `Infrastructure/Identity/TwitchLoginScopes.cs`, shipped for Twitch):
+
+| Role | Scopes at sign-in | Channel row |
+|------|-------------------|-------------|
+| Viewer | `openid`, `user:read:chat`, `user:write:chat`, `user:read:emotes` (the chat composer: send + emote picker) | none |
+| Moderator | `user:read:moderated_channels`, `user:write:chat`, `user:read:emotes`, `moderator:manage:banned_users`, `moderator:read:unban_requests`, `moderator:manage:unban_requests`, `moderator:read:blocked_terms`, `moderator:manage:blocked_terms`, `moderator:manage:chat_messages`, `moderator:read:shield_mode`, `moderator:manage:shield_mode`, `moderator:manage:warnings`, `moderator:manage:suspicious_users` (every call signed with the operator's own token) | none |
+| Broadcaster | `user:read:chat`, `user:write:chat`, `user:read:moderated_channels`; a returning broadcaster widens to held + recorded-missing scopes | own channel |
+
+Settled reading of the upgrade flow (2026-10-16): every feature that needs a scope the user lacks stays visible, says it needs an extra Twitch permission, and one click runs the incremental-consent redirect for exactly those scopes and returns the user to the same page and state. Never a logout.
+
+Open, other platforms: the Kick, Google/YouTube and Twitter PKCE providers in `Infrastructure/Identity/Login/` have no role split. Twitch is 1 of 4 done.
+
+### S-ROLE-LOGIN-TOKEN — keep the viewer's and moderator's own Twitch token
+- **Input:** `AuthService.HandleTwitchViewerCallbackAsync` (drops the token), `TwitchTokenResolver.GetUserTokenAsync` (finds the operator connection by `ProviderAccountId`), `IntegrationConnection` (needs a `BroadcasterId`).
+- **Done-when:** a viewer or moderator sign-in stores its token without creating a channel; a viewer sends a chat line and a moderator bans in a channel they moderate on their own token; a test per role asserts the stored connection and its scopes.
+
+### S-ROLE-SCOPE-UPGRADE — a feature that lacks a scope shows it and asks for it in place
+- **Input:** the existing additive re-grant `POST /twitch/diagnostics/regrant` (`dashboard/src/api/chatIdentity.ts` `useStartScopeRegrant`, per channel only), the coverage ledger below.
+- **Done-when:** a per-user re-grant asks Twitch for exactly the missing scopes and returns to the same route and state; every feature in the ledger shows its lock and the one-click upgrade; a test per ledger row.
+- **Coverage ledger (feature → scope), to fill from the code:** chat send → `user:write:chat`; emote picker → `user:read:emotes`; channel switcher → `user:read:moderated_channels`; ban/timeout → `moderator:manage:banned_users`; message delete → `moderator:manage:chat_messages`; blocked terms → `moderator:read/manage:blocked_terms`; shield mode → `moderator:read/manage:shield_mode`; warnings → `moderator:manage:warnings`; suspicious users → `moderator:manage:suspicious_users`; unban requests → `moderator:read/manage:unban_requests`; name color → `user:manage:chat_color` (not checked); rest not checked.
 
 ---
 

@@ -96,6 +96,14 @@ describe('redirect sign-in', () => {
     );
   });
 
+  it('adds the role the visitor chose so the platform asks only that role\'s scopes', async () => {
+    const [signIn] = await load();
+
+    expect(signIn.signInUrl('twitch', '/app', 'moderator')).toBe(
+      `${window.location.origin}/api/v1/auth/twitch?client=web&return_to=%2Fapp&role=moderator`,
+    );
+  });
+
   it('sends any other provider to the shared authorize route', async () => {
     const [signIn] = await load();
 

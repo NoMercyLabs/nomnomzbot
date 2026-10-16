@@ -25,20 +25,24 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 public sealed class AuthServiceViewerLoginTests
 {
     [Fact]
-    public async Task Viewer_authorize_url_asks_for_openid_only()
+    public async Task Viewer_authorize_url_asks_for_identity_and_chat_only()
     {
         AuthService service = AuthServiceReAuthOnboardingRepublishTests.Build(
             AuthTestBuilder.NewContext(),
             new RecordingEventBus()
         );
 
-        Result<string> url = await service.GetTwitchViewerOAuthUrl("state-1", "https://x.test");
+        Result<string> url = await service.GetTwitchOAuthUrl(
+            TwitchLoginRole.Viewer,
+            "state-1",
+            "https://x.test"
+        );
 
         url.IsSuccess.Should().BeTrue();
         Uri uri = new(url.Value);
         System.Collections.Specialized.NameValueCollection query =
             System.Web.HttpUtility.ParseQueryString(uri.Query);
-        query["scope"].Should().Be("openid");
+        query["scope"].Should().Be("openid user:read:chat user:write:chat user:read:emotes");
         query["state"].Should().Be("state-1");
     }
 

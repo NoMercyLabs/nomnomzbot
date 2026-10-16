@@ -48,6 +48,7 @@ public sealed class AuthServiceStreamerScopesTests
         AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
 
         Result<string> result = await service.GetTwitchOAuthUrl(
+            TwitchLoginRole.Broadcaster,
             state: "nonce",
             baseUrl: "https://api.example.test"
         );
@@ -129,11 +130,13 @@ public sealed class AuthServiceStreamerScopesTests
         AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"), db);
 
         Result<string> withHint = await service.GetTwitchOAuthUrl(
+            TwitchLoginRole.Broadcaster,
             state: "nonce",
             baseUrl: "https://api.example.test",
             broadcasterHint: channel
         );
         Result<string> without = await service.GetTwitchOAuthUrl(
+            TwitchLoginRole.Broadcaster,
             state: "nonce",
             baseUrl: "https://api.example.test"
         );
