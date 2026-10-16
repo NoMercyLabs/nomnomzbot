@@ -630,6 +630,20 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.Skip.Key,
+            BuiltinResponseSlots.Skip.NoPlayer,
+            variables: [],
+            informative: [NoPlayerLine],
+            friendly: ["The music player isn't open yet — add the Audio widget to OBS, or open Spotify!"],
+            sassy: ["Can't skip a player that isn't open. Add the Audio widget to OBS, or open Spotify."],
+            hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS OR OPEN SPOTIFY!"],
+            chill: ["the player isn't open. add the audio widget to obs, or open spotify."]
+        );
+
+        AddPlaybackControlSlots(catalog);
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Skip.Key,
             BuiltinResponseSlots.Skip.NoProvider,
             variables: [],
             informative: ["No active music provider."],
@@ -1013,6 +1027,88 @@ public static partial class ToneTemplateCatalog
             hype: ["PLAYLIST NOT FOUND!"],
             chill: ["could not find the playlist."]
         );
+    }
+
+    private const string NoPlayerLine =
+        "The music player isn't open — add the Audio widget to OBS, or open Spotify.";
+
+    /// <summary><c>!pause</c> / <c>!resume</c>: one success slot each, plus the shared failure slots.</summary>
+    private static void AddPlaybackControlSlots(Dictionary<(string, string), SlotEntry> catalog)
+    {
+        Add(
+            catalog,
+            BuiltinResponseSlots.Pause.Key,
+            BuiltinResponseSlots.Pause.Paused,
+            variables: [],
+            informative: ["Paused the music."],
+            friendly: ["Music paused — back in a bit!"],
+            sassy: ["Music paused. Enjoy the silence."],
+            hype: ["MUSIC PAUSED!"],
+            chill: ["music paused."]
+        );
+        Add(
+            catalog,
+            BuiltinResponseSlots.Resume.Key,
+            BuiltinResponseSlots.Resume.Resumed,
+            variables: [],
+            informative: ["Resumed the music."],
+            friendly: ["Music is back on — enjoy!"],
+            sassy: ["Music resumed. The silence was getting awkward."],
+            hype: ["MUSIC IS BACK ON!"],
+            chill: ["music's back on."]
+        );
+
+        foreach ((string key, string verb) in new[]
+        {
+            (BuiltinResponseSlots.Pause.Key, "pause"),
+            (BuiltinResponseSlots.Resume.Key, "resume"),
+        })
+        {
+            Add(
+                catalog,
+                key,
+                BuiltinResponseSlots.PlaybackControl.NoPlayer,
+                variables: [],
+                informative: [NoPlayerLine],
+                friendly: ["The music player isn't open yet — add the Audio widget to OBS, or open Spotify!"],
+                sassy: [$"Can't {verb} a player that isn't open. Add the Audio widget to OBS, or open Spotify."],
+                hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS OR OPEN SPOTIFY!"],
+                chill: ["the player isn't open. add the audio widget to obs, or open spotify."]
+            );
+            Add(
+                catalog,
+                key,
+                BuiltinResponseSlots.PlaybackControl.NoProvider,
+                variables: [],
+                informative: ["No music service is set up for this channel."],
+                friendly: [$"No music service is set up yet, so there is nothing to {verb}."],
+                sassy: [$"No music service is set up. There is nothing to {verb}."],
+                hype: ["NO MUSIC SERVICE SET UP!"],
+                chill: ["no music service set up."]
+            );
+            Add(
+                catalog,
+                key,
+                BuiltinResponseSlots.PlaybackControl.PremiumRequired,
+                variables: [],
+                informative: ["The music service needs a Premium account for that."],
+                friendly: [$"The music account needs Premium to {verb}."],
+                sassy: [$"Need Premium to {verb}. The free tier says no."],
+                hype: [$"PREMIUM NEEDED TO {verb.ToUpperInvariant()}!"],
+                chill: [$"{verb} needs premium."]
+            );
+            Add(
+                catalog,
+                key,
+                BuiltinResponseSlots.PlaybackControl.Failed,
+                variables: [],
+                informative: [$"Couldn't {verb} the music."],
+                friendly: [$"I couldn't {verb} the music — try again in a moment!"],
+                sassy: [$"The music refused to {verb}. Try again."],
+                hype: [$"{verb.ToUpperInvariant()} FAILED! TRY AGAIN!"],
+                chill: [$"couldn't {verb} the music."]
+            );
+        }
     }
 
     private static void AddMusicSamples(Dictionary<string, string> samples)

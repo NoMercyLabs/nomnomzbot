@@ -235,18 +235,18 @@ public sealed class SeedRunnerTests
         {
             (await context.ChannelBuiltinCommands.CountAsync())
                 .Should()
-                .Be(12, "6 defaults × 2 channels");
+                .Be(16, "8 defaults × 2 channels");
             (
                 await context
                     .ChannelBuiltinCommands.Where(c => c.BroadcasterId == alphaId)
                     .CountAsync()
             )
                 .Should()
-                .Be(6);
+                .Be(8);
             // Shape: every seeded default is an enabled builtin command row.
             (await context.ChannelBuiltinCommands.Where(c => c.IsEnabled).CountAsync())
                 .Should()
-                .Be(12);
+                .Be(16);
         }
 
         // Second run — natural key (BroadcasterId, BuiltinKey) already present, so nothing is added.
@@ -260,7 +260,7 @@ public sealed class SeedRunnerTests
         {
             (await context.ChannelBuiltinCommands.CountAsync())
                 .Should()
-                .Be(12, "re-run upserts by (BroadcasterId, BuiltinKey) — no duplicates");
+                .Be(16, "re-run upserts by (BroadcasterId, BuiltinKey) — no duplicates");
             context
                 .ChannelBuiltinCommands.Select(c => new { c.BroadcasterId, c.BuiltinKey })
                 .Should()

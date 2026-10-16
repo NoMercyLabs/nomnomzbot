@@ -191,6 +191,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>A viewer tried to skip while nothing is playing — no variables.</summary>
         public const string NothingPlaying = "nothingplaying";
 
+        /// <summary>No music player is open (Audio widget closed, no Spotify device) — no variables.</summary>
+        public const string NoPlayer = PlaybackControl.NoPlayer;
+
         /// <summary>The caller's own request was removed; <c>{user}</c>/<c>{track.name}</c>/<c>{track.artist}</c> are set.</summary>
         public const string Removed = "removed";
     }
@@ -316,6 +319,53 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The music service needs a Premium account to change the volume — no variables.</summary>
         public const string PremiumRequired = "premiumrequired";
+    }
+
+    /// <summary>
+    /// The failure slots <c>!pause</c> and <c>!resume</c> share: same failure codes, same slot names, so one
+    /// mapping from a playback-control error code serves both commands and their pipeline-action twins.
+    /// </summary>
+    public static class PlaybackControl
+    {
+        /// <summary>No music player is open (Audio widget closed, no Spotify device) — no variables.</summary>
+        public const string NoPlayer = "noplayer";
+
+        /// <summary>No music service is set up for the channel — no variables.</summary>
+        public const string NoProvider = "noprovider";
+
+        /// <summary>The music service needs a Premium account — no variables.</summary>
+        public const string PremiumRequired = "premiumrequired";
+
+        /// <summary>Any other failure — no variables.</summary>
+        public const string Failed = "failed";
+
+        /// <summary>The slot that phrases a failed playback-control call, from its result error code.</summary>
+        public static string FailureSlotFor(string? errorCode) =>
+            errorCode switch
+            {
+                "NO_ACTIVE_DEVICE" => NoPlayer,
+                "SERVICE_UNAVAILABLE" => NoProvider,
+                "PREMIUM_REQUIRED" => PremiumRequired,
+                _ => Failed,
+            };
+    }
+
+    /// <summary><c>!pause</c> — pauses the music (mods+). Failure slots: <see cref="PlaybackControl"/>.</summary>
+    public static class Pause
+    {
+        public const string Key = "pause";
+
+        /// <summary>The music was paused — no variables.</summary>
+        public const string Paused = "paused";
+    }
+
+    /// <summary><c>!resume</c> — resumes the music (mods+). Failure slots: <see cref="PlaybackControl"/>.</summary>
+    public static class Resume
+    {
+        public const string Key = "resume";
+
+        /// <summary>The music was resumed — no variables.</summary>
+        public const string Resumed = "resumed";
     }
 
     /// <summary><c>!sr</c> — additional usage/error tone slot (S069i), beyond the personality slots above.</summary>

@@ -26,7 +26,7 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 
 /// <summary>
 /// Seeds the shipped built-in music commands (<c>!sr</c>, <c>!skip</c>, <c>!queue</c>,
-/// <c>!volume</c>, <c>!song</c>) as <see cref="ChannelBuiltinCommand"/> rows for every
+/// <c>!volume</c>, <c>!song</c>, <c>!banger</c>, <c>!pause</c>, <c>!resume</c>) as <see cref="ChannelBuiltinCommand"/> rows for every
 /// channel that does not already have them.
 /// </summary>
 /// <remarks>
@@ -52,6 +52,8 @@ public sealed class DefaultCommandsSeeder : ISeeder
         "volume",
         "song",
         "banger",
+        "pause",
+        "resume",
     ];
 
     /// <summary>The startup <see cref="ISeeder"/> pass: seeds every channel.</summary>

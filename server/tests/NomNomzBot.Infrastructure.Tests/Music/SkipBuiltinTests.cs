@@ -230,6 +230,27 @@ public sealed class SkipBuiltinTests
     }
 
     [Fact]
+    public async Task A_skip_with_no_player_open_tells_chat_to_open_the_player_not_that_it_skipped()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE"));
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
+
+        result
+            .Value.Should()
+            .Be("The music player isn't open — add the Audio widget to OBS, or open Spotify.");
+    }
+
+    [Fact]
     public async Task A_skip_the_provider_refuses_answers_from_its_slot_never_the_services_own_sentence()
     {
         IMusicService music = Substitute.For<IMusicService>();

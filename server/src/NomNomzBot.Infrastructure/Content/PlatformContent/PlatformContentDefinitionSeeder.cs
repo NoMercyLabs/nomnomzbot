@@ -47,6 +47,8 @@ public sealed class PlatformContentDefinitionSeeder : ISeeder
         "volume",
         "song",
         "banger",
+        "pause",
+        "resume",
     ];
 
     private readonly IApplicationDbContext _db;

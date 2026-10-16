@@ -154,6 +154,13 @@ public sealed class SkipBuiltin(
                 "No active music provider.",
                 ct: ct
             ),
+            "NO_ACTIVE_DEVICE" => composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.NoPlayer,
+                "The music player isn't open — add the Audio widget to OBS, or open Spotify.",
+                ct: ct
+            ),
             "PREMIUM_REQUIRED" => composer.ComposeAsync(
                 context,
                 BuiltinKey,

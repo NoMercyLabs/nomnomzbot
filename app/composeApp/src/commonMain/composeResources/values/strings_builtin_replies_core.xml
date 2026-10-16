@@ -70,6 +70,10 @@
     <string name="builtin_reply_help_linevoice_description">Someone asks what !voice does.</string>
     <string name="builtin_reply_help_linevolume_label">Help for !volume</string>
     <string name="builtin_reply_help_linevolume_description">Someone asks what !volume does.</string>
+    <string name="builtin_reply_help_linepause_label">Help for !pause</string>
+    <string name="builtin_reply_help_linepause_description">Someone asks what !pause does.</string>
+    <string name="builtin_reply_help_lineresume_label">Help for !resume</string>
+    <string name="builtin_reply_help_lineresume_description">Someone asks what !resume does.</string>
     <string name="builtin_reply_help_linewhisper_label">Help for !whisper</string>
     <string name="builtin_reply_help_linewhisper_description">Someone asks what !whisper does.</string>
     <string name="builtin_reply_lurk_lurking_label">Now lurking</string>

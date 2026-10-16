@@ -1238,6 +1238,8 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SongRequestBuiltin>();
         services.AddScoped<Commands.Builtins.MusicModerationGate>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SkipBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.PauseBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.ResumeBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.QueueBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.VolumeBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.CurrentSongBuiltin>();

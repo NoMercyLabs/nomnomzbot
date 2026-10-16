@@ -70,6 +70,10 @@
     <string name="builtin_reply_help_linevoice_description">Iemand vraagt wat !voice doet.</string>
     <string name="builtin_reply_help_linevolume_label">Uitleg over !volume</string>
     <string name="builtin_reply_help_linevolume_description">Iemand vraagt wat !volume doet.</string>
+    <string name="builtin_reply_help_linepause_label">Uitleg over !pause</string>
+    <string name="builtin_reply_help_linepause_description">Iemand vraagt wat !pause doet.</string>
+    <string name="builtin_reply_help_lineresume_label">Uitleg over !resume</string>
+    <string name="builtin_reply_help_lineresume_description">Iemand vraagt wat !resume doet.</string>
     <string name="builtin_reply_help_linewhisper_label">Uitleg over !whisper</string>
     <string name="builtin_reply_help_linewhisper_description">Iemand vraagt wat !whisper doet.</string>
     <string name="builtin_reply_lurk_lurking_label">Nu aan het lurken</string>

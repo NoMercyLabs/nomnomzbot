@@ -89,7 +89,9 @@ public sealed class PlatformContentDefinitionSeederTests : IAsyncDisposable
             .ToListAsync();
 
         Assert.Equal(
-            new[] { "sr", "skip", "queue", "volume", "song", "banger" }.OrderBy(k => k),
+            new[] { "sr", "skip", "queue", "volume", "song", "banger", "pause", "resume" }.OrderBy(
+                k => k
+            ),
             definitions.Select(d => d.Key).OrderBy(k => k)
         );
         Assert.All(definitions, d => Assert.NotNull(d.CurrentVersionId));
@@ -128,7 +130,7 @@ public sealed class PlatformContentDefinitionSeederTests : IAsyncDisposable
         int definitionCount = await _db.PlatformContentDefinitions.CountAsync(d =>
             d.Kind == PlatformContentKinds.Command
         );
-        Assert.Equal(6, definitionCount); // no duplicates created on re-run
+        Assert.Equal(8, definitionCount); // no duplicates created on re-run
 
         ChannelBuiltinCommand after = await _db
             .ChannelBuiltinCommands.AsNoTracking()

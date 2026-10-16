@@ -199,4 +199,26 @@
     <string name="builtin_reply_openqueue_failed_description">De wachtrij kon niet worden geopend.</string>
     <string name="builtin_reply_sr_queueclosed_label">Wachtrij gesloten</string>
     <string name="builtin_reply_sr_queueclosed_description">Een kijker vroeg een nummer aan terwijl de wachtrij gesloten is.</string>
+    <string name="builtin_reply_skip_noplayer_label">Geen speler open</string>
+    <string name="builtin_reply_skip_noplayer_description">Bij het overslaan was er geen muziekspeler open: de Audio-widget staat niet in OBS en er speelt geen Spotify-apparaat.</string>
+    <string name="builtin_reply_pause_paused_label">Muziek gepauzeerd</string>
+    <string name="builtin_reply_pause_paused_description">Een moderator heeft de muziek vanuit de chat gepauzeerd.</string>
+    <string name="builtin_reply_pause_noplayer_label">Geen speler open</string>
+    <string name="builtin_reply_pause_noplayer_description">Bij het pauzeren was er geen muziekspeler open.</string>
+    <string name="builtin_reply_pause_noprovider_label">Geen muziek ingesteld</string>
+    <string name="builtin_reply_pause_noprovider_description">Bij het pauzeren was er geen muziekdienst ingesteld voor het kanaal.</string>
+    <string name="builtin_reply_pause_premiumrequired_label">Premium nodig</string>
+    <string name="builtin_reply_pause_premiumrequired_description">De muziekdienst heeft een Premium-account nodig om te pauzeren.</string>
+    <string name="builtin_reply_pause_failed_label">Pauzeren mislukt</string>
+    <string name="builtin_reply_pause_failed_description">Het pauzeren werkte niet.</string>
+    <string name="builtin_reply_resume_resumed_label">Muziek hervat</string>
+    <string name="builtin_reply_resume_resumed_description">Een moderator heeft de muziek vanuit de chat hervat.</string>
+    <string name="builtin_reply_resume_noplayer_label">Geen speler open</string>
+    <string name="builtin_reply_resume_noplayer_description">Bij het hervatten was er geen muziekspeler open.</string>
+    <string name="builtin_reply_resume_noprovider_label">Geen muziek ingesteld</string>
+    <string name="builtin_reply_resume_noprovider_description">Bij het hervatten was er geen muziekdienst ingesteld voor het kanaal.</string>
+    <string name="builtin_reply_resume_premiumrequired_label">Premium nodig</string>
+    <string name="builtin_reply_resume_premiumrequired_description">De muziekdienst heeft een Premium-account nodig om te hervatten.</string>
+    <string name="builtin_reply_resume_failed_label">Hervatten mislukt</string>
+    <string name="builtin_reply_resume_failed_description">Het hervatten werkte niet.</string>
 </resources>

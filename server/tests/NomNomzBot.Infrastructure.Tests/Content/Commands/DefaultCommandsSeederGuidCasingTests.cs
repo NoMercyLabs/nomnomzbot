@@ -33,6 +33,8 @@ public sealed class DefaultCommandsSeederGuidCasingTests
         "volume",
         "song",
         "banger",
+        "pause",
+        "resume",
     ];
 
     private static Channel MakeChannel(Guid id, string name) =>
@@ -87,6 +89,43 @@ public sealed class DefaultCommandsSeederGuidCasingTests
         rawIds.Should().OnlyContain(id => id == id.ToUpperInvariant());
     }
 
+    /// <summary>A channel seeded before <c>!pause</c>/<c>!resume</c> shipped gets them on the next startup pass,
+    /// once each — its existing rows are neither duplicated nor touched (a disabled one stays disabled).</summary>
+    [Fact]
+    public async Task An_existing_channel_gets_newly_shipped_builtins_once_without_duplicating_its_old_ones()
+    {
+        Guid channelId = Guid.NewGuid();
+        await using DefaultCommandsSeederGuidCasingTestDbContext db =
+            DefaultCommandsSeederGuidCasingTestDbContext.New();
+        db.Channels.Add(MakeChannel(channelId, "older_channel"));
+        await db.SaveChangesAsync();
+        foreach (string key in new[] { "sr", "skip", "queue", "volume", "song", "banger" })
+            db.ChannelBuiltinCommands.Add(
+                new()
+                {
+                    BroadcasterId = channelId,
+                    BuiltinKey = key,
+                    IsEnabled = key != "skip",
+                }
+            );
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        DefaultCommandsSeeder seeder = new(db);
+        await seeder.SeedAsync(broadcasterId: null);
+        await seeder.SeedAsync(broadcasterId: null);
+
+        List<Domain.Commands.Entities.ChannelBuiltinCommand> rows = await db
+            .ChannelBuiltinCommands.Where(c => c.BroadcasterId == channelId)
+            .ToListAsync();
+        rows.Select(c => c.BuiltinKey).Should().BeEquivalentTo(ExpectedKeys);
+        rows.Single(c => c.BuiltinKey == "skip").IsEnabled.Should().BeFalse();
+        rows.Where(c => c.BuiltinKey is "pause" or "resume")
+            .Should()
+            .HaveCount(2)
+            .And.OnlyContain(c => c.IsEnabled);
+    }
+
     [Fact]
     public async Task Normalizing_one_channels_casing_never_lets_its_rows_match_a_different_channel()
     {
@@ -125,6 +164,6 @@ public sealed class DefaultCommandsSeederGuidCasingTests
         other.Select(c => c.BuiltinKey).Should().BeEquivalentTo(ExpectedKeys);
         corrupted.Should().OnlyContain(c => c.BroadcasterId == corruptedChannelId);
         other.Should().OnlyContain(c => c.BroadcasterId == otherChannelId);
-        (await db.ChannelBuiltinCommands.CountAsync()).Should().Be(12);
+        (await db.ChannelBuiltinCommands.CountAsync()).Should().Be(16);
     }
 }
