@@ -720,6 +720,57 @@ public sealed class MusicStatePollingServiceTests
     }
 
     /// <summary>
+    /// A YouTube-only channel running on the app-level API key has no music connection row at all. When its
+    /// request could not be handed over (the Audio widget was closed), the poller's recovery tick is the only
+    /// thing that hands it over once the widget opens — so the poller must reach a channel with waiting
+    /// requests through a provider that works without a connection, or that queue stalls for good.
+    /// </summary>
+    [Fact]
+    public async Task A_keyless_provider_channel_with_a_waiting_request_gets_the_recovery_handover()
+    {
+        MusicTestDbContext db = MusicTestDbContext.New();
+        FakeMusicService music = new();
+        PollerScopeFactory scopes = new(
+            db,
+            music,
+            new RegisteredSpotifyStub { Name = "youtube", Keyless = true }
+        );
+        scopes
+            .Queues.GetOrCreate(ChannelA.ToString())
+            .Enqueue(
+                "viewer1",
+                new SongRequestEntry(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                    "Waiting Song",
+                    "Some Artist",
+                    ImageUrl: null,
+                    DurationMs: 180_000,
+                    "viewer1",
+                    Cost: 0,
+                    RequesterUserId: null,
+                    Code: ""
+                )
+            );
+        // An empty queue on another key-only channel has nothing to recover — it stays out of the sweep.
+        scopes.Queues.GetOrCreate(ChannelB.ToString());
+        IChannelRegistry channelRegistry = Substitute.For<IChannelRegistry>();
+        channelRegistry
+            .Get(Arg.Any<Guid>())
+            .Returns(call => Context(call.Arg<Guid>(), isLive: true));
+        MusicStatePollingService sut = new(
+            scopes,
+            new RecordingEventBus(),
+            new FakeTimeProvider(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)),
+            channelRegistry,
+            NullLogger<MusicStatePollingService>.Instance
+        );
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        scopes.Handover.Calls.Should().Equal(ChannelA.ToString());
+    }
+
+    /// <summary>
     /// V-B5.1: the frozen-queue bug. A channel cooling down after a 429 (<see cref="IMusicProvider.TryGetCoolingUntil"/>)
     /// must be skipped outright — no <c>GetNowPlayingAsync</c> call (it would just be rejected again), no
     /// publish (a 429 is never "nothing playing"), and no recovery handover (it would only draw another call).
@@ -1004,17 +1055,21 @@ public sealed class MusicStatePollingServiceTests
     ) : IServiceScopeFactory
     {
         public RecordingHandover Handover { get; } = handover ?? new RecordingHandover();
+
+        /// <summary>The app-wide song-request queues the poller reads to find channels with waiting requests.</summary>
+        public SongRequestQueueStore Queues { get; } = new();
         private readonly RegisteredSpotifyStub _provider = provider ?? new RegisteredSpotifyStub();
 
         public IServiceScope CreateScope() =>
-            new Scope(db, musicService, Handover, _provider, instanceGate);
+            new Scope(db, musicService, Handover, _provider, instanceGate, Queues);
 
         private sealed class Scope(
             IApplicationDbContext db,
             IMusicService musicService,
             ISongRequestHandover handover,
             RegisteredSpotifyStub provider,
-            IActiveInstanceGate? instanceGate
+            IActiveInstanceGate? instanceGate,
+            ISongRequestQueueStore queues
         ) : IServiceScope, IServiceProvider
         {
             public IServiceProvider ServiceProvider => this;
@@ -1023,6 +1078,8 @@ public sealed class MusicStatePollingServiceTests
             {
                 if (serviceType == typeof(IActiveInstanceGate))
                     return instanceGate;
+                if (serviceType == typeof(ISongRequestQueueStore))
+                    return queues;
                 if (serviceType == typeof(IApplicationDbContext))
                     return db;
                 if (serviceType == typeof(IMusicService))
@@ -1061,7 +1118,19 @@ public sealed class MusicStatePollingServiceTests
         /// deadline — lets a test drive the poller's cooldown-skip path without a real Spotify 429.</summary>
         public DateTimeOffset? CoolingUntil { get; set; }
 
-        public string Provider => "spotify";
+        /// <summary>The registry key; "youtube" with <see cref="Keyless"/> stands in for the YouTube provider
+        /// running on the app-level API key alone.</summary>
+        public string Name { get; init; } = "spotify";
+
+        /// <summary>What <see cref="WorksWithoutConnectionAsync"/> answers — true models a provider that serves
+        /// channels with no connection of their own.</summary>
+        public bool Keyless { get; init; }
+
+        public string Provider => Name;
+
+        public Task<bool> WorksWithoutConnectionAsync(
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Keyless);
 
         public MusicProviderCapabilities Capabilities =>
             MusicProviderCapabilities.NowPlaying | MusicProviderCapabilities.PlaybackControl;

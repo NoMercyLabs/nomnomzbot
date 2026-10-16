@@ -216,6 +216,12 @@ public sealed class MusicStatePollingService : BackgroundService
             providerKeys,
             cancellationToken
         );
+        await AddKeylessChannelsWithWaitingRequestsAsync(
+            channelIds,
+            providers,
+            scope.ServiceProvider.GetService<ISongRequestQueueStore>(),
+            cancellationToken
+        );
         if (channelIds.Count == 0)
             return;
 
@@ -365,6 +371,35 @@ public sealed class MusicStatePollingService : BackgroundService
             .Select(s => s.BroadcasterId!.Value)
             .Distinct()
             .ToListAsync(cancellationToken);
+
+    /// <summary>
+    /// A provider that works without a connection (YouTube on the app-level API key) leaves its channels out of
+    /// <see cref="LoadConnectedChannelsAsync"/> — there is no connection row to find. Without this, a request
+    /// that could not be handed over (the Audio widget was closed) is never retried by the recovery tick and
+    /// that channel's queue stalls. Adds every channel with a waiting request while such a provider is registered.
+    /// </summary>
+    private static async Task AddKeylessChannelsWithWaitingRequestsAsync(
+        List<Guid> channelIds,
+        List<IMusicProvider> providers,
+        ISongRequestQueueStore? queues,
+        CancellationToken cancellationToken
+    )
+    {
+        if (queues is null)
+            return;
+
+        bool anyKeyless = false;
+        foreach (IMusicProvider provider in providers)
+            anyKeyless |= await provider.WorksWithoutConnectionAsync(cancellationToken);
+        if (!anyKeyless)
+            return;
+
+        foreach (string waiting in queues.ChannelsWithWaitingRequests())
+        {
+            if (Guid.TryParse(waiting, out Guid channelId) && !channelIds.Contains(channelId))
+                channelIds.Add(channelId);
+        }
+    }
 
     private async Task ProcessChannelStateAsync(
         Guid channelId,

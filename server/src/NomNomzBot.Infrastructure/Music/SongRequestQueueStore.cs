@@ -56,6 +56,9 @@ public interface ISongRequestQueueStore
     /// <summary>Returns the channel's queue if one has ever been created; null otherwise (never creates one).</summary>
     FairQueue<SongRequestEntry>? TryGet(string broadcasterId);
 
+    /// <summary>Every channel whose queue holds at least one waiting request.</summary>
+    IReadOnlyList<string> ChannelsWithWaitingRequests();
+
     /// <summary>
     /// The one request this channel has handed to the provider and is waiting on — null when the
     /// provider holds nothing of ours. The fair queue is the authority on ORDER, so only a single track
@@ -210,6 +213,9 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
 
     public FairQueue<SongRequestEntry>? TryGet(string broadcasterId) =>
         _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue) ? queue : null;
+
+    public IReadOnlyList<string> ChannelsWithWaitingRequests() =>
+        [.. _queues.Where(pair => !pair.Value.IsEmpty).Select(pair => pair.Key)];
 
     public SongRequestEntry? GetInFlight(string broadcasterId) =>
         _inFlight.TryGetValue(broadcasterId, out SongRequestEntry? entry) ? entry : null;
