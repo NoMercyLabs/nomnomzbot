@@ -71,4 +71,61 @@ public sealed class YouTubeSongRequestIntakeTests
 
         (await intake.QueuedTitlesAsync()).Should().Equal("Never Gonna Give You Up");
     }
+
+    [Theory]
+    [InlineData("live")]
+    [InlineData("upcoming")]
+    public async Task A_live_stream_or_premiere_link_gets_its_own_reply_and_nothing_is_searched(
+        string broadcast
+    )
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteVideos(
+            YouTubeSongRequestIntake.Video(
+                VideoId,
+                "24/7 Lofi Radio",
+                duration: "P0D",
+                live: broadcast
+            )
+        );
+        intake.RouteSearch("aaaaaaaaaaa");
+
+        string reply = await intake.SayAsync(Link);
+
+        reply
+            .Should()
+            .Be("Live streams and premieres can't be requested. Send a link to a regular video.");
+        intake.DataApiCalls.Should().Equal("videos");
+        (await intake.QueuedTitlesAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_link_to_a_private_or_deleted_video_gets_its_own_reply_and_nothing_is_searched()
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteVideos(); // videos.list answers an empty item set for private and deleted videos alike.
+        intake.RouteSearch("aaaaaaaaaaa");
+
+        string reply = await intake.SayAsync(Link);
+
+        reply.Should().Be("That video doesn't exist or is private.");
+        intake.DataApiCalls.Should().Equal("videos");
+        (await intake.QueuedTitlesAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_dashboard_add_refuses_a_live_stream_instead_of_queuing_a_placeholder()
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteVideos(YouTubeSongRequestIntake.Video(VideoId, "LIVE", live: "live"));
+
+        NomNomzBot.Application.Common.Models.Result result = await intake.Music.AddToQueueAsync(
+            YouTubeSongRequestIntake.ChannelId.ToString(),
+            Link,
+            "viewer1"
+        );
+
+        result.ErrorCode.Should().Be("TRACK_IS_LIVE");
+        (await intake.QueuedTitlesAsync()).Should().BeEmpty();
+    }
 }

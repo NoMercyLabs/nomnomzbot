@@ -64,6 +64,10 @@ public sealed class SongRequestFavoriteAction : ICommandAction
         "UNSUPPORTED_CONTENT_TYPE",
         "TRACK_UNAVAILABLE",
         "NOT_FOUND",
+        "TRACK_NOT_EMBEDDABLE",
+        "TRACK_AGE_RESTRICTED",
+        "TRACK_IS_LIVE",
+        "TRACK_MISSING",
     ];
 
     private readonly IApplicationDbContext _db;

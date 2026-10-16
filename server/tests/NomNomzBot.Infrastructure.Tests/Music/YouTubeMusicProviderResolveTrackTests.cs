@@ -133,7 +133,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
     }
 
     [Fact]
-    public async Task Live_broadcast_resolves_to_null()
+    public async Task Live_broadcast_resolves_to_null_with_its_own_reason()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
         RouteVideos(
@@ -143,21 +143,44 @@ public sealed class YouTubeMusicProviderResolveTrackTests
             """
         );
 
-        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            VideoId
+        );
 
         track.Should().BeNull("a live broadcast is not a resolvable on-demand track");
+        failure.Should().Be(MusicProviderFailureReason.LiveBroadcast);
     }
 
     [Fact]
-    public async Task Unknown_or_blocked_id_resolves_to_null()
+    public async Task Unknown_bare_id_resolves_to_null_so_the_word_is_searched_instead()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
-        // Unknown/private/deleted/region-blocked videos all come back as an empty item set.
+        // Unknown/private/deleted videos all come back as an empty item set.
         RouteVideos(handler, """{"items":[]}""");
 
-        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            VideoId
+        );
 
         track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.None);
+    }
+
+    [Fact]
+    public async Task A_link_to_an_unknown_video_resolves_to_track_missing()
+    {
+        (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
+        RouteVideos(handler, """{"items":[]}""");
+
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            "https://youtu.be/" + VideoId
+        );
+
+        track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.TrackMissing);
     }
 
     [Theory]

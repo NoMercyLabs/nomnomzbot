@@ -34,6 +34,14 @@
     <string name="builtin_reply_sr_tracktoolongrefunded_description">Een ingewisseld nummer is langer dan de maximale nummerlengte van het kanaal, is niet toegevoegd en de punten zijn teruggegeven.</string>
     <string name="builtin_reply_sr_trackexplicit_label">Expliciet nummer geweigerd</string>
     <string name="builtin_reply_sr_trackexplicit_description">Het gevraagde nummer is als expliciet gemarkeerd en dit kanaal staat geen expliciete nummers toe.</string>
+    <string name="builtin_reply_sr_notembeddable_label">Video blokkeert insluiten</string>
+    <string name="builtin_reply_sr_notembeddable_description">De uploader staat niet toe dat de video op andere sites speelt, dus de streamspeler kan hem nooit afspelen.</string>
+    <string name="builtin_reply_sr_agerestricted_label">Video met leeftijdsgrens</string>
+    <string name="builtin_reply_sr_agerestricted_description">De video heeft een leeftijdsgrens op YouTube en speelt nooit in de streamspeler.</string>
+    <string name="builtin_reply_sr_livebroadcast_label">Livestream of premiere</string>
+    <string name="builtin_reply_sr_livebroadcast_description">De link is een livestream of premiere, zonder vast nummer om in de wachtrij te zetten.</string>
+    <string name="builtin_reply_sr_trackmissing_label">Video weg of privé</string>
+    <string name="builtin_reply_sr_trackmissing_description">De gelinkte video is verwijderd of privé.</string>
     <string name="builtin_reply_sr_perstreamlimit_label">Verzoeklimiet per stream bereikt</string>
     <string name="builtin_reply_sr_perstreamlimit_description">De kijker heeft al zoveel nummers aangevraagd als één stream toestaat.</string>
     <string name="builtin_reply_sr_addedwithcode_label">Nummer toegevoegd met code</string>

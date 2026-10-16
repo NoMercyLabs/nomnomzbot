@@ -375,6 +375,36 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.LiveBroadcast,
+            variables: [],
+            informative:
+            [
+                "Live streams and premieres can't be requested. Send a link to a regular video.",
+            ],
+            friendly:
+            [
+                "That one is a live stream or a premiere, so I can't queue it. A regular video link works!",
+            ],
+            sassy: ["That is a live stream. It never ends. Send a regular video."],
+            hype: ["NO LIVE STREAMS OR PREMIERES! SEND A REGULAR VIDEO!"],
+            chill: ["can't queue live streams or premieres. send a regular video."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.TrackMissing,
+            variables: [],
+            informative: ["That video doesn't exist or is private."],
+            friendly: ["I can't find that video, it may be deleted or private. Got another link?"],
+            sassy: ["That video is gone or private. Try one that exists."],
+            hype: ["THAT VIDEO IS GONE OR PRIVATE! TRY ANOTHER!"],
+            chill: ["that video is deleted or private. try another."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.PerStreamLimit,
             variables: ["request.limit"],
             informative:

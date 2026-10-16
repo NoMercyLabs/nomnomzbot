@@ -406,13 +406,21 @@ public sealed class YouTubeMusicProvider
         if (failure != MusicProviderFailureReason.None)
             return (null, failure);
 
+        // videos.list answers private and deleted videos alike with no item. A pasted link meant that
+        // video, so it gets its own answer; a bare 11-character word may be a song title, so it falls
+        // through to search instead.
         YouTubeVideo? video = response?.Items?.FirstOrDefault();
         if (video is null)
-            return (null, MusicProviderFailureReason.None); // unknown/private/deleted/region-blocked.
+            return (
+                null,
+                IsVideoId(uriOrId.Trim())
+                    ? MusicProviderFailureReason.None
+                    : MusicProviderFailureReason.TrackMissing
+            );
 
         // A live or upcoming broadcast is not a resolvable on-demand track.
         if (!IsOnDemand(video.Snippet))
-            return (null, MusicProviderFailureReason.None);
+            return (null, MusicProviderFailureReason.LiveBroadcast);
 
         // Unlike search, resolve keeps a found on-demand video and returns it WITH its gate flags
         // (embeddable/age/explicit) so the SR pipeline can reject with the precise reason (§3.5.2

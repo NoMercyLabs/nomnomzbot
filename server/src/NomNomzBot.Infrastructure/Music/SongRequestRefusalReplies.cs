@@ -99,6 +99,20 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 trackName,
                 ct
             ),
+            "TRACK_IS_LIVE" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.LiveBroadcast,
+                "Live streams and premieres can't be requested. Send a link to a regular video.",
+                null,
+                ct
+            ),
+            "TRACK_MISSING" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.TrackMissing,
+                "That video doesn't exist or is private.",
+                null,
+                ct
+            ),
             "PER_STREAM_LIMIT" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.PerStreamLimit,

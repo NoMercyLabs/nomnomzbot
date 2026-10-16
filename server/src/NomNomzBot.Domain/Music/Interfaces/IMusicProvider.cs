@@ -53,6 +53,14 @@ public enum MusicProviderFailureReason
     /// <summary>The query is a link this provider does not own and no title could be read from it, so it
     /// was never searched as text (a URL string searched by name finds an unrelated song).</summary>
     UnsupportedLink,
+
+    /// <summary>The link points at a live stream or a scheduled premiere: real content, but no fixed-length
+    /// track a song queue can play. Never "not found", and never searched as text.</summary>
+    LiveBroadcast,
+
+    /// <summary>The link parsed to a real id shape, but the provider has nothing public behind it — the
+    /// video was deleted or is private. One answer covers both: telling them apart costs another call.</summary>
+    TrackMissing,
 }
 
 /// <summary>

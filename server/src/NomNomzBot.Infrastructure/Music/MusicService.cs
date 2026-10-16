@@ -550,8 +550,16 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // metadata gap is diagnosable.
         (TrackInfo? resolvedTrack, MusicProviderFailureReason resolveFailure) =
             await ResolveOrSearchAsync(provider, tenantId, trackUri, cancellationToken);
-        if (resolveFailure == MusicProviderFailureReason.UnsupportedLink)
-            return Result.Failure(UnsupportedLinkMessage, "UNSUPPORTED_LINK");
+        // A verdict about the link itself refuses the add; only an outage degrades to placeholder metadata.
+        if (IsVerdictOnTheLink(resolveFailure))
+        {
+            Result<MusicTrack> refused = ProviderFailureResult<MusicTrack>(
+                provider,
+                tenantId,
+                resolveFailure
+            );
+            return Result.Failure(refused.ErrorMessage!, refused.ErrorCode);
+        }
         if (resolveFailure != MusicProviderFailureReason.None)
             _logger.LogWarning(
                 "Track metadata lookup failed for channel {TenantId} via {Provider}: {Failure} — queuing \"{TrackUri}\" with placeholder metadata",
@@ -806,6 +814,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             : (SongSearchRanker.Pick(searchText, hits), MusicProviderFailureReason.None);
     }
 
+    /// <summary>The provider answered about the link itself (it can never be played), not about its own health.</summary>
+    private static bool IsVerdictOnTheLink(MusicProviderFailureReason failure) =>
+        failure
+            is MusicProviderFailureReason.UnsupportedLink
+                or MusicProviderFailureReason.LiveBroadcast
+                or MusicProviderFailureReason.TrackMissing;
+
     private static bool IsWebLink(string query) =>
         Uri.TryCreate(query.Trim(), UriKind.Absolute, out Uri? uri)
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
@@ -856,6 +871,14 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             MusicProviderFailureReason.NotPlayableInRegion => Result.Failure<T>(
                 "That track can't play in the streamer's country. Try a different version of the song.",
                 "TRACK_UNAVAILABLE"
+            ),
+            MusicProviderFailureReason.LiveBroadcast => Result.Failure<T>(
+                "Live streams and premieres can't be requested.",
+                "TRACK_IS_LIVE"
+            ),
+            MusicProviderFailureReason.TrackMissing => Result.Failure<T>(
+                "That video doesn't exist or is private.",
+                "TRACK_MISSING"
             ),
             _ => Result.Failure<T>(
                 "The music provider is temporarily unavailable.",

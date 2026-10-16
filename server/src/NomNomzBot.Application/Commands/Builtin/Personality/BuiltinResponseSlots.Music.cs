@@ -101,6 +101,12 @@ public static partial class BuiltinResponseSlots
         /// <summary>The video is age-restricted, which YouTube never plays in an embedded player; <c>{track.name}</c> is set.</summary>
         public const string AgeRestricted = "agerestricted";
 
+        /// <summary>The link is a live stream or a premiere, which has no fixed track to queue — no variables.</summary>
+        public const string LiveBroadcast = "livebroadcast";
+
+        /// <summary>The linked video was deleted or is private — no variables.</summary>
+        public const string TrackMissing = "trackmissing";
+
         /// <summary>The requester used up their requests for this stream; <c>{request.limit}</c> is set.</summary>
         public const string PerStreamLimit = "perstreamlimit";
 
