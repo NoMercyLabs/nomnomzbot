@@ -15,17 +15,20 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
 
 /// <summary>
 /// Public SR-page tokens (music-sr.md §3.7) over the <c>Channels.SongRequestPageToken</c> column. Mints a
 /// cryptographically-random, URL-safe, non-PII token lazily, rotates it, and resolves it to the channel context the
-/// anonymous <c>/sr/{token}</c> page renders. The queue-open + enabled-providers facts come from the music config.
+/// anonymous <c>/sr/{token}</c> page renders. The queue-open fact comes from the music config; the offered
+/// providers are the ones the config allows AND the channel can actually use (<see cref="UsableMusicProviders"/>).
 /// </summary>
 public sealed class SongRequestPageTokenService(
     IApplicationDbContext db,
-    IMusicConfigService musicConfig
+    IMusicConfigService musicConfig,
+    IEnumerable<IMusicProvider> musicProviders
 ) : ISongRequestPageTokenService
 {
     public async Task<Result<SongRequestPageDto>> ResolveAsync(
@@ -82,9 +85,18 @@ public sealed class SongRequestPageTokenService(
         List<string> providers = [];
         if (config.IsSuccess)
         {
-            if (config.Value.AllowSpotify)
+            // Allowed is not enough: a provider the bot cannot reach (Spotify never connected, YouTube with no
+            // API key) would only ever refuse the viewer's request.
+            IReadOnlyList<IMusicProvider> usable = await UsableMusicProviders.ForChannelAsync(
+                db,
+                musicProviders,
+                channel.Id,
+                cancellationToken
+            );
+            HashSet<string> usableKeys = [.. usable.Select(p => p.Provider)];
+            if (config.Value.AllowSpotify && usableKeys.Contains("spotify"))
                 providers.Add("spotify");
-            if (config.Value.AllowYouTube)
+            if (config.Value.AllowYouTube && usableKeys.Contains("youtube"))
                 providers.Add("youtube");
         }
 

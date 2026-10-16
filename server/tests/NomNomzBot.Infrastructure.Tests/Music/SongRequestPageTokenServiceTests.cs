@@ -12,6 +12,7 @@ using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -31,9 +32,24 @@ public sealed class SongRequestPageTokenServiceTests
         SongRequestPageTokenService Sut,
         AuthDbContext Db,
         IMusicConfigService Config
-    )> BuildAsync(bool seedChannel = true)
+    )> BuildAsync(
+        bool seedChannel = true,
+        bool spotifyConnected = false,
+        string? youTubeApiKey = null
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
+        if (spotifyConnected)
+            db.Services.Add(
+                new()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = "spotify",
+                    BroadcasterId = Channel,
+                    Enabled = true,
+                    AccessToken = "test-access-token",
+                }
+            );
         if (seedChannel)
         {
             db.Channels.Add(
@@ -49,7 +65,10 @@ public sealed class SongRequestPageTokenServiceTests
             await db.SaveChangesAsync();
         }
         IMusicConfigService config = Substitute.For<IMusicConfigService>();
-        return (new(db, config), db, config);
+        IMusicProvider spotify = Substitute.For<IMusicProvider>();
+        spotify.Provider.Returns("spotify");
+        IMusicProvider youTube = YouTubeProviderFactory.Create(apiKey: youTubeApiKey, db: db);
+        return (new(db, config, [spotify, youTube]), db, config);
     }
 
     [Fact]
@@ -80,7 +99,10 @@ public sealed class SongRequestPageTokenServiceTests
     [Fact]
     public async Task Resolve_maps_the_channel_and_enabled_providers()
     {
-        (SongRequestPageTokenService sut, _, IMusicConfigService config) = await BuildAsync();
+        (SongRequestPageTokenService sut, _, IMusicConfigService config) = await BuildAsync(
+            spotifyConnected: true,
+            youTubeApiKey: "test-key"
+        );
         config
             .GetConfigAsync(Channel.ToString(), Arg.Any<CancellationToken>())
             .Returns(
@@ -94,6 +116,49 @@ public sealed class SongRequestPageTokenServiceTests
         page.ChannelName.Should().Be("CoolStreamer");
         page.IsAcceptingRequests.Should().BeTrue();
         page.EnabledProviders.Should().BeEquivalentTo("spotify"); // AllowSpotify=true, AllowYouTube=false
+    }
+
+    /// <summary>
+    /// A YouTube-only channel: AllowSpotify is on by default, but Spotify was never connected, so a viewer who
+    /// picked Spotify on the public page would only ever get a refusal. The page lists a provider only when the
+    /// channel allows it AND the bot can reach it — YouTube on the API key, Spotify through its connection.
+    /// </summary>
+    [Fact]
+    public async Task Resolve_offers_only_providers_the_channel_can_actually_use()
+    {
+        (SongRequestPageTokenService sut, _, IMusicConfigService config) = await BuildAsync(
+            spotifyConnected: false,
+            youTubeApiKey: "test-key"
+        );
+        config
+            .GetConfigAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new MusicConfigDto(true, "auto", 50, 5, true, true, "everyone"))
+            );
+        string token = (await sut.GetOrCreateAsync(Channel)).Value;
+
+        SongRequestPageDto page = (await sut.ResolveAsync(token)).Value;
+
+        page.EnabledProviders.Should().Equal("youtube");
+    }
+
+    [Fact]
+    public async Task Resolve_offers_no_YouTube_without_an_api_key_or_connection()
+    {
+        (SongRequestPageTokenService sut, _, IMusicConfigService config) = await BuildAsync(
+            spotifyConnected: true,
+            youTubeApiKey: null
+        );
+        config
+            .GetConfigAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new MusicConfigDto(true, "auto", 50, 5, true, true, "everyone"))
+            );
+        string token = (await sut.GetOrCreateAsync(Channel)).Value;
+
+        SongRequestPageDto page = (await sut.ResolveAsync(token)).Value;
+
+        page.EnabledProviders.Should().Equal("spotify");
     }
 
     [Fact]
