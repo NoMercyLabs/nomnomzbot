@@ -116,6 +116,12 @@ public sealed class YouTubeMusicProvider
     private Task<string?> ApiKeyAsync(CancellationToken cancellationToken) =>
         _apiKeys.GetAsync(cancellationToken);
 
+    /// <summary>Search and the overlay queue need only the app-level Data API key, so any channel can use
+    /// YouTube once that key is set — no per-channel YouTube login (music-sr.md AUTH STANCE).</summary>
+    public async Task<bool> WorksWithoutConnectionAsync(
+        CancellationToken cancellationToken = default
+    ) => !string.IsNullOrWhiteSpace(await ApiKeyAsync(cancellationToken));
+
     public async Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<Guid> owner = await OwnerAsync(broadcasterId, cancellationToken);

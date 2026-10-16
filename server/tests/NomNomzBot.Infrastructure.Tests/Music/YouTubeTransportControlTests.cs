@@ -88,7 +88,7 @@ public sealed class YouTubeTransportControlTests
               "status":{"embeddable":true}}]}
             """;
 
-    private static async Task<Rig> BuildAsync(bool playerOpen = true)
+    private static async Task<Rig> BuildAsync(bool playerOpen = true, bool youTubeConnected = true)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         MusicTestDbContext musicDb = MusicTestDbContext.New();
@@ -115,16 +115,17 @@ public sealed class YouTubeTransportControlTests
                     CreatedAt = created.AddHours(hour),
                 }
             );
-        musicDb.Services.Add(
-            new()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = "youtube",
-                BroadcasterId = Broadcaster,
-                Enabled = true,
-                AccessToken = "test-access-token",
-            }
-        );
+        if (youTubeConnected)
+            musicDb.Services.Add(
+                new()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = "youtube",
+                    BroadcasterId = Broadcaster,
+                    Enabled = true,
+                    AccessToken = "test-access-token",
+                }
+            );
         await db.SaveChangesAsync();
         await musicDb.SaveChangesAsync();
 
@@ -308,6 +309,25 @@ public sealed class YouTubeTransportControlTests
         (await rig.Players.HandOverNextAsync(Broadcaster)).Should().BeTrue();
         await rig.Music.HandOverNextAsync(Broadcaster.ToString());
 
+        rig.Notifier.PlayedVideoIds.Should().Equal(First);
+        rig.Notifier.Sent.Should().ContainSingle().Which.Widget.Should().Be(OwnerWidget);
+    }
+
+    /// <summary>music-sr.md AUTH STANCE: YouTube search and the overlay queue ride the app-level Data API
+    /// key, never a per-channel YouTube login. A streamer who set the key but never connected YouTube (and has
+    /// no Spotify) must still get a working song request that plays in the Audio widget.</summary>
+    [Fact]
+    public async Task A_request_plays_in_the_overlay_on_the_api_key_alone_without_a_YouTube_connection()
+    {
+        Rig rig = await BuildAsync(youTubeConnected: false);
+
+        Result queued = await rig.Music.AddToQueueAsync(
+            Broadcaster.ToString(),
+            Watch(First),
+            "viewer1"
+        );
+
+        queued.IsSuccess.Should().BeTrue(queued.ErrorMessage);
         rig.Notifier.PlayedVideoIds.Should().Equal(First);
         rig.Notifier.Sent.Should().ContainSingle().Which.Widget.Should().Be(OwnerWidget);
     }

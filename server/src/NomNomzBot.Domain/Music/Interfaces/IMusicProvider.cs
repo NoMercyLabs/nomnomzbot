@@ -145,6 +145,14 @@ public interface IMusicProvider
     /// <summary>What this provider supports; gates routing instead of name checks.</summary>
     MusicProviderCapabilities Capabilities { get; }
 
+    /// <summary>
+    /// True when this provider can serve a channel that never connected it — YouTube search and the overlay
+    /// queue ride the app-level Data API key, with no per-channel login (music-sr.md AUTH STANCE). Default
+    /// false: the channel needs its own connection to this provider.
+    /// </summary>
+    Task<bool> WorksWithoutConnectionAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
+
     Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
 
     Task PauseAsync(Guid broadcasterId, CancellationToken cancellationToken = default);

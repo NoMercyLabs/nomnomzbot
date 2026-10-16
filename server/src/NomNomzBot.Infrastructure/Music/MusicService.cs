@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -1508,29 +1507,28 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     }
 
     /// <summary>
-    /// Resolves the channel's active provider: the connected-integration names for the tenant,
-    /// intersected with the registered provider keys and the config's <c>AllowSpotify</c>/
-    /// <c>AllowYouTube</c> toggles. A non-"auto" <c>PreferredProvider</c> wins outright when it's
-    /// among the allowed, connected candidates; otherwise falls back to the interim priority rule
-    /// (prefers a provider that can drive playback, keeping today's Spotify-before-YouTube ordering
-    /// without naming either).
+    /// Resolves the channel's active provider: the registered providers the channel can use
+    /// (<see cref="UsableMusicProviders"/> — connected, or usable on the app-level key alone), narrowed by
+    /// the config's <c>AllowSpotify</c>/<c>AllowYouTube</c> toggles. A non-"auto" <c>PreferredProvider</c>
+    /// wins outright when it's among the allowed, usable candidates; otherwise falls back to the interim
+    /// priority rule (prefers a provider that can drive playback, keeping today's Spotify-before-YouTube
+    /// ordering without naming either).
     /// </summary>
     private async Task<IMusicProvider?> GetActiveProviderAsync(
         Guid tenantId,
         CancellationToken cancellationToken
     )
     {
-        // Look up which services are connected for this broadcaster
-        List<string> connected = await _db
-            .Services.Where(s => s.BroadcasterId == tenantId && s.Enabled && s.AccessToken != null)
-            .Select(s => s.Name)
-            .ToListAsync(cancellationToken);
+        IReadOnlyList<IMusicProvider> usable = await UsableMusicProviders.ForChannelAsync(
+            _db,
+            _providers,
+            tenantId,
+            cancellationToken
+        );
 
         MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
 
-        IEnumerable<IMusicProvider> candidates = _providers.Where(p =>
-            connected.Contains(p.Provider) && IsAllowed(p.Provider, config)
-        );
+        IEnumerable<IMusicProvider> candidates = usable.Where(p => IsAllowed(p.Provider, config));
 
         if (config is { PreferredProvider: "spotify" or "youtube" } preferring)
         {
