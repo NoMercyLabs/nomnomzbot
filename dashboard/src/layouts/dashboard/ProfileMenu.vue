@@ -14,9 +14,11 @@ import { useRouter, type RouteLocationRaw } from 'vue-router';
 import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
 import BookOpen from '~icons/nnz/book-open';
 import DoorOut from '~icons/nnz/door-out';
+import Eye from '~icons/nnz/eye';
 import Shield from '~icons/nnz/shield';
 
 import { signOut, useCurrentUser } from '@/api/auth';
+import { useViewAs, type ViewAsRole } from '@/api/viewAs';
 import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,7 @@ const router = useRouter();
 const { data: user } = useCurrentUser();
 const { current } = useCurrentChannel();
 const open = ref(false);
+const preview = useViewAs();
 
 const settingsLink: RouteLocationRaw = { name: 'dashboard-settings', query: { view: 'device' } };
 const adminLink: RouteLocationRaw = { name: 'dashboard-admin-channels' };
@@ -56,6 +59,14 @@ const role = computed<string>(() =>
     ? t('frame.profile.moderator')
     : t('frame.profile.broadcaster'),
 );
+
+// Only the owner of the channel can preview a smaller role; a moderator already sees theirs.
+const isOwner = computed<boolean>(() => current.value?.kind === 'own');
+
+async function startPreview(role: ViewAsRole): Promise<void> {
+  open.value = false;
+  await preview.start(role);
+}
 
 async function leave(): Promise<void> {
   open.value = false;
@@ -96,6 +107,14 @@ async function leave(): Promise<void> {
             <BookOpen aria-hidden="true" />
             {{ t('frame.profile.readability') }}
           </RouterLink>
+        </Button>
+        <Button v-if="isOwner" variant="ghost" class="justify-start" @click="startPreview('moderator')">
+          <Eye aria-hidden="true" />
+          {{ t('frame.profile.viewAsModerator') }}
+        </Button>
+        <Button v-if="isOwner" variant="ghost" class="justify-start" @click="startPreview('viewer')">
+          <Eye aria-hidden="true" />
+          {{ t('frame.profile.viewAsViewer') }}
         </Button>
         <div class="flex items-center justify-between gap-2 px-3 py-1">
           <span class="text-sm">{{ t('common.language') }}</span>

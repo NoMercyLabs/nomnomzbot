@@ -11,6 +11,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -307,7 +308,12 @@ public sealed class ChatCommandEffectiveLevelTests
         FakeTimeProvider clock = new(Now);
         // A spy over the REAL resolver: forwards to RoleResolver(db) so the outcome is the true ladder
         // resolution, while NSubstitute still counts calls for the short-circuit assertions.
-        RoleResolver realResolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver realResolver = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
         IRoleResolver resolver = Substitute.For<IRoleResolver>();
         resolver
             .ResolveEffectiveLevelAsync(

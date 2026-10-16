@@ -286,6 +286,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddScoped<IChannelAccessService, ChannelAccessService>();
         services.AddScoped<IRoleResolver, RoleResolver>();
         services.AddScoped<IActAsMembershipOverlay, ActAsMembershipOverlay>();
+        services.AddScoped<IViewAsScope, HttpViewAsScope>();
         services.AddScoped<IMembershipService, MembershipService>();
         services.AddScoped<IActionAuthorizationService, ActionAuthorizationService>();
         services.AddScoped<IActionRequiredInboxService, ActionRequiredInboxService>();

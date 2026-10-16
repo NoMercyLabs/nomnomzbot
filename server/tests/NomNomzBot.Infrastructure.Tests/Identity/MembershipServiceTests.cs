@@ -41,7 +41,12 @@ public sealed class MembershipServiceTests
         FakeTimeProvider clock = new(Now);
         MembershipService sut = new(
             db,
-            new RoleResolver(db, clock, Substitute.For<IActAsMembershipOverlay>()),
+            new RoleResolver(
+                db,
+                clock,
+                Substitute.For<IActAsMembershipOverlay>(),
+                Substitute.For<NomNomzBot.Application.Abstractions.Auth.IViewAsScope>()
+            ),
             bus,
             clock
         );

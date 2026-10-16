@@ -11,6 +11,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -243,7 +244,12 @@ public sealed class BuiltinEffectiveRoleTests
             );
 
         FakeTimeProvider clock = new(Now);
-        RoleResolver realResolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver realResolver = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
         IRoleResolver resolver = Substitute.For<IRoleResolver>();
         resolver
             .ResolveEffectiveLevelAsync(

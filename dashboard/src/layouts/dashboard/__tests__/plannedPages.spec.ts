@@ -9,8 +9,8 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { computed, defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, type RouteRecordRaw, type Router } from 'vue-router';
 
 import { dashboardRoutes } from '@/router/dashboard';
@@ -36,6 +36,15 @@ const pagesBeyondMockup: ReadonlySet<string> = new Set(['dashboard-polls']);
 const stub = defineComponent({ render: () => h('div') });
 
 // The real route table, without the admin guard and the lazy page loaders, so the sidebar reads real names and meta.
+// The navigation asks the bot what the person may read; these tests cover the frame, so nothing is known yet and nothing is hidden.
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref(null) }),
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: computed(() => false), can: () => false }),
+}));
+
 function realRouter(): Router {
   const children: RouteRecordRaw[] = (dashboardRoutes.children ?? []).map(
     (child) => ({

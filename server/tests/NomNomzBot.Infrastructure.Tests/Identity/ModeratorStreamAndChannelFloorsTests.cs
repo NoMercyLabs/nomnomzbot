@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -112,7 +113,12 @@ public sealed class ModeratorStreamAndChannelFloorsTests
         await db.SaveChangesAsync();
 
         FakeTimeProvider clock = new(Now);
-        RoleResolver resolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver resolver = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
         ActionAuthorizationService sut = new(db, resolver, new RecordingEventBus(), clock);
         return (sut, db);
     }

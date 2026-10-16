@@ -764,7 +764,15 @@
       "readability": "Leesbaarheid",
       "fullscreen": "Volledig scherm",
       "exitFullscreen": "Volledig scherm verlaten",
-      "admin": "Platformbeheer"
+      "admin": "Platformbeheer",
+      "viewAsModerator": "Bekijk als moderator",
+      "viewAsViewer": "Bekijk als kijker"
+    },
+    "viewAs": {
+      "banner": "Je bekijkt het als {role}",
+      "moderator": "een moderator",
+      "viewer": "een kijker",
+      "exit": "Stoppen"
     },
     "shield": {
       "for": "Schildmodus voor {channel}",

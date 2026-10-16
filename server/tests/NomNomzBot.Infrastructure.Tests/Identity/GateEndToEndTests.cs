@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Enums;
@@ -47,7 +48,12 @@ public sealed class GateEndToEndTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new(Now);
-        RoleResolver roleResolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver roleResolver = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
         ActionAuthorizationService gate2 = new(db, roleResolver, new RecordingEventBus(), clock);
         ChannelAccessService gate1 = new(db);
 

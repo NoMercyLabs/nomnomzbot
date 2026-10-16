@@ -9,11 +9,25 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { computed, defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { useNavigation, type Navigation } from '../useNavigation';
+
+// What the bot says the person may read; null means it has not answered yet.
+const held = vi.hoisted(() => ({ keys: null as string[] | null }));
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: computed(() => held.keys !== null),
+    can: (key: string) => held.keys?.includes(key) === true,
+  }),
+}));
 
 const page = defineComponent({ render: () => h('div') });
 
@@ -56,6 +70,7 @@ const built: string[] = [
 
 // The open state is shared by every sidebar; a storage event makes it read the cleared storage again.
 beforeEach(() => {
+  held.keys = null;
   localStorage.clear();
 
   window.dispatchEvent(
@@ -66,6 +81,26 @@ beforeEach(() => {
 afterEach(() => localStorage.clear());
 
 describe('the dashboard navigation', () => {
+  it('shows every page until the bot has answered, then only the pages the person may read', async () => {
+    const router = makeRouter(built);
+
+    const unknown = await open(router, '/dashboard-home');
+
+    expect(unknown.entries.value.map((entry) => entry.label)).toEqual([
+      'home',
+      'chat',
+      'stream',
+      'commands',
+      'triggersTimers',
+    ]);
+
+    held.keys = ['dashboard:read', 'chat:read'];
+    const moderator = await open(router, '/dashboard-home');
+
+    expect(moderator.entries.value.map((entry) => entry.label)).toEqual(['home', 'chat']);
+    expect(moderator.groups.value.map((group) => group.key)).toEqual(['home', 'live']);
+  });
+
   it('hides an entry whose page has no route and drops a group left empty', async () => {
     const navigation = await open(makeRouter(built), '/dashboard-home');
 

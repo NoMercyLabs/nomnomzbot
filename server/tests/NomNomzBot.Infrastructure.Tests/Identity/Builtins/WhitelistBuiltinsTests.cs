@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -51,7 +52,12 @@ public sealed class WhitelistBuiltinsTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new(Now);
         CommunityStandingService standings = new(db, new RecordingEventBus(), clock);
-        RoleResolver roles = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver roles = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
 
         IUserService users = Substitute.For<IUserService>();
         users

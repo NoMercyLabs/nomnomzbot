@@ -34,16 +34,19 @@ public class ChatIdentityController : BaseController
     private readonly IChatIdentityService _service;
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IViewAsScope _viewAs;
 
     public ChatIdentityController(
         IChatIdentityService service,
         IApplicationDbContext db,
-        ICurrentUserService currentUser
+        ICurrentUserService currentUser,
+        IViewAsScope viewAs
     )
     {
         _service = service;
         _db = db;
         _currentUser = currentUser;
+        _viewAs = viewAs;
     }
 
     /// <summary>The owner's chat color, the named colors, and the badges on their latest chat line.</summary>
@@ -82,7 +85,11 @@ public class ChatIdentityController : BaseController
 
     private async Task<bool> IsOwnerAsync(Guid channelId, CancellationToken ct)
     {
-        if (!Guid.TryParse(_currentUser.UserId, out Guid userId))
+        // Viewing as a lower role, the owner is not the owner for this write.
+        if (
+            _viewAs.CeilingLevel is not null
+            || !Guid.TryParse(_currentUser.UserId, out Guid userId)
+        )
             return false;
 
         return await _db.Channels.AnyAsync(c => c.Id == channelId && c.OwnerUserId == userId, ct);

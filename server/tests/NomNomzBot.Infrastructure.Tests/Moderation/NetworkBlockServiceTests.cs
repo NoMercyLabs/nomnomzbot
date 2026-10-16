@@ -13,6 +13,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -382,7 +383,8 @@ public sealed class NetworkBlockServiceTests : IDisposable
         RoleResolver roles = new(
             check,
             TimeProvider.System,
-            Substitute.For<IActAsMembershipOverlay>()
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
         );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,
@@ -408,7 +410,8 @@ public sealed class NetworkBlockServiceTests : IDisposable
         RoleResolver roles = new(
             check,
             TimeProvider.System,
-            Substitute.For<IActAsMembershipOverlay>()
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
         );
         Result<int> level = await roles.ResolveEffectiveLevelAsync(TargetUserId, TenantA);
 
@@ -464,7 +467,8 @@ public sealed class NetworkBlockServiceTests : IDisposable
         RoleResolver roles = new(
             db,
             TimeProvider.System,
-            Substitute.For<IActAsMembershipOverlay>()
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
         );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,
@@ -526,7 +530,8 @@ public sealed class NetworkBlockServiceTests : IDisposable
         RoleResolver roles = new(
             db,
             TimeProvider.System,
-            Substitute.For<IActAsMembershipOverlay>()
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
         );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,
@@ -589,7 +594,8 @@ public sealed class NetworkBlockServiceTests : IDisposable
         RoleResolver roles = new(
             db,
             TimeProvider.System,
-            Substitute.For<IActAsMembershipOverlay>()
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
         );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,

@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Entities;
@@ -52,7 +53,12 @@ public sealed class ModeratorPermissionsScenarioTests
         await db.SaveChangesAsync();
 
         FakeTimeProvider clock = new(Now);
-        RoleResolver resolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver resolver = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
         ActionAuthorizationService sut = new(db, resolver, new RecordingEventBus(), clock);
         return (sut, db);
     }
@@ -159,7 +165,12 @@ public sealed class ModeratorPermissionsScenarioTests
         await db.SaveChangesAsync();
 
         FakeTimeProvider clock = new(Now);
-        RoleResolver resolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver resolver = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
         ActionAuthorizationService sut = new(db, resolver, new RecordingEventBus(), clock);
         await sut.SetActionOverrideAsync(Channel, "commands:write", 40, Broadcaster);
 
