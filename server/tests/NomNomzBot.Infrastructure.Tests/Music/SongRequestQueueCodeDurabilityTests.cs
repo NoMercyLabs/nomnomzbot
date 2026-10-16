@@ -166,6 +166,7 @@ public sealed class SongRequestQueueCodeDurabilityTests
             restartedService,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 

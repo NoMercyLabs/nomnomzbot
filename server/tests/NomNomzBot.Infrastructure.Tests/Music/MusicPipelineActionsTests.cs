@@ -611,6 +611,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -641,6 +642,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -667,6 +669,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -702,6 +705,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -746,6 +750,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -781,6 +786,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -807,6 +813,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -841,6 +848,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -883,6 +891,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -920,6 +929,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -962,6 +972,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -995,6 +1006,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1025,6 +1037,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1067,6 +1080,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1092,6 +1106,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1125,6 +1140,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
+            WrongSongTestComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1177,7 +1193,13 @@ public sealed class MusicPipelineActionsTests
         IChatProvider chat = Substitute.For<IChatProvider>();
         chat.SendReplyAsync(ChannelId, "msg-1", Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
-        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            db,
+            chat,
+            WrongSongTestComposer.Create(),
+            NullLogger<SongWrongAction>.Instance
+        );
 
         PipelineExecutionContext ctx = Ctx(userId: "twitch-42", displayName: "Bamo");
         ActionResult result = await action.ExecuteAsync(ctx, Def("song_wrong"));
@@ -1211,7 +1233,13 @@ public sealed class MusicPipelineActionsTests
         IChatProvider chat = Substitute.For<IChatProvider>();
         chat.SendReplyAsync(ChannelId, "msg-1", Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
-        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            db,
+            chat,
+            WrongSongTestComposer.Create(),
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(userId: "twitch-42", displayName: "Bamo"),
@@ -1240,7 +1268,13 @@ public sealed class MusicPipelineActionsTests
         IChatProvider chat = Substitute.For<IChatProvider>();
         chat.SendReplyAsync(ChannelId, "msg-1", Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
-        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            db,
+            chat,
+            WrongSongTestComposer.Create(),
+            NullLogger<SongWrongAction>.Instance
+        );
 
         await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
 
@@ -1267,7 +1301,13 @@ public sealed class MusicPipelineActionsTests
             .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
             .Returns(RequestRetraction.Removed);
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            db,
+            chat,
+            WrongSongTestComposer.Create(),
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(userId: "twitch-42", displayName: "Bamo"),

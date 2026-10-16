@@ -14,9 +14,12 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
@@ -64,6 +67,7 @@ public sealed class SongWrongAction : ICommandAction
     private readonly IMusicService _music;
     private readonly IApplicationDbContext _db;
     private readonly IChatProvider _chat;
+    private readonly IBuiltinResponseComposer _composer;
     private readonly ILogger<SongWrongAction> _logger;
 
     public string ActionType => "song_wrong";
@@ -76,12 +80,14 @@ public sealed class SongWrongAction : ICommandAction
         IMusicService music,
         IApplicationDbContext db,
         IChatProvider chat,
+        IBuiltinResponseComposer composer,
         ILogger<SongWrongAction> logger
     )
     {
         _music = music;
         _db = db;
         _chat = chat;
+        _composer = composer;
         _logger = logger;
     }
 
@@ -121,6 +127,16 @@ public sealed class SongWrongAction : ICommandAction
             }
         }
 
+        // "!wrongsong 5" — a whole number that is not one of the caller's codes names the entry !queue
+        // prints as #5. Codes win, so a code made only of digits still resolves as a code.
+        if (
+            (requestedCode is null || item is null)
+            && ctx.Variables.TryGetValue("args.1", out string? numberArg)
+            && numberArg.Length > 0
+            && numberArg.All(char.IsAsciiDigit)
+        )
+            return await RetractByQueueNumberAsync(ctx, queue, numberArg);
+
         // A code that names nothing of theirs is a mistake worth reporting, not a silent fallback to
         // "remove your latest" — that would retract a different song than the one they asked for.
         if (requestedCode is not null && item is null)
@@ -159,6 +175,100 @@ public sealed class SongWrongAction : ICommandAction
                 : $"@{ctx.TriggeredByChatName} Removed {item.TrackName} by {item.Artist} from the queue."
         );
         return ActionResult.Success($"removed: {item.TrackName}");
+    }
+
+    /// <summary>
+    /// <c>!wrongsong N</c>: removes the entry at the number <c>!queue</c> shows (<see cref="QueueNumbering"/>),
+    /// only when the caller requested it. A number outside the queue or naming someone else's request is
+    /// refused and removes nothing. Removal goes through the same retract call as the code path, so a song
+    /// Spotify already holds is skipped when it starts.
+    /// </summary>
+    private async Task<ActionResult> RetractByQueueNumberAsync(
+        PipelineExecutionContext ctx,
+        MusicQueue queue,
+        string numberArg
+    )
+    {
+        // A number too large for int is outside any queue.
+        int number = int.TryParse(numberArg, out int parsed) ? parsed : 0;
+        int? position = QueueNumbering.PositionOf(number, queue.Queue.Count);
+        Dictionary<string, string> variables = new()
+        {
+            ["user"] = ctx.TriggeredByChatName,
+            ["request.position"] = numberArg,
+        };
+
+        if (position is null)
+        {
+            await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Skip.NoRequest,
+                "@{user} There is no request #{request.position} in the queue.",
+                variables
+            );
+            ctx.ShouldStop = true;
+            return ActionResult.Success($"no queue entry #{numberArg}");
+        }
+
+        MusicQueueItem item = queue.Queue[position.Value];
+        if (
+            !string.Equals(
+                item.RequestedBy,
+                ctx.TriggeredByDisplayName,
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Skip.NotYours,
+                "@{user} #{request.position} is not your request.",
+                variables
+            );
+            ctx.ShouldStop = true;
+            return ActionResult.Success($"queue entry #{numberArg} is not the caller's");
+        }
+
+        RequestRetraction retraction = await _music.RetractRequestAsync(
+            ctx.BroadcasterId.ToString(),
+            position.Value,
+            ctx.CancellationToken
+        );
+        if (retraction == RequestRetraction.NotRemoved)
+            return ActionResult.Failure("failed to remove the request from the queue");
+
+        await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
+        variables["track.name"] = item.TrackName;
+        variables["track.artist"] = item.Artist;
+        await SendSlotAsync(
+            ctx,
+            BuiltinResponseSlots.Skip.Removed,
+            "@{user} Removed your request: {track.name} by {track.artist}",
+            variables
+        );
+        return ActionResult.Success($"removed: {item.TrackName}");
+    }
+
+    private async Task SendSlotAsync(
+        PipelineExecutionContext ctx,
+        string slot,
+        string neutralFallback,
+        IReadOnlyDictionary<string, string> variables
+    )
+    {
+        string text = await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = ctx.BroadcasterId,
+                Personality = PersonalityTone.Informative,
+                BuiltinKey = BuiltinResponseSlots.Skip.Key,
+                Slot = slot,
+                NeutralFallback = neutralFallback,
+                Variables = variables,
+            },
+            ctx.CancellationToken
+        );
+        await SendAsync(ctx, text);
     }
 
     /// <summary>
