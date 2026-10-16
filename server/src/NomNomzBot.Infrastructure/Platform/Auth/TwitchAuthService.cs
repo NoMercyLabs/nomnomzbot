@@ -148,6 +148,11 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
+        // A personal viewer/moderator grant has no channel; (null, twitch) names many accounts, so a refresh
+        // by that pair could rotate another user's token. Those grants re-consent at sign-in instead.
+        if (broadcasterId is null && provider == TwitchProvider)
+            return null;
+
         IntegrationConnection? connection = await ResolveConnectionAsync(
             broadcasterId,
             provider,

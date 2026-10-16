@@ -71,6 +71,13 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         _logger = logger;
     }
 
+    /// <summary>
+    /// A viewer's or moderator's own Twitch grant: no channel, so many such rows share
+    /// <c>(null, twitch)</c> and only the account id tells them apart.
+    /// </summary>
+    private static bool IsPersonalTwitchConnection(UpsertConnectionDto request) =>
+        request.BroadcasterId is null && request.Provider == AuthEnums.IntegrationProvider.Twitch;
+
     public async Task<Result<IntegrationConnectionDto>> UpsertConnectionAsync(
         UpsertConnectionDto request,
         CancellationToken cancellationToken = default
@@ -91,7 +98,11 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
                 c =>
                     c.BroadcasterId == request.BroadcasterId
                     && c.Provider == request.Provider
-                    && c.DeletedAt == null,
+                    && c.DeletedAt == null
+                    && (
+                        !IsPersonalTwitchConnection(request)
+                        || c.ProviderAccountId == request.ProviderAccountId
+                    ),
                 cancellationToken
             );
 

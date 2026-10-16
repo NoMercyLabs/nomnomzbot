@@ -104,28 +104,9 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
 
     /// <summary>Shared with <see cref="AuthServiceLoginDoesNotBlockOnOnboardingTests"/>, which needs the
     /// same fully-wired AuthService but a different bus — hence <see cref="IEventBus"/>, not the recorder.</summary>
-    internal static AuthService Build(AuthDbContext db, IEventBus bus)
+    /// <summary>A vault fake that accepts every connect and token store.</summary>
+    internal static IIntegrationTokenVault NewVault()
     {
-        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
-        credentials
-            .GetClientIdAsync("twitch", Arg.Any<CancellationToken>())
-            .Returns("public-client-id");
-        credentials
-            .GetAsync("twitch", Arg.Any<CancellationToken>())
-            .Returns(new SystemAppCredentials("public-client-id", "client-secret"));
-
-        ITwitchAuthService twitchAuth = Substitute.For<ITwitchAuthService>();
-        twitchAuth
-            .ExchangeCodeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(
-                new TokenResult(
-                    "access-token",
-                    "refresh-token",
-                    DateTime.UtcNow.AddHours(4),
-                    ["user:read:email"]
-                )
-            );
-
         IIntegrationTokenVault vault = Substitute.For<IIntegrationTokenVault>();
         vault
             .UpsertConnectionAsync(Arg.Any<UpsertConnectionDto>(), Arg.Any<CancellationToken>())
@@ -154,6 +135,36 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
+
+        return vault;
+    }
+
+    internal static AuthService Build(
+        AuthDbContext db,
+        IEventBus bus,
+        IIntegrationTokenVault? vault = null
+    )
+    {
+        vault ??= NewVault();
+        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
+        credentials
+            .GetClientIdAsync("twitch", Arg.Any<CancellationToken>())
+            .Returns("public-client-id");
+        credentials
+            .GetAsync("twitch", Arg.Any<CancellationToken>())
+            .Returns(new SystemAppCredentials("public-client-id", "client-secret"));
+
+        ITwitchAuthService twitchAuth = Substitute.For<ITwitchAuthService>();
+        twitchAuth
+            .ExchangeCodeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new TokenResult(
+                    "access-token",
+                    "refresh-token",
+                    DateTime.UtcNow.AddHours(4),
+                    ["user:read:email"]
+                )
+            );
 
         ISessionService sessions = Substitute.For<ISessionService>();
         sessions

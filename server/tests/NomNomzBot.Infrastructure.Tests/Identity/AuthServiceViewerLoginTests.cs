@@ -12,9 +12,11 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -62,7 +64,47 @@ public sealed class AuthServiceViewerLoginTests
         User user = await db.Users.SingleAsync();
         user.TwitchUserId.Should().Be("tw-100");
         (await db.Channels.IgnoreQueryFilters().CountAsync()).Should().Be(0);
-        (await db.IntegrationConnections.IgnoreQueryFilters().CountAsync()).Should().Be(0);
         bus.Published.Should().NotContain(e => e is ChannelOnboardedEvent);
+    }
+
+    [Fact]
+    public async Task Viewer_login_vaults_the_viewers_own_token_bound_to_that_user_and_no_channel()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        IIntegrationTokenVault vault = AuthServiceReAuthOnboardingRepublishTests.NewVault();
+        AuthService service = AuthServiceReAuthOnboardingRepublishTests.Build(
+            db,
+            new RecordingEventBus(),
+            vault
+        );
+
+        Result<AuthResultDto> result = await service.HandleTwitchViewerCallbackAsync(
+            new() { Code = "auth-code" },
+            new("web", "127.0.0.1", "test-agent")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        User user = await db.Users.SingleAsync();
+        await vault
+            .Received(1)
+            .UpsertConnectionAsync(
+                Arg.Is<UpsertConnectionDto>(c =>
+                    c.BroadcasterId == null
+                    && c.Provider == "twitch"
+                    && c.ProviderAccountId == "tw-100"
+                    && c.ConnectedByUserId == user.Id
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await vault
+            .Received(1)
+            .StoreTokensAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<StoreTokensDto>(t =>
+                    t.AccessToken == "access-token" && t.RefreshToken == "refresh-token"
+                ),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }
