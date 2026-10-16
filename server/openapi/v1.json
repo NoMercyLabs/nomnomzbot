@@ -150677,9 +150677,13 @@
           },
           "provider": {
             "type": "string"
+          },
+          "onBot": {
+            "type": "boolean",
+            "default": true
           }
         },
-        "description": "One channel in the deployment's public directory (chat-client.md §9a \"Reaching any channel\"): only what\r\nthe channel shows every visitor on Twitch. No role, no settings, no tokens."
+        "description": "One channel in the deployment's public directory (chat-client.md §9a \"Reaching any channel\"): only what\r\nthe channel shows every visitor on Twitch. No role, no settings, no tokens. <c>OnBot</c> is false for a\r\nTwitch channel this deployment does not serve; its <c>Id</c> is then the Twitch user id, not a tenant Guid."
       },
       "PaginatedResponseOfPublicChannelDto": {
         "type": "object",

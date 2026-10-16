@@ -102480,7 +102480,8 @@ export interface components {
         };
         /**
          * @description One channel in the deployment's public directory (chat-client.md §9a "Reaching any channel"): only what
-         *     the channel shows every visitor on Twitch. No role, no settings, no tokens.
+         *     the channel shows every visitor on Twitch. No role, no settings, no tokens. <c>OnBot</c> is false for a
+         *     Twitch channel this deployment does not serve; its <c>Id</c> is then the Twitch user id, not a tenant Guid.
          */
         PublicChannelDto: {
             id: string;
@@ -102489,6 +102490,8 @@ export interface components {
             profileImageUrl?: null | string;
             isLive: boolean;
             provider: string;
+            /** @default true */
+            onBot: boolean;
         };
         PaginatedResponseOfPublicChannelDto: {
             data?: components["schemas"]["PublicChannelDto"][];

@@ -343,6 +343,32 @@ directory search.
   directory and opens `/me/:login/chat`. The last opened channels are remembered on the device
   (`nnz.viewerChat.recent`, newest first, at most 5) and shown before any search.
 
+### Any Twitch channel
+
+Stoney (owner), 2026-10-16: "so it does not return ANY channel i want to join for my own chat
+interface". Earlier, faithful English of his Dutch: "I must be able to reach every chat with my
+account, as a viewer."
+
+Viewer chat reaches **every** Twitch channel, not only the channels this deployment serves.
+
+- **Directory.** `GET channels/directory` keeps the bot channels first (`onBot=true`, `id` = tenant Guid).
+  With a non-empty `search`, page 1 appends Helix `search/channels` hits (App token, no scope) whose login is
+  not a bot channel, marked `onBot=false`, `id` = the Twitch user id. A Helix failure degrades to the bot
+  rows only. `PublicChannelDto` gains `onBot`.
+- **Read.** A non-bot channel has no tenant, so the bot's EventSub does not carry it. The server opens an
+  EventSub WebSocket session on the **viewer's own user token** and subscribes `channel.chat.message`
+  (condition `broadcaster_user_id` = the channel, `user_id` = the viewer; scope `user:read:chat` from the
+  chatting user, verified 2026-10-16 against the Twitch EventSub subscription-types page), plus
+  `channel.chat.message_delete`, `channel.chat.clear` and `channel.chat.notification`. Lines are pushed
+  only to that viewer's SignalR connection.
+- **Send.** Helix `POST chat/messages` with the viewer's own token (`user:write:chat`), `sender_id` = the
+  viewer, `broadcaster_id` = the channel's Twitch id.
+- **Scopes.** `user:read:chat` and `user:write:chat` are already in the viewer login set
+  (`TwitchLoginScopes.cs` `Viewer`). A token without them is upgraded in place by incremental consent;
+  the user is never logged out.
+- **Limits.** No moderation, no bot features, no history, no stored lines on a non-bot channel. The bot
+  channel path above stays unchanged.
+
 ## 10. Open
 
 Not yet landed. Each is a slice in `SHORTCOMINGS-EXECUTION-PLAN.md`:
