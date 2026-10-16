@@ -12,6 +12,7 @@ import createClient from 'openapi-fetch';
 import type { paths } from './schema';
 
 import { activeBot } from './activeBot';
+import { viewAs, viewAsHeader } from './viewAs';
 
 import { servedOrigin } from '@/lib/botAddress';
 
@@ -38,5 +39,17 @@ client.use({
       credentials: request.credentials,
       signal: request.signal,
     });
+  },
+});
+
+// While the owner previews a smaller role, every call says so and the bot answers as that role.
+client.use({
+  onRequest({ request }) {
+    if (viewAs.value === '')
+      return request;
+
+    request.headers.set(viewAsHeader, viewAs.value);
+
+    return request;
   },
 });

@@ -1744,6 +1744,11 @@ public static class DependencyInjection
             Application.Contracts.Authorization.IActAsMembershipOverlay,
             Identity.ActAsMembershipOverlay
         >();
+        // The owner's "View as" ceiling for one request (X-View-As header); the resolver caps the level with it.
+        services.AddScoped<
+            Application.Abstractions.Auth.IViewAsScope,
+            Platform.Auth.HttpViewAsScope
+        >();
 
         // Twitch management snapshot builder (moderators + editors) — shared by the onboarding seed and the
         // periodic ManagementRoleReconcileService. Not an I<X>Service; scoped (composes IUserService + Helix).

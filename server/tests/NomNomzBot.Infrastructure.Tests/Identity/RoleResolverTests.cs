@@ -10,11 +10,13 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Platform.Auth;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -32,16 +34,106 @@ public sealed class RoleResolverTests
     private static readonly Guid Actor = Guid.Parse("0192a000-0000-7000-8000-0000000000b3");
     private static readonly DateTimeOffset Now = new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero);
 
-    private static (RoleResolver Sut, AuthDbContext Db) Build()
+    private static (RoleResolver Sut, AuthDbContext Db) Build(int? viewAsCeiling = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
+        IViewAsScope viewAs = Substitute.For<IViewAsScope>();
+        viewAs.CeilingLevel.Returns(viewAsCeiling);
         RoleResolver sut = new(
             db,
             new FakeTimeProvider(Now),
-            Substitute.For<IActAsMembershipOverlay>()
+            Substitute.For<IActAsMembershipOverlay>(),
+            viewAs
         );
         return (sut, db);
     }
+
+    private static void SeedOwnedChannel(AuthDbContext db) =>
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                OwnerUserId = User,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "owned-ext",
+                Name = "owned",
+                NameNormalized = "owned",
+                Status = AuthEnums.ChannelStatus.Active,
+            }
+        );
+
+    [Fact]
+    public async Task ViewAs_moderator_lowers_the_owner_so_an_owner_only_write_is_refused()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build(
+            viewAsCeiling: HttpViewAsScope.ToCeiling("moderator")
+        );
+        SeedOwnedChannel(db);
+        SeedAction(db, "setup:write", defaultLevel: 40, floor: 40);
+        SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
+        await db.SaveChangesAsync();
+
+        Result<int> level = await sut.ResolveEffectiveLevelAsync(User, Channel);
+        Result<bool> ownerWrite = await sut.HasCapabilityAsync(User, Channel, "setup:write");
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        level.Value.Should().Be(10);
+        ownerWrite.Value.Should().BeFalse();
+        access.Value.HeldActionKeys.Should().Equal("commands:read");
+    }
+
+    [Fact]
+    public async Task ViewAs_viewer_drops_a_direct_capability_grant_too()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build(
+            viewAsCeiling: HttpViewAsScope.ToCeiling("viewer")
+        );
+        SeedOwnedChannel(db);
+        ActionDefinition action = SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
+        db.PermitGrants.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                UserId = User,
+                GrantType = PermitGrantType.Capability,
+                ActionDefinitionId = action.Id,
+                GrantedByUserId = Channel,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<bool> held = await sut.HasCapabilityAsync(User, Channel, "commands:read");
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        held.Value.Should().BeFalse();
+        access.Value.EffectiveLevel.Should().Be(PermissionLevelNames.ToName(0));
+        access.Value.HeldActionKeys.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ViewAs_moderator_never_raises_a_viewer()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build(
+            viewAsCeiling: HttpViewAsScope.ToCeiling("moderator")
+        );
+        SeedStanding(db, CommunityStanding.Vip);
+        SeedAction(db, "commands:write", defaultLevel: 10, floor: 10);
+        await db.SaveChangesAsync();
+
+        Result<int> level = await sut.ResolveEffectiveLevelAsync(User, Channel);
+        Result<bool> write = await sut.HasCapabilityAsync(User, Channel, "commands:write");
+
+        level.Value.Should().Be(4);
+        write.Value.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("broadcaster")]
+    [InlineData("editor")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void ViewAs_header_names_no_level_above_moderator(string? value) =>
+        HttpViewAsScope.ToCeiling(value).Should().BeNull();
 
     private static ActionDefinition SeedAction(
         AuthDbContext db,
@@ -360,7 +452,12 @@ public sealed class RoleResolverTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new(Now);
-        RoleResolver sut = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
+        RoleResolver sut = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<IViewAsScope>()
+        );
         ActionAuthorizationService overrides = new(db, sut, new RecordingEventBus(), clock);
         SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
         SeedAction(db, "moderation:ban", defaultLevel: 10, floor: 10);

@@ -12,6 +12,9 @@ import { useStorage } from '@vueuse/core';
 import { computed, watch, type ComputedRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useChannelAccess } from '@/api/access';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+
 import { navByMode } from './navModes';
 import type { NavEntry, NavGroup, NavMode } from './navigation';
 
@@ -40,6 +43,13 @@ const folds = useStorage<Record<string, boolean>>(
 export function useNavigation(): Navigation {
   const router = useRouter();
   const route = useRoute();
+  const { channelId } = useCurrentChannel();
+  const access = useChannelAccess(channelId);
+
+  // A page the person may not read has no entry. Until the bot has answered, nothing is hidden.
+  function readable(entry: NavEntry): boolean {
+    return !access.known.value || entry.action === undefined || access.can(entry.action);
+  }
 
   // A page that is not built yet has no route, so it has no entry (pages appear as they land).
   function isCurrent(entry: NavEntry): boolean {
@@ -55,7 +65,9 @@ export function useNavigation(): Navigation {
   const groups = computed<VisibleGroup[]>(() =>
     navByMode[mode.value]
       .map((group: NavGroup): VisibleGroup => {
-        const entries = group.entries.filter((entry) => router.hasRoute(entry.route));
+        const entries = group.entries.filter(
+          (entry) => router.hasRoute(entry.route) && readable(entry),
+        );
         const holdsOpenPage = entries.some(isCurrent);
 
         return {

@@ -50,5 +50,30 @@ A viewer made moderator, or a moderator who becomes a broadcaster, gets an in-ap
 ### What the role choice does not do
 The choice limits the scopes asked from the platform. It does not grant bot permissions: what a person may do in the bot stays with the channel's role ladder (`roles-permissions.md`). A user who picks Moderator but is not a moderator of any channel sees the empty state with that reason.
 
+## View as — the owner sees the dashboard as a moderator or a viewer
+
+Owner, verbatim (2026-10-16): "I can access it, but do i need a dedicated view as viewer action? I have my full bot ui so I can't test what a normal user sees"
+
+### Decisions
+- The channel owner can pick **Moderator** or **Viewer** in the profile menu. Only the owner of the open channel sees the entry.
+- The choice is truthful, not cosmetic. The server applies it to every request, so pages, data and writes match what that role really gets.
+- The choice can only LOWER the caller's level. It never raises it. A value other than `moderator` or `viewer` is ignored.
+- A persistent banner "Viewing as <role>" with one Exit button shows while the choice is on. Exit restores the full role at once.
+- The choice is remembered in the tab (`nnz.viewAs`, local storage) so a reload keeps it until Exit.
+- It is not impersonation. The caller stays themselves; no token is minted and nothing is journalled as another person.
+
+### Data flow
+1. The dashboard stores the role and sends header `X-View-As: moderator|viewer` on every API request (`dashboard/src/api/client.ts` middleware).
+2. `HttpViewAsScope` (Infrastructure) reads the header and maps it to a ceiling on the unified ladder: moderator = 10, viewer = 0.
+3. `RoleResolver` caps the effective level at `MIN(level, ceiling)` and drops direct capability grants while the ceiling is on. Every Gate-2 check (`[RequireAction]`, `ActionAuthorizationService`) and `GET roles/effective/me` go through it, so the held action keys the dashboard reads are the lowered set.
+4. The dashboard nav shows a page only when the caller holds that page's read action key, so the sidebar follows the same server answer.
+5. The owner-only chat color write (`ChatIdentityController`) refuses the owner while the ceiling is on.
+
+### What the server enforces
+- Gate 2 for every endpoint with `[RequireAction]`: refused above the ceiling (403).
+- `roles/effective/me`: reports the lowered level and held keys.
+- Raise is impossible: `MIN` with the real level, and only two known values map to a ceiling.
+- Not covered: chat commands and background work (no HTTP request, no header) — they keep the real role, as they should. The realtime hub keeps the real role for its push events; the data each page loads still goes through the lowered REST gate.
+
 ## Open for Stoney
 - Broadcaster: all channel scopes of the enabled features at login (Arc's reading of "at login time"), or today's minimal set plus a prompt per feature?

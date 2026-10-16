@@ -764,7 +764,15 @@
       "readability": "Readability",
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
-      "admin": "Platform admin"
+      "admin": "Platform admin",
+      "viewAsModerator": "View as moderator",
+      "viewAsViewer": "View as viewer"
+    },
+    "viewAs": {
+      "banner": "Viewing as {role}",
+      "moderator": "a moderator",
+      "viewer": "a viewer",
+      "exit": "Exit"
     },
     "shield": {
       "for": "Shield mode for {channel}",

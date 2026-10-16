@@ -27,6 +27,7 @@ import FrameActions from './dashboard/FrameActions.vue';
 import NavRail from './dashboard/NavRail.vue';
 import ProfileMenu from './dashboard/ProfileMenu.vue';
 import ShortcutsDialog from './dashboard/ShortcutsDialog.vue';
+import ViewAsBanner from './dashboard/ViewAsBanner.vue';
 
 // Three frames (spec frontend-vue-components.md section 2): sidebar from 840 px, icon rail from 600 px, bottom bar below.
 const wide = useMediaQuery('(min-width: 840px)');
@@ -49,6 +50,7 @@ useRealtime();
       <DashboardSidebar v-if="wide && !railWanted" />
       <NavRail v-else-if="medium" />
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ViewAsBanner />
         <!-- Without the sidebar, the channel switch and the profile need a home of their own. -->
         <header
           v-if="!wide"

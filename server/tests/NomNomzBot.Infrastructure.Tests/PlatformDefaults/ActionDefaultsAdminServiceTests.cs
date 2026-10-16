@@ -94,7 +94,12 @@ public sealed class ActionDefaultsAdminServiceTests
 
         ActionAuthorizationService gate = new(
             db,
-            new RoleResolver(db, clock, Substitute.For<IActAsMembershipOverlay>()),
+            new RoleResolver(
+                db,
+                clock,
+                Substitute.For<IActAsMembershipOverlay>(),
+                Substitute.For<NomNomzBot.Application.Abstractions.Auth.IViewAsScope>()
+            ),
             new RecordingEventBus(),
             clock
         );

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -28,7 +29,8 @@ namespace NomNomzBot.Infrastructure.Identity;
 public sealed class RoleResolver(
     IApplicationDbContext db,
     TimeProvider clock,
-    IActAsMembershipOverlay actAsOverlay
+    IActAsMembershipOverlay actAsOverlay,
+    IViewAsScope viewAs
 ) : IRoleResolver
 {
     private const int BroadcasterLevel = 40;
@@ -108,18 +110,20 @@ public sealed class RoleResolver(
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
 
-        // A direct capability grant for exactly this action is sufficient.
-        bool directGrant = await db.PermitGrants.AnyAsync(
-            p =>
-                p.BroadcasterId == broadcasterId
-                && p.UserId == userId
-                && p.GrantType == PermitGrantType.Capability
-                && p.ActionDefinitionId == action.Id
-                && p.RevokedAt == null
-                && p.DeletedAt == null
-                && (p.ExpiresAt == null || p.ExpiresAt > now),
-            cancellationToken
-        );
+        // A direct capability grant for exactly this action is sufficient, except while viewing as a lower role.
+        bool directGrant =
+            viewAs.CeilingLevel is null
+            && await db.PermitGrants.AnyAsync(
+                p =>
+                    p.BroadcasterId == broadcasterId
+                    && p.UserId == userId
+                    && p.GrantType == PermitGrantType.Capability
+                    && p.ActionDefinitionId == action.Id
+                    && p.RevokedAt == null
+                    && p.DeletedAt == null
+                    && (p.ExpiresAt == null || p.ExpiresAt > now),
+                cancellationToken
+            );
         if (directGrant)
             return Result.Success(true);
 
@@ -205,7 +209,12 @@ public sealed class RoleResolver(
             .FirstOrDefault();
         int permitRoleLevel = permitRole?.ToLevel() ?? 0;
 
-        int effective = Math.Max(communityLevel, Math.Max(managementLevel, permitRoleLevel));
+        int realLevel = Math.Max(communityLevel, Math.Max(managementLevel, permitRoleLevel));
+        // View as (role-login-scopes.md): the ceiling only ever lowers the level, and drops direct grants.
+        int? ceiling = viewAs.CeilingLevel;
+        int effective = ceiling is { } cap ? Math.Min(realLevel, cap) : realLevel;
+        if (ceiling is not null)
+            capabilities = [];
         string winning =
             effective == 0 ? "community"
             : permitRoleLevel == effective ? "permit"

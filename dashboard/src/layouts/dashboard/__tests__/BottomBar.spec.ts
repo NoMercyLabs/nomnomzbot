@@ -9,14 +9,23 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { computed, defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { i18n } from '@/i18n';
 
 import BottomBar from '../BottomBar.vue';
 import { dashboardNav } from '../navigation';
+
+// The navigation asks the bot what the person may read; these tests cover the frame, so nothing is known yet and nothing is hidden.
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref(null) }),
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: computed(() => false), can: () => false }),
+}));
 
 const page = defineComponent({ render: () => h('div') });
 
