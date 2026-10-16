@@ -10707,6 +10707,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<double>("AccountAgeWeight")
                         .HasColumnType("double precision");
 
+                    b.Property<double>("AffiliateBoost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(5.0);
+
                     b.Property<double>("BanPenalty")
                         .HasColumnType("double precision");
 
@@ -10766,6 +10771,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<double>("NotFollowingFactor")
                         .HasColumnType("double precision");
 
+                    b.Property<double>("PartnerBoost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(10.0);
+
                     b.Property<bool>("ReputationBoostEnabled")
                         .HasColumnType("boolean");
 
@@ -10789,6 +10799,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("VerifiedYouTubeBoost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(10.0);
 
                     b.Property<double>("YouTubeQualityPenaltyFactor")
                         .HasColumnType("double precision");

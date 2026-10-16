@@ -73,6 +73,15 @@ public class TrustPolicy : SoftDeletableEntity, ITenantScoped
     /// <summary>Whether mods, VIPs, subscribers and established requesters get the halfway-to-100 boost.</summary>
     public bool ReputationBoostEnabled { get; set; } = true;
 
+    /// <summary>Points added for a Twitch affiliate. 0 disables it.</summary>
+    public double AffiliateBoost { get; set; } = 5.0;
+
+    /// <summary>Points added for a Twitch partner (replaces the affiliate boost, not stacked). 0 disables it.</summary>
+    public double PartnerBoost { get; set; } = 10.0;
+
+    /// <summary>Points added for a verified YouTube channel. 0 disables it.</summary>
+    public double VerifiedYouTubeBoost { get; set; } = 10.0;
+
     /// <summary>
     /// Multiplier applied per failed YouTube channel-quality check (thin catalogue, few subscribers,
     /// brand-new channel). Applies to song-request content only. 1.0 disables the penalties.

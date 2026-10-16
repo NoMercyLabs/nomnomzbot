@@ -97,6 +97,9 @@ public sealed class TrustPolicyService : ITrustPolicyService
         policy.ContentPopularityDecay = request.ContentPopularityDecay;
         policy.NotFollowingFactor = request.NotFollowingFactor;
         policy.ReputationBoostEnabled = request.ReputationBoostEnabled;
+        policy.AffiliateBoost = request.AffiliateBoost;
+        policy.PartnerBoost = request.PartnerBoost;
+        policy.VerifiedYouTubeBoost = request.VerifiedYouTubeBoost;
         policy.YouTubeQualityPenaltyFactor = request.YouTubeQualityPenaltyFactor;
         policy.SkipPenalty = request.SkipPenalty;
         policy.TimeoutPenalty = request.TimeoutPenalty;
@@ -163,6 +166,16 @@ public sealed class TrustPolicyService : ITrustPolicyService
                 "VALIDATION_FAILED"
             );
 
+        if (
+            r.AffiliateBoost is < 0 or > 100
+            || r.PartnerBoost is < 0 or > 100
+            || r.VerifiedYouTubeBoost is < 0 or > 100
+        )
+            return Result.Failure(
+                "A platform-standing boost must be between 0 and 100 points (0 disables it).",
+                "VALIDATION_FAILED"
+            );
+
         if (r.SkipPenalty < 0 || r.TimeoutPenalty < 0 || r.BanPenalty < 0)
             return Result.Failure(
                 "A violation penalty cannot be negative — that would REWARD the violation.",
@@ -214,6 +227,9 @@ public sealed class TrustPolicyService : ITrustPolicyService
             p.ContentPopularityDecay,
             p.NotFollowingFactor,
             p.ReputationBoostEnabled,
+            p.AffiliateBoost,
+            p.PartnerBoost,
+            p.VerifiedYouTubeBoost,
             p.YouTubeQualityPenaltyFactor,
             p.SkipPenalty,
             p.TimeoutPenalty,

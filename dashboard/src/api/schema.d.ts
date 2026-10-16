@@ -99854,6 +99854,12 @@ export interface components {
             notFollowingFactor: number | string;
             reputationBoostEnabled: boolean;
             /** Format: double */
+            affiliateBoost: number | string;
+            /** Format: double */
+            partnerBoost: number | string;
+            /** Format: double */
+            verifiedYouTubeBoost: number | string;
+            /** Format: double */
             youTubeQualityPenaltyFactor: number | string;
             /** Format: double */
             skipPenalty: number | string;
@@ -100793,6 +100799,12 @@ export interface components {
             /** Format: double */
             notFollowingFactor: number | string;
             reputationBoostEnabled: boolean;
+            /** Format: double */
+            affiliateBoost: number | string;
+            /** Format: double */
+            partnerBoost: number | string;
+            /** Format: double */
+            verifiedYouTubeBoost: number | string;
             /** Format: double */
             youTubeQualityPenaltyFactor: number | string;
             /** Format: double */
