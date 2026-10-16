@@ -183,6 +183,10 @@ function write(method: string, path: string, options?: Options): Answer {
     queue = queue.filter((item) => item.position !== options?.params?.path?.position);
   }
 
+  if (path.endsWith('/ban')) {
+    queue = queue.filter((item) => item.position !== options?.params?.path?.position);
+  }
+
   if (path.endsWith('/move')) {
     queue = moved(queue, options);
   }
@@ -441,6 +445,30 @@ describe('MusicView', () => {
     expect(writes()).toHaveLength(1);
     expect(writes()[0]!.method).toBe('DELETE');
     expect(writes()[0]!.path.endsWith('/music/queue/{position}')).toBe(true);
+    expect(writes()[0]!.position).toBe(2);
+    expect(panel('Request queue').textContent).not.toContain('Opus');
+    expect(panel('Request queue').textContent).toContain('Strobe');
+  });
+
+  // Stoney 2026-10-16: "i need my ban song button."
+  it('bans a row only after the confirm: a POST to ban with its position, and the row leaves', async () => {
+    await open();
+
+    buttonIn(panel('Request queue'), 'Ban Opus').click();
+    await settle();
+    expect(writes()).toHaveLength(0);
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"]')!;
+
+    expect(dialog.textContent).toContain('Ban this song?');
+    expect(dialog.querySelector('[data-confirm-song]')?.textContent).toBe('Opus');
+
+    document.body.querySelector<HTMLButtonElement>('[data-confirm-action]')!.click();
+    await settle();
+
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0]!.method).toBe('POST');
+    expect(writes()[0]!.path.endsWith('/music/queue/{position}/ban')).toBe(true);
     expect(writes()[0]!.position).toBe(2);
     expect(panel('Request queue').textContent).not.toContain('Opus');
     expect(panel('Request queue').textContent).toContain('Strobe');

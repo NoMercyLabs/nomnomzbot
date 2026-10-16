@@ -15,6 +15,7 @@ import type { SortableEvent } from 'sortablejs';
 import Grip from '~icons/nnz/hamburger';
 import IconRules from '~icons/nnz/settings-fader';
 import Trash2 from '~icons/nnz/trash';
+import Ban from '~icons/nnz/do-not-enter';
 import Cross from '~icons/nnz/cross';
 import { computed, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -22,6 +23,7 @@ import { useI18n } from 'vue-i18n';
 import { useChannelAccess } from '@/api/access';
 import { useConnections } from '@/api/home';
 import {
+  useBanQueueItem,
   useMoveQueueItem,
   usePauseMusic,
   usePromoteQueueItem,
@@ -64,6 +66,7 @@ const skip = useSkipMusic(channelId);
 const promote = usePromoteQueueItem(channelId);
 const move = useMoveQueueItem(channelId);
 const remove = useRemoveQueueItem(channelId);
+const ban = useBanQueueItem(channelId);
 const setRequests = useSetRequestsOpen(channelId);
 const access = useChannelAccess(channelId);
 const canModerateQueue = computed(() => access.can('music:queue:moderate'));
@@ -114,14 +117,42 @@ const spotify = computed<{ tone: StatusTone; key: string }>(() => {
 });
 
 const removing = ref<QueueItem | null>(null);
+const banning = ref(false);
+
+function askRemove(item: QueueItem): void {
+  banning.value = false;
+  removing.value = item;
+}
+
+function askBan(item: QueueItem): void {
+  banning.value = true;
+  removing.value = item;
+}
+
+const confirmKeys = computed(() =>
+  banning.value
+    ? ({
+        title: 'banTitle',
+        body: 'banBody',
+        bodyNoName: 'banBodyNoName',
+        action: 'banAction',
+      } as const)
+    : ({
+        title: 'confirmTitle',
+        body: 'confirmBody',
+        bodyNoName: 'confirmBodyNoName',
+        action: 'confirmAction',
+      } as const),
+);
 
 // Names who asked for the song, so the moderator sees whose request they take away.
 const removeNote = computed<string>(() => {
   const name = removing.value?.requestedBy;
+  const keys = confirmKeys.value;
 
   return name
-    ? t('dashboard.music.queue.confirmBody', { name })
-    : t('dashboard.music.queue.confirmBodyNoName');
+    ? t(`dashboard.music.queue.${keys.body}`, { name })
+    : t(`dashboard.music.queue.${keys.bodyNoName}`);
 });
 const confirmOpen = computed<boolean>({
   get: () => removing.value !== null,
@@ -135,7 +166,14 @@ const confirmOpen = computed<boolean>({
 function confirmRemove(): void {
   if (removing.value === null) return;
 
-  remove.mutate({ position: Number(removing.value.position) });
+  const position = Number(removing.value.position);
+
+  if (banning.value) {
+    ban.mutate({ position });
+  } else {
+    remove.mutate({ position });
+  }
+
   removing.value = null;
 }
 
@@ -299,9 +337,19 @@ const panels = computed(
                 variant="ghost"
                 size="icon-sm"
                 :aria-label="$t('dashboard.music.queue.remove', { title: item.trackName })"
-                @click="removing = item"
+                @click="askRemove(item)"
               >
                 <Trash2 aria-hidden="true" />
+              </Button>
+              <Button
+                v-if="canModerateQueue"
+                variant="ghost"
+                size="icon"
+                :aria-label="$t('dashboard.music.queue.banRow', { title: item.trackName })"
+                data-ban-song
+                @click="askBan(item)"
+              >
+                <Ban class="size-5" aria-hidden="true" />
               </Button>
             </template>
           </SummaryRow>
@@ -317,9 +365,9 @@ const panels = computed(
   </BoardGrid>
   <ConfirmDialog
     v-model:open="confirmOpen"
-    :title="$t('dashboard.music.queue.confirmTitle')"
+    :title="$t(`dashboard.music.queue.${confirmKeys.title}`)"
     :description="removeNote"
-    :action="$t('dashboard.music.queue.confirmAction')"
+    :action="$t(`dashboard.music.queue.${confirmKeys.action}`)"
     @confirm="confirmRemove"
   >
     <div v-if="removing" class="flex items-center gap-3 rounded-lg border border-border p-2">
