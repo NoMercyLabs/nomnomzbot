@@ -474,6 +474,9 @@ vi.mock('@/api/client', () => ({
         };
       }
 
+      if (path.endsWith('/templates/helpers'))
+        return { data: { data: [] }, response: { ok: true, status: 200 } };
+
       if (path.endsWith('/roles/effective/me'))
         return { data: { data: { heldActionKeys: [...held] } }, response: { ok: true } };
 
@@ -569,6 +572,17 @@ vi.mock('@/api/client', () => ({
         return { data: { data: null }, response: { ok: true, status: 200 } };
       }
 
+      if (path.endsWith('/shoutout-overrides')) {
+        const line = options?.body as { messageTemplate: string };
+
+        profiles.g1 = {
+          ...profiles.g1,
+          overrides: { shoutoutMessageTemplate: line.messageTemplate, ttsVoice: null },
+        };
+
+        return { response: { ok: true, status: 204 } };
+      }
+
       const id = noteIdOf(options);
       const change = options?.body as { content: string; pinned: boolean };
 
@@ -581,6 +595,15 @@ vi.mock('@/api/client', () => ({
     }),
     DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options);
+
+      if (path.endsWith('/shoutout-overrides/{targetTwitchUserId}')) {
+        profiles.g1 = {
+          ...profiles.g1,
+          overrides: { shoutoutMessageTemplate: null, ttsVoice: null },
+        };
+
+        return { response: { ok: true, status: 204 } };
+      }
 
       if (path.endsWith('/notes/{noteId}')) {
         const id = noteIdOf(options);
@@ -1946,6 +1969,81 @@ describe('the TTS voice panel', () => {
 
     expect(calls.some((c: Call) => c.path.includes('/tts/'))).toBe(false);
     expect(panel().textContent).toContain('Your role cannot see the TTS voices.');
+  });
+});
+
+describe('the shoutout line', () => {
+  const OWN_LINE = '[data-profile-shoutout-text]';
+
+  function shoutoutWrites(method: 'PUT' | 'DELETE'): Call[] {
+    return calls.filter((c: Call) =>
+      c.path.includes('/shoutout-overrides') &&
+      (method === 'PUT') === (c.body !== undefined));
+  }
+
+  function targetOf(call: Call): string {
+    const path = (call.params ?? {}).path as Record<string, unknown>;
+
+    return String(path.targetTwitchUserId);
+  }
+
+  it('saves the typed line for the person and shows it', async () => {
+    await openPage();
+    await openUser('u1');
+
+    button('[data-profile-shoutout-edit]').click();
+    await settle();
+
+    const field = document.body.querySelector<HTMLTextAreaElement>('[data-profile-shoutout-field] textarea')!;
+
+    field.value = '  Go follow {name}!  ';
+    field.dispatchEvent(new Event('input'));
+    await settle();
+    button('[data-form-action]').click();
+    await settle();
+
+    const puts = shoutoutWrites('PUT');
+
+    expect(puts.map((c: Call) => c.body)).toEqual([
+      {
+        targetTwitchUserId: 'u1',
+        targetDisplayName: 'Ada',
+        messageTemplate: 'Go follow {name}!',
+      },
+    ]);
+
+    expect(dialogs()[0]!.querySelector(OWN_LINE)!.textContent).toBe('Go follow {name}!');
+  });
+
+  it('removes the line only after the moderator confirms it', async () => {
+    profiles.g1 = {
+      ...profiles.g1,
+      overrides: { shoutoutMessageTemplate: 'Go follow {name}!', ttsVoice: null },
+    };
+
+    await openPage();
+    await openUser('u1');
+
+    button('[data-profile-shoutout-remove]').click();
+    await settle();
+
+    expect(shoutoutWrites('DELETE')).toHaveLength(0);
+
+    button('[data-confirm-action]').click();
+    await settle();
+
+    expect(shoutoutWrites('DELETE').map((c: Call) =>
+      targetOf(c))).toEqual(['u1']);
+
+    expect(dialogs()[0]!.querySelector(OWN_LINE)).toBeNull();
+  });
+
+  it('locks the edit for a caller without the shoutout right', async () => {
+    held = held.filter((key: string) => key !== 'moderation:shoutout');
+    await openPage();
+    await openUser('u1');
+
+    expect(button('[data-profile-shoutout-edit]').disabled).toBe(true);
   });
 });
 

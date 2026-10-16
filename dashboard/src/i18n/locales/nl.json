@@ -487,7 +487,19 @@
     "shoutout": {
       "button": "Shoutout geven",
       "done": "Shoutout gegeven aan {name}.",
-      "failed": "De shoutout voor {name} is niet verstuurd."
+      "failed": "De shoutout voor {name} is niet verstuurd.",
+      "channelDefault": "Gebruikt de shoutout-regel van het kanaal.",
+      "add": "Regel schrijven",
+      "change": "Bewerken",
+      "remove": "Verwijderen",
+      "noWrite": "Jouw rol mag een shoutout-regel niet wijzigen.",
+      "editTitle": "Shoutout-regel voor {name}",
+      "help": "Variabelen: {'{'}name{'}'} hun naam, {'{'}Subject{'}'} hij, zij of die, {'{'}verb:is{'|'}are{'}'} een werkwoord na het voornaamwoord, {'{'}game{'}'} hun laatste spel. Typ {'{'} om ze allemaal te zien.",
+      "label": "Shoutout-regel",
+      "placeholder": "Volg {'{'}name{'}'}! {'{'}Subject{'}'} speelde laatst {'{'}game{'}'}.",
+      "save": "Regel opslaan",
+      "removeTitle": "De shoutout-regel voor {name} verwijderen?",
+      "removeEffect": "Shoutouts en raids van hen gebruiken weer de regel van het kanaal."
     },
     "warn": {
       "button": "Waarschuwen",
