@@ -32207,6 +32207,13 @@
             }
           },
           {
+            "name": "types",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "version",
             "in": "path",
             "required": true,

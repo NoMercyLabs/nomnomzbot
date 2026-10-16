@@ -27569,7 +27569,9 @@ export interface paths {
         /** Returns recent channel activity events. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    types?: string;
+                };
                 header?: never;
                 path: {
                     channelId: string;

@@ -13,7 +13,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useActivity, useHomeStats } from '@/api/home';
+import { useHomeStats, useSupporterActivity } from '@/api/home';
 import { useSupporterEvents, type SupporterEvent } from '@/api/supporters';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -42,7 +42,7 @@ const { t, n, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const stats = useHomeStats(channelId);
-const activity = useActivity(channelId);
+const activity = useSupporterActivity(channelId);
 const events = useSupporterEvents(channelId);
 
 const subscriptions = computed<SubscriptionRow[]>(() =>
