@@ -120,6 +120,13 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
+            "TRACK_LENGTH_UNKNOWN" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.LengthUnknown,
+                "I couldn't tell how long that video is, so it can't be requested. Try another upload.",
+                null,
+                ct
+            ),
             "PER_STREAM_LIMIT" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.PerStreamLimit,

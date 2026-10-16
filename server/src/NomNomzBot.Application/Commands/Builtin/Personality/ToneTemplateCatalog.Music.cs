@@ -423,6 +423,27 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.LengthUnknown,
+            variables: [],
+            informative:
+            [
+                "I couldn't tell how long that video is, so it can't be requested. Try another upload.",
+            ],
+            friendly:
+            [
+                "Hmm, YouTube won't tell me how long that video is, so I can't queue it. Another upload might work!",
+            ],
+            sassy:
+            [
+                "That video has no length I can read. Not queuing a mystery. Try another upload.",
+            ],
+            hype: ["NO LENGTH ON THAT VIDEO! CAN'T QUEUE IT! TRY ANOTHER UPLOAD!"],
+            chill: ["can't tell how long that video is, so no queue. try another upload."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.PerStreamLimit,
             variables: ["request.limit"],
             informative:

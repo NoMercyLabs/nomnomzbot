@@ -110,6 +110,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>The text is a link for this channel's music service, but no song could be read from it — no variables.</summary>
         public const string UnreadableLink = "unreadablelink";
 
+        /// <summary>The video reports no readable length, so the length limit cannot be checked — no variables.</summary>
+        public const string LengthUnknown = "lengthunknown";
+
         /// <summary>The requester used up their requests for this stream; <c>{request.limit}</c> is set.</summary>
         public const string PerStreamLimit = "perstreamlimit";
 

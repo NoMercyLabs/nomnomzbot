@@ -372,6 +372,7 @@ public sealed class YouTubeMusicProvider
                 || IsAgeRestricted(video)
                 || !IsOnDemand(video.Snippet)
                 || IsPlayableNowhere(video)
+                || ParseDurationMs(video.ContentDetails?.Duration) <= 0
             )
                 continue;
 
@@ -429,6 +430,10 @@ public sealed class YouTubeMusicProvider
 
         if (IsPlayableNowhere(video))
             return (null, MusicProviderFailureReason.NotPlayableInRegion);
+
+        // An on-demand video with no readable length would pass the length cap as "0 seconds".
+        if (ParseDurationMs(video.ContentDetails?.Duration) <= 0)
+            return (null, MusicProviderFailureReason.UnknownLength);
 
         // Unlike search, resolve keeps a found on-demand video and returns it WITH its gate flags
         // (embeddable/age/explicit) so the SR pipeline can reject with the precise reason (§3.5.2

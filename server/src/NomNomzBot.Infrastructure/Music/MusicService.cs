@@ -853,7 +853,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 or MusicProviderFailureReason.TrackMissing
                 or MusicProviderFailureReason.NotPlayableInRegion
                 or MusicProviderFailureReason.UnreadableLink
-                or MusicProviderFailureReason.UnsupportedContentType;
+                or MusicProviderFailureReason.UnsupportedContentType
+                or MusicProviderFailureReason.UnknownLength;
 
     private static bool IsWebLink(string query) =>
         Uri.TryCreate(query.Trim(), UriKind.Absolute, out Uri? uri)
@@ -917,6 +918,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             MusicProviderFailureReason.UnreadableLink => Result.Failure<T>(
                 "No track could be read from that link.",
                 "UNREADABLE_LINK"
+            ),
+            MusicProviderFailureReason.UnknownLength => Result.Failure<T>(
+                "The track's length could not be read, so the length limit cannot be checked.",
+                "TRACK_LENGTH_UNKNOWN"
             ),
             _ => Result.Failure<T>(
                 "The music provider is temporarily unavailable.",

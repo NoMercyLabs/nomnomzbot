@@ -261,7 +261,6 @@ public sealed class YouTubeMusicProviderResolveTrackTests
     [InlineData("PT1H2M3S", 3723000)]
     [InlineData("PT30S", 30000)]
     [InlineData("PT4M13S", 253000)]
-    [InlineData("PT0S", 0)]
     public async Task Resolve_parses_iso8601_duration_into_milliseconds(string iso, int expectedMs)
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
@@ -273,16 +272,24 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         track.DurationMs.Should().Be(expectedMs);
     }
 
-    [Fact]
-    public async Task Missing_duration_maps_to_zero_milliseconds()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("PT0S")]
+    [InlineData("garbage")]
+    public async Task A_missing_zero_or_malformed_duration_resolves_to_unknown_length(
+        string? duration
+    )
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
-        RouteVideos(handler, OneVideoJson(duration: null));
+        RouteVideos(handler, OneVideoJson(duration));
 
-        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            VideoId
+        );
 
-        track.Should().NotBeNull();
-        track.DurationMs.Should().Be(0);
+        track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.UnknownLength);
     }
 
     // ─── Harness ──────────────────────────────────────────────────────────────

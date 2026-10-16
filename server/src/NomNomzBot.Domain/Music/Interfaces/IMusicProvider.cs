@@ -64,6 +64,10 @@ public enum MusicProviderFailureReason
 
     /// <summary>The text is a link to this provider's own site, but no track id could be read from it. It is never searched as text: a URL searched by name finds an unrelated song.</summary>
     UnreadableLink,
+
+    /// <summary>The track is on demand, but the provider reports no readable length (zero or malformed). It
+    /// would pass the channel's length cap as "0 seconds", so it is refused rather than admitted unchecked.</summary>
+    UnknownLength,
 }
 
 /// <summary>

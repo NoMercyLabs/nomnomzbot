@@ -68,6 +68,7 @@ public sealed class SongRequestFavoriteAction : ICommandAction
         "TRACK_AGE_RESTRICTED",
         "TRACK_IS_LIVE",
         "TRACK_MISSING",
+        "TRACK_LENGTH_UNKNOWN",
     ];
 
     private readonly IApplicationDbContext _db;

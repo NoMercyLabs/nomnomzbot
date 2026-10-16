@@ -418,6 +418,8 @@
     "builtin.reply.sr.duplicate.label",
     "builtin.reply.sr.forbidden.description",
     "builtin.reply.sr.forbidden.label",
+    "builtin.reply.sr.lengthunknown.description",
+    "builtin.reply.sr.lengthunknown.label",
     "builtin.reply.sr.livebroadcast.description",
     "builtin.reply.sr.livebroadcast.label",
     "builtin.reply.sr.mintrust.description",
