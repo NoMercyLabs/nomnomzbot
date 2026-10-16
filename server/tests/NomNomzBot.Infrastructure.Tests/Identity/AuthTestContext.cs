@@ -540,7 +540,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // storage tests can prove persistence, caps, and tenant isolation through this harness.
         b.Entity<NomNomzBot.Domain.Platform.Entities.Storage>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Platform.Entities.Storage>().Ignore(e => e.Channel);
-        b.Ignore<NomNomzBot.Domain.Platform.Entities.Record>();
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Record>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Record>().Ignore(e => e.Channel);
         b.Ignore<Permission>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.ChannelFeature>();
         // ChannelBotAuthorization: mapped scalar-only (Channel/BotAccount navs ignored) so
@@ -733,7 +734,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>
         Set<NomNomzBot.Domain.Platform.Entities.Storage>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.Record>();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.ChannelFeature> ChannelFeatures =>
         throw new NotSupportedException();

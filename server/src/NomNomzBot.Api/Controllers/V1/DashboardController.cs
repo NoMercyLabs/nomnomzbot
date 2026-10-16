@@ -42,6 +42,7 @@ public class DashboardController : BaseController
     private readonly ITwitchChannelsApi _channels;
     private readonly ITwitchSubscriptionsApi _subscriptions;
     private readonly IActivityReplayService _activityReplay;
+    private readonly IStreamRecapService _streamRecap;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DashboardController> _logger;
 
@@ -52,6 +53,7 @@ public class DashboardController : BaseController
         ITwitchChannelsApi channels,
         ITwitchSubscriptionsApi subscriptions,
         IActivityReplayService activityReplay,
+        IStreamRecapService streamRecap,
         TimeProvider timeProvider,
         ILogger<DashboardController> logger
     )
@@ -62,6 +64,7 @@ public class DashboardController : BaseController
         _channels = channels;
         _subscriptions = subscriptions;
         _activityReplay = activityReplay;
+        _streamRecap = streamRecap;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -237,6 +240,25 @@ public class DashboardController : BaseController
         };
 
         return Ok(new StatusResponseDto<DashboardStatsDto> { Data = fallback });
+    }
+
+    /// <summary>
+    /// Recap of one stream (the latest, live or ended, when <paramref name="streamId"/> is omitted): follows, subs,
+    /// gift subs, bits, raids in, redemptions, song requests and chat, counted from recorded data in the stream window.
+    /// </summary>
+    [HttpGet("{channelId}/stream-recap")]
+    [RequireAction("dashboard:read")]
+    [ProducesResponseType<StatusResponseDto<StreamRecapDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStreamRecap(
+        string channelId,
+        [FromQuery] string? streamId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(await _streamRecap.GetRecapAsync(tenantId, streamId, ct));
     }
 
     /// <summary>
