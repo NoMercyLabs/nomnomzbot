@@ -38,6 +38,20 @@ const recentLogins = computed(() => new Set(recent.value.map((row) => row.login)
 const found = computed(() =>
   (directory.data.value ?? []).filter((row) => !recentLogins.value.has(row.login)));
 
+// A row with onBot=false is a Twitch channel this deployment does not serve (chat-client.md 9a "Any Twitch channel").
+const groups = computed(() => [
+  {
+    key: 'bot',
+    heading: t('frame.channel.every'),
+    rows: found.value.filter((row) => row.onBot !== false),
+  },
+  {
+    key: 'twitch',
+    heading: t('frame.channel.twitch'),
+    rows: found.value.filter((row) => row.onBot === false),
+  },
+]);
+
 async function open(row: RecentChannel): Promise<void> {
   remember(row);
   emit('picked');
@@ -65,30 +79,32 @@ async function open(row: RecentChannel): Promise<void> {
       <span class="min-w-0 flex-1 truncate">{{ row.displayName }}</span>
     </CommandItem>
   </CommandGroup>
-  <CommandGroup
-    v-if="found.length > 0"
-    :heading="t('frame.channel.every')"
-    :aria-busy="directory.isFetching.value"
-  >
-    <CommandItem
-      v-for="row in found"
-      :key="row.login"
-      :value="`${row.displayName} ${row.login}`"
-      data-slot="directory-channel"
-      @select="open(row)"
+  <template v-for="group in groups" :key="group.key">
+    <CommandGroup
+      v-if="group.rows.length > 0"
+      :heading="group.heading"
+      :aria-busy="directory.isFetching.value"
     >
-      <Avatar class="size-6 rounded-md">
-        <AvatarImage v-if="row.profileImageUrl" :src="row.profileImageUrl" :alt="''" />
-        <AvatarFallback class="rounded-md text-xs">{{ initials(row.displayName) }}</AvatarFallback>
-      </Avatar>
-      <span class="min-w-0 flex-1 truncate">{{ row.displayName }}</span>
-      <span
-        v-if="row.isLive"
-        class="flex items-center gap-1.5 text-xs text-muted-foreground"
+      <CommandItem
+        v-for="row in group.rows"
+        :key="row.login"
+        :value="`${row.displayName} ${row.login}`"
+        :data-slot="group.key === 'bot' ? 'directory-channel' : 'twitch-channel'"
+        @select="open(row)"
       >
-        <span class="size-2 rounded-full bg-success" aria-hidden="true" />
-        {{ t('frame.channel.live') }}
-      </span>
-    </CommandItem>
-  </CommandGroup>
+        <Avatar class="size-6 rounded-md">
+          <AvatarImage v-if="row.profileImageUrl" :src="row.profileImageUrl" :alt="''" />
+          <AvatarFallback class="rounded-md text-xs">{{ initials(row.displayName) }}</AvatarFallback>
+        </Avatar>
+        <span class="min-w-0 flex-1 truncate">{{ row.displayName }}</span>
+        <span
+          v-if="row.isLive"
+          class="flex items-center gap-1.5 text-xs text-muted-foreground"
+        >
+          <span class="size-2 rounded-full bg-success" aria-hidden="true" />
+          {{ t('frame.channel.live') }}
+        </span>
+      </CommandItem>
+    </CommandGroup>
+  </template>
 </template>

@@ -770,6 +770,7 @@
       "yours": "Your channel",
       "recent": "Recent channels",
       "every": "Every channel",
+      "twitch": "More on Twitch",
       "moderated": "Channels you moderate ({live} live of {total})",
       "live": "Live",
       "offline": "Offline"

@@ -32,6 +32,14 @@ vi.mock('@/api/channels', () => ({
           profileImageUrl: null,
           isLive: true,
         },
+        {
+          id: '12826',
+          login: 'twitch',
+          displayName: 'Twitch',
+          profileImageUrl: null,
+          isLive: false,
+          onBot: false,
+        },
       ]),
       isFetching: ref(false),
     };
@@ -98,6 +106,37 @@ describe('the viewer channel finder', () => {
         profileImageUrl: null,
       },
     ]);
+
+    finder.unmount();
+  });
+
+  it('lists a Twitch channel off the bot in its own group, and picking it opens its viewer chat', async () => {
+    const router = buildRouter();
+
+    await router.push('/');
+    await router.isReady();
+
+    const finder = mount(ViewerChannelFinder, {
+      attachTo: document.body,
+      global: { plugins: [i18n, router] },
+    });
+
+    await finder.get('[data-slot="viewer-channel-finder"]').trigger('click');
+    await flushPromises();
+
+    const botRows = document.body.querySelectorAll('[data-slot="directory-channel"]');
+    const botNames = Array.from(botRows, (bot) =>
+      bot.textContent);
+    const row = document.body.querySelector<HTMLElement>('[data-slot="twitch-channel"]');
+
+    expect(botNames.join()).not.toContain('Twitch');
+    expect(row?.textContent).toContain('Twitch');
+    expect(document.body.textContent).toContain('More on Twitch');
+
+    row?.click();
+    await flushPromises();
+
+    expect(router.currentRoute.value.params.channel).toBe('twitch');
 
     finder.unmount();
   });
