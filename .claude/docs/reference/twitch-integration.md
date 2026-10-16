@@ -15,7 +15,7 @@ Register only that single callback URL in the Twitch Developer Console using you
 
 ### Streamer Account Scopes
 
-A fresh login requests only `AuthService.MinimalLoginScopes` (`user:read:email`, `user:read:chat`, `user:write:chat`, `user:read:moderated_channels`); every other scope is requested on demand (progressive, additive re-grant). `TwitchScopeRegistry.FullCatalogue` is what the missing-scope sweep and re-grant check against.
+A fresh login requests only `TwitchLoginScopes` (`user:read:chat`, `user:write:chat`, `user:read:moderated_channels`); every other scope is requested on demand (progressive, additive re-grant). `TwitchScopeRegistry.FullCatalogue` is what the missing-scope sweep and re-grant check against.
 
 ### Bot Account Scopes
 

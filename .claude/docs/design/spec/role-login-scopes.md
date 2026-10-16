@@ -8,12 +8,12 @@ Owner, verbatim (2026-10-11): "We need a login as user, login as moderator and l
 
 | Platform | Login flow | Where | Scopes asked | Role choice |
 |---|---|---|---|---|
-| Twitch | Streamer login, redirect and device code | `Infrastructure/Identity/AuthService.cs:89-97` (`MinimalLoginScopes`) | `user:read:email`, `user:read:chat`, `user:write:chat`, `user:read:moderated_channels` | No — everyone gets the streamer set |
+| Twitch | Streamer login, redirect and device code | `Infrastructure/Identity/AuthService.cs:89-97` (`MinimalLoginScopes`) | `user:read:chat`, `user:write:chat`, `user:read:moderated_channels` (no email scope; we never store an email) | No — everyone gets the streamer set |
 | Twitch | Re-auth and re-grant | `AuthService.cs:191-209`, `:545-580`; `TwitchDiagnosticsController.cs:106,115` | Minimal set + granted + recorded-missing scopes | No |
 | Twitch | Bot account | `AuthService.cs:101-115` | `user:read:chat`, `user:write:chat`, `user:bot`, `chat:read`, `chat:edit`, `user:read:whispers` | n/a (bot) |
 | Kick | Login (PKCE) | `Identity/Login/KickLoginProvider.cs:35` | `user:read` | No |
 | Kick | Streamer and bot connect | `Integrations/OAuthProviderRegistry.cs:106-142` | `user:read`, `chat:write`, `moderation:ban`, `moderation:chat_message:manage`, `events:subscribe` | No |
-| YouTube | Login (Google) | `Identity/Login/GoogleYouTubeLoginProvider.cs:35` | `openid`, `email`, `profile` | No |
+| YouTube | Login (Google) | `Identity/Login/GoogleYouTubeLoginProvider.cs:35` | `openid`, `profile` (no email scope) | No |
 | YouTube | Connect | `OAuthProviderRegistry.cs:231-236` | `youtube` + `youtube.force-ssl`, or `youtube.readonly` | Capability choice, not a role |
 | X | Login (PKCE) | `Identity/Login/TwitterLoginProvider.cs:36` | `users.read`, `tweet.read`, `offline.access` | No |
 
