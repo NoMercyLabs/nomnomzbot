@@ -81,6 +81,11 @@ const rows = computed<QueueItem[]>(() => queueQuery.data.value?.queue ?? []);
 const queueList = useTemplateRef<HTMLElement>('queueList');
 
 function dropped(event: SortableEvent): void {
+  // Sortable moved the node itself. Put it back so Vue alone orders the rows from the server's answer;
+  // a node left where it was dropped plus a keyed patch shows an order the bot does not play.
+  event.item.remove();
+  event.from.insertBefore(event.item, event.from.children[event.oldIndex ?? 0] ?? null);
+
   const from = rows.value[event.oldIndex ?? -1];
   const to = rows.value[event.newIndex ?? -1];
 
