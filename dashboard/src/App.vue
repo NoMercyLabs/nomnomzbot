@@ -9,8 +9,10 @@
 -->
 <script setup lang="ts">
 import { useBackCloses } from '@/composables/useBackCloses';
+import { usePwaUpdate } from '@/composables/usePwaUpdate';
 
 useBackCloses();
+usePwaUpdate();
 </script>
 
 <template>

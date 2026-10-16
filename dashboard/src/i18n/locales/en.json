@@ -1,4 +1,11 @@
 {
+  "pwa": {
+    "update": {
+      "title": "A new version is ready",
+      "body": "Reload to use it. Your open page stays as it is until you do.",
+      "reload": "Reload"
+    }
+  },
   "errors": {
     "failed": "Something went wrong. Try again.",
     "refused": "The bot refused this.",
@@ -755,6 +762,8 @@
       "moderator": "Moderator",
       "broadcaster": "Broadcaster",
       "readability": "Readability",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
       "admin": "Platform admin"
     },
     "shield": {

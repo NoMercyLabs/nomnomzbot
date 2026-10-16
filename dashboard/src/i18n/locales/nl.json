@@ -1,4 +1,11 @@
 {
+  "pwa": {
+    "update": {
+      "title": "Er is een nieuwe versie klaar",
+      "body": "Laad opnieuw om hem te gebruiken. Je open pagina blijft zoals hij is tot je dat doet.",
+      "reload": "Opnieuw laden"
+    }
+  },
   "errors": {
     "failed": "Er ging iets mis. Probeer het opnieuw.",
     "refused": "De bot weigerde dit.",
@@ -755,6 +762,8 @@
       "moderator": "Moderator",
       "broadcaster": "Streamer",
       "readability": "Leesbaarheid",
+      "fullscreen": "Volledig scherm",
+      "exitFullscreen": "Volledig scherm verlaten",
       "admin": "Platformbeheer"
     },
     "shield": {
