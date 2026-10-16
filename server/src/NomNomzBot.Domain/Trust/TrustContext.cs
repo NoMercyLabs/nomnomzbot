@@ -43,6 +43,12 @@ public sealed class TrustContext
     /// <summary>True if the user is a subscriber.</summary>
     public bool IsSubscriber { get; init; }
 
+    /// <summary>Twitch Helix <c>broadcaster_type</c>: "" (none), "affiliate" or "partner".</summary>
+    public string TwitchBroadcasterType { get; init; } = "";
+
+    /// <summary>True if the user's own YouTube channel is verified.</summary>
+    public bool IsYouTubeChannelVerified { get; init; }
+
     /// <summary>True if the requested content comes from YouTube.</summary>
     public bool IsYouTubeContent { get; init; }
 

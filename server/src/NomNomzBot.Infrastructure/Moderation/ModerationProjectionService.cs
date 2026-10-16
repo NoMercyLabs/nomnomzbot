@@ -403,16 +403,21 @@ public sealed class ModerationProjectionService(
         // tenure (how long we have known them — User.CreatedAt); the rollup's TimeoutCount/BanCount are
         // the calculator's own violation penalties, so a punished viewer always scores below a clean one
         // of equal tenure. Richer community signals (follow age, sub/VIP) enrich this the same way later.
-        DateTime firstKnown = await db
+        // The Twitch broadcaster type (affiliate / partner) is the Helix value the user row already
+        // caches. YouTube sends a verified flag only per live chat message (authorDetails.isVerified);
+        // nothing stores it on the user yet, so IsYouTubeChannelVerified stays false rather than being faked.
+        var subject = await db
             .Users.Where(u => u.Id == subjectUserId)
-            .Select(u => u.CreatedAt)
+            .Select(u => new { u.CreatedAt, u.BroadcasterType })
             .FirstOrDefaultAsync(ct);
+        DateTime firstKnown = subject?.CreatedAt ?? default;
         double tenureMonths =
             firstKnown == default ? 0.0 : Math.Max(0.0, (nowUtc - firstKnown).TotalDays / 30.44);
         double trust = TrustScoreCalculator.Calculate(
             new()
             {
                 AccountAgeMonths = tenureMonths,
+                TwitchBroadcasterType = subject?.BroadcasterType ?? "",
                 TimeoutCount = history.TimeoutCount,
                 BanCount = history.BanCount,
             },

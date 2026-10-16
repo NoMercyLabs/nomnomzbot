@@ -49,6 +49,9 @@ public sealed class TrustPolicyServiceTests
             d.ContentPopularityDecay,
             d.NotFollowingFactor,
             d.ReputationBoostEnabled,
+            d.AffiliateBoost,
+            d.PartnerBoost,
+            d.VerifiedYouTubeBoost,
             d.YouTubeQualityPenaltyFactor,
             d.SkipPenalty,
             d.TimeoutPenalty,
@@ -89,6 +92,7 @@ public sealed class TrustPolicyServiceTests
             ContentAgeWeight = 0.15,
             BanPenalty = 45.0,
             HeatHalfLifeHours = 12.0,
+            PartnerBoost = 15.0,
         };
 
         Result<TrustPolicyDto> saved = await sut.UpdateAsync(Channel, request);
@@ -101,6 +105,7 @@ public sealed class TrustPolicyServiceTests
         reread.Value.AccountAgeWeight.Should().Be(0.40);
         reread.Value.BanPenalty.Should().Be(45.0);
         reread.Value.HeatHalfLifeHours.Should().Be(12.0);
+        reread.Value.PartnerBoost.Should().Be(15.0);
         reread.Value.IsPinned.Should().BeTrue();
         (await db.TrustPolicies.CountAsync()).Should().Be(1, "an edit creates exactly one row");
     }

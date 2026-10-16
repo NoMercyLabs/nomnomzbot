@@ -61,6 +61,10 @@ public static class TrustScoreCalculator
         )
             score = score + (100.0 - score) / 2.0;
 
+        // Step 4b: Platform standing — a partner, affiliate or verified channel is already vetted by the
+        // platform. Points, capped at 100 so the violation penalties below still bite.
+        score = Math.Min(100.0, score + PlatformStandingBoost(ctx, p));
+
         // Step 5: YouTube-specific channel quality penalties
         if (ctx.IsYouTubeContent)
         {
@@ -80,6 +84,17 @@ public static class TrustScoreCalculator
         score -= ctx.BanCount * p.BanPenalty;
 
         return Math.Clamp(score, 0.0, 100.0);
+    }
+
+    private static double PlatformStandingBoost(TrustContext ctx, TrustPolicy p)
+    {
+        double twitch = ctx.TwitchBroadcasterType.ToLowerInvariant() switch
+        {
+            "partner" => p.PartnerBoost,
+            "affiliate" => p.AffiliateBoost,
+            _ => 0.0,
+        };
+        return twitch + (ctx.IsYouTubeChannelVerified ? p.VerifiedYouTubeBoost : 0.0);
     }
 
     /// <summary>

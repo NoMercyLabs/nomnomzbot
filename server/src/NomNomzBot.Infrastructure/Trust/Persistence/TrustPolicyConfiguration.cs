@@ -26,6 +26,11 @@ public class TrustPolicyConfiguration : IEntityTypeConfiguration<TrustPolicy>
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => e.BroadcasterId).IsUnique();
 
+        // Defaults match the TrustPolicy initializers so channels with a stored policy get the shipped boosts.
+        builder.Property(e => e.AffiliateBoost).HasDefaultValue(5.0);
+        builder.Property(e => e.PartnerBoost).HasDefaultValue(10.0);
+        builder.Property(e => e.VerifiedYouTubeBoost).HasDefaultValue(10.0);
+
         builder.Property(e => e.HeatDeltaBan).HasPrecision(8, 4);
         builder.Property(e => e.HeatDeltaTimeout).HasPrecision(8, 4);
         builder.Property(e => e.HeatDeltaReportValidated).HasPrecision(8, 4);

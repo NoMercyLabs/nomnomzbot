@@ -11205,6 +11205,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<double>("AccountAgeWeight")
                         .HasColumnType("REAL");
 
+                    b.Property<double>("AffiliateBoost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("REAL")
+                        .HasDefaultValue(5.0);
+
                     b.Property<double>("BanPenalty")
                         .HasColumnType("REAL");
 
@@ -11266,6 +11271,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<double>("NotFollowingFactor")
                         .HasColumnType("REAL");
 
+                    b.Property<double>("PartnerBoost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("REAL")
+                        .HasDefaultValue(10.0);
+
                     b.Property<bool>("ReputationBoostEnabled")
                         .HasColumnType("INTEGER");
 
@@ -11289,6 +11299,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<double>("VerifiedYouTubeBoost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("REAL")
+                        .HasDefaultValue(10.0);
 
                     b.Property<double>("YouTubeQualityPenaltyFactor")
                         .HasColumnType("REAL");

@@ -142478,6 +142478,9 @@
           "contentPopularityDecay",
           "notFollowingFactor",
           "reputationBoostEnabled",
+          "affiliateBoost",
+          "partnerBoost",
+          "verifiedYouTubeBoost",
           "youTubeQualityPenaltyFactor",
           "skipPenalty",
           "timeoutPenalty",
@@ -142569,6 +142572,30 @@
           },
           "reputationBoostEnabled": {
             "type": "boolean"
+          },
+          "affiliateBoost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "partnerBoost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "verifiedYouTubeBoost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           },
           "youTubeQualityPenaltyFactor": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
@@ -145689,6 +145716,9 @@
           "contentPopularityDecay",
           "notFollowingFactor",
           "reputationBoostEnabled",
+          "affiliateBoost",
+          "partnerBoost",
+          "verifiedYouTubeBoost",
           "youTubeQualityPenaltyFactor",
           "skipPenalty",
           "timeoutPenalty",
@@ -145779,6 +145809,30 @@
           },
           "reputationBoostEnabled": {
             "type": "boolean"
+          },
+          "affiliateBoost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "partnerBoost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "verifiedYouTubeBoost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           },
           "youTubeQualityPenaltyFactor": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
