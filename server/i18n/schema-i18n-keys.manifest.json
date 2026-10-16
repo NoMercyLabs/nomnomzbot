@@ -511,6 +511,7 @@
     "builtin.reply.var.media.title",
     "builtin.reply.var.permit.capability",
     "builtin.reply.var.permit.role",
+    "builtin.reply.var.playlist.name",
     "builtin.reply.var.playlist.url",
     "builtin.reply.var.prefix",
     "builtin.reply.var.query",

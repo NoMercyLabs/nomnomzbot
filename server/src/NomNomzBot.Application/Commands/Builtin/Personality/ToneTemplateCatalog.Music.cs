@@ -847,39 +847,57 @@ public static partial class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Banger.Key,
             BuiltinResponseSlots.Banger.Added,
-            variables: ["user", "track.name"],
-            informative: ["Added {track.name} to the bangers playlist."],
-            friendly: ["Added {track.name} to the bangers playlist, nice pick @{user}!"],
-            sassy: ["Added {track.name} to the bangers playlist! Good taste, @{user}."],
-            hype: ["{track.name} IS NOW IN THE BANGERS PLAYLIST! BANGER!"],
-            chill: ["added {track.name} to the bangers playlist."]
+            variables: ["user", "track.name", "track.artist", "playlist.name"],
+            informative:
+            [
+                "@{user} added {track.name} by {track.artist} to the playlist {playlist.name}.",
+            ],
+            friendly:
+            [
+                "Nice pick @{user}! {track.name} by {track.artist} is now in {playlist.name}!",
+            ],
+            sassy:
+            [
+                "Good taste, @{user}. {track.name} by {track.artist} just made it into {playlist.name}.",
+            ],
+            hype:
+            [
+                "@{user} BANGED IT! {track.name} BY {track.artist} IS NOW IN {playlist.name}! BANGER!",
+            ],
+            chill: ["@{user} added {track.name} by {track.artist} to {playlist.name}."]
         );
 
         Add(
             catalog,
             BuiltinResponseSlots.Banger.Key,
             BuiltinResponseSlots.Banger.AlreadyThere,
-            variables: ["user", "track.name"],
-            informative: ["@{user}, {track.name} is already in the bangers playlist."],
+            variables: ["user", "track.name", "track.artist", "playlist.name"],
+            informative:
+            [
+                "@{user}, {track.name} by {track.artist} is already in the playlist {playlist.name}.",
+            ],
             friendly:
             [
-                "@{user}, {track.name} is already in the bangers playlist. Great minds think alike!",
+                "@{user}, {track.name} by {track.artist} is already in {playlist.name}. Great minds think alike!",
             ],
             sassy:
             [
-                "@{user}, that banger is already banging in the playlist! Your taste is consistent, but your memory needs work.",
-                "Breaking: @{user} discovers the same song can't be a banger twice! Scientists baffled, playlist unchanged",
-                "Nice try @{user}, but that absolute unit is already vibing in the bangers playlist. Maybe check before you wreck?",
-                "Plot twist @{user}: That song was already certified banger material! At least this mistake was free!",
-                "@{user} just tried to double-banger a song. That's not how bangers work, bestie. The playlist remains unchanged!",
-                "Ooof @{user}, that track is already living its best life in bangers! Good thing this command doesn't cost anything.",
-                "Achievement unlocked @{user}: 'Banger Déjà Vu!' Reward: The satisfaction of knowing you have great taste... twice",
-                "Fun fact @{user}: That song is already banging! Less fun fact: You just wasted a perfectly good command.",
-                "@{user}, you can't make a banger more banger by adding it again. That's not how banger math works!",
-                "Alert: @{user} attempted to create a banger paradox! The playlist rejected this temporal anomaly. At least it was free!",
+                "@{user}, {track.name} by {track.artist} is already banging in {playlist.name}! Your taste is consistent, but your memory needs work.",
+                "Breaking: @{user} discovers {track.name} by {track.artist} can't be a banger twice! Scientists baffled, {playlist.name} unchanged.",
+                "Nice try @{user}, but {track.name} by {track.artist} is already vibing in {playlist.name}. Maybe check before you wreck?",
+                "Plot twist @{user}: {track.name} by {track.artist} was already certified banger material in {playlist.name}! At least this mistake was free!",
+                "@{user} just tried to double-banger {track.name} by {track.artist}. That's not how {playlist.name} works, bestie.",
+                "Ooof @{user}, {track.name} by {track.artist} is already living its best life in {playlist.name}! Good thing this command doesn't cost anything.",
+                "Achievement unlocked @{user}: 'Banger Déjà Vu!' {track.name} by {track.artist} is in {playlist.name} already. Reward: great taste, twice.",
+                "Fun fact @{user}: {track.name} by {track.artist} is already in {playlist.name}! Less fun fact: you just wasted a perfectly good command.",
+                "@{user}, you can't make {track.name} by {track.artist} more banger by adding it to {playlist.name} again. That's not how banger math works!",
+                "Alert: @{user} attempted a banger paradox with {track.name} by {track.artist}! {playlist.name} rejected this temporal anomaly. At least it was free!",
             ],
-            hype: ["{track.name} IS ALREADY A BANGER IN THE PLAYLIST, @{user}!"],
-            chill: ["{track.name} is already in the bangers playlist."]
+            hype:
+            [
+                "{track.name} BY {track.artist} IS ALREADY A BANGER IN {playlist.name}, @{user}!",
+            ],
+            chill: ["@{user}, {track.name} by {track.artist} is already in {playlist.name}."]
         );
 
         Add(
@@ -904,15 +922,27 @@ public static partial class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Banger.Key,
             BuiltinResponseSlots.Banger.Failed,
-            variables: ["user"],
+            variables: ["user", "track.name", "track.artist", "playlist.name"],
             informative:
             [
-                "@{user}, the bangers playlist could not be updated. Try again in a moment.",
+                "@{user}, {playlist.name} could not be updated with {track.name} by {track.artist}. Try again in a moment.",
             ],
-            friendly: ["Oops @{user}, the bangers playlist did not update. Try again in a moment!"],
-            sassy: ["@{user}, the playlist said no. Try again in a moment."],
-            hype: ["THE PLAYLIST FAILED, @{user}! TRY AGAIN IN A MOMENT!"],
-            chill: ["could not update the bangers playlist, try again soon."]
+            friendly:
+            [
+                "Oops @{user}, {track.name} by {track.artist} did not make it into {playlist.name}. Try again in a moment!",
+            ],
+            sassy:
+            [
+                "@{user}, {playlist.name} said no to {track.name} by {track.artist}. Try again in a moment.",
+            ],
+            hype:
+            [
+                "{playlist.name} FAILED ON {track.name} BY {track.artist}, @{user}! TRY AGAIN IN A MOMENT!",
+            ],
+            chill:
+            [
+                "could not add {track.name} by {track.artist} to {playlist.name}, try again soon.",
+            ]
         );
 
         Add(
@@ -963,6 +993,7 @@ public static partial class ToneTemplateCatalog
         samples["track.name"] = "Never Gonna Give You Up";
         samples["track.artist"] = "Rick Astley";
         samples["track.link"] = "https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8";
+        samples["playlist.name"] = "Road Trip";
         samples["requested.by"] = "StreamFan42";
         samples["query"] = "never gonna give you up";
         samples["queue.list"] =

@@ -33,23 +33,34 @@ public sealed class BangerBuiltinTests : IDisposable
     private static readonly Guid Broadcaster = Guid.Parse("0192a000-0000-7000-8000-000000009903");
     private const string TrackUri = "spotify:track:rick1";
     private const string TrackName = "Never Gonna Give You Up";
+    private const string TrackArtist = "Rick Astley";
+    private const string PlaylistName = "Road Trip";
 
     private readonly MusicConfigDbFixture _config = new();
     private readonly IMusicService _music = Substitute.For<IMusicService>();
     private readonly IMusicProviderManageApi _playlists = Substitute.For<IMusicProviderManageApi>();
 
+    public BangerBuiltinTests() =>
+        _playlists
+            .ListPlaylistsAsync(Broadcaster, "spotify", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ContractPlaylist>>([
+                    new ContractPlaylist("pl1", PlaylistName, null, false, 12, null, "spotify"),
+                ])
+            );
+
     public void Dispose() => _config.Dispose();
 
     private BangerBuiltin Sut() => new(_music, _playlists, _config.Service, FakeComposer());
 
-    private static BuiltinCommandContext Context() =>
+    private static BuiltinCommandContext Context(string personality = PersonalityTone.Sassy) =>
         new()
         {
             BroadcasterId = Broadcaster,
             TriggeringUserId = "viewer-1",
             TriggeringUserDisplayName = "Viewer1",
             RoleLevel = 0,
-            Personality = PersonalityTone.Sassy,
+            Personality = personality,
         };
 
     private static IBuiltinResponseComposer FakeComposer()
@@ -84,7 +95,7 @@ public sealed class BangerBuiltinTests : IDisposable
             .Returns(
                 new NowPlaying(
                     TrackName: TrackName,
-                    Artist: "Rick Astley",
+                    Artist: TrackArtist,
                     Album: null,
                     ImageUrl: null,
                     DurationMs: 213_000,
@@ -140,11 +151,16 @@ public sealed class BangerBuiltinTests : IDisposable
                 Arg.Any<CancellationToken>()
             );
 
-    private static List<string> Texts(string slot) =>
+    private static List<string> Texts(string slot, string playlistName = PlaylistName) =>
         [
             .. ToneTemplateCatalog
                 .Get(PersonalityTone.Sassy, BuiltinResponseSlots.Banger.Key, slot)
-                .Select(t => t.Replace("{user}", "Viewer1").Replace("{track.name}", TrackName)),
+                .Select(t =>
+                    t.Replace("{user}", "Viewer1")
+                        .Replace("{track.name}", TrackName)
+                        .Replace("{track.artist}", TrackArtist)
+                        .Replace("{playlist.name}", playlistName)
+                ),
         ];
 
     [Fact]
@@ -160,6 +176,51 @@ public sealed class BangerBuiltinTests : IDisposable
         await AddReceived(1, "pl1");
         Texts(BuiltinResponseSlots.Banger.Added).Should().Contain(reply.Value);
         reply.Value.Should().Contain(TrackName);
+    }
+
+    [Theory]
+    [InlineData(PersonalityTone.Informative)]
+    [InlineData(PersonalityTone.Friendly)]
+    [InlineData(PersonalityTone.Sassy)]
+    [InlineData(PersonalityTone.Hype)]
+    [InlineData(PersonalityTone.Chill)]
+    public async Task The_added_reply_names_the_viewer_the_track_its_artist_and_the_playlist(
+        string personality
+    )
+    {
+        Playing();
+        await ChoosePlaylist();
+        TrackPresence("pl1", Result.Success(false));
+        AddSucceeds("pl1");
+
+        Result<string> reply = await Sut().ExecuteAsync(Context(personality));
+
+        reply.Value.Should().Contain("Viewer1");
+        reply.Value.Should().Contain(TrackName);
+        reply.Value.Should().Contain(TrackArtist);
+        reply.Value.Should().Contain(PlaylistName);
+    }
+
+    [Theory]
+    [InlineData(PersonalityTone.Informative)]
+    [InlineData(PersonalityTone.Friendly)]
+    [InlineData(PersonalityTone.Sassy)]
+    [InlineData(PersonalityTone.Hype)]
+    [InlineData(PersonalityTone.Chill)]
+    public async Task The_already_there_reply_names_the_viewer_the_track_its_artist_and_the_playlist(
+        string personality
+    )
+    {
+        Playing();
+        await ChoosePlaylist();
+        TrackPresence("pl1", Result.Success(true));
+
+        Result<string> reply = await Sut().ExecuteAsync(Context(personality));
+
+        reply.Value.Should().Contain("Viewer1");
+        reply.Value.Should().Contain(TrackName);
+        reply.Value.Should().Contain(TrackArtist);
+        reply.Value.Should().Contain(PlaylistName);
     }
 
     [Fact]
@@ -199,6 +260,14 @@ public sealed class BangerBuiltinTests : IDisposable
                     new ContractPlaylist("new-pl", "Bangers", null, false, 0, null, "spotify")
                 )
             );
+        _playlists
+            .ListPlaylistsAsync(Broadcaster, "spotify", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ContractPlaylist>>([
+                    new ContractPlaylist("pl1", PlaylistName, null, false, 12, null, "spotify"),
+                    new ContractPlaylist("new-pl", "Bangers", null, false, 0, null, "spotify"),
+                ])
+            );
         TrackPresence("new-pl", Result.Success(false));
         AddSucceeds("new-pl");
 
@@ -216,7 +285,8 @@ public sealed class BangerBuiltinTests : IDisposable
         saved.BangerPlaylistId.Should().Be("new-pl");
         saved.BangerPlaylistProvider.Should().Be("spotify");
         await AddReceived(1, "new-pl");
-        Texts(BuiltinResponseSlots.Banger.Added).Should().Contain(reply.Value);
+        reply.Value.Should().Contain("Bangers");
+        Texts(BuiltinResponseSlots.Banger.Added, "Bangers").Should().Contain(reply.Value);
     }
 
     [Fact]

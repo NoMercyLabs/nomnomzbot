@@ -12,15 +12,21 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Discord;
 using NSubstitute;
+using ContractPlaylist = NomNomzBot.Application.Contracts.Music.MusicPlaylistDto;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -70,6 +76,33 @@ public sealed class MusicPipelineActionsTests
                 p => JsonSerializer.SerializeToElement(p.Value)
             ),
         };
+
+    /// <summary>The real composer over the shipped tone catalog; the resolver only fills <c>{variable}</c> tokens.</summary>
+    private static IBuiltinResponseComposer BangerComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
+        return new BuiltinResponseComposer(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
+    }
 
     private static NowPlaying Playing(
         string uri = "spotify:track:current",
@@ -168,6 +201,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
 
@@ -214,6 +249,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
 
@@ -256,6 +293,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
 
@@ -278,6 +317,44 @@ public sealed class MusicPipelineActionsTests
     }
 
     [Fact]
+    public async Task Playlist_add_replies_that_nothing_is_playing_when_nothing_is_playing()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns("spotify");
+        music
+            .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((NowPlaying?)null);
+        IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def("playlist_add", ("playlist_id", "playlist-1"))
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(text =>
+                    text.Contains("playing", StringComparison.OrdinalIgnoreCase)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Playlist_add_fails_typed_when_no_provider_is_active()
     {
         IMusicService music = Substitute.For<IMusicService>();
@@ -291,6 +368,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
 
@@ -330,6 +409,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
 
@@ -363,6 +444,21 @@ public sealed class MusicPipelineActionsTests
             .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing(uri: "spotify:track:37i9dQZF1DXcBWIGoYBM5M"));
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        manage
+            .ListPlaylistsAsync(ChannelId, "spotify", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ContractPlaylist>>([
+                    new ContractPlaylist(
+                        "playlist-1",
+                        "Road Trip",
+                        null,
+                        false,
+                        3,
+                        null,
+                        "spotify"
+                    ),
+                ])
+            );
         StubNotInPlaylist(manage);
         manage
             .AddPlaylistTracksAsync(
@@ -379,6 +475,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
 
@@ -389,7 +487,10 @@ public sealed class MusicPipelineActionsTests
         );
 
         result.Succeeded.Should().BeTrue();
-        result.Output.Should().Be("Added Current Song to the playlist.");
+        result.Output.Should().Contain("Bamo");
+        result.Output.Should().Contain("Current Song");
+        result.Output.Should().Contain("Artist");
+        result.Output.Should().Contain("Road Trip");
         result.Output.Should().NotContain("playlist-1");
         result.Output.Should().NotContain("spotify:track:");
     }
@@ -443,6 +544,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
         return (action, manage, chat);
@@ -491,7 +594,7 @@ public sealed class MusicPipelineActionsTests
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(),
-            Def("playlist_add", ("playlist_id", "playlist-1"))
+            Def("playlist_add", ("playlist_id", "playlist-1"), ("already_message", ""))
         );
 
         result.Succeeded.Should().BeTrue();
@@ -561,7 +664,57 @@ public sealed class MusicPipelineActionsTests
                 Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<CancellationToken>()
             );
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(text => text.Contains("Current Song")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Playlist_add_replies_with_the_failure_line_naming_the_track_and_playlist_when_the_add_is_rejected()
+    {
+        (PlaylistAddAction action, IMusicProviderManageApi manage, IChatProvider chat) =
+            AlreadyInPlaylistSetup(Result.Success(false));
+        manage
+            .ListPlaylistsAsync(ChannelId, "spotify", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ContractPlaylist>>([
+                    new ContractPlaylist(
+                        "playlist-1",
+                        "Road Trip",
+                        null,
+                        false,
+                        3,
+                        null,
+                        "spotify"
+                    ),
+                ])
+            );
+        manage
+            .AddPlaylistTracksAsync(
+                ChannelId,
+                "spotify",
+                "playlist-1",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("provider rejected the add", "PROVIDER_ERROR"));
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def("playlist_add", ("playlist_id", "playlist-1"))
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Be("provider rejected the add");
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(text => text.Contains("Current Song") && text.Contains("Road Trip")),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -575,6 +728,8 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
+            BangerComposer(),
+            Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
 

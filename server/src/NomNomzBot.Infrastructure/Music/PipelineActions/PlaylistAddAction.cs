@@ -13,10 +13,14 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -27,25 +31,34 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 /// Parameters:
 ///   playlist_id — provider playlist id (required). Supports {variable} substitution.
 ///   track_uri   — track to add (optional; defaults to the CURRENTLY PLAYING track).
-///   message     — chat response template (optional; defaults to <see cref="DefaultMessageTemplate"/>).
+///   message     — chat response template (optional; when absent the reply comes from the channel's
+///                 personality slot <c>banger.added</c>, the same one the !banger built-in uses).
 ///                 Streamer-editable, resolved through the shared <see cref="ITemplateResolver"/>
 ///                 grammar, so it can reference {track_name} and {playlist_id} instead of hardcoding
 ///                 the raw provider id.
 ///   already_message — chat template sent instead when the track is already in the playlist
-///                 (optional; empty sends nothing). Same variables as <c>message</c>.
+///                 (optional; absent uses the <c>banger.alreadythere</c> slot, empty sends nothing).
+///                 Same variables as <c>message</c>.
 ///
 /// Usage example:
 ///   { "type": "playlist_add", "playlist_id": "37i9dQZF1DXcBWIGoYBM5M", "message": "Added {track_name} to the bangers playlist!" }
 /// </summary>
 public sealed class PlaylistAddAction : ICommandAction
 {
-    /// <summary>Used when the streamer has not overridden the "message" field — never exposes the raw playlist/track id.</summary>
-    public const string DefaultMessageTemplate = "Added {track_name} to the playlist.";
+    private const string NeutralAdded =
+        "@{user} added \"{track.name}\" by {track.artist} to {playlist.name}.";
+    private const string NeutralAlreadyThere =
+        "@{user}, \"{track.name}\" by {track.artist} is already in {playlist.name}.";
+    private const string NeutralFailed =
+        "@{user}, {playlist.name} could not be updated with \"{track.name}\" by {track.artist}.";
+    private const string NeutralNothing = "Nothing is playing right now.";
 
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _manage;
     private readonly IChatProvider _chat;
     private readonly ITemplateResolver _resolver;
+    private readonly IBuiltinResponseComposer _composer;
+    private readonly IChannelRegistry _registry;
     private readonly ILogger<PlaylistAddAction> _logger;
 
     public string ActionType => "playlist_add";
@@ -88,6 +101,8 @@ public sealed class PlaylistAddAction : ICommandAction
         IMusicProviderManageApi manage,
         IChatProvider chat,
         ITemplateResolver resolver,
+        IBuiltinResponseComposer composer,
+        IChannelRegistry registry,
         ILogger<PlaylistAddAction> logger
     )
     {
@@ -95,6 +110,8 @@ public sealed class PlaylistAddAction : ICommandAction
         _manage = manage;
         _chat = chat;
         _resolver = resolver;
+        _composer = composer;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -120,14 +137,44 @@ public sealed class PlaylistAddAction : ICommandAction
 
         string? trackUri = action.GetString("track_uri");
         string? trackName = null;
+        string? trackArtist = null;
         if (string.IsNullOrWhiteSpace(trackUri))
         {
             NowPlaying? now = await _music.GetNowPlayingAsync(broadcasterId, ctx.CancellationToken);
             if (now?.TrackUri is null)
+            {
+                await SendSlotAsync(
+                    ctx,
+                    BuiltinResponseSlots.Banger.Nothing,
+                    NeutralNothing,
+                    new Dictionary<string, string>()
+                );
                 return ActionResult.Failure("nothing is currently playing");
+            }
+
             trackUri = now.TrackUri;
             trackName = now.TrackName;
+            trackArtist = now.Artist;
         }
+
+        Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
+        {
+            ["playlist_id"] = playlistId,
+            ["track_uri"] = trackUri,
+            ["track_name"] = trackName ?? trackUri,
+        };
+        Dictionary<string, string> slotVariables = BangerReplyVariables.Build(
+            ctx.TriggeredByChatName,
+            trackName ?? trackUri,
+            trackArtist,
+            await BangerReplyVariables.PlaylistNameAsync(
+                _manage,
+                ctx.BroadcasterId,
+                provider,
+                playlistId,
+                ctx.CancellationToken
+            )
+        );
 
         Result<bool> present = await _manage.IsTrackInPlaylistAsync(
             ctx.BroadcasterId,
@@ -137,20 +184,28 @@ public sealed class PlaylistAddAction : ICommandAction
             ctx.CancellationToken
         );
         if (present.IsFailure)
+        {
+            await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Banger.Failed,
+                NeutralFailed,
+                slotVariables
+            );
             return ActionResult.Failure(
                 present.ErrorMessage ?? "failed to check the playlist for the track"
             );
-
-        Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
-        {
-            ["playlist_id"] = playlistId,
-            ["track_uri"] = trackUri,
-            ["track_name"] = trackName ?? trackUri,
-        };
+        }
 
         if (present.Value)
         {
-            string alreadyTemplate = action.GetString("already_message") ?? string.Empty;
+            string? alreadyTemplate = action.GetString("already_message");
+            if (alreadyTemplate is null)
+                return await SendSlotAsync(
+                    ctx,
+                    BuiltinResponseSlots.Banger.AlreadyThere,
+                    NeutralAlreadyThere,
+                    slotVariables
+                );
             if (string.IsNullOrWhiteSpace(alreadyTemplate))
                 return ActionResult.Success();
             return await SendResolvedAsync(ctx, alreadyTemplate, seed);
@@ -164,13 +219,55 @@ public sealed class PlaylistAddAction : ICommandAction
             ctx.CancellationToken
         );
         if (added.IsFailure)
+        {
+            await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Banger.Failed,
+                NeutralFailed,
+                slotVariables
+            );
             return ActionResult.Failure(added.ErrorMessage ?? "failed to add track to playlist");
+        }
 
-        return await SendResolvedAsync(
-            ctx,
-            action.GetString("message") ?? DefaultMessageTemplate,
-            seed
+        string? addedTemplate = action.GetString("message");
+        if (addedTemplate is null)
+            return await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Banger.Added,
+                NeutralAdded,
+                slotVariables
+            );
+        return await SendResolvedAsync(ctx, addedTemplate, seed);
+    }
+
+    /// <summary>Phrases a reply through the channel's personality slots, so it matches the <c>!banger</c> built-in.</summary>
+    private async Task<ActionResult> SendSlotAsync(
+        PipelineExecutionContext ctx,
+        string slot,
+        string neutralFallback,
+        Dictionary<string, string> variables
+    )
+    {
+        string text = await _composer.ComposeAsync(
+            new BuiltinResponseRequest
+            {
+                BroadcasterId = ctx.BroadcasterId,
+                Personality = PersonalityTone.Normalize(
+                    _registry.Get(ctx.BroadcasterId)?.Personality
+                ),
+                BuiltinKey = BuiltinResponseSlots.Banger.Key,
+                Slot = slot,
+                NeutralFallback = neutralFallback,
+                Variables = variables,
+            },
+            ctx.CancellationToken
         );
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            text,
+            ctx.CancellationToken
+        );
+        return ActionResult.Success(text);
     }
 
     private async Task<ActionResult> SendResolvedAsync(

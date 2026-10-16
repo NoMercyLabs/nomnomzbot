@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Infrastructure.Music;
 using ContractPlaylist = NomNomzBot.Application.Contracts.Music.MusicPlaylistDto;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
@@ -54,11 +55,12 @@ public sealed class BangerBuiltin(
                 ct
             );
 
-        Dictionary<string, string> variables = new()
-        {
-            ["user"] = context.TriggeringUserChatName,
-            ["track.name"] = nowPlaying.TrackName ?? nowPlaying.TrackUri,
-        };
+        Dictionary<string, string> variables = BangerReplyVariables.Build(
+            context.TriggeringUserChatName,
+            nowPlaying.TrackName ?? nowPlaying.TrackUri,
+            nowPlaying.Artist,
+            BangerReplyVariables.FallbackPlaylistName
+        );
 
         Result<PlaylistTarget> target = await ResolveTargetAsync(context, nowPlaying, ct);
         if (target.IsFailure)
@@ -71,6 +73,14 @@ public sealed class BangerBuiltin(
                     ct
                 )
                 : await FailedAsync(context, variables, ct);
+
+        variables["playlist.name"] = await BangerReplyVariables.PlaylistNameAsync(
+            playlists,
+            context.BroadcasterId,
+            target.Value.Provider,
+            target.Value.PlaylistId,
+            ct
+        );
 
         Result<bool> present = await playlists.IsTrackInPlaylistAsync(
             context.BroadcasterId,
@@ -86,7 +96,7 @@ public sealed class BangerBuiltin(
             return await ReplyAsync(
                 context,
                 BuiltinResponseSlots.Banger.AlreadyThere,
-                "@{user}, \"{track.name}\" is already in the bangers playlist.",
+                "@{user}, \"{track.name}\" by {track.artist} is already in {playlist.name}.",
                 variables,
                 ct
             );
@@ -104,7 +114,7 @@ public sealed class BangerBuiltin(
         return await ReplyAsync(
             context,
             BuiltinResponseSlots.Banger.Added,
-            "Added \"{track.name}\" to the bangers playlist!",
+            "@{user} added \"{track.name}\" by {track.artist} to {playlist.name}.",
             variables,
             ct
         );
@@ -164,7 +174,7 @@ public sealed class BangerBuiltin(
         ReplyAsync(
             context,
             BuiltinResponseSlots.Banger.Failed,
-            "@{user}, the bangers playlist could not be updated. Try again in a moment.",
+            "@{user}, {playlist.name} could not be updated with \"{track.name}\" by {track.artist}. Try again in a moment.",
             variables,
             ct
         );
