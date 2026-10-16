@@ -400,6 +400,19 @@
     },
     "handle": "{'@'}{name}",
     "tier": "Tier {tier}",
+    "public": {
+      "badges": {
+        "broadcaster": "Streamer",
+        "moderator": "Moderator",
+        "vip": "VIP",
+        "subscriber": "Abonnee",
+        "founder": "Oprichter",
+        "partner": "Partner",
+        "staff": "Medewerker",
+        "premium": "Prime",
+        "turbo": "Turbo"
+      }
+    },
     "stats": {
       "messages": "Chatregels",
       "watchHours": "Uren gekeken",

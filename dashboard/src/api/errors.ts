@@ -215,6 +215,7 @@ export const apiOperations = {
   'viewer channel': 'viewer',
   'viewer summary': 'viewer',
   'viewer queue': 'viewer',
+  'public profile': 'community',
   widgets: 'widgets',
   'widget settings': 'widgets',
   'widget test': 'widgets',

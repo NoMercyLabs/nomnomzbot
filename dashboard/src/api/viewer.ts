@@ -100,3 +100,39 @@ export function useViewerQueue(
     },
   );
 }
+
+export type PublicProfile = components['schemas']['PublicProfileDto'];
+
+export const publicProfileKey = (channelId: string | null, userId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'viewer',
+  'profile',
+  userId,
+];
+
+// What any signed-in person may see of another person in a channel: no notes, no moderation, no bot standing.
+export function usePublicProfile(
+  channelId: MaybeRefOrGetter<string | null>,
+  userId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<PublicProfile, Error> {
+  return useQuery({
+    queryKey: computed(() => publicProfileKey(toValue(channelId), toValue(userId))),
+    queryFn: async (): Promise<PublicProfile> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/chat/viewer/users/{userId}/profile',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId)!,
+          userId: toValue(userId)!,
+        } } },
+      );
+
+      if (error !== undefined || !data?.data)
+        throw failed('public profile', response.status, error);
+
+      return data.data;
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(userId) !== null),
+  });
+}

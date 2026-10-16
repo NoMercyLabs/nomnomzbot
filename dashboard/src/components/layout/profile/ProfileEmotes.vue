@@ -8,23 +8,12 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The emotes a person's own channel offers, grouped by where they come from. Each one opens the same card a
-// chat line opens: the emote large, its provider, kind and tier, and its own page.
-import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-
+// The emotes a person's own channel offers, grouped by where they come from (the grouping is ProfileEmoteGroups).
 import { usePersonEmotes, type PersonEmote } from '@/api/community';
-import AssetCardPopover from '@/components/layout/AssetCard.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import ProfileEmoteGroups from '@/components/layout/profile/ProfileEmoteGroups.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
-import {
-  catalogEmoteCard,
-  emoteFrames,
-  emoteTier,
-  smallestUrl,
-  type AssetCard,
-} from '@/lib/assetCards';
 
 const props = defineProps<{
   // The internal user id: the emotes route takes the Guid, not the Twitch id.
@@ -33,92 +22,12 @@ const props = defineProps<{
   noTwitchEmotes: boolean;
 }>();
 
-const PROVIDERS = ['Twitch', 'SevenTv', 'Bttv', 'Ffz'] as const;
-
-type ShownEmote = {
-  code: string;
-  src: string;
-  card: AssetCard;
-};
-
-type EmoteSet = {
-  key: string;
-  label: string | null;
-  emotes: ShownEmote[];
-};
-
-const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const emotes = usePersonEmotes(channelId, () =>
   props.userId);
 const state = usePanelState(emotes, (list: PersonEmote[]) =>
   list.length === 0);
-
-// Only an affiliate or a partner can have Twitch emotes; 7TV, BTTV and FFZ sets belong to anyone.
-const regular = computed(() =>
-  props.noTwitchEmotes);
-const providers = computed(() =>
-  PROVIDERS.filter((provider) =>
-    !regular.value || provider !== 'Twitch'));
-
-const groups = computed(() =>
-  providers.value.map((provider) => ({ provider, sets: sets(provider) }))
-    .filter((group) =>
-      group.sets.length > 0));
-
-// A Twitch channel unlocks its emotes per sub tier, by cheering bits, or by following (owner 2026-10-14:
-// "group channel emotes by tier and bits too"); the other sites have one set each.
-function setKey(emote: PersonEmote): string {
-  const tier = emoteTier(emote.tier);
-
-  if (emote.type === 'subscriptions' && tier !== null)
-    return `tier${tier}`;
-
-  return emote.type === 'bitstier' || emote.type === 'follower'
-    ? emote.type
-    : 'other';
-}
-
-const SET_ORDER = ['follower', 'tier1', 'tier2', 'tier3', 'bitstier', 'other'] as const;
-
-function sets(provider: string): EmoteSet[] {
-  const list = (emotes.data.value ?? []).filter((emote: PersonEmote) =>
-    emote.provider === provider);
-
-  if (provider !== 'Twitch')
-    return [{
-      key: 'all',
-      label: null,
-      emotes: shown(list),
-    }].filter((set) =>
-      set.emotes.length > 0);
-
-  return SET_ORDER.map((key) => ({
-    key,
-    label: t(`profile.emotes.sets.${key}`),
-    emotes: shown(list.filter((emote: PersonEmote) =>
-      setKey(emote) === key)),
-  })).filter((set) =>
-    set.emotes.length > 0);
-}
-
-function shown(list: PersonEmote[]): ShownEmote[] {
-  return list
-    .flatMap((emote: PersonEmote) => {
-      const card = catalogEmoteCard(emote, t);
-      const src = smallestUrl(emoteFrames(emote)) ?? card?.image;
-
-      if (!card || !src)
-        return [];
-
-      return [{
-        code: emote.code,
-        src,
-        card,
-      }];
-    });
-}
 </script>
 
 <template>
@@ -131,37 +40,6 @@ function shown(list: PersonEmote[]): ShownEmote[] {
     :error-text="$t('profile.emotes.error')"
     @retry="emotes.refetch()"
   >
-    <div class="grid gap-4">
-      <p v-if="regular" data-profile-emotes-regular class="text-sm text-muted-foreground">
-        {{ $t('profile.emotes.regular') }}
-      </p>
-      <section
-        v-for="group in groups"
-        :key="group.provider"
-        :data-profile-emote-group="group.provider"
-        class="grid gap-3"
-      >
-        <h3 class="text-sm font-medium">
-          {{ $t(`asset.providers.${group.provider}`) }}
-        </h3>
-        <div v-for="set in group.sets" :key="set.key" :data-profile-emote-set="set.key" class="grid gap-1">
-          <h4 v-if="set.label" class="text-xs text-muted-foreground">{{ set.label }}</h4>
-          <ul class="flex flex-wrap gap-1">
-            <li v-for="emote in set.emotes" :key="emote.code" :data-profile-emote="emote.code">
-              <AssetCardPopover
-                :label="$t('asset.emoteLabel', { name: emote.code })"
-                :title="emote.card.title"
-                :image="emote.card.image"
-                :facts="emote.card.facts"
-                :people="emote.card.people"
-                :link="emote.card.link"
-              >
-                <img :src="emote.src" :alt="emote.code" class="size-8 object-contain" />
-              </AssetCardPopover>
-            </li>
-          </ul>
-        </div>
-      </section>
-    </div>
+    <ProfileEmoteGroups :emotes="emotes.data.value ?? []" :no-twitch-emotes="noTwitchEmotes" />
   </PanelCard>
 </template>

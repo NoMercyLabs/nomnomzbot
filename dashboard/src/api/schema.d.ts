@@ -20081,6 +20081,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/chat/viewer/users/{userId}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One person's public profile in this channel: what any viewer of the channel can see. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    userId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfPublicProfileDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/chat/viewer/emotes": {
         parameters: {
             query?: never;
@@ -95996,6 +96045,40 @@ export interface components {
              */
             code?: null | string;
             args?: null | unknown[];
+        };
+        PublicBadgeDto: {
+            setId: string;
+            id: string;
+            info: null | string;
+        };
+        PublicMessageDto: {
+            id: string;
+            message: string;
+            /** Format: date-time */
+            sentAt: string;
+        };
+        PublicProfileDto: {
+            twitchUserId: string;
+            /** Format: uuid */
+            internalUserId: string;
+            username: string;
+            displayName: string;
+            profileImageUrl: null | string;
+            color: null | string;
+            pronouns: null | string;
+            badges: components["schemas"]["PublicBadgeDto"][];
+            /** Format: date-time */
+            accountCreatedAt: null | string;
+            /** Format: date-time */
+            followedAt: null | string;
+            subTier: null | string;
+            emotes: components["schemas"]["ChatEmoteCatalogueDto"][];
+            recentMessages: components["schemas"]["PublicMessageDto"][];
+        };
+        StatusResponseDtoOfPublicProfileDto: {
+            status?: string;
+            data?: null | components["schemas"]["PublicProfileDto"];
+            message?: null | string;
         };
         StatusResponseDtoOfIReadOnlyListOfChatEmoteCatalogueDto: {
             status?: string;

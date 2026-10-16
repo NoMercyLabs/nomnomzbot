@@ -16,7 +16,9 @@ import type { RouteLocationRaw } from 'vue-router';
 import ArrowRight from '~icons/nnz/arrow-right';
 import Cross from '~icons/nnz/cross';
 
+import { useChannelAccess } from '@/api/access';
 import { useCommunityMember } from '@/api/community';
+import ProfilePublicView from '@/components/layout/profile/ProfilePublicView.vue';
 import ProfileView from '@/components/layout/profile/ProfileView.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -30,8 +32,14 @@ const isOpen = computed(() => profile.userId !== null);
 const tab = ref('overview');
 
 // The same query the view runs, so this costs no second request; the page opens a person by login.
+// A caller who may not read the community sees the public profile: no moderator page to link to, no request that 403s.
+const access = useChannelAccess(channelId);
+const isPublic = computed(() =>
+  access.known.value && !access.can('community:read'));
 const member = useCommunityMember(channelId, () =>
-  profile.userId);
+  access.known.value && !isPublic.value
+    ? profile.userId
+    : null);
 const fullPage = computed<RouteLocationRaw | null>(() => {
   const login = member.data.value?.username;
 
@@ -95,7 +103,10 @@ function giveFocusBack(event: Event): void {
           </Button>
         </DialogClose>
       </div>
-      <ProfileView v-if="profile.userId" v-model:tab="tab" :user-id="profile.userId" />
+      <template v-if="profile.userId && access.known.value">
+        <ProfilePublicView v-if="isPublic" v-model:tab="tab" :user-id="profile.userId" />
+        <ProfileView v-else v-model:tab="tab" :user-id="profile.userId" />
+      </template>
     </DialogContent>
   </Dialog>
 </template>

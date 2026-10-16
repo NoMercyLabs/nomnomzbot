@@ -352,6 +352,7 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
 
 // The action keys a full moderator holds; a test drops one to see its control lock.
 const MODERATOR_KEYS = [
+  'community:read',
   'moderation:ban',
   'moderation:unban',
   'moderation:vip',
@@ -422,6 +423,45 @@ function personVoice(options: Options | undefined): unknown {
   };
 }
 
+// What GET chat/viewer/users/{userId}/profile answers a caller who may not read the community.
+const publicProfiles: Record<string, Record<string, unknown>> = {
+  u1: {
+    twitchUserId: 'u1',
+    internalUserId: 'g1',
+    username: 'ada',
+    displayName: 'Ada',
+    profileImageUrl: null,
+    color: '#FF7F50',
+    pronouns: 'she/her',
+    badges: [{
+      setId: 'subscriber',
+      id: '3',
+      info: '14',
+    }],
+    accountCreatedAt: '2015-06-01T00:00:00Z',
+    followedAt: '2024-08-15T00:00:00Z',
+    subTier: '1000',
+    emotes: [
+      {
+        code: 'adaHi',
+        provider: 'Twitch',
+        urls: { 1: 'https://cdn/adaHi/1', 3: 'https://cdn/adaHi/3' },
+        animated: false,
+        zeroWidth: false,
+        id: 'e1',
+        type: 'subscriptions',
+        tier: 1,
+        staticUrls: { 1: 'https://cdn/adaHi/1', 3: 'https://cdn/adaHi/3' },
+      },
+    ],
+    recentMessages: [{
+      id: 'm1',
+      message: 'public hello from ada',
+      sentAt: '2026-10-01T10:00:00Z',
+    }],
+  },
+};
+
 let held: string[] = [];
 
 // The emotes usable in the channel, as the chat emote list sends them.
@@ -463,6 +503,13 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options);
+
+      if (path.includes('/chat/viewer/users/')) {
+        return {
+          data: { data: onTheWire(publicProfiles[userIdOf(options)] ?? null) },
+          response: { ok: true, status: 200 },
+        };
+      }
 
       if (path.endsWith('/profile'))
         return { data: { data: onTheWire(profiles[userIdOf(options)] ?? null) } };
@@ -2132,5 +2179,35 @@ describe('the Emotes tab', () => {
 
     expect(groups()).toEqual([]);
     expect(active?.textContent).toContain('No channel emotes found for this person.');
+  });
+});
+
+describe('the public profile for a caller who cannot read the community', () => {
+  it('shows who the person is, their chat and emotes, and no moderator controls', async () => {
+    held = [];
+    await openPage();
+    await openUser('u1');
+
+    const text = dialogs()[0]!.textContent ?? '';
+
+    expect(text).toContain('Ada');
+    expect(text).toContain('she/her');
+    expect(document.body.querySelector('[data-slot="profile-public"]')).not.toBeNull();
+
+    expect(calls.some((c: Call) =>
+      c.path.endsWith('/chat/viewer/users/{userId}/profile'))).toBe(true);
+
+    expect(calls.some((c: Call) =>
+      c.path.endsWith('/community/{userId}'))).toBe(false);
+
+    expect(document.body.querySelector('[data-profile-full-page]')).toBeNull();
+    expect(document.body.querySelector('[data-profile-vip]')).toBeNull();
+    expect(text).not.toContain('Moderation');
+
+    await openTab('Chat');
+    expect(dialogs()[0]!.textContent).toContain('public hello from ada');
+
+    await openTab('Emotes');
+    expect(document.body.querySelector('[data-profile-emote="adaHi"]')).not.toBeNull();
   });
 });
