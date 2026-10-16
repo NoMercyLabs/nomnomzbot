@@ -184,8 +184,8 @@ public sealed class MusicServiceQueueSnapshotTests
 
         private static string SearchJson(int n) =>
             $$$"""
-            {"tracks":{"items":[{"name":"Song Q","uri":"spotify:track:q{{{n}}}","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
-            """;
+                {"tracks":{"items":[{"name":"Song Q","uri":"spotify:track:q{{{n}}}","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
+                """;
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -200,7 +200,11 @@ public sealed class MusicServiceQueueSnapshotTests
             HttpResponseMessage response = isSearch
                 ? new(HttpStatusCode.OK)
                 {
-                    Content = new StringContent(SearchJson(Interlocked.Increment(ref _searches)), Encoding.UTF8, "application/json"),
+                    Content = new StringContent(
+                        SearchJson(Interlocked.Increment(ref _searches)),
+                        Encoding.UTF8,
+                        "application/json"
+                    ),
                 }
                 : new HttpResponseMessage(HttpStatusCode.NoContent);
             return Task.FromResult(response);
