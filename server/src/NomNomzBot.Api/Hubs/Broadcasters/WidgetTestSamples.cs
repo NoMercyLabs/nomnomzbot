@@ -244,9 +244,15 @@ internal static class WidgetTestSamples
             Standing
         ),
         ["sr_queue"] = _ => new SrQueueWidgetPayload([
-            new SongRequestQueueSnapshotItem("Never Gonna Give You Up", "TestViewer", 213, "K7QM"),
-            new SongRequestQueueSnapshotItem("Sandstorm", "AnotherViewer", 225, "B2XR"),
-            new SongRequestQueueSnapshotItem("Bohemian Rhapsody", "ThirdViewer", 355, "M9TD"),
+            new SongRequestQueueSnapshotItem(
+                "Never Gonna Give You Up",
+                "TestViewer",
+                213,
+                1,
+                "K7QM"
+            ),
+            new SongRequestQueueSnapshotItem("Sandstorm", "AnotherViewer", 225, 2, "B2XR"),
+            new SongRequestQueueSnapshotItem("Bohemian Rhapsody", "ThirdViewer", 355, 3, "M9TD"),
         ]),
         ["now_playing"] = now => new NowPlayingWidgetPayload(
             true,

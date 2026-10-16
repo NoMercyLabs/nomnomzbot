@@ -156,9 +156,9 @@ describe('the viewer page', () => {
     const queue = wrapper.get('[data-viewer-queue]').text();
 
     expect(queue).toContain('Midnight City');
-    expect(queue).toContain('Next in line');
+    expect(queue).toContain('#1 · next in line');
     expect(queue).toContain('Strobe');
-    expect(queue).toContain('4 in line');
+    expect(queue).toContain('#4');
     expect(queue).toContain('6 songs in the whole queue');
   });
 

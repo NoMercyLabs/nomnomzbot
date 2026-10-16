@@ -37,9 +37,12 @@ public sealed record RemoveRequesterSongsDto
 /// <summary>How many queued songs a bulk removal took out.</summary>
 public sealed record RemovedSongsDto(int RemovedCount);
 
-/// <summary>A queue item with its position. <paramref name="Cost"/> is 0 for a free request.</summary>
+/// <summary>A queue item with its zero-based position and the number viewers see
+/// (<see cref="Services.QueueNumbering"/> — the one <c>!queue</c> prints and <c>!wrongsong N</c> reads back).
+/// <paramref name="Cost"/> is 0 for a free request.</summary>
 public sealed record QueueItemDto(
     int Position,
+    int Number,
     string TrackName,
     string Artist,
     string? ImageUrl,

@@ -44,7 +44,7 @@ public sealed class ViewerSelfQueueService(IApplicationDbContext db, IMusicServi
             if (IsCaller(item.RequestedBy, caller.DisplayName, caller.Username))
                 mine.Add(
                     new(
-                        index + 1,
+                        QueueNumbering.NumberOf(index),
                         item.TrackName,
                         item.Artist,
                         item.ImageUrl,

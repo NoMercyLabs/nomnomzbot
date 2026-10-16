@@ -2305,12 +2305,16 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             : queue
                 .GetSnapshot()
                 .Take(QueueSnapshotSize)
-                .Select(e => new SongRequestQueueSnapshotItem(
-                    e.Item.TrackName,
-                    e.Item.RequestedBy,
-                    e.Item.DurationMs / 1000,
-                    e.Item.Code
-                ))
+                .Select(
+                    (e, index) =>
+                        new SongRequestQueueSnapshotItem(
+                            e.Item.TrackName,
+                            e.Item.RequestedBy,
+                            e.Item.DurationMs / 1000,
+                            QueueNumbering.NumberOf(index),
+                            e.Item.Code
+                        )
+                )
                 .ToList();
     }
 

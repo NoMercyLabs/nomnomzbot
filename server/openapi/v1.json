@@ -122790,6 +122790,7 @@
       "QueueItemDto": {
         "required": [
           "position",
+          "number",
           "trackName",
           "artist",
           "durationMs"
@@ -122797,6 +122798,14 @@
         "type": "object",
         "properties": {
           "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "number": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",

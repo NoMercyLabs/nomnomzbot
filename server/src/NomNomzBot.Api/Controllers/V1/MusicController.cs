@@ -166,6 +166,7 @@ public class MusicController : BaseController
                 (item, index) =>
                     new QueueItemDto(
                         index,
+                        QueueNumbering.NumberOf(index),
                         item.TrackName,
                         item.Artist,
                         item.ImageUrl,

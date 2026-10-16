@@ -92382,6 +92382,8 @@ export interface components {
         QueueItemDto: {
             /** Format: int32 */
             position: number | string;
+            /** Format: int32 */
+            number: number | string;
             trackName: string;
             artist: string;
             imageUrl?: null | string;

@@ -27,7 +27,7 @@
         "empty": "You have no songs in the queue.",
         "closed": "Song requests are closed right now.",
         "error": "Your queue did not load.",
-        "position": "Next in line | {n} in line",
+        "position": "#{n} · next in line | #{n}",
         "total": "{count} songs in the whole queue"
       }
     }

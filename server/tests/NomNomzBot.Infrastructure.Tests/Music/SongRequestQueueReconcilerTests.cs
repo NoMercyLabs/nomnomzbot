@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -88,6 +89,32 @@ public sealed class SongRequestQueueReconcilerTests
             .Items.Select(i => i.Title)
             .Should()
             .Equal("Track b", "Track c");
+    }
+
+    [Fact]
+    public async Task Queue_changed_snapshot_numbers_the_remaining_entries_the_way_the_queue_command_does()
+    {
+        (
+            SongRequestQueueReconciler sut,
+            FairQueue<SongRequestEntry> queue,
+            RecordingEventBus bus,
+            SongRequestQueueStore store,
+            _
+        ) = Build("a", "b", "c");
+        HandOver(store, queue, "a");
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a"));
+
+        SongRequestQueueSnapshotItem[] items = bus
+            .Published.OfType<SongRequestQueueChangedEvent>()
+            .Single()
+            .Items.ToArray();
+        items.Select(i => i.Title).Should().Equal("Track b", "Track c");
+        items
+            .Select(i => i.Number)
+            .Should()
+            .Equal(QueueNumbering.NumberOf(0), QueueNumbering.NumberOf(1));
+        items.Select(i => i.Number).Should().Equal(1, 2);
     }
 
     [Fact]
