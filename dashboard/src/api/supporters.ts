@@ -13,7 +13,7 @@ import type { MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
-import { channelQuery } from './channelQuery';
+import { channelOptions, channelQuery } from './channelQuery';
 import { client } from './client';
 import { failed } from './errors';
 import type { components } from './schema';
@@ -33,17 +33,22 @@ export const supporterEventsKey = (channelId: string | null): KeyParts => [
 export function useSupporterEvents(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<SupporterEvent[], Error> {
-  return channelQuery(channelId, supporterEventsKey, async (): Promise<SupporterEvent[]> => {
-    const { data, error, response } = await client.GET('/api/v{version}/supporters/events', {
-      params: {
-        path: { version },
-        query: { PageSize: pageSize },
-      },
-    });
+  return channelQuery(channelId, supporterEventsKey, readSupporterEvents);
+}
 
-    if (error !== undefined)
-      throw failed('supporter events', response.status, error);
+export const supporterEventsOptions = (id: string) =>
+  channelOptions(supporterEventsKey, readSupporterEvents, id);
 
-    return data?.data ?? [];
+async function readSupporterEvents(): Promise<SupporterEvent[]> {
+  const { data, error, response } = await client.GET('/api/v{version}/supporters/events', {
+    params: {
+      path: { version },
+      query: { PageSize: pageSize },
+    },
   });
+
+  if (error !== undefined)
+    throw failed('supporter events', response.status, error);
+
+  return data?.data ?? [];
 }

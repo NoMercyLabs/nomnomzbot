@@ -21,7 +21,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed, refusal } from './channelQuery';
+import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -80,38 +80,45 @@ export function voiceFamily(locale: string): string {
 export function useTtsConfig(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<TtsConfig | null, Error> {
-  return channelQuery(channelId, ttsConfigKey, async (id: string): Promise<TtsConfig | null> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/tts/config',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
+  return channelQuery(channelId, ttsConfigKey, readTtsConfig);
+}
 
-    if (error !== undefined)
-      throw failed('tts config', response.status, error);
+async function readTtsConfig(id: string): Promise<TtsConfig | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/tts/config',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
 
-    return data?.data ?? null;
-  });
+  if (error !== undefined)
+    throw failed('tts config', response.status, error);
+
+  return data?.data ?? null;
 }
 
 export function useTtsOverlay(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<TtsOverlay | null, Error> {
-  return channelQuery(channelId, ttsOverlayKey, async (id: string): Promise<TtsOverlay | null> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/tts/overlay',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('tts overlay', response.status, error);
-
-    return data?.data ?? null;
-  });
+  return channelQuery(channelId, ttsOverlayKey, readTtsOverlay);
 }
+
+async function readTtsOverlay(id: string): Promise<TtsOverlay | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/tts/overlay',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('tts overlay', response.status, error);
+
+  return data?.data ?? null;
+}
+
+export const ttsConfigOptions = (id: string) => channelOptions(ttsConfigKey, readTtsConfig, id);
+export const ttsOverlayOptions = (id: string) => channelOptions(ttsOverlayKey, readTtsOverlay, id);
 
 async function readVoicePage(channelId: string, q: string, page: number): Promise<TtsVoicePage> {
   const { data, error, response } = await client.GET(

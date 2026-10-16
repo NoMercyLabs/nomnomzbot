@@ -17,6 +17,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { railWanted } from '@/composables/useFrameRail';
+import { useIntentPrefetch } from '@/composables/useIntentPrefetch';
 import { applyAccent, defaultAccent } from '@/lib/accent';
 import { useRealtime } from '@/realtime/useRealtime';
 
@@ -39,6 +40,7 @@ watchEffect(() => applyAccent(current.value?.chatColor ?? defaultAccent));
 
 provide(frameActionsKey, FrameActions);
 useRealtime();
+useIntentPrefetch();
 </script>
 
 <template>

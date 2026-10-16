@@ -18,7 +18,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed, refusal } from './channelQuery';
+import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -92,6 +92,9 @@ export function useBuiltins(
 ): UseQueryReturnType<BuiltinCommand[], Error> {
   return channelQuery(channelId, builtinsKey, readBuiltins);
 }
+
+export const commandsOptions = (id: string) => channelOptions(commandsKey, readCommands, id);
+export const builtinsOptions = (id: string) => channelOptions(builtinsKey, readBuiltins, id);
 
 type RowsMutation<TVariables> = UseMutationReturnType<CommandListItem[], Error, TVariables, number>;
 

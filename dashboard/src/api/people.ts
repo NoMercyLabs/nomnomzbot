@@ -111,6 +111,24 @@ async function readPage(
   };
 }
 
+function nextCommunityPage(last: CommunityPage, all: CommunityPage[]): number | undefined {
+  return last.hasMore
+    ? (last.nextPage ?? all.length + 1)
+    : undefined;
+}
+
+// The first page of a tab, read the way the list reads it, for the intent prefetch.
+export function communityListOptions(channelId: string, role: string, search: string) {
+  return {
+    queryKey: communityListKey(channelId, role, search),
+    queryFn: ({ pageParam }: { pageParam: number }): Promise<CommunityPage> =>
+      readPage(channelId, role, search, pageParam),
+    initialPageParam: firstPage,
+    getNextPageParam: nextCommunityPage,
+    pages: 1,
+  };
+}
+
 // One tab of the People list: role is "all", "moderator" or "vip". Pages are appended while the bot says there are more.
 export function useCommunityList(
   channelId: MaybeRefOrGetter<string | null>,
@@ -122,10 +140,7 @@ export function useCommunityList(
     queryFn: ({ pageParam }: { pageParam: number }): Promise<CommunityPage> =>
       readPage(toValue(channelId) as string, toValue(role), toValue(search), pageParam),
     initialPageParam: firstPage,
-    getNextPageParam: (last: CommunityPage, all: CommunityPage[]): number | undefined =>
-      last.hasMore
-        ? (last.nextPage ?? all.length + 1)
-        : undefined,
+    getNextPageParam: nextCommunityPage,
     enabled: computed(() => toValue(channelId) !== null),
   });
 }
@@ -153,6 +168,16 @@ async function readProfile(channelId: string, userId: string): Promise<PersonPro
     return null;
 
   return summary;
+}
+
+export function viewerProfileOptions(
+  channelId: string,
+  internalUserId: string,
+): { queryKey: KeyParts; queryFn: () => Promise<PersonProfile | null> } {
+  return {
+    queryKey: viewerProfileKey(channelId, internalUserId),
+    queryFn: () => readProfile(channelId, internalUserId),
+  };
 }
 
 // The id is the internal Guid (CommunityRow.internalUserId). A person without one has no profile to read.
@@ -185,6 +210,16 @@ async function readNotes(channelId: string, userId: string): Promise<UserNote[]>
     throw failed('user notes', response.status, error);
 
   return data?.data ?? [];
+}
+
+export function userNotesOptions(
+  channelId: string,
+  userId: string,
+): { queryKey: KeyParts; queryFn: () => Promise<UserNote[]> } {
+  return {
+    queryKey: userNotesKey(channelId, userId),
+    queryFn: () => readNotes(channelId, userId),
+  };
 }
 
 // The id is the Twitch user id.

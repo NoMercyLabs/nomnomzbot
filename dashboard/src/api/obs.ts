@@ -19,7 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
-import { channelQuery, failed } from './channelQuery';
+import { channelOptions, channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 
@@ -59,42 +59,45 @@ export const obsScenesKey = (channelId: string | null): KeyParts => [
 export function useObsConnection(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ObsConnection | null, Error> {
-  return channelQuery(
-    channelId,
-    obsConnectionKey,
-    async (id: string): Promise<ObsConnection | null> => {
-      const { data, error, response } = await client.GET(
-        '/api/v{version}/channels/{channelId}/obs/connection',
-        { params: { path: { version, channelId: id } } },
-      );
-
-      if (error !== undefined)
-        throw failed('obs connection', response.status, error);
-
-      return data?.data ?? null;
-    },
-  );
+  return channelQuery(channelId, obsConnectionKey, readObsConnection);
 }
+
+async function readObsConnection(id: string): Promise<ObsConnection | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/obs/connection',
+    { params: { path: { version, channelId: id } } },
+  );
+
+  if (error !== undefined)
+    throw failed('obs connection', response.status, error);
+
+  return data?.data ?? null;
+}
+
+export const obsConnectionOptions = (id: string) =>
+  channelOptions(obsConnectionKey, readObsConnection, id);
 
 // How many browser-source bridges are open in OBS, and whether one of them leads.
 export function useObsBridge(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ObsBridgeStatus | null, Error> {
-  return channelQuery(
-    channelId,
-    obsBridgeKey,
-    async (id: string): Promise<ObsBridgeStatus | null> => {
-      const { data, error, response } = await client.GET(
-        '/api/v{version}/channels/{channelId}/obs/bridge/status',
-        { params: { path: { version, channelId: id } } },
-      );
+  return channelQuery(channelId, obsBridgeKey, readObsBridge);
+}
 
-      if (error !== undefined)
-        throw failed('obs bridge', response.status, error);
-
-      return data?.data ?? null;
-    },
+async function readObsBridge(id: string): Promise<ObsBridgeStatus | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/obs/bridge/status',
+    { params: { path: { version, channelId: id } } },
   );
+
+  if (error !== undefined)
+    throw failed('obs bridge', response.status, error);
+
+  return data?.data ?? null;
+}
+
+export function obsBridgeOptions(id: string) {
+  return channelOptions(obsBridgeKey, readObsBridge, id);
 }
 
 // OBS answers the live reads only while the connection is switched on; a refusal is the "not reachable" state.

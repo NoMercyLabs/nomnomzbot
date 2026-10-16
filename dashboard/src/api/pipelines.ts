@@ -21,7 +21,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed, refusal } from './channelQuery';
+import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -116,6 +116,8 @@ export function usePipelines(
 ): UseQueryReturnType<PipelineListItem[], Error> {
   return channelQuery(channelId, pipelinesKey, readPipelines);
 }
+
+export const pipelinesOptions = (id: string) => channelOptions(pipelinesKey, readPipelines, id);
 
 export const pipelineKey = (channelId: string | null, id: string | null): KeyParts => [
   'channels',

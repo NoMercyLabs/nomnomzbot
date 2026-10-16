@@ -16,6 +16,7 @@ import ProfileDialog from '@/components/layout/ProfileDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useIntentPrefetch } from '@/composables/useIntentPrefetch';
 import { applyAccent, defaultAccent } from '@/lib/accent';
 import { useRealtime } from '@/realtime/useRealtime';
 
@@ -24,6 +25,7 @@ const { current, channelId } = useCurrentChannel();
 watchEffect(() => applyAccent(current.value?.chatColor ?? defaultAccent));
 
 useRealtime();
+useIntentPrefetch();
 </script>
 
 <template>
