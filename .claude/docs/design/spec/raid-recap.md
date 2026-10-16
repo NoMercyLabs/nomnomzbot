@@ -92,6 +92,14 @@ Timing: appears on the "Raid committed" signal. Holds `holdSeconds` (default 20,
 
 Nothing on the screen asks to subscribe or follow.
 
+### 4.1 Owner feedback on the preview (2026-10-16)
+
+Stoney, verbatim: "Some small changes for the end credits like who subbed themselves, a top leader board for what commands and such bit it's nice. It does not need to be static, so use scrolling lists that repeat to your hearts content"
+
+- Add a list of the people who subscribed themselves (not gifted), by name.
+- Add leaderboards: the most-used commands, and similar top lists.
+- The screen moves: long lists scroll and loop, end-credits style. The fixed grid above becomes the frame; lists inside it scroll and repeat.
+
 ## 5. API
 
 New read endpoint, additive: `GET /api/v1/dashboard/{channelId}/stream-recap?streamId=` next to `DashboardController.cs:98` (`stats`). It returns `StreamRecapDto`. Default `streamId` is the latest stream, ended or live. The numbers are counted from the event journal and tables in the Stream window (`StartedAt` to `EndedAt`, or now). The journal has no stream id (EventJournal.cs fields at :27-77), so the window is by time.
