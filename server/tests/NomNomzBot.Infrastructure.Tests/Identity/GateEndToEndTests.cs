@@ -409,4 +409,47 @@ public sealed class GateEndToEndTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeFalse();
     }
+
+    // Viewer chat (chat-client.md §9a): a roleless viewer reads and sends in their own voice, but the operator
+    // chat keys (full search, per-person history, bot voice, deletes) stay closed to them.
+    [Theory]
+    [InlineData("chat:viewer:read", true)]
+    [InlineData("chat:viewer:send", true)]
+    [InlineData("chat:read", false)]
+    [InlineData("chat:send", false)]
+    [InlineData("moderation:delete_message", false)]
+    public async Task A_plain_viewer_gets_viewer_chat_but_not_the_operator_chat_keys(
+        string actionKey,
+        bool expected
+    )
+    {
+        Fixture f = await BuildAsync();
+
+        Result<bool> result = await f.Gate2.AuthorizeActionAsync(PlainViewer, Channel, actionKey);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("chat:viewer:read")]
+    [InlineData("chat:viewer:send")]
+    public async Task The_owner_switches_viewer_chat_off_by_raising_the_key(string actionKey)
+    {
+        Fixture f = await BuildAsync();
+
+        Result<int> raised = await f.Gate2.SetActionOverrideAsync(
+            Channel,
+            actionKey,
+            ManagementRole.Moderator.ToLevel(),
+            Owner
+        );
+        await f.Db.SaveChangesAsync();
+
+        raised.IsSuccess.Should().BeTrue();
+        Result<bool> viewer = await f.Gate2.AuthorizeActionAsync(PlainViewer, Channel, actionKey);
+        Result<bool> moderator = await f.Gate2.AuthorizeActionAsync(Moderator, Channel, actionKey);
+        viewer.Value.Should().BeFalse("the owner switched viewer chat off");
+        moderator.Value.Should().BeTrue("a moderator still clears the raised level");
+    }
 }

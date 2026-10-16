@@ -577,6 +577,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // consent gate is enforced in the service layer, not the role floor.
         C("pronouns:self:write");
 
+        // Viewer chat (chat-client.md §9a): any signed-in viewer reads live chat and sends in their OWN voice. The
+        // owner switches it off by raising the key with a ChannelActionOverride.
+        C("chat:viewer:read");
+        C("chat:viewer:send");
+
         return s;
     }
 

@@ -247,6 +247,49 @@ public class DashboardHub : Hub<IDashboardClient>
         );
     }
 
+    /// <summary>
+    /// Joins the viewer chat group <c>viewer-chat:{channel}</c> (chat-client.md §9a): live chat lines plus the
+    /// deletion pushes with the moderator emptied. Needs <c>chat:viewer:read</c>, which the owner can raise to
+    /// switch viewer chat off.
+    /// </summary>
+    public async Task<JoinChannelResponse> JoinViewerChat(string broadcasterId)
+    {
+        string? userId = CallerId;
+        if (userId is null || !Guid.TryParse(userId, out Guid callerId))
+            return new(false, "Not authenticated", null);
+
+        if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
+            return new(false, "Access denied", null);
+
+        if (!await _access.CanResolveTenantAsync(userId, tenantId.ToString()))
+            return new(false, "Access denied", null);
+
+        Result<bool> allowed = await _authorization.AuthorizeActionAsync(
+            callerId,
+            tenantId,
+            "chat:viewer:read"
+        );
+        if (allowed is not { IsSuccess: true, Value: true })
+            return new(false, "Access denied", null);
+
+        await Groups.AddToGroupAsync(
+            Context.ConnectionId,
+            ViewerChatEvents.Group(tenantId.ToString())
+        );
+        return new(true, null, null);
+    }
+
+    public async Task LeaveViewerChat(string broadcasterId)
+    {
+        if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))
+            return;
+
+        await Groups.RemoveFromGroupAsync(
+            Context.ConnectionId,
+            ViewerChatEvents.Group(tenantId.ToString())
+        );
+    }
+
     public async Task LeaveChannel(string broadcasterId)
     {
         if (!GuidUlidCodec.TryDecode(broadcasterId, out Guid tenantId))

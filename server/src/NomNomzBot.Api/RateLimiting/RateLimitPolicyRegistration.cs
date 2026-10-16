@@ -43,6 +43,10 @@ public static class RateLimitPolicyRegistration
         options.AddPolicy(AnonymousRateLimitPolicy.PolicyName, AnonymousRateLimitPolicy.Partition);
         options.AddPolicy(AdminRateLimitPolicy.PolicyName, AdminRateLimitPolicy.Partition);
         options.AddPolicy(
+            ViewerChatSendRateLimitPolicy.PolicyName,
+            ViewerChatSendRateLimitPolicy.Partition
+        );
+        options.AddPolicy(
             SecuritySensitiveRateLimitPolicy.PolicyName,
             SecuritySensitiveRateLimitPolicy.Partition
         );

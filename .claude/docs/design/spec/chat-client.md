@@ -239,6 +239,59 @@ None new. The composer, feed, and quick-mod are dashboard request/hub surfaces, 
 12. **`frontend-ia.md` reconciliation.** The Chat row is repointed from the non-existent `chat.md` to **`chat-client.md`**, and its "send-as-bot" note is corrected to "send as **you** (operator); bot optional" (Decision 1). Floors stay Moderator/Moderator.
 13. **Emote cache-key keying is inconsistent but left as-is** — third-party emote channel keys use the **Twitch id**, badges/cheermotes use the tenant **Guid** (chat-decoration §7). The catalogue reads both correctly by using the id each key expects; unifying the keys is a chat-decoration concern, not re-opened here.
 
+## 9a. Viewer chat
+
+A signed-in viewer reads the channel's live chat and talks in it **in their own voice**. It is a
+participant surface (community plane), not the operator chat page. The dashboard page is a later slice;
+this section is the server contract.
+
+**Actions** (community plane, `ActionDefinitionSeeder.cs` community block):
+
+| Key | Default | Floor | What it allows |
+|-----|---------|-------|----------------|
+| `chat:viewer:read` | Everyone | Everyone | Recent chat, the viewer chat hub group, the viewer's own composer emotes |
+| `chat:viewer:send` | Everyone | Everyone | Send one message as yourself, optionally as a reply |
+
+The owner switches viewer chat off by raising either key with a `ChannelActionOverride` (for example to
+Moderator). The override is clamped to `[Floor, Broadcaster]` (`ActionAuthorizationService.cs:195`), so a
+raise is always legal. Gate 1 lets any signed-in user resolve an active channel
+(`ChannelAccessService.cs:35-62`); Gate 2 then checks the key.
+
+**Endpoints** (`ViewerChatController`, route `api/v1/channels/{channelId}/chat/viewer`):
+
+| Method | Path | Action | Notes |
+|--------|------|--------|-------|
+| GET | `messages?limit=` | `chat:viewer:read` | Newest `limit` (1–100) non-deleted lines, oldest first. Same `DashboardChatMessageDto` and the same decorator + enricher as `GET chat/messages` (`ChatController.cs:207-240`). |
+| POST | `messages` | `chat:viewer:send` | Body `{ message, replyToMessageId? }`. 1–500 characters. No sender choice. |
+| GET | `emotes` | `chat:viewer:read` | `IChatEmoteCatalogue.GetForChannelAsync(…, caller, ChatEmoteSender.Operator)` (`ChatController.cs:559-603`): the caller's own emotes. |
+
+**Not open to a viewer** (they stay on the operator keys): full-history search (`chat/search`,
+`chat:read`), one person's history (`chat/users/{id}/messages`, `chat:read`), the chat identity
+endpoints, every moderation, settings, announce and delete endpoint, and the bot voice. A viewer never
+digs into another viewer's history (viewer pages carry no bully data).
+
+**Fields.** `DashboardChatMessageDto` (`Hubs/Dtos/ChatDtos.cs:23`) carries only what Twitch chat already
+shows every viewer (name, badges, color, fragments, reply id, role flags), so it is reused as is. Deleted
+lines are never returned. The moderation pushes do carry moderator data: `MessageDeletedDto`
+(`DeletedByUserId`, `DeletedByDisplayName`) and `ChatClearedDto` (`ClearedByUserId`)
+(`Hubs/Dtos/AlertDtos.cs:121-128`). The viewer group gets them with those fields emptied, so the viewer
+page can hide a removed line without learning who removed it.
+
+**Live feed.** `DashboardHub.JoinViewerChat(channelId)` checks `chat:viewer:read` and joins
+`viewer-chat:{channelId}` (pattern of `JoinViewerMusic`, `DashboardHub.cs:224`). `DashboardNotifier`
+mirrors every `ChatMessage` push and the `message_deleted`, `chat_cleared` and `user_messages_cleared`
+channel events (moderator fields emptied) into that group. `LeaveViewerChat` leaves it.
+
+**Send path.** `IOperatorChatSender.SendAsUserAsync(caller, …)` (`OperatorChatSender.cs:44-100`): Helix
+Send Chat Message with `TwitchHelixAuth.Operator` and `sender_id` = the caller's own Twitch id, on the
+caller's own token (`user:write:chat`, granted at login, `Infrastructure/Identity/TwitchLoginScopes.cs:28`). Never the bot
+(`IChatProvider`) and never the owner's token. A Twitch refusal (banned, timed out, slow mode) is
+returned as the Twitch error.
+
+**Rate limit.** Twitch allows a normal chatter 20 messages per 30 seconds per channel. The
+`viewer-chat-send` policy (`RateLimiting/ViewerChatSendRateLimitPolicy.cs`) is a sliding window of
+20 per 30 s, keyed per user **and** channel, and answers 429 with `Retry-After`.
+
 ## 10. Open
 
 Not yet landed. Each is a slice in `SHORTCOMINGS-EXECUTION-PLAN.md`:

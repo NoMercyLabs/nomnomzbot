@@ -144,6 +144,13 @@ public class DashboardNotifier : IDashboardNotifier
                 )
             )
             .ChannelEvent(evt);
+        if (ViewerChatEvents.IsMirrored(method))
+            return Task.WhenAll(
+                classPush,
+                _hub.Clients.Group(ViewerChatEvents.Group(broadcasterId))
+                    .ChannelEvent(evt with { Data = ViewerChatEvents.ViewerSafe(data) })
+            );
+
         if (!DashboardEventClasses.IsViewerMusicEvent(method))
             return classPush;
 
@@ -158,7 +165,11 @@ public class DashboardNotifier : IDashboardNotifier
         string broadcasterId,
         DashboardChatMessageDto dto,
         CancellationToken ct = default
-    ) => ClassGroup(broadcasterId, DashboardEventClasses.Chat).ChatMessage(dto);
+    ) =>
+        Task.WhenAll(
+            ClassGroup(broadcasterId, DashboardEventClasses.Chat).ChatMessage(dto),
+            _hub.Clients.Group(ViewerChatEvents.Group(broadcasterId)).ChatMessage(dto)
+        );
 
     public Task SendCommandExecutedAsync(
         string broadcasterId,

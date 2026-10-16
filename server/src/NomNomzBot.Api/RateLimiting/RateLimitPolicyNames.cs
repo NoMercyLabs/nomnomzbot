@@ -43,4 +43,7 @@ public static class RateLimitPolicyNames
 
     /// <summary>Platform-admin reads/non-destructive writes — partitioned per principal.</summary>
     public const string Admin = "admin";
+
+    /// <summary>A viewer's own chat send — Twitch's 20 per 30 s, partitioned per user and channel.</summary>
+    public const string ViewerChatSend = "viewer-chat-send";
 }
