@@ -10,12 +10,13 @@
 <script setup lang="ts">
 // The scenes OBS reports, with the one on air marked. A click puts that scene on air.
 import { computed } from 'vue';
-import { toast } from 'vue-sonner';
 
 import { useObsSwitchScene, type ObsScene } from '@/api/obs';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+
+import { toastObsError } from '../obsToast';
 
 const props = defineProps<{
   scenes: readonly ObsScene[] | undefined;
@@ -30,7 +31,7 @@ const { channelId } = useCurrentChannel();
 const switchScene = useObsSwitchScene(channelId);
 
 function switchTo(scene: string): void {
-  switchScene.mutate(scene, { onError: (error: Error) => toast.error(error.message) });
+  switchScene.mutate(scene, { onError: toastObsError });
 }
 
 const state = computed<PanelState>(() => {

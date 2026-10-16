@@ -3,6 +3,7 @@
     "obs": {
       "title": "OBS",
       "crumb": "Stream",
+      "unavailable": "OBS did not answer. Check the connection.",
       "overall": {
         "ok": "Everything is loaded",
         "warn": "Something is not loaded",
@@ -22,6 +23,7 @@
         "title": "Browser source bridge",
         "off": "Off while OBS is not linked",
         "none": "No bridge page is open in OBS",
+        "optional": "No bridge page is open in OBS. Only browser sources need it.",
         "noLeader": "{count} open, none is leading",
         "leader": "{count} open, one is leading"
       },
