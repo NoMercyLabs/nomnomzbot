@@ -109,6 +109,60 @@ describe('signing in by role', () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+// Stoney 2026-10-16: "Login as mod and user did not work and now I'm ratelimited". The page said no login
+// was set up while the bot answered 429.
+describe('a bot that answers the sign-in list with 429', () => {
+  function stubProviders(respond: () => Response): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respond()),
+    );
+  }
+
+  it('says when to try again, counts down, and never says no sign-in is set up', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubProviders(() => new Response('{}', { status: 429, headers: { 'Retry-After': '30' } }));
+    const wrapper = await mountLogin();
+
+    expect(wrapper.text()).toContain('Too many sign-in tries. Try again in 30 seconds.');
+    expect(wrapper.text()).not.toContain('no sign-in switched on');
+
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Try again');
+
+    expect(retry!.attributes('disabled')).toBeDefined();
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(wrapper.text()).toContain('Try again in 20 seconds.');
+
+    await vi.advanceTimersByTimeAsync(20_000);
+    await flushPromises();
+
+    const ready = wrapper.findAll('button').find((b) => b.text() === 'Try again');
+
+    expect(ready!.attributes('disabled')).toBeUndefined();
+  });
+
+  it('counts 60 seconds when the bot sends no Retry-After', async () => {
+    stubProviders(() => new Response('{}', { status: 429 }));
+    const wrapper = await mountLogin();
+
+    // The client waits one second twice (its default) before it hands the 429 to the page.
+    await vi.waitFor(() => expect(wrapper.text()).toContain('Try again in 6'), { timeout: 5000 });
+
+    expect(wrapper.text()).toMatch(/Try again in (60|59) seconds\./);
+  });
+
+  it('says no sign-in is set up only when the list really came back empty', async () => {
+    stubProviders(() => Response.json({ data: [] }));
+    const wrapper = await mountLogin();
+
+    expect(wrapper.text()).toContain('no sign-in switched on');
+    expect(wrapper.text()).not.toContain('Too many sign-in tries');
+  });
 });
 
 // A browser sign-in returns to the bot's own site, so another bot is signed in to with a code

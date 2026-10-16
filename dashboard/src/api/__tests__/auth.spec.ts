@@ -150,6 +150,22 @@ describe('expired access token', () => {
   });
 });
 
+// Stoney 2026-10-16: the login page called auth/refresh every ~5 s after a 401 and ran into the rate limit.
+describe('a refused refresh', () => {
+  it('is asked once per page load, not again on every 401', async () => {
+    const seen = stubServer(401);
+
+    vi.resetModules();
+    const auth = await import('../auth');
+
+    expect(await auth.restoreSession()).toBe(false);
+    expect(await auth.restoreSession()).toBe(false);
+    expect(await auth.restoreSession()).toBe(false);
+
+    expect(seen.filter((call) => call.startsWith('/api/v1/auth/refresh'))).toHaveLength(1);
+  });
+});
+
 // Stoney 2026-10-14: "I'm redirected from Vue to dev instead back to Vue again". A sign-in started on another
 // listed site comes back there with a one-time code; this site trades it for the token and its own cookie.
 describe('a sign-in that returns with a login code', () => {

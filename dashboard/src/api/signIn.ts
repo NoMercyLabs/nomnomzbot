@@ -41,10 +41,34 @@ function toApprovalStatus(status: string): DeviceApproval['status'] {
 const version = { version: '1' };
 const slowDownMs: number = 5000;
 
+const defaultRetrySeconds: number = 60;
+
+// The bot refused the call for now (429). The login page counts the wait down instead of
+// claiming that no sign-in is set up.
+export class RateLimitedError extends Error {
+  readonly retryAfterSeconds: number;
+
+  constructor(retryAfterSeconds: number) {
+    super('rate limited');
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+function retryAfterSeconds(response: Response): number {
+  const seconds = Number(response.headers.get('Retry-After'));
+
+  return Number.isFinite(seconds) && seconds > 0
+    ? Math.ceil(seconds)
+    : defaultRetrySeconds;
+}
+
 async function fetchProviders(): Promise<LoginProvider[]> {
-  const { data } = await client.GET('/api/v{version}/auth/providers', {
+  const { data, response } = await client.GET('/api/v{version}/auth/providers', {
     params: { path: version },
   });
+
+  if (response.status === 429)
+    throw new RateLimitedError(retryAfterSeconds(response));
 
   return data?.data ?? [];
 }
@@ -52,6 +76,8 @@ async function fetchProviders(): Promise<LoginProvider[]> {
 export const providersQuery = queryOptions({
   queryKey: ['auth', 'providers'],
   queryFn: fetchProviders,
+  // A refused call is not tried again by itself: that only spends the limit the page is waiting out.
+  retry: (failures: number, error: Error) => !(error instanceof RateLimitedError) && failures < 3,
 });
 
 export type LoginRole = 'viewer' | 'moderator' | 'broadcaster';
