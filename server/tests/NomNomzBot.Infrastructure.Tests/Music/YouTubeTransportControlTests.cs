@@ -413,6 +413,28 @@ public sealed class YouTubeTransportControlTests
         QueuedUris(rig).Should().BeEmpty();
     }
 
+    /// <summary>With the Audio widget closed and a request waiting, a skip has nothing to skip: the hand-over
+    /// puts the waiting request back and nothing plays. Chat must hear the player isn't open — not "Skipped to
+    /// the next track." — and the waiting requests stay queued untouched.</summary>
+    [Fact]
+    public async Task Skip_with_a_request_waiting_but_no_open_player_fails_as_no_player_and_keeps_the_queue()
+    {
+        Rig rig = await BuildAsync(playerOpen: false);
+        (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(First), "viewer1"))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(Second), "viewer2"))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
+
+        skipped.IsSuccess.Should().BeFalse();
+        skipped.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
+        rig.Notifier.Sent.Should().BeEmpty();
+        QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
+    }
+
     [Fact]
     public async Task Skip_with_nothing_next_and_no_open_player_sends_nothing()
     {

@@ -136,6 +136,9 @@ public sealed class YouTubeMusicProvider
 
     public async Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
+        // With no player open the hand-over below puts the waiting request back and still answers true,
+        // which would read as a skip that never happened. No player means nothing to skip.
+        await OwnerAsync(broadcasterId, cancellationToken);
         bool handedOver = await _players.HandOverNextAsync(broadcasterId, cancellationToken);
         if (!handedOver)
             await _players.StopAsync(broadcasterId, cancellationToken);
