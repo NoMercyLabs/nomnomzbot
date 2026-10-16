@@ -30,6 +30,8 @@ const artist = ref<string>('')
 const artUrl = ref<string>('')
 // Who redeemed this track via !sr — empty string (never rendered) when the streamer started it themselves.
 const requestedBy = ref<string>('')
+// The requester's stored Twitch chat color; empty string falls back to the muted token color.
+const requestedByColor = ref<string>('')
 const durationMs = ref<number>(0)
 const progressMs = ref<number>(0)
 const titleEl = ref<HTMLElement | null>(null)
@@ -136,6 +138,7 @@ function onNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): v
   artist.value = data.artist || ''
   artUrl.value = data.artUrl || ''
   requestedBy.value = typeof data.requestedBy === 'string' ? data.requestedBy : ''
+  requestedByColor.value = typeof data.requestedByColor === 'string' ? data.requestedByColor : ''
   durationMs.value = Number.isFinite(Number(data.durationMs)) ? Number(data.durationMs) : 0
   progressMs.value = Number.isFinite(Number(data.progressMs)) ? Number(data.progressMs) : 0
   stopTicking()
@@ -195,7 +198,10 @@ onUnmounted(() => {
         <span ref="marqueeEl" class="track-text">{{ track }}</span>
       </div>
       <div v-if="artist" class="artist">{{ artist }}</div>
-      <div v-if="requestedBy" class="requester">requested by {{ requestedBy }}</div>
+      <div v-if="requestedBy" class="requester">
+        requested by
+        <span class="requester-name" :style="requestedByColor ? { color: requestedByColor } : undefined">{{ requestedBy }}</span>
+      </div>
       <div v-if="cfg.showProgressBar" class="bar"><div class="fill" :style="{ width: progressPct + '%' }"></div></div>
     </div>
     <span
@@ -283,6 +289,9 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.requester-name {
+  font-weight: 600;
 }
 .bar {
   margin-top: 6px;

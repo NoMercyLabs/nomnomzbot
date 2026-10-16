@@ -11,6 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Music.Dtos;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -177,14 +179,28 @@ internal static class WidgetAlertDispatch
 /// no richer dashboard-enriched equivalent (the dashboard music-state push carries the same track name), so it keeps
 /// its own flattened handler rather than routing through <see cref="OverlayAlertBroadcast"/>.
 /// </summary>
-public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNotifier notifier)
-    : IEventHandler<PlaybackStateChangedEvent>
+public sealed class WidgetNowPlayingHandler(
+    IApplicationDbContext db,
+    IWidgetNotifier notifier,
+    IMusicHistoryReader history
+) : IEventHandler<PlaybackStateChangedEvent>
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         PlaybackStateChangedEvent @event,
         CancellationToken cancellationToken = default
-    ) =>
-        WidgetAlertDispatch.RouteAsync(
+    )
+    {
+        // The requester's stored chat color; null when nobody requested the track or no color is stored,
+        // so the overlay falls back to its own token color.
+        string? requesterColor = null;
+        if (@event.RequestedBy is not null)
+        {
+            Dictionary<string, RequesterIdentityDto> requesters =
+                await history.ResolveRequestersAsync([@event.RequestedBy], cancellationToken);
+            requesterColor = requesters.GetValueOrDefault(@event.RequestedBy)?.Color;
+        }
+
+        await WidgetAlertDispatch.RouteAsync(
             db,
             notifier,
             @event.BroadcasterId,
@@ -200,7 +216,8 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
                 @event.ProgressMs,
                 @event.ObservedAt,
                 // Null (never "") when the streamer started the track: the overlay then shows no requester row.
-                @event.RequestedBy
+                @event.RequestedBy,
+                requesterColor
             ),
             // Never routes to the alert queue — this is a standing snapshot, not an on-air alert.
             excludeWidgetId: null,
@@ -208,6 +225,7 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
             channelEventId: null,
             cancellationToken
         );
+    }
 }
 
 /// <summary>

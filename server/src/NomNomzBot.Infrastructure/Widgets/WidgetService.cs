@@ -1409,6 +1409,17 @@ public class WidgetService : IWidgetService
         if (nowPlaying is null)
             return Result.Success<OverlayNowPlayingSnapshot?>(null);
 
+        string? requesterColor = null;
+        if (nowPlaying.RequestedBy is not null)
+        {
+            string normalized = nowPlaying.RequestedBy.ToLowerInvariant();
+            requesterColor = await _db
+                .Users.AsNoTracking()
+                .Where(u => u.TwitchUserId != null && u.UsernameNormalized == normalized)
+                .Select(u => u.Color)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         return Result.Success<OverlayNowPlayingSnapshot?>(
             new(
                 nowPlaying.IsPlaying,
@@ -1420,7 +1431,8 @@ public class WidgetService : IWidgetService
                 nowPlaying.DurationMs,
                 nowPlaying.ProgressMs,
                 _timeProvider.GetUtcNow(),
-                nowPlaying.RequestedBy
+                nowPlaying.RequestedBy,
+                requesterColor
             )
         );
     }

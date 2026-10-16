@@ -258,7 +258,8 @@ internal static class WidgetTestSamples
             213000,
             42000,
             now,
-            "TestViewer"
+            "TestViewer",
+            "#FF69B4"
         ),
         ["ad_schedule"] = now => new AdScheduleWidgetPayload(
             now.AddMinutes(3),

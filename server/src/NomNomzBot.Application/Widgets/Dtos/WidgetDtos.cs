@@ -154,7 +154,9 @@ public sealed record OverlayNowPlayingSnapshot(
     DateTimeOffset ObservedAt,
     // Who asked for this track via !sr, or null when the streamer started it themselves (S-MUSIC-5b) —
     // field-for-field identical in meaning to the now_playing widget event's own requestedBy.
-    string? RequestedBy = null
+    string? RequestedBy = null,
+    // The requester's stored chat color, or null when none is stored or nobody requested the track.
+    string? RequestedByColor = null
 );
 
 /// <summary>

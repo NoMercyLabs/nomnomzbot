@@ -36,7 +36,8 @@ public record NowPlayingWidgetPayload(
     int DurationMs,
     int ProgressMs,
     DateTimeOffset ObservedAt,
-    string? RequestedBy
+    string? RequestedBy,
+    string? RequestedByColor = null
 );
 
 /// <summary><c>track_saved_changed</c>: the current track was liked or unliked.</summary>

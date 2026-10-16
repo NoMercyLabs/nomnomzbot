@@ -87,6 +87,10 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  isPlaying: boolean;");
         sb.AppendLine("  /** Who requested the track. null when nobody requested it. */");
         sb.AppendLine("  requestedBy: string | null;");
+        sb.AppendLine(
+            "  /** The requester's Twitch chat color (hex). null when nobody requested it or no color is stored. */"
+        );
+        sb.AppendLine("  requestedByColor?: string | null;");
         sb.AppendLine("  /** The music service that plays the track. */");
         sb.AppendLine("  provider: string;");
         sb.AppendLine("}");

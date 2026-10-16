@@ -12,6 +12,8 @@ using System.Text.Json;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Music.Dtos;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -40,7 +42,7 @@ public sealed class WidgetNowPlayingHandlerTests
         };
         db.Widgets.Add(nowPlaying);
         await db.SaveChangesAsync();
-        WidgetNowPlayingHandler handler = new(db, widgets);
+        WidgetNowPlayingHandler handler = new(db, widgets, NoRequesters());
 
         await handler.HandleAsync(
             new()
@@ -88,7 +90,7 @@ public sealed class WidgetNowPlayingHandlerTests
         };
         db.Widgets.Add(nowPlaying);
         await db.SaveChangesAsync();
-        WidgetNowPlayingHandler handler = new(db, widgets);
+        WidgetNowPlayingHandler handler = new(db, widgets, NoRequesters());
 
         await handler.HandleAsync(
             new()
@@ -111,6 +113,81 @@ public sealed class WidgetNowPlayingHandlerTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    /// <summary>The overlay renders the requester in their chat color, so the event carries the stored user color.</summary>
+    [Fact]
+    public async Task Playback_change_carries_the_requester_chat_color_to_the_widget()
+    {
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Widget nowPlaying = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Now playing",
+            IsEnabled = true,
+            EventSubscriptions = ["now_playing"],
+        };
+        db.Widgets.Add(nowPlaying);
+        await db.SaveChangesAsync();
+        IMusicHistoryReader history = Substitute.For<IMusicHistoryReader>();
+        history
+            .ResolveRequestersAsync(
+                Arg.Is<IReadOnlyCollection<string>>(n => n.Contains("viewer1")),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new Dictionary<string, RequesterIdentityDto>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["viewer1"] = new("100", "#FF69B4"),
+                }
+            );
+        WidgetNowPlayingHandler handler = new(db, widgets, history);
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                IsPlaying = true,
+                TrackName = "Song A",
+                Provider = "spotify",
+                RequestedBy = "viewer1",
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                nowPlaying.Id.ToString(),
+                Arg.Is<WidgetEventDto>(evt => ColorIs(evt.Data, "#FF69B4")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    private static IMusicHistoryReader NoRequesters()
+    {
+        IMusicHistoryReader history = Substitute.For<IMusicHistoryReader>();
+        history
+            .ResolveRequestersAsync(
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new Dictionary<string, RequesterIdentityDto>());
+        return history;
+    }
+
+    private static bool ColorIs(object? data, string expected)
+    {
+        if (data is null)
+            return false;
+        JsonElement json = JsonSerializer.SerializeToElement(
+            data,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
+        );
+        return json.GetProperty("requestedByColor").GetString() == expected;
     }
 
     private static bool RequesterIsNull(object? data)

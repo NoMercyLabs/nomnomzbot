@@ -158,6 +158,7 @@
     artUrl: "",
     trackUri: "",
     requestedBy: "",
+    requestedByColor: null,
     durationMs: 200000,
     progressMs: 60000,
     isPlaying: true,
