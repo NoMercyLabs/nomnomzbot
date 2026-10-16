@@ -158,6 +158,19 @@ public sealed class AudioYouTubePlayerGuardTests
     }
 
     [Fact]
+    public void A_page_rejoining_the_bot_reports_its_video_before_the_bot_hands_anything_over()
+    {
+        // After a bot restart the page keeps playing but the bot's player memory is empty. The SDK re-applies
+        // settings on every join, just before it tells the bot the page is ready: reporting there marks the
+        // player busy, so the next request waits instead of being pushed over the song.
+        string source = Source();
+
+        source.Should().Contain("NomNomz.onSettings(onSettingsOrRejoin)");
+        source.Should().Contain("function onSettingsOrRejoin(");
+        source.Should().Contain("reportYouTubeHeartbeat()");
+    }
+
+    [Fact]
     public void The_report_carries_the_position_in_milliseconds()
     {
         Source().Should().Contain("getCurrentTime() * 1000");

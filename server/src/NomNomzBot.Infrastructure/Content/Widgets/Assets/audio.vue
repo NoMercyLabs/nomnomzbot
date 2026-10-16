@@ -380,10 +380,18 @@ function applySettings(next: Partial<NnzWidgetSettings> | undefined): void {
   else if (!cfg.enableAudio) disconnectSpotify()
 }
 
+// The SDK re-applies the settings on every (re)join, just before it tells the bot this page is ready. A video
+// that kept playing through a bot restart is reported right then, so the bot sees a busy player before it hands
+// the next request over, and leaves the song alone instead of reloading it.
+function onSettingsOrRejoin(next: Partial<NnzWidgetSettings> | undefined): void {
+  applySettings(next)
+  reportYouTubeHeartbeat()
+}
+
 onMounted(() => {
   if (typeof NomNomz === 'undefined') return
   applySettings(NomNomz.settings)
-  NomNomz.onSettings(applySettings)
+  NomNomz.onSettings(onSettingsOrRejoin)
   NomNomz.on('tts_speak', onSpeak)
   NomNomz.on('now_playing', onAudioNowPlaying)
   refreshNowPlaying()
