@@ -10,6 +10,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,11 +24,17 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel';
+import { initials } from '@/lib/text';
+
+import ViewerChannelGroups from './ViewerChannelGroups.vue';
 
 // compact: the name only, for the narrow header where the sidebar is not shown.
 defineProps<{ compact?: boolean }>();
 
 const { t } = useI18n();
+const route = useRoute();
+// In viewer chat a person reaches every channel this bot serves, not only the ones they manage.
+const viewerChat = computed(() => route.meta.viewerChat === true);
 const { channels, current, isPending, choose } = useCurrentChannel();
 const open = ref(false);
 
@@ -64,13 +71,6 @@ const groups = computed<ChannelGroup[]>(() =>
     },
   ].filter((group) => group.rows.length > 0),
 );
-
-function initials(name: string): string {
-  return name
-    .replace(/[^A-Za-z0-9]/g, '')
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 function stateWord(row: ChannelChoice): string | null {
   if (row.isLive === null)
@@ -154,6 +154,7 @@ async function pick(row: ChannelChoice): Promise<void> {
               </span>
             </CommandItem>
           </CommandGroup>
+          <ViewerChannelGroups v-if="viewerChat" @picked="open = false" />
         </CommandList>
       </Command>
     </PopoverContent>

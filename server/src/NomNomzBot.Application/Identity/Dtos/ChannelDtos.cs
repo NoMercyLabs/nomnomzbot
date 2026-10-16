@@ -47,6 +47,19 @@ public sealed record ChannelSummaryDto(
     string? ChatColor = null
 );
 
+/// <summary>
+/// One channel in the deployment's public directory (chat-client.md §9a "Reaching any channel"): only what
+/// the channel shows every visitor on Twitch. No role, no settings, no tokens.
+/// </summary>
+public sealed record PublicChannelDto(
+    string Id,
+    string Login,
+    string DisplayName,
+    string? ProfileImageUrl,
+    bool IsLive,
+    string Provider
+);
+
 /// <summary>Lightweight channel info returned when looking up by overlay token.</summary>
 public sealed record ChannelOverlayInfo(string BroadcasterId, string DisplayName);
 

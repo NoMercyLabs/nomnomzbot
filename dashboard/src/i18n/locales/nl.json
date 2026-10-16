@@ -755,6 +755,8 @@
       "find": "Zoek een kanaal",
       "noMatch": "Geen kanaal gevonden.",
       "yours": "Jouw kanaal",
+      "recent": "Recente kanalen",
+      "every": "Alle kanalen",
       "moderated": "Kanalen die je modereert ({live} live van {total})",
       "live": "Live",
       "offline": "Offline"

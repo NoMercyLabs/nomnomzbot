@@ -17863,6 +17863,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search every channel this deployment serves, so any signed-in person can open its viewer chat
+         *     (chat-client.md §9a "Reaching any channel"). Public fields only; live channels first.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number | string;
+                    /**
+                     * @description Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-
+                     *     convention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to
+                     *     nothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the
+                     *     data was invisible. Both query keys now populate the same value.
+                     */
+                    Take?: number | string;
+                    PageSize?: number | string;
+                    Sort?: string;
+                    Order?: string;
+                    Search?: string;
+                };
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaginatedResponseOfPublicChannelDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/moderated": {
         parameters: {
             query?: never;
@@ -102286,6 +102394,27 @@ export interface components {
              */
             code?: null | string;
             args?: null | unknown[];
+        };
+        /**
+         * @description One channel in the deployment's public directory (chat-client.md §9a "Reaching any channel"): only what
+         *     the channel shows every visitor on Twitch. No role, no settings, no tokens.
+         */
+        PublicChannelDto: {
+            id: string;
+            login: string;
+            displayName: string;
+            profileImageUrl?: null | string;
+            isLive: boolean;
+            provider: string;
+        };
+        PaginatedResponseOfPublicChannelDto: {
+            data?: components["schemas"]["PublicChannelDto"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
         };
     };
     responses: never;

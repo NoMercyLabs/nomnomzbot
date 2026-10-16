@@ -19,3 +19,11 @@ export function humanize(key: string): string {
 
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+// Two letters for an avatar without a picture: "Stoney_Eagle" -> "ST".
+export function initials(name: string): string {
+  return name
+    .replace(/[^A-Za-z0-9]/g, '')
+    .slice(0, 2)
+    .toUpperCase();
+}

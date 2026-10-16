@@ -15,12 +15,15 @@ import {
   useQueryClient,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { components } from './schema';
 import { client } from './client';
 
 export type ChannelSummary = components['schemas']['ChannelSummaryDto'];
 export type ModeratedChannel = components['schemas']['ModeratedChannelDto'];
+// Any channel this bot serves, with what every visitor already sees (chat-client.md 9a "Reaching any channel").
+export type PublicChannel = components['schemas']['PublicChannelDto'];
 
 const version = { path: { version: '1' } };
 
@@ -54,6 +57,35 @@ export function useMyChannels(): UseQueryReturnType<ChannelSummary[], Error> {
 
 export function useModeratedChannels(): UseQueryReturnType<ModeratedChannel[], Error> {
   return useQuery(moderatedChannelsQuery);
+}
+
+export const DIRECTORY_PAGE_SIZE = 20;
+
+export function channelDirectoryKey(search: string) {
+  return ['channels', 'directory', search] as const;
+}
+
+// Every channel this bot serves whose name holds the search, live first.
+export function useChannelDirectory(
+  search: MaybeRefOrGetter<string>,
+): UseQueryReturnType<PublicChannel[], Error> {
+  return useQuery({
+    queryKey: computed(() => channelDirectoryKey(toValue(search))),
+    queryFn: async (): Promise<PublicChannel[]> => {
+      const { data } = await client.GET('/api/v{version}/channels/directory', {
+        params: {
+          path: { version: '1' },
+          query: {
+            Search: toValue(search),
+            PageSize: DIRECTORY_PAGE_SIZE,
+          },
+        },
+      });
+
+      return data?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
 }
 
 // A channel the person moderates on Twitch, where the bot is not installed yet, opens in moderator mode.

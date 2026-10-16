@@ -292,6 +292,29 @@ returned as the Twitch error.
 `viewer-chat-send` policy (`RateLimiting/ViewerChatSendRateLimitPolicy.cs`) is a sliding window of
 20 per 30 s, keyed per user **and** channel, and answers 429 with `Retry-After`.
 
+### Reaching any channel
+
+Stoney (owner), 2026-10-16, faithful English translation of his Dutch: "This way I can't reach the
+channel I want, and that is the point. I must be able to reach every chat with my account, as a
+viewer."
+
+A signed-in person opens the viewer chat of **any** channel this deployment serves, with no membership or
+standing row in it. The channel switcher only lists channels the person manages, so viewer mode adds a
+directory search.
+
+- **Directory.** `GET api/v1/channels/directory?search=&page=&pageSize=` (`ChannelsController.SearchDirectory`),
+  `[Authorize]` only: any signed-in user. It returns every **active** channel (Gate 1 refuses a suspended
+  one) whose login or display name contains `search` (case-insensitive; all when empty), live first, then by
+  name. Page size 1–50. Each row is `PublicChannelDto { id, login, displayName, profileImageUrl, isLive,
+  provider }`: only what the channel shows every visitor. No role, owner, settings or tokens.
+- **Entry.** Gate 1 admits any signed-in user to an active channel (`ChannelAccessService.CanResolveTenantAsync`).
+  Gate 2 resolves a person with no row to level Everyone (0), which meets the Everyone floor of
+  `chat:viewer:read` and `chat:viewer:send`. So read, send and `JoinViewerChat` work for a stranger. The
+  owner still switches a key off with an override.
+- **Dashboard.** In viewer chat (`/app/viewer-chat`, `/me/:channel/chat`) the channel finder searches the
+  directory and opens `/me/:login/chat`. The last opened channels are remembered on the device
+  (`nnz.viewerChat.recent`, newest first, at most 5) and shown before any search.
+
 ## 10. Open
 
 Not yet landed. Each is a slice in `SHORTCOMINGS-EXECUTION-PLAN.md`:

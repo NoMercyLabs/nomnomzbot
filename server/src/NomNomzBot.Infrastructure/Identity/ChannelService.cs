@@ -241,6 +241,60 @@ public class ChannelService : IChannelService
         );
     }
 
+    public async Task<Result<PagedList<PublicChannelDto>>> SearchPublicChannelsAsync(
+        string? query,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string needle = query?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        // Only an ACTIVE channel is listed: Gate 1 refuses a suspended one, so listing it would be a dead end.
+        IQueryable<Channel> channels = _db.Channels.Where(c =>
+            c.Status == AuthEnums.ChannelStatus.Active
+        );
+        if (needle.Length > 0)
+            channels = channels.Where(c =>
+                c.NameNormalized.Contains(needle) || c.User.DisplayName.ToLower().Contains(needle)
+            );
+
+        int total = await channels.CountAsync(cancellationToken);
+
+        // The id leaves the query as a Guid: a Guid turned to text inside SQL is upper case on SQLite and lower
+        // case on Postgres, and the dashboard compares ids as text.
+        var rows = await channels
+            .OrderByDescending(c => c.IsLive)
+            .ThenBy(c => c.NameNormalized)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .Select(c => new
+            {
+                c.Id,
+                c.Name,
+                c.User.DisplayName,
+                c.User.ProfileImageUrl,
+                c.IsLive,
+                c.Provider,
+            })
+            .ToListAsync(cancellationToken);
+
+        List<PublicChannelDto> items =
+        [
+            .. rows.Select(r => new PublicChannelDto(
+                r.Id.ToString(),
+                r.Name,
+                r.DisplayName,
+                r.ProfileImageUrl,
+                r.IsLive,
+                r.Provider
+            )),
+        ];
+
+        return Result.Success(
+            new PagedList<PublicChannelDto>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
     public async Task<Result<ChannelDto>> UpdateSettingsAsync(
         string broadcasterId,
         UpdateChannelSettingsDto request,
