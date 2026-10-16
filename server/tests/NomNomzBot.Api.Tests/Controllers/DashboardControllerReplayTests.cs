@@ -48,6 +48,7 @@ public sealed class DashboardControllerReplayTests
             Substitute.For<ITwitchChannelsApi>(),
             Substitute.For<ITwitchSubscriptionsApi>(),
             replay,
+            Substitute.For<Application.Dashboard.Services.IStreamRecapService>(),
             TimeProvider.System,
             Substitute.For<Microsoft.Extensions.Logging.ILogger<DashboardController>>()
         );
