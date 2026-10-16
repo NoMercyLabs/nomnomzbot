@@ -43,7 +43,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private const int QueueSnapshotSize = 10;
     private const string RequestsClosedCode = "SR_CLOSED";
     private const string RequestsClosedMessage = "The song queue is closed.";
-    private const int MaxTrackDurationMs = 10 * 60 * 1000;
+    private const int DefaultMaxSongSeconds = 360;
 
     private const string UnsupportedLinkMessage =
         "That link can't be used here. Send a song name, or a link for the music service this channel uses.";
@@ -907,12 +907,38 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // A moderator's !permit admits a held request the same way: it skips only the limits (never the blocklist).
         bool isOperator = admittedByPermission || IsOperator(requesterRoleLevel);
 
-        // Length cap (legacy parity): a track over ten minutes never reaches the fair queue.
-        if (!isOperator && trackInfo.DurationMs > MaxTrackDurationMs)
+        MusicConfigDto? config = await GetConfigOrNullAsync(broadcasterId, cancellationToken);
+
+        // Length cap: a track over the channel's longest-song dial never reaches the fair queue.
+        int maxSongSeconds = config?.MaxSongSeconds ?? DefaultMaxSongSeconds;
+        if (!isOperator && trackInfo.DurationMs > maxSongSeconds * 1000L)
             return Result.Failure(
-                $"\"{trackInfo.TrackName}\" exceeds the maximum allowed duration of 10 minutes.",
+                $"\"{trackInfo.TrackName}\" is longer than the {maxSongSeconds} second limit.",
                 "TRACK_TOO_LONG",
+                errorData: new MusicRequestRefusal(
+                    trackInfo.TrackName,
+                    trackInfo.Artist,
+                    Limit: maxSongSeconds
+                )
+            );
+
+        if (!isOperator && config is { AllowExplicit: false } && trackInfo.IsExplicit)
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" is explicit, and explicit songs are not allowed in this channel.",
+                "TRACK_EXPLICIT",
                 errorData: new MusicRequestRefusal(trackInfo.TrackName, trackInfo.Artist)
+            );
+
+        string streamOwnerKey = requestedBy ?? "anonymous";
+        if (
+            !isOperator
+            && config?.PerStreamLimit is int perStreamLimit
+            && _queueStore.StreamRequestCount(broadcasterId, streamOwnerKey) >= perStreamLimit
+        )
+            return Result.Failure(
+                $"You already requested {perStreamLimit} song(s) this stream — that is the limit.",
+                "PER_STREAM_LIMIT",
+                errorData: new MusicRequestRefusal(Limit: perStreamLimit)
             );
 
         FairQueue<SongRequestEntry> queue = _queueStore.GetOrCreate(broadcasterId);
@@ -920,7 +946,6 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // Capacity admission gate: both AddToQueueAsync and RequestTrackAsync fold into this one
         // enqueue point, so MaxQueueSize/MaxRequestsPerUser are enforced here once rather than at
         // each caller — refused before the duplicate/provider-push work below ever runs.
-        MusicConfigDto? config = await GetConfigOrNullAsync(broadcasterId, cancellationToken);
         if (config is not null)
         {
             IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot =
@@ -1008,6 +1033,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 )
             );
         }
+        _queueStore.RecordStreamRequest(broadcasterId, streamOwnerKey);
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
 
         // ONE track at a time reaches the provider. The fair queue is the authority on order, and it can

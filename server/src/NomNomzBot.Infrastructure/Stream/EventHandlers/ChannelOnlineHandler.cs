@@ -19,6 +19,7 @@ using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 
@@ -152,6 +153,9 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         channelCtx.LastShoutoutPerUser.Clear();
         channelCtx.LastManualShoutoutAnnouncementPerUser.Clear();
         channelCtx.LastGlobalShoutout = null;
+        scope
+            .ServiceProvider.GetService<ISongRequestQueueStore>()
+            ?.ResetStreamRequests(broadcasterId.ToString());
 
         _logger.LogInformation(
             "Channel {BroadcasterId} is now LIVE: {Title} playing {Game}",

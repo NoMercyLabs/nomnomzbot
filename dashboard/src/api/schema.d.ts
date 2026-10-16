@@ -55168,6 +55168,192 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/obs/scene-collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The scene collections OBS knows about, with the loaded one flagged. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfObsSceneCollectionDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/obs/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The OBS profiles, with the active one flagged. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfObsProfileDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/obs/source-filters": {
         parameters: {
             query?: never;
@@ -56461,6 +56647,204 @@ export interface paths {
                     "application/json": components["schemas"]["ObsCurrentTransitionRequest"];
                     "text/json": components["schemas"]["ObsCurrentTransitionRequest"];
                     "application/*+json": components["schemas"]["ObsCurrentTransitionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/obs/scene-collections/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Load one scene collection in OBS. OBS swaps every scene and source. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObsCurrentSceneCollectionRequest"];
+                    "text/json": components["schemas"]["ObsCurrentSceneCollectionRequest"];
+                    "application/*+json": components["schemas"]["ObsCurrentSceneCollectionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/obs/profiles/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make one OBS profile the active one (output and stream settings). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObsCurrentProfileRequest"];
+                    "text/json": components["schemas"]["ObsCurrentProfileRequest"];
+                    "application/*+json": components["schemas"]["ObsCurrentProfileRequest"];
                 };
             };
             responses: {
@@ -90229,6 +90613,15 @@ export interface components {
             };
             /** @default true */
             requestsOpen: boolean;
+            /**
+             * Format: int32
+             * @default 360
+             */
+            maxSongSeconds: number | string;
+            /** @default true */
+            allowExplicit: boolean;
+            /** Format: int32 */
+            perStreamLimit?: null | number | string;
         };
         MusicDeviceDto: {
             id: string;
@@ -90500,6 +90893,14 @@ export interface components {
             lastConnectedAt?: null | string;
             lastError?: null | string;
         };
+        /** @description REST body for the profile-select route: make one OBS profile the active one. */
+        ObsCurrentProfileRequest: {
+            name: string;
+        };
+        /** @description REST body for the scene-collection-select route: load one scene collection in OBS. */
+        ObsCurrentSceneCollectionRequest: {
+            name: string;
+        };
         /** @description REST body for the scene-transition-select route: make one transition the active one. */
         ObsCurrentTransitionRequest: {
             transitionName: string;
@@ -90563,6 +90964,11 @@ export interface components {
             errorCode?: null | string;
             error?: null | string;
         };
+        /** @description One OBS profile (obs-websocket v5 `GetProfileList`), with the active one flagged. */
+        ObsProfileDto: {
+            name: string;
+            isCurrent: boolean;
+        };
         /** @description REST body for the recording route. */
         ObsRecordRequest: {
             action: components["schemas"]["RecordAction"];
@@ -90592,6 +90998,11 @@ export interface components {
                 [key: string]: unknown;
             };
             error?: null | string;
+        };
+        /** @description One scene collection (obs-websocket v5 `GetSceneCollectionList`), the loaded one flagged. */
+        ObsSceneCollectionDto: {
+            name: string;
+            isCurrent: boolean;
         };
         ObsSceneDto: {
             name: string;
@@ -95800,9 +96211,35 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfObsProfileDto: {
+            status?: string;
+            data?: null | components["schemas"]["ObsProfileDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfIReadOnlyListOfObsResponse: {
             status?: string;
             data?: null | components["schemas"]["ObsResponse"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfObsSceneCollectionDto: {
+            status?: string;
+            data?: null | components["schemas"]["ObsSceneCollectionDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -100048,6 +100485,18 @@ export interface components {
             maxQueueSize?: null | number | string;
             /** Format: int32 */
             maxRequestsPerUser?: null | number | string;
+            /**
+             * Format: int32
+             * @description The longest song a viewer may request, in seconds. The broadcaster and moderators are not held to it.
+             */
+            maxSongSeconds?: null | number | string;
+            /** @description When false, a song the provider marks explicit is refused. */
+            allowExplicit?: null | boolean;
+            /**
+             * Format: int32
+             * @description The most songs one viewer may request in one stream, counting songs that already played. 0 turns the cap off (null leaves the current value alone); a value of 1 to 100 turns it on.
+             */
+            perStreamLimit?: null | number | string;
             allowYouTube?: null | boolean;
             allowSpotify?: null | boolean;
             minTrustLevel?: null | string;

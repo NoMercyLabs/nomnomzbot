@@ -167,7 +167,7 @@ public sealed class ToneTemplateCatalogIntegrityTests
             .Should()
             .ContainSingle()
             .Which.Should()
-            .Contain("10 minutes")
+            .Contain("{track.max}")
             .And.EndWith(", your point has been refunded.");
     }
 

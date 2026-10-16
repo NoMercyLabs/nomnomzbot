@@ -238,7 +238,7 @@ public sealed class SongRequestActionTests
             Result.Failure<MusicTrack>(
                 "too long",
                 "TRACK_TOO_LONG",
-                errorData: new MusicRequestRefusal("Song Q", "Artist")
+                errorData: new MusicRequestRefusal("Song Q", "Artist", Limit: 600)
             )
         );
         PipelineExecutionContext ctx = Ctx(redemptionId: "redemption-1");
@@ -260,7 +260,7 @@ public sealed class SongRequestActionTests
             Result.Failure<MusicTrack>(
                 "too long",
                 "TRACK_TOO_LONG",
-                errorData: new MusicRequestRefusal("Song Q", "Artist")
+                errorData: new MusicRequestRefusal("Song Q", "Artist", Limit: 600)
             )
         );
 

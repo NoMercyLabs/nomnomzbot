@@ -68,13 +68,28 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                     ? BuiltinResponseSlots.SongRequest.TrackTooLongRefunded
                     : BuiltinResponseSlots.SongRequest.TrackTooLong,
                 context.IsReward
-                    ? "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of 10 minutes, your point has been refunded."
-                    : "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of 10 minutes.",
+                    ? "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of {track.max}, your point has been refunded."
+                    : "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of {track.max}.",
                 new Dictionary<string, string>
                 {
                     ["user"] = context.UserDisplayName,
                     ["track.name"] = trackName,
+                    ["track.max"] = DurationText(data?.Limit),
                 },
+                ct
+            ),
+            "TRACK_EXPLICIT" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.TrackExplicit,
+                "\"{track.name}\" is explicit, and explicit songs are not allowed here.",
+                trackName,
+                ct
+            ),
+            "PER_STREAM_LIMIT" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.PerStreamLimit,
+                "You already requested {request.limit} song(s) this stream. That is the limit.",
+                new Dictionary<string, string> { ["request.limit"] = LimitText(data) },
                 ct
             ),
             "SR_DISABLED" => ComposeAsync(
@@ -282,6 +297,17 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
 
     private static string LimitText(MusicRequestRefusal? data) =>
         data?.Limit?.ToString() ?? "the limit";
+
+    /// <summary>A song length for chat: whole minutes read as "6 minutes", anything else as seconds.</summary>
+    private static string DurationText(int? seconds)
+    {
+        if (seconds is not int total)
+            return "the limit";
+        if (total % 60 != 0)
+            return $"{total} seconds";
+        int minutes = total / 60;
+        return minutes == 1 ? "1 minute" : $"{minutes} minutes";
+    }
 
     private static string RetryMinutesText(MusicRequestRefusal? data) =>
         data?.RetryMinutes?.ToString() ?? "a few";

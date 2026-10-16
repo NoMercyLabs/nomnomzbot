@@ -109,6 +109,15 @@ public interface ISongRequestQueueStore
     /// </summary>
     bool TryConsumeRetraction(string broadcasterId, string trackUri);
 
+    /// <summary>How many requests this requester got admitted in the channel's current stream.</summary>
+    int StreamRequestCount(string broadcasterId, string ownerKey);
+
+    /// <summary>Counts one admitted request for this requester in the channel's current stream.</summary>
+    void RecordStreamRequest(string broadcasterId, string ownerKey);
+
+    /// <summary>Starts the per-stream tally over; called when the channel goes live.</summary>
+    void ResetStreamRequests(string broadcasterId);
+
     /// <summary>
     /// Serialises every hand-over to the provider for one channel. The in-flight check and the in-flight
     /// write sit on either side of an awaited provider call, and several callers race for them: admission,
@@ -164,7 +173,32 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         (string BroadcasterId, string TrackUri),
         DateTimeOffset
     > _retractions = new();
+    private readonly ConcurrentDictionary<
+        (string BroadcasterId, string OwnerKey),
+        int
+    > _streamRequests = new();
     private readonly TimeProvider _timeProvider;
+
+    public int StreamRequestCount(string broadcasterId, string ownerKey) =>
+        _streamRequests.TryGetValue((broadcasterId, ownerKey.ToLowerInvariant()), out int count)
+            ? count
+            : 0;
+
+    public void RecordStreamRequest(string broadcasterId, string ownerKey) =>
+        _streamRequests.AddOrUpdate(
+            (broadcasterId, ownerKey.ToLowerInvariant()),
+            1,
+            static (_, count) => count + 1
+        );
+
+    public void ResetStreamRequests(string broadcasterId)
+    {
+        foreach ((string BroadcasterId, string OwnerKey) key in _streamRequests.Keys)
+        {
+            if (key.BroadcasterId == broadcasterId)
+                _streamRequests.TryRemove(key, out _);
+        }
+    }
 
     public SongRequestQueueStore(TimeProvider? timeProvider = null)
     {

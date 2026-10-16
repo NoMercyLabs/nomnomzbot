@@ -27,7 +27,7 @@ public sealed class MusicServiceTrackLengthTests
 
     private static (MusicService Sut, RecordingHttpHandler Handler) BuildDefault() =>
         MusicServiceCapacityTests.Build(
-            new MusicConfigDto(true, "auto", 50, 50, true, true, "everyone")
+            new MusicConfigDto(true, "auto", 50, 50, true, true, "everyone", MaxSongSeconds: 600)
         );
 
     [Fact]
