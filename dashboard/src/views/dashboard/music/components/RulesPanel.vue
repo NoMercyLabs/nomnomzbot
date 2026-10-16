@@ -32,11 +32,21 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
 import { usePanelState } from '@/composables/usePanelState';
 
-type Draft = { minTrustLevel: string; perPerson: number };
+import {
+  changeOf,
+  draftOf,
+  draftValid,
+  providers,
+  queueLimits,
+  requestLimits,
+  roleRungs,
+  type RuleDraft,
+} from './requestRules';
 
 // The values the bot accepts for minTrustLevel (MusicService.ParseMinTrustLevel); anything else means everyone.
 const trustLevels: readonly string[] = [
@@ -47,6 +57,7 @@ const trustLevels: readonly string[] = [
   'broadcaster',
 ];
 const perPersonId = useId();
+const queueSizeId = useId();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -59,11 +70,7 @@ const block = useBlockTrack(channelId);
 const state = usePanelState(configQuery, (config: MusicConfig | null): boolean =>
   config === null);
 
-function draftOf(config: MusicConfig): Draft {
-  return { minTrustLevel: config.minTrustLevel, perPerson: Number(config.maxRequestsPerUser) };
-}
-
-const draft = ref<Draft | null>(null);
+const draft = ref<RuleDraft | null>(null);
 
 watch(
   () => configQuery.data.value,
@@ -79,25 +86,11 @@ const change = computed<MusicConfigChange>(() => {
   const config = configQuery.data.value;
   const edits = draft.value;
 
-  if (!config || !edits)
-    return {};
-
-  const result: MusicConfigChange = {};
-
-  if (edits.minTrustLevel !== config.minTrustLevel) {
-    result.minTrustLevel = edits.minTrustLevel;
-  }
-
-  if (edits.perPerson !== draftOf(config).perPerson) {
-    result.maxRequestsPerUser = edits.perPerson;
-  }
-
-  return result;
+  return config && edits
+    ? changeOf(config, edits)
+    : {};
 });
-const valid = computed<boolean>(
-  () =>
-    draft.value === null || (Number.isInteger(draft.value.perPerson) && draft.value.perPerson >= 1),
-);
+const valid = computed<boolean>(() => draft.value === null || draftValid(draft.value));
 const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0);
 
 function saveRules(): void {
@@ -179,6 +172,10 @@ const missing = computed<KeyValueItem[]>(() =>
     <div v-if="draft" class="grid gap-5">
       <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
         <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.who') }}</h3>
+        <label class="flex items-center gap-3 text-sm">
+          <span class="min-w-0 flex-1">{{ $t('dashboard.music.rules.open') }}</span>
+          <Switch v-model="draft.requestsOpen" data-setting="requests-open" />
+        </label>
         <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
           <label v-for="level in trustLevels" :key="level" class="flex items-center gap-2 text-sm">
             <RadioGroupItem :value="level" />
@@ -186,26 +183,79 @@ const missing = computed<KeyValueItem[]>(() =>
           </label>
         </RadioGroup>
       </section>
-      <div class="flex items-center gap-3">
-        <span class="min-w-0 flex-1">
-          <label :for="perPersonId" class="block text-sm font-medium">{{
-            $t('dashboard.music.rules.perPerson')
+      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.limits')">
+        <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.limits') }}</h3>
+        <div class="flex items-center gap-3">
+          <label :for="queueSizeId" class="min-w-0 flex-1 text-sm">{{
+            $t('dashboard.music.rules.queueSize')
           }}</label>
-          <span class="block text-sm text-muted-foreground">{{
-            $t('dashboard.music.rules.perPersonHelp')
-          }}</span>
-        </span>
-        <Input
-          :id="perPersonId"
-          v-model.number="draft.perPerson"
-          name="songs-per-person"
-          type="number"
-          min="1"
-          step="1"
-          :aria-invalid="!valid || undefined"
-          class="w-20"
-        />
-      </div>
+          <Input
+            :id="queueSizeId"
+            v-model.number="draft.maxQueueSize"
+            name="queue-size"
+            type="number"
+            :min="queueLimits.min"
+            :max="queueLimits.max"
+            step="1"
+            :aria-invalid="!valid || undefined"
+            class="w-20"
+          />
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="min-w-0 flex-1">
+            <label :for="perPersonId" class="block text-sm">{{
+              $t('dashboard.music.rules.perPerson')
+            }}</label>
+            <span class="block text-sm text-muted-foreground">{{
+              $t('dashboard.music.rules.perPersonHelp')
+            }}</span>
+          </span>
+          <Input
+            :id="perPersonId"
+            v-model.number="draft.perPerson"
+            name="songs-per-person"
+            type="number"
+            :min="requestLimits.min"
+            :max="requestLimits.max"
+            step="1"
+            :aria-invalid="!valid || undefined"
+            class="w-20"
+          />
+        </div>
+        <p class="text-sm text-muted-foreground">{{ $t('dashboard.music.rules.perRoleHelp') }}</p>
+        <label v-for="rung in roleRungs" :key="rung" class="flex items-center gap-3 text-sm">
+          <span class="min-w-0 flex-1">{{ $t(`dashboard.music.rules.roles.${rung}`) }}</span>
+          <Input
+            v-model="draft.roleCaps[rung]"
+            :name="`songs-role-${rung}`"
+            type="number"
+            :min="requestLimits.min"
+            :max="requestLimits.max"
+            step="1"
+            :placeholder="$t('dashboard.music.rules.sameAsPerPerson')"
+            :aria-invalid="!valid || undefined"
+            class="w-20"
+          />
+        </label>
+      </section>
+      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.sources')">
+        <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.sources') }}</h3>
+        <label class="flex items-center gap-3 text-sm">
+          <span class="min-w-0 flex-1">{{ $t('dashboard.music.rules.allowSpotify') }}</span>
+          <Switch v-model="draft.allowSpotify" data-setting="allow-spotify" />
+        </label>
+        <label class="flex items-center gap-3 text-sm">
+          <span class="min-w-0 flex-1">{{ $t('dashboard.music.rules.allowYouTube') }}</span>
+          <Switch v-model="draft.allowYouTube" data-setting="allow-youtube" />
+        </label>
+        <p class="text-sm text-muted-foreground">{{ $t('dashboard.music.rules.preferred') }}</p>
+        <RadioGroup v-model="draft.preferredProvider" class="gap-2">
+          <label v-for="provider in providers" :key="provider" class="flex items-center gap-2 text-sm">
+            <RadioGroupItem :value="provider" />
+            {{ $t(`dashboard.music.rules.providers.${provider}`) }}
+          </label>
+        </RadioGroup>
+      </section>
       <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.blocked')">
         <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.blocked') }}</h3>
         <p v-if="blockedQuery.isError.value" role="alert" class="text-sm text-destructive">

@@ -82,7 +82,28 @@
           "words": "Blocked words"
         },
         "save": "Save",
-        "discard": "Discard"
+        "discard": "Discard",
+        "open": "Requests are open",
+        "limits": "Limits",
+        "queueSize": "Songs in the queue, at most",
+        "perRoleHelp": "Songs per person by role. Leave a box blank to use the cap above.",
+        "sameAsPerPerson": "Same",
+        "roles": {
+          "viewer": "Viewers",
+          "subscriber": "Twitch subscribers",
+          "vip": "VIPs",
+          "moderator": "Moderators",
+          "broadcaster": "Me"
+        },
+        "sources": "Sources",
+        "allowSpotify": "Allow Spotify songs",
+        "allowYouTube": "Allow YouTube songs",
+        "preferred": "Look here first",
+        "providers": {
+          "auto": "Automatic",
+          "spotify": "Spotify",
+          "youtube": "YouTube"
+        }
       },
       "history": {
         "title": "History",

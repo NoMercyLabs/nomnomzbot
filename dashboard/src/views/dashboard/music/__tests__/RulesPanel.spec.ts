@@ -157,6 +157,15 @@ const perPerson = (): HTMLInputElement =>
   document.body.querySelector<HTMLInputElement>(
     'input[name="songs-per-person"]',
   ) as HTMLInputElement;
+const numberInput = (name: string): HTMLInputElement =>
+  document.body.querySelector<HTMLInputElement>(`input[name="${name}"]`) as HTMLInputElement;
+
+const typeInto = async (name: string, value: string): Promise<void> => {
+  numberInput(name).value = value;
+  numberInput(name).dispatchEvent(new Event('input'));
+  await settle();
+};
+
 const puts = (): Call[] => calls.filter((call) => call.method === 'PUT');
 
 describe('RulesPanel', () => {
@@ -198,6 +207,43 @@ describe('RulesPanel', () => {
     await settle();
 
     expect(puts()[0]!.body).toEqual({ maxRequestsPerUser: 4 });
+  });
+
+  it('saves the queue size and the whole per-role cap map the streamer edits', async () => {
+    await open();
+
+    await typeInto('queue-size', '60');
+    await typeInto('songs-role-moderator', '5');
+    await typeInto('songs-role-vip', '3');
+    buttonIn('Save').click();
+    await settle();
+
+    expect(puts()).toHaveLength(1);
+
+    expect(puts()[0]!.body).toEqual({
+      maxQueueSize: 60,
+      maxRequestsPerRole: { vip: 3, moderator: 5 },
+    });
+  });
+
+  it('saves the sources and the preferred provider', async () => {
+    await open();
+
+    document.body.querySelector<HTMLButtonElement>('button[data-setting="allow-youtube"]')?.click();
+    radio('youtube').click();
+    await settle();
+    buttonIn('Save').click();
+    await settle();
+
+    expect(puts()[0]!.body).toEqual({ allowYouTube: true, preferredProvider: 'youtube' });
+  });
+
+  it('does not save a role cap above fifty', async () => {
+    await open();
+
+    await typeInto('songs-role-vip', '51');
+
+    expect(buttonIn('Save').disabled).toBe(true);
   });
 
   it('does not save a songs per person below one', async () => {
