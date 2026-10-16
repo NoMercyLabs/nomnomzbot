@@ -235,4 +235,45 @@ public sealed class YouTubeSongRequestIntakeTests
         intake.DataApiCalls.Should().BeEmpty();
         (await intake.QueuedTitlesAsync()).Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task A_word_search_skips_a_candidate_over_the_length_limit_and_queues_the_next()
+    {
+        YouTubeSongRequestIntake intake = new(); // default limit: 360 seconds
+        intake.RouteSearch("longlonglon", VideoId);
+        intake.RouteVideos(
+            YouTubeSongRequestIntake.Video(
+                "longlonglon",
+                "Never Gonna Give You Up",
+                duration: "PT10H"
+            ),
+            YouTubeSongRequestIntake.Video(VideoId, "Never Gonna Give You Up", duration: "PT3M33S")
+        );
+
+        await intake.SayAsync("never gonna give you up");
+
+        (await intake.Music.GetQueueAsync(YouTubeSongRequestIntake.ChannelId.ToString()))
+            .Queue.Select(item => item.DurationMs)
+            .Should()
+            .Equal(213_000);
+    }
+
+    [Fact]
+    public async Task A_word_search_where_every_candidate_is_too_long_still_says_so()
+    {
+        YouTubeSongRequestIntake intake = new();
+        intake.RouteSearch("longlonglon");
+        intake.RouteVideos(
+            YouTubeSongRequestIntake.Video(
+                "longlonglon",
+                "Never Gonna Give You Up",
+                duration: "PT10H"
+            )
+        );
+
+        string reply = await intake.SayAsync("never gonna give you up");
+
+        reply.Should().Contain("exceeds the maximum allowed duration of 6 minutes");
+        (await intake.QueuedTitlesAsync()).Should().BeEmpty();
+    }
 }

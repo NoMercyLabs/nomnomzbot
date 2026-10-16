@@ -76,6 +76,50 @@ public sealed class SongSearchRankerTests
         pick.ProviderTrackId.Should().Be("first");
     }
 
+    [Theory]
+    [InlineData("Never Gonna Give You Up REACTION")]
+    [InlineData("First Time Hearing - Never Gonna Give You Up (React)")]
+    [InlineData("Never Gonna Give You Up 10 Hours")]
+    [InlineData("Never Gonna Give You Up [1 hour loop]")]
+    [InlineData("Never Gonna Give You Up (Loop)")]
+    public void A_reaction_or_loop_upload_goes_below_the_song_itself(string filler)
+    {
+        TrackInfo pick = Pick(
+            "never gonna give you up",
+            Hit("filler", filler, "Some Channel"),
+            Hit("song", "Never Gonna Give You Up", "Some Channel")
+        );
+
+        pick.ProviderTrackId.Should().Be("song");
+    }
+
+    [Fact]
+    public void A_reaction_the_query_asks_for_is_not_pushed_down()
+    {
+        TrackInfo pick = Pick(
+            "never gonna give you up reaction",
+            Hit("reaction", "Never Gonna Give You Up REACTION", "Reactor"),
+            Hit("song", "Never Gonna Give You Up", "Some Channel")
+        );
+
+        pick.ProviderTrackId.Should().Be("reaction");
+    }
+
+    [Theory]
+    [InlineData("Never Gonna Give You Up", "Rick Astley - Topic")]
+    [InlineData("Never Gonna Give You Up", "RickAstleyVEVO")]
+    [InlineData("Never Gonna Give You Up (Official Music Video)", "Some Uploader")]
+    public void An_official_upload_comes_before_a_fan_upload(string title, string channel)
+    {
+        TrackInfo pick = Pick(
+            "never gonna give you up",
+            Hit("fan", "Never Gonna Give You Up", "Fan Uploads"),
+            Hit("official", title, channel)
+        );
+
+        pick.ProviderTrackId.Should().Be("official");
+    }
+
     [Fact]
     public void No_hits_pick_nothing()
     {

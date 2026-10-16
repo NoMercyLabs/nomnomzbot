@@ -645,11 +645,17 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null)
             return NoProvider<MusicTrack>();
 
+        // The length cap applies to a search pick too, so a candidate over it is passed over for the next
+        // one instead of being picked and then refused. Operators are not held by the cap.
+        int? maxDurationMs = IsOperator(requesterRoleLevel)
+            ? null
+            : (config?.MaxSongSeconds ?? DefaultMaxSongSeconds) * 1000;
         (TrackInfo? trackInfo, MusicProviderFailureReason failure) = await ResolveOrSearchAsync(
             provider,
             tenantId,
             query,
-            cancellationToken
+            cancellationToken,
+            maxDurationMs
         );
         if (failure != MusicProviderFailureReason.None)
         {
@@ -782,7 +788,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         IMusicProvider provider,
         Guid tenantId,
         string queryOrUri,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        int? maxDurationMs = null
     )
     {
         // A pasted link is read the way chat writes it (<wrapped>, trailing "." or ")", no https://), so
@@ -819,7 +826,23 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             );
         return searchFailure != MusicProviderFailureReason.None
             ? (null, searchFailure)
-            : (SongSearchRanker.Pick(searchText, hits), MusicProviderFailureReason.None);
+            : (
+                SongSearchRanker.Pick(searchText, WithinLength(hits, maxDurationMs)),
+                MusicProviderFailureReason.None
+            );
+    }
+
+    /// <summary>The hits that fit the length cap; all of them when none does, so the pick is still refused
+    /// with the honest "too long" reply rather than reading as "not found".</summary>
+    private static IReadOnlyList<TrackInfo> WithinLength(
+        IReadOnlyList<TrackInfo> hits,
+        int? maxDurationMs
+    )
+    {
+        if (maxDurationMs is not int max)
+            return hits;
+        List<TrackInfo> fitting = [.. hits.Where(hit => hit.DurationMs <= max)];
+        return fitting.Count > 0 ? fitting : hits;
     }
 
     /// <summary>The provider answered about the link itself (it can never be played), not about its own health.</summary>

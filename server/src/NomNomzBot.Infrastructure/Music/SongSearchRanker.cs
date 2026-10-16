@@ -17,7 +17,9 @@ namespace NomNomzBot.Infrastructure.Music;
 /// <summary>
 /// Picks the song a viewer meant from a provider's search hits. The provider's order is the base; a hit
 /// that shares no real word with the query is dropped, a hit by the artist the query names comes first,
-/// and a version of the song (karaoke, cover, remix, ...) the query did not ask for goes last.
+/// a version of the song (karaoke, cover, remix, ...) the query did not ask for goes below the song, an
+/// upload that is not the song at all (a reaction, a loop, an hours-long edit) goes below that, and an
+/// official upload (a "- Topic" channel, a VEVO channel, an "Official" title) is preferred.
 /// </summary>
 internal static class SongSearchRanker
 {
@@ -53,6 +55,22 @@ internal static class SongSearchRanker
         "lullaby",
     ];
 
+    /// <summary>Uploads around the song rather than of it — common on YouTube, never what "!sr song" meant.</summary>
+    private static readonly string[] FillerPhrases =
+    [
+        "reaction",
+        "reactions",
+        "react",
+        "reacts",
+        "reacting",
+        "loop",
+        "looped",
+        "1 hour",
+        "10 hour",
+        "10 hours",
+        "hours",
+    ];
+
     public static TrackInfo? Pick(string query, IReadOnlyList<TrackInfo> hits)
     {
         if (hits.Count == 0)
@@ -72,7 +90,9 @@ internal static class SongSearchRanker
 
         return survivors
             .OrderByDescending(entry => NamesArtist(entry.Hit, queryWords, compactQuery))
-            .ThenBy(entry => IsUnaskedVersion(entry.Hit, normalizedQuery))
+            .ThenBy(entry => HasUnaskedPhrase(entry.Hit, normalizedQuery, VersionPhrases))
+            .ThenBy(entry => HasUnaskedPhrase(entry.Hit, normalizedQuery, FillerPhrases))
+            .ThenByDescending(entry => IsOfficialUpload(entry.Hit))
             .ThenBy(entry => entry.Index)
             .First()
             .Hit;
@@ -104,11 +124,22 @@ internal static class SongSearchRanker
         return artistWords.Count > 0 && artistWords.IsSubsetOf(queryWords);
     }
 
-    private static bool IsUnaskedVersion(TrackInfo hit, string normalizedQuery)
+    /// <summary>A YouTube "Artist - Topic" channel, a VEVO channel, or an "Official" title.</summary>
+    private static bool IsOfficialUpload(TrackInfo hit)
+    {
+        string artist = Normalize(hit.Artist);
+        return artist.EndsWith(" topic", StringComparison.Ordinal)
+            || artist
+                .Replace(" ", string.Empty, StringComparison.Ordinal)
+                .EndsWith("vevo", StringComparison.Ordinal)
+            || $" {Normalize(hit.TrackName)} ".Contains(" official ", StringComparison.Ordinal);
+    }
+
+    private static bool HasUnaskedPhrase(TrackInfo hit, string normalizedQuery, string[] phrases)
     {
         string paddedQuery = $" {normalizedQuery} ";
         string paddedHit = $" {Normalize($"{hit.TrackName} {hit.Artist} {hit.Album}")} ";
-        return VersionPhrases.Any(phrase =>
+        return phrases.Any(phrase =>
         {
             string padded = $" {phrase} ";
             return paddedHit.Contains(padded, StringComparison.Ordinal)
