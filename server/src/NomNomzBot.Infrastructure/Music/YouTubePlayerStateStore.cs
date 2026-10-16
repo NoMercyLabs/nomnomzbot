@@ -20,8 +20,17 @@ public enum YouTubePlayerState
     Error,
 }
 
-/// <summary>A video handed to the player, with the title the provider resolved for it (empty when unknown).</summary>
-public sealed record YouTubeQueuedTrack(string VideoId, string Title, string Artist);
+/// <summary>
+/// A video handed to the player, with what the provider resolved for it: title and channel (empty when
+/// unknown), length (0 when unknown) and thumbnail.
+/// </summary>
+public sealed record YouTubeQueuedTrack(
+    string VideoId,
+    string Title,
+    string Artist,
+    int DurationMs = 0,
+    string? ThumbnailUrl = null
+);
 
 /// <summary>One state report from the overlay player.</summary>
 public sealed record YouTubePlayerReport(

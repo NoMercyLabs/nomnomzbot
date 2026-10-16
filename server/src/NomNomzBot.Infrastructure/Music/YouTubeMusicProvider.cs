@@ -285,6 +285,8 @@ public sealed class YouTubeMusicProvider
                     TrackName = pending.Title,
                     Artist = pending.Artist,
                     Album = string.Empty,
+                    DurationMs = pending.DurationMs,
+                    AlbumArtUrl = pending.ThumbnailUrl,
                     TrackUri = WatchUrl(pending.VideoId),
                     Provider = ProviderName,
                     ProviderTrackId = pending.VideoId,
@@ -309,6 +311,8 @@ public sealed class YouTubeMusicProvider
                 TrackName = known?.Title ?? string.Empty,
                 Artist = known?.Artist ?? string.Empty,
                 Album = string.Empty,
+                DurationMs = known?.DurationMs ?? 0,
+                AlbumArtUrl = known?.ThumbnailUrl,
                 TrackUri = WatchUrl(report.VideoId),
                 Provider = ProviderName,
                 ProviderTrackId = report.VideoId,
@@ -508,7 +512,13 @@ public sealed class YouTubeMusicProvider
     )
     {
         (TrackInfo? track, _) = await ResolveTrackAsync(broadcasterId, videoId, cancellationToken);
-        return new(videoId, track?.TrackName ?? string.Empty, track?.Artist ?? string.Empty);
+        return new(
+            videoId,
+            track?.TrackName ?? string.Empty,
+            track?.Artist ?? string.Empty,
+            track?.DurationMs ?? 0,
+            track?.AlbumArtUrl
+        );
     }
 
     public Task<IReadOnlyList<TrackInfo>?> GetQueueAsync(
@@ -527,6 +537,8 @@ public sealed class YouTubeMusicProvider
                     TrackName = next.Title,
                     Artist = next.Artist,
                     Album = string.Empty,
+                    DurationMs = next.DurationMs,
+                    AlbumArtUrl = next.ThumbnailUrl,
                     TrackUri = WatchUrl(next.VideoId),
                     Provider = ProviderName,
                     ProviderTrackId = next.VideoId,

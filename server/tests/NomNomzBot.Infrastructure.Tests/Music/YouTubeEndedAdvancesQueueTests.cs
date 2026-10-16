@@ -76,7 +76,8 @@ public sealed class YouTubeEndedAdvancesQueueTests
     private static string VideoJson(string id, string title) =>
         $$$"""
             {"items":[{"id":"{{{id}}}",
-              "snippet":{"title":"{{{title}}}","channelTitle":"Some Channel","liveBroadcastContent":"none"},
+              "snippet":{"title":"{{{title}}}","channelTitle":"Some Channel","liveBroadcastContent":"none",
+                "thumbnails":{"high":{"url":"https://i.ytimg.com/vi/{{{id}}}/hqdefault.jpg"} } },
               "contentDetails":{"duration":"PT3M"},
               "status":{"embeddable":true}}]}
             """;
@@ -404,5 +405,24 @@ public sealed class YouTubeEndedAdvancesQueueTests
         rig.Queues.GetInFlight(Broadcaster.ToString()).Should().BeSameAs(first);
         QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
         rig.Bus.Published.OfType<SongRequestLostAtProviderEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_playing_video_carries_its_length_and_artwork_to_now_playing_and_the_dashboard()
+    {
+        Rig rig = await TwoQueuedAsync();
+
+        await ReportAsync(rig, First, "playing");
+
+        TrackInfo current = (await rig.Provider.GetCurrentTrackAsync(Broadcaster))!;
+        current.DurationMs.Should().Be(180_000);
+        current.AlbumArtUrl.Should().Be($"https://i.ytimg.com/vi/{First}/hqdefault.jpg");
+        PlaybackStateChangedEvent changed = rig
+            .Bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Last();
+        changed
+            .DurationMs.Should()
+            .Be(180_000, "the dashboard's progress bar is measured against it");
+        changed.AlbumArtUrl.Should().Be($"https://i.ytimg.com/vi/{First}/hqdefault.jpg");
     }
 }

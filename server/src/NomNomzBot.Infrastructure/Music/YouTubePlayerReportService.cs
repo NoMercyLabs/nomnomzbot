@@ -135,6 +135,8 @@ public sealed class YouTubePlayerReportService(
                 TrackEnded = trackEnded,
                 TrackName = known?.Title,
                 Artist = known?.Artist,
+                DurationMs = known?.DurationMs ?? 0,
+                AlbumArtUrl = known?.ThumbnailUrl,
                 Provider = "youtube",
                 TrackUri = YouTubeMusicProvider.WatchUrl(videoId),
                 ProgressMs = (int)Math.Clamp(positionMs, 0, int.MaxValue),
