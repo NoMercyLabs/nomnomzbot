@@ -116,6 +116,30 @@ public class ChannelsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    public const int MaxDirectoryPageSize = 50;
+
+    /// <summary>
+    /// Search every channel this deployment serves, so any signed-in person can open its viewer chat
+    /// (chat-client.md §9a "Reaching any channel"). Public fields only; live channels first.
+    /// </summary>
+    [HttpGet("directory")]
+    [ProducesResponseType<PaginatedResponse<PublicChannelDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchDirectory(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        request.Take = Math.Clamp(request.Take, 1, MaxDirectoryPageSize);
+        request.Page = Math.Max(request.Page, 1);
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+
+        Result<PagedList<PublicChannelDto>> result =
+            await _channelService.SearchPublicChannelsAsync(request.Search, pagination, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
     // A caller who moderates an onboarded channel on Twitch should hold the Moderator management role there
     // (roles-permissions §0 — Twitch's own role rules are the baseline). Idempotently grants a TwitchBadge
     // Moderator membership only where the caller has NONE, so an existing / higher role is never downgraded.

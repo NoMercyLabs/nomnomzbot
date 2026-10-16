@@ -45,6 +45,14 @@ public interface IChannelService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>Every active channel this deployment serves whose login or display name contains
+    /// <paramref name="query"/> (all of them when empty), live first. Public fields only.</summary>
+    Task<Result<PagedList<PublicChannelDto>>> SearchPublicChannelsAsync(
+        string? query,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Update channel settings (prefix, locale, auto-join, etc.).</summary>
     Task<Result<ChannelDto>> UpdateSettingsAsync(
         string broadcasterId,

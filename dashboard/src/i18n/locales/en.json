@@ -768,6 +768,8 @@
       "find": "Find a channel",
       "noMatch": "No channel found.",
       "yours": "Your channel",
+      "recent": "Recent channels",
+      "every": "Every channel",
       "moderated": "Channels you moderate ({live} live of {total})",
       "live": "Live",
       "offline": "Offline"

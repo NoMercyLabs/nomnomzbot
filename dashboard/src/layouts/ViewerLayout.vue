@@ -8,12 +8,14 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// A signed-in viewer's pages: a plain frame with the brand and the language, and none of the
-// management shell (no sidebar, no channel switcher, no live management connection).
+// A signed-in viewer's pages: a plain frame with the brand, a finder for any channel and the language,
+// and none of the management shell (no sidebar, no managed-channel switcher, no live management connection).
 import AppMark from '@/components/layout/AppMark.vue';
 import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+
+import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
 </script>
 
 <template>
@@ -24,7 +26,10 @@ import { TooltipProvider } from '@/components/ui/tooltip';
           <AppMark />
           {{ $t('site.login.brand') }}
         </span>
-        <LanguagePicker />
+        <span class="flex items-center gap-2">
+          <ViewerChannelFinder />
+          <LanguagePicker />
+        </span>
       </header>
       <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
         <RouterView />
