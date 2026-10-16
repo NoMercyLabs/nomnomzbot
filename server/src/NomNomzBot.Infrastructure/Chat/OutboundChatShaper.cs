@@ -28,6 +28,9 @@ public sealed class OutboundChatShaper : IOutboundChatShaper
     /// message instead of colliding with Twitch's identical-consecutive-message rejection.</summary>
     public const string VariationMarker = "​";
 
+    /// <summary>Separator between list entries (a queue, a leaderboard); a split lands here when it can.</summary>
+    private const string EntrySeparator = " | ";
+
     private readonly ConcurrentDictionary<string, string> _lastSentBody = new();
 
     public IReadOnlyList<string> Shape(string provider, string queueKey, string stampedMessage)
@@ -37,7 +40,11 @@ public sealed class OutboundChatShaper : IOutboundChatShaper
 
         string variedBody = VaryIfRepeated(queueKey, body);
 
-        int limit = ChatPlatformLineLimits.For(provider);
+        // The markers are real characters the platform counts (a 500-char chunk plus the loop-guard
+        // marker made Twitch cut the last character of the line), so reserve room for both.
+        int limit =
+            ChatPlatformLineLimits.For(provider)
+            - Math.Max(BotEmittedLine.Marker.Length, VariationMarker.Length);
         List<string> chunks = ChunkByWordBoundary(variedBody, limit);
 
         if (hasMarker)
@@ -93,14 +100,27 @@ public sealed class OutboundChatShaper : IOutboundChatShaper
             }
 
             int candidateEnd = start + limit;
-            int breakAt = text.LastIndexOf(' ', candidateEnd - 1, candidateEnd - start);
-            bool hardSplit = breakAt <= start;
-            if (hardSplit)
-                breakAt = candidateEnd;
+            string window = text[start..(candidateEnd + 1)];
 
-            chunks.Add(text[start..breakAt]);
-            start =
-                !hardSplit && breakAt < text.Length && text[breakAt] == ' ' ? breakAt + 1 : breakAt;
+            // Prefer the last entry separator that fits, then the last space, then a hard split.
+            int entryBreak = window.LastIndexOf(EntrySeparator, StringComparison.Ordinal);
+            if (entryBreak > 0)
+            {
+                chunks.Add(text[start..(start + entryBreak)]);
+                start += entryBreak + EntrySeparator.Length;
+                continue;
+            }
+
+            int breakAt = window.LastIndexOf(' ');
+            if (breakAt > 0)
+            {
+                chunks.Add(text[start..(start + breakAt)]);
+                start += breakAt + 1;
+                continue;
+            }
+
+            chunks.Add(text[start..candidateEnd]);
+            start = candidateEnd;
         }
 
         return chunks;
