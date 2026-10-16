@@ -292,6 +292,34 @@ returned as the Twitch error.
 `viewer-chat-send` policy (`RateLimiting/ViewerChatSendRateLimitPolicy.cs`) is a sliding window of
 20 per 30 s, keyed per user **and** channel, and answers 429 with `Retry-After`.
 
+### Public profile
+
+Stoney, 2026-10-16 (faithful English of his Dutch words): "Of course I must also be able to look up basic information about a viewer. With the emotes and all
+those things. No moderator actions, but everything that should be available to a user."
+
+A signed-in viewer clicks a name in viewer chat and sees the same profile dialog, in its viewer variant. The
+dashboard shows the viewer variant whenever the caller lacks `community:read`.
+
+**Endpoint** (`ViewerProfileController`): `GET chat/viewer/users/{userId}/profile`, action
+`chat:viewer:read`. `userId` is the Twitch user id (what a chat line carries) or the internal `User.Id`.
+
+**Public fields** (what Twitch's own viewer card shows):
+
+| Field | Source |
+|-------|--------|
+| Display name, login, avatar | `User` |
+| Chat color | `User.Color`, else the newest line's `ColorHex` |
+| Pronouns | `User.Pronoun` (subject/object) |
+| Badges | The badges on the person's newest line in this channel |
+| Account created | `User.AccountCreatedAt` |
+| Follow date in this channel | Helix `channels/followers?user_id=`; null when not following or Twitch cannot answer |
+| Sub tier | `ViewerProfile.SubTier` when `IsSubscriber` (months show in the subscriber badge) |
+| Emotes | The person's own channel emotes (`IChatEmoteCatalogue.GetForPersonAsync`) |
+| Recent messages | The person's newest 10 non-deleted, non-command lines in this channel |
+
+**Never shown:** notes, warnings, bans, timeouts, trust score, standing, moderation history, watch time and
+other bot counters, voice settings. The dialog shows no moderator actions and no Moderation or Settings tab.
+
 ## 10. Open
 
 Not yet landed. Each is a slice in `SHORTCOMINGS-EXECUTION-PLAN.md`:

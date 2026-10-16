@@ -23060,6 +23060,62 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/chat/viewer/users/{userId}/profile": {
+      "get": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "One person's public profile in this channel: what any viewer of the channel can see.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPublicProfileDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/chat/viewer/emotes": {
       "get": {
         "tags": [
@@ -131300,6 +131356,161 @@
             "type": [
               "null",
               "array"
+            ]
+          }
+        }
+      },
+      "PublicBadgeDto": {
+        "required": [
+          "setId",
+          "id",
+          "info"
+        ],
+        "type": "object",
+        "properties": {
+          "setId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "info": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PublicMessageDto": {
+        "required": [
+          "id",
+          "message",
+          "sentAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PublicProfileDto": {
+        "required": [
+          "twitchUserId",
+          "internalUserId",
+          "username",
+          "displayName",
+          "profileImageUrl",
+          "color",
+          "pronouns",
+          "badges",
+          "accountCreatedAt",
+          "followedAt",
+          "subTier",
+          "emotes",
+          "recentMessages"
+        ],
+        "type": "object",
+        "properties": {
+          "twitchUserId": {
+            "type": "string"
+          },
+          "internalUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pronouns": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicBadgeDto"
+            }
+          },
+          "accountCreatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "followedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "subTier": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "emotes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatEmoteCatalogueDto"
+            }
+          },
+          "recentMessages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMessageDto"
+            }
+          }
+        }
+      },
+      "StatusResponseDtoOfPublicProfileDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicProfileDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
