@@ -96,6 +96,8 @@ internal static class PlaybackControlReply
 
         // The service's own sentence stays in logs; chat hears the slot's reply.
         string fallback = ToneTemplateCatalog.Get(PersonalityTone.Informative, builtinKey, slot)[0];
-        return Result.Success(await composer.ComposeAsync(context, builtinKey, slot, fallback, ct: ct));
+        return Result.Success(
+            await composer.ComposeAsync(context, builtinKey, slot, fallback, ct: ct)
+        );
     }
 }

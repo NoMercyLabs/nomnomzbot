@@ -105,8 +105,7 @@ public sealed class PauseResumeBuiltinTests
     {
         IMusicService music = MusicAnswering(Result.Success(), Result.Success());
 
-        Result<string> result = await Pause(music, holdsGrant: true)
-            .ExecuteAsync(Ctx(ViewerLevel));
+        Result<string> result = await Pause(music, holdsGrant: true).ExecuteAsync(Ctx(ViewerLevel));
 
         result.Value.Should().Be("Paused the music.");
         await music.Received(1).PauseAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());

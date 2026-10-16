@@ -633,8 +633,14 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.Skip.NoPlayer,
             variables: [],
             informative: [NoPlayerLine],
-            friendly: ["The music player isn't open yet — add the Audio widget to OBS, or open Spotify!"],
-            sassy: ["Can't skip a player that isn't open. Add the Audio widget to OBS, or open Spotify."],
+            friendly:
+            [
+                "The music player isn't open yet — add the Audio widget to OBS, or open Spotify!",
+            ],
+            sassy:
+            [
+                "Can't skip a player that isn't open. Add the Audio widget to OBS, or open Spotify.",
+            ],
             hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS OR OPEN SPOTIFY!"],
             chill: ["the player isn't open. add the audio widget to obs, or open spotify."]
         );
@@ -1058,11 +1064,13 @@ public static partial class ToneTemplateCatalog
             chill: ["music's back on."]
         );
 
-        foreach ((string key, string verb) in new[]
-        {
-            (BuiltinResponseSlots.Pause.Key, "pause"),
-            (BuiltinResponseSlots.Resume.Key, "resume"),
-        })
+        foreach (
+            (string key, string verb) in new[]
+            {
+                (BuiltinResponseSlots.Pause.Key, "pause"),
+                (BuiltinResponseSlots.Resume.Key, "resume"),
+            }
+        )
         {
             Add(
                 catalog,
@@ -1070,8 +1078,14 @@ public static partial class ToneTemplateCatalog
                 BuiltinResponseSlots.PlaybackControl.NoPlayer,
                 variables: [],
                 informative: [NoPlayerLine],
-                friendly: ["The music player isn't open yet — add the Audio widget to OBS, or open Spotify!"],
-                sassy: [$"Can't {verb} a player that isn't open. Add the Audio widget to OBS, or open Spotify."],
+                friendly:
+                [
+                    "The music player isn't open yet — add the Audio widget to OBS, or open Spotify!",
+                ],
+                sassy:
+                [
+                    $"Can't {verb} a player that isn't open. Add the Audio widget to OBS, or open Spotify.",
+                ],
                 hype: ["NO PLAYER OPEN! ADD THE AUDIO WIDGET TO OBS OR OPEN SPOTIFY!"],
                 chill: ["the player isn't open. add the audio widget to obs, or open spotify."]
             );

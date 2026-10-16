@@ -36,7 +36,11 @@ public sealed class SongResumeAction : ICommandAction
 
     public LocalizedText Description => new("pipeline.song_resume.description");
 
-    public SongResumeAction(IMusicService music, IChatProvider chat, ILogger<SongResumeAction> logger)
+    public SongResumeAction(
+        IMusicService music,
+        IChatProvider chat,
+        ILogger<SongResumeAction> logger
+    )
     {
         _music = music;
         _chat = chat;

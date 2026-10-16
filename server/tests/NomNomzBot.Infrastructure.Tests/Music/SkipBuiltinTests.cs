@@ -240,7 +240,9 @@ public sealed class SkipBuiltinTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE"));
+            .Returns(
+                Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE")
+            );
         SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));

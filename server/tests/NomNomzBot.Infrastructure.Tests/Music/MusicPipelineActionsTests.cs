@@ -163,7 +163,9 @@ public sealed class MusicPipelineActionsTests
         IMusicService music = Substitute.For<IMusicService>();
         music
             .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE"));
+            .Returns(
+                Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE")
+            );
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongPauseAction action = new(music, chat, NullLogger<SongPauseAction>.Instance);
 
@@ -207,7 +209,9 @@ public sealed class MusicPipelineActionsTests
         IMusicService music = Substitute.For<IMusicService>();
         music
             .PlayAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE"));
+            .Returns(
+                Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE")
+            );
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongResumeAction action = new(music, chat, NullLogger<SongResumeAction>.Instance);
 
