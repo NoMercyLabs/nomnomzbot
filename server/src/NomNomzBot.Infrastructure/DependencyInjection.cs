@@ -77,6 +77,12 @@ public static class DependencyInjection
         IConfiguration configuration
     )
     {
+        // FIRST hosted service, on purpose: the host starts hosted services in registration order, and the
+        // song-request queue must be back from the database before any chat worker can take a request whose
+        // save would replace the rows the restore has not read yet (it is [RegisteredByHand], so the worker
+        // scan skips it).
+        services.AddHostedService<SongRequestQueueRestoreHostedService>();
+
         // Interceptors (scoped so they can resolve scoped services like ICurrentTenantService)
         services.AddScoped<AuditableEntityInterceptor>();
         services.AddScoped<SoftDeleteInterceptor>();

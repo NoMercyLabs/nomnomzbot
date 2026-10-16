@@ -13,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -28,7 +29,13 @@ namespace NomNomzBot.Infrastructure.Music;
 /// instance restores its own (a lease here left the incoming blue/green colour with an empty queue).
 /// The one deployment-wide effect — the discarded-queue notice — stays single: only the instance whose
 /// purge actually deleted a channel's stale rows reports that channel.
+/// <para>
+/// Registered by hand as the FIRST hosted service (DependencyInjection.AddInfrastructure): the host starts
+/// them in order, so the restore is done before any chat worker can take a request whose save would replace
+/// the rows it has not read yet.
+/// </para>
 /// </summary>
+[RegisteredByHand]
 public sealed class SongRequestQueueRestoreHostedService : IHostedService
 {
     /// <summary>
