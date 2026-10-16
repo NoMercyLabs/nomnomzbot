@@ -54,6 +54,7 @@
     <string name="builtin_reply_var_track_name">De titel van het nummer</string>
     <string name="builtin_reply_var_track_artist">De artiest van het nummer</string>
     <string name="builtin_reply_var_track_link">Een link naar het nummer</string>
+    <string name="builtin_reply_var_playlist_name">De naam van de afspeellijst</string>
     <string name="builtin_reply_var_requested_by">Wie het als eerste aanvroeg</string>
     <string name="builtin_reply_var_query">Waar de kijker naar zocht</string>
     <string name="builtin_reply_var_queue_list">De nummers in de wachtrij</string>
