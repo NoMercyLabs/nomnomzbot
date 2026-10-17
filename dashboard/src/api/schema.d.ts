@@ -15,198 +15,6 @@
  */
 
 export interface paths {
-    "/api/v{version}/channels/{channelId}/chat-identity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The owner's chat color, the named colors, and the badges on their latest chat line. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfChatIdentity"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v{version}/channels/{channelId}/chat-identity/color": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Set the owner's chat color: a named color, or a hex value for Turbo and Prime users. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateChatColor"];
-                    "text/json": components["schemas"]["UpdateChatColor"];
-                    "application/*+json": components["schemas"]["UpdateChatColor"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfChatIdentity"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/oauth-relay": {
         parameters: {
             query?: never;
@@ -8635,7 +8443,7 @@ export interface paths {
                     client?: string;
                     return_to?: string;
                     return_route?: string;
-                    mode?: string;
+                    role?: string;
                 };
                 header?: never;
                 path: {
@@ -20011,326 +19819,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/channels/{channelId}/chat/viewer/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The channel's newest chat lines (deleted lines left out), oldest first. */
-        get: {
-            parameters: {
-                query?: {
-                    limit?: number | string;
-                };
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfListOfDashboardChatMessage"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        /** Send one chat message as yourself, on your own Twitch account, optionally as a reply. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ViewerChatSendRequest"];
-                    "text/json": components["schemas"]["ViewerChatSendRequest"];
-                    "application/*+json": components["schemas"]["ViewerChatSendRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfboolean"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v{version}/channels/{channelId}/chat/viewer/users/{userId}/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** One person's public profile in this channel: what any viewer of the channel can see. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    userId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfPublicProfile"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v{version}/channels/{channelId}/chat/viewer/emotes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The emotes you can use in this channel: Twitch global + channel, your own, and BTTV/FFZ/7TV. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfChatEmoteCatalogue"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v{version}/channels/{channelId}/chat/messages/{messageId}": {
         parameters: {
             query?: never;
@@ -21325,6 +20813,198 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/chat-identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The owner's chat color, the named colors, and the badges on their latest chat line. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfChatIdentity"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/chat-identity/color": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the owner's chat color: a named color, or a hex value for Turbo and Prime users. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateChatColor"];
+                    "text/json": components["schemas"]["UpdateChatColor"];
+                    "application/*+json": components["schemas"]["UpdateChatColor"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfChatIdentity"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -40964,99 +40644,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/channels/{channelId}/live-ops/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The channel's polls and predictions from the event journal, newest first. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v{version}/channels/{channelId}/live-ops/polls": {
         parameters: {
             query?: never;
@@ -52455,15 +52042,6 @@ export interface paths {
                         "application/json": components["schemas"]["StatusResponseOfObject"];
                     };
                 };
-                /** @description Service Unavailable */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": unknown;
-                    };
-                };
             };
         };
         post?: never;
@@ -52562,6 +52140,108 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/music/queue/remove-by-requester": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove every queued song of one requester in a single action (the playing track is untouched).
+         *     Returns how many were removed; the queue-changed push reaches every view.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RemoveRequesterSongs"];
+                    "text/json": components["schemas"]["RemoveRequesterSongs"];
+                    "application/*+json": components["schemas"]["RemoveRequesterSongs"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfRemovedSongs"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -52700,108 +52380,6 @@ export interface paths {
                     };
                     content: {
                         "application/json": unknown;
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v{version}/channels/{channelId}/music/queue/remove-by-requester": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Remove every queued song of one requester in a single action (the playing track is untouched).
-         *     Returns how many were removed; the queue-changed push reaches every view.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["RemoveRequesterSongs"];
-                    "text/json": components["schemas"]["RemoveRequesterSongs"];
-                    "application/*+json": components["schemas"]["RemoveRequesterSongs"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfRemovedSongs"];
                     };
                 };
                 /** @description Bad Request */
@@ -56644,6 +56222,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/obs/scene-items/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Per-source visibility — hide/show one item within one scene, without touching the
+         *         underlying input's mute state or its placement in any other scene.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObsSourceVisibilityRequest"];
+                    "text/json": components["schemas"]["ObsSourceVisibilityRequest"];
+                    "application/*+json": components["schemas"]["ObsSourceVisibilityRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/obs/scene-items/enabled": {
         parameters: {
             query?: never;
@@ -56768,108 +56448,6 @@ export interface paths {
                     "application/json": components["schemas"]["ObsSceneItemLockedRequest"];
                     "text/json": components["schemas"]["ObsSceneItemLockedRequest"];
                     "application/*+json": components["schemas"]["ObsSceneItemLockedRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v{version}/channels/{channelId}/obs/scene-items/visibility": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Per-source visibility — hide/show one item within one scene, without touching the
-         *         underlying input's mute state or its placement in any other scene.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ObsSourceVisibilityRequest"];
-                    "text/json": components["schemas"]["ObsSourceVisibilityRequest"];
-                    "application/*+json": components["schemas"]["ObsSourceVisibilityRequest"];
                 };
             };
             responses: {
@@ -66353,6 +65931,99 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/live-ops/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The channel's polls and predictions from the event journal, newest first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -80191,6 +79862,277 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/chat/viewer/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The channel's newest chat lines (deleted lines left out), oldest first. */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number | string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfListOfDashboardChatMessage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Send one chat message as yourself, on your own Twitch account, optionally as a reply. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ViewerChatSendRequest"];
+                    "text/json": components["schemas"]["ViewerChatSendRequest"];
+                    "application/*+json": components["schemas"]["ViewerChatSendRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfboolean"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/chat/viewer/emotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The emotes you can use in this channel: Twitch global + channel, your own, and BTTV/FFZ/7TV. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfChatEmoteCatalogue"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/viewers/{viewerId}/data": {
         parameters: {
             query?: never;
@@ -80457,6 +80399,100 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/chat/viewer/users/{userId}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One person's public profile in this channel: what any viewer of the channel can see. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    userId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfPublicProfile"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -86351,6 +86387,23 @@ export interface components {
             /** Format: double */
             cpuPercent: number | string;
         };
+        /** @description One tenant row for the operator console (stream-admin.md §4 Platform admin). */
+        AdminTenant: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            name: string;
+            twitchChannelId: string;
+            status: string;
+            billingTierKey: string;
+            isLive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            suspendedAt?: null | string;
+        };
         /** @description Tenant detail for the operator console — status, tier, owner, counts (stream-admin.md §4). */
         AdminTenantDetail: {
             /**
@@ -86372,23 +86425,6 @@ export interface components {
             ownerDisplayName: string;
             /** Format: int32 */
             membershipCount: number | string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            suspendedAt?: null | string;
-        };
-        /** @description One tenant row for the operator console (stream-admin.md §4 Platform admin). */
-        AdminTenant: {
-            /**
-             * Format: ulid
-             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
-             */
-            id: string;
-            name: string;
-            twitchChannelId: string;
-            status: string;
-            billingTierKey: string;
-            isLive: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -86427,12 +86463,6 @@ export interface components {
             /** Format: double */
             budgetRemainingFraction?: null | number | string;
         };
-        /** @description One currency's worth of a tenant's total priced usage cost for the period. */
-        AdminTenantUsageCost: {
-            currency: string;
-            /** Format: int64 */
-            minorUnits: number | string;
-        };
         /**
          * @description One tenant's usage for its most recent metering period, computed purely from recorded rows
          *                 (`UsageRecord` + `TtsUsageRecord`) — never a placeholder figure. DateTime AdminTenantUsageDto.PeriodStart/
@@ -86462,6 +86492,12 @@ export interface components {
             ttsCurrency?: null | string;
             totalCostsByCurrency?: null | components["schemas"]["AdminTenantUsageCost"][];
             unpricedUnitKeys?: null | string[];
+        };
+        /** @description One currency's worth of a tenant's total priced usage cost for the period. */
+        AdminTenantUsageCost: {
+            currency: string;
+            /** Format: int64 */
+            minorUnits: number | string;
         };
         /**
          * @description One metered quantity for a tenant's usage period, straight off the real `UsageRecord` rows, joined
@@ -86923,25 +86959,6 @@ export interface components {
             portalUrl: string;
         };
         /**
-         * @description One counted category of a destructive action's blast radius. CategoryKey is an i18n
-         *     resource KEY, never a sentence — the language lives in the dashboard's string resources
-         *     (`strings.xml`), so the backend never ships English.
-         */
-        BlastRadiusCategory: {
-            /** @description i18n resource key naming the kind of dependent that was counted. */
-            categoryKey: string;
-            /**
-             * Format: int32
-             * @description The real number of rows counted right now. Never estimated.
-             */
-            count: number | string;
-            /**
-             * @description Up to a handful of human-readable names of the counted rows, so the user recognises WHICH things break.
-             *     A shorter list than Count means the sample was truncated, never that the count is soft.
-             */
-            sample: string[];
-        };
-        /**
          * @description The real, counted set of things that reference a resource right now — surfaced in the delete confirmation
          *     BEFORE the save (S-CONSEQ). int BlastRadiusDto.TotalReferences is zero exactly when nothing references the
          *     resource; the dashboard renders that as an explicit "nothing else references this" statement, never as an
@@ -86960,6 +86977,25 @@ export interface components {
             isMinimum: boolean;
             /** Format: int32 */
             totalReferences?: number | string;
+        };
+        /**
+         * @description One counted category of a destructive action's blast radius. CategoryKey is an i18n
+         *     resource KEY, never a sentence — the language lives in the dashboard's string resources
+         *     (`strings.xml`), so the backend never ships English.
+         */
+        BlastRadiusCategory: {
+            /** @description i18n resource key naming the kind of dependent that was counted. */
+            categoryKey: string;
+            /**
+             * Format: int32
+             * @description The real number of rows counted right now. Never estimated.
+             */
+            count: number | string;
+            /**
+             * @description Up to a handful of human-readable names of the counted rows, so the user recognises WHICH things break.
+             *     A shorter list than Count means the sample was truncated, never that the count is soft.
+             */
+            sample: string[];
         };
         /** @description A channel's blocked song-request track (music-sr.md — the legacy `!bansong` list). */
         BlockedTrack: {
@@ -87039,25 +87075,6 @@ export interface components {
              */
             replyOverrideCount: number | string;
         };
-        /** @description A proposed reply text (null = back to the shipped wording) — the preview body. */
-        BuiltinReplyDefaultChange: {
-            template?: null | string;
-        };
-        /**
-         * @description One built-in response slot as the admin editor shows it. ShippedTemplate is the wording a
-         *     channel on the default tone gets out of the box (null = the built-in's own fallback);
-         *     PlatformTemplate is the admin's replacement (null = none), which wins over every tone.
-         *     ChannelsWithOwnReply is how many channels have their own text for this exact slot (every slot
-         *     takes a channel's own text since commands-pipelines.md §11) — those channels keep it when the platform changes.
-         */
-        BuiltinReplyDefault: {
-            builtinKey: string;
-            slot: string;
-            shippedTemplate?: null | string;
-            platformTemplate?: null | string;
-            /** Format: int32 */
-            channelsWithOwnReply: number | string;
-        };
         /**
          * @description One reply slot as the channel sees it right now. EffectiveTemplate is what the bot sends
          *     (one pick among ToneVariations when Source is `tone`);
@@ -87075,6 +87092,25 @@ export interface components {
             variables: components["schemas"]["BuiltinReplyVariable"][];
             isOverridden: boolean;
             isLocked: boolean;
+        };
+        /**
+         * @description One built-in response slot as the admin editor shows it. ShippedTemplate is the wording a
+         *     channel on the default tone gets out of the box (null = the built-in's own fallback);
+         *     PlatformTemplate is the admin's replacement (null = none), which wins over every tone.
+         *     ChannelsWithOwnReply is how many channels have their own text for this exact slot (every slot
+         *     takes a channel's own text since commands-pipelines.md §11) — those channels keep it when the platform changes.
+         */
+        BuiltinReplyDefault: {
+            builtinKey: string;
+            slot: string;
+            shippedTemplate?: null | string;
+            platformTemplate?: null | string;
+            /** Format: int32 */
+            channelsWithOwnReply: number | string;
+        };
+        /** @description A proposed reply text (null = back to the shipped wording) — the preview body. */
+        BuiltinReplyDefaultChange: {
+            template?: null | string;
         };
         /**
          * @description One reply group of the built-in reply catalogue (commands-pipelines.md §11): the replies a built-in (or the
@@ -87189,6 +87225,25 @@ export interface components {
         ChangeTierRequest: {
             tierKey: string;
             atPeriodEnd: boolean;
+        };
+        /** @description Full channel detail for dashboard views. */
+        Channel: {
+            id: string;
+            name: string;
+            displayName: string;
+            profileImageUrl?: null | string;
+            isLive: boolean;
+            isOnboarded: boolean;
+            title?: null | string;
+            gameName?: null | string;
+            /** Format: int32 */
+            viewerCount?: null | number | string;
+            /** Format: date-time */
+            botJoinedAt?: null | string;
+            subscriptionTier: string;
+            language?: null | string;
+            /** Format: date-time */
+            createdAt: string;
         };
         /** @description One day of the per-channel aggregate (analytics.md §4, schema M.8) — the chart/time-series row. */
         ChannelAnalyticsDaily: {
@@ -87369,25 +87424,6 @@ export interface components {
              */
             permanentAfterUtc: string;
         };
-        /** @description Full channel detail for dashboard views. */
-        Channel: {
-            id: string;
-            name: string;
-            displayName: string;
-            profileImageUrl?: null | string;
-            isLive: boolean;
-            isOnboarded: boolean;
-            title?: null | string;
-            gameName?: null | string;
-            /** Format: int32 */
-            viewerCount?: null | number | string;
-            /** Format: date-time */
-            botJoinedAt?: null | string;
-            subscriptionTier: string;
-            language?: null | string;
-            /** Format: date-time */
-            createdAt: string;
-        };
         ChannelFederationOptIn: {
             /**
              * Format: ulid
@@ -87526,28 +87562,6 @@ export interface components {
             animated: boolean;
             colorHex?: null | string;
         };
-        ChatEmoteCatalogue: {
-            code: string;
-            provider: string;
-            urls: {
-                [key: string]: string;
-            };
-            animated: boolean;
-            zeroWidth: boolean;
-            setId?: null | string;
-            id?: null | string;
-            type?: null | string;
-            /** Format: int32 */
-            tier?: null | number | string;
-            origin?: null | string;
-            ownerId?: null | string;
-            ownerLogin?: null | string;
-            ownerName?: null | string;
-            ownerAvatarUrl?: null | string;
-            staticUrls?: null | {
-                [key: string]: string;
-            };
-        };
         /**
          * @description Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes
          *     (chat-decoration spec §4). `Urls` is scale-keyed ("1"/"2"/"3"); `Provider` is the source network.
@@ -87574,6 +87588,28 @@ export interface components {
                 [key: string]: string;
             };
         };
+        ChatEmoteCatalogue: {
+            code: string;
+            provider: string;
+            urls: {
+                [key: string]: string;
+            };
+            animated: boolean;
+            zeroWidth: boolean;
+            setId?: null | string;
+            id?: null | string;
+            type?: null | string;
+            /** Format: int32 */
+            tier?: null | number | string;
+            origin?: null | string;
+            ownerId?: null | string;
+            ownerLogin?: null | string;
+            ownerName?: null | string;
+            ownerAvatarUrl?: null | string;
+            staticUrls?: null | {
+                [key: string]: string;
+            };
+        };
         /**
          * @description Who owns an emote: the channel for a Twitch emote, the uploader for a 7TV, BTTV or FFZ emote. A field the
          *     provider or cache does not have is null.
@@ -87584,15 +87620,6 @@ export interface components {
             displayName?: null | string;
             profileUrl?: null | string;
         };
-        /**
-         * @description What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout
-         *     apply a fixed action; ChatFilterAction.Hold/ChatFilterAction.Flag route the message to review; and
-         *     ChatFilterAction.Escalate defers the punishment to the per-channel escalation ladder (§3.11), which decides
-         *     warn/timeout/ban by the subject's running offense count. A filter never bans directly — a ban only ever
-         *     arrives through the ladder.
-         * @enum {unknown}
-         */
-        ChatFilterAction: "Delete" | "Timeout" | "Hold" | "Flag" | "Escalate";
         /** @description A custom chat filter (moderation.md J.6) as surfaced to the dashboard. */
         ChatFilter: {
             /**
@@ -87619,6 +87646,15 @@ export interface components {
             updatedAt: string;
             linkPolicy: null | components["schemas"]["LinkPolicy"];
         };
+        /**
+         * @description What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout
+         *     apply a fixed action; ChatFilterAction.Hold/ChatFilterAction.Flag route the message to review; and
+         *     ChatFilterAction.Escalate defers the punishment to the per-channel escalation ladder (§3.11), which decides
+         *     warn/timeout/ban by the subject's running offense count. A filter never bans directly — a ban only ever
+         *     arrives through the ladder.
+         * @enum {unknown}
+         */
+        ChatFilterAction: "Delete" | "Timeout" | "Hold" | "Flag" | "Escalate";
         /**
          * @description The tester's verdict: whether the pattern compiles at all (string? ChatFilterTestResult.CompileError is non-null when it does
          *     not — the same reason the save path would reject it) and, when it compiles, whether the sample matched.
@@ -87666,14 +87702,12 @@ export interface components {
             /** Format: int32 */
             chatters: number | string;
         };
-        ChatIdentityBadge: {
-            setId: string;
-            id: string;
-            info?: null | string;
-            urls: {
-                [key: string]: string;
-            };
-        };
+        /**
+         * @description How the channel owner looks in chat: the name color Twitch holds, the 15 named colors every user may
+         *     pick, whether the connection holds the scope to change the color, and the badges the owner wore on
+         *     their latest chat line, resolved to images from the global and channel badge sets. Twitch has no API
+         *     to read or change which badge a user displays.
+         */
         ChatIdentity: {
             displayName: string;
             color?: null | string;
@@ -87681,6 +87715,15 @@ export interface components {
             colorScope: string;
             namedColors: components["schemas"]["ChatNamedColor"][];
             badges: components["schemas"]["ChatIdentityBadge"][];
+        };
+        /** @description One badge the owner wears in chat, with its image at 1x, 2x and 4x. */
+        ChatIdentityBadge: {
+            setId: string;
+            id: string;
+            info?: null | string;
+            urls: {
+                [key: string]: string;
+            };
         };
         /** @description OpenGraph link-preview data (chat-decoration spec §3.5); fields are null when the page exposes no tags. */
         ChatLinkPreview: {
@@ -87699,6 +87742,7 @@ export interface components {
             displayName: string;
             color?: null | string;
         };
+        /** @description One Twitch named chat color: the value Twitch accepts and the hex it renders as. */
         ChatNamedColor: {
             name: string;
             hex: string;
@@ -87857,17 +87901,6 @@ export interface components {
             code: string;
             label?: null | string;
         };
-        /** @description Pool detail: the codes MASKED (label + status), never plaintext (D6). */
-        CodePoolDetail: {
-            /**
-             * Format: ulid
-             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
-             */
-            id: string;
-            name: string;
-            description?: null | string;
-            codes: components["schemas"]["MaskedCode"][];
-        };
         /** @description A code pool summary — counts only, never code contents (D6). */
         CodePool: {
             /**
@@ -87883,6 +87916,17 @@ export interface components {
             available: number | string;
             /** Format: int32 */
             assigned: number | string;
+        };
+        /** @description Pool detail: the codes MASKED (label + status), never plaintext (D6). */
+        CodePoolDetail: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            name: string;
+            description?: null | string;
+            codes: components["schemas"]["MaskedCode"][];
         };
         CodeScriptDetail: {
             /**
@@ -89283,16 +89327,6 @@ export interface components {
             justification: string;
         };
         /**
-         * @description One counted category of the erasure blast radius. CategoryKey is an i18n resource KEY
-         *     (never a rendered sentence — the client owns the language); RowCount is a real
-         *     `COUNT` over the rows the erasure pipeline would destroy, never an estimate.
-         */
-        ErasurePreviewCategory: {
-            categoryKey: string;
-            /** Format: int32 */
-            rowCount: number | string;
-        };
-        /**
          * @description The counted preview of a GDPR erasure. Categories lists ONLY non-zero categories, each
          *     counted from real rows; TotalRows is their sum. An empty list with a zero total is the
          *     genuine "nothing would be destroyed" answer — the client must say so explicitly, never render a blank.
@@ -89304,6 +89338,16 @@ export interface components {
             /** Format: int32 */
             totalRows: number | string;
             categories: components["schemas"]["ErasurePreviewCategory"][];
+        };
+        /**
+         * @description One counted category of the erasure blast radius. CategoryKey is an i18n resource KEY
+         *     (never a rendered sentence — the client owns the language); RowCount is a real
+         *     `COUNT` over the rows the erasure pipeline would destroy, never an estimate.
+         */
+        ErasurePreviewCategory: {
+            categoryKey: string;
+            /** Format: int32 */
+            rowCount: number | string;
         };
         ErasureRequest: {
             /**
@@ -89397,34 +89441,6 @@ export interface components {
             upcast: number | string;
         };
         /**
-         * @description A proposed platform default for one event type — the body of both the preview and the save.
-         *     SpeakWithTts: following channels also speak the message through their TTS.
-         */
-        EventResponseDefaultChange: {
-            isEnabled: boolean;
-            message?: null | string;
-            /** @default false */
-            speakWithTts: boolean;
-        };
-        /**
-         * @description One event type's platform default, as the admin editor shows it: whether following channels respond and
-         *     with which chat message, the template variables the event fills (for the editor hint), and how many
-         *     channels follow the default versus answer with their own saved response.
-         */
-        EventResponseDefault: {
-            eventType: string;
-            isEnabled: boolean;
-            message?: null | string;
-            variables: string[];
-            /** Format: int32 */
-            channelsFollowing: number | string;
-            /** Format: int32 */
-            channelsWithOwnResponse: number | string;
-            /** Format: date-time */
-            updatedAt: string;
-            speakWithTts: boolean;
-        };
-        /**
          * @description An event response configuration, as the runtime performs it: while FollowsPlatformDefault
          *     is true the enabled flag, type and message are the platform default, not the stored channel row.
          *     ToneLines are the lines the bot picks from while the row follows the default: the
@@ -89456,6 +89472,34 @@ export interface components {
             followsPlatformDefault: boolean;
             speakWithTts: boolean;
             toneLines: string[];
+        };
+        /**
+         * @description One event type's platform default, as the admin editor shows it: whether following channels respond and
+         *     with which chat message, the template variables the event fills (for the editor hint), and how many
+         *     channels follow the default versus answer with their own saved response.
+         */
+        EventResponseDefault: {
+            eventType: string;
+            isEnabled: boolean;
+            message?: null | string;
+            variables: string[];
+            /** Format: int32 */
+            channelsFollowing: number | string;
+            /** Format: int32 */
+            channelsWithOwnResponse: number | string;
+            /** Format: date-time */
+            updatedAt: string;
+            speakWithTts: boolean;
+        };
+        /**
+         * @description A proposed platform default for one event type — the body of both the preview and the save.
+         *     SpeakWithTts: following channels also speak the message through their TTS.
+         */
+        EventResponseDefaultChange: {
+            isEnabled: boolean;
+            message?: null | string;
+            /** @default false */
+            speakWithTts: boolean;
         };
         /**
          * @description Lightweight event response summary (effective values — see EventResponseDto).
@@ -89563,6 +89607,17 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        /** @description A feature flag's global definition (admin view). */
+        FeatureFlag: {
+            key: string;
+            description?: null | string;
+            isEnabledGlobally: boolean;
+            /** Format: int32 */
+            rolloutPercentage: number | string;
+            minTierKey?: null | string;
+            requiresConsent?: null | string;
+            deploymentMode?: null | string;
+        };
         /**
          * @description The counted blast radius of flipping a flag's GLOBAL toggle — shown to the operator BEFORE the toggle
          *     commits (consequences-must-be-visible). int FeatureFlagBlastRadiusDto.TenantsAffected is the number of active channels
@@ -89579,17 +89634,6 @@ export interface components {
             tenantsAffected: number | string;
             /** @description Up to 5 channel names from that set, so the operator recognises who is affected. */
             sampleChannelNames: string[];
-        };
-        /** @description A feature flag's global definition (admin view). */
-        FeatureFlag: {
-            key: string;
-            description?: null | string;
-            isEnabledGlobally: boolean;
-            /** Format: int32 */
-            rolloutPercentage: number | string;
-            minTierKey?: null | string;
-            requiresConsent?: null | string;
-            deploymentMode?: null | string;
         };
         /**
          * @description One per-tenant override as the admin console reads it back: which flag, which channel (by id and by
@@ -90125,6 +90169,18 @@ export interface components {
         };
         /** @description Whether a platform IAM principal is a human employee or a service account. */
         IamPrincipalType: number;
+        /** @description A platform-IAM role with its permission bundle (roles-permissions §5.4) — the role picker's row. */
+        IamRole: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            name: string;
+            description?: null | string;
+            isSystem: boolean;
+            permissionKeys: string[];
+        };
         /** @description A platform-IAM role assignment (roles-permissions §4, Plane C). */
         IamRoleAssignment: {
             /**
@@ -90155,18 +90211,6 @@ export interface components {
             reason?: null | string;
             /** Format: date-time */
             createdAt: string;
-        };
-        /** @description A platform-IAM role with its permission bundle (roles-permissions §5.4) — the role picker's row. */
-        IamRole: {
-            /**
-             * Format: ulid
-             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
-             */
-            id: string;
-            name: string;
-            description?: null | string;
-            isSystem: boolean;
-            permissionKeys: string[];
         };
         /** Format: binary */
         IFormFile: string;
@@ -91084,41 +91128,6 @@ export interface components {
             /** Format: int32 */
             toPosition: number | string;
         };
-        /** @description Request to remove every queued song of one requester (display name, case-insensitive). */
-        RemoveRequesterSongs: {
-            requestedBy: string;
-        };
-        /** @description How many queued songs a bulk removal took out. */
-        RemovedSongs: {
-            /** Format: int32 */
-            removedCount: number | string;
-        };
-        StatusResponseOfChatIdentity: {
-            status?: string;
-            data?: null | components["schemas"]["ChatIdentity"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        StatusResponseOfRemovedSongs: {
-            status?: string;
-            data?: null | components["schemas"]["RemovedSongs"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
         /** @description Music configuration for a channel. */
         MusicConfig: {
             isEnabled: boolean;
@@ -91208,18 +91217,6 @@ export interface components {
             channels: components["schemas"]["ChannelBanOutcome"][];
         };
         /**
-         * @description One tenant a prospective network block would touch (S-ADMIN-8b) — real, freshly-computed presence,
-         *     never a cached or heuristic guess.
-         */
-        NetworkBlockAffectedTenant: {
-            /**
-             * Format: ulid
-             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
-             */
-            broadcasterId: string;
-            channelName: string;
-        };
-        /**
          * @description One network-wide block (S-ADMIN-8b): who applied it, when, why, the blast radius it actually touched,
          *     and — once a lift has been attempted — who lifted it, when, why, and whether the lift was actually
          *     clean (DateTime? NetworkBlockDto.LiftedAt is null on a partial outcome; IReadOnlyList&lt;string&gt; NetworkBlockDto.LiftFailedChannelIds then
@@ -91265,6 +91262,18 @@ export interface components {
             /** Format: int32 */
             restoredChannelCount: number | string;
             liftFailedChannelIds: string[];
+        };
+        /**
+         * @description One tenant a prospective network block would touch (S-ADMIN-8b) — real, freshly-computed presence,
+         *     never a cached or heuristic guess.
+         */
+        NetworkBlockAffectedTenant: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            broadcasterId: string;
+            channelName: string;
         };
         /**
          * @description The counted blast radius of a network-wide block, computed fresh — required reading BEFORE an operator
@@ -91525,12 +91534,12 @@ export interface components {
             };
             error?: null | string;
         };
-        /** @description One scene collection (obs-websocket v5 `GetSceneCollectionList`), the loaded one flagged. */
-        ObsSceneCollection: {
+        ObsScene: {
             name: string;
             isCurrent: boolean;
         };
-        ObsScene: {
+        /** @description One scene collection (obs-websocket v5 `GetSceneCollectionList`), the loaded one flagged. */
+        ObsSceneCollection: {
             name: string;
             isCurrent: boolean;
         };
@@ -91773,6 +91782,7 @@ export interface components {
             /** Format: date-time */
             observedAt: string;
             requestedBy?: null | string;
+            requestedByColor?: null | string;
         };
         /**
          * @description One widget in the overlay manifest. string OverlayWidgetEntry.TrustTier (first_party | verified_community | unverified) is
@@ -92308,6 +92318,15 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
+        PaginatedResponseOfPublicChannel: {
+            data?: components["schemas"]["PublicChannel"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
         PaginatedResponseOfQuote: {
             data?: components["schemas"]["Quote"][];
             /** Format: int32 */
@@ -92569,6 +92588,36 @@ export interface components {
         PickListPreview: {
             pick: string;
         };
+        /** @description Full pipeline details including the deserialized node graph cache. */
+        Pipeline: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            channelId: string;
+            name: string;
+            description?: null | string;
+            isEnabled: boolean;
+            triggerKind: string;
+            graph: null | components["schemas"]["JsonElement"];
+            /** Format: int64 */
+            triggerCount: number | string;
+            /** Format: date-time */
+            lastTriggeredAt?: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /**
+             * @description The named sub-pipeline parameters this pipeline declares (S-PIPE-TREE-d2b(a)), deserialized from
+             *     string? Pipeline.ParameterNamesJson — null/empty when the
+             *     pipeline declares none, in which case a caller's `run_pipeline` block falls back to positional
+             *     `args`. Surfaced so the pipeline builder can render one labelled field per declared name when this
+             *     pipeline is picked as a `run_pipeline` target, instead of a raw positional/generic argument list.
+             */
+            parameterNames?: null | string[];
+        };
         /** @description One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13). */
         PipelineActionDescriptor: {
             type: string;
@@ -92628,36 +92677,6 @@ export interface components {
         /** @description One available pipeline condition type, for the builder's condition picker. */
         PipelineConditionDescriptor: {
             type: string;
-        };
-        /** @description Full pipeline details including the deserialized node graph cache. */
-        Pipeline: {
-            /**
-             * Format: ulid
-             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
-             */
-            id: string;
-            channelId: string;
-            name: string;
-            description?: null | string;
-            isEnabled: boolean;
-            triggerKind: string;
-            graph: null | components["schemas"]["JsonElement"];
-            /** Format: int64 */
-            triggerCount: number | string;
-            /** Format: date-time */
-            lastTriggeredAt?: null | string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-            /**
-             * @description The named sub-pipeline parameters this pipeline declares (S-PIPE-TREE-d2b(a)), deserialized from
-             *     string? Pipeline.ParameterNamesJson — null/empty when the
-             *     pipeline declares none, in which case a caller's `run_pipeline` block falls back to positional
-             *     `args`. Surfaced so the pipeline builder can render one labelled field per declared name when this
-             *     pipeline is picked as a `run_pipeline` target, instead of a raw positional/generic argument list.
-             */
-            parameterNames?: null | string[];
         };
         /** @description Full run detail — the summary fields plus its ordered per-step logs. */
         PipelineExecutionDetail: {
@@ -92909,12 +92928,6 @@ export interface components {
             /** Format: int32 */
             confirmedAffectedChannelCount: number | string;
         };
-        /** @description A definition plus its full version history (§4 `GET /definitions/{id}`). */
-        PlatformContentDefinitionDetail: {
-            definition: components["schemas"]["PlatformContentDefinition"];
-            versions: components["schemas"]["PlatformContentVersion"][];
-            installs: components["schemas"]["PlatformContentInstallSummary"];
-        };
         /** @description A platform content definition summary row (platform-admin.md §3.1) — the definitions list. */
         PlatformContentDefinition: {
             /**
@@ -92942,6 +92955,12 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             retiredAt?: null | string;
+        };
+        /** @description A definition plus its full version history (§4 `GET /definitions/{id}`). */
+        PlatformContentDefinitionDetail: {
+            definition: components["schemas"]["PlatformContentDefinition"];
+            versions: components["schemas"]["PlatformContentVersion"][];
+            installs: components["schemas"]["PlatformContentInstallSummary"];
         };
         /**
          * @description What the definition's installed copies look like across every tenant right now: how many exist, how many
@@ -93153,6 +93172,48 @@ export interface components {
             /** Format: int32 */
             roleLevel: number | string;
         };
+        /**
+         * @description One poll or prediction the channel ran, with its final result, folded from the event journal.
+         *     Kind is `poll` or `prediction`. Status is the Twitch end status
+         *     (completed, archived, terminated, resolved, canceled) or `unfinished` when the journal holds a start but no end.
+         */
+        PollPredictionHistoryItem: {
+            id: string;
+            kind: string;
+            title: string;
+            status: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt?: null | string;
+            /** Format: int32 */
+            totalVotes: number | string;
+            options: components["schemas"]["PollPredictionOption"][];
+        };
+        /** @description One choice (poll) or outcome (prediction) of a past poll or prediction. */
+        PollPredictionOption: {
+            /** @description The Twitch choice or outcome id. */
+            id: string;
+            /** @description The label viewers saw. */
+            title: string;
+            /**
+             * Format: int32
+             * @description Poll: total votes (normal plus channel points). Prediction: number of users who picked it.
+             */
+            votes: number | string;
+            /**
+             * Format: int32
+             * @description Poll: votes cast with channel points. Prediction: points put on it.
+             */
+            channelPoints: number | string;
+            /**
+             * Format: int32
+             * @description This option's share of all votes, 0 to 100, rounded to a whole number.
+             */
+            sharePercent: number | string;
+            /** @description True for the winning choice or outcome. */
+            isWinner: boolean;
+        };
         PostOptInButtonRequest: {
             buttonChannelId: string;
         };
@@ -93213,6 +93274,13 @@ export interface components {
             framework: string;
             dependencies?: null | string[];
         };
+        Pronoun: {
+            /** Format: int32 */
+            id: number | string;
+            name: string;
+            subject: string;
+            object: string;
+        };
         /** @description Catalog entry as returned by the public catalog endpoint. */
         PronounCatalog: {
             /** Format: int32 */
@@ -93221,13 +93289,6 @@ export interface components {
             subject: string;
             object: string;
             key?: null | string;
-        };
-        Pronoun: {
-            /** Format: int32 */
-            id: number | string;
-            name: string;
-            subject: string;
-            object: string;
         };
         /** @description One protection check and its current state. */
         ProtectionCheck: {
@@ -93275,6 +93336,50 @@ export interface components {
              */
             apiKeySource?: null | string;
         };
+        PublicBadge: {
+            setId: string;
+            id: string;
+            info?: null | string;
+        };
+        /**
+         * @description One channel in the deployment's public directory (chat-client.md §9a "Reaching any channel"): only what
+         *     the channel shows every visitor on Twitch. No role, no settings, no tokens.
+         */
+        PublicChannel: {
+            id: string;
+            login: string;
+            displayName: string;
+            profileImageUrl?: null | string;
+            isLive: boolean;
+            provider: string;
+        };
+        PublicMessage: {
+            id: string;
+            message: string;
+            /** Format: date-time */
+            sentAt: string;
+        };
+        PublicProfile: {
+            twitchUserId: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            internalUserId: string;
+            username: string;
+            displayName: string;
+            profileImageUrl?: null | string;
+            color?: null | string;
+            pronouns?: null | string;
+            badges: components["schemas"]["PublicBadge"][];
+            /** Format: date-time */
+            accountCreatedAt?: null | string;
+            /** Format: date-time */
+            followedAt?: null | string;
+            subTier?: null | string;
+            emotes: components["schemas"]["ChatEmoteCatalogue"][];
+            recentMessages: components["schemas"]["PublicMessage"][];
+        };
         PublishContentRequest: {
             mode: string;
             publishNote?: null | string;
@@ -93315,7 +93420,11 @@ export interface components {
             roleLevel: number | string;
             idempotencyKey?: null | string;
         };
-        /** @description A queue item with its position. Cost is 0 for a free request. */
+        /**
+         * @description A queue item with its zero-based position and the number viewers see
+         *                 (QueueNumbering — the one `!queue` prints and `!wrongsong N` reads back).
+         *                 Cost is 0 for a free request.
+         */
         QueueItem: {
             /** Format: int32 */
             position: number | string;
@@ -93551,6 +93660,15 @@ export interface components {
         /** @description Body for the reinstate action — the justification lands in the audit row. */
         ReinstateTenantRequest: {
             justification: string;
+        };
+        /** @description How many queued songs a bulk removal took out. */
+        RemovedSongs: {
+            /** Format: int32 */
+            removedCount: number | string;
+        };
+        /** @description Request to remove every queued song of one requester (display name, case-insensitive). */
+        RemoveRequesterSongs: {
+            requestedBy: string;
         };
         /**
          * @description Everything the dashboard shell needs to render for the active channel, aggregated into one
@@ -93904,9 +94022,6 @@ export interface components {
             accessLevel?: null | number | string;
             aliases?: null | string[];
         };
-        SetRequestsOpen: {
-            open: boolean;
-        };
         Seek: {
             /** Format: int32 */
             positionMs: number | string;
@@ -94069,6 +94184,9 @@ export interface components {
             altPronounId?: null | number | string;
             /** @description When `true`, pin this choice and prevent automatic provider resolution from overwriting it. */
             manualOverride?: null | boolean;
+        };
+        SetRequestsOpen: {
+            open: boolean;
         };
         SetRoleBody: {
             /**
@@ -94836,19 +94954,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfBuiltinReplyDefault: {
-            status?: string;
-            data?: null | components["schemas"]["BuiltinReplyDefault"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
         StatusResponseOfBuiltinReply: {
             status?: string;
             data?: null | components["schemas"]["BuiltinReply"];
@@ -94862,9 +94967,35 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfBuiltinReplyDefault: {
+            status?: string;
+            data?: null | components["schemas"]["BuiltinReplyDefault"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfCatalogItem: {
             status?: string;
             data?: null | components["schemas"]["CatalogItem"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfChannel: {
+            status?: string;
+            data?: null | components["schemas"]["Channel"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -94953,19 +95084,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfChannel: {
-            status?: string;
-            data?: null | components["schemas"]["Channel"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
         StatusResponseOfChannelNamePronunciation: {
             status?: string;
             data?: null | components["schemas"]["ChannelNamePronunciation"];
@@ -95034,6 +95152,19 @@ export interface components {
         StatusResponseOfChatFilterTestResult: {
             status?: string;
             data?: null | components["schemas"]["ChatFilterTestResult"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfChatIdentity: {
+            status?: string;
+            data?: null | components["schemas"]["ChatIdentity"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -95122,9 +95253,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfCodePoolDetail: {
+        StatusResponseOfCodePool: {
             status?: string;
-            data?: null | components["schemas"]["CodePoolDetail"];
+            data?: null | components["schemas"]["CodePool"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -95135,9 +95266,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfCodePool: {
+        StatusResponseOfCodePoolDetail: {
             status?: string;
-            data?: null | components["schemas"]["CodePool"];
+            data?: null | components["schemas"]["CodePoolDetail"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -95540,9 +95671,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfEventResponseDefault: {
+        StatusResponseOfEventResponse: {
             status?: string;
-            data?: null | components["schemas"]["EventResponseDefault"];
+            data?: null | components["schemas"]["EventResponse"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -95553,9 +95684,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfEventResponse: {
+        StatusResponseOfEventResponseDefault: {
             status?: string;
-            data?: null | components["schemas"]["EventResponse"];
+            data?: null | components["schemas"]["EventResponseDefault"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -95605,9 +95736,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfFeatureFlagBlastRadius: {
+        StatusResponseOfFeatureFlag: {
             status?: string;
-            data?: null | components["schemas"]["FeatureFlagBlastRadius"];
+            data?: null | components["schemas"]["FeatureFlag"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -95618,9 +95749,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfFeatureFlag: {
+        StatusResponseOfFeatureFlagBlastRadius: {
             status?: string;
-            data?: null | components["schemas"]["FeatureFlag"];
+            data?: null | components["schemas"]["FeatureFlagBlastRadius"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -96154,80 +96285,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        PublicBadge: {
-            setId: string;
-            id: string;
-            info: null | string;
-        };
-        PublicMessage: {
-            id: string;
-            message: string;
-            /** Format: date-time */
-            sentAt: string;
-        };
-        PublicProfile: {
-            twitchUserId: string;
-            /** Format: uuid */
-            internalUserId: string;
-            username: string;
-            displayName: string;
-            profileImageUrl: null | string;
-            color: null | string;
-            pronouns: null | string;
-            badges: components["schemas"]["PublicBadge"][];
-            /** Format: date-time */
-            accountCreatedAt: null | string;
-            /** Format: date-time */
-            followedAt: null | string;
-            subTier: null | string;
-            emotes: components["schemas"]["ChatEmoteCatalogue"][];
-            recentMessages: components["schemas"]["PublicMessage"][];
-        };
-        StatusResponseOfPublicProfile: {
-            status?: string;
-            data?: null | components["schemas"]["PublicProfile"];
-            message?: null | string;
-        };
         StatusResponseOfIReadOnlyListOfChatEmoteCatalogue: {
             status?: string;
             data?: null | components["schemas"]["ChatEmoteCatalogue"][];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        PollPredictionOption: {
-            id: string;
-            title: string;
-            /** Format: int32 */
-            votes: number | string;
-            /** Format: int32 */
-            channelPoints: number | string;
-            /** Format: int32 */
-            sharePercent: number | string;
-            isWinner: boolean;
-        };
-        PollPredictionHistoryItem: {
-            id: string;
-            kind: string;
-            title: string;
-            status: string;
-            /** Format: date-time */
-            startedAt: string;
-            /** Format: date-time */
-            endedAt?: null | string;
-            /** Format: int32 */
-            totalVotes: number | string;
-            options: components["schemas"]["PollPredictionOption"][];
-        };
-        StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem: {
-            status?: string;
-            data?: null | components["schemas"]["PollPredictionHistoryItem"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -96797,9 +96857,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfIReadOnlyListOfObsSceneCollection: {
+        StatusResponseOfIReadOnlyListOfObsScene: {
             status?: string;
-            data?: null | components["schemas"]["ObsSceneCollection"][];
+            data?: null | components["schemas"]["ObsScene"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -96810,9 +96870,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfIReadOnlyListOfObsScene: {
+        StatusResponseOfIReadOnlyListOfObsSceneCollection: {
             status?: string;
-            data?: null | components["schemas"]["ObsScene"][];
+            data?: null | components["schemas"]["ObsSceneCollection"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -96878,6 +96938,19 @@ export interface components {
         StatusResponseOfIReadOnlyListOfPlatformTemplateUpdate: {
             status?: string;
             data?: null | components["schemas"]["PlatformTemplateUpdate"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem: {
+            status?: string;
+            data?: null | components["schemas"]["PollPredictionHistoryItem"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -98228,6 +98301,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfPipeline: {
+            status?: string;
+            data?: null | components["schemas"]["Pipeline"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfPipelineBlastRadius: {
             status?: string;
             data?: null | components["schemas"]["PipelineBlastRadius"];
@@ -98244,19 +98330,6 @@ export interface components {
         StatusResponseOfPipelineCatalogue: {
             status?: string;
             data?: null | components["schemas"]["PipelineCatalogue"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        StatusResponseOfPipeline: {
-            status?: string;
-            data?: null | components["schemas"]["Pipeline"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -98358,9 +98431,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfPlatformContentDefinitionDetail: {
+        StatusResponseOfPlatformContentDefinition: {
             status?: string;
-            data?: null | components["schemas"]["PlatformContentDefinitionDetail"];
+            data?: null | components["schemas"]["PlatformContentDefinition"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -98371,9 +98444,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfPlatformContentDefinition: {
+        StatusResponseOfPlatformContentDefinitionDetail: {
             status?: string;
-            data?: null | components["schemas"]["PlatformContentDefinition"];
+            data?: null | components["schemas"]["PlatformContentDefinitionDetail"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -98501,6 +98574,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfPublicProfile: {
+            status?: string;
+            data?: null | components["schemas"]["PublicProfile"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfPublishPreview: {
             status?: string;
             data?: null | components["schemas"]["PublishPreview"];
@@ -98556,6 +98642,19 @@ export interface components {
         StatusResponseOfRedeemInviteCodeResult: {
             status?: string;
             data?: null | components["schemas"]["RedeemInviteCodeResult"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfRemovedSongs: {
+            status?: string;
+            data?: null | components["schemas"]["RemovedSongs"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -98816,6 +98915,19 @@ export interface components {
         StatusResponseOfStreamInfo: {
             status?: string;
             data?: null | components["schemas"]["StreamInfo"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfStreamRecap: {
+            status?: string;
+            data?: null | components["schemas"]["StreamRecap"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -99255,9 +99367,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfUserDetail: {
+        StatusResponseOfUser: {
             status?: string;
-            data?: null | components["schemas"]["UserDetail"];
+            data?: null | components["schemas"]["User"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -99268,9 +99380,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfUser: {
+        StatusResponseOfUserDetail: {
             status?: string;
-            data?: null | components["schemas"]["User"];
+            data?: null | components["schemas"]["UserDetail"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -99659,6 +99771,108 @@ export interface components {
             uniqueChatters: number | string;
             /** Format: int32 */
             newFollowers: number | string;
+        };
+        /**
+         * @description What happened in one stream, counted from recorded data inside the stream window (`StartedAt` to
+         *     `EndedAt`, or now while live). Returned by GET /api/v1/dashboard/{channelId}/stream-recap. A stat the bot
+         *     does not record (average viewers, new chatters, commands run) is not part of this contract.
+         */
+        StreamRecap: {
+            stream: components["schemas"]["StreamRecapStream"];
+            /**
+             * Format: int32
+             * @description New followers inside the window.
+             */
+            followers?: number | string;
+            subs: components["schemas"]["StreamRecapSubs"];
+            /** @description Gifters inside the window, most gifts first. Anonymous gifters merge into one "Anonymous" entry. */
+            giftSubs: components["schemas"]["StreamRecapGifter"][];
+            bits: components["schemas"]["StreamRecapBits"];
+            raidsIn: components["schemas"]["StreamRecapRaid"][];
+            redemptions: components["schemas"]["StreamRecapRedemptions"];
+            /** @description Song requests accepted inside the window. */
+            songs: components["schemas"]["StreamRecapSongs"];
+            chat: components["schemas"]["StreamRecapChat"];
+        };
+        StreamRecapBits: {
+            /** Format: int32 */
+            total?: number | string;
+            top: components["schemas"]["StreamRecapCheerer"][];
+        };
+        StreamRecapChat: {
+            /** Format: int32 */
+            messages?: number | string;
+            /** Format: int32 */
+            uniqueChatters?: number | string;
+        };
+        StreamRecapCheerer: {
+            name: string;
+            /** Format: int32 */
+            bits?: number | string;
+        };
+        StreamRecapGifter: {
+            name: string;
+            /** Format: int32 */
+            count?: number | string;
+        };
+        StreamRecapRaid: {
+            name: string;
+            /** Format: int32 */
+            viewers?: number | string;
+        };
+        StreamRecapRedemptions: {
+            /** Format: int32 */
+            count?: number | string;
+            top: components["schemas"]["StreamRecapRedemptionTitle"][];
+        };
+        StreamRecapRedemptionTitle: {
+            title: string;
+            /** Format: int32 */
+            count?: number | string;
+        };
+        StreamRecapSong: {
+            track: string;
+            artist?: null | string;
+        };
+        StreamRecapSongs: {
+            /** Format: int32 */
+            count?: number | string;
+            recent: components["schemas"]["StreamRecapSong"][];
+        };
+        StreamRecapStream: {
+            id: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /**
+             * Format: date-time
+             * @description Null while the stream is still live.
+             */
+            endedAt?: null | string;
+            /** Format: int64 */
+            durationSeconds?: number | string;
+            /**
+             * Format: int32
+             * @description Null when no viewer-count sample ever landed.
+             */
+            peakViewers?: null | number | string;
+            title?: null | string;
+            game?: null | string;
+        };
+        StreamRecapSubs: {
+            /**
+             * Format: int32
+             * @description First-time subscriptions that were not gifts.
+             */
+            new?: number | string;
+            /** Format: int32 */
+            resub?: number | string;
+            /**
+             * Format: int32
+             * @description Subscriptions given away (the sum of each gift event's count).
+             */
+            gift?: number | string;
+            /** Format: int32 */
+            total?: number | string;
         };
         StreamStatus: {
             isLive: boolean;
@@ -100128,19 +100342,6 @@ export interface components {
                 [key: string]: string;
             };
         };
-        /**
-         * @description The counted blast radius of editing a tier that already has tenants on it (platform-admin.md's
-         *     counted-preview shape, mirrored from platform content publish). int TierChangePreviewDto.AffectedTenantCount is the
-         *     real, live count of tenants with an active/trialing subscription on the tier RIGHT NOW — never estimated.
-         *     A save must echo this count back as `ConfirmedAffectedTenantCount`; a save whose confirmed count no
-         *     longer matches a freshly recomputed one fails closed (`PREVIEW_STALE`), the same rule platform-content
-         *     publish already enforces.
-         */
-        TierChangePreview: {
-            /** Format: int32 */
-            affectedTenantCount: number | string;
-            sampleChannelNames: string[];
-        };
         /** @description A public billing plan with its limits. */
         Tier: {
             /**
@@ -100160,6 +100361,19 @@ export interface components {
             limits: components["schemas"]["TierLimit"][];
             /** @default true */
             isPublic: boolean;
+        };
+        /**
+         * @description The counted blast radius of editing a tier that already has tenants on it (platform-admin.md's
+         *     counted-preview shape, mirrored from platform content publish). int TierChangePreviewDto.AffectedTenantCount is the
+         *     real, live count of tenants with an active/trialing subscription on the tier RIGHT NOW — never estimated.
+         *     A save must echo this count back as `ConfirmedAffectedTenantCount`; a save whose confirmed count no
+         *     longer matches a freshly recomputed one fails closed (`PREVIEW_STALE`), the same rule platform-content
+         *     publish already enforces.
+         */
+        TierChangePreview: {
+            /** Format: int32 */
+            affectedTenantCount: number | string;
+            sampleChannelNames: string[];
         };
         /** @description One quota lever for a tier (`-1` = unlimited). */
         TierLimit: {
@@ -100263,6 +100477,11 @@ export interface components {
         };
         /** @description The metric a top-viewers query ranks by (analytics.md §4). */
         TopViewerMetric: number;
+        Transfer: {
+            deviceId: string;
+            /** @default false */
+            play: boolean;
+        };
         /** @description A point-to-point transfer between two viewers in the same channel (economy.md §4). long TransferCommand.Amount &gt; 0. */
         TransferCommand: {
             /**
@@ -100283,11 +100502,6 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             actorUserId?: null | string;
-        };
-        Transfer: {
-            deviceId: string;
-            /** @default false */
-            play: boolean;
         };
         /**
          * @description A channel's trust tuning as the dashboard sees it (S-OWN23). Carries VALUES only — every label and
@@ -100504,6 +100718,22 @@ export interface components {
             durationMs: number | string;
             audioBase64: string;
         };
+        /** @description An available TTS voice, with the catalogue metadata that powers search/filter and preview-before-pick. */
+        TtsVoice: {
+            id: string;
+            name: string;
+            displayName: string;
+            locale: string;
+            gender: string;
+            provider: string;
+            isDefault: boolean;
+            accent?: null | string;
+            age?: null | string;
+            styles: string[];
+            tags: string[];
+            description?: null | string;
+            previewUrl?: null | string;
+        };
         /** @description One row of a bulk per-viewer voice-assignment import: the Twitch user id and the catalogue voice they get. */
         TtsVoiceAssignmentRow: {
             twitchUserId: string;
@@ -100526,10 +100756,6 @@ export interface components {
             gender: string;
             isDefault: boolean;
         };
-        /** @description A proposed platform default voice — the preview body. */
-        TtsVoiceDefaultChange: {
-            voiceId: string;
-        };
         /**
          * @description The platform default TTS voice as the admin editor shows it: the catalogue voice every channel without its
          *     own pick speaks with, how many channels follow it and how many picked their own.
@@ -100544,21 +100770,9 @@ export interface components {
             /** Format: int32 */
             channelsWithOwnVoice: number | string;
         };
-        /** @description An available TTS voice, with the catalogue metadata that powers search/filter and preview-before-pick. */
-        TtsVoice: {
-            id: string;
-            name: string;
-            displayName: string;
-            locale: string;
-            gender: string;
-            provider: string;
-            isDefault: boolean;
-            accent?: null | string;
-            age?: null | string;
-            styles: string[];
-            tags: string[];
-            description?: null | string;
-            previewUrl?: null | string;
+        /** @description A proposed platform default voice — the preview body. */
+        TtsVoiceDefaultChange: {
+            voiceId: string;
         };
         /** @description The bulk-import outcome: how many assignments were upserted and every row that was skipped, with its reason. */
         TtsVoiceImportResult: {
@@ -100882,6 +101096,7 @@ export interface components {
             /** @description The streamer's IANA timezone (e.g. `Europe/Amsterdam`). Null leaves it unchanged. */
             timezone?: null | string;
         };
+        /** @description The new chat color: a Twitch color name (blue, hot_pink, ...) or a hex value like #9146FF. */
         UpdateChatColor: {
             color: string;
         };
@@ -101060,7 +101275,8 @@ export interface components {
             allowExplicit?: null | boolean;
             /**
              * Format: int32
-             * @description The most songs one viewer may request in one stream, counting songs that already played. 0 turns the cap off (null leaves the current value alone); a value of 1 to 100 turns it on.
+             * @description The most songs one viewer may request in one stream, counting songs that already played. 0 turns the
+             *     cap off (null leaves the current value alone); a value of 1 to 100 turns it on.
              */
             perStreamLimit?: null | number | string;
             allowYouTube?: null | boolean;
@@ -101595,6 +101811,18 @@ export interface components {
             /** Format: date-time */
             periodEnd: string;
         };
+        /** @description Full user information. */
+        User: {
+            id: string;
+            username: string;
+            displayName: string;
+            profileImageUrl?: null | string;
+            email?: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastLoginAt: string;
+        };
         /** @description Channel appearance record for GDPR user data view. */
         UserChannelAppearance: {
             id: string;
@@ -101631,18 +101859,6 @@ export interface components {
             banHistory: components["schemas"]["BanRecord"][];
             isVip?: null | boolean;
             isModerator?: null | boolean;
-        };
-        /** @description Full user information. */
-        User: {
-            id: string;
-            username: string;
-            displayName: string;
-            profileImageUrl?: null | string;
-            email?: null | string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            lastLoginAt: string;
         };
         /**
          * @description One external identity linked to the caller's account (platform-identity §4). Never carries tokens — those
@@ -101971,6 +102187,12 @@ export interface components {
             /** Format: int32 */
             totalQuoteCount: number | string;
         };
+        /** @description The caller's own songs in one channel's queue, plus the full queue length for context. */
+        ViewerQueue: {
+            /** Format: int32 */
+            queueLength: number | string;
+            songs: components["schemas"]["ViewerQueuedSong"][];
+        };
         /** @description One of the caller's own songs in the queue. `Position` is 1-based: 1 plays next. */
         ViewerQueuedSong: {
             /** Format: int32 */
@@ -101981,12 +102203,6 @@ export interface components {
             /** Format: int32 */
             durationMs: number | string;
             code: string;
-        };
-        /** @description The caller's own songs in one channel's queue, plus the full queue length for context. */
-        ViewerQueue: {
-            /** Format: int32 */
-            queueLength: number | string;
-            songs: components["schemas"]["ViewerQueuedSong"][];
         };
         /**
          * @description Completed raids between this person's channel and this channel, counted from the journaled EventSub
@@ -102384,120 +102600,6 @@ export interface components {
             compiledAt?: null | string;
             /** Format: date-time */
             createdAt: string;
-        };
-        StreamRecap: {
-            stream: components["schemas"]["StreamRecapStream"];
-            /** Format: int32 */
-            followers?: number;
-            subs: components["schemas"]["StreamRecapSubs"];
-            giftSubs: components["schemas"]["StreamRecapGifter"][];
-            bits: components["schemas"]["StreamRecapBits"];
-            raidsIn: components["schemas"]["StreamRecapRaid"][];
-            redemptions: components["schemas"]["StreamRecapRedemptions"];
-            songs: components["schemas"]["StreamRecapSongs"];
-            chat: components["schemas"]["StreamRecapChat"];
-        };
-        StreamRecapStream: {
-            id: string;
-            /** Format: date-time */
-            startedAt?: string;
-            /** Format: date-time */
-            endedAt?: null | string;
-            /** Format: int64 */
-            durationSeconds?: number;
-            /** Format: int32 */
-            peakViewers?: null | number;
-            title?: null | string;
-            game?: null | string;
-        };
-        StreamRecapSubs: {
-            /** Format: int32 */
-            new?: number;
-            /** Format: int32 */
-            resub?: number;
-            /** Format: int32 */
-            gift?: number;
-            /** Format: int32 */
-            total?: number;
-        };
-        StreamRecapGifter: {
-            name: string;
-            /** Format: int32 */
-            count?: number;
-        };
-        StreamRecapBits: {
-            /** Format: int32 */
-            total?: number;
-            top: components["schemas"]["StreamRecapCheerer"][];
-        };
-        StreamRecapCheerer: {
-            name: string;
-            /** Format: int32 */
-            bits?: number;
-        };
-        StreamRecapRaid: {
-            name: string;
-            /** Format: int32 */
-            viewers?: number;
-        };
-        StreamRecapRedemptions: {
-            /** Format: int32 */
-            count?: number;
-            top: components["schemas"]["StreamRecapRedemptionTitle"][];
-        };
-        StreamRecapRedemptionTitle: {
-            title: string;
-            /** Format: int32 */
-            count?: number;
-        };
-        StreamRecapSongs: {
-            /** Format: int32 */
-            count?: number;
-            recent: components["schemas"]["StreamRecapSong"][];
-        };
-        StreamRecapSong: {
-            track: string;
-            artist?: null | string;
-        };
-        StreamRecapChat: {
-            /** Format: int32 */
-            messages?: number;
-            /** Format: int32 */
-            uniqueChatters?: number;
-        };
-        StatusResponseOfStreamRecap: {
-            status?: string;
-            data?: null | components["schemas"]["StreamRecap"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        /**
-         * @description One channel in the deployment's public directory (chat-client.md §9a "Reaching any channel"): only what
-         *     the channel shows every visitor on Twitch. No role, no settings, no tokens.
-         */
-        PublicChannel: {
-            id: string;
-            login: string;
-            displayName: string;
-            profileImageUrl?: null | string;
-            isLive: boolean;
-            provider: string;
-        };
-        PaginatedResponseOfPublicChannel: {
-            data?: components["schemas"]["PublicChannel"][];
-            /** Format: int32 */
-            nextPage?: null | number | string;
-            hasMore?: boolean;
-            nextCursor?: null | string;
-            /** Format: int32 */
-            total?: null | number | string;
         };
     };
     responses: never;

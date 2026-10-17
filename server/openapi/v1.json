@@ -10,222 +10,6 @@
     }
   ],
   "paths": {
-    "/api/v{version}/channels/{channelId}/chat-identity": {
-      "get": {
-        "tags": [
-          "Chat"
-        ],
-        "summary": "The owner's chat color, the named colors, and the badges on their latest chat line.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfChatIdentity"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/chat-identity/color": {
-      "put": {
-        "tags": [
-          "Chat"
-        ],
-        "summary": "Set the owner's chat color: a named color, or a hex value for Turbo and Prime users.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateChatColor"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateChatColor"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateChatColor"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfChatIdentity"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/oauth-relay": {
       "get": {
         "tags": [
@@ -10202,7 +9986,7 @@
             }
           },
           {
-            "name": "mode",
+            "name": "role",
             "in": "query",
             "schema": {
               "type": "string"
@@ -22981,387 +22765,6 @@
         }
       }
     },
-    "/api/v{version}/channels/{channelId}/chat/viewer/messages": {
-      "get": {
-        "tags": [
-          "Chat"
-        ],
-        "summary": "The channel's newest chat lines (deleted lines left out), oldest first.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 50
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfListOfDashboardChatMessage"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Chat"
-        ],
-        "summary": "Send one chat message as yourself, on your own Twitch account, optionally as a reply.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ViewerChatSendRequest"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ViewerChatSendRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ViewerChatSendRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfboolean"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/chat/viewer/users/{userId}/profile": {
-      "get": {
-        "tags": [
-          "Chat"
-        ],
-        "summary": "One person's public profile in this channel: what any viewer of the channel can see.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfPublicProfile"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/chat/viewer/emotes": {
-      "get": {
-        "tags": [
-          "Chat"
-        ],
-        "summary": "The emotes you can use in this channel: Twitch global + channel, your own, and BTTV/FFZ/7TV.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfIReadOnlyListOfChatEmoteCatalogue"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v{version}/channels/{channelId}/chat/messages/{messageId}": {
       "delete": {
         "tags": [
@@ -24631,6 +24034,222 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseOfChatFilterTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/chat-identity": {
+      "get": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "The owner's chat color, the named colors, and the badges on their latest chat line.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfChatIdentity"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/chat-identity/color": {
+      "put": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Set the owner's chat color: a named color, or a hex value for Turbo and Prime users.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatColor"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatColor"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatColor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfChatIdentity"
                 }
               }
             }
@@ -48179,104 +47798,6 @@
         }
       }
     },
-    "/api/v{version}/channels/{channelId}/live-ops/history": {
-      "get": {
-        "tags": [
-          "LiveOps"
-        ],
-        "summary": "The channel's polls and predictions from the event journal, newest first.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v{version}/channels/{channelId}/live-ops/polls": {
       "get": {
         "tags": [
@@ -61960,12 +61481,6 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/json": { }
-            }
           }
         }
       }
@@ -62069,6 +61584,124 @@
             "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/queue/remove-by-requester": {
+      "post": {
+        "tags": [
+          "Music"
+        ],
+        "summary": "Remove every queued song of one requester in a single action (the playing track is untouched).\r\nReturns how many were removed; the queue-changed push reaches every view.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveRequesterSongs"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveRequesterSongs"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveRequesterSongs"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfRemovedSongs"
+                }
+              }
             }
           }
         }
@@ -62297,124 +61930,6 @@
             "description": "No Content",
             "content": {
               "application/json": { }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/music/queue/remove-by-requester": {
-      "post": {
-        "tags": [
-          "Music"
-        ],
-        "summary": "Remove every queued song of one requester in a single action (the playing track is untouched).\r\nReturns how many were removed; the queue-changed push reaches every view.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RemoveRequesterSongs"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RemoveRequesterSongs"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/RemoveRequesterSongs"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfRemovedSongs"
-                }
-              }
             }
           }
         }
@@ -66668,6 +66183,126 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/obs/scene-items/visibility": {
+      "post": {
+        "tags": [
+          "OBS"
+        ],
+        "summary": "Per-source visibility — hide/show one item within one scene, without touching the\r\n    underlying input's mute state or its placement in any other scene.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObsSourceVisibilityRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObsSourceVisibilityRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObsSourceVisibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/obs/scene-items/enabled": {
       "post": {
         "tags": [
@@ -66829,126 +66464,6 @@
             "application/*+json": {
               "schema": {
                 "$ref": "#/components/schemas/ObsSceneItemLockedRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/obs/scene-items/visibility": {
-      "post": {
-        "tags": [
-          "OBS"
-        ],
-        "summary": "Per-source visibility — hide/show one item within one scene, without touching the\r\n    underlying input's mute state or its placement in any other scene.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-              "format": "ulid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ObsSourceVisibilityRequest"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ObsSourceVisibilityRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ObsSourceVisibilityRequest"
               }
             }
           },
@@ -78344,6 +77859,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseOfInstalledPlatformTemplate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/history": {
+      "get": {
+        "tags": [
+          "LiveOps"
+        ],
+        "summary": "The channel's polls and predictions from the event journal, newest first.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem"
                 }
               }
             }
@@ -94633,6 +94246,331 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/chat/viewer/messages": {
+      "get": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "The channel's newest chat lines (deleted lines left out), oldest first.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 50
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfListOfDashboardChatMessage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Send one chat message as yourself, on your own Twitch account, optionally as a reply.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewerChatSendRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewerChatSendRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewerChatSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfboolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/chat/viewer/emotes": {
+      "get": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "The emotes you can use in this channel: Twitch global + channel, your own, and BTTV/FFZ/7TV.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfIReadOnlyListOfChatEmoteCatalogue"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/viewers/{viewerId}/data": {
       "get": {
         "tags": [
@@ -94954,6 +94892,112 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseOfboolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/chat/viewer/users/{userId}/profile": {
+      "get": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "One person's public profile in this channel: what any viewer of the channel can see.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfPublicProfile"
                 }
               }
             }
@@ -102739,6 +102783,52 @@
           }
         }
       },
+      "AdminTenant": {
+        "required": [
+          "id",
+          "name",
+          "twitchChannelId",
+          "status",
+          "billingTierKey",
+          "isLive",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "twitchChannelId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "billingTierKey": {
+            "type": "string"
+          },
+          "isLive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suspendedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "One tenant row for the operator console (stream-admin.md §4 Platform admin)."
+      },
       "AdminTenantDetail": {
         "required": [
           "id",
@@ -102809,52 +102899,6 @@
           }
         },
         "description": "Tenant detail for the operator console — status, tier, owner, counts (stream-admin.md §4)."
-      },
-      "AdminTenant": {
-        "required": [
-          "id",
-          "name",
-          "twitchChannelId",
-          "status",
-          "billingTierKey",
-          "isLive",
-          "createdAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-            "format": "ulid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "twitchChannelId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "billingTierKey": {
-            "type": "string"
-          },
-          "isLive": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "suspendedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        },
-        "description": "One tenant row for the operator console (stream-admin.md §4 Platform admin)."
       },
       "AdminTenantErrorBudget": {
         "required": [
@@ -102928,27 +102972,6 @@
           }
         },
         "description": "One tenant's error budget for the trailing 24-hour window, computed purely from real\r\n`OutboundWebhookDelivery` outcomes (`Delivered` = success, `Failed`/`DeadLetter` = error;\r\n`Pending` attempts are excluded — they have not resolved yet). There is no platform-wide blended figure:\r\none tenant's failures never count toward another's, because the entire point of a 2am tool is finding WHICH\r\ntenant's integration is actually broken. A tenant with no resolved delivery attempts in the window is simply\r\nabsent from the page — never padded with a fabricated 0%. double? AdminTenantErrorBudgetDto.ErrorRate and\r\ndouble? AdminTenantErrorBudgetDto.BudgetRemainingFraction are `null` when long AdminTenantErrorBudgetDto.Attempts is 0.\r\ndouble AdminTenantErrorBudgetDto.TargetSuccessRate is a stated policy threshold (99%), not a measured quantity — the allowed\r\nerror rate it implies is the denominator double? AdminTenantErrorBudgetDto.BudgetRemainingFraction is computed against."
-      },
-      "AdminTenantUsageCost": {
-        "required": [
-          "currency",
-          "minorUnits"
-        ],
-        "type": "object",
-        "properties": {
-          "currency": {
-            "type": "string"
-          },
-          "minorUnits": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          }
-        },
-        "description": "One currency's worth of a tenant's total priced usage cost for the period."
       },
       "AdminTenantUsage": {
         "required": [
@@ -103026,6 +103049,27 @@
           }
         },
         "description": "            One tenant's usage for its most recent metering period, computed purely from recorded rows\r\n            (`UsageRecord` + `TtsUsageRecord`) — never a placeholder figure. DateTime AdminTenantUsageDto.PeriodStart/\r\n            DateTime AdminTenantUsageDto.PeriodEnd state exactly which window the figures cover.\r\n            Cost (S-ADMIN-4d) is reported ONLY for units the owner has actually priced via the PricedUnit\r\ncatalogue: each priced metric in IReadOnlyList&lt;AdminTenantUsageMetricDto&gt; AdminTenantUsageDto.Metrics carries its own cost, long? AdminTenantUsageDto.TtsCostMinorUnits\r\nis the TTS character cost (or null if unpriced), IReadOnlyList&lt;AdminTenantUsageCostDto&gt;? AdminTenantUsageDto.TotalCostsByCurrency sums every\r\npriced figure grouped by currency, and IReadOnlyList&lt;string&gt;? AdminTenantUsageDto.UnpricedUnitKeys names every unit this tenant\r\nactually used that has no price yet — so an unpriced unit is never silently read as costing nothing."
+      },
+      "AdminTenantUsageCost": {
+        "required": [
+          "currency",
+          "minorUnits"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "minorUnits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One currency's worth of a tenant's total priced usage cost for the period."
       },
       "AdminTenantUsageMetric": {
         "required": [
@@ -104306,6 +104350,35 @@
         },
         "description": "A Stripe billing-portal redirect."
       },
+      "BlastRadius": {
+        "required": [
+          "categories",
+          "isMinimum"
+        ],
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlastRadiusCategory"
+            },
+            "description": "Only the categories with a non-zero count; an empty list means a genuine zero."
+          },
+          "isMinimum": {
+            "type": "boolean",
+            "description": "True when the count is a verified FLOOR rather than an exhaustive total — set when some references can\r\nonly be resolved at run time (a pipeline field whose value is a template placeholder, or a user code\r\nscript that resolves the resource through the SDK). The dashboard must then say the number is a MINIMUM\r\nrather than implying completeness."
+          },
+          "totalReferences": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The real, counted set of things that reference a resource right now — surfaced in the delete confirmation\r\nBEFORE the save (S-CONSEQ). int BlastRadiusDto.TotalReferences is zero exactly when nothing references the\r\nresource; the dashboard renders that as an explicit \"nothing else references this\" statement, never as an\r\nempty area. A lookup that FAILED is a `Result` failure and never reaches this type — reporting zero\r\nfor a failed check would cause exactly the loss the preview exists to prevent."
+      },
       "BlastRadiusCategory": {
         "required": [
           "categoryKey",
@@ -104336,35 +104409,6 @@
           }
         },
         "description": "One counted category of a destructive action's blast radius. CategoryKey is an i18n\r\nresource KEY, never a sentence — the language lives in the dashboard's string resources\r\n(`strings.xml`), so the backend never ships English."
-      },
-      "BlastRadius": {
-        "required": [
-          "categories",
-          "isMinimum"
-        ],
-        "type": "object",
-        "properties": {
-          "categories": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BlastRadiusCategory"
-            },
-            "description": "Only the categories with a non-zero count; an empty list means a genuine zero."
-          },
-          "isMinimum": {
-            "type": "boolean",
-            "description": "True when the count is a verified FLOOR rather than an exhaustive total — set when some references can\r\nonly be resolved at run time (a pipeline field whose value is a template placeholder, or a user code\r\nscript that resolves the resource through the SDK). The dashboard must then say the number is a MINIMUM\r\nrather than implying completeness."
-          },
-          "totalReferences": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "The real, counted set of things that reference a resource right now — surfaced in the delete confirmation\r\nBEFORE the save (S-CONSEQ). int BlastRadiusDto.TotalReferences is zero exactly when nothing references the\r\nresource; the dashboard renders that as an explicit \"nothing else references this\" statement, never as an\r\nempty area. A lookup that FAILED is a `Result` failure and never reaches this type — reporting zero\r\nfor a failed check would cause exactly the loss the preview exists to prevent."
       },
       "BlockedTrack": {
         "required": [
@@ -104583,55 +104627,6 @@
         },
         "description": "A built-in command as one channel sees it."
       },
-      "BuiltinReplyDefaultChange": {
-        "type": "object",
-        "properties": {
-          "template": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "A proposed reply text (null = back to the shipped wording) — the preview body."
-      },
-      "BuiltinReplyDefault": {
-        "required": [
-          "builtinKey",
-          "slot",
-          "channelsWithOwnReply"
-        ],
-        "type": "object",
-        "properties": {
-          "builtinKey": {
-            "type": "string"
-          },
-          "slot": {
-            "type": "string"
-          },
-          "shippedTemplate": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "platformTemplate": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "channelsWithOwnReply": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "One built-in response slot as the admin editor shows it. ShippedTemplate is the wording a\r\nchannel on the default tone gets out of the box (null = the built-in's own fallback);\r\nPlatformTemplate is the admin's replacement (null = none), which wins over every tone.\r\nChannelsWithOwnReply is how many channels have their own text for this exact slot (every slot\r\ntakes a channel's own text since commands-pipelines.md §11) — those channels keep it when the platform changes."
-      },
       "BuiltinReply": {
         "required": [
           "builtinKey",
@@ -104689,6 +104684,55 @@
           }
         },
         "description": "One reply slot as the channel sees it right now. EffectiveTemplate is what the bot sends\r\n(one pick among ToneVariations when Source is `tone`);\r\nDefaultTemplate is what it sends once the channel's own text is reset."
+      },
+      "BuiltinReplyDefault": {
+        "required": [
+          "builtinKey",
+          "slot",
+          "channelsWithOwnReply"
+        ],
+        "type": "object",
+        "properties": {
+          "builtinKey": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string"
+          },
+          "shippedTemplate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platformTemplate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "channelsWithOwnReply": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One built-in response slot as the admin editor shows it. ShippedTemplate is the wording a\r\nchannel on the default tone gets out of the box (null = the built-in's own fallback);\r\nPlatformTemplate is the admin's replacement (null = none), which wins over every tone.\r\nChannelsWithOwnReply is how many channels have their own text for this exact slot (every slot\r\ntakes a channel's own text since commands-pipelines.md §11) — those channels keep it when the platform changes."
+      },
+      "BuiltinReplyDefaultChange": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A proposed reply text (null = back to the shipped wording) — the preview body."
       },
       "BuiltinReplyGroup": {
         "required": [
@@ -105030,6 +105074,83 @@
           }
         },
         "description": "Change the active tier (upgrade/downgrade)."
+      },
+      "Channel": {
+        "required": [
+          "id",
+          "name",
+          "displayName",
+          "isLive",
+          "isOnboarded",
+          "subscriptionTier",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isLive": {
+            "type": "boolean"
+          },
+          "isOnboarded": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gameName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "viewerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "botJoinedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "subscriptionTier": {
+            "type": "string"
+          },
+          "language": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Full channel detail for dashboard views."
       },
       "ChannelAnalyticsDaily": {
         "required": [
@@ -105590,83 +105711,6 @@
         },
         "description": "            Everything the delete-channel confirmation must state BEFORE the button can be pressed — the largest blast\r\n            radius in the product.\r\n            Channel delete is a SOFT delete with a restore window: the tenant's rows stay on disk and every query\r\nfilter hides them, and only after DateTime ChannelDeletePreviewDto.PermanentAfterUtc does the data become unrecoverable. The\r\ndialog states both the window and the date, because a button that looks irreversible and is not is as\r\ndishonest as one that looks reversible and is not."
       },
-      "Channel": {
-        "required": [
-          "id",
-          "name",
-          "displayName",
-          "isLive",
-          "isOnboarded",
-          "subscriptionTier",
-          "createdAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "profileImageUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "isLive": {
-            "type": "boolean"
-          },
-          "isOnboarded": {
-            "type": "boolean"
-          },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "gameName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "viewerCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "botJoinedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "subscriptionTier": {
-            "type": "string"
-          },
-          "language": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "Full channel detail for dashboard views."
-      },
       "ChannelFederationOptIn": {
         "required": [
           "id",
@@ -106021,6 +106065,95 @@
         },
         "description": "Cheermote fragment data — the raw prefix/bits/tier plus the resolved tier image (chat-decoration spec §3.4):\r\nscale-keyed `Urls`, whether animated, and the tier `ColorHex`. The image fields are null/empty until the\r\nchannel's cheermotes are warmed in cache."
       },
+      "ChatEmote": {
+        "required": [
+          "id",
+          "format",
+          "provider",
+          "urls",
+          "animated",
+          "zeroWidth"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "setId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "format": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "urls": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "animated": {
+            "type": "boolean"
+          },
+          "zeroWidth": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string",
+            "default": ""
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tier": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatEmoteOwner"
+              }
+            ]
+          },
+          "artist": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatEmoteOwner"
+              }
+            ]
+          },
+          "staticUrls": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network.\r\n`StaticUrls` holds the still image per scale for reduced motion; a non-animated emote repeats `Urls`."
+      },
       "ChatEmoteCatalogue": {
         "required": [
           "code",
@@ -106117,95 +106250,6 @@
           }
         }
       },
-      "ChatEmote": {
-        "required": [
-          "id",
-          "format",
-          "provider",
-          "urls",
-          "animated",
-          "zeroWidth"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "setId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "format": {
-            "type": "string"
-          },
-          "provider": {
-            "type": "string"
-          },
-          "urls": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "animated": {
-            "type": "boolean"
-          },
-          "zeroWidth": {
-            "type": "boolean"
-          },
-          "code": {
-            "type": "string",
-            "default": ""
-          },
-          "type": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "tier": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "owner": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ChatEmoteOwner"
-              }
-            ]
-          },
-          "artist": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ChatEmoteOwner"
-              }
-            ]
-          },
-          "staticUrls": {
-            "type": [
-              "null",
-              "object"
-            ],
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        },
-        "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network.\r\n`StaticUrls` holds the still image per scale for reduced motion; a non-animated emote repeats `Urls`."
-      },
       "ChatEmoteOwner": {
         "type": "object",
         "properties": {
@@ -106235,16 +106279,6 @@
           }
         },
         "description": "Who owns an emote: the channel for a Twitch emote, the uploader for a 7TV, BTTV or FFZ emote. A field the\r\nprovider or cache does not have is null."
-      },
-      "ChatFilterAction": {
-        "enum": [
-          "Delete",
-          "Timeout",
-          "Hold",
-          "Flag",
-          "Escalate"
-        ],
-        "description": "What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout\r\napply a fixed action; ChatFilterAction.Hold/ChatFilterAction.Flag route the message to review; and\r\nChatFilterAction.Escalate defers the punishment to the per-channel escalation ladder (§3.11), which decides\r\nwarn/timeout/ban by the subject's running offense count. A filter never bans directly — a ban only ever\r\narrives through the ladder."
       },
       "ChatFilter": {
         "required": [
@@ -106340,6 +106374,16 @@
           }
         },
         "description": "A custom chat filter (moderation.md J.6) as surfaced to the dashboard."
+      },
+      "ChatFilterAction": {
+        "enum": [
+          "Delete",
+          "Timeout",
+          "Hold",
+          "Flag",
+          "Escalate"
+        ],
+        "description": "What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout\r\napply a fixed action; ChatFilterAction.Hold/ChatFilterAction.Flag route the message to review; and\r\nChatFilterAction.Escalate defers the punishment to the per-channel escalation ladder (§3.11), which decides\r\nwarn/timeout/ban by the subject's running offense count. A filter never bans directly — a ban only ever\r\narrives through the ladder."
       },
       "ChatFilterTestResult": {
         "required": [
@@ -106503,35 +106547,14 @@
         },
         "description": "One non-empty cell of the \"when chat is busy\" grid: stored chat messages on this weekday and local hour.\r\nint ChatHourCellDto.DayOfWeek is 0 (Sunday) to 6 (Saturday); int ChatHourCellDto.Hour is 0 to 23."
       },
-      "ChatIdentityBadge": {
-        "type": "object",
-        "properties": {
-          "setId": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "info": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "urls": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "setId",
-          "id",
-          "urls"
-        ]
-      },
       "ChatIdentity": {
+        "required": [
+          "displayName",
+          "canManageColor",
+          "colorScope",
+          "namedColors",
+          "badges"
+        ],
         "type": "object",
         "properties": {
           "displayName": {
@@ -106562,13 +106585,36 @@
             }
           }
         },
+        "description": "How the channel owner looks in chat: the name color Twitch holds, the 15 named colors every user may\r\npick, whether the connection holds the scope to change the color, and the badges the owner wore on\r\ntheir latest chat line, resolved to images from the global and channel badge sets. Twitch has no API\r\nto read or change which badge a user displays."
+      },
+      "ChatIdentityBadge": {
         "required": [
-          "displayName",
-          "canManageColor",
-          "colorScope",
-          "namedColors",
-          "badges"
-        ]
+          "setId",
+          "id",
+          "urls"
+        ],
+        "type": "object",
+        "properties": {
+          "setId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "info": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "urls": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "One badge the owner wears in chat, with its image at 1x, 2x and 4x."
       },
       "ChatLinkPreview": {
         "required": [
@@ -106627,6 +106673,10 @@
         "description": "Mention fragment data (@user) plus the mentioned user's last-seen chat colour as #RRGGBB (chat-decoration spec §3.1),\r\nor null when that user has not been seen recently."
       },
       "ChatNamedColor": {
+        "required": [
+          "name",
+          "hex"
+        ],
         "type": "object",
         "properties": {
           "name": {
@@ -106636,10 +106686,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "hex"
-        ]
+        "description": "One Twitch named chat color: the value Twitch accepts and the hex it renders as."
       },
       "ChatPaint": {
         "required": [
@@ -107054,37 +107101,6 @@
           }
         }
       },
-      "CodePoolDetail": {
-        "required": [
-          "id",
-          "name",
-          "codes"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-            "format": "ulid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "codes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MaskedCode"
-            }
-          }
-        },
-        "description": "Pool detail: the codes MASKED (label + status), never plaintext (D6)."
-      },
       "CodePool": {
         "required": [
           "id",
@@ -107135,6 +107151,37 @@
           }
         },
         "description": "A code pool summary — counts only, never code contents (D6)."
+      },
+      "CodePoolDetail": {
+        "required": [
+          "id",
+          "name",
+          "codes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "codes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MaskedCode"
+            }
+          }
+        },
+        "description": "Pool detail: the codes MASKED (label + status), never plaintext (D6)."
       },
       "CodeScriptDetail": {
         "required": [
@@ -111385,27 +111432,6 @@
         },
         "description": "Body for erasing a tenant whole — the justification lands in the audit row."
       },
-      "ErasurePreviewCategory": {
-        "required": [
-          "categoryKey",
-          "rowCount"
-        ],
-        "type": "object",
-        "properties": {
-          "categoryKey": {
-            "type": "string"
-          },
-          "rowCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "One counted category of the erasure blast radius. CategoryKey is an i18n resource KEY\r\n(never a rendered sentence — the client owns the language); RowCount is a real\r\n`COUNT` over the rows the erasure pipeline would destroy, never an estimate."
-      },
       "ErasurePreview": {
         "required": [
           "subjectAlreadyAnonymized",
@@ -111433,6 +111459,27 @@
           }
         },
         "description": "The counted preview of a GDPR erasure. Categories lists ONLY non-zero categories, each\r\ncounted from real rows; TotalRows is their sum. An empty list with a zero total is the\r\ngenuine \"nothing would be destroyed\" answer — the client must say so explicitly, never render a blank.\r\nSubjectAlreadyAnonymized is true when the profile row has already been anonymized (a\r\nrepeat erasure is idempotent and would not re-anonymize it)."
+      },
+      "ErasurePreviewCategory": {
+        "required": [
+          "categoryKey",
+          "rowCount"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryKey": {
+            "type": "string"
+          },
+          "rowCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One counted category of the erasure blast radius. CategoryKey is an i18n resource KEY\r\n(never a rendered sentence — the client owns the language); RowCount is a real\r\n`COUNT` over the rows the erasure pipeline would destroy, never an estimate."
       },
       "ErasureRequest": {
         "required": [
@@ -111694,84 +111741,6 @@
         },
         "description": "The outcome of an import: how many lines the file held, how many events were newly appended, how many were\r\nskipped as already-present duplicates (idempotency), and how many were upcast from a stale shape on the way in."
       },
-      "EventResponseDefaultChange": {
-        "required": [
-          "isEnabled"
-        ],
-        "type": "object",
-        "properties": {
-          "isEnabled": {
-            "type": "boolean"
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "speakWithTts": {
-            "type": "boolean",
-            "default": false
-          }
-        },
-        "description": "A proposed platform default for one event type — the body of both the preview and the save.\r\nSpeakWithTts: following channels also speak the message through their TTS."
-      },
-      "EventResponseDefault": {
-        "required": [
-          "eventType",
-          "isEnabled",
-          "variables",
-          "channelsFollowing",
-          "channelsWithOwnResponse",
-          "updatedAt",
-          "speakWithTts"
-        ],
-        "type": "object",
-        "properties": {
-          "eventType": {
-            "type": "string"
-          },
-          "isEnabled": {
-            "type": "boolean"
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "variables": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "channelsFollowing": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "channelsWithOwnResponse": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "speakWithTts": {
-            "type": "boolean"
-          }
-        },
-        "description": "One event type's platform default, as the admin editor shows it: whether following channels respond and\r\nwith which chat message, the template variables the event fills (for the editor hint), and how many\r\nchannels follow the default versus answer with their own saved response."
-      },
       "EventResponse": {
         "required": [
           "id",
@@ -111843,6 +111812,84 @@
           }
         },
         "description": "An event response configuration, as the runtime performs it: while FollowsPlatformDefault\r\nis true the enabled flag, type and message are the platform default, not the stored channel row.\r\nToneLines are the lines the bot picks from while the row follows the default: the\r\nplatform admin's text alone when set, else the catalogue lines for the channel's tone. Empty for a row\r\nwith its own text. A following row's Message is the first of them."
+      },
+      "EventResponseDefault": {
+        "required": [
+          "eventType",
+          "isEnabled",
+          "variables",
+          "channelsFollowing",
+          "channelsWithOwnResponse",
+          "updatedAt",
+          "speakWithTts"
+        ],
+        "type": "object",
+        "properties": {
+          "eventType": {
+            "type": "string"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "channelsFollowing": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channelsWithOwnResponse": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "speakWithTts": {
+            "type": "boolean"
+          }
+        },
+        "description": "One event type's platform default, as the admin editor shows it: whether following channels respond and\r\nwith which chat message, the template variables the event fills (for the editor hint), and how many\r\nchannels follow the default versus answer with their own saved response."
+      },
+      "EventResponseDefaultChange": {
+        "required": [
+          "isEnabled"
+        ],
+        "type": "object",
+        "properties": {
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "speakWithTts": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "description": "A proposed platform default for one event type — the body of both the preview and the save.\r\nSpeakWithTts: following channels also speak the message through their TTS."
       },
       "EventResponseListItem": {
         "required": [
@@ -112123,32 +112170,6 @@
         },
         "description": "One favorite emote as returned to the dashboard."
       },
-      "FeatureFlagBlastRadius": {
-        "required": [
-          "tenantsAffected",
-          "sampleChannelNames"
-        ],
-        "type": "object",
-        "properties": {
-          "tenantsAffected": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Real, counted number of active channels with no unexpired override for this flag.",
-            "format": "int32"
-          },
-          "sampleChannelNames": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Up to 5 channel names from that set, so the operator recognises who is affected."
-          }
-        },
-        "description": "The counted blast radius of flipping a flag's GLOBAL toggle — shown to the operator BEFORE the toggle\r\ncommits (consequences-must-be-visible). int FeatureFlagBlastRadiusDto.TenantsAffected is the number of active channels\r\nwhose effective state is actually governed by the global toggle right now: an unexpired per-tenant\r\noverride insulates a channel from the global switch, so an overridden channel is never counted here — it\r\nwill not change. This is the same reasoning that makes a per-integration kill switch safe to flip: the\r\noperator sees exactly how many tenants lose the integration, not an estimate."
-      },
       "FeatureFlag": {
         "required": [
           "key",
@@ -112197,6 +112218,32 @@
           }
         },
         "description": "A feature flag's global definition (admin view)."
+      },
+      "FeatureFlagBlastRadius": {
+        "required": [
+          "tenantsAffected",
+          "sampleChannelNames"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantsAffected": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Real, counted number of active channels with no unexpired override for this flag.",
+            "format": "int32"
+          },
+          "sampleChannelNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to 5 channel names from that set, so the operator recognises who is affected."
+          }
+        },
+        "description": "The counted blast radius of flipping a flag's GLOBAL toggle — shown to the operator BEFORE the toggle\r\ncommits (consequences-must-be-visible). int FeatureFlagBlastRadiusDto.TenantsAffected is the number of active channels\r\nwhose effective state is actually governed by the global toggle right now: an unexpired per-tenant\r\noverride insulates a channel from the global switch, so an overridden channel is never counted here — it\r\nwill not change. This is the same reasoning that makes a per-integration kill switch safe to flip: the\r\noperator sees exactly how many tenants lose the integration, not an estimate."
       },
       "FeatureFlagOverride": {
         "required": [
@@ -113623,6 +113670,41 @@
         "type": "integer",
         "description": "Whether a platform IAM principal is a human employee or a service account."
       },
+      "IamRole": {
+        "required": [
+          "id",
+          "name",
+          "isSystem",
+          "permissionKeys"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "permissionKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A platform-IAM role with its permission bundle (roles-permissions §5.4) — the role picker's row."
+      },
       "IamRoleAssignment": {
         "required": [
           "id",
@@ -113685,41 +113767,6 @@
           }
         },
         "description": "A platform-IAM role assignment (roles-permissions §4, Plane C)."
-      },
-      "IamRole": {
-        "required": [
-          "id",
-          "name",
-          "isSystem",
-          "permissionKeys"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-            "format": "ulid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "isSystem": {
-            "type": "boolean"
-          },
-          "permissionKeys": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "description": "A platform-IAM role with its permission bundle (roles-permissions §5.4) — the role picker's row."
       },
       "IFormFile": {
         "type": "string",
@@ -116218,109 +116265,6 @@
         },
         "description": "Request to drop a queued song at a new zero-based position in the queue."
       },
-      "RemoveRequesterSongs": {
-        "required": [
-          "requestedBy"
-        ],
-        "type": "object",
-        "properties": {
-          "requestedBy": {
-            "type": "string"
-          }
-        },
-        "description": "Request to remove every queued song of one requester (display name, case-insensitive)."
-      },
-      "RemovedSongs": {
-        "required": [
-          "removedCount"
-        ],
-        "type": "object",
-        "properties": {
-          "removedCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "How many queued songs a bulk removal took out."
-      },
-      "StatusResponseOfChatIdentity": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ChatIdentity"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseOfRemovedSongs": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/RemovedSongs"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "MusicConfig": {
         "required": [
           "isEnabled",
@@ -116611,24 +116555,6 @@
         },
         "description": "The outcome of a ban for either scope. `this_channel` collapses to a one-row result; `all_moderated`\r\ncarries one ChannelBanOutcomeDto per channel the fan-out touched."
       },
-      "NetworkBlockAffectedTenant": {
-        "required": [
-          "broadcasterId",
-          "channelName"
-        ],
-        "type": "object",
-        "properties": {
-          "broadcasterId": {
-            "type": "string",
-            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-            "format": "ulid"
-          },
-          "channelName": {
-            "type": "string"
-          }
-        },
-        "description": "One tenant a prospective network block would touch (S-ADMIN-8b) — real, freshly-computed presence,\r\nnever a cached or heuristic guess."
-      },
       "NetworkBlock": {
         "required": [
           "id",
@@ -116745,6 +116671,24 @@
           }
         },
         "description": "One network-wide block (S-ADMIN-8b): who applied it, when, why, the blast radius it actually touched,\r\nand — once a lift has been attempted — who lifted it, when, why, and whether the lift was actually\r\nclean (DateTime? NetworkBlockDto.LiftedAt is null on a partial outcome; IReadOnlyList&lt;string&gt; NetworkBlockDto.LiftFailedChannelIds then\r\nnames exactly what is still actioned)."
+      },
+      "NetworkBlockAffectedTenant": {
+        "required": [
+          "broadcasterId",
+          "channelName"
+        ],
+        "type": "object",
+        "properties": {
+          "broadcasterId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "channelName": {
+            "type": "string"
+          }
+        },
+        "description": "One tenant a prospective network block would touch (S-ADMIN-8b) — real, freshly-computed presence,\r\nnever a cached or heuristic guess."
       },
       "NetworkBlockPreview": {
         "required": [
@@ -117485,6 +117429,21 @@
         },
         "description": "The outcome of one OBS-WS request as the caller sees it."
       },
+      "ObsScene": {
+        "required": [
+          "name",
+          "isCurrent"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          }
+        }
+      },
       "ObsSceneCollection": {
         "required": [
           "name",
@@ -117500,21 +117459,6 @@
           }
         },
         "description": "One scene collection (obs-websocket v5 `GetSceneCollectionList`), the loaded one flagged."
-      },
-      "ObsScene": {
-        "required": [
-          "name",
-          "isCurrent"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "isCurrent": {
-            "type": "boolean"
-          }
-        }
       },
       "ObsSceneItem": {
         "required": [
@@ -118176,6 +118120,12 @@
             "format": "date-time"
           },
           "requestedBy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestedByColor": {
             "type": [
               "null",
               "string"
@@ -120396,6 +120346,44 @@
           }
         }
       },
+      "PaginatedResponseOfPublicChannel": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicChannel"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PaginatedResponseOfQuote": {
         "type": "object",
         "properties": {
@@ -121377,6 +121365,89 @@
         },
         "description": "A single sampled entry from a pick-list — backs the dashboard's \"Test\" button preview."
       },
+      "Pipeline": {
+        "required": [
+          "id",
+          "channelId",
+          "name",
+          "isEnabled",
+          "triggerKind",
+          "graph",
+          "triggerCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "triggerKind": {
+            "type": "string"
+          },
+          "graph": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "triggerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "lastTriggeredAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "parameterNames": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The named sub-pipeline parameters this pipeline declares (S-PIPE-TREE-d2b(a)), deserialized from\r\nstring? Pipeline.ParameterNamesJson — null/empty when the\r\npipeline declares none, in which case a caller's `run_pipeline` block falls back to positional\r\n`args`. Surfaced so the pipeline builder can render one labelled field per declared name when this\r\npipeline is picked as a `run_pipeline` target, instead of a raw positional/generic argument list."
+          }
+        },
+        "description": "Full pipeline details including the deserialized node graph cache."
+      },
       "PipelineActionDescriptor": {
         "required": [
           "type",
@@ -121575,89 +121646,6 @@
           }
         },
         "description": "One available pipeline condition type, for the builder's condition picker."
-      },
-      "Pipeline": {
-        "required": [
-          "id",
-          "channelId",
-          "name",
-          "isEnabled",
-          "triggerKind",
-          "graph",
-          "triggerCount",
-          "createdAt",
-          "updatedAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-            "format": "ulid"
-          },
-          "channelId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "isEnabled": {
-            "type": "boolean"
-          },
-          "triggerKind": {
-            "type": "string"
-          },
-          "graph": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JsonElement"
-              }
-            ]
-          },
-          "triggerCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "lastTriggeredAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "parameterNames": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "The named sub-pipeline parameters this pipeline declares (S-PIPE-TREE-d2b(a)), deserialized from\r\nstring? Pipeline.ParameterNamesJson — null/empty when the\r\npipeline declares none, in which case a caller's `run_pipeline` block falls back to positional\r\n`args`. Surfaced so the pipeline builder can render one labelled field per declared name when this\r\npipeline is picked as a `run_pipeline` target, instead of a raw positional/generic argument list."
-          }
-        },
-        "description": "Full pipeline details including the deserialized node graph cache."
       },
       "PipelineExecutionDetail": {
         "required": [
@@ -122369,29 +122357,6 @@
         },
         "description": "Body for starting a platform-bot reconnect — the confirmed count MUST match a fresh preview."
       },
-      "PlatformContentDefinitionDetail": {
-        "required": [
-          "definition",
-          "versions",
-          "installs"
-        ],
-        "type": "object",
-        "properties": {
-          "definition": {
-            "$ref": "#/components/schemas/PlatformContentDefinition"
-          },
-          "versions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PlatformContentVersion"
-            }
-          },
-          "installs": {
-            "$ref": "#/components/schemas/PlatformContentInstallSummary"
-          }
-        },
-        "description": "A definition plus its full version history (§4 `GET /definitions/{id}`)."
-      },
       "PlatformContentDefinition": {
         "required": [
           "id",
@@ -122460,6 +122425,29 @@
           }
         },
         "description": "A platform content definition summary row (platform-admin.md §3.1) — the definitions list."
+      },
+      "PlatformContentDefinitionDetail": {
+        "required": [
+          "definition",
+          "versions",
+          "installs"
+        ],
+        "type": "object",
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/PlatformContentDefinition"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformContentVersion"
+            }
+          },
+          "installs": {
+            "$ref": "#/components/schemas/PlatformContentInstallSummary"
+          }
+        },
+        "description": "A definition plus its full version history (§4 `GET /definitions/{id}`)."
       },
       "PlatformContentInstallSummary": {
         "required": [
@@ -123007,6 +122995,111 @@
         },
         "description": "Play a game (economy.md §4). int PlayGameRequest.RoleLevel is the caller's resolved community level."
       },
+      "PollPredictionHistoryItem": {
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "startedAt",
+          "totalVotes",
+          "options"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "totalVotes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PollPredictionOption"
+            }
+          }
+        },
+        "description": "One poll or prediction the channel ran, with its final result, folded from the event journal.\r\nKind is `poll` or `prediction`. Status is the Twitch end status\r\n(completed, archived, terminated, resolved, canceled) or `unfinished` when the journal holds a start but no end."
+      },
+      "PollPredictionOption": {
+        "required": [
+          "id",
+          "title",
+          "votes",
+          "channelPoints",
+          "sharePercent",
+          "isWinner"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The Twitch choice or outcome id."
+          },
+          "title": {
+            "type": "string",
+            "description": "The label viewers saw."
+          },
+          "votes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Poll: total votes (normal plus channel points). Prediction: number of users who picked it.",
+            "format": "int32"
+          },
+          "channelPoints": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Poll: votes cast with channel points. Prediction: points put on it.",
+            "format": "int32"
+          },
+          "sharePercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "This option's share of all votes, 0 to 100, rounded to a whole number.",
+            "format": "int32"
+          },
+          "isWinner": {
+            "type": "boolean",
+            "description": "True for the winning choice or outcome."
+          }
+        },
+        "description": "One choice (poll) or outcome (prediction) of a past poll or prediction."
+      },
       "PostOptInButtonRequest": {
         "required": [
           "buttonChannelId"
@@ -123165,6 +123258,34 @@
         },
         "description": "The project manifest on the wire (dev-platform.md §4.2) — `{ entry, kind, framework, dependencies[] }`.\r\nA one-to-one DTO for ProjectManifest; kept distinct from the domain record so the Application\r\ncontract and the stored manifest can evolve independently."
       },
+      "Pronoun": {
+        "required": [
+          "id",
+          "name",
+          "subject",
+          "object"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
+          }
+        }
+      },
       "PronounCatalog": {
         "required": [
           "id",
@@ -123199,34 +123320,6 @@
           }
         },
         "description": "Catalog entry as returned by the public catalog endpoint."
-      },
-      "Pronoun": {
-        "required": [
-          "id",
-          "name",
-          "subject",
-          "object"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "name": {
-            "type": "string"
-          },
-          "subject": {
-            "type": "string"
-          },
-          "object": {
-            "type": "string"
-          }
-        }
       },
       "ProtectionCheck": {
         "required": [
@@ -123316,6 +123409,165 @@
           }
         },
         "description": "One provider's app-credential state for the operator console.\r\n\r\nThe secret is never in here, in any form. It is sealed under an AAD tied to its provider and\r\nfield, and there is no read path that unseals it for display — only string ProviderCredentialDto.SecretSource, which says\r\nwhether one exists and which source would win. The client id IS carried: it is a public identifier that\r\nappears in every OAuth URL the viewer's own browser sees, and hiding it would only stop the operator\r\nchecking the one value most likely to be wrong."
+      },
+      "PublicBadge": {
+        "required": [
+          "setId",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "setId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "info": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PublicChannel": {
+        "required": [
+          "id",
+          "login",
+          "displayName",
+          "isLive",
+          "provider"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "login": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isLive": {
+            "type": "boolean"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "description": "One channel in the deployment's public directory (chat-client.md §9a \"Reaching any channel\"): only what\r\nthe channel shows every visitor on Twitch. No role, no settings, no tokens."
+      },
+      "PublicMessage": {
+        "required": [
+          "id",
+          "message",
+          "sentAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PublicProfile": {
+        "required": [
+          "twitchUserId",
+          "internalUserId",
+          "username",
+          "displayName",
+          "badges",
+          "emotes",
+          "recentMessages"
+        ],
+        "type": "object",
+        "properties": {
+          "twitchUserId": {
+            "type": "string"
+          },
+          "internalUserId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pronouns": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicBadge"
+            }
+          },
+          "accountCreatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "followedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "subTier": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "emotes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatEmoteCatalogue"
+            }
+          },
+          "recentMessages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMessage"
+            }
+          }
+        }
       },
       "PublishContentRequest": {
         "required": [
@@ -123524,7 +123776,7 @@
             ]
           }
         },
-        "description": "A queue item with its position. Cost is 0 for a free request."
+        "description": "A queue item with its zero-based position and the number viewers see\r\n            (QueueNumbering — the one `!queue` prints and `!wrongsong N` reads back).\r\n            Cost is 0 for a free request."
       },
       "Quote": {
         "required": [
@@ -124179,6 +124431,35 @@
           }
         },
         "description": "Body for the reinstate action — the justification lands in the audit row."
+      },
+      "RemovedSongs": {
+        "required": [
+          "removedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "removedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "How many queued songs a bulk removal took out."
+      },
+      "RemoveRequesterSongs": {
+        "required": [
+          "requestedBy"
+        ],
+        "type": "object",
+        "properties": {
+          "requestedBy": {
+            "type": "string"
+          }
+        },
+        "description": "Request to remove every queued song of one requester (display name, case-insensitive)."
       },
       "RenderManifest": {
         "required": [
@@ -125162,17 +125443,6 @@
         },
         "description": "A StreamElements custom command. `AccessLevel` is SE's numeric permission ladder\r\n(0=everyone … 100=subscriber … 500=broadcaster), mapped to this project's role ladder on import.\r\nSE separates a global `Cooldown` from a per-user `UserCooldown` (both in seconds)."
       },
-      "SetRequestsOpen": {
-        "required": [
-          "open"
-        ],
-        "type": "object",
-        "properties": {
-          "open": {
-            "type": "boolean"
-          }
-        }
-      },
       "Seek": {
         "required": [
           "positionMs"
@@ -125727,6 +125997,17 @@
           }
         },
         "description": "Request to set or clear pronouns for the authenticated viewer."
+      },
+      "SetRequestsOpen": {
+        "required": [
+          "open"
+        ],
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "boolean"
+          }
+        }
       },
       "SetRoleBody": {
         "required": [
@@ -127804,43 +128085,6 @@
           }
         }
       },
-      "StatusResponseOfBuiltinReplyDefault": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltinReplyDefault"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "StatusResponseOfBuiltinReply": {
         "type": "object",
         "properties": {
@@ -127878,6 +128122,43 @@
           }
         }
       },
+      "StatusResponseOfBuiltinReplyDefault": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltinReplyDefault"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseOfCatalogItem": {
         "type": "object",
         "properties": {
@@ -127891,6 +128172,43 @@
               },
               {
                 "$ref": "#/components/schemas/CatalogItem"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseOfChannel": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Channel"
               }
             ]
           },
@@ -128137,43 +128455,6 @@
           }
         }
       },
-      "StatusResponseOfChannel": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Channel"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "StatusResponseOfChannelNamePronunciation": {
         "type": "object",
         "properties": {
@@ -128372,6 +128653,43 @@
               },
               {
                 "$ref": "#/components/schemas/ChatFilterTestResult"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseOfChatIdentity": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatIdentity"
               }
             ]
           },
@@ -128618,7 +128936,7 @@
           }
         }
       },
-      "StatusResponseOfCodePoolDetail": {
+      "StatusResponseOfCodePool": {
         "type": "object",
         "properties": {
           "status": {
@@ -128630,7 +128948,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/CodePoolDetail"
+                "$ref": "#/components/schemas/CodePool"
               }
             ]
           },
@@ -128655,7 +128973,7 @@
           }
         }
       },
-      "StatusResponseOfCodePool": {
+      "StatusResponseOfCodePoolDetail": {
         "type": "object",
         "properties": {
           "status": {
@@ -128667,7 +128985,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/CodePool"
+                "$ref": "#/components/schemas/CodePoolDetail"
               }
             ]
           },
@@ -129799,7 +130117,7 @@
           }
         }
       },
-      "StatusResponseOfEventResponseDefault": {
+      "StatusResponseOfEventResponse": {
         "type": "object",
         "properties": {
           "status": {
@@ -129811,7 +130129,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/EventResponseDefault"
+                "$ref": "#/components/schemas/EventResponse"
               }
             ]
           },
@@ -129836,7 +130154,7 @@
           }
         }
       },
-      "StatusResponseOfEventResponse": {
+      "StatusResponseOfEventResponseDefault": {
         "type": "object",
         "properties": {
           "status": {
@@ -129848,7 +130166,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/EventResponse"
+                "$ref": "#/components/schemas/EventResponseDefault"
               }
             ]
           },
@@ -129984,7 +130302,7 @@
           }
         }
       },
-      "StatusResponseOfFeatureFlagBlastRadius": {
+      "StatusResponseOfFeatureFlag": {
         "type": "object",
         "properties": {
           "status": {
@@ -129996,7 +130314,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/FeatureFlagBlastRadius"
+                "$ref": "#/components/schemas/FeatureFlag"
               }
             ]
           },
@@ -130021,7 +130339,7 @@
           }
         }
       },
-      "StatusResponseOfFeatureFlag": {
+      "StatusResponseOfFeatureFlagBlastRadius": {
         "type": "object",
         "properties": {
           "status": {
@@ -130033,7 +130351,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/FeatureFlag"
+                "$ref": "#/components/schemas/FeatureFlagBlastRadius"
               }
             ]
           },
@@ -131515,161 +131833,6 @@
           }
         }
       },
-      "PublicBadge": {
-        "required": [
-          "setId",
-          "id",
-          "info"
-        ],
-        "type": "object",
-        "properties": {
-          "setId": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "info": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "PublicMessage": {
-        "required": [
-          "id",
-          "message",
-          "sentAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "sentAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "PublicProfile": {
-        "required": [
-          "twitchUserId",
-          "internalUserId",
-          "username",
-          "displayName",
-          "profileImageUrl",
-          "color",
-          "pronouns",
-          "badges",
-          "accountCreatedAt",
-          "followedAt",
-          "subTier",
-          "emotes",
-          "recentMessages"
-        ],
-        "type": "object",
-        "properties": {
-          "twitchUserId": {
-            "type": "string"
-          },
-          "internalUserId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "username": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "profileImageUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "color": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "pronouns": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "badges": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicBadge"
-            }
-          },
-          "accountCreatedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "followedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "subTier": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "emotes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatEmoteCatalogue"
-            }
-          },
-          "recentMessages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicMessage"
-            }
-          }
-        }
-      },
-      "StatusResponseOfPublicProfile": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PublicProfile"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "StatusResponseOfIReadOnlyListOfChatEmoteCatalogue": {
         "type": "object",
         "properties": {
@@ -131683,139 +131846,6 @@
             ],
             "items": {
               "$ref": "#/components/schemas/ChatEmoteCatalogue"
-            }
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "PollPredictionOption": {
-        "required": [
-          "id",
-          "title",
-          "votes",
-          "channelPoints",
-          "sharePercent",
-          "isWinner"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "votes": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "channelPoints": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "sharePercent": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "isWinner": {
-            "type": "boolean"
-          }
-        }
-      },
-      "PollPredictionHistoryItem": {
-        "required": [
-          "id",
-          "kind",
-          "title",
-          "status",
-          "startedAt",
-          "totalVotes",
-          "options"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "endedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "totalVotes": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "options": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PollPredictionOption"
-            }
-          }
-        }
-      },
-      "StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/PollPredictionHistoryItem"
             }
           },
           "message": {
@@ -133387,7 +133417,7 @@
           }
         }
       },
-      "StatusResponseOfIReadOnlyListOfObsSceneCollection": {
+      "StatusResponseOfIReadOnlyListOfObsScene": {
         "type": "object",
         "properties": {
           "status": {
@@ -133399,7 +133429,7 @@
               "array"
             ],
             "items": {
-              "$ref": "#/components/schemas/ObsSceneCollection"
+              "$ref": "#/components/schemas/ObsScene"
             }
           },
           "message": {
@@ -133423,7 +133453,7 @@
           }
         }
       },
-      "StatusResponseOfIReadOnlyListOfObsScene": {
+      "StatusResponseOfIReadOnlyListOfObsSceneCollection": {
         "type": "object",
         "properties": {
           "status": {
@@ -133435,7 +133465,7 @@
               "array"
             ],
             "items": {
-              "$ref": "#/components/schemas/ObsScene"
+              "$ref": "#/components/schemas/ObsSceneCollection"
             }
           },
           "message": {
@@ -133616,6 +133646,42 @@
             ],
             "items": {
               "$ref": "#/components/schemas/PlatformTemplateUpdate"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PollPredictionHistoryItem"
             }
           },
           "message": {
@@ -137383,6 +137449,43 @@
           }
         }
       },
+      "StatusResponseOfPipeline": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Pipeline"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseOfPipelineBlastRadius": {
         "type": "object",
         "properties": {
@@ -137433,43 +137536,6 @@
               },
               {
                 "$ref": "#/components/schemas/PipelineCatalogue"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseOfPipeline": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Pipeline"
               }
             ]
           },
@@ -137753,7 +137819,7 @@
           }
         }
       },
-      "StatusResponseOfPlatformContentDefinitionDetail": {
+      "StatusResponseOfPlatformContentDefinition": {
         "type": "object",
         "properties": {
           "status": {
@@ -137765,7 +137831,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/PlatformContentDefinitionDetail"
+                "$ref": "#/components/schemas/PlatformContentDefinition"
               }
             ]
           },
@@ -137790,7 +137856,7 @@
           }
         }
       },
-      "StatusResponseOfPlatformContentDefinition": {
+      "StatusResponseOfPlatformContentDefinitionDetail": {
         "type": "object",
         "properties": {
           "status": {
@@ -137802,7 +137868,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/PlatformContentDefinition"
+                "$ref": "#/components/schemas/PlatformContentDefinitionDetail"
               }
             ]
           },
@@ -138160,6 +138226,43 @@
           }
         }
       },
+      "StatusResponseOfPublicProfile": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicProfile"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseOfPublishPreview": {
         "type": "object",
         "properties": {
@@ -138321,6 +138424,43 @@
               },
               {
                 "$ref": "#/components/schemas/RedeemInviteCodeResult"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseOfRemovedSongs": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemovedSongs"
               }
             ]
           },
@@ -140302,7 +140442,7 @@
           }
         }
       },
-      "StatusResponseOfUserDetail": {
+      "StatusResponseOfUser": {
         "type": "object",
         "properties": {
           "status": {
@@ -140314,7 +140454,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/UserDetail"
+                "$ref": "#/components/schemas/User"
               }
             ]
           },
@@ -140339,7 +140479,7 @@
           }
         }
       },
-      "StatusResponseOfUser": {
+      "StatusResponseOfUserDetail": {
         "type": "object",
         "properties": {
           "status": {
@@ -140351,7 +140491,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/User"
+                "$ref": "#/components/schemas/UserDetail"
               }
             ]
           },
@@ -142842,30 +142982,6 @@
         },
         "description": "One trigger sample the editor offers for a test run (`GET code-scripts/test-triggers`)."
       },
-      "TierChangePreview": {
-        "required": [
-          "affectedTenantCount",
-          "sampleChannelNames"
-        ],
-        "type": "object",
-        "properties": {
-          "affectedTenantCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "sampleChannelNames": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "description": "The counted blast radius of editing a tier that already has tenants on it (platform-admin.md's\r\ncounted-preview shape, mirrored from platform content publish). int TierChangePreviewDto.AffectedTenantCount is the\r\nreal, live count of tenants with an active/trialing subscription on the tier RIGHT NOW — never estimated.\r\nA save must echo this count back as `ConfirmedAffectedTenantCount`; a save whose confirmed count no\r\nlonger matches a freshly recomputed one fails closed (`PREVIEW_STALE`), the same rule platform-content\r\npublish already enforces."
-      },
       "Tier": {
         "required": [
           "id",
@@ -142928,6 +143044,30 @@
           }
         },
         "description": "A public billing plan with its limits."
+      },
+      "TierChangePreview": {
+        "required": [
+          "affectedTenantCount",
+          "sampleChannelNames"
+        ],
+        "type": "object",
+        "properties": {
+          "affectedTenantCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sampleChannelNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The counted blast radius of editing a tier that already has tenants on it (platform-admin.md's\r\ncounted-preview shape, mirrored from platform content publish). int TierChangePreviewDto.AffectedTenantCount is the\r\nreal, live count of tenants with an active/trialing subscription on the tier RIGHT NOW — never estimated.\r\nA save must echo this count back as `ConfirmedAffectedTenantCount`; a save whose confirmed count no\r\nlonger matches a freshly recomputed one fails closed (`PREVIEW_STALE`), the same rule platform-content\r\npublish already enforces."
       },
       "TierLimit": {
         "required": [
@@ -143226,6 +143366,21 @@
         "type": "integer",
         "description": "The metric a top-viewers query ranks by (analytics.md §4)."
       },
+      "Transfer": {
+        "required": [
+          "deviceId"
+        ],
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "play": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
       "TransferCommand": {
         "required": [
           "fromViewerUserId",
@@ -143268,21 +143423,6 @@
           }
         },
         "description": "A point-to-point transfer between two viewers in the same channel (economy.md §4). long TransferCommand.Amount &gt; 0."
-      },
-      "Transfer": {
-        "required": [
-          "deviceId"
-        ],
-        "type": "object",
-        "properties": {
-          "deviceId": {
-            "type": "string"
-          },
-          "play": {
-            "type": "boolean",
-            "default": false
-          }
-        }
       },
       "TrustPolicy": {
         "required": [
@@ -143948,114 +144088,6 @@
         },
         "description": "Result of a TTS test synthesis."
       },
-      "TtsVoiceAssignmentRow": {
-        "required": [
-          "twitchUserId",
-          "voiceId"
-        ],
-        "type": "object",
-        "properties": {
-          "twitchUserId": {
-            "maxLength": 50,
-            "type": "string"
-          },
-          "voiceId": {
-            "maxLength": 255,
-            "type": "string"
-          },
-          "username": {
-            "maxLength": 100,
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Twitch login of the viewer, only consulted when the import runs with `createMissing`: an unknown\r\nTwitch user with a username is created as a bare viewer User (the chat-ingest get-or-create seam)\r\ninstead of being skipped. Optional — omitting it keeps the row skip-on-unknown."
-          }
-        },
-        "description": "One row of a bulk per-viewer voice-assignment import: the Twitch user id and the catalogue voice they get."
-      },
-      "TtsVoiceCandidate": {
-        "required": [
-          "voiceId",
-          "displayName",
-          "locale",
-          "gender",
-          "isDefault"
-        ],
-        "type": "object",
-        "properties": {
-          "voiceId": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "locale": {
-            "type": "string"
-          },
-          "gender": {
-            "type": "string"
-          },
-          "isDefault": {
-            "type": "boolean"
-          }
-        },
-        "description": "One voice the platform default may be set to: a catalogue voice every channel can speak without a key of\r\nits own. IsDefault marks the current default."
-      },
-      "TtsVoiceDefaultChange": {
-        "required": [
-          "voiceId"
-        ],
-        "type": "object",
-        "properties": {
-          "voiceId": {
-            "type": "string"
-          }
-        },
-        "description": "A proposed platform default voice — the preview body."
-      },
-      "TtsVoiceDefault": {
-        "required": [
-          "voiceId",
-          "displayName",
-          "locale",
-          "provider",
-          "channelsFollowing",
-          "channelsWithOwnVoice"
-        ],
-        "type": "object",
-        "properties": {
-          "voiceId": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "locale": {
-            "type": "string"
-          },
-          "provider": {
-            "type": "string"
-          },
-          "channelsFollowing": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "channelsWithOwnVoice": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "The platform default TTS voice as the admin editor shows it: the catalogue voice every channel without its\r\nown pick speaks with, how many channels follow it and how many picked their own."
-      },
       "TtsVoice": {
         "required": [
           "id",
@@ -144129,6 +144161,114 @@
           }
         },
         "description": "An available TTS voice, with the catalogue metadata that powers search/filter and preview-before-pick."
+      },
+      "TtsVoiceAssignmentRow": {
+        "required": [
+          "twitchUserId",
+          "voiceId"
+        ],
+        "type": "object",
+        "properties": {
+          "twitchUserId": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "voiceId": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 100,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Twitch login of the viewer, only consulted when the import runs with `createMissing`: an unknown\r\nTwitch user with a username is created as a bare viewer User (the chat-ingest get-or-create seam)\r\ninstead of being skipped. Optional — omitting it keeps the row skip-on-unknown."
+          }
+        },
+        "description": "One row of a bulk per-viewer voice-assignment import: the Twitch user id and the catalogue voice they get."
+      },
+      "TtsVoiceCandidate": {
+        "required": [
+          "voiceId",
+          "displayName",
+          "locale",
+          "gender",
+          "isDefault"
+        ],
+        "type": "object",
+        "properties": {
+          "voiceId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        },
+        "description": "One voice the platform default may be set to: a catalogue voice every channel can speak without a key of\r\nits own. IsDefault marks the current default."
+      },
+      "TtsVoiceDefault": {
+        "required": [
+          "voiceId",
+          "displayName",
+          "locale",
+          "provider",
+          "channelsFollowing",
+          "channelsWithOwnVoice"
+        ],
+        "type": "object",
+        "properties": {
+          "voiceId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "channelsFollowing": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channelsWithOwnVoice": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The platform default TTS voice as the admin editor shows it: the catalogue voice every channel without its\r\nown pick speaks with, how many channels follow it and how many picked their own."
+      },
+      "TtsVoiceDefaultChange": {
+        "required": [
+          "voiceId"
+        ],
+        "type": "object",
+        "properties": {
+          "voiceId": {
+            "type": "string"
+          }
+        },
+        "description": "A proposed platform default voice — the preview body."
       },
       "TtsVoiceImportResult": {
         "required": [
@@ -145202,15 +145342,16 @@
         "description": "Request to update channel settings."
       },
       "UpdateChatColor": {
+        "required": [
+          "color"
+        ],
         "type": "object",
         "properties": {
           "color": {
             "type": "string"
           }
         },
-        "required": [
-          "color"
-        ]
+        "description": "The new chat color: a Twitch color name (blue, hot_pink, ...) or a hex value like #9146FF."
       },
       "UpdateChatFilterRequest": {
         "type": "object",
@@ -145889,8 +146030,8 @@
               "integer",
               "string"
             ],
-            "format": "int32",
-            "description": "The longest song a viewer may request, in seconds. The broadcaster and moderators are not held to it."
+            "description": "The longest song a viewer may request, in seconds. The broadcaster and moderators are not held to it.",
+            "format": "int32"
           },
           "allowExplicit": {
             "type": [
@@ -145908,8 +146049,8 @@
               "integer",
               "string"
             ],
-            "format": "int32",
-            "description": "The most songs one viewer may request in one stream, counting songs that already played. 0 turns the cap off (null leaves the current value alone); a value of 1 to 100 turns it on."
+            "description": "The most songs one viewer may request in one stream, counting songs that already played. 0 turns the\r\ncap off (null leaves the current value alone); a value of 1 to 100 turns it on.",
+            "format": "int32"
           },
           "allowYouTube": {
             "type": [
@@ -147826,6 +147967,48 @@
         },
         "description": "Current-period usage for one metered key vs the tier limit."
       },
+      "User": {
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "createdAt",
+          "lastLoginAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Full user information."
+      },
       "UserChannelAppearance": {
         "required": [
           "id",
@@ -147970,48 +148153,6 @@
             ]
           }
         }
-      },
-      "User": {
-        "required": [
-          "id",
-          "username",
-          "displayName",
-          "createdAt",
-          "lastLoginAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "profileImageUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "email": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "lastLoginAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "Full user information."
       },
       "UserIdentity": {
         "required": [
@@ -149224,6 +149365,30 @@
         },
         "description": "Everything the domain model tracks about one person within one channel (owner punch list 2026-09-08 §3,\r\nthe Community Profile page). Every group here mirrors a row of that punch-list table; a null/empty group\r\nmeans the person genuinely has no data there yet — never a fetch that silently failed."
       },
+      "ViewerQueue": {
+        "required": [
+          "queueLength",
+          "songs"
+        ],
+        "type": "object",
+        "properties": {
+          "queueLength": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "songs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewerQueuedSong"
+            }
+          }
+        },
+        "description": "The caller's own songs in one channel's queue, plus the full queue length for context."
+      },
       "ViewerQueuedSong": {
         "required": [
           "position",
@@ -149267,30 +149432,6 @@
           }
         },
         "description": "One of the caller's own songs in the queue. `Position` is 1-based: 1 plays next."
-      },
-      "ViewerQueue": {
-        "required": [
-          "queueLength",
-          "songs"
-        ],
-        "type": "object",
-        "properties": {
-          "queueLength": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "songs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ViewerQueuedSong"
-            }
-          }
-        },
-        "description": "The caller's own songs in one channel's queue, plus the full queue length for context."
       },
       "ViewerRaids": {
         "required": [
@@ -150357,78 +150498,6 @@
           }
         },
         "description": "A row in a widget's version history (rollback / debug list)."
-      },
-      "PublicChannel": {
-        "required": [
-          "id",
-          "login",
-          "displayName",
-          "isLive",
-          "provider"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "login": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "profileImageUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "isLive": {
-            "type": "boolean"
-          },
-          "provider": {
-            "type": "string"
-          }
-        },
-        "description": "One channel in the deployment's public directory (chat-client.md §9a \"Reaching any channel\"): only what\r\nthe channel shows every visitor on Twitch. No role, no settings, no tokens."
-      },
-      "PaginatedResponseOfPublicChannel": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicChannel"
-            }
-          },
-          "nextPage": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "hasMore": {
-            "type": "boolean"
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "total": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
       },
       "StatusResponseOfStreamStats": {
         "type": "object",
