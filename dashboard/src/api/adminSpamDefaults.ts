@@ -30,7 +30,7 @@ const version = '1';
 
 export const adminSpamDefaultsKey: KeyParts = ['admin', 'spam-defaults'];
 
-// The platform defaults every new channel starts with, plus the catalogue that bounds and groups each knob.
+// The platform defaults every new channel starts with, plus the catalog that bounds and groups each knob.
 export function useAdminSpamDefaults(): UseQueryReturnType<SpamPolicy, Error> {
   return useQuery({
     queryKey: adminSpamDefaultsKey,

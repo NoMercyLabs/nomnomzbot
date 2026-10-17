@@ -59,6 +59,7 @@ const policy = {
       establishedStrikeFreeDays: 14,
     },
   },
+  // cspell:ignore catalogue (the bot's wire name for the list)
   catalogue: [
     descriptor('IsEnabled', 'master', { isToggle: true }),
     descriptor('DryRun', 'master', { isToggle: true }),
@@ -152,7 +153,7 @@ async function type(key: string, value: string): Promise<void> {
 }
 
 describe('AdminSpamDefaultsView', () => {
-  it('renders one control per catalogue entry, grouped, with the saas restriction and the guarantees', async () => {
+  it('renders one control per catalog entry, grouped, with the saas restriction and the guarantees', async () => {
     await open();
 
     expect(document.body.querySelectorAll('[data-group]')).toHaveLength(5);

@@ -9,8 +9,8 @@
 -->
 <script setup lang="ts">
 // The platform's spam-defense defaults: the values every new channel starts with. The bot sends the values
-// together with the catalogue (group, bounds, toggle or number) of every knob, so this page renders one control
-// per catalogue entry and holds no list of its own. Save sends the whole record; the bot checks the same ranges.
+// together with the catalog (group, bounds, toggle or number) of every knob, so this page renders one control
+// per catalog entry and holds no list of its own. Save sends the whole record; the bot checks the same ranges.
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
@@ -101,12 +101,13 @@ watch(() => policy.data.value, (data) => {
   }
 }, { immediate: true });
 
-const catalogue = computed<SpamSetting[]>(() => policy.data.value?.catalogue ?? []);
+// cspell:ignore catalogue (the bot's wire name for the list)
+const catalog = computed<SpamSetting[]>(() => policy.data.value?.catalogue ?? []);
 
 const groups = computed<{ group: string; settings: SpamSetting[] }[]>(() => {
   const order: string[] = [];
 
-  for (const setting of catalogue.value) {
+  for (const setting of catalog.value) {
     if (!order.includes(setting.group)) {
       order.push(setting.group);
     }
@@ -114,7 +115,7 @@ const groups = computed<{ group: string; settings: SpamSetting[] }[]>(() => {
 
   return order.map((group: string) => ({
     group,
-    settings: catalogue.value.filter((setting: SpamSetting) => setting.group === group),
+    settings: catalog.value.filter((setting: SpamSetting) => setting.group === group),
   }));
 });
 
@@ -166,7 +167,7 @@ const thresholdBlank = computed<boolean>(() =>
   Object.values(thresholds.value).some((value: Value) => value === '' || Number(value) < 0));
 
 const hasInvalid = computed<boolean>(() =>
-  catalogue.value.some((setting: SpamSetting) => outOfRange(setting)) ||
+  catalog.value.some((setting: SpamSetting) => outOfRange(setting)) ||
   exonerationAboveCampaign.value ||
   thresholdBlank.value);
 
