@@ -73,6 +73,24 @@ public sealed class MusicStatePollingServiceTests
     }
 
     [Fact]
+    public async Task A_channel_connected_only_through_the_token_vault_is_polled()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider _,
+            RecordingHandover _,
+            RegisteredSpotifyStub _
+        ) = BuildWithProvider([], vaultOnlyChannels: [ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task Same_state_observed_twice_publishes_only_once()
     {
         (
@@ -655,10 +673,23 @@ public sealed class MusicStatePollingServiceTests
         IReadOnlyList<Guid> connectedChannels,
         IReadOnlyList<Guid>? needsReauth = null,
         bool? watched = true,
-        IActiveInstanceGate? instanceGate = null
+        IActiveInstanceGate? instanceGate = null,
+        IReadOnlyList<Guid>? vaultOnlyChannels = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
+        // Connected through the token vault only: a live connection row and no legacy Services row.
+        foreach (Guid channelId in vaultOnlyChannels ?? [])
+            db.IntegrationConnections.Add(
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    BroadcasterId = channelId,
+                    Provider = "spotify",
+                    Status = AuthEnums.IntegrationStatus.Connected,
+                    ProviderAccountId = $"spotify-{channelId:N}",
+                }
+            );
         foreach (Guid channelId in connectedChannels)
         {
             db.Services.Add(

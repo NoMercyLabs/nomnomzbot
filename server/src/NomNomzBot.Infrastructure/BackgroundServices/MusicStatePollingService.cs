@@ -351,24 +351,30 @@ public sealed class MusicStatePollingService : BackgroundService
         CancellationToken cancellationToken
     ) =>
         await db
-            .Services.Where(s =>
-                s.BroadcasterId != null
-                && s.Enabled
-                && s.AccessToken != null
-                && providerKeys.Contains(s.Name)
-                // Status-aware, not just "a token row exists". The legacy Services mirror keeps its
-                // AccessToken even after the canonical IntegrationConnection has been flipped to
-                // needs_reauth or revoked, so filtering on this table alone re-polls dead credentials once
-                // per second forever — the 401 storm, and the 4,704-failure connection still in the poll
-                // set. The canonical connection decides who is genuinely still connected.
-                && db.IntegrationConnections.Any(c =>
-                    c.BroadcasterId == s.BroadcasterId
-                    && c.Provider == s.Name
-                    && c.DeletedAt == null
-                    && c.Status == AuthEnums.IntegrationStatus.Connected
+            .IntegrationConnections.Where(c =>
+                c.BroadcasterId != null
+                && providerKeys.Contains(c.Provider)
+                // Status-aware: the canonical connection decides who is genuinely still connected. The
+                // legacy Services mirror keeps its AccessToken after the connection is flipped to
+                // needs_reauth or revoked, so reading it alone re-polled dead credentials once per second
+                // (the 401 storm).
+                && c.DeletedAt == null
+                && c.Status == AuthEnums.IntegrationStatus.Connected
+                // Tokens live in the vault (S036c-b), so a connection with no Services row (YouTube) is
+                // connected. When the legacy mirror row exists, it must still be enabled and token-bearing.
+                && (
+                    !db.Services.Any(s =>
+                        s.BroadcasterId == c.BroadcasterId && s.Name == c.Provider
+                    )
+                    || db.Services.Any(s =>
+                        s.BroadcasterId == c.BroadcasterId
+                        && s.Name == c.Provider
+                        && s.Enabled
+                        && s.AccessToken != null
+                    )
                 )
             )
-            .Select(s => s.BroadcasterId!.Value)
+            .Select(c => c.BroadcasterId!.Value)
             .Distinct()
             .ToListAsync(cancellationToken);
 
