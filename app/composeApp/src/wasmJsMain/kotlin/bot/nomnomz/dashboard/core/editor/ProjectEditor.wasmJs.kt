@@ -19,7 +19,6 @@ import kotlin.js.Promise
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlinx.coroutines.channels.Channel
-import org.w3c.dom.MessageEvent
 import org.w3c.dom.events.Event
 
 // Web project editor — a thin bridge to `/editor/index.html`, which is a real page (HTML + CSS + ES modules)
@@ -52,11 +51,8 @@ actual class ProjectEditor : ProjectEditorIO {
         // beat any listener installed after the append.
         val inbox: Channel<String> = Channel(Channel.UNLIMITED)
         val listener: (Event) -> Unit = { event: Event ->
-            val message: MessageEvent? = event as? MessageEvent
-            if (message != null) {
-                val envelope: String = editorMessageJson(message.origin, message.data)
-                if (envelope.isNotEmpty()) inbox.trySend(envelope)
-            }
+            val envelope: String = editorMessageJson(event)
+            if (envelope.isNotEmpty()) inbox.trySend(envelope)
         }
         window.addEventListener("message", listener)
 
@@ -130,9 +126,17 @@ private fun postToEditor(frame: JsAny, messageJson: String) {
 
 // Reduce an inbound message to a JSON envelope Kotlin can decode, or '' for anything that is not this
 // editor talking: a foreign origin, or any other same-origin postMessage traffic on the page.
-private fun editorMessageJson(origin: String, data: JsAny?): String =
+//
+// Takes the raw event and reads `origin` and `data` in JS. A window "message" listener can also receive
+// events that are not a MessageEvent (extensions dispatch their own), where `origin` is undefined. As a typed
+// Kotlin `String` parameter, that undefined made the Wasm string adapter read `.length` of undefined and
+// throw out of the listener. Anything unexpected, including a throw, now yields '' (ignored).
+private fun editorMessageJson(event: Event): String =
     js(
         """{
+          try {
+            var origin = event ? event.origin : undefined;
+            var data = event ? event.data : undefined;
             if (origin !== window.location.origin) { return ''; }
             var type = data ? data.type : null;
             if (typeof type !== 'string' || type.lastIndexOf('nnz:editor:', 0) !== 0) { return ''; }
@@ -146,5 +150,6 @@ private fun editorMessageJson(origin: String, data: JsAny?): String =
             var params = (isPreview && data.params && typeof data.params === 'object') ? data.params : null;
             var args = (type === 'nnz:editor:testRun' && Array.isArray(data.args)) ? data.args : [];
             return JSON.stringify({ type: type, files: files, versionId: versionId, variables: variables, args: args, requestId: requestId, actionType: actionType, params: params });
+          } catch (e) { return ''; }
         }"""
     )
