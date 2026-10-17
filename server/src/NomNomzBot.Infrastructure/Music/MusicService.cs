@@ -641,7 +641,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "SR_REVOKED"
             );
 
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        // A link goes to the provider that owns it, so a YouTube link is played on YouTube even when
+        // Spotify is the active provider. A search phrase goes to the active provider.
+        IMusicProvider? provider = await GetProviderForTrackAsync(
+            tenantId,
+            ChatLinkText.Normalize(query),
+            cancellationToken
+        );
         if (provider is null)
             return NoProvider<MusicTrack>();
 
@@ -717,7 +723,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "NO_PENDING_REQUEST"
             );
 
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        IMusicProvider? provider = await GetProviderForTrackAsync(
+            tenantId,
+            held.Track.TrackUri,
+            cancellationToken
+        );
         if (provider is null)
             return NoProvider<MusicTrack>();
 
@@ -1191,6 +1201,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     {
         if (_queueStore.GetInFlight(broadcasterId) is not null)
             return null;
+        // Another engine still busy: the request waits its turn and the next hand-over starts it.
+        if (!await SilenceOtherEnginesAsync(tenantId, broadcasterId, provider, cancellationToken))
+            return null;
+        bool switchesEngine = IsEngineSwitch(broadcasterId, provider);
 
         // Same basis as HandOverNextAsync's own push, and needed just as unconditionally here: a chat
         // command (`!sr`, run off an EventSub notification) reaches this exact code with no HTTP request
@@ -1259,6 +1273,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         // This request is the one now waiting at the provider — remember it so the next request queues
         // behind it in OUR queue instead of being handed over too.
+        _queueStore.SetLastEngine(broadcasterId, provider.Provider);
+        if (switchesEngine)
+            await StartIfIdleAsync(tenantId, broadcasterId, provider, cancellationToken);
         _queueStore.SetInFlight(broadcasterId, entry);
         // Re-sync so the persisted row set carries the in-flight flag too (S-SR-INFLIGHT-DURABLE) — the
         // sync above (before this request's hand-off outcome was known) could not have stamped it yet.
@@ -1624,16 +1641,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         CancellationToken cancellationToken
     )
     {
-        IReadOnlyList<IMusicProvider> usable = await UsableMusicProviders.ForChannelAsync(
-            _db,
-            _providers,
+        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
+        IReadOnlyList<IMusicProvider> candidates = await GetAllowedProvidersAsync(
             tenantId,
+            config,
             cancellationToken
         );
-
-        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
-
-        IEnumerable<IMusicProvider> candidates = usable.Where(p => IsAllowed(p.Provider, config));
 
         if (config is { PreferredProvider: "spotify" or "youtube" } preferring)
         {
@@ -1653,6 +1666,42 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             _logger.LogDebug("No active music provider for broadcaster {BroadcasterId}", tenantId);
 
         return provider;
+    }
+
+    /// <summary>The providers the channel can use and has switched on.</summary>
+    private async Task<IReadOnlyList<IMusicProvider>> GetAllowedProvidersAsync(
+        Guid tenantId,
+        MusicConfigDto? config,
+        CancellationToken cancellationToken
+    )
+    {
+        IReadOnlyList<IMusicProvider> usable = await UsableMusicProviders.ForChannelAsync(
+            _db,
+            _providers,
+            tenantId,
+            cancellationToken
+        );
+        return [.. usable.Where(p => IsAllowed(p.Provider, config))];
+    }
+
+    /// <summary>
+    /// The provider a track belongs to, so a mixed queue plays each item on its own engine. A track no
+    /// allowed provider claims goes to the active provider, which is today's one-provider behavior.
+    /// </summary>
+    private async Task<IMusicProvider?> GetProviderForTrackAsync(
+        Guid tenantId,
+        string trackUri,
+        CancellationToken cancellationToken
+    )
+    {
+        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
+        IReadOnlyList<IMusicProvider> allowed = await GetAllowedProvidersAsync(
+            tenantId,
+            config,
+            cancellationToken
+        );
+        IMusicProvider? owner = allowed.FirstOrDefault(p => p.OwnsTrackUri(trackUri));
+        return owner ?? await GetActiveProviderAsync(tenantId, cancellationToken);
     }
 
     private static bool IsAllowed(string providerKey, MusicConfigDto? config) =>
@@ -2503,12 +2552,24 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (next is null)
             return;
 
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        IMusicProvider? provider = await GetProviderForTrackAsync(
+            tenantId,
+            next.TrackUri,
+            cancellationToken
+        );
         if (provider is null)
             return;
 
+        if (!await SilenceOtherEnginesAsync(tenantId, broadcasterId, provider, cancellationToken))
+            return;
+
+        bool switchesEngine = IsEngineSwitch(broadcasterId, provider);
         if (!await TryPushAsync(provider, tenantId, broadcasterId, next, cancellationToken))
             return;
+
+        _queueStore.SetLastEngine(broadcasterId, provider.Provider);
+        if (switchesEngine)
+            await StartIfIdleAsync(tenantId, broadcasterId, provider, cancellationToken);
 
         _queueStore.SetInFlight(broadcasterId, next);
         // Persist the in-flight flag immediately — without this a restart right after hand-over forgets
@@ -2516,6 +2577,126 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // (S-SR-INFLIGHT-DURABLE).
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
     }
+
+    /// <summary>
+    /// music-sr.md §3.5.2 rule 1: before an item starts on its engine, every other engine is stopped and
+    /// seen stopped. An engine still playing a request of ours is never cut off: the item waits for that
+    /// song to end, and the end hands it over. False means "not now"; the item keeps its place.
+    /// </summary>
+    private async Task<bool> SilenceOtherEnginesAsync(
+        Guid tenantId,
+        string broadcasterId,
+        IMusicProvider incoming,
+        CancellationToken cancellationToken
+    )
+    {
+        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
+        IReadOnlyList<IMusicProvider> others =
+        [
+            .. (await GetAllowedProvidersAsync(tenantId, config, cancellationToken)).Where(p =>
+                p.Provider != incoming.Provider
+                && HasCapability(p, MusicProviderCapabilities.PlaybackControl)
+            ),
+        ];
+        SongRequestEntry? playingRequest = _queueStore.GetPlayingRequest(broadcasterId);
+
+        foreach (IMusicProvider other in others)
+        {
+            TrackInfo? current = await ReadPlayingAsync(other, tenantId, cancellationToken);
+            if (current is not { IsPlaying: true })
+                continue;
+            if (IsSameTrack(current.TrackUri, playingRequest?.TrackUri))
+                return false;
+
+            using IDisposable sanction = _sanctions.Begin(
+                OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
+            );
+            await PauseQuietlyAsync(other, tenantId, cancellationToken);
+            if (await ReadPlayingAsync(other, tenantId, cancellationToken) is { IsPlaying: true })
+            {
+                _logger.LogDebug(
+                    "{Provider} is still playing for {BroadcasterId}; the next request waits.",
+                    other.Provider,
+                    broadcasterId
+                );
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private bool IsEngineSwitch(string broadcasterId, IMusicProvider incoming) =>
+        _queueStore.GetLastEngine(broadcasterId) is { } last && last != incoming.Provider;
+
+    /// <summary>
+    /// After an item on another engine, a queued Spotify item would wait behind the paused track. Skipping
+    /// to it starts it. An engine that is already playing plays the item next on its own.
+    /// </summary>
+    private async Task StartIfIdleAsync(
+        Guid tenantId,
+        string broadcasterId,
+        IMusicProvider provider,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!HasCapability(provider, MusicProviderCapabilities.Skip))
+            return;
+        if (await ReadPlayingAsync(provider, tenantId, cancellationToken) is { IsPlaying: true })
+            return;
+
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
+        );
+        try
+        {
+            await provider.SkipAsync(tenantId, cancellationToken);
+        }
+        catch (Exception ex) when (IsPlayerUnavailable(ex))
+        {
+            _logger.LogDebug(
+                ex,
+                "Could not start {Provider} for {BroadcasterId}.",
+                provider.Provider,
+                broadcasterId
+            );
+        }
+    }
+
+    private static async Task<TrackInfo?> ReadPlayingAsync(
+        IMusicProvider provider,
+        Guid tenantId,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
+        }
+        catch (Exception ex) when (IsPlayerUnavailable(ex))
+        {
+            return null;
+        }
+    }
+
+    private static async Task PauseQuietlyAsync(
+        IMusicProvider provider,
+        Guid tenantId,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            await provider.PauseAsync(tenantId, cancellationToken);
+        }
+        catch (Exception ex) when (IsPlayerUnavailable(ex)) { }
+    }
+
+    private static bool IsPlayerUnavailable(Exception ex) =>
+        ex
+            is PremiumRequiredException
+                or NoActiveDeviceException
+                or MusicAuthenticationFailedException
+                or MusicForbiddenException;
 
     /// <summary>
     /// Hands one request to the provider. False when the provider cannot take it right now (no device or
@@ -2579,7 +2760,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         CancellationToken cancellationToken
     )
     {
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        IMusicProvider? provider = await GetProviderForTrackAsync(
+            tenantId,
+            inFlight.TrackUri,
+            cancellationToken
+        );
         if (provider is null)
             return;
 
@@ -2621,7 +2806,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!_queueStore.IsInFlightCheckDue(broadcasterId))
             return false;
 
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        IMusicProvider? provider = await GetProviderForTrackAsync(
+            tenantId,
+            inFlight.TrackUri,
+            cancellationToken
+        );
         if (provider is null)
             return false;
 

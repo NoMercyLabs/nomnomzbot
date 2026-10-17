@@ -78,6 +78,11 @@ public interface ISongRequestQueueStore
     /// </summary>
     SongRequestEntry? GetPlayingRequest(string broadcasterId);
 
+    /// <summary>The provider key the last request was handed to, so a switch to another engine is seen.</summary>
+    string? GetLastEngine(string broadcasterId);
+
+    void SetLastEngine(string broadcasterId, string providerKey);
+
     /// <summary>Records (or clears, with null) the request that is playing right now.</summary>
     void SetPlayingRequest(string broadcasterId, SongRequestEntry? entry);
 
@@ -182,6 +187,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     private readonly ConcurrentDictionary<string, SongRequestEntry> _playingRequests = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _restoredInFlight = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _handoverLocks = new();
+    private readonly ConcurrentDictionary<string, string> _lastEngines = new();
     private readonly ConcurrentDictionary<
         (string BroadcasterId, string TrackUri),
         DateTimeOffset
@@ -240,6 +246,12 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         else
             _playingRequests[broadcasterId] = entry;
     }
+
+    public string? GetLastEngine(string broadcasterId) =>
+        _lastEngines.TryGetValue(broadcasterId, out string? key) ? key : null;
+
+    public void SetLastEngine(string broadcasterId, string providerKey) =>
+        _lastEngines[broadcasterId] = providerKey;
 
     public void SetInFlight(string broadcasterId, SongRequestEntry? entry)
     {
