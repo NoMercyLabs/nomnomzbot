@@ -30,18 +30,22 @@ const sdk = {
   off: (type: string): void => {
     delete handlers[type];
   },
+  data: {
+    streamStats: vi.fn(),
+  },
 };
 
+// The answer of nnz.data.streamStats: the stream window plus the metric keys (StreamStatsDto).
 const fixture = {
   stream: {
     id: 's1',
     startedAt: '2026-10-15T11:59:00Z',
     endedAt: '2026-10-16T02:00:00Z',
-    durationSeconds: 50460,
-    peakViewers: 36,
     title: 'Coding and tunes',
     game: 'Software and Game Development',
   },
+  duration: 50460,
+  peakViewers: 36,
   followers: 3,
   subs: {
     new: 2,
@@ -49,35 +53,32 @@ const fixture = {
     gift: 4,
     total: 7,
   },
-  giftSubs: [
+  gifters: [
     { name: 'iFiLLz', count: 11 },
     { name: 'finwo_', count: 10 },
   ],
-  selfSubscribers: ['kani_dev'],
-  bits: { total: 200, top: [{ name: 'iFiLLz', bits: 200 }] },
+  selfSubs: ['kani_dev'],
+  bits: { total: 200, top: [{ name: 'iFiLLz', count: 200 }] },
   raidsIn: [
     { name: 'MayaRainer', viewers: 49 },
     { name: 'theCodeDrift', viewers: 23 },
   ],
-  redemptions: { count: 34, top: [{ title: 'Hydrate!', count: 6 }] },
-  songs: { count: 206, topRequesters: [{ name: 'finwo_', count: 86 }] },
-  chat: {
-    messages: 2123,
-    uniqueChatters: 46,
-    topChatters: [{ name: 'iFiLLz', messages: 436 }],
-  },
-  commandsRun: 340,
-  topCommands: [{ name: '!hug', count: 120 }],
+  redemptions: { total: 34, top: [{ name: 'Hydrate!', count: 6 }] },
+  songRequesters: { total: 206, top: [{ name: 'finwo_', count: 86 }] },
+  chat: { messages: 2123, uniqueChatters: 46 },
+  topChatters: [{ name: 'iFiLLz', count: 436 }],
+  commandsRun: { total: 340, top: [{ name: '!hug', count: 120 }] },
 };
 
 const wrappers: VueWrapper[] = [];
 
 function show(data: unknown, settings: Record<string, unknown> = {}): VueWrapper {
+  sdk.data.streamStats.mockResolvedValue(data);
   const wrapper = mount(RaidRecap);
 
   wrappers.push(wrapper);
   settingsHandler(settings);
-  handlers['raid_recap.show']!(data);
+  handlers['raid_recap.show']!({ stream: { id: 's1' } });
 
   return wrapper;
 }
@@ -129,11 +130,48 @@ describe('raid_recap widget', () => {
     expect(wrapper.find('[data-block="raids"]').text()).toContain('MayaRainer');
   });
 
+  it('reads the shown stream through data.streamStats with the metrics setting', async () => {
+    show(fixture, { metrics: ['followers', 'raidsIn'] });
+
+    await flushPromises();
+    expect(sdk.data.streamStats).toHaveBeenLastCalledWith({ stream: 's1', metrics: ['followers', 'raidsIn'] });
+  });
+
+  it('reflows a quiet stream: zero cards are gone and the rest fill the row', async () => {
+    const quiet = {
+      stream: fixture.stream,
+      duration: 3600,
+      followers: 2,
+      subs: {
+        new: 0,
+        resub: 0,
+        gift: 0,
+        total: 0,
+      },
+      gifters: [],
+      selfSubs: [],
+      bits: { total: 0, top: [] },
+      raidsIn: [],
+      redemptions: { total: 0, top: [] },
+      songRequesters: { total: 0, top: [] },
+      topChatters: [{ name: 'kani_dev', count: 12 }],
+      commandsRun: { total: 0, top: [] },
+    };
+    const wrapper = show(quiet);
+
+    await flushPromises();
+    const blocks: string[] = wrapper.findAll('.grid [data-block]').map((b) => b.attributes('data-block') ?? '');
+
+    expect(blocks).toEqual(['chatters', 'followers']);
+    expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-columns: repeat(2, 1fr)');
+    expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-rows: repeat(1, 1fr)');
+  });
+
   it('removes a block with no data', async () => {
     const quiet = {
       ...fixture,
-      giftSubs: [],
-      selfSubscribers: [],
+      gifters: [],
+      selfSubs: [],
       subs: {
         new: 0,
         resub: 0,
@@ -151,7 +189,8 @@ describe('raid_recap widget', () => {
   });
 
   it('shows a dash for a missing stat', async () => {
-    const wrapper = show({ ...fixture, stream: { ...fixture.stream, peakViewers: null } });
+    const { peakViewers: _left, ...noPeak } = fixture;
+    const wrapper = show(noPeak);
 
     await flushPromises();
     expect(wrapper.find('[data-block="peak"] .num').text()).toBe('—');
@@ -189,9 +228,9 @@ describe('raid_recap widget', () => {
   it('lists requesters in the music block and no song titles', async () => {
     const wrapper = show({
       ...fixture,
-      songs: {
-        count: 3,
-        topRequesters: [{ name: 'finwo_', count: 2 }],
+      songRequesters: {
+        total: 3,
+        top: [{ name: 'finwo_', count: 2 }],
         recent: [{ track: 'Secret Song', artist: 'X' }],
       },
     });

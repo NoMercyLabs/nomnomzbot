@@ -408,8 +408,8 @@ public static class FirstPartyWidgetCatalogue
         new(
             Key: "raid_recap",
             Name: "Raid Recap",
-            Description: "The stream recap shown as the ending scene when the raid pipeline commits. The bot sends "
-                + "the finished numbers in one event; blocks with no data are left out and the rest grow to fill "
+            Description: "The stream recap shown as the ending scene when the raid pipeline commits. The widget reads "
+                + "the stream's numbers (the metrics setting) when the bot shows it; blocks with no data are left out and the rest grow to fill "
                 + "the screen. Holds for a configurable time, then fades.",
             DefaultSettings: new()
             {
@@ -423,6 +423,22 @@ public static class FirstPartyWidgetCatalogue
                 ["showFollowers"] = true,
                 ["showRedemptions"] = true,
                 ["showTopCommands"] = true,
+                ["metrics"] = new List<string>
+                {
+                    "duration",
+                    "peakViewers",
+                    "followers",
+                    "subs",
+                    "gifters",
+                    "selfSubs",
+                    "bits",
+                    "raidsIn",
+                    "redemptions",
+                    "songRequesters",
+                    "chat",
+                    "topChatters",
+                    "commandsRun",
+                },
                 ["labels"] = new Dictionary<string, object>
                 {
                     ["title"] = "Stream recap",

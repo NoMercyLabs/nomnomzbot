@@ -279,6 +279,28 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showFollowers", Content),
                 Bool(d, "showRedemptions", Content),
                 Bool(d, "showTopCommands", Content),
+                Multi(
+                    d,
+                    "metrics",
+                    Content,
+                    Opts(
+                        d,
+                        "metrics",
+                        "duration",
+                        "peakViewers",
+                        "followers",
+                        "subs",
+                        "gifters",
+                        "selfSubs",
+                        "bits",
+                        "raidsIn",
+                        "redemptions",
+                        "songRequesters",
+                        "chat",
+                        "topChatters",
+                        "commandsRun"
+                    )
+                ),
                 JsonField(d, "labels", Content, help: true),
                 Accent(d),
             ],

@@ -2,32 +2,52 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 
-// The stream recap, shown as the ending scene. The bot sends the whole StreamRecapDto in one hub event,
-// `raid_recap.show`; this widget never counts anything itself, so its numbers cannot drift from the API.
+// The stream recap, shown as the ending scene. The `raid_recap.show` hub event names the stream; the widget
+// reads that stream's numbers through nnz.data.streamStats (the one stream-stats family), so it never counts
+// anything itself and its numbers cannot drift from the API. When the read fails it shows the event payload.
 // Every visible word comes from the `labels` setting (translated in the dashboard), none from this file.
 
 interface NamedCount { name: string; count: number }
+interface Ranked { total?: number | null; top?: NamedCount[] | null }
 interface RecapDto {
   stream?: {
+    id?: string | null;
     startedAt?: string | null;
     endedAt?: string | null;
-    durationSeconds?: number | null;
-    peakViewers?: number | null;
     title?: string | null;
     game?: string | null;
   } | null;
+  duration?: number | null;
+  peakViewers?: number | null;
   followers?: number | null;
   subs?: { total?: number | null } | null;
-  giftSubs?: NamedCount[] | null;
-  selfSubscribers?: string[] | null;
-  bits?: { total?: number | null; top?: { name: string; bits: number }[] | null } | null;
+  gifters?: NamedCount[] | null;
+  selfSubs?: string[] | null;
+  bits?: Ranked | null;
   raidsIn?: { name: string; viewers: number }[] | null;
-  redemptions?: { count?: number | null; top?: { title: string; count: number }[] | null } | null;
-  songs?: { count?: number | null; topRequesters?: NamedCount[] | null } | null;
-  chat?: { messages?: number | null; uniqueChatters?: number | null; topChatters?: { name: string; messages: number }[] | null } | null;
-  commandsRun?: number | null;
-  topCommands?: NamedCount[] | null;
+  redemptions?: Ranked | null;
+  songRequesters?: Ranked | null;
+  chat?: { messages?: number | null; uniqueChatters?: number | null } | null;
+  topChatters?: NamedCount[] | null;
+  commandsRun?: Ranked | null;
 }
+
+// Every metric the recap can show; the `metrics` setting picks a subset.
+const ALL_METRICS = [
+  'duration',
+  'peakViewers',
+  'followers',
+  'subs',
+  'gifters',
+  'selfSubs',
+  'bits',
+  'raidsIn',
+  'redemptions',
+  'songRequesters',
+  'chat',
+  'topChatters',
+  'commandsRun',
+] as const satisfies readonly NnzStreamMetricKey[];
 
 interface Row { kind: 'row' | 'heading'; name: string; value: string; rank: number }
 interface Card { key: string; big: string; unit: string; rows: Row[]; tall: boolean }
@@ -46,6 +66,7 @@ const cfg = reactive({
   showFollowers: true,
   showRedemptions: true,
   showTopCommands: true,
+  metrics: [...ALL_METRICS] as NnzStreamMetricKey[],
   labels: {} as Record<string, string>,
 });
 
@@ -110,10 +131,10 @@ const timeRange = computed<string>(() => {
 const kpis = computed(() => {
   const r = recap.value;
   return [
-    { key: 'duration', value: formatDuration(r?.stream?.durationSeconds), note: timeRange.value, lead: true },
-    { key: 'peak', value: stat(r?.stream?.peakViewers), note: '', lead: false },
+    { key: 'duration', value: formatDuration(r?.duration), note: timeRange.value, lead: true },
+    { key: 'peak', value: stat(r?.peakViewers), note: '', lead: false },
     { key: 'messages', value: stat(r?.chat?.messages), note: '', lead: false },
-    { key: 'commands', value: stat(r?.commandsRun), note: '', lead: false },
+    { key: 'commands', value: stat(r?.commandsRun?.total), note: '', lead: false },
   ];
 });
 
@@ -131,8 +152,8 @@ function heading(text: string): Row[] {
 }
 
 function subsRows(r: RecapDto): Row[] {
-  const gifted = rowsOf(r.giftSubs, false);
-  const own: Row[] = (r.selfSubscribers || []).map((name) => ({ kind: 'row', name, value: '', rank: 0 }));
+  const gifted = rowsOf(r.gifters, false);
+  const own: Row[] = (r.selfSubs || []).map((name) => ({ kind: 'row', name, value: '', rank: 0 }));
   return [
     ...(gifted.length ? [...heading(label('subs.gifted')), ...gifted] : []),
     ...(own.length ? [...heading(label('subs.own')), ...own] : []),
@@ -143,7 +164,7 @@ function buildCards(r: RecapDto): Card[] {
   const raids = r.raidsIn || [];
   const raiders = raids.reduce((sum, x) => sum + (Number(x.viewers) || 0), 0);
   const all: (Card & { on: boolean; has: boolean })[] = [
-    { key: 'subs', big: stat(r.subs?.total), unit: '', rows: subsRows(r), tall: true, on: cfg.showSubs, has: !!r.subs?.total || !!r.giftSubs?.length || !!r.selfSubscribers?.length },
+    { key: 'subs', big: stat(r.subs?.total), unit: '', rows: subsRows(r), tall: true, on: cfg.showSubs, has: !!r.subs?.total || !!r.gifters?.length || !!r.selfSubs?.length },
     {
       key: 'raids',
       big: stat(raids.length),
@@ -153,13 +174,13 @@ function buildCards(r: RecapDto): Card[] {
       on: cfg.showRaids,
       has: raids.length > 0,
     },
-    { key: 'chatters', big: stat(r.chat?.uniqueChatters), unit: label('chatters.unit'), rows: rowsOf((r.chat?.topChatters || []).map((c) => ({ name: c.name, count: c.messages })), true), tall: false, on: cfg.showChatters, has: !!r.chat?.topChatters?.length },
-    { key: 'songs', big: stat(r.songs?.count), unit: label('songs.unit'), rows: rowsOf(r.songs?.topRequesters, true), tall: false, on: cfg.showSongs, has: !!r.songs?.count || !!r.songs?.topRequesters?.length },
+    { key: 'chatters', big: r.chat ? stat(r.chat.uniqueChatters) : '', unit: r.chat ? label('chatters.unit') : '', rows: rowsOf(r.topChatters, true), tall: false, on: cfg.showChatters, has: !!r.topChatters?.length },
+    { key: 'songs', big: stat(r.songRequesters?.total), unit: label('songs.unit'), rows: rowsOf(r.songRequesters?.top, true), tall: false, on: cfg.showSongs, has: !!r.songRequesters?.total || !!r.songRequesters?.top?.length },
     {
       key: 'bits',
       big: stat(r.bits?.total),
       unit: '',
-      rows: (r.bits?.top || []).map((x) => ({ kind: 'row', name: x.name, value: stat(x.bits), rank: 0 })),
+      rows: rowsOf(r.bits?.top, false),
       tall: false,
       on: cfg.showBits,
       has: !!r.bits?.total,
@@ -167,14 +188,14 @@ function buildCards(r: RecapDto): Card[] {
     { key: 'followers', big: stat(r.followers), unit: '', rows: [], tall: false, on: cfg.showFollowers, has: !!r.followers },
     {
       key: 'redemptions',
-      big: stat(r.redemptions?.count),
+      big: stat(r.redemptions?.total),
       unit: label('redemptions.unit'),
-      rows: (r.redemptions?.top || []).map((x) => ({ kind: 'row', name: x.title, value: stat(x.count), rank: 0 })),
+      rows: rowsOf(r.redemptions?.top, false),
       tall: false,
       on: cfg.showRedemptions,
-      has: !!r.redemptions?.count,
+      has: !!r.redemptions?.total,
     },
-    { key: 'topCommands', big: '', unit: '', rows: rowsOf(r.topCommands, true), tall: false, on: cfg.showTopCommands, has: !!r.topCommands?.length },
+    { key: 'topCommands', big: '', unit: '', rows: rowsOf(r.commandsRun?.top, true), tall: false, on: cfg.showTopCommands, has: !!r.commandsRun?.top?.length },
   ];
   return all.filter((c) => c.on && c.has).map(({ key, big, unit, rows, tall }) => ({ key, big, unit, rows, tall }));
 }
@@ -232,9 +253,18 @@ watch(recap, async () => {
   measure();
 });
 
-function onShow(data: RecapDto | null | undefined): void {
+async function read(shown: RecapDto): Promise<RecapDto> {
+  const stream = shown.stream?.id || undefined;
+  try {
+    return (await NomNomz.data.streamStats({ stream, metrics: cfg.metrics })) as RecapDto;
+  } catch {
+    return shown;
+  }
+}
+
+async function onShow(data: RecapDto | null | undefined): Promise<void> {
   if (!data) return;
-  recap.value = data;
+  recap.value = await read(data);
   visible.value = true;
   clearTimeout(hideTimer);
   hideTimer = setTimeout(() => {
@@ -249,6 +279,11 @@ function applySettings(s: Record<string, unknown>): void {
   flags.forEach((flag) => {
     if (typeof s[flag] === 'boolean') cfg[flag] = s[flag];
   });
+  if (Array.isArray(s.metrics)) {
+    const known: readonly string[] = ALL_METRICS;
+    const picked = s.metrics.filter((m): m is NnzStreamMetricKey => typeof m === 'string' && known.includes(m));
+    if (picked.length) cfg.metrics = picked;
+  }
   if (s.labels && typeof s.labels === 'object') cfg.labels = { ...(s.labels as Record<string, string>) };
 }
 
