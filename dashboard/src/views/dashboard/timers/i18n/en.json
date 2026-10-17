@@ -5,6 +5,59 @@
       "crumb": "Build",
       "new": "New timer",
       "back": "Back to the list",
+      "tabs": {
+        "timers": "Timers",
+        "triggers": "Chat triggers"
+      },
+      "triggers": {
+        "new": "New trigger",
+        "list": {
+          "title": "Chat triggers",
+          "error": "The chat triggers could not load.",
+          "empty": "No chat triggers yet.",
+          "makeFirst": "Make the first trigger",
+          "pick": "Pick a trigger to edit it.",
+          "pickTitle": "No trigger open"
+        },
+        "match": {
+          "contains": "Contains the words",
+          "exact": "Is exactly the words",
+          "starts_with": "Starts with the words",
+          "regex": "Matches a pattern"
+        },
+        "roles": {
+          "Everyone": "Everyone",
+          "Subscriber": "Subscribers",
+          "Vip": "VIPs",
+          "Artist": "Artists",
+          "Moderator": "Moderators",
+          "LeadModerator": "Lead moderators",
+          "Editor": "Editors",
+          "Broadcaster": "Broadcaster"
+        },
+        "editor": {
+          "enabled": "Enabled",
+          "enabledHelp": "A trigger that is off stays in the list and answers nothing.",
+          "pattern": "Words to watch for",
+          "matchType": "How chat must match",
+          "caseSensitive": "Match capital letters",
+          "caseSensitiveHelp": "Off means Hello and hello are the same.",
+          "response": "Reply",
+          "cooldown": "Seconds between replies",
+          "cooldownHelp": "The whole channel waits this long before the trigger answers again.",
+          "role": "Who can set it off",
+          "confirmTitle": "Delete {name}?",
+          "confirmBody": "The trigger is removed for good. It stops answering.",
+          "confirmAction": "Delete trigger"
+        },
+        "dialog": {
+          "title": "New chat trigger",
+          "description": "Pick the words to watch for and what the bot says back.",
+          "patternRequired": "Give the trigger some words to watch for.",
+          "responseRequired": "Write the reply.",
+          "create": "Create trigger"
+        }
+      },
       "list": {
         "title": "Timers",
         "search": "Search timers",
