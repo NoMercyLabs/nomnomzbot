@@ -21,7 +21,7 @@ import {
   useStartScopeRegrant,
 } from '@/api/chatIdentity';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { ColorPicker } from '@/components/ui/color-picker';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const { channelId } = useCurrentChannel();
@@ -144,11 +144,11 @@ function badgeImage(urls: Record<string, string>): string | undefined {
         </div>
 
         <form class="flex items-center gap-2" @submit.prevent="applyHex">
-          <Input
+          <ColorPicker
             v-model="hex"
-            class="w-36"
+            class="w-44"
             placeholder="#9146FF"
-            :aria-label="$t('dashboard.chat.identity.hex')"
+            :label="$t('dashboard.chat.identity.hex')"
             :disabled="!identity.canManageColor"
             data-test="hex"
           />
