@@ -125,13 +125,15 @@ public sealed class DashboardHubAuthorizationTests
             )
             .Returns(Result.Success());
 
-        SendMessageResponse response = await f.Hub.SendTwitchChatMessage(
+        TwitchChatSendResponse response = await f.Hub.SendTwitchChatMessage(
             "9001",
             "hi there",
             "reply-1"
         );
 
         response.Success.Should().BeTrue();
+        response.ErrorCode.Should().BeNull();
+        response.MissingScope.Should().BeNull();
         await f
             .OperatorSender.Received(1)
             .SendToTwitchChannelAsync(
@@ -159,10 +161,12 @@ public sealed class DashboardHubAuthorizationTests
             )
             .Returns(Result.Failure("Missing required scope 'user:write:chat'.", "missing_scope"));
 
-        SendMessageResponse response = await f.Hub.SendTwitchChatMessage("9001", "hi", null);
+        TwitchChatSendResponse response = await f.Hub.SendTwitchChatMessage("9001", "hi", null);
 
         response.Success.Should().BeFalse();
         response.Error.Should().Contain("user:write:chat");
+        response.ErrorCode.Should().Be("missing_scope");
+        response.MissingScope.Should().Be("user:write:chat");
     }
 
     [Theory]
@@ -176,7 +180,11 @@ public sealed class DashboardHubAuthorizationTests
     {
         Fixture f = Build(entryAllowed: false, gate2Allows: false);
 
-        SendMessageResponse response = await f.Hub.SendTwitchChatMessage(twitchId, message, null);
+        TwitchChatSendResponse response = await f.Hub.SendTwitchChatMessage(
+            twitchId,
+            message,
+            null
+        );
 
         response.Success.Should().BeFalse();
         await f

@@ -294,6 +294,14 @@ export async function stopDashboardHub(): Promise<void> {
 
 export type ExternalChatAnswer = { success: boolean; error: string | null };
 
+// The answer to a send: errorCode is the machine-readable failure, missingScope names the absent permission.
+export type ExternalChatSendAnswer = {
+  success: boolean;
+  error: string | null;
+  errorCode: string | null;
+  missingScope: string | null;
+};
+
 // Opens a Twitch channel the bot does not serve; the lines arrive as ExternalChatEvent on this connection.
 export async function joinTwitchChat(twitchBroadcasterId: string): Promise<ExternalChatAnswer> {
   externalChats.add(twitchBroadcasterId);
@@ -313,13 +321,18 @@ export async function sendTwitchChat(
   twitchBroadcasterId: string,
   message: string,
   replyToMessageId: string | null,
-): Promise<ExternalChatAnswer> {
-  const answer = await send<ExternalChatAnswer>(
+): Promise<ExternalChatSendAnswer> {
+  const answer = await send<ExternalChatSendAnswer>(
     'SendTwitchChatMessage',
     twitchBroadcasterId,
     message,
     replyToMessageId,
   );
 
-  return answer ?? { success: false, error: 'The chat link is not up yet.' };
+  return answer ?? {
+    success: false,
+    error: 'The chat link is not up yet.',
+    errorCode: 'link_down',
+    missingScope: null,
+  };
 }

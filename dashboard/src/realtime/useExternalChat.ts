@@ -76,9 +76,9 @@ export function useExternalChat(twitchBroadcasterId: string): ExternalChat {
       return true;
     }
 
-    // The server answers a missing permission in words only; the scope name is the sign of it.
-    missingScope.value = answer.error?.includes(writeScope)
-      ? writeScope
+    // The error code is the sign of a missing permission, never the words.
+    missingScope.value = answer.errorCode === 'missing_scope'
+      ? answer.missingScope ?? writeScope
       : null;
 
     failure.value = answer.error;

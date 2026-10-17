@@ -35,7 +35,12 @@ const hub = vi.hoisted(() => ({
       _id: string,
       _text: string,
       _replyTo: string | null,
-    ): Promise<{ success: boolean; error: string | null }> => ({ success: true, error: null }),
+    ): Promise<HubModule.ExternalChatSendAnswer> => ({
+      success: true,
+      error: null,
+      errorCode: null,
+      missingScope: null,
+    }),
   ),
 }));
 
@@ -117,7 +122,13 @@ describe('ExternalChatView', () => {
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(600);
     HTMLElement.prototype.scrollTo = function (): void {} as typeof HTMLElement.prototype.scrollTo;
     hub.joinTwitchChat.mockResolvedValue({ success: true, error: null });
-    hub.sendTwitchChat.mockResolvedValue({ success: true, error: null });
+
+    hub.sendTwitchChat.mockResolvedValue({
+      success: true,
+      error: null,
+      errorCode: null,
+      missingScope: null,
+    });
   });
 
   it('joins the channel by its Twitch id on mount', async () => {
@@ -174,6 +185,8 @@ describe('ExternalChatView', () => {
     hub.sendTwitchChat.mockResolvedValue({
       success: false,
       error: 'Missing required scope \'user:write:chat\'.',
+      errorCode: 'missing_scope',
+      missingScope: 'user:write:chat',
     });
 
     const wrapper = await open();

@@ -17,6 +17,7 @@ using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -315,23 +316,23 @@ public class DashboardHub : Hub<IDashboardClient>
     /// Sends one chat line to any Twitch channel by its Twitch id, as the caller on their own token
     /// (chat-client.md "Any Twitch channel", Send). Never the bot. Twitch decides whether the caller may speak.
     /// </summary>
-    public async Task<SendMessageResponse> SendTwitchChatMessage(
+    public async Task<TwitchChatSendResponse> SendTwitchChatMessage(
         string twitchBroadcasterId,
         string message,
         string? replyToMessageId
     )
     {
         if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
-            return new(false, "Message too long or empty", null);
+            return new(false, "Message too long or empty", "invalid_message", null);
 
         if (
             string.IsNullOrWhiteSpace(twitchBroadcasterId)
             || !twitchBroadcasterId.All(char.IsAsciiDigit)
         )
-            return new(false, "Unknown channel", null);
+            return new(false, "Unknown channel", TwitchErrorCodes.NotFound, null);
 
         if (CallerId is null || !Guid.TryParse(CallerId, out Guid callerId))
-            return new(false, "Not authenticated", null);
+            return new(false, "Not authenticated", TwitchErrorCodes.Unauthorized, null);
 
         Result sent = await _operatorSender.SendToTwitchChannelAsync(
             callerId,
@@ -340,9 +341,17 @@ public class DashboardHub : Hub<IDashboardClient>
             replyToMessageId,
             Context.ConnectionAborted
         );
-        return sent.IsSuccess
-            ? new(true, null, null)
-            : new(false, sent.ErrorMessage ?? "The message could not be sent to Twitch.", null);
+        if (sent.IsSuccess)
+            return new(true, null, null, null);
+
+        string? missingScope =
+            sent.ErrorCode == TwitchErrorCodes.MissingScope ? TwitchScopes.UserWriteChat : null;
+        return new(
+            false,
+            sent.ErrorMessage ?? "The message could not be sent to Twitch.",
+            sent.ErrorCode,
+            missingScope
+        );
     }
 
     public Task LeaveTwitchChat(string twitchBroadcasterId) =>
