@@ -10,6 +10,7 @@
 
 import { actionRequiredKey } from '@/api/actionRequired';
 import { builtinsKey, commandsKey } from '@/api/commands';
+import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
 import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
 import { timersKey } from '@/api/liveOps';
 import { musicConfigKey, musicQueueKey } from '@/api/music';
@@ -50,9 +51,12 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'viewer-reports': [reviewQueueKey, communityListsKey],
   'raid-assessments': [reviewQueueKey, communityListsKey],
   shoutouts: [viewerProfilesKey],
+  'economy-config': [currencyConfigKey],
+  'earning-rules': [earningRulesKey],
+  'savings-jar': [savingsJarsKey],
 };
 
-// A domain with no page key of its own (catalog, earning-rules, economy-config, quotes, savings-jar, picklists, or a
+// A domain with no page key of its own (catalog, quotes, picklists, or a
 // new one) marks everything the channel owns as stale: every query of a channel starts with one of these three.
 export const channelPrefixes: readonly QueryKeyBuilder[] = [
   (channelId) => ['channels', channelId],

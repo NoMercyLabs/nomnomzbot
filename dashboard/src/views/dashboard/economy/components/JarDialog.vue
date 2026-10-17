@@ -1,0 +1,112 @@
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<script setup lang="ts">
+// A new savings jar: a name, an optional line about it, and an optional goal. It starts open.
+import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import { useCreateSavingsJar } from '@/api/economy';
+import FormDialog from '@/components/layout/FormDialog.vue';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { errorText, fieldErrorLines } from '@/lib/errors';
+
+const open = defineModel<boolean>('open', { required: true });
+
+const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const create = useCreateSavingsJar(channelId);
+
+const name = ref('');
+const description = ref('');
+const goal = ref<number | ''>('');
+const error = ref<string | undefined>(undefined);
+
+watch(open, (isOpen: boolean): void => {
+  if (!isOpen) return;
+
+  name.value = '';
+  description.value = '';
+  goal.value = '';
+  error.value = undefined;
+});
+
+async function submit(): Promise<void> {
+  if (name.value.trim() === '') {
+    error.value = t('dashboard.economy.jars.dialog.nameRequired');
+
+    return;
+  }
+
+  error.value = undefined;
+
+  try {
+    await create.mutateAsync({
+      name: name.value.trim(),
+      description: description.value.trim() === ''
+        ? null
+        : description.value.trim(),
+      goalAmount: goal.value === ''
+        ? null
+        : goal.value,
+      isOpen: true,
+    });
+  } catch (failure) {
+    error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
+
+    return;
+  }
+
+  open.value = false;
+}
+</script>
+
+<template>
+  <FormDialog
+    v-model:open="open"
+    :title="$t('dashboard.economy.jars.dialog.title')"
+    :description="$t('dashboard.economy.jars.dialog.description')"
+    :action="$t('dashboard.economy.jars.dialog.create')"
+    :pending="create.isPending.value"
+    :error="error"
+    @submit="submit"
+  >
+    <Field>
+      <FieldLabel for="jar-name">{{ $t('dashboard.economy.jars.dialog.name') }}</FieldLabel>
+      <Input
+        id="jar-name"
+        v-model="name"
+        autocomplete="off"
+        :aria-label="$t('dashboard.economy.jars.dialog.name')"
+      />
+    </Field>
+    <Field>
+      <FieldLabel for="jar-description">{{ $t('dashboard.economy.jars.dialog.about') }}</FieldLabel>
+      <Input
+        id="jar-description"
+        v-model="description"
+        autocomplete="off"
+        :aria-label="$t('dashboard.economy.jars.dialog.about')"
+      />
+    </Field>
+    <Field>
+      <FieldLabel for="jar-goal">{{ $t('dashboard.economy.jars.dialog.goal') }}</FieldLabel>
+      <Input
+        id="jar-goal"
+        v-model.number="goal"
+        type="number"
+        min="1"
+        step="1"
+        :aria-label="$t('dashboard.economy.jars.dialog.goal')"
+      />
+    </Field>
+  </FormDialog>
+</template>
