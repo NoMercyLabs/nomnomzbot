@@ -73,14 +73,17 @@ function toggle(reward: Reward, enabled: boolean): void {
 
 <template>
   <PanelCard
-    tier="lead"
     :title="$t('dashboard.channelPoints.rewards.title')"
-    :description="$t('dashboard.channelPoints.rewards.count', { count: query.data.value?.length ?? 0 })"
     :state="state"
     :empty-text="$t('dashboard.channelPoints.rewards.empty')"
     :error-text="$t('dashboard.channelPoints.rewards.error')"
     @retry="query.refetch()"
   >
+    <template #actions>
+      <span class="text-sm text-muted-foreground tabular-nums">
+        {{ $t('dashboard.channelPoints.rewards.count', { count: query.data.value?.length ?? 0 }) }}
+      </span>
+    </template>
     <ReadOnlyScope :read-only="!canManage">
       <SummaryRow
         v-for="reward in query.data.value"
@@ -91,7 +94,7 @@ function toggle(reward: Reward, enabled: boolean): void {
       >
         <template #leading>
           <span
-            class="flex size-9 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
+            class="flex size-9 flex-none items-center justify-center overflow-hidden rounded-[6px] bg-muted text-muted-foreground"
             :style="
               reward.backgroundColor
                 ? { backgroundColor: reward.backgroundColor }
@@ -103,7 +106,7 @@ function toggle(reward: Reward, enabled: boolean): void {
               v-if="reward.imageUrl"
               :src="reward.imageUrl"
               alt=""
-              class="size-full rounded-md object-cover"
+              class="size-full object-cover"
             >
             <Gem v-else class="size-5" />
           </span>

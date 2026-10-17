@@ -2,6 +2,7 @@
   "dashboard": {
     "channelPoints": {
       "title": "Channel points",
+      "crumb": "Engage",
       "rewards": {
         "title": "Rewards",
         "count": "{count} rewards",

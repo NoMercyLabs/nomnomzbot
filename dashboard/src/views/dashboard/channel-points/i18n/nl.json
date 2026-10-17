@@ -2,6 +2,7 @@
   "dashboard": {
     "channelPoints": {
       "title": "Kanaalpunten",
+      "crumb": "Betrekken",
       "rewards": {
         "title": "Beloningen",
         "count": "{count} beloningen",

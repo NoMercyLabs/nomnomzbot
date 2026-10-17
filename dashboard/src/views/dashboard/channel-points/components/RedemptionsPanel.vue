@@ -17,7 +17,6 @@ import { useI18n } from 'vue-i18n';
 
 import Check from '~icons/nnz/check';
 import CheckDouble from '~icons/nnz/check-double';
-import Clock from '~icons/nnz/clock';
 import Cross from '~icons/nnz/cross';
 import Gem from '~icons/nnz/gem';
 import Inbox from '~icons/nnz/inbox';
@@ -185,17 +184,31 @@ function rejectOpen(open: boolean): void {
 
 <template>
   <PanelCard
+    tier="lead"
     :title="$t('dashboard.channelPoints.redemptions.title')"
     :state="state"
     :error-text="$t('dashboard.channelPoints.redemptions.error')"
     @retry="queue.refetch()"
   >
+    <template #actions>
+      <Checkbox
+        v-if="canManage"
+        data-redemption-select-all
+        :model-value="allChosen"
+        :disabled="visible.length === 0"
+        :aria-label="$t('dashboard.channelPoints.redemptions.selectAll')"
+        @update:model-value="toggleAll"
+      />
+      <span class="text-sm text-muted-foreground tabular-nums">
+        {{ $t('dashboard.channelPoints.redemptions.range', { count: visible.length }) }}
+      </span>
+    </template>
+
     <div
-      class="grid h-full min-h-0 grid-cols-[minmax(10rem,14rem)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)]
-        divide-x divide-border"
+      class="grid h-full min-h-0 grid-cols-[minmax(10rem,14rem)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-2"
     >
       <nav
-        class="flex min-h-0 flex-col gap-0.5 overflow-y-auto p-2"
+        class="flex min-h-0 flex-col gap-0.5 overflow-y-auto"
         :aria-label="$t('dashboard.channelPoints.redemptions.filterLabel')"
       >
         <button
@@ -204,13 +217,13 @@ function rejectOpen(open: boolean): void {
           type="button"
           :data-redemption-filter="entry.id"
           :aria-pressed="filter === entry.id"
-          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none
+          class="flex min-h-11 items-center gap-2 rounded-[12px] px-2 py-1 text-left text-sm outline-none
             hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50
             aria-pressed:bg-accent aria-pressed:font-medium"
           @click="pick(entry.id)"
         >
           <span
-            class="grid size-8 flex-none place-content-center overflow-hidden rounded-md bg-muted text-muted-foreground"
+            class="grid size-9 flex-none place-content-center overflow-hidden rounded-[6px] bg-muted text-muted-foreground"
             :style="entry.reward?.backgroundColor
               ? { backgroundColor: entry.reward.backgroundColor }
               : undefined"
@@ -222,45 +235,31 @@ function rejectOpen(open: boolean): void {
               alt=""
               class="size-full object-cover"
             >
-            <Gem v-else class="size-5 text-white" aria-hidden="true" />
+            <Gem v-else class="size-5" aria-hidden="true" />
           </span>
           <span class="min-w-0 flex-1 truncate">{{ entry.title }}</span>
-          <span data-redemption-count class="flex-none text-xs text-muted-foreground tabular-nums">
+          <span data-redemption-count class="flex-none text-sm text-muted-foreground tabular-nums">
             {{ entry.count }}
           </span>
         </button>
       </nav>
 
       <div class="flex min-h-0 min-w-0 flex-col">
-        <div class="flex flex-none items-center gap-3 border-b border-border px-3 py-2">
-          <Checkbox
-            v-if="canManage"
-            data-redemption-select-all
-            :model-value="allChosen"
-            :disabled="visible.length === 0"
-            :aria-label="$t('dashboard.channelPoints.redemptions.selectAll')"
-            @update:model-value="toggleAll"
-          />
-          <span class="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-            {{ $t('dashboard.channelPoints.redemptions.range', { count: visible.length }) }}
-          </span>
-        </div>
-
         <p
           v-if="visible.length === 0"
-          class="p-6 text-center text-sm text-muted-foreground"
+          class="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground"
         >
           {{ $t(filter === 'all'
             ? 'dashboard.channelPoints.redemptions.empty'
             : 'dashboard.channelPoints.redemptions.emptyFilter') }}
         </p>
 
-        <ul v-else class="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+        <ul v-else class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           <li
             v-for="row in visible"
             :key="row.redemptionId"
             :data-redemption-item="row.redemptionId"
-            class="flex items-start gap-3 px-3 py-2.5"
+            class="flex min-h-11 items-start gap-3 rounded-[12px] px-2 py-2 hover:bg-accent/50"
           >
             <Checkbox
               v-if="canManage"
@@ -273,12 +272,11 @@ function rejectOpen(open: boolean): void {
             <div class="min-w-0 flex-1">
               <div class="flex items-baseline gap-2">
                 <span class="min-w-0 truncate text-sm font-medium">{{ row.rewardTitle }}</span>
-                <span class="flex flex-none items-center gap-1 text-xs text-muted-foreground">
-                  <Clock class="size-4" aria-hidden="true" />
+                <span class="flex-none text-sm text-muted-foreground">
                   {{ when(row) }}
                 </span>
               </div>
-              <div class="text-xs text-muted-foreground">
+              <div class="text-sm text-muted-foreground">
                 <UserName
                   :user-id="row.userId"
                   :name="row.userDisplayName"
@@ -292,7 +290,7 @@ function rejectOpen(open: boolean): void {
             </div>
             <div v-if="canManage" class="flex flex-none items-center gap-1.5">
               <Button
-                variant="destructive"
+                variant="ghost"
                 size="sm"
                 :aria-label="$t('dashboard.channelPoints.redemptions.rejectRow', { title: row.rewardTitle, name: row.userDisplayName })"
                 data-redemption-reject
@@ -314,32 +312,32 @@ function rejectOpen(open: boolean): void {
           </li>
         </ul>
 
-        <div
-          v-if="canManage"
-          class="mt-auto flex flex-none items-center justify-end gap-2 border-t border-border px-3 py-2"
-        >
-          <Button
-            variant="destructive"
-            size="sm"
-            data-redemption-bulk-reject
-            :disabled="bulkIds.length === 0"
-            @click="rejecting = bulkIds"
-          >
-            <Cross aria-hidden="true" />
-            {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: bulkIds.length }) }}
-          </Button>
-          <Button
-            size="sm"
-            data-redemption-bulk-complete
-            :disabled="bulkIds.length === 0"
-            @click="decide(bulkIds, 'fulfill')"
-          >
-            <CheckDouble aria-hidden="true" />
-            {{ $t('dashboard.channelPoints.redemptions.completeAll', { count: bulkIds.length }) }}
-          </Button>
-        </div>
       </div>
     </div>
+
+    <template v-if="canManage" #footer>
+      <div class="ml-auto flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          data-redemption-bulk-reject
+          :disabled="bulkIds.length === 0"
+          @click="rejecting = bulkIds"
+        >
+          <Cross aria-hidden="true" />
+          {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: bulkIds.length }) }}
+        </Button>
+        <Button
+          size="sm"
+          data-redemption-bulk-complete
+          :disabled="bulkIds.length === 0"
+          @click="decide(bulkIds, 'fulfill')"
+        >
+          <CheckDouble aria-hidden="true" />
+          {{ $t('dashboard.channelPoints.redemptions.completeAll', { count: bulkIds.length }) }}
+        </Button>
+      </div>
+    </template>
   </PanelCard>
 
   <ConfirmDialog

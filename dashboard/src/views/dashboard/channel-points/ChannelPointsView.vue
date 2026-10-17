@@ -22,13 +22,13 @@ import RewardsPanel from './components/RewardsPanel.vue';
 const { t } = useI18n();
 
 const panels = computed(() => [
-  { id: 'rewards', label: t('dashboard.channelPoints.rewards.title') },
   { id: 'redemptions', label: t('dashboard.channelPoints.redemptions.title') },
+  { id: 'rewards', label: t('dashboard.channelPoints.rewards.title') },
 ] as const satisfies readonly BoardPanel[]);
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.channelPoints.title')" />
+  <PageHeader :title="$t('dashboard.channelPoints.title')" :crumb="$t('dashboard.channelPoints.crumb')" />
   <BoardGrid :panels="panels" :rows="1">
     <BoardCell panel="redemptions" :span="6">
       <RedemptionsPanel />
