@@ -1,0 +1,42 @@
+{
+  "dashboard": {
+    "mediaShare": {
+      "title": "Media share",
+      "crumb": "Community",
+      "queue": {
+        "title": "Queue",
+        "waiting": "{count} in the queue",
+        "empty": "No media has been shared yet.",
+        "error": "The media queue could not load.",
+        "by": "Shared by {name}",
+        "approve": "Approve",
+        "reject": "Reject",
+        "skip": "Skip",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "status": {
+          "pending": "Waiting for approval",
+          "approved": "Approved",
+          "playing": "Playing",
+          "played": "Played",
+          "rejected": "Rejected",
+          "skipped": "Skipped"
+        }
+      },
+      "config": {
+        "title": "Settings",
+        "error": "The media share settings could not load.",
+        "save": "Save settings",
+        "discard": "Discard",
+        "isEnabled": "Accept media from viewers",
+        "requireApproval": "Approve each item before it plays",
+        "allowTwitchClips": "Allow Twitch clips",
+        "allowYouTube": "Allow YouTube videos",
+        "maxDurationSeconds": "Longest item (seconds)",
+        "entryCost": "Cost per item (points)",
+        "maxQueueLength": "Longest queue",
+        "perUserCooldownSeconds": "Wait between items per viewer (seconds)"
+      }
+    }
+  }
+}
