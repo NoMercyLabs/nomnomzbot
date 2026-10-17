@@ -333,6 +333,8 @@ public sealed class SdkTypeEmitterTests
                 interface NnzApiStatsNamespace {
                   /** A viewer's channel stats. userIdOrLogin is optional and defaults to the user who triggered the script. A viewer never seen gets zeros. */
                   viewer(userIdOrLogin?: string): NnzApiViewerStats;
+                  /** Any metrics of one stream, by key. null on an unknown key or when the channel has no such stream. */
+                  stream<K extends NnzStreamMetricKey>(options: NnzStreamStatsOptions<K>): NnzStreamStats<K> | null;
                 }
                 """
             );

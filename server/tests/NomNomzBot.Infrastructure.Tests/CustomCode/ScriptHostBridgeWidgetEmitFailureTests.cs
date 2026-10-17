@@ -93,7 +93,8 @@ public sealed class ScriptHostBridgeWidgetEmitFailureTests
             Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             Substitute.For<ITwitchUsersApi>(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
     }
 

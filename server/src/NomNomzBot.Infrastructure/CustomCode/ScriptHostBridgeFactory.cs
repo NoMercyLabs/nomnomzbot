@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Services;
@@ -47,7 +48,8 @@ public sealed class ScriptHostBridgeFactory(
     ISevenTvUserPaintResolver paintResolver,
     IOwnerActionService ownerActions,
     ITwitchUsersApi twitchUsers,
-    IMentionTargetResolver mentionTargets
+    IMentionTargetResolver mentionTargets,
+    IStreamStatsService streamStats
 ) : IScriptHostBridgeFactory
 {
     public IScriptHostBridge Create(
@@ -75,6 +77,7 @@ public sealed class ScriptHostBridgeFactory(
             paintResolver,
             ownerActions,
             twitchUsers,
-            mentionTargets
+            mentionTargets,
+            streamStats
         );
 }

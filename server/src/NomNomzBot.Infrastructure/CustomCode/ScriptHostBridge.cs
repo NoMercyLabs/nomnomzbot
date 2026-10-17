@@ -22,6 +22,8 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -77,6 +79,7 @@ public sealed partial class ScriptHostBridge(
     IOwnerActionService ownerActions,
     ITwitchUsersApi twitchUsers,
     IMentionTargetResolver mentionTargets,
+    IStreamStatsService streamStats,
     long? maxEgressBytes = null
 ) : IScriptHostBridge, IScriptWriteValidator
 {
@@ -215,6 +218,7 @@ public sealed partial class ScriptHostBridge(
             "reward.get" => GetReward,
             "reward.update" => UpdateReward,
             "stats.viewer" => GetViewerStats,
+            "stats.stream" => GetStreamStats,
             "tts.voice.get" => GetTtsVoice,
             "tts.voice.list" => ListTtsVoices,
             "tts.voice.set" => SetTtsVoice,
@@ -930,6 +934,27 @@ public sealed partial class ScriptHostBridge(
                 commands = profile?.TotalCommandsUsed ?? 0,
             }
         );
+    }
+
+    // args: [metrics csv, streamId?]. The same answer as the overlay/dashboard stream-stats read.
+    private string? GetStreamStats(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        string[] keys = (args.Count > 0 ? args[0] : "").Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+        string? streamId = args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]) ? args[1] : null;
+        Result<StreamStatsDto> stats = streamStats
+            .GetAsync(broadcasterId, streamId, keys, ct)
+            .GetAwaiter()
+            .GetResult();
+        return stats.IsSuccess
+            ? System.Text.Json.JsonSerializer.Serialize(stats.Value)
+            : Fail(stats);
     }
 
     private string? GetTtsVoice(

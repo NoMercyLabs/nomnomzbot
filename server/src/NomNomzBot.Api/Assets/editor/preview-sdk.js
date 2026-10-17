@@ -151,6 +151,14 @@
   });
 
   // Data reads answer with fixtures and never touch the network. Each call is shown to the author like an action.
+  var FIXTURE_STREAM_WINDOW = {
+    id: "preview",
+    startedAt: "2026-01-01T18:00:00Z",
+    endedAt: null,
+    title: "Preview stream",
+    game: "Preview game",
+  };
+
   var FIXTURE_NOW_PLAYING = {
     provider: "spotify",
     track: "Preview Track",
@@ -172,6 +180,10 @@
   function nowPlaying() { return readData("nowPlaying", null, FIXTURE_NOW_PLAYING); }
   function queue() { return readData("queue", null, []); }
   function storage(key) { return readData("storage", key, null); }
+  function streamStats(options) {
+    var keys = options && options.metrics ? options.metrics.join(",") : "";
+    return readData("streamStats", keys, { stream: FIXTURE_STREAM_WINDOW });
+  }
   function playbackToken() {
     tell({ kind: "data", what: "spotify.playbackToken", key: null });
     return Promise.resolve({ error: "error" });
@@ -192,6 +204,7 @@
       nowPlaying: nowPlaying,
       queue: queue,
       storage: storage,
+      streamStats: streamStats,
     },
     spotify: {
       playbackToken: playbackToken,

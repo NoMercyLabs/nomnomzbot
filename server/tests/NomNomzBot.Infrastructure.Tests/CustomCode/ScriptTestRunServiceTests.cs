@@ -101,7 +101,8 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             Substitute.For<ITwitchUsersApi>(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
 
         ITriggerSampleCatalog samples = new TriggerSampleCatalog(

@@ -235,7 +235,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     }
                 },
                 stats: {
-                    viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined || userIdOrLogin === null ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; }
+                    viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined || userIdOrLogin === null ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
+                    stream: function (options) { var o = options || {}; var keys = (o.metrics || []).join(','); var r = missing(o.stream) ? bot.call('stats.stream', keys) : bot.call('stats.stream', keys, String(o.stream)); return r ? JSON.parse(r) : null; }
                 },
                 widget: {
                     emit: function (widgetIdOrName, eventType, data) {
@@ -357,6 +358,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["tts.setVoice"] = "tts.voice.set",
         ["tts.listVoices"] = "tts.voice.list",
         ["stats.viewer"] = "stats.viewer",
+        ["stats.stream"] = "stats.stream",
         ["widget.emit"] = "widget.emit",
         ["reward.get"] = "reward.get",
         ["reward.update"] = "reward.update",

@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -35,10 +37,12 @@ public class OverlayController : BaseController
     private const string TokenHeaderName = "X-Overlay-Token";
 
     private readonly IWidgetService _widgetService;
+    private readonly IStreamStatsService _streamStats;
 
-    public OverlayController(IWidgetService widgetService)
+    public OverlayController(IWidgetService widgetService, IStreamStatsService streamStats)
     {
         _widgetService = widgetService;
+        _streamStats = streamStats;
     }
 
     /// <summary>
@@ -133,6 +137,38 @@ public class OverlayController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<string?> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// Any metrics of one stream of the token's channel (the latest, live or ended, when <paramref name="streamId"/>
+    /// is omitted): the same answer as the dashboard's <c>stream-stats</c>, for the SDK's
+    /// <c>data.streamStats</c>. <paramref name="metrics"/> is a comma-separated key list; an unknown key is a 400.
+    /// </summary>
+    [HttpGet("stream-stats")]
+    [ProducesResponseType<StatusResponseDto<StreamStatsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStreamStats(
+        [FromQuery] string? streamId,
+        [FromQuery] string? metrics,
+        [FromQuery] string? token,
+        CancellationToken ct
+    )
+    {
+        token = ResolveToken(token);
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequestResponse("An overlay token is required.");
+
+        Guid? broadcasterId = await _widgetService.ResolveBroadcasterIdByOverlayTokenAsync(
+            token,
+            ct
+        );
+        if (broadcasterId is null)
+            return NotFoundResponse("No channel found for the provided overlay token.");
+
+        string[]? keys = metrics?.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+        return ResultResponse(await _streamStats.GetAsync(broadcasterId.Value, streamId, keys, ct));
     }
 
     /// <summary>The channel's current playback queue (excluding the now-playing track).</summary>

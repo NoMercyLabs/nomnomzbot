@@ -46,6 +46,7 @@ public sealed class OverlaySdkController : ControllerBase
            page plays (state PLAYING, PAUSED or ENDED); true when the bot accepted the report.
            data.nowPlaying() / data.queue() / data.storage(key) -> Promise: the channel's current snapshots, read
            with the SDK's own token (header X-Overlay-Token); they reject when the request fails.
+           data.streamStats({ stream?, metrics }) -> Promise: the stream window plus the requested metric keys.
            spotify.playbackToken() -> Promise<{ token } | { error: "blocked" | "error" }>, never rejects.
            widget.id / widget.name: who this page is. The widget never holds or parses the token. */
         (function () {
@@ -550,6 +551,14 @@ public sealed class OverlaySdkController : ControllerBase
             return readData("storage/" + encodeURIComponent(String(key))).then(function (d) { return d == null ? null : d; });
           }
 
+          // Any metrics of one stream by key; a wrong key or a missing stream rejects (400/404).
+          function streamStats(options) {
+            var o = options || {};
+            var q = "stream-stats?metrics=" + encodeURIComponent((o.metrics || []).join(","));
+            if (o.stream) q += "&streamId=" + encodeURIComponent(String(o.stream));
+            return readData(q);
+          }
+
           // A short-lived Spotify token for the Web Playback SDK. 401/403 is "blocked" (not allowed to play),
           // anything else that fails is "error"; the widget picks its own message for each.
           function playbackToken() {
@@ -572,6 +581,7 @@ public sealed class OverlaySdkController : ControllerBase
               nowPlaying: nowPlaying,
               queue: queue,
               storage: storage,
+              streamStats: streamStats,
             },
             spotify: {
               playbackToken: playbackToken,

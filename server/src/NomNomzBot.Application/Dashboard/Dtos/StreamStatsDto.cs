@@ -19,6 +19,7 @@ namespace NomNomzBot.Application.Dashboard.Dtos;
 /// </summary>
 public sealed record StreamStatsDto
 {
+    /// <summary>The stream these numbers belong to.</summary>
     [JsonPropertyName("stream")]
     public required StreamStatsWindowDto Stream { get; init; }
 
@@ -27,14 +28,17 @@ public sealed record StreamStatsDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? Duration { get; set; }
 
+    /// <summary>The highest viewer count the stream recorded.</summary>
     [JsonPropertyName("peakViewers")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? PeakViewers { get; set; }
 
+    /// <summary>New followers during the stream.</summary>
     [JsonPropertyName("followers")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Followers { get; set; }
 
+    /// <summary>Subscriptions during the stream: new, resubscribed, gifted and the total.</summary>
     [JsonPropertyName("subs")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public StreamStatsSubsDto? Subs { get; set; }
@@ -54,6 +58,7 @@ public sealed record StreamStatsDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public StreamStatsRankedDto? Bits { get; set; }
 
+    /// <summary>Raids that arrived during the stream: who raided and with how many viewers.</summary>
     [JsonPropertyName("raidsIn")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<StreamStatsRaidDto>? RaidsIn { get; set; }
@@ -68,10 +73,12 @@ public sealed record StreamStatsDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public StreamStatsRankedDto? SongRequesters { get; set; }
 
+    /// <summary>Chat message count and the number of different chatters.</summary>
     [JsonPropertyName("chat")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public StreamStatsChatDto? Chat { get; set; }
 
+    /// <summary>The chatters with the most messages.</summary>
     [JsonPropertyName("topChatters")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<StreamStatsNamedCountDto>? TopChatters { get; set; }
@@ -82,44 +89,58 @@ public sealed record StreamStatsDto
     public StreamStatsRankedDto? CommandsRun { get; set; }
 }
 
+/// <summary>The window of one stream: its id, start, end, title and game.</summary>
 public sealed record StreamStatsWindowDto
 {
+    /// <summary>The stream id.</summary>
     [JsonPropertyName("id")]
     public required string Id { get; init; }
 
+    /// <summary>When the stream started.</summary>
     [JsonPropertyName("startedAt")]
     public DateTimeOffset StartedAt { get; init; }
 
+    /// <summary>When the stream ended. Null while it is live.</summary>
     [JsonPropertyName("endedAt")]
     public DateTimeOffset? EndedAt { get; init; }
 
+    /// <summary>The stream title.</summary>
     [JsonPropertyName("title")]
     public string? Title { get; init; }
 
+    /// <summary>The game or category name.</summary>
     [JsonPropertyName("game")]
     public string? Game { get; init; }
 }
 
+/// <summary>Subscription counts of a stream.</summary>
 public sealed record StreamStatsSubsDto
 {
+    /// <summary>First-time subscriptions.</summary>
     [JsonPropertyName("new")]
     public int New { get; init; }
 
+    /// <summary>Resubscriptions.</summary>
     [JsonPropertyName("resub")]
     public int Resub { get; init; }
 
+    /// <summary>Gifted subscriptions.</summary>
     [JsonPropertyName("gift")]
     public int Gift { get; init; }
 
+    /// <summary>All subscriptions together.</summary>
     [JsonPropertyName("total")]
     public int Total { get; init; }
 }
 
+/// <summary>A name with a count.</summary>
 public sealed record StreamStatsNamedCountDto
 {
+    /// <summary>The viewer or reward name.</summary>
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
+    /// <summary>How many times it counted.</summary>
     [JsonPropertyName("count")]
     public int Count { get; init; }
 }
@@ -127,27 +148,35 @@ public sealed record StreamStatsNamedCountDto
 /// <summary>A total and its top entries, ranked by count then name.</summary>
 public sealed record StreamStatsRankedDto
 {
+    /// <summary>The total across all entries.</summary>
     [JsonPropertyName("total")]
     public int Total { get; init; }
 
+    /// <summary>The top entries, highest first.</summary>
     [JsonPropertyName("top")]
     public required List<StreamStatsNamedCountDto> Top { get; init; }
 }
 
+/// <summary>One raid that arrived.</summary>
 public sealed record StreamStatsRaidDto
 {
+    /// <summary>The raiding channel.</summary>
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
+    /// <summary>How many viewers came with the raid.</summary>
     [JsonPropertyName("viewers")]
     public int Viewers { get; init; }
 }
 
+/// <summary>Chat activity of a stream.</summary>
 public sealed record StreamStatsChatDto
 {
+    /// <summary>The number of chat messages.</summary>
     [JsonPropertyName("messages")]
     public int Messages { get; init; }
 
+    /// <summary>The number of different chatters.</summary>
     [JsonPropertyName("uniqueChatters")]
     public int UniqueChatters { get; init; }
 }
