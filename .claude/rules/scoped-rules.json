@@ -83,6 +83,21 @@
  ],
  "rules": [
   {
+   "id": "one-parameterized-read-not-many-endpoints",
+   "paths": [
+    "server/src/NomNomzBot.Api/Controllers/**/*.cs",
+    "server/src/NomNomzBot.Infrastructure/DevPlatform/SdkRuntimeSurface.cs"
+   ],
+   "brief": [
+    "\\bendpoint\\b",
+    "\\bSDK\\b",
+    "\\bnnz\\.(data|api)\\b"
+   ],
+   "text": "Default (a starting point; diverge only with a stated reason in the commit): a family of reads is ONE parameterized endpoint and ONE typed SDK call with options, never one endpoint or SDK method per item. Each item is a small registered class (example: IStreamMetric behind GET stream-stats?metrics=a,b and nnz.data.streamStats({ metrics }), typed Pick<Map, K>). A new item is a new class that extends the map; it never adds a route or an SDK method. Before adding a read endpoint or SDK call, check whether an existing family can take it as an option.",
+   "source": "Stoney 2026-10-17: \"if we can fold this into the api and sdk as a single call with all the options that would be way cleaner than adding more and more endpoints and extra sdk calls\" and \"make this a rule as a starting point so this becomes the norm that we may diverge from if the need arrives\"",
+   "covers": []
+  },
+  {
    "id": "worktree-starts-from-local-master",
    "brief": [
     "\\bworktree\\b"

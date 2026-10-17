@@ -23,10 +23,10 @@ import { channelOptions, channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 
-export type ObsConnection = components['schemas']['ObsConnectionDto'];
-export type ObsBridgeStatus = components['schemas']['ObsBridgeStatusDto'];
-export type ObsState = components['schemas']['ObsStateDto'];
-export type ObsScene = components['schemas']['ObsSceneDto'];
+export type ObsConnection = components['schemas']['ObsConnection'];
+export type ObsBridgeStatus = components['schemas']['ObsBridgeStatus'];
+export type ObsState = components['schemas']['ObsState'];
+export type ObsScene = components['schemas']['ObsScene'];
 
 const version = '1';
 
@@ -145,8 +145,8 @@ export function useObsScenes(
   });
 }
 
-export type ObsTransition = components['schemas']['ObsTransitionDto'];
-export type ObsInput = components['schemas']['ObsInputDto'];
+export type ObsTransition = components['schemas']['ObsTransition'];
+export type ObsInput = components['schemas']['ObsInput'];
 
 export const obsInputsKey = (channelId: string | null): KeyParts => [
   'channels',

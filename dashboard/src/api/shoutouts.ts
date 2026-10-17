@@ -22,7 +22,7 @@ import { viewerProfilesKey } from './people';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type ShoutoutSuggestion = components['schemas']['ShoutoutSuggestionDto'];
+export type ShoutoutSuggestion = components['schemas']['ShoutoutSuggestion'];
 
 const version = '1';
 

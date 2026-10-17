@@ -16,11 +16,11 @@ import { failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 
-export type AnalyticsSummary = components['schemas']['ChannelAnalyticsSummaryDto'];
-export type AnalyticsDay = components['schemas']['ChannelAnalyticsDailyDto'];
-export type StreamRow = components['schemas']['StreamListItemDto'];
-export type ChatHours = components['schemas']['ChannelChatHoursDto'];
-export type ChatHourCell = components['schemas']['ChatHourCellDto'];
+export type AnalyticsSummary = components['schemas']['ChannelAnalyticsSummary'];
+export type AnalyticsDay = components['schemas']['ChannelAnalyticsDaily'];
+export type StreamRow = components['schemas']['StreamListItem'];
+export type ChatHours = components['schemas']['ChannelChatHours'];
+export type ChatHourCell = components['schemas']['ChatHourCell'];
 
 // The ranges the page offers, as the number of days back from today.
 export const ANALYTICS_RANGES = {

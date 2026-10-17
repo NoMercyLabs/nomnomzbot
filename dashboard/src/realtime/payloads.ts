@@ -71,8 +71,8 @@ export type ChannelEventPayload = {
 
 // Hubs/Broadcasters/AdminHubStatusPublisher.cs: the anonymous { System, Stats } snapshot (IAdminClient.ReceiveSystemStatus)
 export type AdminSystemStatusPayload = {
-  system: components['schemas']['AdminSystemDto'];
-  stats: components['schemas']['AdminStatsDto'];
+  system: components['schemas']['AdminSystem'];
+  stats: components['schemas']['AdminStats'];
 };
 
 // Hubs/Clients/IAdminClient.cs: ReceiveChannelRegistryUpdate (AdminBroadcastHandlers.cs). Three anonymous shapes share one event:
@@ -87,7 +87,7 @@ export type AdminChannelRegistryPayload = {
 };
 
 // Hubs/Clients/IDashboardClient.cs: ChatMessage carries DashboardChatMessageDto, the same record the history call returns.
-export type ChatMessagePayload = components['schemas']['DashboardChatMessageDto'];
+export type ChatMessagePayload = components['schemas']['DashboardChatMessage'];
 
 // ChatModerationBroadcastHandlers.cs: the data of the ChannelEvent with type "message_deleted".
 export type MessageDeletedPayload = {

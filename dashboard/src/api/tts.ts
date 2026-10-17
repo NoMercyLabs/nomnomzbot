@@ -26,10 +26,10 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type TtsConfig = components['schemas']['TtsConfigDto'];
-export type TtsOverlay = components['schemas']['TtsOverlayDto'];
-export type TtsVoice = components['schemas']['TtsVoiceDto'];
-export type TtsSampleResult = components['schemas']['TtsTestResultDto'];
+export type TtsConfig = components['schemas']['TtsConfig'];
+export type TtsOverlay = components['schemas']['TtsOverlay'];
+export type TtsVoice = components['schemas']['TtsVoice'];
+export type TtsSampleResult = components['schemas']['TtsTestResult'];
 export type TtsVoiceFilters = { q: string };
 export type TtsVoicePage = {
   voices: TtsVoice[];
