@@ -19,6 +19,7 @@ tool; they are written to be handed to a subagent verbatim.
 | `deploy-and-verify` | ship on green, blue/green switchover, prove the box runs the intended SHA | `ship.ps1` · `switchover.ps1` |
 | `devbox` | the containerised work environment, three ways in | `devbox/` |
 | `dispatch-a-builder` | brief a subagent, and judge its report | `land-worktree.ps1` |
+| `browser-sign-in` | sign the agent's browser in to the Proxmox dev box as the owner, token never in a tool call | `browser-sign-in.py` |
 | `sleak` | UI craft bar for anything visual | — |
 
 Order for a normal piece of work:
