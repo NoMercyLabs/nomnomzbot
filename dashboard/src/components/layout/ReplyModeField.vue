@@ -11,7 +11,8 @@
 // The reply section of an editor: one switch between a simple reply and a full pipeline. The simple reply
 // is the default slot. The full pipeline is a picker, because the pipeline has its own reply step.
 // Only one of the two shows at a time, so an editor never carries both.
-import { computed } from 'vue';
+import { useElementSize } from '@vueuse/core';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { usePipelines } from '@/api/pipelines';
@@ -38,6 +39,17 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const pipelines = usePipelines(channelId);
 
+// The pipeline picker keeps the height the simple reply last had, so a switch never moves what sits below.
+const simpleBox = useTemplateRef<HTMLElement>('simpleBox');
+const { height: simpleHeight } = useElementSize(simpleBox);
+const reservedHeight = ref(0);
+
+watch(simpleHeight, (height: number): void => {
+  if (height > 0) {
+    reservedHeight.value = height;
+  }
+});
+
 const options = computed<{ value: ReplyMode; label: string }[]>(() => [
   { value: 'simple', label: t('common.replyMode.simple') },
   { value: 'full', label: t('common.replyMode.full') },
@@ -54,11 +66,16 @@ const options = computed<{ value: ReplyMode; label: string }[]>(() => [
       :disabled="disabled"
     />
 
-    <div v-if="mode === 'simple'" data-reply-simple class="grid gap-3">
+    <div v-if="mode === 'simple'" ref="simpleBox" data-reply-simple class="grid gap-3">
       <slot />
     </div>
 
-    <Field v-else data-reply-pipeline>
+    <Field
+      v-else
+      data-reply-pipeline
+      class="content-start"
+      :style="{ minHeight: `${reservedHeight}px` }"
+    >
       <div class="flex items-center gap-1.5">
         <FieldLabel>{{ $t('common.replyMode.pipeline') }}</FieldLabel>
         <FieldInfo v-if="pipelineId === ''">{{ $t('common.replyMode.none') }}</FieldInfo>

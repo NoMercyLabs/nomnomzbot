@@ -297,6 +297,40 @@ describe('ChannelPointsView', () => {
       return calls.find((call) => call.method === 'PATCH');
     }
 
+    it('counts each text field against its Twitch limit and stops typing at the limit', async () => {
+      await openDialog();
+
+      const title = pick('#reward-title') as HTMLInputElement;
+      const titleCount = (): string =>
+        title.closest('[data-slot="field"]')?.querySelector('[data-slot="field-count"]')?.textContent ?? '';
+
+      expect(titleCount()).toBe(`${title.value.length}/45`);
+      expect(title.maxLength).toBe(45);
+      expect((pick('#reward-prompt') as HTMLTextAreaElement).maxLength).toBe(200);
+
+      title.value = 'x'.repeat(45);
+      title.dispatchEvent(new Event('input'));
+      await flushPromises();
+
+      expect(titleCount()).toBe('45/45');
+      expect(title.closest('[data-slot="field"]')?.querySelector('[data-slot="field-count"]')?.classList.contains('text-destructive')).toBe(true);
+    });
+
+    it('leaves the color out of the save when the field is empty, because Twitch refuses an empty color', async () => {
+      await openDialog();
+
+      const color = pick('#reward-backgroundColor') as HTMLInputElement;
+
+      color.value = '';
+      color.dispatchEvent(new Event('input'));
+      await flushPromises();
+
+      const body = (await save())?.body as Record<string, string | number | boolean | null>;
+
+      expect(body).toBeDefined();
+      expect(body.backgroundColor).toBeUndefined();
+    });
+
     it('toggles enabled with the switch in the header', async () => {
       await openDialog();
 
