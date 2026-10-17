@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // The channel's rewards: what each costs, whether it is on, and what it runs. A role without reward:manage reads only.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import Gem from '~icons/nnz/gem';
 
@@ -20,10 +20,12 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+
+import RewardEditDialog from './RewardEditDialog.vue';
 
 const { channelId } = useCurrentChannel();
 const access = useChannelAccess(channelId);
@@ -52,13 +54,17 @@ function runs(reward: Reward): string {
   return reward.response ?? '';
 }
 
-function saveCost(reward: Reward, raw: string | number): void {
-  const cost = Number(raw);
-
-  if (!Number.isInteger(cost) || cost < 1 || cost === Number(reward.cost)) return;
-
-  update.mutate({ rewardId: reward.id, change: { cost } });
-}
+const editing = ref<string | null>(null);
+const editingReward = computed(() =>
+  query.data.value?.find((reward: Reward) => reward.id === editing.value));
+const editorOpen = computed({
+  get: () => editing.value !== null,
+  set: (value: boolean) => {
+    if (!value) {
+      editing.value = null;
+    }
+  },
+});
 
 function toggle(reward: Reward, enabled: boolean): void {
   update.mutate({ rewardId: reward.id, change: { isEnabled: enabled } });
@@ -93,7 +99,13 @@ function toggle(reward: Reward, enabled: boolean): void {
             "
             aria-hidden="true"
           >
-            <Gem class="size-5" />
+            <img
+              v-if="reward.imageUrl"
+              :src="reward.imageUrl"
+              alt=""
+              class="size-full rounded-md object-cover"
+            >
+            <Gem v-else class="size-5" />
           </span>
         </template>
         <template #end>
@@ -104,17 +116,9 @@ function toggle(reward: Reward, enabled: boolean): void {
           />
         </template>
         <template #trailing>
-          <Input
-            type="number"
-            min="1"
-            inputmode="numeric"
-            class="h-8 w-24 text-right tabular-nums"
-            :model-value="Number(reward.cost)"
-            :disabled="!reward.isManageable"
-            :aria-label="$t('dashboard.channelPoints.rewards.cost', { title: reward.title })"
-            data-reward-cost
-            @change="saveCost(reward, ($event.target as HTMLInputElement).value)"
-          />
+          <span class="text-sm text-muted-foreground tabular-nums">
+            {{ $t('dashboard.channelPoints.rewards.costValue', { count: Number(reward.cost) }) }}
+          </span>
           <Switch
             :model-value="reward.isEnabled"
             :disabled="!reward.isManageable"
@@ -122,8 +126,23 @@ function toggle(reward: Reward, enabled: boolean): void {
             data-reward-enabled
             @update:model-value="(value) => toggle(reward, value === true)"
           />
+          <Button
+            variant="outline"
+            size="sm"
+            :aria-label="$t('dashboard.channelPoints.rewards.edit', { title: reward.title })"
+            data-reward-edit
+            @click="editing = reward.id"
+          >
+            {{ $t('dashboard.channelPoints.rewards.editButton') }}
+          </Button>
         </template>
       </SummaryRow>
     </ReadOnlyScope>
+    <RewardEditDialog
+      v-if="editingReward"
+      :key="editingReward.id"
+      v-model:open="editorOpen"
+      :reward="editingReward"
+    />
   </PanelCard>
 </template>

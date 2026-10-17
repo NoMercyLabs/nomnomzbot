@@ -95,6 +95,15 @@ function withChange(rewards: Reward[] | undefined, { rewardId, change }: RewardE
       cost: change.cost ?? reward.cost,
       isEnabled: change.isEnabled ?? reward.isEnabled,
       isPaused: change.isPaused ?? reward.isPaused,
+      prompt: change.prompt ?? reward.prompt,
+      response: change.response ?? reward.response,
+      isUserInputRequired: change.isUserInputRequired ?? reward.isUserInputRequired,
+      backgroundColor: change.backgroundColor ?? reward.backgroundColor,
+      maxPerStream: change.maxPerStream ?? reward.maxPerStream,
+      maxPerUserPerStream: change.maxPerUserPerStream ?? reward.maxPerUserPerStream,
+      globalCooldownSeconds: change.globalCooldownSeconds ?? reward.globalCooldownSeconds,
+      timerDurationSeconds: change.timerDurationSeconds ?? reward.timerDurationSeconds,
+      pipelineId: change.pipelineId ?? reward.pipelineId,
     };
   });
 }

@@ -9,8 +9,49 @@
         "error": "The rewards could not load.",
         "runsNothing": "Only lands in the queue",
         "paused": "Paused",
-        "cost": "Cost of {title}",
-        "enabled": "Turn {title} on or off"
+        "enabled": "Turn {title} on or off",
+        "costValue": "{count} points",
+        "edit": "Edit {title}",
+        "editButton": "Edit",
+        "dialog": {
+          "title": "Edit {title}",
+          "description": "Changes go to Twitch when you save.",
+          "save": "Save",
+          "titleRequired": "Give the reward a name.",
+          "unmanageable": "Another app made this reward, so Twitch only lets that app change it.",
+          "pipelineNone": "No pipeline",
+          "pipelineUnavailable": "The pipelines could not load, so this cannot change now.",
+          "fields": {
+            "title": "Name",
+            "prompt": "Viewer message",
+            "response": "Chat reply",
+            "cost": "Cost in points",
+            "maxPerStream": "Limit per stream",
+            "maxPerUserPerStream": "Limit per viewer per stream",
+            "globalCooldownSeconds": "Cooldown in seconds",
+            "timerDurationSeconds": "Timer in seconds",
+            "backgroundColor": "Color",
+            "isEnabled": "On",
+            "isPaused": "Paused",
+            "isUserInputRequired": "Viewer must type a message",
+            "pipelineId": "Pipeline"
+          },
+          "hints": {
+            "title": "The name viewers see in the channel points list.",
+            "prompt": "The text viewers see when they pick this reward.",
+            "response": "What the bot says in chat when someone redeems it. Empty clears it.",
+            "cost": "How many channel points one redeem costs.",
+            "maxPerStream": "Most redeems of this reward in one stream. Empty keeps the current limit.",
+            "maxPerUserPerStream": "Most redeems per viewer in one stream. Empty keeps the current limit.",
+            "globalCooldownSeconds": "Seconds to wait between any two redeems. Empty keeps the current cooldown.",
+            "timerDurationSeconds": "Countdown for a timed reward. 0 clears it.",
+            "backgroundColor": "The reward color on Twitch, as a hex code like #9146FF.",
+            "isEnabled": "Viewers can redeem it only while it is on.",
+            "isPaused": "A paused reward stays visible but viewers cannot redeem it.",
+            "isUserInputRequired": "The viewer types a message with each redeem.",
+            "pipelineId": "The pipeline that runs when someone redeems this reward."
+          }
+        }
       },
       "redemptions": {
         "title": "Pending rewards",
