@@ -24,15 +24,15 @@ import { client } from './client';
 import { failed } from './errors';
 import type { components } from './schema';
 
-export type DiscordConnection = components['schemas']['DiscordGuildConnectionDto'];
-export type DiscordRule = components['schemas']['DiscordNotificationConfigDto'];
+export type DiscordConnection = components['schemas']['DiscordGuildConnection'];
+export type DiscordRule = components['schemas']['DiscordNotificationConfig'];
 export type DiscordRuleChange = components['schemas']['UpdateDiscordNotificationConfigRequest'];
 export type DiscordRuleCreate = components['schemas']['CreateDiscordNotificationConfigRequest'];
-export type DiscordEmbed = components['schemas']['DiscordEmbedDto'];
-export type DiscordEmbedField = components['schemas']['DiscordEmbedFieldDto'];
-export type DiscordPreview = components['schemas']['DiscordNotificationPreviewDto'];
-export type DiscordChannel = components['schemas']['DiscordPostableChannelDto'];
-export type DiscordRole = components['schemas']['DiscordGuildRoleDto'];
+export type DiscordEmbed = components['schemas']['DiscordEmbed'];
+export type DiscordEmbedField = components['schemas']['DiscordEmbedField'];
+export type DiscordPreview = components['schemas']['DiscordNotificationPreview'];
+export type DiscordChannel = components['schemas']['DiscordPostableChannel'];
+export type DiscordRole = components['schemas']['DiscordGuildRole'];
 
 const version = '1';
 

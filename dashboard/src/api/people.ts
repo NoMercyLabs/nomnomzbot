@@ -31,9 +31,9 @@ import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
 export type { CommunityRow };
-export type UserNote = components['schemas']['UserNoteDto'];
+export type UserNote = components['schemas']['UserNote'];
 // The whole profile, with the trust and heat scores: the standing block of the profile shows the behavior standing.
-export type PersonProfile = components['schemas']['ViewerProfileSummaryDto'];
+export type PersonProfile = components['schemas']['ViewerProfileSummary'];
 
 export type CommunityPage = {
   rows: CommunityRow[];

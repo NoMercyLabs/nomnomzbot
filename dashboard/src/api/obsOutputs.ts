@@ -23,7 +23,7 @@ import { client } from './client';
 import { obsStateKey } from './obs';
 import type { components } from './schema';
 
-export type ObsStats = components['schemas']['ObsStatsDto'];
+export type ObsStats = components['schemas']['ObsStats'];
 
 export type ObsOutput = 'streaming' | 'recording' | 'replay-buffer' | 'virtual-cam';
 export type ObsOutputAction = 'start' | 'stop' | 'pause' | 'resume' | 'split';

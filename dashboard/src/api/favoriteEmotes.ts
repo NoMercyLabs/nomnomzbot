@@ -18,7 +18,7 @@ import { client } from './client';
 import { problemError } from './errors';
 import type { components } from './schema';
 
-export type FavoriteEmote = components['schemas']['FavoriteEmoteDto'];
+export type FavoriteEmote = components['schemas']['FavoriteEmote'];
 
 export type FavoriteChange = {
   emote: Omit<FavoriteEmote, 'createdAt'>;

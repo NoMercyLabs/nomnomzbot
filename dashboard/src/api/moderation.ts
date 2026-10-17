@@ -28,8 +28,8 @@ import { userNotesKey } from './people';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type ModerationHistoryEntry = components['schemas']['ModerationHistoryEntryDto'];
-export type ModerationStanding = components['schemas']['ModerationStandingDto'];
+export type ModerationHistoryEntry = components['schemas']['ModerationHistoryEntry'];
+export type ModerationStanding = components['schemas']['ModerationStanding'];
 
 // The bot-side standings, mildest first. Normal is no standing at all.
 export const STANDING_LEVELS = ['muted', 'shadowbanned', 'blacklisted'] as const satisfies string[];

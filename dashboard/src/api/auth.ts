@@ -16,7 +16,7 @@ import { activeBot } from './activeBot';
 import { client } from './client';
 import { queryClient } from './queryClient';
 
-export type CurrentUser = components['schemas']['CurrentUserDto'];
+export type CurrentUser = components['schemas']['CurrentUser'];
 
 const version = { path: { version: '1' } };
 

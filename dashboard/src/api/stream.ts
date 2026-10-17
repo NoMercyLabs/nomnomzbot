@@ -24,7 +24,7 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type StreamInfo = components['schemas']['StreamInfoDto'];
+export type StreamInfo = components['schemas']['StreamInfo'];
 export type AdSchedule = components['schemas']['TwitchAdSchedule'];
 
 // What the form edits and sends: the same three fields as UpdateStreamRequest, never empty-as-null.
@@ -33,8 +33,8 @@ export type StreamInfoDraft = {
   gameName: string;
   tags: string[];
 };
-export type Category = components['schemas']['CategoryDto'];
-export type PastStream = components['schemas']['StreamListItemDto'];
+export type Category = components['schemas']['Category'];
+export type PastStream = components['schemas']['StreamListItem'];
 
 const version = '1';
 // The recent titles and categories come from the last streams.

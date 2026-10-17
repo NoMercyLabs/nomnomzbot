@@ -52,8 +52,8 @@ async function readPolls(channelId: string): Promise<Poll[]> {
   return [...(data?.data ?? [])];
 }
 
-export type PollHistoryItem = components['schemas']['PollPredictionHistoryItemDto'];
-export type PollHistoryOption = components['schemas']['PollPredictionOptionDto'];
+export type PollHistoryItem = components['schemas']['PollPredictionHistoryItem'];
+export type PollHistoryOption = components['schemas']['PollPredictionOption'];
 
 export const pollHistoryKey = (channelId: string | null): KeyParts => [
   'channels',
@@ -157,7 +157,7 @@ export function useToggleTimer(
   });
 }
 
-export type NewPoll = components['schemas']['CreatePollDto'];
+export type NewPoll = components['schemas']['CreatePoll'];
 
 // A poll is running while Twitch reports it ACTIVE.
 export const isPollRunning = (poll: Poll): boolean => poll.status.toUpperCase() === 'ACTIVE';
@@ -216,7 +216,7 @@ function provisionalPoll(poll: NewPoll): Poll {
   };
 }
 
-export type NewPrediction = components['schemas']['CreatePredictionDto'];
+export type NewPrediction = components['schemas']['CreatePrediction'];
 
 export type PredictionResolution = {
   predictionId: string;
@@ -297,7 +297,7 @@ export function useStartPrediction(
 async function endPrediction(
   channelId: string,
   predictionId: string,
-  body: components['schemas']['EndPredictionDto'],
+  body: components['schemas']['EndPrediction'],
 ): Promise<Prediction[]> {
   const { error, response } = await client.PATCH(
     '/api/v{version}/channels/{channelId}/live-ops/predictions/{predictionId}/end',

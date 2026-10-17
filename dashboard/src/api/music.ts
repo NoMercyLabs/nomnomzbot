@@ -24,12 +24,12 @@ import { failed } from './errors';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type MusicQueue = components['schemas']['MusicQueueDto'];
-export type QueueItem = components['schemas']['QueueItemDto'];
-export type NowPlaying = components['schemas']['NowPlayingDto'];
-export type MusicConfig = components['schemas']['MusicConfigDto'];
-export type MusicConfigChange = components['schemas']['UpdateMusicConfigDto'];
-export type BlockedTrack = components['schemas']['BlockedTrackDto'];
+export type MusicQueue = components['schemas']['MusicQueue'];
+export type QueueItem = components['schemas']['QueueItem'];
+export type NowPlaying = components['schemas']['NowPlaying'];
+export type MusicConfig = components['schemas']['MusicConfig'];
+export type MusicConfigChange = components['schemas']['UpdateMusicConfig'];
+export type BlockedTrack = components['schemas']['BlockedTrack'];
 export type BlockTrack = components['schemas']['BlockTrackRequest'];
 
 const version = '1';
@@ -586,8 +586,8 @@ export function useSaveMusicConfig(
   });
 }
 
-export type SongHistoryItem = components['schemas']['SongHistoryItemDto'];
-export type TopRequester = components['schemas']['TopRequesterDto'];
+export type SongHistoryItem = components['schemas']['SongHistoryItem'];
+export type TopRequester = components['schemas']['TopRequester'];
 
 const historyLimit = 12;
 const topRequesterLimit = 8;

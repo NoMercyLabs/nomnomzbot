@@ -17,10 +17,10 @@ import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 
-export type ViewerChannel = components['schemas']['SongRequestPageDto'];
-export type ViewerSummary = components['schemas']['ViewerSelfSummaryDto'];
-export type ViewerQueue = components['schemas']['ViewerQueueDto'];
-export type ViewerQueuedSong = components['schemas']['ViewerQueuedSongDto'];
+export type ViewerChannel = components['schemas']['SongRequestPage'];
+export type ViewerSummary = components['schemas']['ViewerSelfSummary'];
+export type ViewerQueue = components['schemas']['ViewerQueue'];
+export type ViewerQueuedSong = components['schemas']['ViewerQueuedSong'];
 
 const version = '1';
 
@@ -101,7 +101,7 @@ export function useViewerQueue(
   );
 }
 
-export type PublicProfile = components['schemas']['PublicProfileDto'];
+export type PublicProfile = components['schemas']['PublicProfile'];
 
 export const publicProfileKey = (channelId: string | null, userId: string | null): KeyParts => [
   'channels',

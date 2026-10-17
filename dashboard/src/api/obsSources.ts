@@ -23,8 +23,8 @@ import { client } from './client';
 import { applyOptimistic, rollBack } from './obs';
 import type { components } from './schema';
 
-export type ObsSceneItem = components['schemas']['ObsSceneItemDto'];
-export type ObsFilter = components['schemas']['ObsFilterDto'];
+export type ObsSceneItem = components['schemas']['ObsSceneItem'];
+export type ObsFilter = components['schemas']['ObsFilter'];
 
 export type SceneItemToggle = {
   sceneName: string;

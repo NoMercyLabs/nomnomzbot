@@ -15,7 +15,7 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type ResolvedAccess = components['schemas']['ResolvedAccessDto'];
+export type ResolvedAccess = components['schemas']['ResolvedAccess'];
 
 export type ChannelAccess = {
   known: ComputedRef<boolean>;

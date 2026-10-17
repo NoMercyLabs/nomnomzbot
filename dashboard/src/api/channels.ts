@@ -20,19 +20,19 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import type { components } from './schema';
 import { client } from './client';
 
-export type ChannelSummary = components['schemas']['ChannelSummaryDto'];
-export type ModeratedChannel = components['schemas']['ModeratedChannelDto'];
+export type ChannelSummary = components['schemas']['ChannelSummary'];
+export type ModeratedChannel = components['schemas']['ModeratedChannel'];
 // Any channel this bot serves, with what every visitor already sees (chat-client.md 9a "Reaching any channel").
-export type PublicChannel = components['schemas']['PublicChannelDto'];
+export type PublicChannel = components['schemas']['PublicChannel'];
 
 const version = { path: { version: '1' } };
 
-// GET /channels declares ChannelDto in the OpenAPI document but returns ChannelSummaryDto rows
+// GET /channels declares Channel in the OpenAPI document but returns ChannelSummary rows
 // (checked against the running bot, 2026-10-13), so the rows are read as the summary.
 async function fetchMyChannels(): Promise<ChannelSummary[]> {
   const { data } = await client.GET('/api/v{version}/channels', { params: version });
 
-  // eslint-disable-next-line no-restricted-syntax -- the document types the rows as ChannelDto, so the cast must go through the wire's true type
+  // eslint-disable-next-line no-restricted-syntax -- the document types the rows as Channel, so the cast must go through the wire's true type
   return (data?.data ?? []) as unknown as ChannelSummary[];
 }
 

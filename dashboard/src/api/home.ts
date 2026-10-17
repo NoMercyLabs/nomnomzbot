@@ -18,12 +18,12 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type HomeStats = components['schemas']['DashboardStatsDto'];
-export type ReviewQueueItem = components['schemas']['ModerationQueueItemDto'];
-export type IntegrationStatus = components['schemas']['IntegrationStatusDto'];
-export type BotStatus = components['schemas']['BotStatusDto'];
-export type ActivityEvent = components['schemas']['ActivityEventDto'];
-export type ReplayActivityResult = components['schemas']['ReplayActivityResultDto'];
+export type HomeStats = components['schemas']['DashboardStats'];
+export type ReviewQueueItem = components['schemas']['ModerationQueueItem'];
+export type IntegrationStatus = components['schemas']['IntegrationStatus'];
+export type BotStatus = components['schemas']['BotStatus'];
+export type ActivityEvent = components['schemas']['ActivityEvent'];
+export type ReplayActivityResult = components['schemas']['ReplayActivityResult'];
 
 export class ActivityReplayError extends Error {
   constructor(public readonly status: number) {

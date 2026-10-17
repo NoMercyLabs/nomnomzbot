@@ -14,7 +14,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import type { components } from './schema';
 import { client } from './client';
 
-export type TemplateHelper = components['schemas']['TemplateHelperDto'];
+export type TemplateHelper = components['schemas']['TemplateHelper'];
 export type TemplateContext = 'command' | 'eventResponse' | 'timer';
 
 async function fetchHelpers(
