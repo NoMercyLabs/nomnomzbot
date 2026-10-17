@@ -67,11 +67,6 @@ public sealed class YouTubeApiKeyResolverTests
     {
         RecordingHttpHandler handler = new();
         handler.RespondWhen(
-            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
-            HttpStatusCode.OK,
-            """{"items":[{"id":{"videoId":"dQw4w9WgXcQ"}}]}"""
-        );
-        handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/videos", StringComparison.Ordinal),
             HttpStatusCode.OK,
             """{"items":[]}"""
@@ -82,19 +77,22 @@ public sealed class YouTubeApiKeyResolverTests
             keyResolver: Resolver(StoredKey, null)
         );
 
-        (_, MusicProviderFailureReason failure) = await provider.SearchAsync(ChannelId, "query");
+        (_, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            "https://youtu.be/dQw4w9WgXcQ"
+        );
 
         failure.Should().NotBe(MusicProviderFailureReason.NotConfigured);
         handler
             .RequestUrls.Should()
             .Contain(url =>
-                url.Contains("/youtube/v3/search?", StringComparison.Ordinal)
+                url.Contains("/youtube/v3/videos?", StringComparison.Ordinal)
                 && url.Contains($"key={StoredKey}", StringComparison.Ordinal)
             );
     }
 
     [Fact]
-    public async Task Search_with_no_key_anywhere_is_not_configured_and_sends_nothing()
+    public async Task Search_with_no_key_anywhere_is_an_outage_not_a_missing_setup_and_never_calls_the_Data_API()
     {
         RecordingHttpHandler handler = new();
         YouTubeMusicProvider provider = YouTubeProviderFactory.Create(
@@ -105,8 +103,10 @@ public sealed class YouTubeApiKeyResolverTests
 
         (_, MusicProviderFailureReason failure) = await provider.SearchAsync(ChannelId, "query");
 
-        failure.Should().Be(MusicProviderFailureReason.NotConfigured);
-        handler.RequestUrls.Should().BeEmpty();
+        failure.Should().Be(MusicProviderFailureReason.Unavailable);
+        handler
+            .RequestUrls.Should()
+            .NotContain(url => url.Contains("googleapis.com", StringComparison.Ordinal));
     }
 
     [Fact]

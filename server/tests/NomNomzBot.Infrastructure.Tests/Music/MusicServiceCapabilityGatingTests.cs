@@ -247,16 +247,20 @@ public sealed class MusicServiceCapabilityGatingTests
     }
 
     [Fact]
-    public async Task A_channel_with_no_connected_integration_resolves_no_provider()
+    public async Task A_channel_with_no_connected_integration_falls_to_keyless_youtube_and_never_reaches_spotify()
     {
-        // Spotify + YouTube are registered, but this channel connected neither → every call fails
-        // closed with SERVICE_UNAVAILABLE (no active provider).
+        // Spotify + YouTube are registered and this channel connected neither. YouTube works with no
+        // connection, so it is the active provider: Play reaches YouTube's player (no overlay open, so
+        // no device) instead of failing as "no provider", and Spotify is never called.
         (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: null);
 
-        (await sut.PlayAsync(ChannelId.ToString())).ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
+        (await sut.PlayAsync(ChannelId.ToString())).ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
         (await sut.SearchAsync(ChannelId.ToString(), "query")).Should().BeEmpty();
 
-        handler.RequestUrls.Should().BeEmpty();
+        handler
+            .RequestUrls.Should()
+            .NotContain(url => url.Contains("spotify.com", StringComparison.Ordinal))
+            .And.NotContain(url => url.Contains("googleapis.com", StringComparison.Ordinal));
     }
 
     // ─── Harness ──────────────────────────────────────────────────────────────

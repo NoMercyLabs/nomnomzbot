@@ -143,7 +143,7 @@ public sealed class SongRequestPageTokenServiceTests
     }
 
     [Fact]
-    public async Task Resolve_offers_no_YouTube_without_an_api_key_or_connection()
+    public async Task Resolve_offers_YouTube_keyless_without_an_api_key_or_connection()
     {
         (SongRequestPageTokenService sut, _, IMusicConfigService config) = await BuildAsync(
             spotifyConnected: true,
@@ -158,7 +158,7 @@ public sealed class SongRequestPageTokenServiceTests
 
         SongRequestPageDto page = (await sut.ResolveAsync(token)).Value;
 
-        page.EnabledProviders.Should().Equal("spotify");
+        page.EnabledProviders.Should().Equal("spotify", "youtube");
     }
 
     [Fact]

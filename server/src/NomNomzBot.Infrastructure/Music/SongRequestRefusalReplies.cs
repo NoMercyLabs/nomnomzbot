@@ -128,6 +128,13 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
+            "TRACK_NOT_MUSIC" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NotMusic,
+                "That video isn't music, so it can't be requested. Send a link to a song.",
+                null,
+                ct
+            ),
             "PER_STREAM_LIMIT" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.PerStreamLimit,

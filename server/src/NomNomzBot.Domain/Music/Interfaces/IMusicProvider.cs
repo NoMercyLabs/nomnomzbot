@@ -73,6 +73,11 @@ public enum MusicProviderFailureReason
     /// fails until it resets, so none is sent until then; <see cref="IMusicProvider.TryGetCoolingUntil"/>
     /// says when. Distinct from <see cref="RateLimited"/>: the wait is hours, not minutes.</summary>
     QuotaExhausted,
+
+    /// <summary>The link is a real, playable video, but not a music video: the provider files it outside its
+    /// music category (YouTube: category "Music", id 10, or a "- Topic" artist channel). Song requests play
+    /// music only, so it is refused and never searched as text.</summary>
+    NotMusic,
 }
 
 /// <summary>

@@ -29,6 +29,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -511,6 +512,11 @@ internal static class YouTubeProviderFactory
                 ),
             new YouTubeQuotaCooldown(time ?? TimeProvider.System),
             new YouTubeVideoCache(time ?? TimeProvider.System),
+            new YouTubeKeylessResolver(
+                new YouTubeOEmbedReader(factory),
+                new YouTubePlayerDataReader(factory)
+            ),
+            new YouTubeWebSearch(factory),
             NullLogger<YouTubeMusicProvider>.Instance
         );
     }

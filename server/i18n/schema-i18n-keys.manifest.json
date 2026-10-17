@@ -426,6 +426,8 @@
     "builtin.reply.sr.mintrust.label",
     "builtin.reply.sr.missingscope.description",
     "builtin.reply.sr.missingscope.label",
+    "builtin.reply.sr.notmusic.description",
+    "builtin.reply.sr.notmusic.label",
     "builtin.reply.sr.noactivedevice.description",
     "builtin.reply.sr.noactivedevice.label",
     "builtin.reply.sr.noproviderbroadcaster.description",

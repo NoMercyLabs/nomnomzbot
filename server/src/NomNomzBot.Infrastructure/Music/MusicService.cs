@@ -854,7 +854,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 or MusicProviderFailureReason.NotPlayableInRegion
                 or MusicProviderFailureReason.UnreadableLink
                 or MusicProviderFailureReason.UnsupportedContentType
-                or MusicProviderFailureReason.UnknownLength;
+                or MusicProviderFailureReason.UnknownLength
+                or MusicProviderFailureReason.NotMusic;
 
     private static bool IsWebLink(string query) =>
         Uri.TryCreate(query.Trim(), UriKind.Absolute, out Uri? uri)
@@ -922,6 +923,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             MusicProviderFailureReason.UnknownLength => Result.Failure<T>(
                 "The track's length could not be read, so the length limit cannot be checked.",
                 "TRACK_LENGTH_UNKNOWN"
+            ),
+            MusicProviderFailureReason.NotMusic => Result.Failure<T>(
+                "That video is not a music video, and song requests play music only.",
+                "TRACK_NOT_MUSIC"
             ),
             MusicProviderFailureReason.QuotaExhausted => Result.Failure<T>(
                 "The music service's daily request limit is used up.",

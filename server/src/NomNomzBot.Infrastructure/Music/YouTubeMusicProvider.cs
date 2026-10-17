@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -76,6 +77,8 @@ public sealed class YouTubeMusicProvider
     private readonly IYouTubePlayerDispatcher _players;
     private readonly IYouTubeQuotaCooldown _quota;
     private readonly IYouTubeVideoCache _videos;
+    private readonly IYouTubeKeylessResolver _keyless;
+    private readonly IYouTubeWebSearch _webSearch;
 
     public YouTubeMusicProvider(
         IHttpClientFactory httpClientFactory,
@@ -85,9 +88,13 @@ public sealed class YouTubeMusicProvider
         IYouTubePlayerDispatcher players,
         IYouTubeQuotaCooldown quota,
         IYouTubeVideoCache videos,
+        IYouTubeKeylessResolver keyless,
+        IYouTubeWebSearch webSearch,
         ILogger<YouTubeMusicProvider> logger
     )
     {
+        _keyless = keyless;
+        _webSearch = webSearch;
         _quota = quota;
         _videos = videos;
         _playerState = playerState;
@@ -126,11 +133,10 @@ public sealed class YouTubeMusicProvider
     private Task<string?> ApiKeyAsync(CancellationToken cancellationToken) =>
         _apiKeys.GetAsync(cancellationToken);
 
-    /// <summary>Search and the overlay queue need only the app-level Data API key, so any channel can use
-    /// YouTube once that key is set — no per-channel YouTube login (music-sr.md AUTH STANCE).</summary>
-    public async Task<bool> WorksWithoutConnectionAsync(
-        CancellationToken cancellationToken = default
-    ) => !string.IsNullOrWhiteSpace(await ApiKeyAsync(cancellationToken));
+    /// <summary>Search and resolve run on YouTube's public pages with no key and no login, so every channel
+    /// can use YouTube (decisions/youtube-without-oauth-or-key.md).</summary>
+    public Task<bool> WorksWithoutConnectionAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(true);
 
     public async Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
@@ -335,64 +341,39 @@ public sealed class YouTubeMusicProvider
         CancellationToken cancellationToken = default
     )
     {
-        // Unconfigured key ⇒ the feature was never set up for this deployment; empty query genuinely has
-        // no possible match — both stay distinct from a live provider outage.
-        string? apiKey = await ApiKeyAsync(cancellationToken);
-        if (apiKey is null)
-            return ([], MusicProviderFailureReason.NotConfigured);
         if (string.IsNullOrWhiteSpace(query))
             return ([], MusicProviderFailureReason.None);
-        if (_quota.TryGetCoolingUntil(out _))
-            return ([], MusicProviderFailureReason.QuotaExhausted);
 
         int limit = Math.Clamp(maxResults, 1, MaxSearchResults);
-        string searchUrl =
-            $"{YouTubeApiBase}/search?part=snippet&type=video&videoEmbeddable=true"
-            + $"&maxResults={limit}"
-            + $"&q={Uri.EscapeDataString(query)}"
-            + $"&key={Uri.EscapeDataString(apiKey)}";
+        IReadOnlyList<YouTubeWebSearchHit>? hits = await _webSearch.SearchAsync(
+            query,
+            cancellationToken
+        );
+        if (hits is null)
+            return ([], MusicProviderFailureReason.Unavailable);
 
-        (YouTubeSearchResponse? search, MusicProviderFailureReason searchFailure) =
-            await GetJsonAsync<YouTubeSearchResponse>(searchUrl, "search.list", cancellationToken);
-        if (searchFailure != MusicProviderFailureReason.None)
-            return ([], searchFailure);
-
-        // search.list carries only ids + a thin snippet; the gates need duration/embeddable/age, which
-        // only videos.list returns — so resolve the ordered ids there and preserve relevance ordering.
-        List<string> orderedIds =
-            search
-                ?.Items?.Select(item => item.Id?.VideoId)
-                .Where(id => !string.IsNullOrEmpty(id))
-                .Select(id => id!)
-                .ToList()
-            ?? [];
-        if (orderedIds.Count == 0)
-            return ([], MusicProviderFailureReason.None);
-
-        (Dictionary<string, YouTubeVideo> byId, MusicProviderFailureReason videosFailure) =
-            await FetchVideosByIdAsync(orderedIds, apiKey, cancellationToken);
-        if (videosFailure != MusicProviderFailureReason.None)
-            return ([], videosFailure);
+        // The web search carries no embed or age flags, so each hit is resolved keyless (oEmbed + player
+        // data) at the same time; relevance order is kept. A hit keyless cannot read falls back to the
+        // 1-unit videos.list lookup when a key exists (never to search.list).
+        (TrackInfo? Track, MusicProviderFailureReason Failure)[] resolved = await Task.WhenAll(
+            hits.Take(limit)
+                .Select(hit => ResolveTrackAsync(broadcasterId, hit.VideoId, cancellationToken))
+        );
 
         List<TrackInfo> results = [];
-        foreach (string id in orderedIds)
+        foreach ((TrackInfo? track, MusicProviderFailureReason failure) in resolved)
         {
-            if (!byId.TryGetValue(id, out YouTubeVideo? video))
-                continue;
-
-            // SR gates (§3.5/§3.5.2): a candidate the viewer could pick must actually be playable in the
-            // browser-source player — exclude non-embeddable (can never render), age-restricted (YouTube
-            // blocks embedded playback of these), and live/upcoming (no fixed track, not a song).
+            // SR gates (section 3.5/3.5.2): a candidate the viewer could pick must actually be playable in
+            // the browser-source player: embeddable, not age-restricted, on demand, with a length.
             if (
-                !IsEmbeddable(video)
-                || IsAgeRestricted(video)
-                || !IsOnDemand(video.Snippet)
-                || IsPlayableNowhere(video)
-                || ParseDurationMs(video.ContentDetails?.Duration) <= 0
+                track is null
+                || failure != MusicProviderFailureReason.None
+                || !track.IsEmbeddable
+                || track.IsAgeRestricted
+                || track.DurationMs <= 0
             )
                 continue;
 
-            TrackInfo track = MapToTrackInfo(video);
             _videos.Put(track); // the picked hit's hand-over to the player reads it from here.
             results.Add(track);
         }
@@ -412,14 +393,35 @@ public sealed class YouTubeMusicProvider
         string? videoId = ExtractVideoId(uriOrId);
         if (videoId is null)
             return (null, WhyNoVideoId(uriOrId)); // plain text resolves to nothing, so it is searched.
-        string? apiKey = await ApiKeyAsync(cancellationToken);
-        if (apiKey is null)
-            return (null, MusicProviderFailureReason.NotConfigured);
-
         // Only videos that passed the gates below are cached; their embed/age flags travel with them.
         TrackInfo? cached = _videos.Get(videoId);
         if (cached is not null)
             return (cached, MusicProviderFailureReason.None);
+
+        // Keyless first: it costs no Data API quota. Only "could not read it" falls through to the key.
+        (TrackInfo? keylessTrack, MusicProviderFailureReason keylessFailure) =
+            await _keyless.ResolveAsync(videoId, cancellationToken);
+        if (
+            keylessFailure
+            is not (
+                MusicProviderFailureReason.Unavailable
+                or MusicProviderFailureReason.UnknownLength
+            )
+        )
+        {
+            if (keylessTrack is not null && keylessFailure == MusicProviderFailureReason.None)
+                _videos.Put(keylessTrack);
+            if (
+                keylessFailure == MusicProviderFailureReason.TrackMissing
+                && IsVideoId(uriOrId.Trim())
+            )
+                return (null, MusicProviderFailureReason.None); // a bare word may be a song title: search it.
+            return (keylessTrack, keylessFailure);
+        }
+
+        string? apiKey = await ApiKeyAsync(cancellationToken);
+        if (apiKey is null)
+            return (null, keylessFailure);
         if (_quota.TryGetCoolingUntil(out _))
             return (null, MusicProviderFailureReason.QuotaExhausted);
 
@@ -440,7 +442,7 @@ public sealed class YouTubeMusicProvider
         // videos.list answers private and deleted videos alike with no item. A pasted link meant that
         // video, so it gets its own answer; a bare 11-character word may be a song title, so it falls
         // through to search instead.
-        YouTubeVideo? video = response?.Items?.FirstOrDefault();
+        YouTubeVideo? video = response?.Items?.FirstOrDefault(item => item.Id == videoId);
         if (video is null)
             return (
                 null,
@@ -452,6 +454,9 @@ public sealed class YouTubeMusicProvider
         // A live or upcoming broadcast is not a resolvable on-demand track.
         if (!IsOnDemand(video.Snippet))
             return (null, MusicProviderFailureReason.LiveBroadcast);
+
+        if (!YouTubeMusicCategory.IsMusic(video.Snippet?.CategoryId, video.Snippet?.ChannelTitle))
+            return (null, MusicProviderFailureReason.NotMusic);
 
         if (IsPlayableNowhere(video))
             return (null, MusicProviderFailureReason.NotPlayableInRegion);
@@ -1574,24 +1579,6 @@ public sealed class YouTubeMusicProvider
 
     // ─── YouTube Data API response models ─────────────────────────────────────
 
-    private sealed class YouTubeSearchResponse
-    {
-        [JsonPropertyName("items")]
-        public List<YouTubeSearchItem>? Items { get; set; }
-    }
-
-    private sealed class YouTubeSearchItem
-    {
-        [JsonPropertyName("id")]
-        public YouTubeSearchId? Id { get; set; }
-    }
-
-    private sealed class YouTubeSearchId
-    {
-        [JsonPropertyName("videoId")]
-        public string? VideoId { get; set; }
-    }
-
     private sealed class YouTubeErrorResponse
     {
         [JsonPropertyName("error")]
@@ -1641,6 +1628,9 @@ public sealed class YouTubeMusicProvider
 
         [JsonPropertyName("liveBroadcastContent")]
         public string? LiveBroadcastContent { get; set; }
+
+        [JsonPropertyName("categoryId")]
+        public string? CategoryId { get; set; }
 
         [JsonPropertyName("thumbnails")]
         public YouTubeThumbnails? Thumbnails { get; set; }

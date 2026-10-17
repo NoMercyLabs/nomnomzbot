@@ -196,7 +196,7 @@ public sealed class YouTubeSongRequestIntakeTests
         intake.DataApiCalls.Should().NotContain("search");
         intake
             .Http.RequestUrls.Should()
-            .OnlyContain(url => url.Contains("id=" + VideoId, StringComparison.Ordinal));
+            .NotContain(url => url.Contains("/youtubei/v1/search", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -335,7 +335,7 @@ public sealed class YouTubeSongRequestIntakeTests
     }
 
     [Fact]
-    public async Task A_word_request_spends_one_search_and_one_videos_list_call_including_the_hand_over()
+    public async Task A_word_request_searches_the_web_and_spends_one_videos_list_call_including_the_hand_over()
     {
         YouTubeSongRequestIntake intake = new();
         intake.RouteSearch(VideoId);
@@ -344,6 +344,6 @@ public sealed class YouTubeSongRequestIntakeTests
         await intake.SayAsync("never gonna give you up");
 
         (await intake.QueuedTitlesAsync()).Should().Equal("Never Gonna Give You Up");
-        intake.DataApiCalls.Should().Equal("search", "videos");
+        intake.DataApiCalls.Should().Equal("videos"); // the search itself is the keyless web search
     }
 }

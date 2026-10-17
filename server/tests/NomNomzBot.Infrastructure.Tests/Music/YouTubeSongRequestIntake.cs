@@ -116,13 +116,17 @@ internal sealed class YouTubeSongRequestIntake
             "{\"items\":[" + string.Join(",", videos) + "]}"
         );
 
+    /// <summary>The keyless web search answers with these ids; the test handler 404s the keyless oEmbed
+    /// and player reads, so each hit is then read through the key's videos.list fallback.</summary>
     public void RouteSearch(params string[] videoIds) =>
         Http.RespondWhen(
-            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            r =>
+                r.RequestUri!.AbsolutePath.EndsWith(
+                    "/youtubei/v1/search",
+                    StringComparison.Ordinal
+                ),
             HttpStatusCode.OK,
-            "{\"items\":["
-                + string.Join(",", videoIds.Select(id => "{\"id\":{\"videoId\":\"" + id + "\"}}"))
-                + "]}"
+            YouTubeWebSearchFixture.Json(videoIds)
         );
 
     /// <summary>One videos.list item. <paramref name="extraContentDetails"/> is raw JSON appended inside

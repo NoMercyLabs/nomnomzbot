@@ -46,6 +46,8 @@
     <string name="builtin_reply_sr_unreadablelink_description">De link is voor de muziekdienst van dit kanaal, maar er kon geen nummer uit gelezen worden.</string>
     <string name="builtin_reply_sr_lengthunknown_label">Videolengte onbekend</string>
     <string name="builtin_reply_sr_lengthunknown_description">De video geeft geen leesbare lengte, dus de maximale nummerlengte kan niet gecontroleerd worden.</string>
+    <string name="builtin_reply_sr_notmusic_label">Geen muziekvideo</string>
+    <string name="builtin_reply_sr_notmusic_description">De gelinkte video speelt af, maar is geen muziek, dus songverzoeken weigeren hem.</string>
     <string name="builtin_reply_sr_quotaexhausted_label">Daglimiet verzoeken op</string>
     <string name="builtin_reply_sr_quotaexhausted_description">De daglimiet van de muziekdienst is op; het antwoord zegt wanneer die weer vrijkomt.</string>
     <string name="builtin_reply_sr_perstreamlimit_label">Verzoeklimiet per stream bereikt</string>

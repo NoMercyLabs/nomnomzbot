@@ -36,7 +36,7 @@ public sealed class MusicServiceProviderFailureTests
         "YouTube song requests are not set up on this bot yet. The bot owner must add a YouTube API key.";
 
     [Fact]
-    public async Task Text_request_without_a_youtube_api_key_fails_as_not_configured()
+    public async Task Text_request_without_a_youtube_api_key_is_never_not_configured()
     {
         RecordingHttpHandler handler = new();
         MusicService sut = Build(YouTubeProviderFactory.Create(null, handler), "youtube");
@@ -48,13 +48,15 @@ public sealed class MusicServiceProviderFailureTests
         );
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("PROVIDER_NOT_CONFIGURED");
-        result.ErrorMessage.Should().Be(NotConfiguredMessage);
-        handler.RequestUrls.Should().BeEmpty("no key means no call to YouTube");
+        result.ErrorCode.Should().NotBe("PROVIDER_NOT_CONFIGURED");
+        result.ErrorMessage.Should().NotBe(NotConfiguredMessage);
+        handler
+            .RequestUrls.Should()
+            .NotContain(url => url.Contains("googleapis.com", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Link_request_without_a_youtube_api_key_fails_as_not_configured()
+    public async Task Link_request_without_a_youtube_api_key_is_never_not_configured()
     {
         RecordingHttpHandler handler = new();
         MusicService sut = Build(YouTubeProviderFactory.Create(null, handler), "youtube");
@@ -66,9 +68,11 @@ public sealed class MusicServiceProviderFailureTests
         );
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("PROVIDER_NOT_CONFIGURED");
-        result.ErrorMessage.Should().Be(NotConfiguredMessage);
-        handler.RequestUrls.Should().BeEmpty("no key means no call to YouTube");
+        result.ErrorCode.Should().NotBe("PROVIDER_NOT_CONFIGURED");
+        result.ErrorMessage.Should().NotBe(NotConfiguredMessage);
+        handler
+            .RequestUrls.Should()
+            .NotContain(url => url.Contains("googleapis.com", StringComparison.Ordinal));
     }
 
     [Fact]

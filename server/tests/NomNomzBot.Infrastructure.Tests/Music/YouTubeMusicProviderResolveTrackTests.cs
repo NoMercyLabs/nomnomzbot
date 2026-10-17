@@ -243,7 +243,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
     }
 
     [Fact]
-    public async Task Unconfigured_api_key_resolves_to_null_without_any_http_call()
+    public async Task Unconfigured_api_key_with_unreadable_keyless_data_is_an_outage_without_a_data_api_call()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build(apiKey: null);
 
@@ -253,8 +253,13 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         );
 
         track.Should().BeNull();
-        failure.Should().Be(MusicProviderFailureReason.NotConfigured);
-        handler.RequestUrls.Should().BeEmpty("an unconfigured key must not reach the Data API");
+        failure.Should().Be(MusicProviderFailureReason.Unavailable);
+        handler
+            .RequestUrls.Should()
+            .NotContain(
+                url => url.Contains("googleapis.com", StringComparison.Ordinal),
+                "an unconfigured key must not reach the Data API"
+            );
     }
 
     [Theory]

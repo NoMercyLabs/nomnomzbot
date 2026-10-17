@@ -1488,6 +1488,26 @@ public static class DependencyInjection
         // (music-sr.md §3.5.2). App-level YouTube:ApiKey — no per-user OAuth (music-sr.md decision #8).
         services.AddHttpClient("youtube");
 
+        // Keyless YouTube reads (oEmbed, public player data, web search): song requests work with no
+        // API key and no OAuth, and spend none of the owner's Data API quota (decisions/youtube-without-oauth-or-key.md).
+        services.AddHttpClient(Music.YouTubeKeyless.YouTubeInnertube.ClientName);
+        services.AddSingleton<
+            Music.YouTubeKeyless.IYouTubeOEmbedReader,
+            Music.YouTubeKeyless.YouTubeOEmbedReader
+        >();
+        services.AddSingleton<
+            Music.YouTubeKeyless.IYouTubePlayerDataReader,
+            Music.YouTubeKeyless.YouTubePlayerDataReader
+        >();
+        services.AddSingleton<
+            Music.YouTubeKeyless.IYouTubeWebSearch,
+            Music.YouTubeKeyless.YouTubeWebSearch
+        >();
+        services.AddSingleton<
+            Music.YouTubeKeyless.IYouTubeKeylessResolver,
+            Music.YouTubeKeyless.YouTubeKeylessResolver
+        >();
+
         // Keyless oEmbed title read for a YouTube link pasted while another provider is active. Explicit:
         // the interface is not named I<X>Service, so the convention scan does not bind it.
         services.AddHttpClient(YouTubeOEmbedTitleLookup.ClientName);

@@ -31,7 +31,7 @@ public sealed class YouTubeMusicProviderSearchTests
     public async Task Search_maps_the_video_payload_field_by_field_and_carries_the_app_key()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
-        RouteSearch(handler, """{"items":[{"id":{"videoId":"dQw4w9WgXcQ"}}]}""");
+        RouteSearch(handler, "dQw4w9WgXcQ");
         RouteVideos(
             handler,
             """
@@ -66,17 +66,10 @@ public sealed class YouTubeMusicProviderSearchTests
 
         handler
             .RequestUrls.Should()
-            .Contain(url =>
-                url.Contains("/youtube/v3/search?", StringComparison.Ordinal)
-                && url.Contains("part=snippet", StringComparison.Ordinal)
-                && url.Contains("type=video", StringComparison.Ordinal)
-                && url.Contains("videoEmbeddable=true", StringComparison.Ordinal)
-                && url.Contains("maxResults=5", StringComparison.Ordinal)
-                // RequestUri.ToString() unescapes for display, so the escaped %20 the provider
-                // sends renders as a space here — the assertion proves the full query rode along.
-                && url.Contains("q=never gonna give", StringComparison.Ordinal)
-                && url.Contains($"key={ApiKey}", StringComparison.Ordinal)
-            );
+            .Contain(url => url.Contains("/youtubei/v1/search", StringComparison.Ordinal));
+        handler
+            .RequestUrls.Should()
+            .NotContain(url => url.Contains("/youtube/v3/search", StringComparison.Ordinal));
 
         handler
             .RequestUrls.Should()
@@ -92,16 +85,7 @@ public sealed class YouTubeMusicProviderSearchTests
     public async Task Search_excludes_non_embeddable_age_restricted_and_live_results()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
-        RouteSearch(
-            handler,
-            """
-            {"items":[
-              {"id":{"videoId":"playableAAA"}},
-              {"id":{"videoId":"liveBBBBBBB"}},
-              {"id":{"videoId":"ageCCCCCCCC"}},
-              {"id":{"videoId":"noEmbedDDDD"}}]}
-            """
-        );
+        RouteSearch(handler, "playableAAA", "liveBBBBBBB", "ageCCCCCCCC", "noEmbedDDDD");
         RouteVideos(
             handler,
             """
@@ -137,12 +121,7 @@ public sealed class YouTubeMusicProviderSearchTests
     public async Task Search_preserves_relevance_order_regardless_of_videos_list_order()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
-        RouteSearch(
-            handler,
-            """
-            {"items":[{"id":{"videoId":"firstAAAAAA"}},{"id":{"videoId":"secondBBBBB"}},{"id":{"videoId":"thirdCCCCCC"}}]}
-            """
-        );
+        RouteSearch(handler, "firstAAAAAA", "secondBBBBB", "thirdCCCCCC");
         // videos.list intentionally returns the trio in a DIFFERENT order than search relevance.
         RouteVideos(
             handler,
@@ -163,20 +142,33 @@ public sealed class YouTubeMusicProviderSearchTests
     }
 
     [Fact]
-    public async Task Search_respects_the_requested_maxResults()
+    public async Task Search_resolves_only_the_requested_number_of_hits()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
-        RouteSearch(handler, """{"items":[]}""");
+        RouteSearch(handler, "firstAAAAAA", "secondBBBBB", "thirdCCCCCC");
+        RouteVideos(
+            handler,
+            """
+            {"items":[
+              {"id":"firstAAAAAA","snippet":{"title":"First","channelTitle":"A","liveBroadcastContent":"none","thumbnails":{}},"contentDetails":{"duration":"PT1M0S"},"status":{"embeddable":true}},
+              {"id":"secondBBBBB","snippet":{"title":"Second","channelTitle":"B","liveBroadcastContent":"none","thumbnails":{}},"contentDetails":{"duration":"PT1M0S"},"status":{"embeddable":true}}]}
+            """
+        );
 
-        await provider.SearchAsync(ChannelId, "anything", 3);
+        (IReadOnlyList<TrackInfo> results, _) = await provider.SearchAsync(
+            ChannelId,
+            "anything",
+            2
+        );
 
+        results.Select(t => t.ProviderTrackId).Should().Equal("firstAAAAAA", "secondBBBBB");
         handler
             .RequestUrls.Should()
-            .Contain(url => url.Contains("maxResults=3", StringComparison.Ordinal));
+            .NotContain(url => url.Contains("thirdCCCCCC", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Unconfigured_api_key_returns_empty_without_any_http_call()
+    public async Task Search_with_no_key_never_reaches_the_Data_API_and_reports_an_outage_when_web_search_is_down()
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build(apiKey: null);
 
@@ -184,8 +176,10 @@ public sealed class YouTubeMusicProviderSearchTests
             await provider.SearchAsync(ChannelId, "never gonna");
 
         results.Should().BeEmpty();
-        failure.Should().Be(MusicProviderFailureReason.NotConfigured);
-        handler.RequestUrls.Should().BeEmpty("an unconfigured key must not reach the Data API");
+        failure.Should().Be(MusicProviderFailureReason.Unavailable);
+        handler
+            .RequestUrls.Should()
+            .NotContain(url => url.Contains("googleapis.com", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -214,11 +208,15 @@ public sealed class YouTubeMusicProviderSearchTests
         return (provider, handler);
     }
 
-    private static void RouteSearch(RecordingHttpHandler handler, string json) =>
+    private static void RouteSearch(RecordingHttpHandler handler, params string[] videoIds) =>
         handler.RespondWhen(
-            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            r =>
+                r.RequestUri!.AbsolutePath.EndsWith(
+                    "/youtubei/v1/search",
+                    StringComparison.Ordinal
+                ),
             HttpStatusCode.OK,
-            json
+            YouTubeWebSearchFixture.Json(videoIds)
         );
 
     private static void RouteVideos(RecordingHttpHandler handler, string json) =>

@@ -444,6 +444,24 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.NotMusic,
+            variables: [],
+            informative:
+            [
+                "That video isn't music, so it can't be requested. Send a link to a song.",
+            ],
+            friendly:
+            [
+                "Ooh, that one isn't a music video! Song requests are for songs, so send me a track link.",
+            ],
+            sassy: ["That's not a song. Song requests, remember? Send actual music."],
+            hype: ["THAT'S NOT MUSIC! SEND A SONG LINK!"],
+            chill: ["that video isn't music, so no queue. send a song instead."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.QuotaExhausted,
             variables: ["retry.time"],
             informative:

@@ -45,7 +45,9 @@ public sealed class YouTubeQuotaExhaustedTests
         string expected =
             "YouTube's daily request limit is used up; song requests resume after 07:00 UTC.";
         first.Should().Be(expected);
-        second.Should().Be(expected);
+        // A word search runs keyless, so the Data API quota never blocks it; here YouTube answers 403 to
+        // everything, so the keyless search is an outage instead.
+        second.Should().Be("The music provider is temporarily unavailable.");
         intake.DataApiCalls.Should().Equal("videos");
         (await intake.QueuedTitlesAsync()).Should().BeEmpty();
     }

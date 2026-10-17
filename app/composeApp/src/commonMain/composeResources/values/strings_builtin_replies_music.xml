@@ -46,6 +46,8 @@
     <string name="builtin_reply_sr_unreadablelink_description">The link is for this channel's music service, but no song could be read from it.</string>
     <string name="builtin_reply_sr_lengthunknown_label">Video length unknown</string>
     <string name="builtin_reply_sr_lengthunknown_description">The video reports no readable length, so the song length limit cannot be checked.</string>
+    <string name="builtin_reply_sr_notmusic_label">Not a music video</string>
+    <string name="builtin_reply_sr_notmusic_description">The linked video plays, but it is not music, so song requests refuse it.</string>
     <string name="builtin_reply_sr_quotaexhausted_label">Daily request limit used up</string>
     <string name="builtin_reply_sr_quotaexhausted_description">The music service's daily request limit is used up; the reply says when it resets.</string>
     <string name="builtin_reply_sr_perstreamlimit_label">Stream request limit reached</string>
