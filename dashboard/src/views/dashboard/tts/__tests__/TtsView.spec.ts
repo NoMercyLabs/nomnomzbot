@@ -225,8 +225,10 @@ describe('TtsView overview', () => {
     expect(badgeTone()).toBeNull();
   });
 
-  it('opens Rules with an honest empty panel until it is built', async () => {
+  it('opens Rules with the rules, the pronunciation lexicon and the keys panels', async () => {
     await open('?view=rules');
-    expect(panel('Rules').getAttribute('data-state')).toBe('empty');
+    expect(panel('Rules').getAttribute('data-state')).toBe('ready');
+    expect(panel('Pronunciation')).toBeDefined();
+    expect(panel('Keys and name')).toBeDefined();
   });
 });

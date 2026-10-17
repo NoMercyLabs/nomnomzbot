@@ -87,7 +87,72 @@
       },
       "rules": {
         "title": "Rules",
-        "empty": "Who may use text to speech, message limits and pronunciation fixes will live here."
+        "description": "Who may be heard, and what the bot reads aloud.",
+        "follow": {
+          "title": "Follow the platform voice",
+          "description": "Use the platform default voice until you pick your own."
+        },
+        "readUsernames": {
+          "title": "Read usernames",
+          "description": "Say who wrote the message before the message."
+        },
+        "modApproval": {
+          "title": "Moderators approve first",
+          "description": "Messages wait in a queue until a moderator allows them."
+        },
+        "selfService": {
+          "title": "Viewers pick their own voice",
+          "description": "Viewers can change their voice with !voice. Off: only moderators can."
+        },
+        "minBits": {
+          "title": "Minimum bits",
+          "description": "Bits a message must carry to be read. 0 means no bits needed."
+        }
+      },
+      "lexicon": {
+        "title": "Pronunciation",
+        "description": "When a phrase appears in a message, the bot says the replacement.",
+        "phrase": "Phrase",
+        "replacement": "Say instead",
+        "matchKind": "Match",
+        "kind": {
+          "word": "Whole word, any case",
+          "exact": "Exact text"
+        },
+        "saysAs": "is said as",
+        "add": "Add rule",
+        "save": "Save rule",
+        "cancel": "Cancel",
+        "edit": "Edit the rule for {phrase}",
+        "remove": "Delete the rule for {phrase}",
+        "empty": "No pronunciation rules yet.",
+        "loadFailed": "The pronunciation rules could not be loaded.",
+        "saveFailed": "The rule could not be saved.",
+        "deleteFailed": "The rule could not be deleted.",
+        "confirmTitle": "Delete this rule?",
+        "confirmDescription": "The bot will stop saying {phrase} the way you set.",
+        "confirmAction": "Delete rule"
+      },
+      "keys": {
+        "title": "Keys and name",
+        "description": "Your own voice provider keys, and how your channel name is spoken.",
+        "provider": {
+          "azure": "Azure speech key",
+          "elevenlabs": "ElevenLabs key"
+        },
+        "region": "Azure region",
+        "stored": "A key is stored. Type to replace it.",
+        "none": "No key stored",
+        "save": "Save key",
+        "remove": "Remove key",
+        "saved": "The key is stored.",
+        "saveFailed": "The key could not be saved.",
+        "removeFailed": "The key could not be removed.",
+        "spelling": "How to say the channel name",
+        "spellingHelp": "Leave empty to read the name as it is written.",
+        "spellingSave": "Save spelling",
+        "spellingSaved": "The spelling is saved.",
+        "spellingFailed": "The spelling could not be saved."
       }
     }
   }

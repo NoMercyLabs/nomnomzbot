@@ -26,6 +26,9 @@ import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
 
+import KeysPanel from './KeysPanel.vue';
+import LexiconPanel from './LexiconPanel.vue';
+import RulesPanel from './RulesPanel.vue';
 import VoicesTab from './VoicesTab.vue';
 
 const { t, locale } = useI18n();
@@ -116,6 +119,8 @@ const overviewPanels = computed(() => [
 ] as const satisfies readonly BoardPanel[]);
 const rulesPanels = computed(() => [
   { id: 'rules', label: t('dashboard.tts.rules.title') },
+  { id: 'lexicon', label: t('dashboard.tts.lexicon.title') },
+  { id: 'keys', label: t('dashboard.tts.keys.title') },
 ] as const satisfies readonly BoardPanel[]);
 </script>
 
@@ -191,13 +196,15 @@ const rulesPanels = computed(() => [
 
   <VoicesTab v-else-if="view === 'voices'" />
 
-  <BoardGrid v-else :panels="rulesPanels" :rows="1">
-    <BoardCell panel="rules">
-      <PanelCard
-        :title="$t('dashboard.tts.rules.title')"
-        state="empty"
-        :empty-text="$t('dashboard.tts.rules.empty')"
-      />
+  <BoardGrid v-else :panels="rulesPanels" :rows="2">
+    <BoardCell panel="rules" :span="5">
+      <RulesPanel />
+    </BoardCell>
+    <BoardCell panel="lexicon" :span="7" :rows="2">
+      <LexiconPanel />
+    </BoardCell>
+    <BoardCell panel="keys" :span="5">
+      <KeysPanel />
     </BoardCell>
   </BoardGrid>
 </template>

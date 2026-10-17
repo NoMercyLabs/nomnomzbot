@@ -87,7 +87,72 @@
       },
       "rules": {
         "title": "Regels",
-        "empty": "Hier komen wie tekst-naar-spraak mag gebruiken, berichtlimieten en uitspraakcorrecties."
+        "description": "Wie er gehoord wordt en wat de bot voorleest.",
+        "follow": {
+          "title": "De platformstem volgen",
+          "description": "Gebruik de standaardstem van het platform tot je zelf een stem kiest."
+        },
+        "readUsernames": {
+          "title": "Gebruikersnamen voorlezen",
+          "description": "Zeg wie het bericht schreef voor het bericht."
+        },
+        "modApproval": {
+          "title": "Moderators keuren eerst goed",
+          "description": "Berichten wachten in een wachtrij tot een moderator ze toestaat."
+        },
+        "selfService": {
+          "title": "Kijkers kiezen hun eigen stem",
+          "description": "Kijkers kunnen hun stem wijzigen met !voice. Uit: alleen moderators kunnen dat."
+        },
+        "minBits": {
+          "title": "Minimaal aantal bits",
+          "description": "Bits die een bericht moet bevatten om voorgelezen te worden. 0 betekent geen bits nodig."
+        }
+      },
+      "lexicon": {
+        "title": "Uitspraak",
+        "description": "Als een zin in een bericht staat, zegt de bot de vervanging.",
+        "phrase": "Zin",
+        "replacement": "Zeg in plaats daarvan",
+        "matchKind": "Overeenkomst",
+        "kind": {
+          "word": "Heel woord, elke hoofdletter",
+          "exact": "Exacte tekst"
+        },
+        "saysAs": "wordt uitgesproken als",
+        "add": "Regel toevoegen",
+        "save": "Regel opslaan",
+        "cancel": "Annuleren",
+        "edit": "De regel voor {phrase} bewerken",
+        "remove": "De regel voor {phrase} verwijderen",
+        "empty": "Nog geen uitspraakregels.",
+        "loadFailed": "De uitspraakregels konden niet worden geladen.",
+        "saveFailed": "De regel kon niet worden opgeslagen.",
+        "deleteFailed": "De regel kon niet worden verwijderd.",
+        "confirmTitle": "Deze regel verwijderen?",
+        "confirmDescription": "De bot zegt {phrase} niet meer zoals je instelde.",
+        "confirmAction": "Regel verwijderen"
+      },
+      "keys": {
+        "title": "Sleutels en naam",
+        "description": "Je eigen sleutels van stemproviders en hoe je kanaalnaam wordt uitgesproken.",
+        "provider": {
+          "azure": "Azure-spraaksleutel",
+          "elevenlabs": "ElevenLabs-sleutel"
+        },
+        "region": "Azure-regio",
+        "stored": "Er is een sleutel opgeslagen. Typ om te vervangen.",
+        "none": "Geen sleutel opgeslagen",
+        "save": "Sleutel opslaan",
+        "remove": "Sleutel verwijderen",
+        "saved": "De sleutel is opgeslagen.",
+        "saveFailed": "De sleutel kon niet worden opgeslagen.",
+        "removeFailed": "De sleutel kon niet worden verwijderd.",
+        "spelling": "Hoe de kanaalnaam wordt gezegd",
+        "spellingHelp": "Laat leeg om de naam te lezen zoals hij geschreven is.",
+        "spellingSave": "Uitspraak opslaan",
+        "spellingSaved": "De uitspraak is opgeslagen.",
+        "spellingFailed": "De uitspraak kon niet worden opgeslagen."
       }
     }
   }
