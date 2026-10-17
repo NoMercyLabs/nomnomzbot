@@ -8,9 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.AspNetCore.Http;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Services;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport.Helix.SubClients;
 
@@ -29,9 +31,21 @@ namespace NomNomzBot.Infrastructure.Platform.Transport.Helix.SubClients;
 public sealed class TwitchModerationApi(
     ITwitchHelixTransport transport,
     ITwitchIdentityResolver identity,
-    ITwitchTokenResolver tokens
+    ITwitchTokenResolver tokens,
+    IHttpContextAccessor http,
+    IBotModerationMarks marks
 ) : ITwitchModerationApi
 {
+    // No request in flight means no person pressed a button: the bot acted on its own, so its notice may speak.
+    private void MarkWhenBotMade(bool succeeded, string targetTwitchUserId, string action)
+    {
+        if (succeeded && http.HttpContext is null)
+            marks.Mark(targetTwitchUserId, action);
+    }
+
+    private static string BanKind(int? durationSeconds) =>
+        durationSeconds.HasValue ? BotModerationActions.Timeout : BotModerationActions.Ban;
+
     public Task<Result<TwitchBanResult>> BanUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -78,7 +92,12 @@ public sealed class TwitchModerationApi(
             Priority: TwitchCallPriority.UserInteractive
         );
 
-        return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
+        Result<TwitchBanResult> sent = await transport.SendWithResultAsync<TwitchBanResult>(
+            request,
+            ct
+        );
+        MarkWhenBotMade(sent.IsSuccess, targetTwitchUserId, BanKind(durationSeconds));
+        return sent;
     }
 
     public async Task<Result<TwitchBanResult>> BanAsOperatorAsync(
@@ -114,7 +133,12 @@ public sealed class TwitchModerationApi(
             OperatorUserId: operatorUserId
         );
 
-        return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
+        Result<TwitchBanResult> sent = await transport.SendWithResultAsync<TwitchBanResult>(
+            request,
+            ct
+        );
+        MarkWhenBotMade(sent.IsSuccess, targetTwitchUserId, BotModerationActions.Ban);
+        return sent;
     }
 
     public async Task<Result<TwitchBanResult>> TimeoutAsOperatorAsync(
@@ -150,7 +174,12 @@ public sealed class TwitchModerationApi(
             OperatorUserId: operatorUserId
         );
 
-        return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
+        Result<TwitchBanResult> sent = await transport.SendWithResultAsync<TwitchBanResult>(
+            request,
+            ct
+        );
+        MarkWhenBotMade(sent.IsSuccess, targetTwitchUserId, BotModerationActions.Timeout);
+        return sent;
     }
 
     public async Task<Result> UnbanAsOperatorAsync(
@@ -184,7 +213,9 @@ public sealed class TwitchModerationApi(
             OperatorUserId: operatorUserId
         );
 
-        return AsCleared(await transport.SendAsync(request, ct));
+        Result cleared = AsCleared(await transport.SendAsync(request, ct));
+        MarkWhenBotMade(cleared.IsSuccess, targetTwitchUserId, BotModerationActions.Unban);
+        return cleared;
     }
 
     [RequiresTwitchScope(TwitchScopes.ModeratorManageBannedUsers)]
@@ -220,7 +251,9 @@ public sealed class TwitchModerationApi(
             Priority: TwitchCallPriority.UserInteractive
         );
 
-        return AsCleared(await transport.SendAsync(request, ct));
+        Result cleared = AsCleared(await transport.SendAsync(request, ct));
+        MarkWhenBotMade(cleared.IsSuccess, targetTwitchUserId, BotModerationActions.Unban);
+        return cleared;
     }
 
     /// <summary>

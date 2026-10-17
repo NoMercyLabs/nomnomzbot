@@ -9,8 +9,11 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix.SubClients;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix.SubClients.Fakes;
 
@@ -36,12 +39,58 @@ public class TwitchModerationApiTests
     private static TwitchModerationApi Build(
         CapturingHelixTransport transport,
         params string[] scopes
+    ) => Build(transport, new BotModerationMarks(TimeProvider.System), null, scopes);
+
+    private static TwitchModerationApi Build(
+        CapturingHelixTransport transport,
+        IBotModerationMarks marks,
+        HttpContext? request,
+        params string[] scopes
     ) =>
         new(
             transport,
             new StubIdentityResolver(Tenant, TwitchId),
-            new StubScopeTokenResolver(scopes)
+            new StubScopeTokenResolver(scopes),
+            new HttpContextAccessor { HttpContext = request },
+            marks
         );
+
+    private static TwitchModerationApi BanReady(IBotModerationMarks marks, HttpContext? request) =>
+        Build(
+            new CapturingHelixTransport
+            {
+                SingleResult = new TwitchBanResult(
+                    TwitchId,
+                    TwitchId,
+                    TargetId,
+                    DateTimeOffset.UnixEpoch,
+                    null
+                ),
+            },
+            marks,
+            request,
+            TwitchScopes.ModeratorManageBannedUsers
+        );
+
+    [Fact]
+    public async Task A_ban_the_bot_makes_on_its_own_is_marked_so_its_notice_speaks()
+    {
+        BotModerationMarks marks = new(TimeProvider.System);
+
+        await BanReady(marks, null).BanUserAsync(Tenant, TargetId, "spam");
+
+        marks.Consume(TargetId, BotModerationActions.Ban).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_ban_a_person_presses_in_the_dashboard_is_not_marked()
+    {
+        BotModerationMarks marks = new(TimeProvider.System);
+
+        await BanReady(marks, new DefaultHttpContext()).BanUserAsync(Tenant, TargetId, "spam");
+
+        marks.Consume(TargetId, BotModerationActions.Ban).Should().BeFalse();
+    }
 
     private static TwitchAutoModSettings SampleSettings(int overall = 2) =>
         new(TwitchId, TwitchId, overall, 1, 2, 3, 4, 0, 1, 2, 3);

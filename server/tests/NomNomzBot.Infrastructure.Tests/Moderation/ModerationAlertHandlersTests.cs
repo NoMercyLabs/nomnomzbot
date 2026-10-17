@@ -17,10 +17,12 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Content.Commands;
+using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -48,6 +50,102 @@ public sealed class ModerationAlertHandlersTests
         return (provider.GetRequiredService<IServiceScopeFactory>(), executor);
     }
 
+    /// <summary>Marks for the actions the bot made itself; every test above the manual ones is a bot action.</summary>
+    private static BotModerationMarks BotMade(string action, params string[] targets)
+    {
+        BotModerationMarks marks = new(TimeProvider.System);
+        foreach (string target in targets)
+            marks.Mark(target, action);
+        return marks;
+    }
+
+    [Fact]
+    public async Task A_ban_a_person_made_by_hand_stays_quiet_in_chat()
+    {
+        (IServiceScopeFactory scopes, IEventResponseExecutor executor) = Harness();
+        UserBannedAlertHandler handler = new(
+            scopes,
+            Substitute.For<IPipelineEngine>(),
+            new BotModerationMarks(TimeProvider.System),
+            NullLogger<UserBannedAlertHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                OccurredAt = DateTimeOffset.UtcNow,
+                TargetUserId = "1234",
+                TargetDisplayName = "Troll",
+                ModeratorUserId = "mod-1",
+                ModeratorDisplayName = "anda_six",
+            }
+        );
+
+        await executor
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default, default!, default, default, default!);
+    }
+
+    [Fact]
+    public async Task A_timeout_and_an_unban_a_person_made_by_hand_stay_quiet_in_chat()
+    {
+        (IServiceScopeFactory scopes, IEventResponseExecutor executor) = Harness();
+        BotModerationMarks marks = new(TimeProvider.System);
+        marks.Mark("someone-else", BotModerationActions.Timeout);
+
+        await new UserTimedOutAlertHandler(
+            scopes,
+            Substitute.For<IPipelineEngine>(),
+            marks,
+            NullLogger<UserTimedOutAlertHandler>.Instance
+        ).HandleAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                OccurredAt = DateTimeOffset.UtcNow,
+                TargetUserId = "1234",
+                TargetDisplayName = "Troll",
+                ModeratorUserId = "mod-1",
+                DurationSeconds = 600,
+            }
+        );
+        await new UserUnbannedAlertHandler(
+            scopes,
+            Substitute.For<IPipelineEngine>(),
+            marks,
+            NullLogger<UserUnbannedAlertHandler>.Instance
+        ).HandleAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                OccurredAt = DateTimeOffset.UtcNow,
+                TargetUserId = "1234",
+                TargetDisplayName = "Troll",
+                ModeratorUserId = "mod-1",
+            }
+        );
+
+        await executor
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default, default!, default, default, default!);
+    }
+
+    [Fact]
+    public void A_bot_mark_speaks_once_and_expires()
+    {
+        Microsoft.Extensions.Time.Testing.FakeTimeProvider clock = new();
+        BotModerationMarks marks = new(clock);
+        marks.Mark("1", BotModerationActions.Ban);
+        marks.Mark("2", BotModerationActions.Ban);
+
+        marks.Consume("1", BotModerationActions.Ban).Should().BeTrue();
+        marks.Consume("1", BotModerationActions.Ban).Should().BeFalse();
+        marks.Consume("2", BotModerationActions.Timeout).Should().BeFalse();
+        clock.Advance(TimeSpan.FromMinutes(3));
+        marks.Consume("2", BotModerationActions.Ban).Should().BeFalse();
+    }
+
     [Fact]
     public async Task A_permanent_ban_dispatches_channel_ban_with_duration_permanent()
     {
@@ -55,6 +153,7 @@ public sealed class ModerationAlertHandlersTests
         UserBannedAlertHandler handler = new(
             scopes,
             Substitute.For<IPipelineEngine>(),
+            BotMade(BotModerationActions.Ban, "1234", "1"),
             NullLogger<UserBannedAlertHandler>.Instance
         );
 
@@ -95,6 +194,7 @@ public sealed class ModerationAlertHandlersTests
         UserTimedOutAlertHandler handler = new(
             scopes,
             Substitute.For<IPipelineEngine>(),
+            BotMade(BotModerationActions.Timeout, "1234", "2"),
             NullLogger<UserTimedOutAlertHandler>.Instance
         );
 
@@ -135,6 +235,7 @@ public sealed class ModerationAlertHandlersTests
         UserUnbannedAlertHandler handler = new(
             scopes,
             Substitute.For<IPipelineEngine>(),
+            BotMade(BotModerationActions.Unban, "1234", "1"),
             NullLogger<UserUnbannedAlertHandler>.Instance
         );
 
@@ -296,6 +397,7 @@ public sealed class ModerationAlertHandlersTests
         await new UserBannedAlertHandler(
             h.Scopes,
             Substitute.For<IPipelineEngine>(),
+            BotMade(BotModerationActions.Ban, "1234", "1"),
             NullLogger<UserBannedAlertHandler>.Instance
         ).HandleAsync(
             new()
@@ -313,6 +415,7 @@ public sealed class ModerationAlertHandlersTests
         await new UserTimedOutAlertHandler(
             h.Scopes,
             Substitute.For<IPipelineEngine>(),
+            BotMade(BotModerationActions.Timeout, "1234", "2"),
             NullLogger<UserTimedOutAlertHandler>.Instance
         ).HandleAsync(
             new()
@@ -330,6 +433,7 @@ public sealed class ModerationAlertHandlersTests
         await new UserUnbannedAlertHandler(
             h.Scopes,
             Substitute.For<IPipelineEngine>(),
+            BotMade(BotModerationActions.Unban, "1234", "1"),
             NullLogger<UserUnbannedAlertHandler>.Instance
         ).HandleAsync(
             new()

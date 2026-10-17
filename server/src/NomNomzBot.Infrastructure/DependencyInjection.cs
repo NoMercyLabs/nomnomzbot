@@ -1591,6 +1591,10 @@ public static class DependencyInjection
         // [RegisteredByHand]: it must start after the ChannelRegistry hosted service above.
         services.AddHostedService<ChannelRegistryBootstrapService>();
 
+        services.AddSingleton<
+            Application.Moderation.Services.IBotModerationMarks,
+            BotModerationMarks
+        >();
         // BotSelfEchoGuard (S009) — singleton so its per-tenant bot-identity cache survives across the
         // scoped DbContext each of the three chat ingests runs under; registered under both its query
         // surface and its cache-invalidation seam so the one instance serves both.

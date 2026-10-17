@@ -101,6 +101,12 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
     /// </summary>
     protected virtual bool Responds(TEvent @event) => true;
 
+    /// <summary>
+    /// Whether the live event may speak. Unlike <see cref="Responds"/> a replay ignores it: a person pressing
+    /// replay asked for the response, so a ban made by hand stays quiet live yet still replays on request.
+    /// </summary>
+    protected virtual bool RespondsLive(TEvent @event) => true;
+
     public Type EventType => typeof(TEvent);
 
     protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
@@ -114,7 +120,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         await LogChannelEventAsync(db, @event, broadcasterId, ct);
-        if (!Responds(@event))
+        if (!Responds(@event) || !RespondsLive(@event))
             return;
 
         // THE one execution path for configured responses — shared with every other trigger source.

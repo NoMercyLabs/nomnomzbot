@@ -11,6 +11,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
@@ -32,12 +33,19 @@ public sealed class UserBannedAlertHandler
 {
     protected override string EventTypeKey => "channel.ban";
 
+    private readonly IBotModerationMarks _marks;
+
     public UserBannedAlertHandler(
         IServiceScopeFactory s,
         IPipelineEngine p,
+        IBotModerationMarks marks,
         ILogger<UserBannedAlertHandler> l
     )
-        : base(s, p, l) { }
+        : base(s, p, l) => _marks = marks;
+
+    // Only a ban the bot made says why; a ban by hand gives the banned viewer no attention.
+    protected override bool RespondsLive(UserBannedEvent e) =>
+        _marks.Consume(e.TargetUserId, BotModerationActions.Ban);
 
     protected override string? GetUserId(UserBannedEvent e) => e.TargetUserId;
 
@@ -74,12 +82,18 @@ public sealed class UserTimedOutAlertHandler
 {
     protected override string EventTypeKey => "channel.ban";
 
+    private readonly IBotModerationMarks _marks;
+
     public UserTimedOutAlertHandler(
         IServiceScopeFactory s,
         IPipelineEngine p,
+        IBotModerationMarks marks,
         ILogger<UserTimedOutAlertHandler> l
     )
-        : base(s, p, l) { }
+        : base(s, p, l) => _marks = marks;
+
+    protected override bool RespondsLive(UserTimedOutEvent e) =>
+        _marks.Consume(e.TargetUserId, BotModerationActions.Timeout);
 
     protected override string? GetUserId(UserTimedOutEvent e) => e.TargetUserId;
 
@@ -117,12 +131,18 @@ public sealed class UserUnbannedAlertHandler
 {
     protected override string EventTypeKey => "channel.unban";
 
+    private readonly IBotModerationMarks _marks;
+
     public UserUnbannedAlertHandler(
         IServiceScopeFactory s,
         IPipelineEngine p,
+        IBotModerationMarks marks,
         ILogger<UserUnbannedAlertHandler> l
     )
-        : base(s, p, l) { }
+        : base(s, p, l) => _marks = marks;
+
+    protected override bool RespondsLive(UserUnbannedEvent e) =>
+        _marks.Consume(e.TargetUserId, BotModerationActions.Unban);
 
     protected override string? GetUserId(UserUnbannedEvent e) => e.TargetUserId;
 
