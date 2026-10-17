@@ -76,6 +76,34 @@ public sealed class PipelinePlatformContentSeederTests
     }
 
     [Fact]
+    public async Task Publishes_raid_commit_v2_with_the_recap_step_once_when_v1_predates_it()
+    {
+        SeedTestDbContext db = BuildDb();
+        await new PipelinePlatformContentSeeder(db).SeedAsync();
+        PlatformContentDefinition definition = db.PlatformContentDefinitions.Single(d =>
+            d.Kind == PlatformContentKinds.Pipeline && d.Key == "raid_commit"
+        );
+        PlatformContentVersion v1 = db.PlatformContentVersions.Single(v =>
+            v.Id == definition.CurrentVersionId
+        );
+        v1.PayloadJson = """{"steps":[{"action":{"type":"obs_streaming"}}]}""";
+        db.SaveChanges();
+
+        await new PipelinePlatformContentSeeder(db).SeedAsync();
+        await new PipelinePlatformContentSeeder(db).SeedAsync();
+
+        List<PlatformContentVersion> versions = db
+            .PlatformContentVersions.Where(v => v.DefinitionId == definition.Id)
+            .OrderBy(v => v.Version)
+            .ToList();
+        versions.Select(v => v.Version).Should().Equal(1, 2);
+        PlatformContentVersion v2 = versions[1];
+        definition.CurrentVersionId.Should().Be(v2.Id);
+        v2.PayloadJson.Should().Contain("\"show_raid_recap\"");
+        v2.PublishedAt.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task Backfills_provenance_onto_the_tenants_raid_command_pipeline()
     {
         SeedTestDbContext db = BuildDb();

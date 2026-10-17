@@ -981,6 +981,7 @@
     "pipeline.shoutout.template.help",
     "pipeline.shoutout.tts.help",
     "pipeline.shoutout.user_id.help",
+    "pipeline.show_raid_recap.description",
     "pipeline.song_ban.description",
     "pipeline.song_ban.reason.help",
     "pipeline.song_current.description",

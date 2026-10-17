@@ -5667,6 +5667,7 @@
     <string name="pipeline_set_variable_description">Stel een pipelinevariabele in</string>
     <string name="pipeline_set_viewer_data_description">Stel een opgeslagen waarde in op het profiel van een kijker</string>
     <string name="pipeline_shoutout_description">Geef een shoutout aan een ander kanaal</string>
+    <string name="pipeline_show_raid_recap_description">Toon het streamoverzicht op de raid-recap-widget</string>
     <string name="pipeline_song_ban_description">Blokkeer het nu afgespeelde nummer voor verzoeken en sla het over</string>
     <string name="pipeline_song_current_description">Toon het nu afgespeelde nummer</string>
     <string name="pipeline_song_pause_description">Pauzeer het afspelen van muziek</string>

@@ -5683,6 +5683,7 @@
     <string name="pipeline_set_variable_description">Set a pipeline variable</string>
     <string name="pipeline_set_viewer_data_description">Set a stored value on a viewer&apos;s profile</string>
     <string name="pipeline_shoutout_description">Give another channel a shoutout</string>
+    <string name="pipeline_show_raid_recap_description">Show the stream recap on the raid recap widget</string>
     <string name="pipeline_song_ban_description">Block the currently playing track from requests and skip it</string>
     <string name="pipeline_song_current_description">Show the currently playing track</string>
     <string name="pipeline_song_pause_description">Pause music playback</string>
