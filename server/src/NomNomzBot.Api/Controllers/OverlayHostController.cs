@@ -139,10 +139,15 @@ public sealed partial class OverlayHostController : ControllerBase
     // decoding — an SDK requirement, not something this bot controls.
     private const string SpotifySdkOrigin = "https://sdk.scdn.co";
 
+    // The YouTube IFrame API loads iframe_api and its player script from here, and plays inside its own iframe.
+    private const string YouTubeOrigin = "https://www.youtube.com";
+
+    private const string AudioPlayerOrigins = SpotifySdkOrigin + " " + YouTubeOrigin;
+
     private static string ContentSecurityPolicy(string nonce, bool allowSpotifyPlayback = false) =>
         "default-src 'none'; "
         + $"script-src 'self' 'nonce-{nonce}'"
-        + (allowSpotifyPlayback ? $" {SpotifySdkOrigin}; " : "; ")
+        + (allowSpotifyPlayback ? $" {AudioPlayerOrigins}; " : "; ")
         + "style-src 'self' 'unsafe-inline'; "
         // 'self' — same-origin at any scheme — matters on plain-http LAN/self-host origins where a
         // scheme-source of https: matches nothing; blob:/data: on media only, for client-synthesized
@@ -152,7 +157,7 @@ public sealed partial class OverlayHostController : ControllerBase
         + "font-src https: data:; "
         + "connect-src 'self' https: wss: ws:; "
         + "base-uri 'none'; object-src 'none'; "
-        + $"frame-src {(allowSpotifyPlayback ? SpotifySdkOrigin : "'none'")}; form-action 'none'";
+        + $"frame-src {(allowSpotifyPlayback ? AudioPlayerOrigins : "'none'")}; form-action 'none'";
 
     /// <summary>Widget settings declare a truthy <c>enableAudio</c> flag (the OBS playback widget's opt-in) — the
     /// only trigger for relaxing the CSP to admit Spotify's SDK, so every other widget keeps the strict default.

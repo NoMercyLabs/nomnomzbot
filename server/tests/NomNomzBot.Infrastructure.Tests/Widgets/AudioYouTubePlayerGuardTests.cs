@@ -171,6 +171,19 @@ public sealed class AudioYouTubePlayerGuardTests
     }
 
     [Fact]
+    public void A_video_that_starts_muted_is_unmuted_or_asks_for_a_click()
+    {
+        // Without a user gesture YouTube autoplays muted and still reports PLAYING (Fillz, 2026-10-18: "playing"
+        // but no audio). On PLAYING the page unmutes, and shows the enable-audio button when it may not play sound.
+        string source = Source();
+
+        source.Should().Contain("ensureYouTubeAudible(player)");
+        source.Should().Contain("player.unMute()");
+        source.Should().Contain("if (!allowed || player.isMuted()) spotifyStatus.value = 'muted'");
+        source.Should().Contain("ytPlayer?.unMute()");
+    }
+
+    [Fact]
     public void The_report_carries_the_position_in_milliseconds()
     {
         Source().Should().Contain("getCurrentTime() * 1000");

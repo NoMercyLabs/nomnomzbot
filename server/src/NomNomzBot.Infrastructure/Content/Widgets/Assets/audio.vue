@@ -38,6 +38,9 @@ interface YouTubePlayerHandle {
   getCurrentTime(): number
   getPlayerState(): number
   getVideoData(): { video_id: string }
+  isMuted(): boolean
+  unMute(): void
+  setVolume(volume: number): void
 }
 interface YouTubeStateEvent { data: number, target: YouTubePlayerHandle }
 interface YouTubeErrorEvent { data: number, target: YouTubePlayerHandle }
@@ -105,9 +108,23 @@ function applyPendingYouTubeCommands(player: YouTubePlayerHandle): void {
 function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
   const state: string | undefined = YT_STATE_NAMES[code]
   if (!state) return
-  if (state === 'PLAYING') applyPendingYouTubeCommands(player)
+  if (state === 'PLAYING') {
+    applyPendingYouTubeCommands(player)
+    ensureYouTubeAudible(player)
+  }
   NomNomz.reportYouTubePlayerState(player.getVideoData().video_id, state, Math.round(player.getCurrentTime() * 1000))
     .catch(() => { /* offline: the next state change reports again */ })
+}
+
+// A page without a user gesture lets YouTube autoplay only muted, and it still reports PLAYING: unmute it, and
+// when the page may not make sound at all, show the same "Click to enable audio" button Spotify uses.
+function ensureYouTubeAudible(player: YouTubePlayerHandle): void {
+  if (!cfg.enableAudio) return
+  player.unMute()
+  player.setVolume(100)
+  checkAutoplayAllowed().then((allowed) => {
+    if (!allowed || player.isMuted()) spotifyStatus.value = 'muted'
+  })
 }
 
 function reportYouTubeHeartbeat(): void {
@@ -354,6 +371,7 @@ async function checkAutoplayAllowed(): Promise<boolean> {
 
 function enableAudio(): void {
   checkAutoplayAllowed().then((allowed) => { if (allowed) spotifyStatus.value = 'active' })
+  ytPlayer?.unMute()
 }
 function onAudioNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): void {
   trackProvider.value = d?.provider || ''

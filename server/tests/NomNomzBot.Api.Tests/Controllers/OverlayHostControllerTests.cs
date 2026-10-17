@@ -106,6 +106,35 @@ public sealed class OverlayHostControllerTests
     }
 
     [Fact]
+    public async Task The_audio_page_may_load_and_frame_the_youtube_player()
+    {
+        // Fillz, 2026-10-18: the CSP blocked https://www.youtube.com/iframe_api, so a YouTube request never played.
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?> { ["enableAudio"] = true })
+        );
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        html.Should()
+            .MatchRegex("script-src [^;]*https://www\\.youtube\\.com")
+            .And.MatchRegex("frame-src [^;]*https://www\\.youtube\\.com");
+    }
+
+    [Fact]
+    public async Task A_widget_without_audio_keeps_youtube_out()
+    {
+        OverlayHostController sut = WithManifest(VueEntry(new Dictionary<string, object?>()));
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        html.Should().NotContain("youtube.com");
+    }
+
+    [Fact]
     public async Task Missing_token_serves_a_placeholder_not_a_widget()
     {
         OverlayHostController sut = WithManifest();
