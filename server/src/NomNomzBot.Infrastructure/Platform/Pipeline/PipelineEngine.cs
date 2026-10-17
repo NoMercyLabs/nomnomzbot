@@ -2323,10 +2323,10 @@ public sealed class PipelineEngine : IPipelineEngine
 
         PipelineExecution row = new()
         {
-            PipelineId = request.PipelineId,
+            PipelineId = request.PipelineId ?? request.TestRunOfPipelineId,
             BroadcasterId = request.BroadcasterId,
             TriggeredByUserId = triggeredByUserId,
-            TriggerKind = request.PipelineId.HasValue ? "pipeline" : "inline_json",
+            TriggerKind = TriggerKindOf(request),
             Status = ToStatus(result.Outcome),
             HostCallCount = result.StepsExecuted,
             DurationMs = (int)result.Duration.TotalMilliseconds,
@@ -2371,6 +2371,14 @@ public sealed class PipelineEngine : IPipelineEngine
                 request.BroadcasterId
             );
         }
+    }
+
+    private static string TriggerKindOf(PipelineRequest request)
+    {
+        if (request.TestRunOfPipelineId.HasValue)
+            return "test_run";
+
+        return request.PipelineId.HasValue ? "pipeline" : "inline_json";
     }
 
     private static string ToStatus(PipelineOutcome outcome) =>

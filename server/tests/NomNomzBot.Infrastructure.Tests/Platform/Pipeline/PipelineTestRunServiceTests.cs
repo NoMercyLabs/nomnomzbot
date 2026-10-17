@@ -598,6 +598,30 @@ public sealed class PipelineTestRunServiceTests
     }
 
     [Fact]
+    public async Task A_draft_test_run_is_stored_under_its_pipeline_with_the_test_run_kind()
+    {
+        // A draft runs inline (the engine request has no PipelineId), so before TestRunOfPipelineId the stored
+        // execution row had PipelineId null and TriggerKind "inline_json", and GET pipeline-executions
+        // ?pipelineId=X never listed it. Without the service passing TestRunOfPipelineId and the engine
+        // filing the row under it, both assertions below fail.
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedSavedGraphAsync(db);
+        const string draft = """
+            {"steps":[{"id":"11111111-0000-4000-8000-000000000001","action":{"type":"set_variable","name":"n","value":"7"}}]}
+            """;
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, DraftRequest(draft))).Value;
+
+        result.Success.Should().BeTrue();
+        PipelineExecution row = db.PipelineExecutions.Single();
+        row.PipelineId.Should().Be(PipelineId);
+        row.TriggerKind.Should().Be("test_run");
+        row.BroadcasterId.Should().Be(Channel);
+        row.HostCallCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task A_request_without_a_graph_still_runs_the_saved_pipeline()
     {
         PipelineTestRunDbContext db = NewDb();

@@ -150,6 +150,7 @@ public sealed class PipelineTestRunService(
             InitialVariables = new(request.Variables, StringComparer.OrdinalIgnoreCase),
             CollectTrace = true,
             RunInlineGraphAsTree = request.Graph is not null,
+            TestRunOfPipelineId = pipelineId,
         };
 
         PipelineExecutionResult result = await engine.ExecuteAsync(

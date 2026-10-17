@@ -125,6 +125,10 @@ public class PipelineRequest
     /// unsaved edit): a graph with blocks then runs through the tree walker, with step rows built in memory
     /// from the graph and keyed by the ids the client sent. Normal inline runs leave it false.</summary>
     public bool RunInlineGraphAsTree { get; init; }
+
+    /// <summary>The pipeline a dashboard test run belongs to. A draft runs with <see cref="PipelineId"/>
+    /// null, so this is what files its execution row under the pipeline's Runs.</summary>
+    public Guid? TestRunOfPipelineId { get; init; }
 }
 
 public class PipelineExecutionResult
