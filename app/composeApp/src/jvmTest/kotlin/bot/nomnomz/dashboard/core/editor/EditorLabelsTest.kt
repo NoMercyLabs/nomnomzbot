@@ -65,6 +65,18 @@ class EditorLabelsTest {
     }
 
     @Test
+    fun a_label_that_cannot_be_read_is_left_out_and_the_rest_still_resolve() = runBlocking {
+        val brokenId: String = defaultLabelIds().first()
+        val broken: StringResource = Res.allStringResources.getValue(EditorLabels.resourceName(brokenId))
+        val resolved: Map<String, String> =
+            EditorLabels.resolve(Res.allStringResources) { resource: StringResource ->
+                if (resource == broken) error("responseText is undefined") else "text"
+            }
+        assertTrue(brokenId !in resolved, "an unreadable label must be left out")
+        assertEquals(defaultLabelIds().size - 1, defaultLabelIds().count { resolved[it] == "text" })
+    }
+
+    @Test
     fun english_and_dutch_editor_strings_cover_the_same_keys_and_every_label_id() {
         val english: Set<String> = editorKeys("values")
         val dutch: Set<String> = editorKeys("values-nl")

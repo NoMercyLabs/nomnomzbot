@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.core.editor
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.allStringResources
 import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 
 // The words of the served editor page, in the dashboard's current language. The page (editor.js) names every
@@ -41,11 +42,20 @@ object EditorLabels {
     }
 
     /** Every editor label in the current language, keyed by label id. */
-    suspend fun resolve(): Map<String, String> {
+    suspend fun resolve(): Map<String, String> = resolve(Res.allStringResources) { resource: StringResource -> getString(resource) }
+
+    /**
+     * A label that cannot be read is left out, so the page shows its own English text for it. A browser
+     * extension that replaces XMLHttpRequest makes every read throw, and that must never stop the editor opening.
+     */
+    suspend fun resolve(
+        resources: Map<String, StringResource>,
+        read: suspend (StringResource) -> String,
+    ): Map<String, String> {
         val labels: MutableMap<String, String> = mutableMapOf()
-        for ((name: String, resource) in Res.allStringResources) {
+        for ((name: String, resource: StringResource) in resources) {
             val id: String = idOf(name) ?: continue
-            labels[id] = getString(resource)
+            runCatching { read(resource) }.onSuccess { text: String -> labels[id] = text }
         }
         return labels
     }
