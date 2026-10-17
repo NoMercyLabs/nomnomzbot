@@ -102,13 +102,100 @@ public sealed class DashboardHubAuthorizationTests
             chat,
             access,
             gate2,
-            operatorSender
+            operatorSender,
+            Substitute.For<IExternalChatRelay>()
         )
         {
             Context = context,
             Groups = groups,
         };
         return new(hub, chat, operatorSender, gate2, groups, access);
+    }
+
+    [Fact]
+    public async Task SendTwitchChatMessage_sends_to_an_off_bot_channel_as_the_caller_never_the_bot()
+    {
+        Fixture f = Build(entryAllowed: false, gate2Allows: false);
+        f.OperatorSender.SendToTwitchChannelAsync(
+                Caller,
+                "9001",
+                "hi there",
+                "reply-1",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        TwitchChatSendResponse response = await f.Hub.SendTwitchChatMessage(
+            "9001",
+            "hi there",
+            "reply-1"
+        );
+
+        response.Success.Should().BeTrue();
+        response.ErrorCode.Should().BeNull();
+        response.MissingScope.Should().BeNull();
+        await f
+            .OperatorSender.Received(1)
+            .SendToTwitchChannelAsync(
+                Caller,
+                "9001",
+                "hi there",
+                "reply-1",
+                Arg.Any<CancellationToken>()
+            );
+        await f
+            .Chat.DidNotReceive()
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendTwitchChatMessage_reports_the_missing_scope_error_from_the_sender()
+    {
+        Fixture f = Build(entryAllowed: false, gate2Allows: false);
+        f.OperatorSender.SendToTwitchChannelAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Missing required scope 'user:write:chat'.", "missing_scope"));
+
+        TwitchChatSendResponse response = await f.Hub.SendTwitchChatMessage("9001", "hi", null);
+
+        response.Success.Should().BeFalse();
+        response.Error.Should().Contain("user:write:chat");
+        response.ErrorCode.Should().Be("missing_scope");
+        response.MissingScope.Should().Be("user:write:chat");
+    }
+
+    [Theory]
+    [InlineData("abc", "hi")]
+    [InlineData("", "hi")]
+    [InlineData("9001", "  ")]
+    public async Task SendTwitchChatMessage_rejects_a_bad_channel_or_empty_message_without_sending(
+        string twitchId,
+        string message
+    )
+    {
+        Fixture f = Build(entryAllowed: false, gate2Allows: false);
+
+        TwitchChatSendResponse response = await f.Hub.SendTwitchChatMessage(
+            twitchId,
+            message,
+            null
+        );
+
+        response.Success.Should().BeFalse();
+        await f
+            .OperatorSender.DidNotReceive()
+            .SendToTwitchChannelAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

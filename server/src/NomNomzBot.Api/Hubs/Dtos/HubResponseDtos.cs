@@ -260,6 +260,18 @@ public record JoinChannelResponse(
 
 public record SendMessageResponse(bool Success, string? Error, string? MessageId);
 
+/// <summary>
+/// The answer to a send to a Twitch channel off the bot. <paramref name="ErrorCode"/> is the machine-readable
+/// failure (<c>missing_scope</c>, <c>no_token</c>, ...); <paramref name="MissingScope"/> names the permission
+/// when the code is <c>missing_scope</c>. A client branches on these, never on the English text.
+/// </summary>
+public record TwitchChatSendResponse(
+    bool Success,
+    string? Error,
+    string? ErrorCode,
+    string? MissingScope
+);
+
 public record ActionResponse(bool Success, string? Error);
 
 /// <summary>

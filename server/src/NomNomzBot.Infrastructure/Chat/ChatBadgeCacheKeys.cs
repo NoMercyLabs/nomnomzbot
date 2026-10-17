@@ -22,4 +22,8 @@ internal static class ChatBadgeCacheKeys
 
     /// <summary>A channel's own badge set (subscriber tiers, bits tiers, etc.).</summary>
     public static string Channel(Guid broadcasterId) => $"chat:badges:channel:{broadcasterId}";
+
+    /// <summary>The badge set of a channel addressed by its raw Twitch id (a channel the bot is not on).</summary>
+    public static string TwitchChannel(string twitchBroadcasterId) =>
+        $"chat:badges:twitch:{twitchBroadcasterId}";
 }

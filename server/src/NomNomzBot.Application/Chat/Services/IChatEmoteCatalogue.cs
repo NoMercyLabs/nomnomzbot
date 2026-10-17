@@ -43,6 +43,17 @@ public interface IChatEmoteCatalogue
     );
 
     /// <summary>
+    /// The composer catalogue for a channel the bot is NOT on, addressed by its raw Twitch id
+    /// <paramref name="twitchBroadcasterId"/>: that channel's Twitch emotes, the operator's own emotes (with that
+    /// channel's follower emotes), Twitch global, and that channel's 7TV/BTTV/FFZ sets plus the third-party globals.
+    /// </summary>
+    Task<Result<IReadOnlyList<ChatEmote>>> GetForTwitchChannelAsync(
+        string twitchBroadcasterId,
+        Guid operatorUserId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// The emotes one person's OWN Twitch channel offers, for the asset-inspection section of their profile: their
     /// Twitch channel emotes (subscription tiers, follower, bits tier) plus their 7TV, BTTV and FFZ channel sets, all
     /// tagged <see cref="ChatEmoteOrigin.Channel"/> and owned by that person. A person with no linked Twitch identity,

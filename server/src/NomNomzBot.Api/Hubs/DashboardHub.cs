@@ -17,6 +17,7 @@ using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -42,6 +43,7 @@ public class DashboardHub : Hub<IDashboardClient>
     private readonly IChannelAccessService _access;
     private readonly IActionAuthorizationService _authorization;
     private readonly IOperatorChatSender _operatorSender;
+    private readonly IExternalChatRelay _externalChat;
 
     public DashboardHub(
         IChannelRegistry registry,
@@ -49,9 +51,11 @@ public class DashboardHub : Hub<IDashboardClient>
         IChatProvider chat,
         IChannelAccessService access,
         IActionAuthorizationService authorization,
-        IOperatorChatSender operatorSender
+        IOperatorChatSender operatorSender,
+        IExternalChatRelay externalChat
     )
     {
+        _externalChat = externalChat;
         _registry = registry;
         _logger = logger;
         _chat = chat;
@@ -84,6 +88,7 @@ public class DashboardHub : Hub<IDashboardClient>
                     _registry.ReleaseMusicDemand(tenantId, Context.ConnectionId);
             }
         }
+        await _externalChat.DisconnectAsync(Context.ConnectionId);
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -278,6 +283,79 @@ public class DashboardHub : Hub<IDashboardClient>
         );
         return new(true, null, null);
     }
+
+    /// <summary>
+    /// Reads the chat of any Twitch channel, keyed by its Twitch broadcaster id, on the caller's own token
+    /// (chat-client.md "Any Twitch channel"). Any signed-in user may: Twitch decides what the token can read.
+    /// The lines arrive as <c>ExternalChatEvent</c> on this connection only.
+    /// </summary>
+    public async Task<JoinChannelResponse> JoinTwitchChat(string twitchBroadcasterId)
+    {
+        string? userId = CallerId;
+        if (userId is null || !Guid.TryParse(userId, out Guid callerId))
+            return new(false, "Not authenticated", null);
+
+        if (
+            string.IsNullOrWhiteSpace(twitchBroadcasterId)
+            || !twitchBroadcasterId.All(char.IsAsciiDigit)
+        )
+            return new(false, "Unknown channel", null);
+
+        Result joined = await _externalChat.JoinAsync(
+            callerId,
+            Context.ConnectionId,
+            twitchBroadcasterId,
+            Context.ConnectionAborted
+        );
+        return joined.IsSuccess
+            ? new(true, null, null)
+            : new(false, joined.ErrorMessage ?? "Could not open this chat", null);
+    }
+
+    /// <summary>
+    /// Sends one chat line to any Twitch channel by its Twitch id, as the caller on their own token
+    /// (chat-client.md "Any Twitch channel", Send). Never the bot. Twitch decides whether the caller may speak.
+    /// </summary>
+    public async Task<TwitchChatSendResponse> SendTwitchChatMessage(
+        string twitchBroadcasterId,
+        string message,
+        string? replyToMessageId
+    )
+    {
+        if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
+            return new(false, "Message too long or empty", "invalid_message", null);
+
+        if (
+            string.IsNullOrWhiteSpace(twitchBroadcasterId)
+            || !twitchBroadcasterId.All(char.IsAsciiDigit)
+        )
+            return new(false, "Unknown channel", TwitchErrorCodes.NotFound, null);
+
+        if (CallerId is null || !Guid.TryParse(CallerId, out Guid callerId))
+            return new(false, "Not authenticated", TwitchErrorCodes.Unauthorized, null);
+
+        Result sent = await _operatorSender.SendToTwitchChannelAsync(
+            callerId,
+            twitchBroadcasterId,
+            message.Trim(),
+            replyToMessageId,
+            Context.ConnectionAborted
+        );
+        if (sent.IsSuccess)
+            return new(true, null, null, null);
+
+        string? missingScope =
+            sent.ErrorCode == TwitchErrorCodes.MissingScope ? TwitchScopes.UserWriteChat : null;
+        return new(
+            false,
+            sent.ErrorMessage ?? "The message could not be sent to Twitch.",
+            sent.ErrorCode,
+            missingScope
+        );
+    }
+
+    public Task LeaveTwitchChat(string twitchBroadcasterId) =>
+        _externalChat.LeaveAsync(Context.ConnectionId, twitchBroadcasterId);
 
     public async Task LeaveViewerChat(string broadcasterId)
     {

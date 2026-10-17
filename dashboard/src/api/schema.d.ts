@@ -17680,7 +17680,8 @@ export interface paths {
         };
         /**
          * Search every channel this deployment serves, so any signed-in person can open its viewer chat
-         *     (chat-client.md §9a "Reaching any channel"). Public fields only; live channels first.
+         *     (chat-client.md §9a "Reaching any channel"). Public fields only; live channels first. A search also
+         *     lists Twitch channels off the bot (`onBot=false`, §9a "Any Twitch channel").
          */
         get: {
             parameters: {
@@ -93343,7 +93344,8 @@ export interface components {
         };
         /**
          * @description One channel in the deployment's public directory (chat-client.md §9a "Reaching any channel"): only what
-         *     the channel shows every visitor on Twitch. No role, no settings, no tokens.
+         *     the channel shows every visitor on Twitch. No role, no settings, no tokens. `OnBot` is false for a
+         *     Twitch channel this deployment does not serve; its `Id` is then the Twitch user id, not a tenant Guid.
          */
         PublicChannel: {
             id: string;
@@ -93352,6 +93354,8 @@ export interface components {
             profileImageUrl?: null | string;
             isLive: boolean;
             provider: string;
+            /** @default true */
+            onBot: boolean;
         };
         PublicMessage: {
             id: string;
