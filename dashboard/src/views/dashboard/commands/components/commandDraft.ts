@@ -14,8 +14,27 @@ import type { ReplyMode } from '@/components/layout/replyMode';
 
 import { permissionLevels } from './permissionLevels';
 
+export const prefixModes = ['Default', 'Custom', 'None'] as const;
+export const matchModes = ['StartsWith', 'Exact', 'Contains', 'Regex'] as const;
+
+export type PrefixMode = (typeof prefixModes)[number];
+export type MatchMode = (typeof matchModes)[number];
+
+// The bot sends the mode as text; a value this list does not know falls back to the default.
+function prefixModeOf(raw: string): PrefixMode {
+  return prefixModes.find((mode: PrefixMode): boolean => mode === raw) ?? 'Default';
+}
+
+function matchModeOf(raw: string): MatchMode {
+  return matchModes.find((mode: MatchMode): boolean => mode === raw) ?? 'StartsWith';
+}
+
 // What the editor form holds. Empty replies means "one reply" mode; a pipeline of '' means none picked.
 export interface CommandDraft {
+  prefixMode: PrefixMode;
+  customPrefix: string;
+  matchMode: MatchMode;
+  matchPattern: string;
   mode: ReplyMode;
   templateResponse: string;
   replies: string[];
@@ -36,6 +55,10 @@ function canonicalLevel(level: string): string {
 
 export function draftOf(row: CommandListItem): CommandDraft {
   return {
+    prefixMode: prefixModeOf(row.prefixMode),
+    customPrefix: row.customPrefix ?? '',
+    matchMode: matchModeOf(row.matchMode),
+    matchPattern: row.matchPattern ?? '',
     mode: row.tier === 'pipeline'
       ? 'full'
       : 'simple',
@@ -83,8 +106,33 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
     change.pipelineId = draft.pipelineId;
   }
 
-  if (draft.speakWithTts !== saved.speakWithTts) {
-    change.speakWithTts = draft.speakWithTts;
+  // A pipeline speaks through its own steps, so the command-level switch is off while it runs one.
+  const speaks = draft.mode === 'full'
+    ? false
+    : draft.speakWithTts;
+
+  if (speaks !== saved.speakWithTts) {
+    change.speakWithTts = speaks;
+  }
+
+  if (draft.prefixMode !== saved.prefixMode) {
+    change.prefixMode = draft.prefixMode;
+  }
+
+  const customPrefixChanged = draft.customPrefix !== saved.customPrefix;
+
+  if (draft.prefixMode === 'Custom' && (draft.prefixMode !== saved.prefixMode || customPrefixChanged)) {
+    change.customPrefix = draft.customPrefix;
+  }
+
+  if (draft.matchMode !== saved.matchMode) {
+    change.matchMode = draft.matchMode;
+  }
+
+  const patternChanged = draft.matchPattern !== saved.matchPattern;
+
+  if (draft.matchMode === 'Regex' && (draft.matchMode !== saved.matchMode || patternChanged)) {
+    change.matchPattern = draft.matchPattern;
   }
 
   if (draft.minPermissionLevel !== saved.minPermissionLevel) {
@@ -104,6 +152,10 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
 
 export function sameDraft(left: CommandDraft, right: CommandDraft): boolean {
   return (
+    left.prefixMode === right.prefixMode &&
+    left.customPrefix === right.customPrefix &&
+    left.matchMode === right.matchMode &&
+    left.matchPattern === right.matchPattern &&
     left.mode === right.mode &&
     left.templateResponse === right.templateResponse &&
     sameReplies(left.replies, right.replies) &&
@@ -113,4 +165,12 @@ export function sameDraft(left: CommandDraft, right: CommandDraft): boolean {
     left.cooldownSeconds === right.cooldownSeconds &&
     left.userCooldownSeconds === right.userCooldownSeconds
   );
+}
+
+// Custom needs a prefix and Regex needs a pattern; the bot refuses either one empty.
+export function triggerValid(draft: CommandDraft): boolean {
+  const prefixOk = draft.prefixMode !== 'Custom' || draft.customPrefix !== '';
+  const patternOk = draft.matchMode !== 'Regex' || draft.matchPattern !== '';
+
+  return prefixOk && patternOk;
 }

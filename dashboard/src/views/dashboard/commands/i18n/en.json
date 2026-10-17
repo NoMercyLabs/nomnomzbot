@@ -80,8 +80,29 @@
         "nameRequired": "Give the command a name.",
         "type": "What it does",
         "typeTemplate": "Sends a reply",
+        "typeRandom": "Sends a random reply",
         "typePipeline": "Runs a pipeline",
+        "triggerRequired": "Fill in the custom prefix or the regex pattern you picked.",
         "create": "Create command"
+      },
+      "trigger": {
+        "prefixLabel": "Prefix",
+        "prefixHelp": "The character chat types before the command. Channel default uses your channel prefix.",
+        "prefix": {
+          "Default": "Channel default",
+          "Custom": "Custom",
+          "None": "None"
+        },
+        "customPrefix": "Custom prefix",
+        "matchLabel": "Match",
+        "matchHelp": "How a chat message must look to run the command. Regex tests the whole message with your pattern.",
+        "match": {
+          "StartsWith": "Starts with",
+          "Exact": "Exact",
+          "Contains": "Contains",
+          "Regex": "Regex"
+        },
+        "matchPattern": "Regex pattern"
       },
       "builtin": {
         "title": "Built-in commands",

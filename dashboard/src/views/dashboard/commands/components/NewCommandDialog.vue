@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // A new command: a name and what it does. A code command is not offered: no endpoint attaches a script.
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCreateCommand, type NewCommand } from '@/api/commands';
@@ -28,7 +28,11 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
-type Kind = 'template' | 'pipeline';
+import type { MatchMode, PrefixMode } from './commandDraft';
+import RandomReplyList from './RandomReplyList.vue';
+import TriggerFields from './TriggerFields.vue';
+
+type Kind = 'template' | 'random' | 'pipeline';
 
 const open = defineModel<boolean>('open', { required: true });
 const emit = defineEmits<{ created: [name: string] }>();
@@ -41,7 +45,12 @@ const pipelines = usePipelines(channelId);
 const name = ref('');
 const kind = ref<Kind>('template');
 const reply = ref('');
+const replies = ref<string[]>(['']);
 const pipelineId = ref('');
+const prefixMode = ref<PrefixMode>('Default');
+const customPrefix = ref('');
+const matchMode = ref<MatchMode>('StartsWith');
+const matchPattern = ref('');
 const error = ref<string | undefined>(undefined);
 
 watch(open, (isOpen: boolean): void => {
@@ -50,26 +59,59 @@ watch(open, (isOpen: boolean): void => {
   name.value = '';
   kind.value = 'template';
   reply.value = '';
+  replies.value = [''];
   pipelineId.value = '';
+  prefixMode.value = 'Default';
+  customPrefix.value = '';
+  matchMode.value = 'StartsWith';
+  matchPattern.value = '';
   error.value = undefined;
 });
+
+const triggerOk = computed<boolean>(
+  () =>
+    (prefixMode.value !== 'Custom' || customPrefix.value !== '') &&
+    (matchMode.value !== 'Regex' || matchPattern.value !== ''),
+);
 
 function cleaned(raw: string): string {
   return raw.trim().replace(/^!+/, '').toLowerCase();
 }
 
+// Only the trigger options that differ from the bot's defaults travel with the new command.
+function triggerOf(): Partial<NewCommand> {
+  return {
+    ...(prefixMode.value === 'Default'
+      ? {}
+      : { prefixMode: prefixMode.value }),
+    ...(prefixMode.value === 'Custom'
+      ? { customPrefix: customPrefix.value }
+      : {}),
+    ...(matchMode.value === 'StartsWith'
+      ? {}
+      : { matchMode: matchMode.value }),
+    ...(matchMode.value === 'Regex'
+      ? { matchPattern: matchPattern.value }
+      : {}),
+  };
+}
+
+function replyOf(): Partial<NewCommand> {
+  if (kind.value === 'random')
+    return { tier: 'template', templateResponses: replies.value };
+
+  if (kind.value === 'pipeline')
+    return { tier: 'pipeline', pipelineId: pipelineId.value };
+
+  return { tier: 'template', templateResponse: reply.value };
+}
+
 function bodyOf(clean: string): NewCommand {
-  return kind.value === 'template'
-    ? {
-        name: clean,
-        tier: 'template',
-        templateResponse: reply.value,
-      }
-    : {
-        name: clean,
-        tier: 'pipeline',
-        pipelineId: pipelineId.value,
-      };
+  return {
+    name: clean,
+    ...replyOf(),
+    ...triggerOf(),
+  };
 }
 
 async function submit(): Promise<void> {
@@ -77,6 +119,12 @@ async function submit(): Promise<void> {
 
   if (clean === '') {
     error.value = t('dashboard.commands.dialog.nameRequired');
+
+    return;
+  }
+
+  if (!triggerOk.value) {
+    error.value = t('dashboard.commands.dialog.triggerRequired');
 
     return;
   }
@@ -126,6 +174,9 @@ async function submit(): Promise<void> {
           <SelectItem value="template">{{
             $t('dashboard.commands.dialog.typeTemplate')
           }}</SelectItem>
+          <SelectItem value="random">{{
+            $t('dashboard.commands.dialog.typeRandom')
+          }}</SelectItem>
           <SelectItem value="pipeline">{{
             $t('dashboard.commands.dialog.typePipeline')
           }}</SelectItem>
@@ -139,6 +190,7 @@ async function submit(): Promise<void> {
       :maxlength="500"
       :label="$t('dashboard.commands.editor.reply')"
     />
+    <RandomReplyList v-else-if="kind === 'random'" v-model="replies" />
     <Field v-else>
       <FieldLabel>{{ $t('dashboard.commands.editor.pipeline') }}</FieldLabel>
       <Select v-model="pipelineId">
@@ -156,5 +208,11 @@ async function submit(): Promise<void> {
         </SelectContent>
       </Select>
     </Field>
+    <TriggerFields
+      v-model:prefix-mode="prefixMode"
+      v-model:custom-prefix="customPrefix"
+      v-model:match-mode="matchMode"
+      v-model:match-pattern="matchPattern"
+    />
   </FormDialog>
 </template>
