@@ -1,4 +1,1434 @@
 {
+  "builtin": {
+    "reply": {
+      "accountage": {
+        "accountunresolved": {
+          "description": "The viewer's account could not be found.",
+          "label": "Account not found"
+        },
+        "age": {
+          "description": "A viewer asks how old their account is.",
+          "label": "Account age"
+        },
+        "notfound": {
+          "description": "Twitch has no account for the viewer.",
+          "label": "Not on Twitch"
+        },
+        "twitchunavailable": {
+          "description": "Twitch did not answer the lookup.",
+          "label": "Twitch did not answer"
+        },
+        "undetermined": {
+          "description": "The account has no known creation date.",
+          "label": "Age unknown"
+        }
+      },
+      "allow": {
+        "approved": {
+          "description": "The streamer, a lead moderator or an editor approved the mass ban; the bans start now.",
+          "label": "Approved"
+        },
+        "nothingpending": {
+          "description": "No mass ban is waiting for this channel's approval.",
+          "label": "Nothing waiting"
+        },
+        "usage": {
+          "description": "Someone uses the command without \"massban\".",
+          "label": "Usage"
+        }
+      },
+      "banger": {
+        "added": {
+          "description": "The playing song was added to the bangers playlist.",
+          "label": "Banger added"
+        },
+        "alreadythere": {
+          "description": "The playing song is already in the bangers playlist.",
+          "label": "Already a banger"
+        },
+        "failed": {
+          "description": "The music service could not update the bangers playlist.",
+          "label": "Banger failed"
+        },
+        "noplaylist": {
+          "description": "No playlist is chosen and auto-create is off.",
+          "label": "No bangers playlist"
+        },
+        "nothing": {
+          "description": "Nothing plays, so there is no song to add to the bangers playlist.",
+          "label": "Nothing playing"
+        }
+      },
+      "bansong": {
+        "banned": {
+          "description": "A moderator banned the playing song.",
+          "label": "Song banned"
+        },
+        "couldnotban": {
+          "description": "The song could not be banned.",
+          "label": "Ban failed"
+        },
+        "nothing": {
+          "description": "Nothing plays, so there is no song to ban.",
+          "label": "Nothing to ban"
+        },
+        "strikerevoked": {
+          "description": "Added after a ban when that person has banned 11 or more songs.",
+          "label": "Requests revoked"
+        },
+        "strikewarning": {
+          "description": "Added after a ban when that person has banned 6 to 10 songs.",
+          "label": "Ban strike warning"
+        }
+      },
+      "botstatus": {
+        "connectionlost": {
+          "description": "The bot lost its Twitch event connection. Said once per outage.",
+          "label": "Twitch connection lost"
+        },
+        "connectionrestored": {
+          "description": "The Twitch event connection is back after the bot said it was lost.",
+          "label": "Twitch connection back"
+        },
+        "goingoffline": {
+          "description": "The bot stops and no other bot takes over.",
+          "label": "Bot restarting"
+        }
+      },
+      "clearsongs": {
+        "cleared": {
+          "description": "A moderator removed all queued songs of a viewer.",
+          "label": "Songs cleared"
+        },
+        "failed": {
+          "description": "The songs could not be removed.",
+          "label": "Clear failed"
+        },
+        "nothingqueued": {
+          "description": "The viewer has no songs in the queue.",
+          "label": "Nothing queued"
+        },
+        "usage": {
+          "description": "A moderator used !clearsongs without naming a viewer.",
+          "label": "Clear songs usage"
+        }
+      },
+      "closequeue": {
+        "alreadyclosed": {
+          "description": "The song queue was already closed.",
+          "label": "Already closed"
+        },
+        "closed": {
+          "description": "A moderator closed the song queue to new requests.",
+          "label": "Queue closed"
+        },
+        "failed": {
+          "description": "The song queue could not be closed.",
+          "label": "Close failed"
+        }
+      },
+      "coinflip": {
+        "accountunresolved": {
+          "description": "The player's account could not be found.",
+          "label": "Account not found"
+        },
+        "ageconsentrequired": {
+          "description": "The player must first confirm they are 18 or older.",
+          "label": "Age check needed"
+        },
+        "betoutofrange": {
+          "description": "The bet is below the minimum or above the maximum.",
+          "label": "Bet out of range"
+        },
+        "currencydisabled": {
+          "description": "The channel currency is turned off.",
+          "label": "No currency"
+        },
+        "insufficientfunds": {
+          "description": "The player cannot pay the bet.",
+          "label": "Not enough funds"
+        },
+        "lost": {
+          "description": "The player loses the game.",
+          "label": "You lost"
+        },
+        "notallowed": {
+          "description": "The player's role is too low for this game.",
+          "label": "Role too low"
+        },
+        "notenabled": {
+          "description": "The game is not turned on for the channel.",
+          "label": "Game not on"
+        },
+        "oncooldown": {
+          "description": "The player played too recently.",
+          "label": "Still cooling down"
+        },
+        "playfailed": {
+          "description": "The game failed for another reason.",
+          "label": "Play failed"
+        },
+        "streamlimit": {
+          "description": "The player used all their plays for this stream.",
+          "label": "Stream limit reached"
+        },
+        "unavailable": {
+          "description": "The list of games could not be read.",
+          "label": "Games unavailable"
+        },
+        "usage": {
+          "description": "The bet is missing or is not a number above zero.",
+          "label": "How to use"
+        },
+        "won": {
+          "description": "The player wins the game.",
+          "label": "You won"
+        }
+      },
+      "commands": {
+        "empty": {
+          "description": "Someone asks for the commands, but none are turned on.",
+          "label": "No commands"
+        },
+        "list": {
+          "description": "Someone asks which commands this channel has.",
+          "label": "Command list"
+        }
+      },
+      "dice": {
+        "accountunresolved": {
+          "description": "The player's account could not be found.",
+          "label": "Account not found"
+        },
+        "ageconsentrequired": {
+          "description": "The player must first confirm they are 18 or older.",
+          "label": "Age check needed"
+        },
+        "betoutofrange": {
+          "description": "The bet is below the minimum or above the maximum.",
+          "label": "Bet out of range"
+        },
+        "currencydisabled": {
+          "description": "The channel currency is turned off.",
+          "label": "No currency"
+        },
+        "insufficientfunds": {
+          "description": "The player cannot pay the bet.",
+          "label": "Not enough funds"
+        },
+        "lost": {
+          "description": "The player loses the game.",
+          "label": "You lost"
+        },
+        "notallowed": {
+          "description": "The player's role is too low for this game.",
+          "label": "Role too low"
+        },
+        "notenabled": {
+          "description": "The game is not turned on for the channel.",
+          "label": "Game not on"
+        },
+        "oncooldown": {
+          "description": "The player played too recently.",
+          "label": "Still cooling down"
+        },
+        "playfailed": {
+          "description": "The game failed for another reason.",
+          "label": "Play failed"
+        },
+        "streamlimit": {
+          "description": "The player used all their plays for this stream.",
+          "label": "Stream limit reached"
+        },
+        "unavailable": {
+          "description": "The list of games could not be read.",
+          "label": "Games unavailable"
+        },
+        "usage": {
+          "description": "The bet is missing or is not a number above zero.",
+          "label": "How to use"
+        },
+        "won": {
+          "description": "The player wins the game.",
+          "label": "You won"
+        }
+      },
+      "disallow": {
+        "declined": {
+          "description": "The mass ban was declined; the accounts stay unbanned here.",
+          "label": "Declined"
+        },
+        "nothingpending": {
+          "description": "No mass ban is waiting for this channel's approval.",
+          "label": "Nothing waiting"
+        },
+        "usage": {
+          "description": "Someone uses the command without \"massban\".",
+          "label": "Usage"
+        }
+      },
+      "discord": {
+        "invite": {
+          "description": "Someone asks for the Discord link.",
+          "label": "Discord invite"
+        },
+        "notconnected": {
+          "description": "The channel has no Discord server linked.",
+          "label": "No Discord linked"
+        },
+        "unavailable": {
+          "description": "The invite could not be made right now.",
+          "label": "Invite unavailable"
+        }
+      },
+      "followage": {
+        "age": {
+          "description": "A viewer asks how long they have followed.",
+          "label": "Follow age"
+        },
+        "notfollowing": {
+          "description": "A viewer asks how long they follow, but they do not follow the channel.",
+          "label": "Not following"
+        },
+        "twitchunavailable": {
+          "description": "Twitch did not answer the follower lookup.",
+          "label": "Twitch did not answer"
+        }
+      },
+      "forgetme": {
+        "done": {
+          "description": "Someone erased their data with the forgetme command.",
+          "label": "Data erased"
+        }
+      },
+      "help": {
+        "described": {
+          "description": "Someone asks what one command does.",
+          "label": "Command help"
+        },
+        "lineaccountage": {
+          "description": "Someone asks what !accountage does.",
+          "label": "Help for !accountage"
+        },
+        "linebanger": {
+          "description": "Someone asks what !banger does.",
+          "label": "Help for !banger"
+        },
+        "linebansong": {
+          "description": "Someone asks what !bansong does.",
+          "label": "Help for !bansong"
+        },
+        "lineclearsongs": {
+          "description": "Someone asks what !clearsongs does.",
+          "label": "Help for !clearsongs"
+        },
+        "lineclosequeue": {
+          "description": "Someone asks what !closequeue does.",
+          "label": "Help for !closequeue"
+        },
+        "linecommands": {
+          "description": "Someone asks what !commands does.",
+          "label": "Help for !commands"
+        },
+        "linediscord": {
+          "description": "Someone asks what !discord does.",
+          "label": "Help for !discord"
+        },
+        "linefollowage": {
+          "description": "Someone asks what !followage does.",
+          "label": "Help for !followage"
+        },
+        "linehelp": {
+          "description": "Someone asks what !help does.",
+          "label": "Help for !help"
+        },
+        "lineleaderboard": {
+          "description": "Someone asks what !leaderboard does.",
+          "label": "Help for !leaderboard"
+        },
+        "linelurk": {
+          "description": "Someone asks what !lurk does.",
+          "label": "Help for !lurk"
+        },
+        "lineopenqueue": {
+          "description": "Someone asks what !openqueue does.",
+          "label": "Help for !openqueue"
+        },
+        "linepause": {
+          "description": "Someone asks what !pause does.",
+          "label": "Help for !pause"
+        },
+        "lineplaylist": {
+          "description": "Someone asks what !playlist does.",
+          "label": "Help for !playlist"
+        },
+        "linequote": {
+          "description": "Someone asks what !quote does.",
+          "label": "Help for !quote"
+        },
+        "lineresume": {
+          "description": "Someone asks what !resume does.",
+          "label": "Help for !resume"
+        },
+        "lineskip": {
+          "description": "Someone asks what !skip does.",
+          "label": "Help for !skip"
+        },
+        "linesong": {
+          "description": "Someone asks what !song does.",
+          "label": "Help for !song"
+        },
+        "linesr": {
+          "description": "Someone asks what !sr does.",
+          "label": "Help for !sr"
+        },
+        "linestats": {
+          "description": "Someone asks what !stats does.",
+          "label": "Help for !stats"
+        },
+        "lineunlurk": {
+          "description": "Someone asks what !unlurk does.",
+          "label": "Help for !unlurk"
+        },
+        "lineupdate": {
+          "description": "Someone asks what !update does.",
+          "label": "Help for !update"
+        },
+        "linevoice": {
+          "description": "Someone asks what !voice does.",
+          "label": "Help for !voice"
+        },
+        "linevolume": {
+          "description": "Someone asks what !volume does.",
+          "label": "Help for !volume"
+        },
+        "linewhisper": {
+          "description": "Someone asks what !whisper does.",
+          "label": "Help for !whisper"
+        },
+        "nodescription": {
+          "description": "Someone asks for help with a command that has no description.",
+          "label": "No help text"
+        },
+        "unknown": {
+          "description": "Someone asks for help with a command that does not exist.",
+          "label": "Unknown command"
+        },
+        "usage": {
+          "description": "Someone asks for help without naming a command.",
+          "label": "Help usage"
+        }
+      },
+      "leaderboard": {
+        "empty": {
+          "description": "The leaderboard has no entries yet.",
+          "label": "Empty leaderboard"
+        },
+        "none": {
+          "description": "Someone asks for the leaderboard, but none is set up.",
+          "label": "No leaderboard"
+        },
+        "top": {
+          "description": "Someone asks for the leaderboard.",
+          "label": "Top of the board"
+        }
+      },
+      "lurk": {
+        "accountunresolved": {
+          "description": "The viewer's account could not be found.",
+          "label": "Account not found"
+        },
+        "lurking": {
+          "description": "A viewer says they are lurking.",
+          "label": "Now lurking"
+        },
+        "notlurking": {
+          "description": "A viewer says they are back.",
+          "label": "Back from lurking"
+        }
+      },
+      "massban": {
+        "completed": {
+          "description": "The approved mass ban has finished.",
+          "label": "Completed"
+        },
+        "request": {
+          "description": "The channel is live, so a moderator's mass ban waits. The bot asks the streamer, a lead moderator or an editor to allow or decline it.",
+          "label": "Approval request"
+        }
+      },
+      "media": {
+        "accountunresolved": {
+          "description": "The bot cannot find the account of the person who asks.",
+          "label": "Account not found"
+        },
+        "cooldown": {
+          "description": "The viewer shares media too soon after the last one.",
+          "label": "Too fast"
+        },
+        "disabled": {
+          "description": "Media share is turned off in this channel.",
+          "label": "Media share off"
+        },
+        "failed": {
+          "description": "The media could not be submitted for another reason.",
+          "label": "Share failed"
+        },
+        "noteligible": {
+          "description": "The viewer may not share media right now.",
+          "label": "Not eligible"
+        },
+        "notfound": {
+          "description": "The clip or video does not exist.",
+          "label": "Media not found"
+        },
+        "pending": {
+          "description": "A clip or video waits for a moderator.",
+          "label": "Media waiting"
+        },
+        "queued": {
+          "description": "A clip or video goes straight into the queue.",
+          "label": "Media queued"
+        },
+        "queuefull": {
+          "description": "The media queue is full.",
+          "label": "Queue full"
+        },
+        "sourcenotallowed": {
+          "description": "The link is not an accepted clip or video.",
+          "label": "Link not allowed"
+        },
+        "toolong": {
+          "description": "The clip or video is longer than the channel allows.",
+          "label": "Media too long"
+        },
+        "unavailable": {
+          "description": "Twitch or YouTube could not answer.",
+          "label": "Lookup failed"
+        },
+        "usage": {
+          "description": "Someone shares media without a link.",
+          "label": "Usage"
+        }
+      },
+      "openqueue": {
+        "alreadyopen": {
+          "description": "The song queue was already open.",
+          "label": "Already open"
+        },
+        "failed": {
+          "description": "The song queue could not be opened.",
+          "label": "Open failed"
+        },
+        "opened": {
+          "description": "A moderator opened the song queue to new requests.",
+          "label": "Queue opened"
+        }
+      },
+      "pause": {
+        "failed": {
+          "description": "The pause did not work.",
+          "label": "Pause failed"
+        },
+        "noplayer": {
+          "description": "A pause found no music player open.",
+          "label": "No player open"
+        },
+        "noprovider": {
+          "description": "A pause found no music service set up for the channel.",
+          "label": "No music set up"
+        },
+        "nospotifydevice": {
+          "description": "A pause found no Spotify device playing.",
+          "label": "No Spotify device"
+        },
+        "paused": {
+          "description": "A moderator paused the music from chat.",
+          "label": "Music paused"
+        },
+        "premiumrequired": {
+          "description": "The music service needs a Premium account to pause.",
+          "label": "Premium needed"
+        }
+      },
+      "permit": {
+        "accountunresolved": {
+          "description": "The bot cannot find the account of the person who asks.",
+          "label": "Account not found"
+        },
+        "capabilitydenied": {
+          "description": "The right does not exist, cannot be shared, or the person does not have it.",
+          "label": "Right refused"
+        },
+        "grantedcapability": {
+          "description": "A right is given to a user.",
+          "label": "Right granted"
+        },
+        "grantedrole": {
+          "description": "A role is given to a user.",
+          "label": "Role granted"
+        },
+        "grantedsongrequest": {
+          "description": "A moderator replied !permit and the held song request was queued.",
+          "label": "Song request queued"
+        },
+        "grantfailed": {
+          "description": "The permit could not be given.",
+          "label": "Grant failed"
+        },
+        "nopendingrequest": {
+          "description": "The viewer replied to has no song request waiting for permission.",
+          "label": "No request waiting"
+        },
+        "notallowed": {
+          "description": "The person may not manage permits.",
+          "label": "Not allowed"
+        },
+        "notarget": {
+          "description": "The person did not mention a user.",
+          "label": "No user named"
+        },
+        "roletoohigh": {
+          "description": "The role is above the level of the person who asks.",
+          "label": "Role too high"
+        },
+        "targetnotfound": {
+          "description": "The mentioned user is not on Twitch.",
+          "label": "User not found"
+        },
+        "targetunresolved": {
+          "description": "The bot cannot look up the mentioned user.",
+          "label": "User not resolved"
+        },
+        "usage": {
+          "description": "Someone uses the command without all the parts.",
+          "label": "Usage"
+        }
+      },
+      "playlist": {
+        "link": {
+          "description": "Someone asks for the playlist and a bangers playlist link can be made.",
+          "label": "Playlist link"
+        },
+        "noplaylist": {
+          "description": "Someone asks for the playlist but no bangers playlist is chosen.",
+          "label": "No bangers playlist"
+        },
+        "notfound": {
+          "description": "The chosen bangers playlist has no public link on its music service.",
+          "label": "Playlist not found"
+        }
+      },
+      "queue": {
+        "empty": {
+          "description": "Someone asks for the queue, but it is empty.",
+          "label": "Queue empty"
+        },
+        "list": {
+          "description": "Someone asks what is in the song queue.",
+          "label": "Queue"
+        },
+        "mine": {
+          "description": "Someone asks where their songs are, or where another viewer’s are.",
+          "label": "Own requests"
+        },
+        "none": {
+          "description": "Someone asks for a viewer who has no song in the queue.",
+          "label": "No request"
+        }
+      },
+      "quote": {
+        "accountunresolved": {
+          "description": "The bot cannot find the account of the person who asks.",
+          "label": "Account not found"
+        },
+        "added": {
+          "description": "A new quote is saved.",
+          "label": "Quote added"
+        },
+        "addfailed": {
+          "description": "A quote could not be saved.",
+          "label": "Add failed"
+        },
+        "addusage": {
+          "description": "Someone adds a quote without text.",
+          "label": "Add usage"
+        },
+        "deleted": {
+          "description": "A quote is removed.",
+          "label": "Quote deleted"
+        },
+        "deleteusage": {
+          "description": "Someone deletes a quote without a number.",
+          "label": "Delete usage"
+        },
+        "editfailed": {
+          "description": "A quote could not be changed.",
+          "label": "Edit failed"
+        },
+        "editusage": {
+          "description": "Someone edits a quote without a number or new text.",
+          "label": "Edit usage"
+        },
+        "empty": {
+          "description": "Someone asks for a random quote, but there are none.",
+          "label": "No quotes"
+        },
+        "invalidtext": {
+          "description": "The quote text is empty or too long.",
+          "label": "Bad quote text"
+        },
+        "noaddpermission": {
+          "description": "A viewer without the right tries to add a quote.",
+          "label": "May not add"
+        },
+        "nodeletepermission": {
+          "description": "A viewer without the right tries to delete a quote.",
+          "label": "May not delete"
+        },
+        "noeditpermission": {
+          "description": "A viewer without the right tries to edit a quote.",
+          "label": "May not edit"
+        },
+        "notfound": {
+          "description": "The quote number does not exist.",
+          "label": "Quote not found"
+        },
+        "show": {
+          "description": "Someone asks for a quote and the bot shows it.",
+          "label": "Quote shown"
+        },
+        "updated": {
+          "description": "A quote is re-worded.",
+          "label": "Quote updated"
+        }
+      },
+      "resume": {
+        "failed": {
+          "description": "The resume did not work.",
+          "label": "Resume failed"
+        },
+        "noplayer": {
+          "description": "A resume found no music player open.",
+          "label": "No player open"
+        },
+        "noprovider": {
+          "description": "A resume found no music service set up for the channel.",
+          "label": "No music set up"
+        },
+        "nospotifydevice": {
+          "description": "A resume found no Spotify device playing.",
+          "label": "No Spotify device"
+        },
+        "premiumrequired": {
+          "description": "The music service needs a Premium account to resume.",
+          "label": "Premium needed"
+        },
+        "resumed": {
+          "description": "A moderator resumed the music from chat.",
+          "label": "Music resumed"
+        }
+      },
+      "reward": {
+        "nopermission": {
+          "description": "A viewer redeems a reward their role may not use, and the points are refunded.",
+          "label": "Reward not allowed"
+        }
+      },
+      "shoutout": {
+        "announcement": {
+          "description": "The chat line posted for a shoutout when no custom shoutout text is set.",
+          "label": "Shoutout announcement"
+        },
+        "queued": {
+          "description": "The chat line posted when Twitch makes a shoutout wait in the queue.",
+          "label": "Shoutout queued"
+        }
+      },
+      "skip": {
+        "failed": {
+          "description": "The skip did not work.",
+          "label": "Skip failed"
+        },
+        "noplayer": {
+          "description": "A skip found the Audio widget not open in OBS.",
+          "label": "No player open"
+        },
+        "noprovider": {
+          "description": "A moderator skips but no music service is connected.",
+          "label": "No music connected"
+        },
+        "norequest": {
+          "description": "A viewer names a queue position where they have no request.",
+          "label": "No request there"
+        },
+        "nospotifydevice": {
+          "description": "A skip found no Spotify device playing.",
+          "label": "No Spotify device"
+        },
+        "nothingplaying": {
+          "description": "A viewer tried to skip while no song is playing.",
+          "label": "Nothing playing"
+        },
+        "notyours": {
+          "description": "A viewer tried to skip a song someone else requested.",
+          "label": "Not your request"
+        },
+        "premiumrequired": {
+          "description": "The music service needs a Premium account to skip.",
+          "label": "Premium needed"
+        },
+        "removed": {
+          "description": "A viewer removed their own request from the queue.",
+          "label": "Request removed"
+        },
+        "removefailed": {
+          "description": "A viewer request could not be removed from the queue.",
+          "label": "Remove failed"
+        },
+        "skipped": {
+          "description": "A song was skipped.",
+          "label": "Song skipped"
+        },
+        "skippedown": {
+          "description": "A viewer skipped the song they requested themselves.",
+          "label": "Own request skipped"
+        },
+        "usage": {
+          "description": "The skip command got a value that is not a number.",
+          "label": "How to use"
+        }
+      },
+      "slots": {
+        "accountunresolved": {
+          "description": "The player's account could not be found.",
+          "label": "Account not found"
+        },
+        "ageconsentrequired": {
+          "description": "The player must first confirm they are 18 or older.",
+          "label": "Age check needed"
+        },
+        "betoutofrange": {
+          "description": "The bet is below the minimum or above the maximum.",
+          "label": "Bet out of range"
+        },
+        "currencydisabled": {
+          "description": "The channel currency is turned off.",
+          "label": "No currency"
+        },
+        "insufficientfunds": {
+          "description": "The player cannot pay the bet.",
+          "label": "Not enough funds"
+        },
+        "lost": {
+          "description": "The player loses the game.",
+          "label": "You lost"
+        },
+        "notallowed": {
+          "description": "The player's role is too low for this game.",
+          "label": "Role too low"
+        },
+        "notenabled": {
+          "description": "The game is not turned on for the channel.",
+          "label": "Game not on"
+        },
+        "oncooldown": {
+          "description": "The player played too recently.",
+          "label": "Still cooling down"
+        },
+        "playfailed": {
+          "description": "The game failed for another reason.",
+          "label": "Play failed"
+        },
+        "streamlimit": {
+          "description": "The player used all their plays for this stream.",
+          "label": "Stream limit reached"
+        },
+        "unavailable": {
+          "description": "The list of games could not be read.",
+          "label": "Games unavailable"
+        },
+        "usage": {
+          "description": "The bet is missing or is not a number above zero.",
+          "label": "How to use"
+        },
+        "won": {
+          "description": "The player wins the game.",
+          "label": "You won"
+        }
+      },
+      "song": {
+        "nothing": {
+          "description": "Someone asks for the song, but nothing plays.",
+          "label": "Nothing playing"
+        },
+        "playing": {
+          "description": "Someone asks which song is playing.",
+          "label": "Now playing"
+        }
+      },
+      "sr": {
+        "added": {
+          "description": "A song request was added to the queue.",
+          "label": "Song added"
+        },
+        "addedwithcode": {
+          "description": "A reward or pipeline added a song, and the reply gives the request code that !wrongsong uses.",
+          "label": "Song added with its code"
+        },
+        "agerestricted": {
+          "description": "The video is age-restricted on YouTube, which never plays in the stream player.",
+          "label": "Age-restricted video"
+        },
+        "alreadyplaying": {
+          "description": "The requested song is playing right now.",
+          "label": "Already playing"
+        },
+        "authfailed": {
+          "description": "The music connection lost its login and must be reconnected.",
+          "label": "Music login expired"
+        },
+        "disabled": {
+          "description": "A viewer asks for a song while requests are off.",
+          "label": "Requests turned off"
+        },
+        "duplicate": {
+          "description": "The requested song is already in the queue.",
+          "label": "Already in queue"
+        },
+        "forbidden": {
+          "description": "The music connection is not allowed to queue this song.",
+          "label": "Music access denied"
+        },
+        "lengthunknown": {
+          "description": "The video reports no readable length, so the song length limit cannot be checked.",
+          "label": "Video length unknown"
+        },
+        "livebroadcast": {
+          "description": "The link is a live stream or a premiere, which has no fixed song to queue.",
+          "label": "Live stream or premiere"
+        },
+        "mintrust": {
+          "description": "The viewer has a lower role than song requests need.",
+          "label": "Role too low"
+        },
+        "missingscope": {
+          "description": "The music connection must be reconnected before search works.",
+          "label": "Reconnect music"
+        },
+        "noactivedevice": {
+          "description": "The song cannot be queued because nothing plays on any device.",
+          "label": "Nothing is playing"
+        },
+        "noproviderbroadcaster": {
+          "description": "The streamer asks for a song but no music service is connected.",
+          "label": "No music connected (streamer)"
+        },
+        "noprovidermoderator": {
+          "description": "A moderator asks for a song but no music service is connected.",
+          "label": "No music connected (mod)"
+        },
+        "notconfigured": {
+          "description": "The bot owner has not added a YouTube API key, so YouTube requests cannot run.",
+          "label": "YouTube not set up"
+        },
+        "notembeddable": {
+          "description": "The video's uploader does not allow it to play on other sites, so the stream player can never play it.",
+          "label": "Video blocks embedding"
+        },
+        "notfound": {
+          "description": "No song matches the request.",
+          "label": "Song not found"
+        },
+        "notmusic": {
+          "description": "The linked video plays, but it is not music, so song requests refuse it.",
+          "label": "Not a music video"
+        },
+        "notplayable": {
+          "description": "The track cannot play in the streamer's country.",
+          "label": "Not playable here"
+        },
+        "perstreamlimit": {
+          "description": "The viewer already requested as many songs as one stream allows.",
+          "label": "Stream request limit reached"
+        },
+        "peruserlimit": {
+          "description": "The viewer already has the most requests allowed in the queue.",
+          "label": "Viewer limit reached"
+        },
+        "premiumrequired": {
+          "description": "The music service needs a Premium account for this request.",
+          "label": "Premium needed"
+        },
+        "providerunavailable": {
+          "description": "The music service has an outage.",
+          "label": "Music service down"
+        },
+        "queueclosed": {
+          "description": "A viewer requested a song while the queue is closed.",
+          "label": "Queue closed"
+        },
+        "queuefull": {
+          "description": "The song queue is at its maximum size.",
+          "label": "Queue full"
+        },
+        "quotaexhausted": {
+          "description": "The music service's daily request limit is used up; the reply says when it resets.",
+          "label": "Daily request limit used up"
+        },
+        "ratelimited": {
+          "description": "The music service is rate-limiting this channel for a while.",
+          "label": "Music service rate limit"
+        },
+        "requestsoff": {
+          "description": "A viewer asks for a song while requests are off.",
+          "label": "Requests turned off"
+        },
+        "revoked": {
+          "description": "A person who banned 10 or more songs asks for a song.",
+          "label": "Requests revoked"
+        },
+        "trackblocked": {
+          "description": "The requested song is on the block list.",
+          "label": "Song blocked"
+        },
+        "trackexplicit": {
+          "description": "The requested song is marked explicit, and this channel does not allow explicit songs.",
+          "label": "Explicit song blocked"
+        },
+        "trackmissing": {
+          "description": "The linked video was deleted or is private.",
+          "label": "Video missing or private"
+        },
+        "tracktoolong": {
+          "description": "The requested song is longer than the channel's longest-song limit, so it was not added.",
+          "label": "Song too long"
+        },
+        "tracktoolongrefunded": {
+          "description": "A redeemed song is longer than the channel's longest-song limit, so it was not added and the points went back.",
+          "label": "Song too long, points refunded"
+        },
+        "unreachable": {
+          "description": "The music service could not be reached for another reason.",
+          "label": "Music service error"
+        },
+        "unreadablelink": {
+          "description": "The link is for this channel's music service, but no song could be read from it.",
+          "label": "Unreadable link"
+        },
+        "unsupportedcontent": {
+          "description": "A viewer pasted a playlist, album, show or artist link.",
+          "label": "Track links only"
+        },
+        "unsupportedlink": {
+          "description": "A viewer pasted a link the music service cannot play, and no title could be read from it.",
+          "label": "Link not supported"
+        },
+        "usage": {
+          "description": "A viewer types the song command with no song.",
+          "label": "How to use"
+        }
+      },
+      "stats": {
+        "accountunresolved": {
+          "description": "The bot cannot find the account of the person who asks.",
+          "label": "Account not found"
+        },
+        "notseen": {
+          "description": "The viewer has not chatted in this channel yet.",
+          "label": "Viewer not seen"
+        },
+        "profile": {
+          "description": "A viewer asks for their stats.",
+          "label": "Viewer stats"
+        }
+      },
+      "system": {
+        "cooldown": {
+          "description": "A viewer uses a command that is still on cooldown.",
+          "label": "Still cooling down"
+        },
+        "failed": {
+          "description": "A command started but did not finish.",
+          "label": "Command failed"
+        },
+        "nothingran": {
+          "description": "A command has no pipeline saved to run.",
+          "label": "Nothing to run"
+        },
+        "permissiondenied": {
+          "description": "A viewer uses a command their role may not use.",
+          "label": "Not allowed"
+        }
+      },
+      "unpermit": {
+        "accountunresolved": {
+          "description": "The bot cannot find the account of the person who asks.",
+          "label": "Account not found"
+        },
+        "notallowed": {
+          "description": "The person may not manage permits.",
+          "label": "Not allowed"
+        },
+        "notarget": {
+          "description": "The person did not mention a user.",
+          "label": "No user named"
+        },
+        "revoked": {
+          "description": "One permit of a user is removed.",
+          "label": "Permit revoked"
+        },
+        "revokedall": {
+          "description": "All permits of a user are removed.",
+          "label": "All revoked"
+        },
+        "revokefailed": {
+          "description": "The permit could not be removed.",
+          "label": "Revoke failed"
+        },
+        "targetnotfound": {
+          "description": "The mentioned user is not on Twitch.",
+          "label": "User not found"
+        },
+        "targetunresolved": {
+          "description": "The bot cannot look up the mentioned user.",
+          "label": "User not resolved"
+        },
+        "usage": {
+          "description": "Someone uses the command without all the parts.",
+          "label": "Usage"
+        }
+      },
+      "unwhitelist": {
+        "failed": {
+          "description": "The override could not be removed.",
+          "label": "Remove failed"
+        },
+        "nooverride": {
+          "description": "The user had no override to remove.",
+          "label": "No override"
+        },
+        "notallowed": {
+          "description": "The person is not the broadcaster.",
+          "label": "Not allowed"
+        },
+        "removed": {
+          "description": "The permission override of a user is removed.",
+          "label": "Override removed"
+        },
+        "targetnotfound": {
+          "description": "The mentioned user is not on Twitch.",
+          "label": "User not found"
+        },
+        "usage": {
+          "description": "Someone uses the command without a user.",
+          "label": "Usage"
+        }
+      },
+      "update": {
+        "loginunresolved": {
+          "description": "The name to update could not be found.",
+          "label": "Name unknown"
+        },
+        "notfound": {
+          "description": "No account matches the given name.",
+          "label": "User not found"
+        },
+        "owninfoonly": {
+          "description": "A viewer tried to update someone else.",
+          "label": "Own info only"
+        },
+        "twitchunavailable": {
+          "description": "Twitch did not answer the lookup.",
+          "label": "Twitch did not answer"
+        },
+        "updated": {
+          "description": "The viewer's info was refreshed.",
+          "label": "Info updated"
+        },
+        "updatefailed": {
+          "description": "The new info could not be saved.",
+          "label": "Update failed"
+        }
+      },
+      "uptime": {
+        "live": {
+          "description": "Someone asks for the uptime while you are live.",
+          "label": "Stream is live"
+        },
+        "offline": {
+          "description": "Someone asks for the uptime while you are offline.",
+          "label": "Stream is offline"
+        }
+      },
+      "var": {
+        "age": "How old the account is",
+        "command": "The command's name",
+        "commands": "The list of commands",
+        "count": "How many songs were removed",
+        "date": "The date the account was created",
+        "description": "What the command does",
+        "discord_invite": "The Discord invite link",
+        "game_balance": "The player's balance after the game",
+        "game_bet": "The amount bet",
+        "game_name": "The game's chat command",
+        "game_payout": "The amount won",
+        "leaderboard_count": "How many entries are listed",
+        "leaderboard_list": "The top entries",
+        "leaderboard_metric": "What the leaderboard ranks",
+        "massban_banned": "How many accounts were banned",
+        "massban_channel": "The channel that is asked",
+        "massban_count": "How many accounts are on the list",
+        "massban_moderator": "The moderator who requested the mass ban",
+        "media_title": "The clip or video title",
+        "permit_capability": "The right or role that was named",
+        "permit_role": "The role",
+        "playlist_name": "The name of the bangers playlist",
+        "playlist_url": "A link to the bangers playlist",
+        "prefix": "The command prefix, for example !",
+        "query": "What the viewer searched for",
+        "queue_count": "How many songs are queued",
+        "queue_list": "The songs in the queue",
+        "queue_max": "The most songs the queue holds",
+        "queue_mine": "Where the viewer’s songs are, with the wait",
+        "queue_mine_count": "How many songs the viewer has queued",
+        "queue_more": "A note when more songs wait",
+        "queue_next": "The next song",
+        "quote": "The full quote line",
+        "quote_number": "The quote number",
+        "request_code": "The request's code that !wrongsong uses",
+        "request_limit": "The most requests one viewer may queue",
+        "request_position": "The queue position the viewer typed",
+        "requested_by": "Who requested it first",
+        "retry_minutes": "Minutes until the music service accepts calls again",
+        "retry_time": "When the music service accepts requests again (UTC clock time)",
+        "song_artist": "The song's artist",
+        "song_attribution": "Who requested it, or where it comes from",
+        "song_link": "A link to the song",
+        "song_name": "The song's title",
+        "song_provider": "The music service",
+        "song_requester": "Who requested the song",
+        "song_source": "Request or autoplay",
+        "song_status": "Playing or paused",
+        "stats_firstseen": "First seen date",
+        "stats_messages": "Messages sent",
+        "stats_points": "Points",
+        "stats_rank": "Rank on the leaderboard",
+        "stats_rankpart": "Rank text, empty when unranked",
+        "stats_streak": "Streams in a row",
+        "stats_streakpart": "Streak text, empty without a streak",
+        "stats_user": "The viewer's name",
+        "stats_watchtime": "Time watched",
+        "target": "The viewer whose songs were cleared",
+        "target_game": "The game they last played",
+        "target_link": "Link to the shouted-out channel",
+        "target_name": "The shouted-out channel name",
+        "track_artist": "The track's artist",
+        "track_link": "A link to the track",
+        "track_max": "The longest song length allowed",
+        "track_name": "The track's title",
+        "trust_level": "The lowest role allowed to request",
+        "uptime": "How long the stream has been live",
+        "user": "The viewer's display name",
+        "viewer": "The viewer whose voice was set",
+        "voice_count": "How many voices matched",
+        "voice_gender": "The voice gender",
+        "voice_id": "The voice id",
+        "voice_language": "The language asked for",
+        "voice_languages": "The languages with their codes",
+        "voice_list": "The voice names",
+        "voice_locale": "The voice language code",
+        "voice_more": "How many voices are not shown",
+        "voice_name": "The voice name",
+        "volume_level": "The volume, from 0 to 100",
+        "whitelist_level": "The level that was named"
+      },
+      "voice": {
+        "cleared": {
+          "description": "A viewer goes back to the channel voice.",
+          "label": "Voice reset"
+        },
+        "clearfailed": {
+          "description": "The voice could not be reset.",
+          "label": "Reset failed"
+        },
+        "current": {
+          "description": "A viewer asks which voice they use, and they picked one.",
+          "label": "Own voice"
+        },
+        "currentdefault": {
+          "description": "A viewer asks which voice they use, and they use the channel voice.",
+          "label": "Default voice"
+        },
+        "currentnone": {
+          "description": "A viewer asks which voice they use, and neither they nor the channel has one.",
+          "label": "No voice at all"
+        },
+        "disabled": {
+          "description": "Viewers may not pick their own voice in this channel.",
+          "label": "Voice picking off"
+        },
+        "getusage": {
+          "description": "Someone asks for voices without a language.",
+          "label": "Get usage"
+        },
+        "languages": {
+          "description": "A viewer asks which languages the bot can speak.",
+          "label": "Language list"
+        },
+        "multiplematches": {
+          "description": "A viewer searches for a voice and several voices match, so the names are listed.",
+          "label": "Several voices match"
+        },
+        "nomatch": {
+          "description": "No voice matches what the viewer searched for.",
+          "label": "No voice found"
+        },
+        "novoices": {
+          "description": "The bot has no voices to show.",
+          "label": "No voices"
+        },
+        "novoicesforlanguage": {
+          "description": "There are no voices for the language.",
+          "label": "No voices for language"
+        },
+        "novoicesforroulette": {
+          "description": "The bot has no voices to spin the wheel with.",
+          "label": "No voices for roulette"
+        },
+        "ownvoiceonly": {
+          "description": "A viewer tries to set the voice of someone else, which only moderators may do.",
+          "label": "Own voice only"
+        },
+        "roulette": {
+          "description": "The bot picks a random voice for the viewer.",
+          "label": "Voice roulette"
+        },
+        "set": {
+          "description": "A viewer picks a voice and only one voice matches.",
+          "label": "Voice set"
+        },
+        "setfailed": {
+          "description": "The voice could not be set.",
+          "label": "Set failed"
+        },
+        "setfor": {
+          "description": "A moderator sets the voice of another viewer.",
+          "label": "Voice set for a viewer"
+        },
+        "setmany": {
+          "description": "A viewer picks a voice and more voices match.",
+          "label": "Voice set, more match"
+        },
+        "setusage": {
+          "description": "Someone sets a voice without a name.",
+          "label": "Set usage"
+        },
+        "unknowncommand": {
+          "description": "Someone types a word that is no voice command and matches no voice.",
+          "label": "Unknown voice command"
+        },
+        "unknownviewer": {
+          "description": "A moderator names a viewer the bot does not know.",
+          "label": "Unknown viewer"
+        },
+        "usage": {
+          "description": "Someone types the voice command with nothing after it.",
+          "label": "Voice help"
+        },
+        "voices": {
+          "description": "A viewer asks for the voices of one language.",
+          "label": "Voice list"
+        },
+        "voicesmore": {
+          "description": "A viewer asks for the voices of one language and the list is long.",
+          "label": "Long voice list"
+        }
+      },
+      "volume": {
+        "cannotread": {
+          "description": "The current volume cannot be read.",
+          "label": "Volume unknown"
+        },
+        "current": {
+          "description": "Someone asks for the volume and it can be read.",
+          "label": "Volume level"
+        },
+        "noprovider": {
+          "description": "The volume is changed but no music service is connected.",
+          "label": "No music connected"
+        },
+        "premiumrequired": {
+          "description": "The music service needs a Premium account to change the volume.",
+          "label": "Premium needed"
+        },
+        "set": {
+          "description": "The volume was changed.",
+          "label": "Volume changed"
+        },
+        "setfailed": {
+          "description": "The volume could not be changed.",
+          "label": "Volume change failed"
+        },
+        "usage": {
+          "description": "The volume command got a value it cannot read.",
+          "label": "How to use"
+        }
+      },
+      "whisper": {
+        "notavailable": {
+          "description": "The bot cannot send whispers on this platform.",
+          "label": "Whispers not available"
+        },
+        "notfound": {
+          "description": "No account matches the given name.",
+          "label": "User not found"
+        },
+        "sendfailed": {
+          "description": "The whisper could not be sent.",
+          "label": "Whisper failed"
+        },
+        "sent": {
+          "description": "The whisper was sent.",
+          "label": "Whisper sent"
+        },
+        "twitchunavailable": {
+          "description": "Twitch did not answer the lookup.",
+          "label": "Twitch did not answer"
+        },
+        "usage": {
+          "description": "The command was used without a name or message.",
+          "label": "How to use"
+        }
+      },
+      "whitelist": {
+        "failed": {
+          "description": "The override could not be saved.",
+          "label": "Save failed"
+        },
+        "granted": {
+          "description": "A user gets a permission override.",
+          "label": "Access given"
+        },
+        "invalidlevel": {
+          "description": "The level is not subscriber, vip or moderator.",
+          "label": "Unknown level"
+        },
+        "notallowed": {
+          "description": "The person is not the broadcaster.",
+          "label": "Not allowed"
+        },
+        "targetnotfound": {
+          "description": "The mentioned user is not on Twitch.",
+          "label": "User not found"
+        },
+        "usage": {
+          "description": "Someone uses the command without a user and a level.",
+          "label": "Usage"
+        }
+      }
+    }
+  },
   "eventresponse": {
     "preset": {
       "channel_ad_break_begin": {

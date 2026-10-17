@@ -10,8 +10,9 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
-import { loadPage } from '@/i18n';
+import { loadPage, schemaWords } from '@/i18n';
 
+// The built-in editor names reply slots and their variables with the bot's schema labels.
 export const dashboardCommandsRoute = {
   path: 'commands',
   name: 'dashboard-commands',
@@ -19,5 +20,6 @@ export const dashboardCommandsRoute = {
     loadPage(
       () => import('./CommandsView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
+      schemaWords,
     ),
 } as const satisfies RouteRecordRaw;

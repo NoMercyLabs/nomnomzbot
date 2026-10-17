@@ -28,7 +28,10 @@ public static class BuiltinReplyLabels
         new($"builtin.reply.{replyGroup}.{slot}.description");
 
     /// <summary>What a reply variable holds, e.g. "The track's title".</summary>
-    public static LocalizedText Variable(string name) => new($"builtin.reply.var.{name}");
+    /// A dotted name (queue.mine.count) is joined with underscores so no key is also another key's group;
+    /// the strings.xml name is the same either way.
+    public static LocalizedText Variable(string name) =>
+        new($"builtin.reply.var.{name.Replace('.', '_')}");
 
     /// <summary>Every key the catalogue can serve — the manifest guard walks this.</summary>
     public static IReadOnlyList<LocalizedText> All() =>

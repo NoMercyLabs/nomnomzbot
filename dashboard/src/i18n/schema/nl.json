@@ -1,4 +1,1434 @@
 {
+  "builtin": {
+    "reply": {
+      "accountage": {
+        "accountunresolved": {
+          "description": "Het account van de kijker is niet gevonden.",
+          "label": "Account niet gevonden"
+        },
+        "age": {
+          "description": "Een kijker vraagt hoe oud hun account is.",
+          "label": "Accountleeftijd"
+        },
+        "notfound": {
+          "description": "Twitch heeft geen account voor de kijker.",
+          "label": "Niet op Twitch"
+        },
+        "twitchunavailable": {
+          "description": "Twitch gaf geen antwoord op de opvraag.",
+          "label": "Twitch antwoordde niet"
+        },
+        "undetermined": {
+          "description": "Het account heeft geen bekende aanmaakdatum.",
+          "label": "Leeftijd onbekend"
+        }
+      },
+      "allow": {
+        "approved": {
+          "description": "De streamer, een hoofdmoderator of een editor heeft de massaban goedgekeurd; de bans starten nu.",
+          "label": "Goedgekeurd"
+        },
+        "nothingpending": {
+          "description": "Er wacht geen massaban op goedkeuring van dit kanaal.",
+          "label": "Niets in de wacht"
+        },
+        "usage": {
+          "description": "Iemand gebruikt het commando zonder \"massban\".",
+          "label": "Uitleg"
+        }
+      },
+      "banger": {
+        "added": {
+          "description": "Het spelende nummer is aan de bangers-afspeellijst toegevoegd.",
+          "label": "Banger toegevoegd"
+        },
+        "alreadythere": {
+          "description": "Het spelende nummer staat al in de bangers-afspeellijst.",
+          "label": "Al een banger"
+        },
+        "failed": {
+          "description": "De muziekdienst kon de bangers-afspeellijst niet bijwerken.",
+          "label": "Banger mislukt"
+        },
+        "noplaylist": {
+          "description": "Er is geen afspeellijst gekozen en automatisch aanmaken staat uit.",
+          "label": "Geen bangers-afspeellijst"
+        },
+        "nothing": {
+          "description": "Er speelt niets, dus er is geen nummer om aan de bangers-afspeellijst toe te voegen.",
+          "label": "Niets aan het spelen"
+        }
+      },
+      "bansong": {
+        "banned": {
+          "description": "Een moderator heeft het spelende nummer geband.",
+          "label": "Nummer geband"
+        },
+        "couldnotban": {
+          "description": "Het nummer kon niet worden geband.",
+          "label": "Bannen mislukt"
+        },
+        "nothing": {
+          "description": "Er speelt niets, dus er is geen nummer om te bannen.",
+          "label": "Niets om te bannen"
+        },
+        "strikerevoked": {
+          "description": "Komt na een ban als die persoon 11 of meer nummers heeft geband.",
+          "label": "Verzoeken ingetrokken"
+        },
+        "strikewarning": {
+          "description": "Komt na een ban als die persoon 6 tot 10 nummers heeft geband.",
+          "label": "Waarschuwing bij bans"
+        }
+      },
+      "botstatus": {
+        "connectionlost": {
+          "description": "De bot is de Twitch-eventverbinding kwijt. Wordt één keer per storing gezegd.",
+          "label": "Twitch-verbinding kwijt"
+        },
+        "connectionrestored": {
+          "description": "De Twitch-eventverbinding is terug nadat de bot meldde dat die weg was.",
+          "label": "Twitch-verbinding terug"
+        },
+        "goingoffline": {
+          "description": "De bot stopt en geen andere bot neemt het over.",
+          "label": "Bot herstart"
+        }
+      },
+      "clearsongs": {
+        "cleared": {
+          "description": "Een moderator verwijderde alle nummers van een kijker uit de wachtrij.",
+          "label": "Nummers gewist"
+        },
+        "failed": {
+          "description": "De nummers konden niet worden verwijderd.",
+          "label": "Wissen mislukt"
+        },
+        "nothingqueued": {
+          "description": "De kijker heeft geen nummers in de wachtrij.",
+          "label": "Niets in de wachtrij"
+        },
+        "usage": {
+          "description": "Een moderator gebruikte !clearsongs zonder een kijker te noemen.",
+          "label": "Gebruik van clearsongs"
+        }
+      },
+      "closequeue": {
+        "alreadyclosed": {
+          "description": "De wachtrij was al gesloten.",
+          "label": "Al gesloten"
+        },
+        "closed": {
+          "description": "Een moderator sloot de wachtrij voor nieuwe verzoeken.",
+          "label": "Wachtrij gesloten"
+        },
+        "failed": {
+          "description": "De wachtrij kon niet worden gesloten.",
+          "label": "Sluiten mislukt"
+        }
+      },
+      "coinflip": {
+        "accountunresolved": {
+          "description": "Het account van de speler is niet gevonden.",
+          "label": "Account niet gevonden"
+        },
+        "ageconsentrequired": {
+          "description": "De speler moet eerst bevestigen dat hij 18 of ouder is.",
+          "label": "Leeftijdscheck nodig"
+        },
+        "betoutofrange": {
+          "description": "De inzet is lager dan het minimum of hoger dan het maximum.",
+          "label": "Inzet buiten bereik"
+        },
+        "currencydisabled": {
+          "description": "De valuta van het kanaal staat uit.",
+          "label": "Geen valuta"
+        },
+        "insufficientfunds": {
+          "description": "De speler kan de inzet niet betalen.",
+          "label": "Te weinig saldo"
+        },
+        "lost": {
+          "description": "De speler verliest het spel.",
+          "label": "Verloren"
+        },
+        "notallowed": {
+          "description": "De rol van de speler is te laag voor dit spel.",
+          "label": "Rol te laag"
+        },
+        "notenabled": {
+          "description": "Het spel staat niet aan voor het kanaal.",
+          "label": "Spel staat uit"
+        },
+        "oncooldown": {
+          "description": "De speler heeft te kort geleden gespeeld.",
+          "label": "Nog even wachten"
+        },
+        "playfailed": {
+          "description": "Het spel mislukte om een andere reden.",
+          "label": "Spelen mislukt"
+        },
+        "streamlimit": {
+          "description": "De speler heeft alle beurten van deze stream gebruikt.",
+          "label": "Streamlimiet bereikt"
+        },
+        "unavailable": {
+          "description": "De lijst met spellen kon niet worden gelezen.",
+          "label": "Spellen niet beschikbaar"
+        },
+        "usage": {
+          "description": "De inzet ontbreekt of is geen getal boven nul.",
+          "label": "Hoe te gebruiken"
+        },
+        "won": {
+          "description": "De speler wint het spel.",
+          "label": "Gewonnen"
+        }
+      },
+      "commands": {
+        "empty": {
+          "description": "Iemand vraagt de commando's, maar er staan er geen aan.",
+          "label": "Geen commando's"
+        },
+        "list": {
+          "description": "Iemand vraagt welke commando's dit kanaal heeft.",
+          "label": "Commandolijst"
+        }
+      },
+      "dice": {
+        "accountunresolved": {
+          "description": "Het account van de speler is niet gevonden.",
+          "label": "Account niet gevonden"
+        },
+        "ageconsentrequired": {
+          "description": "De speler moet eerst bevestigen dat hij 18 of ouder is.",
+          "label": "Leeftijdscheck nodig"
+        },
+        "betoutofrange": {
+          "description": "De inzet is lager dan het minimum of hoger dan het maximum.",
+          "label": "Inzet buiten bereik"
+        },
+        "currencydisabled": {
+          "description": "De valuta van het kanaal staat uit.",
+          "label": "Geen valuta"
+        },
+        "insufficientfunds": {
+          "description": "De speler kan de inzet niet betalen.",
+          "label": "Te weinig saldo"
+        },
+        "lost": {
+          "description": "De speler verliest het spel.",
+          "label": "Verloren"
+        },
+        "notallowed": {
+          "description": "De rol van de speler is te laag voor dit spel.",
+          "label": "Rol te laag"
+        },
+        "notenabled": {
+          "description": "Het spel staat niet aan voor het kanaal.",
+          "label": "Spel staat uit"
+        },
+        "oncooldown": {
+          "description": "De speler heeft te kort geleden gespeeld.",
+          "label": "Nog even wachten"
+        },
+        "playfailed": {
+          "description": "Het spel mislukte om een andere reden.",
+          "label": "Spelen mislukt"
+        },
+        "streamlimit": {
+          "description": "De speler heeft alle beurten van deze stream gebruikt.",
+          "label": "Streamlimiet bereikt"
+        },
+        "unavailable": {
+          "description": "De lijst met spellen kon niet worden gelezen.",
+          "label": "Spellen niet beschikbaar"
+        },
+        "usage": {
+          "description": "De inzet ontbreekt of is geen getal boven nul.",
+          "label": "Hoe te gebruiken"
+        },
+        "won": {
+          "description": "De speler wint het spel.",
+          "label": "Gewonnen"
+        }
+      },
+      "disallow": {
+        "declined": {
+          "description": "De massaban is afgewezen; de accounts blijven hier ongebanned.",
+          "label": "Afgewezen"
+        },
+        "nothingpending": {
+          "description": "Er wacht geen massaban op goedkeuring van dit kanaal.",
+          "label": "Niets in de wacht"
+        },
+        "usage": {
+          "description": "Iemand gebruikt het commando zonder \"massban\".",
+          "label": "Uitleg"
+        }
+      },
+      "discord": {
+        "invite": {
+          "description": "Iemand vraagt om de Discord-link.",
+          "label": "Discord-uitnodiging"
+        },
+        "notconnected": {
+          "description": "Het kanaal heeft geen Discord-server gekoppeld.",
+          "label": "Geen Discord gekoppeld"
+        },
+        "unavailable": {
+          "description": "De uitnodiging kon nu niet worden gemaakt.",
+          "label": "Uitnodiging niet beschikbaar"
+        }
+      },
+      "followage": {
+        "age": {
+          "description": "Een kijker vraagt hoe lang ze al volgen.",
+          "label": "Volgduur"
+        },
+        "notfollowing": {
+          "description": "Een kijker vraagt hoe lang ze volgen, maar volgt het kanaal niet.",
+          "label": "Volgt niet"
+        },
+        "twitchunavailable": {
+          "description": "Twitch gaf geen antwoord op de volger-opzoeking.",
+          "label": "Twitch gaf geen antwoord"
+        }
+      },
+      "forgetme": {
+        "done": {
+          "description": "Iemand wist de eigen gegevens met het forgetme-commando.",
+          "label": "Gegevens gewist"
+        }
+      },
+      "help": {
+        "described": {
+          "description": "Iemand vraagt wat een commando doet.",
+          "label": "Commando-uitleg"
+        },
+        "lineaccountage": {
+          "description": "Iemand vraagt wat !accountage doet.",
+          "label": "Uitleg over !accountage"
+        },
+        "linebanger": {
+          "description": "Iemand vraagt wat !banger doet.",
+          "label": "Uitleg over !banger"
+        },
+        "linebansong": {
+          "description": "Iemand vraagt wat !bansong doet.",
+          "label": "Uitleg over !bansong"
+        },
+        "lineclearsongs": {
+          "description": "Iemand vraagt wat !clearsongs doet.",
+          "label": "Uitleg over !clearsongs"
+        },
+        "lineclosequeue": {
+          "description": "Iemand vraagt wat !closequeue doet.",
+          "label": "Uitleg over !closequeue"
+        },
+        "linecommands": {
+          "description": "Iemand vraagt wat !commands doet.",
+          "label": "Uitleg over !commands"
+        },
+        "linediscord": {
+          "description": "Iemand vraagt wat !discord doet.",
+          "label": "Uitleg over !discord"
+        },
+        "linefollowage": {
+          "description": "Iemand vraagt wat !followage doet.",
+          "label": "Uitleg over !followage"
+        },
+        "linehelp": {
+          "description": "Iemand vraagt wat !help doet.",
+          "label": "Uitleg over !help"
+        },
+        "lineleaderboard": {
+          "description": "Iemand vraagt wat !leaderboard doet.",
+          "label": "Uitleg over !leaderboard"
+        },
+        "linelurk": {
+          "description": "Iemand vraagt wat !lurk doet.",
+          "label": "Uitleg over !lurk"
+        },
+        "lineopenqueue": {
+          "description": "Iemand vraagt wat !openqueue doet.",
+          "label": "Uitleg over !openqueue"
+        },
+        "linepause": {
+          "description": "Iemand vraagt wat !pause doet.",
+          "label": "Uitleg over !pause"
+        },
+        "lineplaylist": {
+          "description": "Iemand vraagt wat !playlist doet.",
+          "label": "Uitleg over !playlist"
+        },
+        "linequote": {
+          "description": "Iemand vraagt wat !quote doet.",
+          "label": "Uitleg over !quote"
+        },
+        "lineresume": {
+          "description": "Iemand vraagt wat !resume doet.",
+          "label": "Uitleg over !resume"
+        },
+        "lineskip": {
+          "description": "Iemand vraagt wat !skip doet.",
+          "label": "Uitleg over !skip"
+        },
+        "linesong": {
+          "description": "Iemand vraagt wat !song doet.",
+          "label": "Uitleg over !song"
+        },
+        "linesr": {
+          "description": "Iemand vraagt wat !sr doet.",
+          "label": "Uitleg over !sr"
+        },
+        "linestats": {
+          "description": "Iemand vraagt wat !stats doet.",
+          "label": "Uitleg over !stats"
+        },
+        "lineunlurk": {
+          "description": "Iemand vraagt wat !unlurk doet.",
+          "label": "Uitleg over !unlurk"
+        },
+        "lineupdate": {
+          "description": "Iemand vraagt wat !update doet.",
+          "label": "Uitleg over !update"
+        },
+        "linevoice": {
+          "description": "Iemand vraagt wat !voice doet.",
+          "label": "Uitleg over !voice"
+        },
+        "linevolume": {
+          "description": "Iemand vraagt wat !volume doet.",
+          "label": "Uitleg over !volume"
+        },
+        "linewhisper": {
+          "description": "Iemand vraagt wat !whisper doet.",
+          "label": "Uitleg over !whisper"
+        },
+        "nodescription": {
+          "description": "Iemand vraagt om hulp bij een commando zonder beschrijving.",
+          "label": "Geen uitleg"
+        },
+        "unknown": {
+          "description": "Iemand vraagt om hulp bij een commando dat niet bestaat.",
+          "label": "Onbekend commando"
+        },
+        "usage": {
+          "description": "Iemand vraagt om hulp zonder een commando te noemen.",
+          "label": "Help-gebruik"
+        }
+      },
+      "leaderboard": {
+        "empty": {
+          "description": "De ranglijst heeft nog geen items.",
+          "label": "Lege ranglijst"
+        },
+        "none": {
+          "description": "Iemand vraagt de ranglijst, maar er is er geen ingesteld.",
+          "label": "Geen ranglijst"
+        },
+        "top": {
+          "description": "Iemand vraagt de ranglijst.",
+          "label": "Top van de ranglijst"
+        }
+      },
+      "lurk": {
+        "accountunresolved": {
+          "description": "Het account van de kijker is niet gevonden.",
+          "label": "Account niet gevonden"
+        },
+        "lurking": {
+          "description": "Een kijker zegt dat ze gaan lurken.",
+          "label": "Nu aan het lurken"
+        },
+        "notlurking": {
+          "description": "Een kijker zegt dat ze terug zijn.",
+          "label": "Terug van lurken"
+        }
+      },
+      "massban": {
+        "completed": {
+          "description": "De goedgekeurde massaban is klaar.",
+          "label": "Afgerond"
+        },
+        "request": {
+          "description": "Het kanaal is live, dus de massaban van een moderator wacht. De bot vraagt de streamer, een hoofdmoderator of een editor om toe te staan of af te wijzen.",
+          "label": "Verzoek om goedkeuring"
+        }
+      },
+      "media": {
+        "accountunresolved": {
+          "description": "De bot kan het account van de vrager niet vinden.",
+          "label": "Account niet gevonden"
+        },
+        "cooldown": {
+          "description": "De kijker deelt media te snel na de vorige.",
+          "label": "Te snel"
+        },
+        "disabled": {
+          "description": "Media delen staat uit in dit kanaal.",
+          "label": "Media delen uit"
+        },
+        "failed": {
+          "description": "De media kon om een andere reden niet worden ingediend.",
+          "label": "Delen mislukt"
+        },
+        "noteligible": {
+          "description": "De kijker mag nu geen media delen.",
+          "label": "Niet toegestaan"
+        },
+        "notfound": {
+          "description": "De clip of video bestaat niet.",
+          "label": "Media niet gevonden"
+        },
+        "pending": {
+          "description": "Een clip of video wacht op een moderator.",
+          "label": "Media wacht"
+        },
+        "queued": {
+          "description": "Een clip of video gaat direct de wachtrij in.",
+          "label": "Media in wachtrij"
+        },
+        "queuefull": {
+          "description": "De mediawachtrij is vol.",
+          "label": "Wachtrij vol"
+        },
+        "sourcenotallowed": {
+          "description": "De link is geen geaccepteerde clip of video.",
+          "label": "Link niet toegestaan"
+        },
+        "toolong": {
+          "description": "De clip of video is langer dan het kanaal toestaat.",
+          "label": "Media te lang"
+        },
+        "unavailable": {
+          "description": "Twitch of YouTube kon niet antwoorden.",
+          "label": "Opzoeken mislukt"
+        },
+        "usage": {
+          "description": "Iemand deelt media zonder link.",
+          "label": "Uitleg"
+        }
+      },
+      "openqueue": {
+        "alreadyopen": {
+          "description": "De wachtrij was al open.",
+          "label": "Al open"
+        },
+        "failed": {
+          "description": "De wachtrij kon niet worden geopend.",
+          "label": "Openen mislukt"
+        },
+        "opened": {
+          "description": "Een moderator opende de wachtrij voor nieuwe verzoeken.",
+          "label": "Wachtrij geopend"
+        }
+      },
+      "pause": {
+        "failed": {
+          "description": "Het pauzeren werkte niet.",
+          "label": "Pauzeren mislukt"
+        },
+        "noplayer": {
+          "description": "Bij het pauzeren was er geen muziekspeler open.",
+          "label": "Geen speler open"
+        },
+        "noprovider": {
+          "description": "Bij het pauzeren was er geen muziekdienst ingesteld voor het kanaal.",
+          "label": "Geen muziek ingesteld"
+        },
+        "nospotifydevice": {
+          "description": "Bij het pauzeren speelde er geen Spotify-apparaat.",
+          "label": "Geen Spotify-apparaat"
+        },
+        "paused": {
+          "description": "Een moderator heeft de muziek vanuit de chat gepauzeerd.",
+          "label": "Muziek gepauzeerd"
+        },
+        "premiumrequired": {
+          "description": "De muziekdienst heeft een Premium-account nodig om te pauzeren.",
+          "label": "Premium nodig"
+        }
+      },
+      "permit": {
+        "accountunresolved": {
+          "description": "De bot kan het account van de vrager niet vinden.",
+          "label": "Account niet gevonden"
+        },
+        "capabilitydenied": {
+          "description": "Het recht bestaat niet, kan niet worden gedeeld, of de persoon heeft het niet.",
+          "label": "Recht geweigerd"
+        },
+        "grantedcapability": {
+          "description": "Een recht is aan een gebruiker gegeven.",
+          "label": "Recht gegeven"
+        },
+        "grantedrole": {
+          "description": "Een rol is aan een gebruiker gegeven.",
+          "label": "Rol gegeven"
+        },
+        "grantedsongrequest": {
+          "description": "Een moderator antwoordde met !permit en het vastgehouden verzoeknummer is in de wachtrij gezet.",
+          "label": "Verzoeknummer in de wachtrij"
+        },
+        "grantfailed": {
+          "description": "De permit kon niet worden gegeven.",
+          "label": "Geven mislukt"
+        },
+        "nopendingrequest": {
+          "description": "De kijker waarop is geantwoord heeft geen verzoeknummer dat op toestemming wacht.",
+          "label": "Geen verzoek wachtend"
+        },
+        "notallowed": {
+          "description": "De persoon mag geen permits beheren.",
+          "label": "Niet toegestaan"
+        },
+        "notarget": {
+          "description": "De persoon noemde geen gebruiker.",
+          "label": "Geen gebruiker genoemd"
+        },
+        "roletoohigh": {
+          "description": "De rol staat boven het niveau van de vrager.",
+          "label": "Rol te hoog"
+        },
+        "targetnotfound": {
+          "description": "De genoemde gebruiker staat niet op Twitch.",
+          "label": "Gebruiker niet gevonden"
+        },
+        "targetunresolved": {
+          "description": "De bot kan de genoemde gebruiker niet opzoeken.",
+          "label": "Gebruiker niet opgehaald"
+        },
+        "usage": {
+          "description": "Iemand gebruikt het commando zonder alle onderdelen.",
+          "label": "Uitleg"
+        }
+      },
+      "playlist": {
+        "link": {
+          "description": "Iemand vraagt de afspeellijst en er kan een link naar de bangers-afspeellijst worden gemaakt.",
+          "label": "Afspeellijst-link"
+        },
+        "noplaylist": {
+          "description": "Iemand vraagt de afspeellijst maar er is geen bangers-afspeellijst gekozen.",
+          "label": "Geen bangers-afspeellijst"
+        },
+        "notfound": {
+          "description": "De gekozen bangers-afspeellijst heeft geen publieke link bij de muziekdienst.",
+          "label": "Afspeellijst niet gevonden"
+        }
+      },
+      "queue": {
+        "empty": {
+          "description": "Iemand vraagt de wachtrij, maar die is leeg.",
+          "label": "Wachtrij leeg"
+        },
+        "list": {
+          "description": "Iemand vraagt wat er in de wachtrij staat.",
+          "label": "Wachtrij"
+        },
+        "mine": {
+          "description": "Iemand vraagt waar de eigen nummers staan, of die van een andere kijker.",
+          "label": "Eigen verzoeken"
+        },
+        "none": {
+          "description": "Iemand vraagt naar een kijker zonder nummer in de wachtrij.",
+          "label": "Geen verzoek"
+        }
+      },
+      "quote": {
+        "accountunresolved": {
+          "description": "De bot kan het account van de vrager niet vinden.",
+          "label": "Account niet gevonden"
+        },
+        "added": {
+          "description": "Een nieuwe quote is opgeslagen.",
+          "label": "Quote toegevoegd"
+        },
+        "addfailed": {
+          "description": "Een quote kon niet worden opgeslagen.",
+          "label": "Toevoegen mislukt"
+        },
+        "addusage": {
+          "description": "Iemand voegt een quote toe zonder tekst.",
+          "label": "Uitleg toevoegen"
+        },
+        "deleted": {
+          "description": "Een quote is verwijderd.",
+          "label": "Quote verwijderd"
+        },
+        "deleteusage": {
+          "description": "Iemand verwijdert een quote zonder nummer.",
+          "label": "Uitleg verwijderen"
+        },
+        "editfailed": {
+          "description": "Een quote kon niet worden aangepast.",
+          "label": "Aanpassen mislukt"
+        },
+        "editusage": {
+          "description": "Iemand past een quote aan zonder nummer of nieuwe tekst.",
+          "label": "Uitleg aanpassen"
+        },
+        "empty": {
+          "description": "Iemand vraagt een willekeurige quote, maar er zijn er geen.",
+          "label": "Geen quotes"
+        },
+        "invalidtext": {
+          "description": "De tekst van de quote is leeg of te lang.",
+          "label": "Ongeldige tekst"
+        },
+        "noaddpermission": {
+          "description": "Een kijker zonder recht probeert een quote toe te voegen.",
+          "label": "Mag niet toevoegen"
+        },
+        "nodeletepermission": {
+          "description": "Een kijker zonder recht probeert een quote te verwijderen.",
+          "label": "Mag niet verwijderen"
+        },
+        "noeditpermission": {
+          "description": "Een kijker zonder recht probeert een quote aan te passen.",
+          "label": "Mag niet aanpassen"
+        },
+        "notfound": {
+          "description": "Het nummer van de quote bestaat niet.",
+          "label": "Quote niet gevonden"
+        },
+        "show": {
+          "description": "Iemand vraagt om een quote en de bot toont die.",
+          "label": "Quote getoond"
+        },
+        "updated": {
+          "description": "De tekst van een quote is aangepast.",
+          "label": "Quote aangepast"
+        }
+      },
+      "resume": {
+        "failed": {
+          "description": "Het hervatten werkte niet.",
+          "label": "Hervatten mislukt"
+        },
+        "noplayer": {
+          "description": "Bij het hervatten was er geen muziekspeler open.",
+          "label": "Geen speler open"
+        },
+        "noprovider": {
+          "description": "Bij het hervatten was er geen muziekdienst ingesteld voor het kanaal.",
+          "label": "Geen muziek ingesteld"
+        },
+        "nospotifydevice": {
+          "description": "Bij het hervatten speelde er geen Spotify-apparaat.",
+          "label": "Geen Spotify-apparaat"
+        },
+        "premiumrequired": {
+          "description": "De muziekdienst heeft een Premium-account nodig om te hervatten.",
+          "label": "Premium nodig"
+        },
+        "resumed": {
+          "description": "Een moderator heeft de muziek vanuit de chat hervat.",
+          "label": "Muziek hervat"
+        }
+      },
+      "reward": {
+        "nopermission": {
+          "description": "Een kijker wisselt een beloning in die zijn rol niet mag gebruiken, en de punten worden terugbetaald.",
+          "label": "Beloning niet toegestaan"
+        }
+      },
+      "shoutout": {
+        "announcement": {
+          "description": "De chatregel voor een shoutout als er geen eigen shoutout-tekst is ingesteld.",
+          "label": "Shoutout-aankondiging"
+        },
+        "queued": {
+          "description": "De chatregel als Twitch een shoutout in de wachtrij laat wachten.",
+          "label": "Shoutout in de wachtrij"
+        }
+      },
+      "skip": {
+        "failed": {
+          "description": "Het overslaan werkte niet.",
+          "label": "Overslaan mislukt"
+        },
+        "noplayer": {
+          "description": "Bij het overslaan stond de Audio-widget niet open in OBS.",
+          "label": "Geen speler open"
+        },
+        "noprovider": {
+          "description": "Een moderator slaat over maar er is geen muziekdienst verbonden.",
+          "label": "Geen muziek verbonden"
+        },
+        "norequest": {
+          "description": "Een kijker noemt een plek in de wachtrij waar hij geen verzoek heeft.",
+          "label": "Geen verzoek daar"
+        },
+        "nospotifydevice": {
+          "description": "Bij het overslaan speelde er geen Spotify-apparaat.",
+          "label": "Geen Spotify-apparaat"
+        },
+        "nothingplaying": {
+          "description": "Een kijker probeerde over te slaan terwijl er geen nummer speelt.",
+          "label": "Er speelt niets"
+        },
+        "notyours": {
+          "description": "Een kijker probeerde een nummer over te slaan dat iemand anders aanvroeg.",
+          "label": "Niet jouw verzoek"
+        },
+        "premiumrequired": {
+          "description": "De muziekdienst heeft een Premium-account nodig om over te slaan.",
+          "label": "Premium nodig"
+        },
+        "removed": {
+          "description": "Een kijker haalde zijn eigen verzoek uit de wachtrij.",
+          "label": "Verzoek verwijderd"
+        },
+        "removefailed": {
+          "description": "Een verzoek van een kijker kon niet uit de wachtrij worden gehaald.",
+          "label": "Verwijderen mislukt"
+        },
+        "skipped": {
+          "description": "Een nummer is overgeslagen.",
+          "label": "Nummer overgeslagen"
+        },
+        "skippedown": {
+          "description": "Een kijker sloeg het nummer over dat hij zelf had aangevraagd.",
+          "label": "Eigen verzoek overgeslagen"
+        },
+        "usage": {
+          "description": "Het skipcommando kreeg een waarde die geen getal is.",
+          "label": "Zo gebruik je het"
+        }
+      },
+      "slots": {
+        "accountunresolved": {
+          "description": "Het account van de speler is niet gevonden.",
+          "label": "Account niet gevonden"
+        },
+        "ageconsentrequired": {
+          "description": "De speler moet eerst bevestigen dat hij 18 of ouder is.",
+          "label": "Leeftijdscheck nodig"
+        },
+        "betoutofrange": {
+          "description": "De inzet is lager dan het minimum of hoger dan het maximum.",
+          "label": "Inzet buiten bereik"
+        },
+        "currencydisabled": {
+          "description": "De valuta van het kanaal staat uit.",
+          "label": "Geen valuta"
+        },
+        "insufficientfunds": {
+          "description": "De speler kan de inzet niet betalen.",
+          "label": "Te weinig saldo"
+        },
+        "lost": {
+          "description": "De speler verliest het spel.",
+          "label": "Verloren"
+        },
+        "notallowed": {
+          "description": "De rol van de speler is te laag voor dit spel.",
+          "label": "Rol te laag"
+        },
+        "notenabled": {
+          "description": "Het spel staat niet aan voor het kanaal.",
+          "label": "Spel staat uit"
+        },
+        "oncooldown": {
+          "description": "De speler heeft te kort geleden gespeeld.",
+          "label": "Nog even wachten"
+        },
+        "playfailed": {
+          "description": "Het spel mislukte om een andere reden.",
+          "label": "Spelen mislukt"
+        },
+        "streamlimit": {
+          "description": "De speler heeft alle beurten van deze stream gebruikt.",
+          "label": "Streamlimiet bereikt"
+        },
+        "unavailable": {
+          "description": "De lijst met spellen kon niet worden gelezen.",
+          "label": "Spellen niet beschikbaar"
+        },
+        "usage": {
+          "description": "De inzet ontbreekt of is geen getal boven nul.",
+          "label": "Hoe te gebruiken"
+        },
+        "won": {
+          "description": "De speler wint het spel.",
+          "label": "Gewonnen"
+        }
+      },
+      "song": {
+        "nothing": {
+          "description": "Iemand vraagt het nummer, maar er speelt niets.",
+          "label": "Er speelt niets"
+        },
+        "playing": {
+          "description": "Iemand vraagt welk nummer er speelt.",
+          "label": "Nu speelt"
+        }
+      },
+      "sr": {
+        "added": {
+          "description": "Een verzoeknummer is aan de wachtrij toegevoegd.",
+          "label": "Nummer toegevoegd"
+        },
+        "addedwithcode": {
+          "description": "Een beloning of pipeline voegde een nummer toe, en het antwoord geeft de verzoekcode die !wrongsong gebruikt.",
+          "label": "Nummer toegevoegd met code"
+        },
+        "agerestricted": {
+          "description": "De video heeft een leeftijdsgrens op YouTube en speelt nooit in de streamspeler.",
+          "label": "Video met leeftijdsgrens"
+        },
+        "alreadyplaying": {
+          "description": "Het gevraagde nummer speelt nu al.",
+          "label": "Speelt al"
+        },
+        "authfailed": {
+          "description": "De muziekverbinding is uitgelogd en moet opnieuw verbonden worden.",
+          "label": "Muziekinlog verlopen"
+        },
+        "disabled": {
+          "description": "Een kijker vraagt een nummer terwijl verzoeken uit staan.",
+          "label": "Verzoeken staan uit"
+        },
+        "duplicate": {
+          "description": "Het gevraagde nummer staat al in de wachtrij.",
+          "label": "Staat al in de wachtrij"
+        },
+        "forbidden": {
+          "description": "De muziekverbinding mag dit nummer niet in de wachtrij zetten.",
+          "label": "Muziek geen toegang"
+        },
+        "lengthunknown": {
+          "description": "De video geeft geen leesbare lengte, dus de maximale nummerlengte kan niet gecontroleerd worden.",
+          "label": "Videolengte onbekend"
+        },
+        "livebroadcast": {
+          "description": "De link is een livestream of premiere, zonder vast nummer om in de wachtrij te zetten.",
+          "label": "Livestream of premiere"
+        },
+        "mintrust": {
+          "description": "De kijker heeft een lagere rol dan verzoeknummers nodig hebben.",
+          "label": "Rol te laag"
+        },
+        "missingscope": {
+          "description": "De muziekverbinding moet opnieuw verbonden worden voordat zoeken werkt.",
+          "label": "Muziek opnieuw verbinden"
+        },
+        "noactivedevice": {
+          "description": "Het nummer kan niet in de wachtrij omdat er op geen enkel apparaat iets speelt.",
+          "label": "Er speelt niets"
+        },
+        "noproviderbroadcaster": {
+          "description": "De streamer vraagt een nummer maar er is geen muziekdienst verbonden.",
+          "label": "Geen muziek verbonden (streamer)"
+        },
+        "noprovidermoderator": {
+          "description": "Een moderator vraagt een nummer maar er is geen muziekdienst verbonden.",
+          "label": "Geen muziek verbonden (mod)"
+        },
+        "notconfigured": {
+          "description": "De bot-eigenaar heeft geen YouTube API-sleutel toegevoegd, dus YouTube-verzoeken werken niet.",
+          "label": "YouTube niet ingesteld"
+        },
+        "notembeddable": {
+          "description": "De uploader staat niet toe dat de video op andere sites speelt, dus de streamspeler kan hem nooit afspelen.",
+          "label": "Video blokkeert insluiten"
+        },
+        "notfound": {
+          "description": "Geen nummer past bij het verzoek.",
+          "label": "Nummer niet gevonden"
+        },
+        "notmusic": {
+          "description": "De gelinkte video speelt af, maar is geen muziek, dus songverzoeken weigeren hem.",
+          "label": "Geen muziekvideo"
+        },
+        "notplayable": {
+          "description": "Het nummer kan niet spelen in het land van de streamer.",
+          "label": "Hier niet afspeelbaar"
+        },
+        "perstreamlimit": {
+          "description": "De kijker heeft al zoveel nummers aangevraagd als één stream toestaat.",
+          "label": "Verzoeklimiet per stream bereikt"
+        },
+        "peruserlimit": {
+          "description": "De kijker heeft al het maximum aantal verzoeken in de wachtrij.",
+          "label": "Kijkerlimiet bereikt"
+        },
+        "premiumrequired": {
+          "description": "De muziekdienst heeft hiervoor een Premium-account nodig.",
+          "label": "Premium nodig"
+        },
+        "providerunavailable": {
+          "description": "De muziekdienst heeft een storing.",
+          "label": "Muziekdienst niet bereikbaar"
+        },
+        "queueclosed": {
+          "description": "Een kijker vroeg een nummer aan terwijl de wachtrij gesloten is.",
+          "label": "Wachtrij gesloten"
+        },
+        "queuefull": {
+          "description": "De wachtrij is op zijn maximale grootte.",
+          "label": "Wachtrij vol"
+        },
+        "quotaexhausted": {
+          "description": "De daglimiet van de muziekdienst is op; het antwoord zegt wanneer die weer vrijkomt.",
+          "label": "Daglimiet verzoeken op"
+        },
+        "ratelimited": {
+          "description": "De muziekdienst beperkt dit kanaal een tijdje.",
+          "label": "Muziekdienst-limiet"
+        },
+        "requestsoff": {
+          "description": "Een kijker vraagt een nummer terwijl verzoeken uit staan.",
+          "label": "Verzoeken staan uit"
+        },
+        "revoked": {
+          "description": "Iemand die 10 of meer nummers heeft geband vraagt een nummer aan.",
+          "label": "Verzoeken ingetrokken"
+        },
+        "trackblocked": {
+          "description": "Het gevraagde nummer staat op de blokkeerlijst.",
+          "label": "Nummer geblokkeerd"
+        },
+        "trackexplicit": {
+          "description": "Het gevraagde nummer is als expliciet gemarkeerd en dit kanaal staat geen expliciete nummers toe.",
+          "label": "Expliciet nummer geweigerd"
+        },
+        "trackmissing": {
+          "description": "De gelinkte video is verwijderd of privé.",
+          "label": "Video weg of privé"
+        },
+        "tracktoolong": {
+          "description": "Het gevraagde nummer is langer dan de maximale nummerlengte van het kanaal en is niet toegevoegd.",
+          "label": "Nummer te lang"
+        },
+        "tracktoolongrefunded": {
+          "description": "Een ingewisseld nummer is langer dan de maximale nummerlengte van het kanaal, is niet toegevoegd en de punten zijn teruggegeven.",
+          "label": "Nummer te lang, punten terug"
+        },
+        "unreachable": {
+          "description": "De muziekdienst was om een andere reden niet bereikbaar.",
+          "label": "Muziekdienstfout"
+        },
+        "unreadablelink": {
+          "description": "De link is voor de muziekdienst van dit kanaal, maar er kon geen nummer uit gelezen worden.",
+          "label": "Onleesbare link"
+        },
+        "unsupportedcontent": {
+          "description": "Een kijker plakte een afspeellijst-, album-, show- of artiestlink.",
+          "label": "Alleen nummerlinks"
+        },
+        "unsupportedlink": {
+          "description": "Een kijker plakte een link die de muziekdienst niet kan afspelen, en er was geen titel uit te lezen.",
+          "label": "Link niet ondersteund"
+        },
+        "usage": {
+          "description": "Een kijker typt het songcommando zonder nummer.",
+          "label": "Zo gebruik je het"
+        }
+      },
+      "stats": {
+        "accountunresolved": {
+          "description": "De bot kan het account van de vrager niet vinden.",
+          "label": "Account niet gevonden"
+        },
+        "notseen": {
+          "description": "De kijker heeft nog niet gechat in dit kanaal.",
+          "label": "Kijker niet gezien"
+        },
+        "profile": {
+          "description": "Een kijker vraagt hun statistieken.",
+          "label": "Kijkerstatistieken"
+        }
+      },
+      "system": {
+        "cooldown": {
+          "description": "Een kijker gebruikt een commando dat nog in cooldown is.",
+          "label": "Nog even wachten"
+        },
+        "failed": {
+          "description": "Een commando is gestart maar niet klaar geraakt.",
+          "label": "Commando mislukt"
+        },
+        "nothingran": {
+          "description": "Een commando heeft geen opgeslagen pipeline om uit te voeren.",
+          "label": "Niets om uit te voeren"
+        },
+        "permissiondenied": {
+          "description": "Een kijker gebruikt een commando dat zijn rol niet mag gebruiken.",
+          "label": "Niet toegestaan"
+        }
+      },
+      "unpermit": {
+        "accountunresolved": {
+          "description": "De bot kan het account van de vrager niet vinden.",
+          "label": "Account niet gevonden"
+        },
+        "notallowed": {
+          "description": "De persoon mag geen permits beheren.",
+          "label": "Niet toegestaan"
+        },
+        "notarget": {
+          "description": "De persoon noemde geen gebruiker.",
+          "label": "Geen gebruiker genoemd"
+        },
+        "revoked": {
+          "description": "Een permit van een gebruiker is verwijderd.",
+          "label": "Permit ingetrokken"
+        },
+        "revokedall": {
+          "description": "Alle permits van een gebruiker zijn verwijderd.",
+          "label": "Alles ingetrokken"
+        },
+        "revokefailed": {
+          "description": "De permit kon niet worden verwijderd.",
+          "label": "Intrekken mislukt"
+        },
+        "targetnotfound": {
+          "description": "De genoemde gebruiker staat niet op Twitch.",
+          "label": "Gebruiker niet gevonden"
+        },
+        "targetunresolved": {
+          "description": "De bot kan de genoemde gebruiker niet opzoeken.",
+          "label": "Gebruiker niet opgehaald"
+        },
+        "usage": {
+          "description": "Iemand gebruikt het commando zonder alle onderdelen.",
+          "label": "Uitleg"
+        }
+      },
+      "unwhitelist": {
+        "failed": {
+          "description": "De uitzondering kon niet worden verwijderd.",
+          "label": "Verwijderen mislukt"
+        },
+        "nooverride": {
+          "description": "De gebruiker had geen uitzondering om te verwijderen.",
+          "label": "Geen uitzondering"
+        },
+        "notallowed": {
+          "description": "De persoon is niet de streamer.",
+          "label": "Niet toegestaan"
+        },
+        "removed": {
+          "description": "De uitzondering op de rechten van een gebruiker is verwijderd.",
+          "label": "Uitzondering verwijderd"
+        },
+        "targetnotfound": {
+          "description": "De genoemde gebruiker staat niet op Twitch.",
+          "label": "Gebruiker niet gevonden"
+        },
+        "usage": {
+          "description": "Iemand gebruikt het commando zonder een gebruiker.",
+          "label": "Uitleg"
+        }
+      },
+      "update": {
+        "loginunresolved": {
+          "description": "De naam om bij te werken is niet gevonden.",
+          "label": "Naam onbekend"
+        },
+        "notfound": {
+          "description": "Geen account past bij de opgegeven naam.",
+          "label": "Gebruiker niet gevonden"
+        },
+        "owninfoonly": {
+          "description": "Een kijker probeerde iemand anders bij te werken.",
+          "label": "Alleen eigen gegevens"
+        },
+        "twitchunavailable": {
+          "description": "Twitch gaf geen antwoord op het opzoeken.",
+          "label": "Twitch gaf geen antwoord"
+        },
+        "updated": {
+          "description": "De info van de kijker is vernieuwd.",
+          "label": "Info bijgewerkt"
+        },
+        "updatefailed": {
+          "description": "De nieuwe gegevens konden niet worden opgeslagen.",
+          "label": "Bijwerken mislukt"
+        }
+      },
+      "uptime": {
+        "live": {
+          "description": "Iemand vraagt de uptime terwijl je live bent.",
+          "label": "Stream is live"
+        },
+        "offline": {
+          "description": "Iemand vraagt de uptime terwijl je offline bent.",
+          "label": "Stream is offline"
+        }
+      },
+      "var": {
+        "age": "Hoe oud het account is",
+        "command": "De naam van het commando",
+        "commands": "De lijst met commando's",
+        "count": "Hoeveel nummers zijn verwijderd",
+        "date": "De datum waarop het account is gemaakt",
+        "description": "Wat het commando doet",
+        "discord_invite": "De Discord-uitnodigingslink",
+        "game_balance": "Het saldo van de speler na het spel",
+        "game_bet": "Het ingezette bedrag",
+        "game_name": "Het chatcommando van het spel",
+        "game_payout": "Het gewonnen bedrag",
+        "leaderboard_count": "Hoeveel items er staan",
+        "leaderboard_list": "De beste items",
+        "leaderboard_metric": "Waarop de ranglijst rangschikt",
+        "massban_banned": "Hoeveel accounts gebanned zijn",
+        "massban_channel": "Het kanaal dat gevraagd wordt",
+        "massban_count": "Hoeveel accounts op de lijst staan",
+        "massban_moderator": "De moderator die de massaban aanvroeg",
+        "media_title": "De titel van de clip of video",
+        "permit_capability": "Het recht of de rol die is genoemd",
+        "permit_role": "De rol",
+        "playlist_name": "De naam van de bangers-afspeellijst",
+        "playlist_url": "Een link naar de bangers-afspeellijst",
+        "prefix": "Het commando-voorvoegsel, bijvoorbeeld !",
+        "query": "Waar de kijker naar zocht",
+        "queue_count": "Hoeveel nummers in de wachtrij staan",
+        "queue_list": "De nummers in de wachtrij",
+        "queue_max": "Het maximale aantal nummers in de wachtrij",
+        "queue_mine": "Waar de nummers van de kijker staan, met de wachttijd",
+        "queue_mine_count": "Hoeveel nummers de kijker in de wachtrij heeft",
+        "queue_more": "Een melding als er meer nummers wachten",
+        "queue_next": "Het volgende nummer",
+        "quote": "De hele quote-regel",
+        "quote_number": "Het nummer van de quote",
+        "request_code": "De code van het verzoek die !wrongsong gebruikt",
+        "request_limit": "Het maximale aantal verzoeken per kijker",
+        "request_position": "De plek in de wachtrij die de kijker typte",
+        "requested_by": "Wie het als eerste aanvroeg",
+        "retry_minutes": "Minuten tot de muziekdienst weer aanvragen aanneemt",
+        "retry_time": "Wanneer de muziekdienst weer aanvragen aanneemt (UTC-tijd)",
+        "song_artist": "De artiest van het nummer",
+        "song_attribution": "Wie het aanvroeg, of waar het vandaan komt",
+        "song_link": "Een link naar het nummer",
+        "song_name": "De titel van het nummer",
+        "song_provider": "De muziekdienst",
+        "song_requester": "Wie het nummer aanvroeg",
+        "song_source": "Verzoek of automatisch",
+        "song_status": "Speelt of gepauzeerd",
+        "stats_firstseen": "Eerst gezien op",
+        "stats_messages": "Verstuurde berichten",
+        "stats_points": "Punten",
+        "stats_rank": "Plaats op het klassement",
+        "stats_rankpart": "Tekst over de plaats, leeg zonder plaats",
+        "stats_streak": "Streams op rij",
+        "stats_streakpart": "Tekst over de reeks, leeg zonder reeks",
+        "stats_user": "De naam van de kijker",
+        "stats_watchtime": "Kijktijd",
+        "target": "De kijker wiens nummers zijn gewist",
+        "target_game": "De game die ze het laatst speelden",
+        "target_link": "Link naar het kanaal in de shoutout",
+        "target_name": "De naam van het kanaal in de shoutout",
+        "track_artist": "De artiest van het nummer",
+        "track_link": "Een link naar het nummer",
+        "track_max": "De langste toegestane nummerlengte",
+        "track_name": "De titel van het nummer",
+        "trust_level": "De laagste rol die mag aanvragen",
+        "uptime": "Hoe lang de stream al live is",
+        "user": "De weergavenaam van de kijker",
+        "viewer": "De kijker van wie de stem is ingesteld",
+        "voice_count": "Hoeveel stemmen pasten",
+        "voice_gender": "Het geslacht van de stem",
+        "voice_id": "De stem-id",
+        "voice_language": "De gevraagde taal",
+        "voice_languages": "De talen met hun codes",
+        "voice_list": "De namen van de stemmen",
+        "voice_locale": "De taalcode van de stem",
+        "voice_more": "Hoeveel stemmen niet getoond zijn",
+        "voice_name": "De naam van de stem",
+        "volume_level": "Het volume, van 0 tot 100",
+        "whitelist_level": "Het niveau dat is genoemd"
+      },
+      "voice": {
+        "cleared": {
+          "description": "Een kijker gaat terug naar de kanaalstem.",
+          "label": "Stem teruggezet"
+        },
+        "clearfailed": {
+          "description": "De stem kon niet worden teruggezet.",
+          "label": "Terugzetten mislukt"
+        },
+        "current": {
+          "description": "Een kijker vraagt welke stem ze gebruiken en ze hebben er een gekozen.",
+          "label": "Eigen stem"
+        },
+        "currentdefault": {
+          "description": "Een kijker vraagt welke stem ze gebruiken en ze gebruiken de kanaalstem.",
+          "label": "Standaardstem"
+        },
+        "currentnone": {
+          "description": "Een kijker vraagt welke stem ze gebruiken, en noch de kijker noch het kanaal heeft er een.",
+          "label": "Helemaal geen stem"
+        },
+        "disabled": {
+          "description": "Kijkers mogen in dit kanaal niet zelf een stem kiezen.",
+          "label": "Stem kiezen uit"
+        },
+        "getusage": {
+          "description": "Iemand vraagt stemmen op zonder taal.",
+          "label": "Uitleg stemmen opvragen"
+        },
+        "languages": {
+          "description": "Een kijker vraagt welke talen de bot kan spreken.",
+          "label": "Talenlijst"
+        },
+        "multiplematches": {
+          "description": "Een kijker zoekt een stem en er passen meerdere stemmen, dus de namen worden getoond.",
+          "label": "Meerdere stemmen passen"
+        },
+        "nomatch": {
+          "description": "Geen stem past bij de zoekopdracht van de kijker.",
+          "label": "Geen stem gevonden"
+        },
+        "novoices": {
+          "description": "De bot heeft geen stemmen om te tonen.",
+          "label": "Geen stemmen"
+        },
+        "novoicesforlanguage": {
+          "description": "Er zijn geen stemmen voor de taal.",
+          "label": "Geen stemmen voor taal"
+        },
+        "novoicesforroulette": {
+          "description": "De bot heeft geen stemmen om het rad mee te draaien.",
+          "label": "Geen stemmen voor roulette"
+        },
+        "ownvoiceonly": {
+          "description": "Een kijker probeert de stem van iemand anders in te stellen, wat alleen moderators mogen.",
+          "label": "Alleen eigen stem"
+        },
+        "roulette": {
+          "description": "De bot kiest een willekeurige stem voor de kijker.",
+          "label": "Stemroulette"
+        },
+        "set": {
+          "description": "Een kijker kiest een stem en er past maar een stem.",
+          "label": "Stem ingesteld"
+        },
+        "setfailed": {
+          "description": "De stem kon niet worden ingesteld.",
+          "label": "Instellen mislukt"
+        },
+        "setfor": {
+          "description": "Een moderator stelt de stem van een andere kijker in.",
+          "label": "Stem ingesteld voor een kijker"
+        },
+        "setmany": {
+          "description": "Een kijker kiest een stem en er passen meer stemmen.",
+          "label": "Stem ingesteld, meer opties"
+        },
+        "setusage": {
+          "description": "Iemand stelt een stem in zonder naam.",
+          "label": "Uitleg stem instellen"
+        },
+        "unknowncommand": {
+          "description": "Iemand typt een woord dat geen stemcommando is en bij geen enkele stem past.",
+          "label": "Onbekend stemcommando"
+        },
+        "unknownviewer": {
+          "description": "Een moderator noemt een kijker die de bot niet kent.",
+          "label": "Onbekende kijker"
+        },
+        "usage": {
+          "description": "Iemand typt het stemcommando zonder iets erachter.",
+          "label": "Uitleg stemcommando"
+        },
+        "voices": {
+          "description": "Een kijker vraagt de stemmen van een taal.",
+          "label": "Stemmenlijst"
+        },
+        "voicesmore": {
+          "description": "Een kijker vraagt de stemmen van een taal en de lijst is lang.",
+          "label": "Lange stemmenlijst"
+        }
+      },
+      "volume": {
+        "cannotread": {
+          "description": "Het huidige volume kan niet worden gelezen.",
+          "label": "Volume onbekend"
+        },
+        "current": {
+          "description": "Iemand vraagt het volume en het kan worden gelezen.",
+          "label": "Volumeniveau"
+        },
+        "noprovider": {
+          "description": "Het volume wordt aangepast maar er is geen muziekdienst verbonden.",
+          "label": "Geen muziek verbonden"
+        },
+        "premiumrequired": {
+          "description": "De muziekdienst heeft een Premium-account nodig om het volume aan te passen.",
+          "label": "Premium nodig"
+        },
+        "set": {
+          "description": "Het volume is aangepast.",
+          "label": "Volume aangepast"
+        },
+        "setfailed": {
+          "description": "Het volume kon niet worden aangepast.",
+          "label": "Volume aanpassen mislukt"
+        },
+        "usage": {
+          "description": "Het volumecommando kreeg een waarde die het niet kan lezen.",
+          "label": "Zo gebruik je het"
+        }
+      },
+      "whisper": {
+        "notavailable": {
+          "description": "De bot kan op dit platform niet fluisteren.",
+          "label": "Fluisteren niet beschikbaar"
+        },
+        "notfound": {
+          "description": "Geen account past bij de opgegeven naam.",
+          "label": "Gebruiker niet gevonden"
+        },
+        "sendfailed": {
+          "description": "De fluistering kon niet worden verstuurd.",
+          "label": "Fluistering mislukt"
+        },
+        "sent": {
+          "description": "De fluistering is verstuurd.",
+          "label": "Fluistering verstuurd"
+        },
+        "twitchunavailable": {
+          "description": "Twitch gaf geen antwoord op het opzoeken.",
+          "label": "Twitch gaf geen antwoord"
+        },
+        "usage": {
+          "description": "Het commando is gebruikt zonder naam of bericht.",
+          "label": "Zo gebruik je het"
+        }
+      },
+      "whitelist": {
+        "failed": {
+          "description": "De uitzondering kon niet worden opgeslagen.",
+          "label": "Opslaan mislukt"
+        },
+        "granted": {
+          "description": "Een gebruiker krijgt een uitzondering op de rechten.",
+          "label": "Toegang gegeven"
+        },
+        "invalidlevel": {
+          "description": "Het niveau is niet subscriber, vip of moderator.",
+          "label": "Onbekend niveau"
+        },
+        "notallowed": {
+          "description": "De persoon is niet de streamer.",
+          "label": "Niet toegestaan"
+        },
+        "targetnotfound": {
+          "description": "De genoemde gebruiker staat niet op Twitch.",
+          "label": "Gebruiker niet gevonden"
+        },
+        "usage": {
+          "description": "Iemand gebruikt het commando zonder een gebruiker en een niveau.",
+          "label": "Uitleg"
+        }
+      }
+    }
+  },
   "eventresponse": {
     "preset": {
       "channel_ad_break_begin": {

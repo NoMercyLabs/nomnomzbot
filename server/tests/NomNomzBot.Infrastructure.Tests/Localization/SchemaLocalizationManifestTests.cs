@@ -88,6 +88,22 @@ public sealed class SchemaLocalizationManifestTests
         }
     }
 
+    // The Vue dashboard nests its words on dots, so a key that is also the group of another key has no place.
+    [Fact]
+    public void No_manifest_key_is_also_the_group_of_another_key()
+    {
+        HashSet<string> keys = [.. ReadManifest(ResolveManifestPath())];
+
+        List<string> groups =
+        [
+            .. keys.Where(key =>
+                keys.Any(other => other.StartsWith(key + ".", StringComparison.Ordinal))
+            ),
+        ];
+
+        groups.Should().BeEmpty();
+    }
+
     [Fact]
     public void Every_manifest_key_has_both_english_and_dutch_translations()
     {

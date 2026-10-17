@@ -15,7 +15,7 @@
 // copies the KMP step titles, which the server does not name.
 // Run: npm run gen:schema-words. A key without words in strings.xml is left out; the page falls back.
 // With --check it writes nothing and exits 1 when a committed file differs from what it would write.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { XMLParser } from 'fast-xml-parser';
@@ -50,11 +50,19 @@ function readStrings(folder) {
     trimValues: false,
     parseTagValue: false,
   });
-  const xml = parser.parse(readFileSync(`${resources}/${folder}/strings.xml`, 'utf8'));
   const words = new Map();
 
-  for (const entry of xml.resources.string ?? []) {
-    words.set(entry.name, String(entry.text ?? ''));
+  // The words are split over strings.xml and topic files such as strings_builtin_replies_core.xml.
+  const files = readdirSync(`${resources}/${folder}`)
+    .filter((name) => /^strings(_[\w]+)?\.xml$/.test(name))
+    .sort();
+
+  for (const file of files) {
+    const xml = parser.parse(readFileSync(`${resources}/${folder}/${file}`, 'utf8'));
+
+    for (const entry of xml.resources.string ?? []) {
+      words.set(entry.name, String(entry.text ?? ''));
+    }
   }
 
   return words;
@@ -102,8 +110,14 @@ for (const [locale, folder] of Object.entries(folders)) {
 
     if (text === undefined) continue;
 
-    place(tree, key, escapeVueI18n(unescapeCompose(text)));
-    count += 1;
+    // vue-i18n nests on dots, so a key that is also another key's group (queue.mine and queue.mine.count)
+    // cannot hold words; it is left out and the page falls back.
+    try {
+      place(tree, key, escapeVueI18n(unescapeCompose(text)));
+      count += 1;
+    } catch (error) {
+      console.warn(`${locale}: skipped ${error.message}`);
+    }
   }
 
   for (const [key, text] of editorTitles(words).sort()) {
