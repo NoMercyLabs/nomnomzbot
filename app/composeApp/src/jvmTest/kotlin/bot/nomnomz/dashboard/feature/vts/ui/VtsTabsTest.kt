@@ -86,7 +86,7 @@ class VtsTabsTest {
     @Test
     fun a_connected_hotkeys_tab_shows_the_model_and_hotkey_controls_and_not_the_expression_or_connection_ones() =
         runComposeUiTest {
-            val api: FakeVtsApi = FakeVtsApi(connection = VtsConnection(hasPluginToken = true), inventory = inventory)
+            val api: FakeVtsApi = FakeVtsApi(connection = VtsConnection(hasPluginToken = true, status = "connected"), inventory = inventory)
             setContent { Screen(api, VtsSection.Hotkeys, onOpenIntegrations = {}) }
             waitForIdle()
 
@@ -99,7 +99,7 @@ class VtsTabsTest {
 
     @Test
     fun a_connected_expressions_tab_shows_the_expression_control_and_not_the_hotkey_ones() = runComposeUiTest {
-        val api: FakeVtsApi = FakeVtsApi(connection = VtsConnection(hasPluginToken = true), inventory = inventory)
+        val api: FakeVtsApi = FakeVtsApi(connection = VtsConnection(hasPluginToken = true, status = "connected"), inventory = inventory)
         setContent { Screen(api, VtsSection.Expressions, onOpenIntegrations = {}) }
         waitForIdle()
 
