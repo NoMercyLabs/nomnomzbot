@@ -16,6 +16,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  useCommands,
   useToggleCommand,
   useUpdateCommand,
   type CommandChange,
@@ -25,6 +26,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
@@ -44,7 +46,7 @@ import { errorText } from '@/lib/errors';
 import CodeTierNote from './CodeTierNote.vue';
 import { changeOf, draftOf, sameDraft, triggerValid, type CommandDraft } from './commandDraft';
 import { permissionLevels } from './permissionLevels';
-import RandomReplyList from './RandomReplyList.vue';
+import RandomReplyPanel, { type ReplySet } from './RandomReplyPanel.vue';
 import TriggerFields from './TriggerFields.vue';
 
 const props = defineProps<{ row: CommandListItem }>();
@@ -54,6 +56,7 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const update = useUpdateCommand(channelId);
 const toggle = useToggleCommand(channelId);
+const commands = useCommands(channelId);
 
 const draft = ref<CommandDraft>(draftOf(props.row));
 // What the form was last loaded or saved with. A row that changes under an edited form never overwrites the edits.
@@ -81,11 +84,51 @@ const unsaved = computed<string>(() =>
 const valid = computed(() => triggerValid(draft.value));
 const random = computed<boolean>(() => draft.value.replies.length > 0);
 
+// Text becomes the first random reply; the first random reply becomes the text again.
 function setRandom(on: boolean): void {
-  draft.value.replies = on
-    ? ['']
-    : [];
+  if (on) {
+    draft.value.replies = [draft.value.templateResponse];
+
+    return;
+  }
+
+  draft.value.templateResponse = draft.value.replies[0] ?? '';
+  draft.value.replies = [];
 }
+
+const replyTypes = computed(
+  () =>
+    [
+      { value: 'text', label: t('dashboard.commands.editor.typeText') },
+      { value: 'random', label: t('dashboard.commands.editor.typeRandomReply') },
+    ] as const satisfies { value: string; label: string }[],
+);
+const replyType = computed<string>({
+  get: () =>
+    random.value
+      ? 'random'
+      : 'text',
+  set: (type: string): void => {
+    if ((type === 'random') !== random.value) {
+      setRandom(type === 'random');
+    }
+  },
+});
+// The reply lists of the channel's other random-reply commands, to start a list from.
+const sets = computed<ReplySet[]>(() =>
+  (commands.data.value ?? [])
+    .filter(
+      (item: CommandListItem): boolean =>
+        item.name !== props.row.name && (item.templateResponses?.length ?? 0) > 0,
+    )
+    .map((item: CommandListItem): ReplySet => ({
+      name: item.name,
+      replies: item.templateResponses ?? [],
+    })),
+);
+const randomShown = computed<boolean>(
+  () => props.row.tier !== 'code' && draft.value.mode === 'simple' && random.value,
+);
 
 function setNumber(key: 'cooldownSeconds' | 'userCooldownSeconds', value: string | number): void {
   draft.value[key] = Number(value);
@@ -121,7 +164,7 @@ function remove(): void {
     <template #actions>
       <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
         <Trash2 aria-hidden="true" />
-        {{ $t('dashboard.commands.editor.delete') }}
+        {{ $t("dashboard.commands.editor.delete") }}
       </Button>
     </template>
     <div class="grid gap-5">
@@ -139,6 +182,11 @@ function remove(): void {
         v-model:mode="draft.mode"
         v-model:pipeline-id="draft.pipelineId"
       >
+        <SegmentedControl
+          v-model="replyType"
+          :label="$t('dashboard.commands.editor.replyType')"
+          :options="replyTypes"
+        />
         <TemplateField
           v-if="!random"
           v-model="draft.templateResponse"
@@ -147,15 +195,9 @@ function remove(): void {
           :label="$t('dashboard.commands.editor.reply')"
           :placeholder="$t('dashboard.commands.editor.replyPlaceholder')"
         />
-        <RandomReplyList v-else v-model="draft.replies" />
-        <RowGroup>
-          <SettingRow
-            :title="$t('dashboard.commands.editor.random')"
-            :description="$t('dashboard.commands.editor.randomHelp')"
-            :model-value="random"
-            @update:model-value="setRandom"
-          />
-        </RowGroup>
+        <p v-else class="text-sm text-muted-foreground">
+          {{ $t("dashboard.commands.editor.randomMoved") }}
+        </p>
       </ReplyModeField>
       <CodeTierNote v-else />
 
@@ -168,7 +210,7 @@ function remove(): void {
       </RowGroup>
 
       <Field>
-        <FieldLabel>{{ $t('dashboard.commands.editor.role') }}</FieldLabel>
+        <FieldLabel>{{ $t("dashboard.commands.editor.role") }}</FieldLabel>
         <Select v-model="draft.minPermissionLevel">
           <SelectTrigger :aria-label="$t('dashboard.commands.editor.role')" class="w-full">
             <SelectValue />
@@ -183,7 +225,7 @@ function remove(): void {
 
       <Field>
         <FieldLabel for="command-platforms">{{
-          $t('dashboard.commands.editor.platforms')
+          $t("dashboard.commands.editor.platforms")
         }}</FieldLabel>
         <Input
           id="command-platforms"
@@ -199,7 +241,7 @@ function remove(): void {
               class="transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
               aria-hidden="true"
             />
-            {{ $t('dashboard.commands.editor.moreOptions') }}
+            {{ $t("dashboard.commands.editor.moreOptions") }}
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent force-mount class="grid gap-4 pt-3 data-[state=closed]:hidden">
@@ -212,9 +254,9 @@ function remove(): void {
           <Field>
             <div class="flex items-center gap-1.5">
               <FieldLabel for="command-chat-cooldown">{{
-                $t('dashboard.commands.editor.chatCooldown')
+                $t("dashboard.commands.editor.chatCooldown")
               }}</FieldLabel>
-              <FieldInfo>{{ $t('dashboard.commands.editor.chatCooldownHelp') }}</FieldInfo>
+              <FieldInfo>{{ $t("dashboard.commands.editor.chatCooldownHelp") }}</FieldInfo>
             </div>
             <Input
               id="command-chat-cooldown"
@@ -229,9 +271,9 @@ function remove(): void {
           <Field>
             <div class="flex items-center gap-1.5">
               <FieldLabel for="command-person-cooldown">{{
-                $t('dashboard.commands.editor.personCooldown')
+                $t("dashboard.commands.editor.personCooldown")
               }}</FieldLabel>
-              <FieldInfo>{{ $t('dashboard.commands.editor.personCooldownHelp') }}</FieldInfo>
+              <FieldInfo>{{ $t("dashboard.commands.editor.personCooldownHelp") }}</FieldInfo>
             </div>
             <Input
               id="command-person-cooldown"
@@ -251,7 +293,7 @@ function remove(): void {
     <template #footer>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button type="button" variant="outline" size="sm" @click="discard">{{
-        $t('dashboard.commands.editor.discard')
+        $t("dashboard.commands.editor.discard")
       }}</Button>
       <Button
         type="button"
@@ -259,7 +301,7 @@ function remove(): void {
         :disabled="dirtyCount === 0 || !valid || update.isPending.value"
         @click="save"
       >
-        {{ $t('dashboard.commands.editor.save') }}
+        {{ $t("dashboard.commands.editor.save") }}
       </Button>
     </template>
     <ConfirmDialog
@@ -270,4 +312,5 @@ function remove(): void {
       @confirm="remove"
     />
   </PanelCard>
+  <RandomReplyPanel v-if="randomShown" v-model="draft.replies" :sets="sets" />
 </template>
