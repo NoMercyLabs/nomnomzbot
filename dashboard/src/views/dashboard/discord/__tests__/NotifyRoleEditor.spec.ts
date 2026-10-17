@@ -1,0 +1,247 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref, type Plugin } from 'vue';
+
+import { i18n } from '@/i18n';
+
+import NotifyRoleEditor from '../components/NotifyRoleEditor.vue';
+import DiscordView from '../DiscordView.vue';
+import en from '../i18n/en.json';
+
+type Options = { params?: { path?: Record<string, unknown> }; body?: unknown };
+type Call = {
+  method: string;
+  path: string;
+  body: unknown;
+};
+
+const calls: Call[] = [];
+const ok = (data: unknown): unknown => ({ data: { data }, response: { status: 200, ok: true } });
+
+const storedRole = {
+  id: 'role1',
+  guildConnectionId: 'conn1',
+  discordRoleId: 'dr1',
+  roleName: 'Live pings',
+  selfAssignEnabled: true,
+  dmEnabled: false,
+  buttonMessageId: null,
+  buttonChannelId: null,
+  optInCount: 4,
+};
+
+function answer(path: string): unknown {
+  if (path.endsWith('/discord/connections'))
+    return ok([{
+      id: 'conn1',
+      broadcasterId: 'c1',
+      guildId: 'g1',
+      guildName: 'Stoney Guild',
+      botInstalled: true,
+      serverConsentStatus: 'approved',
+      streamerEnabled: true,
+      isLinkActive: true,
+    }]);
+
+  if (path.endsWith('/connections/{connectionId}/roles'))
+    return ok([storedRole]);
+
+  return ok([]);
+}
+
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string) => answer(path),
+    PUT: async (path: string, options?: Options) => {
+      calls.push({
+        method: 'PUT',
+        path,
+        body: options?.body,
+      });
+
+      return ok(storedRole);
+    },
+    POST: async (path: string, options?: Options) => {
+      calls.push({
+        method: 'POST',
+        path,
+        body: options?.body,
+      });
+
+      return ok(storedRole);
+    },
+  },
+}));
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}));
+
+let mounted: VueWrapper | null = null;
+let pinia: Pinia;
+
+beforeEach(() => {
+  calls.length = 0;
+  pinia = createPinia();
+  setActivePinia(pinia);
+  i18n.global.mergeLocaleMessage('en', en);
+});
+
+afterEach(() => {
+  mounted?.unmount();
+  mounted = null;
+  document.body.innerHTML = '';
+});
+
+const settle = async (): Promise<void> => {
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
+};
+
+const plugins = (): Array<Plugin | [Plugin, ...unknown[]]> => [
+  i18n,
+  pinia,
+  [
+    VueQueryPlugin,
+    { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+  ],
+];
+
+async function editor(role: typeof storedRole | null): Promise<void> {
+  mounted = mount(NotifyRoleEditor, {
+    attachTo: document.body,
+    props: {
+      role: role as never,
+      connectionId: 'conn1',
+      guildRoles: [{
+        id: 'dr9',
+        name: 'Hype',
+        color: 0,
+        position: 1,
+        managed: false,
+        mentionable: true,
+        permissions: '0',
+      }],
+      channels: [{
+        id: 'ch1',
+        name: 'roles',
+        type: 0,
+        position: 0,
+        canPost: true,
+      }],
+    },
+    global: { plugins: plugins() },
+  });
+
+  await settle();
+}
+
+function type(selector: string, value: string): Promise<void> {
+  const input = document.body.querySelector<HTMLInputElement>(selector)!;
+
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+
+  return settle();
+}
+
+const press = (type: string): PointerEvent =>
+  new PointerEvent(type, {
+    bubbles: true,
+    button: 0,
+    pointerType: 'mouse',
+  });
+
+// reka-ui opens a select on pointerdown and picks the first option on pointerup.
+async function pickFirst(field: string): Promise<void> {
+  Element.prototype.hasPointerCapture = (): boolean => false;
+  Element.prototype.setPointerCapture = (): void => undefined;
+  Element.prototype.releasePointerCapture = (): void => undefined;
+
+  document.body
+    .querySelector<HTMLElement>(`[data-field="${field}"]`)
+    ?.dispatchEvent(press('pointerdown'));
+
+  await settle();
+  document.body.querySelector<HTMLElement>('[role="option"]')?.dispatchEvent(press('pointerup'));
+  await settle();
+}
+
+describe('the self-assign roles panel', () => {
+  it('lists each stored role with its opt-in count', async () => {
+    mounted = mount(DiscordView, { attachTo: document.body, global: { plugins: plugins() } });
+    await settle();
+
+    const row = document.body.querySelector('[data-notify-role-row]');
+
+    expect(row?.textContent).toContain('Live pings');
+    expect(row?.textContent).toContain('4');
+  });
+});
+
+describe('the notify role editor', () => {
+  it('updates a stored role with name, self-assign and DM', async () => {
+    await editor(storedRole);
+
+    await type('[data-field="role-name"]', 'Stream alerts');
+    document.body.querySelector<HTMLElement>('[data-field="dm-enabled"]')!.click();
+    await settle();
+    document.body.querySelector<HTMLButtonElement>('[data-save-role]')!.click();
+    await settle();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.method).toBe('PUT');
+    expect(calls[0]?.path).toContain('/discord/roles/{roleId}');
+
+    expect(calls[0]?.body).toEqual({
+      roleName: 'Stream alerts',
+      selfAssignEnabled: true,
+      dmEnabled: true,
+    });
+  });
+
+  it('posts the opt-in button to the chosen channel', async () => {
+    await editor(storedRole);
+
+    await pickFirst('button-channel');
+    document.body.querySelector<HTMLButtonElement>('[data-post-button]')!.click();
+    await settle();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.path).toContain('/discord/roles/{roleId}/button');
+    expect(calls[0]?.body).toEqual({ buttonChannelId: 'ch1' });
+  });
+
+  it('creates a role from the picked Discord role', async () => {
+    await editor(null);
+
+    await pickFirst('discord-role');
+    document.body.querySelector<HTMLButtonElement>('[data-save-role]')!.click();
+    await settle();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.method).toBe('POST');
+    expect(calls[0]?.path).toContain('/connections/{connectionId}/roles');
+
+    expect(calls[0]?.body).toEqual({
+      discordRoleId: 'dr9',
+      roleName: 'Hype',
+      selfAssignEnabled: true,
+      dmEnabled: false,
+    });
+  });
+});

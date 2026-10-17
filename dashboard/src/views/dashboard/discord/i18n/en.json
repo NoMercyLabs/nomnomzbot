@@ -32,6 +32,25 @@
         "channel_poll_begin": "Poll starts",
         "channel_prediction_begin": "Prediction starts"
       },
+      "roles": {
+        "title": "Self-assign roles",
+        "subtitle": "Roles viewers can pick for themselves in Discord.",
+        "empty": "No self-assign roles yet.",
+        "error": "The self-assign roles could not load.",
+        "add": "Add role",
+        "new": "New role",
+        "description": "Pick the Discord role, then choose who can take it and where its button lives.",
+        "optIns": "{count} opted in",
+        "discordRole": "Discord role",
+        "discordRolePlaceholder": "Pick a role",
+        "name": "Display name",
+        "selfAssign": "Viewers can pick this role",
+        "selfAssignHelp": "Turn it off to hide the role from the opt-in button.",
+        "dm": "Send a direct message",
+        "dmHelp": "Message members when they take or leave the role.",
+        "buttonChannel": "Button channel",
+        "postButton": "Post button"
+      },
       "editor": {
         "description": "Pick where the message goes, who it pings and what it says.",
         "enabled": "Send this notification",

@@ -32,6 +32,25 @@
         "channel_poll_begin": "Poll begint",
         "channel_prediction_begin": "Voorspelling begint"
       },
+      "roles": {
+        "title": "Zelf te kiezen rollen",
+        "subtitle": "Rollen die kijkers zelf in Discord kunnen kiezen.",
+        "empty": "Nog geen zelf te kiezen rollen.",
+        "error": "De rollen konden niet laden.",
+        "add": "Rol toevoegen",
+        "new": "Nieuwe rol",
+        "description": "Kies de Discord-rol en bepaal wie hem mag nemen en waar de knop staat.",
+        "optIns": "{count} aangemeld",
+        "discordRole": "Discord-rol",
+        "discordRolePlaceholder": "Kies een rol",
+        "name": "Weergavenaam",
+        "selfAssign": "Kijkers mogen deze rol kiezen",
+        "selfAssignHelp": "Zet uit om de rol te verbergen op de knop.",
+        "dm": "Stuur een privébericht",
+        "dmHelp": "Stuur leden een bericht als ze de rol nemen of verlaten.",
+        "buttonChannel": "Kanaal voor de knop",
+        "postButton": "Knop plaatsen"
+      },
       "editor": {
         "description": "Kies waar het bericht heen gaat, wie het pingt en wat er staat.",
         "enabled": "Stuur deze melding",

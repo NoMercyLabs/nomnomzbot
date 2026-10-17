@@ -17,6 +17,8 @@ import {
   useDiscordConnections,
   useDiscordRoles,
   useDiscordRules,
+  useNotifyRoles,
+  type NotifyRole,
   type DiscordConnection,
   type DiscordRule,
 } from '@/api/discord';
@@ -38,6 +40,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
+import NotifyRoleEditor from './components/NotifyRoleEditor.vue';
 import RuleEditor from './components/RuleEditor.vue';
 import { discordTriggers } from './triggers';
 
@@ -53,12 +56,31 @@ const connectionId = computed<string | null>(() => connection.value?.id ?? null)
 const rulesQuery = useDiscordRules(channelId, connectionId);
 const channelsQuery = useDiscordChannels(channelId, connectionId);
 const rolesQuery = useDiscordRoles(channelId, connectionId);
+const notifyRolesQuery = useNotifyRoles(channelId, connectionId);
 
 const connectionState = usePanelState(
   connectionsQuery,
   (rows: DiscordConnection[]): boolean => rows.length === 0,
 );
 const rulesState = usePanelState(rulesQuery);
+const notifyRolesState = usePanelState(
+  notifyRolesQuery,
+  (rows: NotifyRole[]): boolean => rows.length === 0,
+);
+const notifyRoles = computed<NotifyRole[]>(() => notifyRolesQuery.data.value ?? []);
+// 'new' opens an empty editor; a role id opens that stored role.
+const editingRole = ref<string | null>(null);
+const roleOpen = computed<boolean>({
+  get: () => editingRole.value !== null,
+  set: (value: boolean) => {
+    if (!value) {
+      editingRole.value = null;
+    }
+  },
+});
+const roleBeingEdited = computed<NotifyRole | null>(
+  () => notifyRoles.value.find((role: NotifyRole) => role.id === editingRole.value) ?? null,
+);
 
 const rules = computed<DiscordRule[]>(() => rulesQuery.data.value ?? []);
 const editing = ref<string | null>(null);
@@ -176,7 +198,75 @@ function ruleSummary(rule: DiscordRule | null): string {
           </li>
         </ul>
       </PanelCard>
+
+      <PanelCard
+        v-if="connection"
+        :title="t('dashboard.discord.roles.title')"
+        :description="t('dashboard.discord.roles.subtitle')"
+        :state="notifyRolesState"
+        :empty-text="t('dashboard.discord.roles.empty')"
+        :error-text="t('dashboard.discord.roles.error')"
+        @retry="notifyRolesQuery.refetch()"
+      >
+        <template #actions>
+          <Button variant="outline" size="sm" data-add-role @click="editingRole = 'new'">
+            {{ t('dashboard.discord.roles.add') }}
+          </Button>
+        </template>
+        <ul>
+          <li v-for="role in notifyRoles" :key="role.id" data-notify-role-row>
+            <SummaryRow
+              :title="role.roleName ?? role.discordRoleId"
+              :detail="t('dashboard.discord.roles.optIns', { count: role.optInCount })"
+            >
+              <template #trailing>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :data-edit-role="role.id"
+                  @click="editingRole = role.id"
+                >
+                  {{ t('dashboard.discord.rules.edit') }}
+                </Button>
+              </template>
+            </SummaryRow>
+          </li>
+        </ul>
+      </PanelCard>
     </div>
+
+    <Sheet v-model:open="roleOpen">
+      <SheetContent
+        v-if="editingRole !== null && connectionId !== null"
+        class="overflow-y-auto"
+        :show-close-button="false"
+      >
+        <SheetClose as-child>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="absolute top-3 right-3 z-10"
+            :aria-label="t('common.close')"
+          >
+            <Cross aria-hidden="true" />
+          </Button>
+        </SheetClose>
+        <SheetHeader>
+          <SheetTitle>{{ roleBeingEdited?.roleName ?? t('dashboard.discord.roles.new') }}</SheetTitle>
+          <SheetDescription>{{ t('dashboard.discord.roles.description') }}</SheetDescription>
+        </SheetHeader>
+        <div class="p-4">
+          <NotifyRoleEditor
+            :key="editingRole"
+            :role="roleBeingEdited"
+            :connection-id="connectionId"
+            :guild-roles="rolesQuery.data.value ?? []"
+            :channels="channelsQuery.data.value ?? []"
+            @saved="editingRole = null"
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
 
     <Sheet v-model:open="open">
       <SheetContent

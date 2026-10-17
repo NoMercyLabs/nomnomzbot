@@ -262,3 +262,151 @@ export function useDiscordPreview(
     },
   });
 }
+
+export type NotifyRole = components['schemas']['DiscordNotificationRole'];
+export type NotifyRoleCreate = components['schemas']['CreateDiscordNotificationRoleRequest'];
+export type NotifyRoleChange = components['schemas']['UpdateDiscordNotificationRoleRequest'];
+
+export const notifyRolesKey = (
+  channelId: string | null,
+  connectionId: string | null,
+): KeyParts => [
+  'channels',
+  channelId,
+  'discord-notify-roles',
+  connectionId,
+];
+
+export function useNotifyRoles(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<NotifyRole[], Error> {
+  return useQuery({
+    queryKey: computed(() => notifyRolesKey(toValue(channelId), toValue(connectionId))),
+    queryFn: async (): Promise<NotifyRole[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/roles',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              connectionId: toValue(connectionId) as string,
+            },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('discord notify roles', response.status, error);
+
+      return data?.data ?? [];
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(connectionId) !== null),
+  });
+}
+
+export function useCreateNotifyRole(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<NotifyRole | null, Error, NotifyRoleCreate, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: NotifyRoleCreate): Promise<NotifyRole | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/roles',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              connectionId: toValue(connectionId) as string,
+            },
+          },
+          body,
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('create discord notify role', response.status, error);
+
+      return data?.data ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({
+        queryKey: notifyRolesKey(toValue(channelId), toValue(connectionId)),
+      });
+    },
+  });
+}
+
+export type NotifyRoleSave = { roleId: string; change: NotifyRoleChange };
+
+export function useSaveNotifyRole(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<NotifyRole | null, Error, NotifyRoleSave, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ roleId, change }: NotifyRoleSave): Promise<NotifyRole | null> => {
+      const { data, error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/discord/roles/{roleId}',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            roleId,
+          } },
+          body: change,
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('save discord notify role', response.status, error);
+
+      return data?.data ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({
+        queryKey: notifyRolesKey(toValue(channelId), toValue(connectionId)),
+      });
+    },
+  });
+}
+
+export type RoleButtonPost = { roleId: string; buttonChannelId: string };
+
+export function usePostRoleButton(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<NotifyRole | null, Error, RoleButtonPost, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ roleId, buttonChannelId }: RoleButtonPost): Promise<NotifyRole | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/discord/roles/{roleId}/button',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            roleId,
+          } },
+          body: { buttonChannelId },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('post discord role button', response.status, error);
+
+      return data?.data ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({
+        queryKey: notifyRolesKey(toValue(channelId), toValue(connectionId)),
+      });
+    },
+  });
+}
