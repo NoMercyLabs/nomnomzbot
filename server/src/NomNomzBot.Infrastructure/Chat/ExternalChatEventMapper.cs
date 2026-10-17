@@ -9,7 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Dtos;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 
 namespace NomNomzBot.Infrastructure.Chat;
@@ -58,11 +60,15 @@ internal static class ExternalChatEventMapper
             @event.GetString("color"),
             ChatPayload.ReadMessageText(message),
             ChatPayload.ReadFragments(message),
-            ChatPayload.ReadBadges(@event),
+            [.. ChatPayload.ReadBadges(@event).Select(Unresolved)],
             @event.GetObject("reply")?.GetString("parent_message_id"),
             timestamp
         );
     }
+
+    // The reader fills the image urls from the channel's badge sets before the line is pushed.
+    private static ResolvedChatBadge Unresolved(ChatBadge badge) =>
+        new(badge.SetId, badge.Id, badge.Info, new Dictionary<string, string>());
 
     private static ExternalChatEvent Empty(
         ExternalChatEventKind kind,

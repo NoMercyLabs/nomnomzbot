@@ -27,6 +27,7 @@ public sealed class ExternalChatRelay : IExternalChatRelay
 {
     private readonly IViewerEventSubSessions _sessions;
     private readonly IExternalChatPush _push;
+    private readonly IChatBadgeResolver _badges;
     private readonly IServiceScopeFactory _scopes;
     private readonly ILogger<ExternalChatRelay> _logger;
     private readonly ConcurrentDictionary<Guid, ExternalChatReader> _readers = new();
@@ -36,12 +37,14 @@ public sealed class ExternalChatRelay : IExternalChatRelay
     public ExternalChatRelay(
         IViewerEventSubSessions sessions,
         IExternalChatPush push,
+        IChatBadgeResolver badges,
         IServiceScopeFactory scopes,
         ILogger<ExternalChatRelay> logger
     )
     {
         _sessions = sessions;
         _push = push;
+        _badges = badges;
         _scopes = scopes;
         _logger = logger;
     }
@@ -126,7 +129,14 @@ public sealed class ExternalChatRelay : IExternalChatRelay
                 "NOT_FOUND"
             );
 
-        ExternalChatReader reader = new(viewerUserId, viewerTwitchId, _sessions, _push, _logger);
+        ExternalChatReader reader = new(
+            viewerUserId,
+            viewerTwitchId,
+            _sessions,
+            _push,
+            _badges,
+            _logger
+        );
         Result<string> opened = await _sessions.OpenAsync(reader.OwnerKey, reader, ct);
         if (opened.IsFailure)
         {

@@ -223,6 +223,24 @@ public sealed class TwitchChatAssetsApi(
         return await transport.GetListAsync<TwitchChatBadgeSet>(request, ct);
     }
 
+    public async Task<
+        Result<IReadOnlyList<TwitchChatBadgeSet>>
+    > GetChannelChatBadgesByTwitchIdAsync(
+        string twitchBroadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        // The id is already the raw Twitch broadcaster id (the channel may not be a local tenant).
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "chat/badges",
+            TwitchHelixAuth.App,
+            Query: [new("broadcaster_id", twitchBroadcasterId)]
+        );
+
+        return await transport.GetListAsync<TwitchChatBadgeSet>(request, ct);
+    }
+
     public async Task<Result<IReadOnlyList<TwitchChatBadgeSet>>> GetGlobalChatBadgesAsync(
         CancellationToken ct = default
     )

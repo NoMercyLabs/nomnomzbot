@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Domain.Chat.ValueObjects;
 
 namespace NomNomzBot.Application.Chat.Dtos;
@@ -34,7 +35,7 @@ public sealed record ExternalChatEvent(
     string? Color,
     string Text,
     IReadOnlyList<ChatMessageFragment> Fragments,
-    IReadOnlyList<ChatBadge> Badges,
+    IReadOnlyList<ResolvedChatBadge> Badges,
     string? ReplyParentMessageId,
     DateTimeOffset Timestamp
 );

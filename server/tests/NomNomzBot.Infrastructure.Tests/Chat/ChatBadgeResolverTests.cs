@@ -109,6 +109,46 @@ public sealed class ChatBadgeResolverTests
     }
 
     [Fact]
+    public async Task An_off_bot_channel_resolves_its_own_badges_by_twitch_id_and_caches_them()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
+            ChatBadgeCacheKeys.Global,
+            [
+                Set("subscriber", "0", "https://badge/global-sub"),
+                Set("moderator", "1", "https://badge/mod"),
+            ]
+        );
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetChannelChatBadgesByTwitchIdAsync("424242", Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(
+                    Result.Success<IReadOnlyList<TwitchChatBadgeSet>>([
+                        Set("subscriber", "0", "https://badge/offbot-sub"),
+                    ])
+                )
+            );
+        ChatBadgeResolver resolver = Resolver(cache, assets);
+
+        IReadOnlyList<ResolvedChatBadge> resolved = await resolver.ResolveByTwitchIdAsync(
+            "424242",
+            [new("subscriber", "0"), new("moderator", "1")]
+        );
+        await resolver.ResolveByTwitchIdAsync("424242", [new("subscriber", "0")]);
+
+        resolved.Should().HaveCount(2);
+        resolved[0].Urls["2"].Should().Be("https://badge/offbot-sub/2");
+        resolved[1].Urls["1"].Should().Be("https://badge/mod/1");
+        await assets
+            .Received(1)
+            .GetChannelChatBadgesByTwitchIdAsync("424242", Arg.Any<CancellationToken>());
+        await assets
+            .DidNotReceive()
+            .GetChannelChatBadgesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_failed_channel_warm_is_not_repeated_per_message_and_global_still_resolves()
     {
         FakeCache cache = new();

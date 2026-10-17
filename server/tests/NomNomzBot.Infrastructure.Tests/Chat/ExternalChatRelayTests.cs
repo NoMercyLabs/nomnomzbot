@@ -14,10 +14,12 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Dtos;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.Chat;
 using NSubstitute;
 
@@ -44,6 +46,31 @@ public sealed class ExternalChatRelayTests
     private readonly Guid _viewer = Guid.NewGuid();
     private readonly FakeSessions _sessions = new();
     private readonly CapturingPush _push = new();
+    private readonly IChatBadgeResolver _badges = EchoBadges();
+
+    // Unless a test names the urls, a badge resolves to itself with no images (an un-warmed set).
+    private static IChatBadgeResolver EchoBadges()
+    {
+        IChatBadgeResolver badges = Substitute.For<IChatBadgeResolver>();
+        badges
+            .ResolveByTwitchIdAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<ChatBadge>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Task.FromResult<IReadOnlyList<ResolvedChatBadge>>([
+                    .. call.Arg<IReadOnlyList<ChatBadge>>()
+                        .Select(b => new ResolvedChatBadge(
+                            b.SetId,
+                            b.Id,
+                            b.Info,
+                            new Dictionary<string, string>()
+                        )),
+                ])
+            );
+        return badges;
+    }
 
     private ExternalChatRelay NewRelay()
     {
@@ -55,7 +82,7 @@ public sealed class ExternalChatRelayTests
             .AddScoped<ITwitchIdentityResolver>(_ => identity)
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
-        return new(_sessions, _push, scopes, NullLogger<ExternalChatRelay>.Instance);
+        return new(_sessions, _push, _badges, scopes, NullLogger<ExternalChatRelay>.Instance);
     }
 
     [Fact]
@@ -130,6 +157,57 @@ public sealed class ExternalChatRelayTests
         line.ReplyParentMessageId.Should().Be("m-0");
         line.Timestamp.Should().Be(new(2026, 10, 16, 12, 0, 0, TimeSpan.Zero));
         _sessions.Opened.Should().ContainSingle("two connections of one viewer share one session");
+    }
+
+    [Fact]
+    public async Task A_pushed_line_carries_its_channels_badge_images_and_its_emote_images()
+    {
+        _badges
+            .ResolveByTwitchIdAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<ChatBadge>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Task.FromResult<IReadOnlyList<ResolvedChatBadge>>([
+                    new ResolvedChatBadge(
+                        "subscriber",
+                        "12",
+                        "12",
+                        new Dictionary<string, string> { ["1"] = "https://badge/offbot-sub/1" }
+                    ),
+                ])
+            );
+        ExternalChatRelay relay = NewRelay();
+        await relay.JoinAsync(_viewer, "conn-1", Channel);
+        const string withEmote = """
+            {"chatter_user_id":"55","chatter_user_login":"someone","message_id":"m-2",
+             "message":{"text":"hi Kappa","fragments":[{"type":"text","text":"hi "},
+               {"type":"emote","text":"Kappa","emote":{"id":"25","emote_set_id":"0","owner_id":"0","format":["static"]}}]},
+             "badges":[{"set_id":"subscriber","id":"12","info":"12"}]}
+            """;
+
+        await _sessions.Sink!.OnNotificationAsync(
+            "n-2",
+            DateTimeOffset.UnixEpoch,
+            "channel.chat.message",
+            "1",
+            Channel,
+            JsonDocument.Parse(withEmote).RootElement,
+            CancellationToken.None
+        );
+
+        ExternalChatEvent line = _push.Pushed.Should().ContainSingle().Subject.Event;
+        line.Badges.Should()
+            .ContainSingle()
+            .Which.Urls["1"]
+            .Should()
+            .Be("https://badge/offbot-sub/1");
+        ChatEmote emote = line.Fragments[1].Emote!;
+        emote.Id.Should().Be("25");
+        emote.Code.Should().Be("Kappa");
+        emote.Urls["1"].Should().Be("https://static-cdn.jtvnw.net/emoticons/v2/25/static/dark/1.0");
+        line.Fragments[0].Emote.Should().BeNull();
     }
 
     [Fact]

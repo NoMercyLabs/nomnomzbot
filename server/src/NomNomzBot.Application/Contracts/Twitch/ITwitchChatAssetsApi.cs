@@ -95,6 +95,12 @@ public interface ITwitchChatAssetsApi
         CancellationToken ct = default
     );
 
+    /// <summary>Get Channel Chat Badges for a channel addressed by its raw Twitch id (the bot need not be on it). App token; no scope.</summary>
+    Task<Result<IReadOnlyList<TwitchChatBadgeSet>>> GetChannelChatBadgesByTwitchIdAsync(
+        string twitchBroadcasterId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Get Global Chat Badges — Twitch's global chat-badge sets, usable in any channel. App token; no scope; no params.</summary>
     Task<Result<IReadOnlyList<TwitchChatBadgeSet>>> GetGlobalChatBadgesAsync(
         CancellationToken ct = default

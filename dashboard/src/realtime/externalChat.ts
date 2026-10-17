@@ -24,11 +24,7 @@ export type ExternalChatPayload = {
   color: string | null;
   text: string;
   fragments: ChatLine['fragments'];
-  badges: Array<{
-    setId: string;
-    id: string;
-    info?: string | null;
-  }>;
+  badges: ChatLine['badges'];
   replyParentMessageId: string | null;
   timestamp: string;
 };
@@ -58,7 +54,7 @@ export const externalChatHandlers = [
 ] as const satisfies readonly HubEventHandler<ExternalChatPayload>[];
 
 // A pushed line as the chat line the existing row renders. The viewer holds no role in a channel the bot
-// does not serve, so no role flag is set; the server sends no badge images, so a badge has no URLs.
+// does not serve, so no role flag is set. The server resolves the channel's badge and emote images.
 export function toChatLine(payload: ExternalChatPayload): ChatLine {
   const fragments: ChatLine['fragments'] = payload.fragments.length > 0
     ? payload.fragments
@@ -88,7 +84,7 @@ export function toChatLine(payload: ExternalChatPayload): ChatLine {
     isBroadcaster: false,
     isCheer: false,
     isCommand: false,
-    badges: payload.badges.map((badge) => ({ ...badge, urls: {} })),
+    badges: payload.badges,
     bitsAmount: 0,
     color: payload.color,
     messageType: 'text',

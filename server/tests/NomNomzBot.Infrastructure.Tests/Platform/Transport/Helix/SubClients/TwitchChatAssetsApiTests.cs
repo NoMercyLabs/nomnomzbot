@@ -396,6 +396,30 @@ public class TwitchChatAssetsApiTests
     }
 
     [Fact]
+    public async Task GetChannelChatBadgesByTwitchId_SendsTheRawTwitchIdWithoutATenant()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            ListResult = new List<TwitchChatBadgeSet>
+            {
+                new("subscriber", [new("3", "s1", "s2", "s4", "3-Month", "", "", "")]),
+            },
+        };
+        TwitchChatAssetsApi api = Build(transport);
+
+        Result<IReadOnlyList<TwitchChatBadgeSet>> result =
+            await api.GetChannelChatBadgesByTwitchIdAsync("424242");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().ContainSingle().Which.Versions[0].ImageUrl2x.Should().Be("s2");
+        transport.LastRequest!.Path.Should().Be("chat/badges");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.App);
+        transport
+            .LastRequest.Query.Should()
+            .ContainSingle(q => q.Key == "broadcaster_id" && q.Value == "424242");
+    }
+
+    [Fact]
     public async Task GetGlobalChatBadges_BuildsAppTokenRequest_NoParams()
     {
         CapturingHelixTransport transport = new()

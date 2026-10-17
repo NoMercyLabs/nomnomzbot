@@ -10,10 +10,13 @@
 
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Dtos;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Enums;
+using NomNomzBot.Domain.Chat.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Chat;
 
@@ -33,6 +36,7 @@ internal sealed class ExternalChatReader : IEventSubNotificationSink
     private readonly string _viewerTwitchId;
     private readonly IViewerEventSubSessions _sessions;
     private readonly IExternalChatPush _push;
+    private readonly IChatBadgeResolver _badges;
     private readonly ILogger _logger;
     private readonly Lock _lock = new();
 
@@ -46,6 +50,7 @@ internal sealed class ExternalChatReader : IEventSubNotificationSink
         string viewerTwitchId,
         IViewerEventSubSessions sessions,
         IExternalChatPush push,
+        IChatBadgeResolver badges,
         ILogger logger
     )
     {
@@ -54,6 +59,7 @@ internal sealed class ExternalChatReader : IEventSubNotificationSink
         _viewerTwitchId = viewerTwitchId;
         _sessions = sessions;
         _push = push;
+        _badges = badges;
         _logger = logger;
     }
 
@@ -213,8 +219,52 @@ internal sealed class ExternalChatReader : IEventSubNotificationSink
                 : [];
         }
 
+        if (connections.Count == 0)
+            return;
+
+        ExternalChatEvent decorated = await DecorateAsync(chatEvent, ct);
         foreach (string connectionId in connections)
-            await _push.PushAsync(connectionId, chatEvent, ct);
+            await _push.PushAsync(connectionId, decorated, ct);
+    }
+
+    // The bot pipeline never sees these lines, so the reader gives them the channel's own badge images and the
+    // Twitch emote images (their CDN urls follow from the emote id alone).
+    private async Task<ExternalChatEvent> DecorateAsync(
+        ExternalChatEvent line,
+        CancellationToken ct
+    )
+    {
+        foreach (ChatMessageFragment fragment in line.Fragments)
+            if (fragment is { Type: "emote", EmoteId: not null, Emote: null })
+                fragment.Emote = TwitchFragmentEmote(fragment, fragment.EmoteId);
+
+        if (line.Badges.Count == 0)
+            return line;
+
+        List<ChatBadge> raw = [.. line.Badges.Select(b => new ChatBadge(b.SetId, b.Id, b.Info))];
+        IReadOnlyList<ResolvedChatBadge> badges = await _badges.ResolveByTwitchIdAsync(
+            line.BroadcasterTwitchId,
+            raw,
+            ct
+        );
+        return line with { Badges = badges };
+    }
+
+    private static ChatEmote TwitchFragmentEmote(ChatMessageFragment fragment, string emoteId)
+    {
+        bool animated = fragment.EmoteFormats.Contains("animated");
+
+        return new(
+            EmoteProvider.Twitch,
+            emoteId,
+            fragment.Text,
+            TwitchEmoteMapper.BuildUrls(emoteId, animated),
+            animated,
+            ZeroWidth: false,
+            SetId: fragment.EmoteSetId,
+            OwnerId: fragment.EmoteOwnerId,
+            Formats: fragment.EmoteFormats
+        );
     }
 
     public Task OnRevocationAsync(

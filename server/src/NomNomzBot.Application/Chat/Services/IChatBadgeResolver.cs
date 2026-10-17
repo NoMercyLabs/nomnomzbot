@@ -25,4 +25,14 @@ public interface IChatBadgeResolver
         IReadOnlyList<ChatBadge> badges,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Resolves badges for a channel addressed by its raw Twitch id (a channel the bot is not on): the global set plus
+    /// that channel's own set, warmed once on demand and cached under its Twitch id.
+    /// </summary>
+    Task<IReadOnlyList<ResolvedChatBadge>> ResolveByTwitchIdAsync(
+        string twitchBroadcasterId,
+        IReadOnlyList<ChatBadge> badges,
+        CancellationToken ct = default
+    );
 }
