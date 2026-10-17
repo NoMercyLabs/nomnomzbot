@@ -12,20 +12,25 @@
 import Plus from '~icons/nnz/add';
 import ArrowLeft from '~icons/nnz/arrow-left';
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useTimers, type Timer } from '@/api/liveOps';
 import { useDeleteTimer } from '@/api/timers';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePageView } from '@/composables/usePageView';
 
+import ChatTriggersPanel from './components/ChatTriggersPanel.vue';
 import NewTimerDialog from './components/NewTimerDialog.vue';
 import TimerEditor from './components/TimerEditor.vue';
 import TimerList from './components/TimerList.vue';
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
@@ -52,18 +57,39 @@ function removeTimer(item: Timer): void {
 }
 
 const creating = ref(false);
+const creatingTrigger = ref(false);
+
+const tabs = computed<PageTab[]>(() => [
+  { value: 'timers', label: t('dashboard.timers.tabs.timers') },
+  { value: 'triggers', label: t('dashboard.timers.tabs.triggers') },
+]);
+const view = usePageView(['timers', 'triggers']);
+
+function create(): void {
+  if (view.value === 'triggers') {
+    creatingTrigger.value = true;
+
+    return;
+  }
+
+  creating.value = true;
+}
 </script>
 
 <template>
   <PageHeader :title="$t('dashboard.timers.title')" :crumb="$t('dashboard.timers.crumb')">
     <template #actions>
-      <Button type="button" variant="outline" size="sm" @click="creating = true">
+      <Button type="button" variant="outline" size="sm" @click="create">
         <Plus aria-hidden="true" />
-        {{ $t('dashboard.timers.new') }}
+        {{ view === 'triggers' ? $t('dashboard.timers.triggers.new') : $t('dashboard.timers.new') }}
       </Button>
     </template>
+    <template #bar>
+      <PageTabs :tabs="tabs" />
+    </template>
   </PageHeader>
-  <ListDetail :show-detail="row !== undefined">
+  <ChatTriggersPanel v-if="view === 'triggers'" v-model:creating="creatingTrigger" />
+  <ListDetail v-else :show-detail="row !== undefined">
     <template #list>
       <TimerList :selected="selected" @pick="select" @create="creating = true" />
     </template>

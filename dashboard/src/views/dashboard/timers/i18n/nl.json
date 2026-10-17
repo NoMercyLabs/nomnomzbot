@@ -5,6 +5,59 @@
       "crumb": "Bouwen",
       "new": "Nieuwe timer",
       "back": "Terug naar de lijst",
+      "tabs": {
+        "timers": "Timers",
+        "triggers": "Chattriggers"
+      },
+      "triggers": {
+        "new": "Nieuwe trigger",
+        "list": {
+          "title": "Chattriggers",
+          "error": "De chattriggers konden niet laden.",
+          "empty": "Nog geen chattriggers.",
+          "makeFirst": "Maak de eerste trigger",
+          "pick": "Kies een trigger om hem te bewerken.",
+          "pickTitle": "Geen trigger open"
+        },
+        "match": {
+          "contains": "Bevat de woorden",
+          "exact": "Is precies de woorden",
+          "starts_with": "Begint met de woorden",
+          "regex": "Past bij een patroon"
+        },
+        "roles": {
+          "Everyone": "Iedereen",
+          "Subscriber": "Abonnees",
+          "Vip": "VIP's",
+          "Artist": "Artiesten",
+          "Moderator": "Moderators",
+          "LeadModerator": "Hoofdmoderators",
+          "Editor": "Editors",
+          "Broadcaster": "Streamer"
+        },
+        "editor": {
+          "enabled": "Aan",
+          "enabledHelp": "Een trigger die uit staat blijft in de lijst en antwoordt niet.",
+          "pattern": "Woorden om op te letten",
+          "matchType": "Hoe de chat moet passen",
+          "caseSensitive": "Hoofdletters tellen mee",
+          "caseSensitiveHelp": "Uit betekent dat Hallo en hallo hetzelfde zijn.",
+          "response": "Antwoord",
+          "cooldown": "Seconden tussen antwoorden",
+          "cooldownHelp": "Het hele kanaal wacht zo lang voordat de trigger weer antwoordt.",
+          "role": "Wie hem kan activeren",
+          "confirmTitle": "{name} verwijderen?",
+          "confirmBody": "De trigger wordt voorgoed verwijderd. Hij antwoordt niet meer.",
+          "confirmAction": "Trigger verwijderen"
+        },
+        "dialog": {
+          "title": "Nieuwe chattrigger",
+          "description": "Kies de woorden om op te letten en wat de bot terugzegt.",
+          "patternRequired": "Geef de trigger woorden om op te letten.",
+          "responseRequired": "Schrijf het antwoord.",
+          "create": "Trigger maken"
+        }
+      },
       "list": {
         "title": "Timers",
         "search": "Timers zoeken",
