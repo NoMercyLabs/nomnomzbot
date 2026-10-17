@@ -539,7 +539,6 @@
       "description": "Twitch toont de reden. Ze moeten de waarschuwing accepteren voordat ze weer kunnen chatten.",
       "reason": "Reden",
       "reasonNeeded": "Twitch heeft een reden nodig voor een waarschuwing.",
-      "left": "Nog {count} tekens",
       "action": "Waarschuwing sturen",
       "done": "{name} is gewaarschuwd.",
       "failed": "Twitch heeft de waarschuwing voor {name} niet geaccepteerd."

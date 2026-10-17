@@ -539,7 +539,6 @@
       "description": "Twitch shows them the reason. They must accept the warning before they can chat again.",
       "reason": "Reason",
       "reasonNeeded": "Twitch needs a reason for a warning.",
-      "left": "{count} characters left",
       "action": "Send warning",
       "done": "Warned {name}.",
       "failed": "Twitch did not accept the warning for {name}."

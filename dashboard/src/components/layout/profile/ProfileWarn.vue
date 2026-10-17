@@ -16,7 +16,7 @@ import { toast } from 'vue-sonner';
 
 import { useWarn } from '@/api/people';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import { Field, FieldError, FieldInfo, FieldLabel } from '@/components/ui/field';
+import { Field, FieldCount, FieldError, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -80,7 +80,7 @@ async function send(): Promise<void> {
     <Field :data-invalid="reasonError ? true : undefined">
       <div class="flex items-center gap-1.5">
         <FieldLabel for="profile-warn-reason">{{ $t('profile.warn.reason') }}</FieldLabel>
-        <FieldInfo>{{ $t('profile.warn.left', { count: REASON_MAX - reason.length }) }}</FieldInfo>
+        <FieldCount :value="reason" :max="REASON_MAX" />
       </div>
       <Textarea
         id="profile-warn-reason"
