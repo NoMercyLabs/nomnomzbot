@@ -44,11 +44,253 @@
         "error": "The channel list could not load.",
         "forbidden": "You may not see the channel list."
       },
+      "users": {
+        "title": "Users",
+        "search": "Search users",
+        "count": "{count} users",
+        "never": "Never",
+        "columns": {
+          "user": "User",
+          "role": "Role",
+          "channels": "Channels",
+          "lastActive": "Last active",
+          "created": "Created"
+        },
+        "role": {
+          "admin": "Admin",
+          "user": "User"
+        },
+        "filters": {
+          "roleLabel": "Role",
+          "role": {
+            "all": "All",
+            "admin": "Admin",
+            "user": "User"
+          }
+        },
+        "list": {
+          "title": "Users",
+          "newestFirst": "Newest first",
+          "empty": "No user matches these filters.",
+          "error": "The user list could not load.",
+          "forbidden": "You may not see the user list."
+        }
+      },
       "pager": {
         "page": "Page {page} of {pages}",
         "previous": "Previous",
         "next": "Next"
+      },
+      "spamDefaults": {
+        "title": "Spam defaults",
+        "crumb": "Admin",
+        "restricted": "Saas mode is a restricted option: running NomNomzBot as a hosted service for third parties is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+        "save": "Save defaults",
+        "saving": "Saving",
+        "range": "Enter a value from {min} to {max}.",
+        "saved": "Spam defaults saved.",
+        "saveError": "The spam defaults could not be saved: {reason}",
+        "loadError": "The spam defaults could not load.",
+        "forbidden": "You may not see the spam defaults.",
+        "invariantsTitle": "Guarantees with no switch",
+        "settingsTitle": "Defaults for new channels",
+        "unsaved": "Unsaved changes",
+        "trustFields": {
+          "establishedDays": "Days around before a viewer counts as established",
+          "establishedMessages": "Messages before a viewer counts as established",
+          "establishedDistinctActiveDays": "Separate active days before a viewer counts as established",
+          "establishedStrikeFreeDays": "Strike-free days before a viewer counts as established"
+        },
+        "dequalifyBelowQualify": "The exoneration share must stay below the campaign share, so a group on the borderline cannot flip back and forth.",
+        "inactiveBadge": "Not yet active",
+        "inactiveArrives": "It starts to work with work item {slice}. Your value is saved and used from then on.",
+        "explain": "These are the values every new channel starts with. A channel that has never changed a setting keeps following these, so editing one here moves all of them at once.",
+        "groups": {
+          "master": "Master",
+          "trust": "Trust",
+          "newcomers": "New accounts and new followers",
+          "content": "Message content",
+          "campaign": "Coordinated campaigns",
+          "bursts": "Sudden activity",
+          "lockdown": "Raid lockdown",
+          "network": "Shared spam list"
+        },
+        "settings": {
+          "isEnabled": {
+            "label": "Spam defence enabled",
+            "explanation": "Turns the whole system on or off. Off means no detection and no records at all.",
+            "cost": "Off leaves you with only the platform's own tools."
+          },
+          "dryRun": {
+            "label": "Watch only, do not act",
+            "explanation": "Everything is detected and recorded with a full explanation, and nothing is acted on. The dashboard shows what would have happened.",
+            "cost": "Leaving it on means spam is never removed automatically. Turning it off is the moment the system starts affecting real viewers, so do it after you have read a week of your own results and agree with them."
+          },
+          "trustThresholds": {
+            "label": "Trust ladder thresholds",
+            "explanation": "How long someone has been around, how much they have said, and on how many separate days, before they count as a newcomer, a known face, a regular, or an established member of your channel.",
+            "cost": "Lower earns trust faster, which protects real viewers sooner and gives a patient spammer a shorter road. Higher is stricter on both. Reaching established means the system will never act against them automatically, which is why this bar is worth setting deliberately."
+          },
+          "semiTrustedWatchHoursHere": {
+            "label": "Watch hours here that earn protection",
+            "explanation": "Someone who has watched this many hours in your channel can no longer be banned or timed out automatically, even if they have never typed a word.",
+            "cost": "Lower protects quiet regulars sooner. Higher leaves them exposed for longer. This is the setting that protects lurkers, who have no other way to prove they are real.",
+            "inactive": "The bot does not count watch hours yet, so nobody earns protection this way today."
+          },
+          "semiTrustedWatchHoursInstance": {
+            "label": "Watch hours across all channels that earn protection",
+            "explanation": "The same protection, earned across every channel on this server rather than just yours.",
+            "cost": "Lower extends trust between channels more readily. Higher keeps each channel's judgement to itself.",
+            "inactive": "The bot does not count watch hours yet, so nobody earns protection this way today."
+          },
+          "nearDuplicateSimilarity": {
+            "label": "How similar counts as the same spam",
+            "explanation": "Spammers change a couple of characters and send again. This is how alike a message must be to a known one to be treated as the same campaign.",
+            "cost": "Lower catches more mutations but starts matching ordinary messages that happen to share phrasing. Higher only catches near-exact repeats. Zero turns mutation matching off entirely and leaves only exact matches."
+          },
+          "minimumSkeletonLength": {
+            "label": "Shortest message that can be matched",
+            "explanation": "Messages shorter than this are never compared against known spam.",
+            "cost": "Lower risks matching short words like gg and lol against the shared list, which would delete them everywhere at once. Higher lets short spam through."
+          },
+          "nonLatinScriptGate": {
+            "label": "Restrict other alphabets to established viewers",
+            "explanation": "Limits Japanese, Korean, Cyrillic, Arabic and other non-Latin messages to viewers who have been around.",
+            "cost": "Off by default, and it should stay off for almost everyone: real viewers write in these alphabets every day. It exists for a channel under an active attack that uses them, and it silences honest international viewers while it is on.",
+            "inactive": "The bot does not check what each trust level may post yet, so this switch changes nothing today."
+          },
+          "accountAgeGateDays": {
+            "label": "Newest account age that can chat freely",
+            "explanation": "Chat from an account younger than this many days is removed. 0 turns it off. Regulars and above are never held, and an account whose age is unknown is never held.",
+            "cost": "Higher stops more throwaway accounts but also holds honest people who just joined the platform. Lower lets new accounts chat sooner and lets more spam through."
+          },
+          "followAgeGateDays": {
+            "label": "Newest follow that can chat freely",
+            "explanation": "Chat from a follower who followed less than this many days ago is removed. 0 turns it off. People who do not follow are not held by this limit, and Regulars and above are never held.",
+            "cost": "Higher blocks follow-then-spam accounts but makes every fresh follower wait. Lower lets new followers chat sooner and lets more spam through."
+          },
+          "accountGateHoldsForReview": {
+            "label": "Keep gated messages for a moderator",
+            "explanation": "On: a removed message waits in the moderation queue, where a moderator can read it and decide. Off: the message is removed and nothing is kept.",
+            "cost": "On means a moderator has more to read. Off means an honest newcomer is silenced with no way to recover the message."
+          },
+          "qualifyNoStandingShare": {
+            "label": "Share of strangers that makes it a campaign",
+            "explanation": "When many accounts post the same thing at once, this is how much of that group must be people with no standing in your channel before it is treated as coordinated spam rather than a community joke.",
+            "cost": "Lower catches campaigns sooner but starts treating copypasta as an attack. Higher means a campaign needs to be almost entirely strangers before anything happens."
+          },
+          "dequalifyNoStandingShare": {
+            "label": "Share at which the group is exonerated",
+            "explanation": "If your regulars join in and the group falls below this, it is judged community behavior after all, and everything already done is undone.",
+            "cost": "Higher exonerates more readily and reverses more often. Lower makes reversal rarer. It must stay below the campaign share, which is what stops a group on the line from flipping back and forth."
+          },
+          "minimumCohortSize": {
+            "label": "Fewest accounts that can be a campaign",
+            "explanation": "Below this many distinct accounts, nothing is treated as coordinated however identical the messages.",
+            "cost": "Lower catches small coordinated groups but risks treating a few friends quoting each other as an attack. Higher lets small campaigns through."
+          },
+          "windowSeconds": {
+            "label": "How long a group is watched",
+            "explanation": "Messages this far apart still count as part of the same group. Each new match extends it.",
+            "cost": "Longer links slower campaigns together but keeps groups open longer. Shorter misses campaigns that trickle."
+          },
+          "maxWindowSeconds": {
+            "label": "Longest a group can stay open",
+            "explanation": "However many messages keep arriving, a group closes after this.",
+            "cost": "Longer lets one long attack stay a single incident. Shorter splits it into several."
+          },
+          "actionDelaySeconds": {
+            "label": "Head start before acting",
+            "explanation": "After a group is judged a campaign, the system waits this long before doing anything, which is long enough for one of your regulars to join in and prove it is a joke.",
+            "cost": "This is a real trade-off and it is yours to make. Longer means an exoneration almost always beats the ban, at the cost of that many seconds of visible spam. Shorter catches the spam faster and relies on undoing mistakes afterwards."
+          },
+          "autoReverseOnDequalify": {
+            "label": "Undo automatically when a group is exonerated",
+            "explanation": "When regulars turn out to be part of a group, every timeout and ban it issued is reversed on its own.",
+            "cost": "Turning this off means somebody stays banned for the rest of your stream because they laughed along, until a moderator notices. Strongly recommended on."
+          },
+          "followSpikeFactor": {
+            "label": "Follow rate that counts as unusual",
+            "explanation": "How many times your channel's normal follow rate counts as a spike worth looking at. It is measured against your own history, so a small channel and a large one are never compared to each other.",
+            "cost": "Lower notices smaller spikes, including the ones caused by going viral. A spike alone never blocks anybody; it only decides when to look closely.",
+            "inactive": "Follows are not measured against your normal rate yet, so no spike is noticed today."
+          },
+          "joinBurstFactor": {
+            "label": "Join rate that counts as unusual",
+            "explanation": "The same, for people arriving in chat rather than following.",
+            "cost": "Lower notices smaller bursts. A raid from a friendly channel looks exactly like this, which is why a burst never actions anyone by itself.",
+            "inactive": "Chat arrivals are not measured against your normal rate yet, so no burst is noticed today."
+          },
+          "lockdownMinutes": {
+            "label": "How long the room stays tightened",
+            "explanation": "During a raid the platform's own rules are tightened, such as slow mode and followers-only, and put back exactly as they were after this long.",
+            "cost": "Longer keeps the room calm but keeps honest new viewers out. Shorter reopens sooner and may reopen into the same attack.",
+            "inactive": "Nothing tightens the room during a raid yet, so there is no lockdown for this to time."
+          },
+          "lockdownAutoExtend": {
+            "label": "Keep it tightened while the attack continues",
+            "explanation": "Extends the window as long as the attack is still arriving.",
+            "cost": "Off means the room reopens on schedule even in the middle of a raid.",
+            "inactive": "Nothing tightens the room during a raid yet, so there is no lockdown for this to extend."
+          },
+          "lockdownMaxMinutes": {
+            "label": "Longest the room can stay tightened",
+            "explanation": "A ceiling, so a lockdown can never be forgotten about.",
+            "cost": "Longer risks a room left restricted after everyone has gone home.",
+            "inactive": "Nothing tightens the room during a raid yet, so there is no lockdown for this to limit."
+          },
+          "networkSubscribe": {
+            "label": "Use the shared spam list",
+            "explanation": "Pulls known spam patterns and malicious links found by other servers. Read-only: nothing about your channel leaves it.",
+            "cost": "Off means you only ever catch what you have seen yourself.",
+            "inactive": "The shared spam list service does not exist yet, so there is nothing to pull from."
+          },
+          "networkContribute": {
+            "label": "Share what you catch",
+            "explanation": "Sends the patterns your channel confirms back to the shared list. Never message text and never viewer identities, only a pattern.",
+            "cost": "Off by default. On helps everyone catch a campaign faster.",
+            "inactive": "The shared spam list service does not exist yet, so nothing is sent anywhere."
+          },
+          "requiredCorroborations": {
+            "label": "Reports needed before a shared pattern acts",
+            "explanation": "A pattern from an unproven source only flags until this many independent servers have seen it too.",
+            "cost": "Lower acts on shared patterns sooner and trusts strangers more. Higher is the protection against one bad contributor causing mass removals everywhere."
+          }
+        },
+        "invariants": {
+          "sd0": "Under uncertainty the room is tightened, never the person. A raid is answered by making chat stricter for a while, never by mass bans.",
+          "sd8": "An established regular of your channel is never actioned automatically, at any confidence, by any part of this system.",
+          "sd9": "Being present is never an offence. Nobody is actioned for being silent, for being new, or for arriving during an attack. Every action needs that account's own evidence.",
+          "sd11": "A viewer with standing, such as a moderator or subscriber anywhere or real watch time here, is never automatically banned or timed out. The most that can happen is a message removed and flagged.",
+          "sd12": "We do not host the chat, so nothing here stops a message before it is published. What we can do is tighten the platform's own rules, and we say so plainly rather than implying cover we do not have."
+        }
       }
+    },
+    "adminOverview": {
+      "title": "Overview",
+      "panel": "Platform",
+      "refresh": "Refreshes every 30 seconds",
+      "empty": "The platform has no numbers yet.",
+      "error": "The platform numbers could not load.",
+      "channels": "Channels",
+      "channelsContext": "All channels on this deployment",
+      "active": "Active channels",
+      "activeContext": "Channels in good standing",
+      "users": "Users",
+      "usersContext": "Everyone the bot has met",
+      "system": "System",
+      "systemContext": "Overall health of the services",
+      "uptime": "Bot uptime",
+      "uptimeContext": "Since the last restart",
+      "uptimeValue": "{days}d {hours}h {minutes}m",
+      "events": "Events today",
+      "eventsContext": "Processed since midnight",
+      "status": {
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "unhealthy": "Unhealthy"
+      },
+      "restricted": "Hosted mode is a restricted option: running NomNomzBot as a service for third parties is reserved to NoMercy Labs. Self-hosting your own bot is always free."
     }
   }
 }

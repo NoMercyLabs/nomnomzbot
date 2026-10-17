@@ -34,3 +34,39 @@ export const dashboardAdminChannelsRoute = {
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
+
+export const dashboardAdminOverviewRoute = {
+  path: 'admin/overview',
+  name: 'dashboard-admin-overview',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminOverviewView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
+export const dashboardAdminUsersRoute = {
+  path: 'admin/users',
+  name: 'dashboard-admin-users',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminUsersView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
+export const dashboardAdminSpamDefaultsRoute = {
+  path: 'admin/spam-defaults',
+  name: 'dashboard-admin-spam-defaults',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminSpamDefaultsView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;

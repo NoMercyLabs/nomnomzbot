@@ -44,11 +44,253 @@
         "error": "De kanaallijst kon niet laden.",
         "forbidden": "Je mag de kanaallijst niet zien."
       },
+      "users": {
+        "title": "Gebruikers",
+        "search": "Zoek gebruikers",
+        "count": "{count} gebruikers",
+        "never": "Nooit",
+        "columns": {
+          "user": "Gebruiker",
+          "role": "Rol",
+          "channels": "Kanalen",
+          "lastActive": "Laatst actief",
+          "created": "Aangemaakt"
+        },
+        "role": {
+          "admin": "Beheerder",
+          "user": "Gebruiker"
+        },
+        "filters": {
+          "roleLabel": "Rol",
+          "role": {
+            "all": "Alle",
+            "admin": "Beheerder",
+            "user": "Gebruiker"
+          }
+        },
+        "list": {
+          "title": "Gebruikers",
+          "newestFirst": "Nieuwste eerst",
+          "empty": "Geen gebruiker past bij deze filters.",
+          "error": "De gebruikerslijst kon niet laden.",
+          "forbidden": "Je mag de gebruikerslijst niet zien."
+        }
+      },
       "pager": {
         "page": "Pagina {page} van {pages}",
         "previous": "Vorige",
         "next": "Volgende"
+      },
+      "spamDefaults": {
+        "title": "Spam-standaarden",
+        "crumb": "Beheer",
+        "restricted": "Saas-modus is een beperkte optie: NomNomzBot als gehoste dienst voor derden draaien is voorbehouden aan NoMercy Labs. Zelf hosten van je eigen bot is altijd gratis.",
+        "save": "Standaarden opslaan",
+        "saving": "Opslaan",
+        "range": "Vul een waarde in van {min} tot {max}.",
+        "saved": "Spam-standaarden opgeslagen.",
+        "saveError": "De spam-standaarden konden niet worden opgeslagen: {reason}",
+        "loadError": "De spam-standaarden konden niet laden.",
+        "forbidden": "Je mag de spam-standaarden niet zien.",
+        "invariantsTitle": "Garanties zonder schakelaar",
+        "settingsTitle": "Standaarden voor nieuwe kanalen",
+        "unsaved": "Niet-opgeslagen wijzigingen",
+        "trustFields": {
+          "establishedDays": "Dagen aanwezig voordat een kijker als gevestigd telt",
+          "establishedMessages": "Berichten voordat een kijker als gevestigd telt",
+          "establishedDistinctActiveDays": "Aparte actieve dagen voordat een kijker als gevestigd telt",
+          "establishedStrikeFreeDays": "Dagen zonder waarschuwing voordat een kijker als gevestigd telt"
+        },
+        "dequalifyBelowQualify": "Het vrijpleitaandeel moet onder het campagne-aandeel blijven, zodat een groep op de grens niet heen en weer kan schieten.",
+        "inactiveBadge": "Nog niet actief",
+        "inactiveArrives": "Dit gaat werken met werkitem {slice}. Je waarde is opgeslagen en wordt vanaf dan gebruikt.",
+        "explain": "Dit zijn de waarden waarmee elk nieuw kanaal begint. Een kanaal dat nooit een instelling heeft gewijzigd blijft deze volgen, dus hier iets aanpassen verplaatst ze allemaal tegelijk.",
+        "groups": {
+          "master": "Hoofdschakelaars",
+          "trust": "Vertrouwen",
+          "newcomers": "Nieuwe accounts en nieuwe volgers",
+          "content": "Berichtinhoud",
+          "campaign": "Gecoordineerde campagnes",
+          "bursts": "Plotselinge activiteit",
+          "lockdown": "Raid-lockdown",
+          "network": "Gedeelde spamlijst"
+        },
+        "settings": {
+          "isEnabled": {
+            "label": "Spambeveiliging aan",
+            "explanation": "Zet het hele systeem aan of uit. Uit betekent geen detectie en helemaal geen registratie.",
+            "cost": "Uit laat je alleen de eigen hulpmiddelen van het platform over."
+          },
+          "dryRun": {
+            "label": "Alleen kijken, niet ingrijpen",
+            "explanation": "Alles wordt gedetecteerd en vastgelegd met een volledige uitleg, en er wordt niets ondernomen. Het dashboard laat zien wat er gebeurd zou zijn.",
+            "cost": "Aan laten betekent dat spam nooit automatisch wordt verwijderd. Het uitzetten is het moment waarop het systeem echte kijkers gaat raken, dus doe dat pas nadat je een week van je eigen resultaten hebt gelezen en het ermee eens bent."
+          },
+          "trustThresholds": {
+            "label": "Drempels van de vertrouwensladder",
+            "explanation": "Hoe lang iemand er al is, hoeveel diegene heeft gezegd, en op hoeveel verschillende dagen, voordat diegene telt als nieuwkomer, bekend gezicht, vaste kijker of gevestigd lid van je kanaal.",
+            "cost": "Lager bouwt vertrouwen sneller op, wat echte kijkers eerder beschermt en een geduldige spammer een kortere weg geeft. Hoger is strenger op beide. Gevestigd bereiken betekent dat het systeem nooit automatisch tegen hen optreedt, en daarom is deze grens het waard om bewust te zetten."
+          },
+          "semiTrustedWatchHoursHere": {
+            "label": "Kijkuren hier die bescherming opleveren",
+            "explanation": "Iemand die dit aantal uren in jouw kanaal heeft gekeken, kan niet meer automatisch worden verbannen of getimed, zelfs als diegene nooit iets heeft getypt.",
+            "cost": "Lager beschermt stille vaste kijkers eerder. Hoger laat hen langer onbeschermd. Dit is de instelling die lurkers beschermt, die geen andere manier hebben om te bewijzen dat ze echt zijn.",
+            "inactive": "De bot telt nog geen kijkuren, dus niemand verdient vandaag op deze manier bescherming."
+          },
+          "semiTrustedWatchHoursInstance": {
+            "label": "Kijkuren over alle kanalen die bescherming opleveren",
+            "explanation": "Dezelfde bescherming, verdiend over elk kanaal op deze server in plaats van alleen het jouwe.",
+            "cost": "Lager breidt vertrouwen makkelijker uit tussen kanalen. Hoger houdt het oordeel van elk kanaal bij zichzelf.",
+            "inactive": "De bot telt nog geen kijkuren, dus niemand verdient vandaag op deze manier bescherming."
+          },
+          "nearDuplicateSimilarity": {
+            "label": "Hoe gelijk telt als dezelfde spam",
+            "explanation": "Spammers veranderen een paar tekens en sturen het opnieuw. Dit is hoezeer een bericht op een bekend bericht moet lijken om als dezelfde campagne te gelden.",
+            "cost": "Lager vangt meer varianten, maar begint gewone berichten te raken die toevallig dezelfde woorden gebruiken. Hoger vangt alleen bijna exacte herhalingen. Nul zet het matchen van varianten helemaal uit en laat alleen exacte treffers over."
+          },
+          "minimumSkeletonLength": {
+            "label": "Kortste bericht dat gematcht kan worden",
+            "explanation": "Berichten korter dan dit worden nooit vergeleken met bekende spam.",
+            "cost": "Lager riskeert dat korte woorden zoals gg en lol tegen de gedeelde lijst matchen, wat ze overal tegelijk zou verwijderen. Hoger laat korte spam door."
+          },
+          "nonLatinScriptGate": {
+            "label": "Andere alfabetten beperken tot gevestigde kijkers",
+            "explanation": "Beperkt Japanse, Koreaanse, Cyrillische, Arabische en andere niet-Latijnse berichten tot kijkers die er al even zijn.",
+            "cost": "Standaard uit, en dat zou het voor bijna iedereen moeten blijven: echte kijkers schrijven elke dag in deze alfabetten. Het bestaat voor een kanaal onder een actieve aanval die ze gebruikt, en het legt eerlijke internationale kijkers het zwijgen op zolang het aanstaat.",
+            "inactive": "De bot controleert nog niet wat elk vertrouwensniveau mag plaatsen, dus deze schakelaar verandert vandaag niets."
+          },
+          "accountAgeGateDays": {
+            "label": "Jongste accountleeftijd die vrij mag chatten",
+            "explanation": "Chat van een account dat jonger is dan dit aantal dagen wordt verwijderd. 0 zet het uit. Vaste kijkers en hoger worden nooit vastgehouden, en een account met onbekende leeftijd ook niet.",
+            "cost": "Hoger stopt meer wegwerpaccounts, maar houdt ook eerlijke mensen tegen die net op het platform zijn. Lager laat nieuwe accounts eerder chatten en laat meer spam door."
+          },
+          "followAgeGateDays": {
+            "label": "Jongste volg-datum die vrij mag chatten",
+            "explanation": "Chat van een volger die minder dan dit aantal dagen geleden volgde wordt verwijderd. 0 zet het uit. Mensen die niet volgen worden door deze grens niet vastgehouden, en vaste kijkers en hoger nooit.",
+            "cost": "Hoger blokkeert accounts die volgen en dan spammen, maar laat elke verse volger wachten. Lager laat nieuwe volgers eerder chatten en laat meer spam door."
+          },
+          "accountGateHoldsForReview": {
+            "label": "Tegengehouden berichten bewaren voor een moderator",
+            "explanation": "Aan: een verwijderd bericht wacht in de moderatiewachtrij, waar een moderator het kan lezen en beslissen. Uit: het bericht wordt verwijderd en er wordt niets bewaard.",
+            "cost": "Aan betekent dat een moderator meer te lezen heeft. Uit betekent dat een eerlijke nieuwkomer het zwijgen wordt opgelegd zonder dat het bericht terug te halen is."
+          },
+          "qualifyNoStandingShare": {
+            "label": "Aandeel vreemden dat het een campagne maakt",
+            "explanation": "Wanneer veel accounts tegelijk hetzelfde posten, is dit hoeveel van die groep mensen zonder status in jouw kanaal moeten zijn voordat het als gecoordineerde spam geldt in plaats van een grap van de community.",
+            "cost": "Lager vangt campagnes eerder, maar gaat copypasta als aanval behandelen. Hoger betekent dat een campagne bijna volledig uit vreemden moet bestaan voordat er iets gebeurt."
+          },
+          "dequalifyNoStandingShare": {
+            "label": "Aandeel waarbij de groep wordt vrijgepleit",
+            "explanation": "Als je vaste kijkers meedoen en de groep hieronder zakt, wordt het alsnog als gedrag van de community beoordeeld, en wordt alles wat al gedaan is teruggedraaid.",
+            "cost": "Hoger pleit sneller vrij en draait vaker terug. Lager maakt terugdraaien zeldzamer. Het moet onder het campagne-aandeel blijven, want dat is wat voorkomt dat een groep op de grens heen en weer schiet."
+          },
+          "minimumCohortSize": {
+            "label": "Minste accounts die een campagne kunnen zijn",
+            "explanation": "Onder dit aantal verschillende accounts wordt niets als gecoordineerd behandeld, hoe identiek de berichten ook zijn.",
+            "cost": "Lager vangt kleine gecoordineerde groepen, maar riskeert dat een paar vrienden die elkaar citeren als aanval gelden. Hoger laat kleine campagnes door."
+          },
+          "windowSeconds": {
+            "label": "Hoe lang een groep wordt gevolgd",
+            "explanation": "Berichten die zo ver uit elkaar liggen tellen nog steeds als dezelfde groep. Elke nieuwe treffer verlengt het.",
+            "cost": "Langer verbindt tragere campagnes, maar houdt groepen langer open. Korter mist campagnes die druppelsgewijs binnenkomen."
+          },
+          "maxWindowSeconds": {
+            "label": "Langste dat een groep open kan blijven",
+            "explanation": "Hoeveel berichten er ook binnen blijven komen, een groep sluit hierna.",
+            "cost": "Langer laat een lange aanval een enkel incident blijven. Korter splitst het op in meerdere."
+          },
+          "actionDelaySeconds": {
+            "label": "Voorsprong voordat er wordt ingegrepen",
+            "explanation": "Nadat een groep als campagne is beoordeeld, wacht het systeem dit lang voordat het iets doet, wat lang genoeg is voor een van je vaste kijkers om mee te doen en te laten zien dat het een grap is.",
+            "cost": "Dit is een echte afweging en die is aan jou. Langer betekent dat vrijpleiten bijna altijd wint van de ban, ten koste van zoveel seconden zichtbare spam. Korter vangt de spam sneller en leunt op het achteraf terugdraaien van fouten."
+          },
+          "autoReverseOnDequalify": {
+            "label": "Automatisch terugdraaien als een groep wordt vrijgepleit",
+            "explanation": "Als vaste kijkers deel blijken van een groep, wordt elke time-out en ban die eruit voortkwam vanzelf teruggedraaid.",
+            "cost": "Dit uitzetten betekent dat iemand de rest van je stream verbannen blijft omdat diegene meelachte, totdat een moderator het merkt. Sterk aangeraden om aan te laten."
+          },
+          "followSpikeFactor": {
+            "label": "Volgsnelheid die als ongewoon telt",
+            "explanation": "Hoeveel keer de normale volgsnelheid van je kanaal telt als een piek die het bekijken waard is. Het wordt gemeten tegen je eigen geschiedenis, dus een klein en een groot kanaal worden nooit met elkaar vergeleken.",
+            "cost": "Lager merkt kleinere pieken op, ook die door viraal gaan. Een piek blokkeert op zichzelf nooit iemand; die bepaalt alleen wanneer er beter gekeken wordt.",
+            "inactive": "Volgers worden nog niet gemeten tegen je normale snelheid, dus vandaag wordt geen piek opgemerkt."
+          },
+          "joinBurstFactor": {
+            "label": "Instroomsnelheid die als ongewoon telt",
+            "explanation": "Hetzelfde, voor mensen die in de chat aankomen in plaats van volgen.",
+            "cost": "Lager merkt kleinere pieken op. Een raid van een bevriend kanaal ziet er precies zo uit, en daarom treedt een piek nooit uit zichzelf tegen iemand op.",
+            "inactive": "Aankomsten in de chat worden nog niet gemeten tegen je normale snelheid, dus vandaag wordt geen piek opgemerkt."
+          },
+          "lockdownMinutes": {
+            "label": "Hoe lang de ruimte streng blijft",
+            "explanation": "Tijdens een raid worden de eigen regels van het platform aangescherpt, zoals slow mode en alleen-volgers, en na deze tijd precies teruggezet zoals ze waren.",
+            "cost": "Langer houdt de ruimte rustig maar houdt eerlijke nieuwe kijkers buiten. Korter opent eerder en misschien midden in dezelfde aanval.",
+            "inactive": "Nog niets scherpt de ruimte aan tijdens een raid, dus er is geen lockdown om te timen."
+          },
+          "lockdownAutoExtend": {
+            "label": "Streng houden zolang de aanval doorgaat",
+            "explanation": "Verlengt het venster zolang de aanval nog binnenkomt.",
+            "cost": "Uit betekent dat de ruimte volgens schema heropent, ook midden in een raid.",
+            "inactive": "Nog niets scherpt de ruimte aan tijdens een raid, dus er is geen lockdown om te verlengen."
+          },
+          "lockdownMaxMinutes": {
+            "label": "Langste dat de ruimte streng kan blijven",
+            "explanation": "Een bovengrens, zodat een lockdown nooit vergeten kan worden.",
+            "cost": "Langer riskeert een ruimte die beperkt blijft nadat iedereen naar huis is.",
+            "inactive": "Nog niets scherpt de ruimte aan tijdens een raid, dus er is geen lockdown om te begrenzen."
+          },
+          "networkSubscribe": {
+            "label": "De gedeelde spamlijst gebruiken",
+            "explanation": "Haalt bekende spampatronen en kwaadaardige links op die door andere servers zijn gevonden. Alleen lezen: er verlaat niets van jouw kanaal.",
+            "cost": "Uit betekent dat je alleen vangt wat je zelf al hebt gezien.",
+            "inactive": "De dienst voor de gedeelde spamlijst bestaat nog niet, dus er is niets om op te halen."
+          },
+          "networkContribute": {
+            "label": "Delen wat je vangt",
+            "explanation": "Stuurt de patronen die jouw kanaal bevestigt terug naar de gedeelde lijst. Nooit berichttekst en nooit identiteiten van kijkers, alleen een patroon.",
+            "cost": "Standaard uit. Aan helpt iedereen een campagne sneller te vangen.",
+            "inactive": "De dienst voor de gedeelde spamlijst bestaat nog niet, dus er wordt niets verstuurd."
+          },
+          "requiredCorroborations": {
+            "label": "Meldingen nodig voordat een gedeeld patroon ingrijpt",
+            "explanation": "Een patroon van een onbewezen bron markeert alleen, totdat dit aantal onafhankelijke servers het ook heeft gezien.",
+            "cost": "Lager grijpt eerder in op gedeelde patronen en vertrouwt vreemden meer. Hoger is de bescherming tegen een enkele slechte bijdrager die overal massale verwijderingen veroorzaakt."
+          }
+        },
+        "invariants": {
+          "sd0": "Bij twijfel wordt de ruimte strenger gemaakt, nooit de persoon. Een raid wordt beantwoord door de chat een tijdje strenger te zetten, nooit met massale bans.",
+          "sd8": "Een gevestigde vaste kijker van je kanaal wordt nooit automatisch aangepakt, bij geen enkele zekerheid, door geen enkel onderdeel van dit systeem.",
+          "sd9": "Aanwezig zijn is nooit een overtreding. Niemand wordt aangepakt omdat diegene stil is, nieuw is, of tijdens een aanval binnenkwam. Elke actie vereist bewijs van dat account zelf.",
+          "sd11": "Een kijker met status, zoals een moderator of abonnee waar dan ook of echte kijktijd hier, wordt nooit automatisch verbannen of getimed. Het hoogste wat kan gebeuren is een verwijderd en gemarkeerd bericht.",
+          "sd12": "Wij hosten de chat niet, dus niets hier houdt een bericht tegen voordat het geplaatst is. Wat we wel kunnen, is de eigen regels van het platform aanscherpen, en dat zeggen we eerlijk in plaats van dekking te suggereren die we niet hebben."
+        }
       }
+    },
+    "adminOverview": {
+      "title": "Overzicht",
+      "panel": "Platform",
+      "refresh": "Ververst elke 30 seconden",
+      "empty": "Het platform heeft nog geen cijfers.",
+      "error": "De platformcijfers konden niet laden.",
+      "channels": "Kanalen",
+      "channelsContext": "Alle kanalen op deze installatie",
+      "active": "Actieve kanalen",
+      "activeContext": "Kanalen in goede staat",
+      "users": "Gebruikers",
+      "usersContext": "Iedereen die de bot kent",
+      "system": "Systeem",
+      "systemContext": "Algemene gezondheid van de diensten",
+      "uptime": "Uptime van de bot",
+      "uptimeContext": "Sinds de laatste herstart",
+      "uptimeValue": "{days}d {hours}u {minutes}m",
+      "events": "Events vandaag",
+      "eventsContext": "Verwerkt sinds middernacht",
+      "status": {
+        "healthy": "Gezond",
+        "degraded": "Verminderd",
+        "unhealthy": "Ongezond"
+      },
+      "restricted": "Hosted modus is een beperkte optie: NomNomzBot als dienst voor derden draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis."
     }
   }
 }
