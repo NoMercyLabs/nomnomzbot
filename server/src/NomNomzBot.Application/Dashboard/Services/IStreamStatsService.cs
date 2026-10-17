@@ -13,16 +13,18 @@ using NomNomzBot.Application.Dashboard.Dtos;
 
 namespace NomNomzBot.Application.Dashboard.Services;
 
-/// <summary>Builds the recap of one stream from recorded data inside the stream window.</summary>
-public interface IStreamRecapService
+/// <summary>Counts any requested metrics of one stream from recorded data inside the stream window.</summary>
+public interface IStreamStatsService
 {
     /// <summary>
-    /// Recap of <paramref name="streamId"/>, or of the channel's latest stream (live or ended) when null.
-    /// Fails with <c>NOT_FOUND</c> when the channel has no such stream.
+    /// Stats of <paramref name="streamId"/>, or of the channel's latest stream (live or ended) when null, for the
+    /// named <paramref name="metrics"/> (all when null or empty). Fails with <c>NOT_FOUND</c> when the channel has no
+    /// such stream and <c>VALIDATION_FAILED</c> naming the first unknown metric key.
     /// </summary>
-    Task<Result<StreamRecapDto>> GetRecapAsync(
+    Task<Result<StreamStatsDto>> GetAsync(
         Guid broadcasterId,
         string? streamId,
+        IReadOnlyCollection<string>? metrics,
         CancellationToken cancellationToken = default
     );
 }

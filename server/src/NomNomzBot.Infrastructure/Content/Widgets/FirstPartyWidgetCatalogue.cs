@@ -58,6 +58,7 @@ public static class FirstPartyWidgetCatalogue
         "tts_caption",
         WidgetKeyAliases.Audio,
         "alerts",
+        "raid_recap",
     ];
 
     /// <summary>Every Twitch + supporter alert type the alerts widget and ticker default to listening for.</summary>
@@ -403,6 +404,65 @@ public static class FirstPartyWidgetCatalogue
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["cheer"]
+        ),
+        new(
+            Key: "raid_recap",
+            Name: "Raid Recap",
+            Description: "The stream recap shown as the ending scene when the raid pipeline commits. The widget reads "
+                + "the stream's numbers (the metrics setting) when the bot shows it; blocks with no data are left out and the rest grow to fill "
+                + "the screen. Holds for a configurable time, then fades.",
+            DefaultSettings: new()
+            {
+                ["holdSeconds"] = 20,
+                ["accentColor"] = "",
+                ["showSubs"] = true,
+                ["showRaids"] = true,
+                ["showChatters"] = true,
+                ["showSongs"] = true,
+                ["showBits"] = true,
+                ["showFollowers"] = true,
+                ["showRedemptions"] = true,
+                ["showTopCommands"] = true,
+                ["metrics"] = new List<string>
+                {
+                    "duration",
+                    "peakViewers",
+                    "followers",
+                    "subs",
+                    "gifters",
+                    "selfSubs",
+                    "bits",
+                    "raidsIn",
+                    "redemptions",
+                    "songRequesters",
+                    "chat",
+                    "topChatters",
+                    "commandsRun",
+                },
+                ["labels"] = new Dictionary<string, object>
+                {
+                    ["title"] = "Stream recap",
+                    ["kpi.duration"] = "Time live",
+                    ["kpi.peak"] = "Peak viewers",
+                    ["kpi.messages"] = "Chat messages",
+                    ["kpi.commands"] = "Commands run",
+                    ["block.subs"] = "Subscriptions",
+                    ["block.raids"] = "Raids in",
+                    ["block.chatters"] = "Top chatters",
+                    ["block.songs"] = "Song requests",
+                    ["block.bits"] = "Bits",
+                    ["block.followers"] = "New followers",
+                    ["block.redemptions"] = "Redemptions",
+                    ["block.topCommands"] = "Top commands",
+                    ["subs.gifted"] = "Gifted",
+                    ["subs.own"] = "Subscribed",
+                    ["raids.unit"] = "viewers",
+                    ["chatters.unit"] = "chatters",
+                    ["songs.unit"] = "requests",
+                    ["redemptions.unit"] = "redeemed",
+                },
+            },
+            DefaultEventSubscriptions: ["raid_recap.show"]
         ),
         new(
             Key: "lucky_feather",

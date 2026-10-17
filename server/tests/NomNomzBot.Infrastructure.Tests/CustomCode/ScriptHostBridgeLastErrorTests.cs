@@ -71,7 +71,8 @@ public sealed class ScriptHostBridgeLastErrorTests
             Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             Substitute.For<ITwitchUsersApi>(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
 
     private static string? Call(ScriptHostBridge bridge, string key, params string[] args) =>

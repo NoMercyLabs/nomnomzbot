@@ -114,7 +114,8 @@ public sealed class CaptureScriptHostBridgeValidationTests
             Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             Substitute.For<ITwitchUsersApi>(),
-            new MentionTargetResolver(db)
+            new MentionTargetResolver(db),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
     }
 

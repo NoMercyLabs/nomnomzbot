@@ -64,6 +64,8 @@ public sealed class ScriptCapabilityBroker(
         new("reward.update", "tos", FeatureGate, SideEffecting: true),
         // Per-viewer M.1 analytics snapshot (same profile source the {viewer.*} template stats read).
         new("stats.viewer", "low", FeatureGate, SideEffecting: false),
+        // Any metrics of one stream of this channel, by key (the stream-stats family); read-only.
+        new("stats.stream", "low", FeatureGate, SideEffecting: false),
         // Per-viewer TTS voice assignment (the !voice self-service surface) — set validates against the
         // voice catalogue and stays tenant-scoped; side-effecting low, no Twitch surface.
         new("tts.voice.get", "low", FeatureGate, SideEffecting: false),

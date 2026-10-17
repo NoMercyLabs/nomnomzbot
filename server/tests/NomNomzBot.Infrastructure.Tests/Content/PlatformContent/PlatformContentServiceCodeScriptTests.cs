@@ -455,7 +455,8 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             Substitute.For<Application.Chat.Services.ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             Substitute.For<ITwitchUsersApi>(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
         return new(
             db,

@@ -777,6 +777,9 @@
         "help": "De kijker die wordt uitgelicht."
       }
     },
+    "show_raid_recap": {
+      "description": "Toon het streamoverzicht op de raid-recap-widget"
+    },
     "song_ban": {
       "description": "Blokkeer het nu afgespeelde nummer voor verzoeken en sla het over",
       "reason": {
@@ -1411,6 +1414,10 @@
         "description": "De lopende verlotingsronde: de deelnemerslijst en de groeiende pot zodra chatters !raffle typen, en de onthulling van de winnaar met uitbetalingsbord wanneer één deelnemer de hele pot wint.",
         "name": "Verloting"
       },
+      "raid_recap": {
+        "description": "De terugblik op de stream als eindscène. Blokken zonder gegevens vallen weg en de rest groeit mee. Blijft een ingestelde tijd staan en vervaagt dan.",
+        "name": "Raid-terugblik"
+      },
       "recent_followers": {
         "description": "Een vast klassement van de meest recente volgers, de nieuwste bovenaan. Het is een altijd zichtbare lijst in plaats van een melding één voor één, met instelbaar aantal en titel.",
         "name": "Recente volgers"
@@ -1587,6 +1594,60 @@
       },
       "hideAfterMs": {
         "label": "Verbergen na (ms)"
+      }
+    },
+    "raid_recap": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "holdSeconds": {
+        "label": "Toontijd (seconden)"
+      },
+      "labels": {
+        "help": "De woorden op het scherm, als JSON. Sleutels zoals title, kpi.duration en block.subs.",
+        "label": "Teksten"
+      },
+      "metrics": {
+        "label": "Streamcijfers om te lezen",
+        "option": {
+          "bits": "Bits",
+          "chat": "Chatactiviteit",
+          "commandsRun": "Uitgevoerde commando's",
+          "duration": "Tijd live",
+          "followers": "Nieuwe volgers",
+          "gifters": "Gevers",
+          "peakViewers": "Meeste kijkers",
+          "raidsIn": "Binnenkomende raids",
+          "redemptions": "Inwisselingen",
+          "selfSubs": "Zelf geabonneerd",
+          "songRequesters": "Verzoekers van nummers",
+          "subs": "Abonnementen",
+          "topChatters": "Meeste chatters"
+        }
+      },
+      "showBits": {
+        "label": "Bits tonen"
+      },
+      "showChatters": {
+        "label": "Beste chatters tonen"
+      },
+      "showFollowers": {
+        "label": "Nieuwe volgers tonen"
+      },
+      "showRaids": {
+        "label": "Raids tonen"
+      },
+      "showRedemptions": {
+        "label": "Beloningen tonen"
+      },
+      "showSongs": {
+        "label": "Nummeraanvragers tonen"
+      },
+      "showSubs": {
+        "label": "Abonnementen tonen"
+      },
+      "showTopCommands": {
+        "label": "Meest gebruikte commando's tonen"
       }
     },
     "recent_followers": {

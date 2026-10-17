@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NSubstitute;
@@ -33,7 +34,7 @@ public sealed class OverlayControllerTokenHeaderTests
         DefaultHttpContext http = new();
         if (header is not null)
             http.Request.Headers["X-Overlay-Token"] = header;
-        OverlayController controller = new(service)
+        OverlayController controller = new(service, Substitute.For<IStreamStatsService>())
         {
             ControllerContext = new() { HttpContext = http },
         };

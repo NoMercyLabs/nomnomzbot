@@ -348,6 +348,12 @@ internal static class SdkRuntimeSurface
             "  /** One value from the channel's script storage, or null when the key has no value. */"
         );
         sb.AppendLine("  storage(key: string): Promise<string | null>;");
+        sb.AppendLine(
+            "  /** Any metrics of one stream, by key. Rejects on an unknown key or when the channel has no such stream. */"
+        );
+        sb.AppendLine(
+            "  streamStats<K extends NnzStreamMetricKey>(options: NnzStreamStatsOptions<K>): Promise<NnzStreamStats<K>>;"
+        );
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzOverlaySpotify {");
@@ -786,6 +792,12 @@ internal static class SdkRuntimeSurface
             "  /** A viewer's channel stats. userIdOrLogin is optional and defaults to the user who triggered the script. A viewer never seen gets zeros. */"
         );
         sb.AppendLine("  viewer(userIdOrLogin?: string): NnzApiViewerStats;");
+        sb.AppendLine(
+            "  /** Any metrics of one stream, by key. null on an unknown key or when the channel has no such stream. */"
+        );
+        sb.AppendLine(
+            "  stream<K extends NnzStreamMetricKey>(options: NnzStreamStatsOptions<K>): NnzStreamStats<K> | null;"
+        );
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine(

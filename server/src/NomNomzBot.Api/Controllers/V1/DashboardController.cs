@@ -42,7 +42,7 @@ public class DashboardController : BaseController
     private readonly ITwitchChannelsApi _channels;
     private readonly ITwitchSubscriptionsApi _subscriptions;
     private readonly IActivityReplayService _activityReplay;
-    private readonly IStreamRecapService _streamRecap;
+    private readonly IStreamStatsService _streamStats;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DashboardController> _logger;
 
@@ -53,7 +53,7 @@ public class DashboardController : BaseController
         ITwitchChannelsApi channels,
         ITwitchSubscriptionsApi subscriptions,
         IActivityReplayService activityReplay,
-        IStreamRecapService streamRecap,
+        IStreamStatsService streamStats,
         TimeProvider timeProvider,
         ILogger<DashboardController> logger
     )
@@ -64,7 +64,7 @@ public class DashboardController : BaseController
         _channels = channels;
         _subscriptions = subscriptions;
         _activityReplay = activityReplay;
-        _streamRecap = streamRecap;
+        _streamStats = streamStats;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -243,22 +243,28 @@ public class DashboardController : BaseController
     }
 
     /// <summary>
-    /// Recap of one stream (the latest, live or ended, when <paramref name="streamId"/> is omitted): follows, subs,
-    /// gift subs, bits, raids in, redemptions, song requests and chat, counted from recorded data in the stream window.
+    /// Any metrics of one stream (the latest, live or ended, when <paramref name="streamId"/> is omitted), counted
+    /// from recorded data in the stream window. <paramref name="metrics"/> is a comma-separated list of metric keys
+    /// (all when omitted); an unknown key is a 400 naming it. Each key fills the property of the same name.
     /// </summary>
-    [HttpGet("{channelId}/stream-recap")]
+    [HttpGet("{channelId}/stream-stats")]
     [RequireAction("dashboard:read")]
-    [ProducesResponseType<StatusResponseDto<StreamRecapDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetStreamRecap(
+    [ProducesResponseType<StatusResponseDto<StreamStatsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStreamStats(
         string channelId,
         [FromQuery] string? streamId,
+        [FromQuery] string? metrics,
         CancellationToken ct
     )
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        return ResultResponse(await _streamRecap.GetRecapAsync(tenantId, streamId, ct));
+        string[]? keys = metrics?.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+        return ResultResponse(await _streamStats.GetAsync(tenantId, streamId, keys, ct));
     }
 
     /// <summary>

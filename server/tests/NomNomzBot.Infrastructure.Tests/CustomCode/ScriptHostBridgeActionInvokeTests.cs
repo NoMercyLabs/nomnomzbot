@@ -147,7 +147,8 @@ public sealed class ScriptHostBridgeActionInvokeTests : IDisposable
                 NullLogger<OwnerActionService>.Instance
             ),
             Substitute.For<ITwitchUsersApi>(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
 
     private static string? Call(IScriptHostBridge bridge, string key, params string[] args) =>

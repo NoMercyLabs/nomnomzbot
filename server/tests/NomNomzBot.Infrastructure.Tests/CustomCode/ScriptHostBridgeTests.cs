@@ -21,6 +21,8 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -66,7 +68,8 @@ public sealed class ScriptHostBridgeTests
         ISevenTvUserPaintResolver? paintResolver = null,
         ScriptReplyTarget? replyTo = null,
         long? egressCap = null,
-        ITwitchUsersApi? twitchUsers = null
+        ITwitchUsersApi? twitchUsers = null,
+        IStreamStatsService? streamStats = null
     ) =>
         BuildFor(
             Channel,
@@ -86,7 +89,8 @@ public sealed class ScriptHostBridgeTests
             paintResolver,
             replyTo,
             egressCap,
-            twitchUsers
+            twitchUsers,
+            streamStats
         );
 
     // Same wiring, but bound to an arbitrary tenant — the tenant-isolation tests need a channel-B bridge.
@@ -108,7 +112,8 @@ public sealed class ScriptHostBridgeTests
         ISevenTvUserPaintResolver? paintResolver = null,
         ScriptReplyTarget? replyTo = null,
         long? egressCap = null,
-        ITwitchUsersApi? twitchUsers = null
+        ITwitchUsersApi? twitchUsers = null,
+        IStreamStatsService? streamStats = null
     )
     {
         IApplicationDbContext bridgeDb = db ?? AuthTestBuilder.NewContext();
@@ -133,6 +138,7 @@ public sealed class ScriptHostBridgeTests
             Substitute.For<IOwnerActionService>(),
             twitchUsers ?? Substitute.For<ITwitchUsersApi>(),
             new MentionTargetResolver(bridgeDb),
+            streamStats ?? Substitute.For<IStreamStatsService>(),
             egressCap
         );
     }
@@ -1170,6 +1176,71 @@ public sealed class ScriptHostBridgeTests
             .Should()
             .BeNull();
         await rewards.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default!, default!);
+    }
+
+    // ─── stats.stream ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Stats_stream_asks_for_the_csv_keys_and_returns_the_stream_window_plus_only_those_metrics()
+    {
+        IStreamStatsService streamStats = Substitute.For<IStreamStatsService>();
+        streamStats
+            .GetAsync(
+                Channel,
+                "s1",
+                Arg.Is<IReadOnlyCollection<string>>(k =>
+                    k.SequenceEqual(new[] { "followers", "bits" })
+                ),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new StreamStatsDto
+                    {
+                        Stream = new() { Id = "s1" },
+                        Followers = 4,
+                    }
+                )
+            );
+
+        string? json = Build(streamStats: streamStats)
+            .Resolve("stats.stream")(
+                "stats.stream",
+                ["followers, bits", "s1"],
+                CancellationToken.None
+            );
+
+        JObject stats = JObject.Parse(json!);
+        stats.Value<long>("followers").Should().Be(4);
+        stats["stream"]!.Value<string>("id").Should().Be("s1");
+        stats.Properties().Select(p => p.Name).Should().BeEquivalentTo("stream", "followers");
+    }
+
+    [Fact]
+    public void Stats_stream_hands_a_failed_read_to_the_script_as_an_error_not_as_data()
+    {
+        IStreamStatsService streamStats = Substitute.For<IStreamStatsService>();
+        streamStats
+            .GetAsync(
+                Channel,
+                null,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<StreamStatsDto>("Unknown stream metric 'nope'.", "VALIDATION_FAILED")
+            );
+
+        ScriptHostBridge bridge = Build(streamStats: streamStats);
+        string? json = bridge.Resolve("stats.stream")(
+            "stats.stream",
+            ["nope"],
+            CancellationToken.None
+        );
+
+        json.Should().BeNull("a failed read is no data; the error is read through last.error");
+        string? error = bridge.Resolve("last.error")("last.error", [], CancellationToken.None);
+        error.Should().Contain("nope");
     }
 
     // ─── stats.viewer ─────────────────────────────────────────────────────────

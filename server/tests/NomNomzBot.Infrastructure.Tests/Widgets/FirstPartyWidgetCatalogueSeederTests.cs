@@ -52,6 +52,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "emote_wall",
         "custom_data",
         "lucky_feather",
+        "raid_recap",
     ];
 
     private const string AssetPrefix = "NomNomzBot.Infrastructure.Content.Widgets.Assets.";

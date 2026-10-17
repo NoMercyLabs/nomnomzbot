@@ -274,7 +274,8 @@ public sealed class LuckyFeatherBundleTests
             paint ?? Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             Substitute.For<ITwitchUsersApi>(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
 
         return new(h.Db, new JintScriptExecutor(), broker, meter, bridgeFactory, h.Clock);

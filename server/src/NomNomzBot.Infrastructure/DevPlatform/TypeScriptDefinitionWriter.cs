@@ -128,6 +128,9 @@ internal sealed class TypeScriptDefinitionWriter
             sb.AppendLine();
         }
 
+        // Both contexts read stream metrics (widget data.streamStats, script api.stats.stream).
+        sb.AppendLine(StreamMetricTypeScript.Write());
+
         // A script has no event bus, so only the widget page gets the event map.
         if (_context == SdkContext.Widget)
         {

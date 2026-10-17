@@ -94,7 +94,8 @@ public sealed class ScriptRunnerTests
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             Substitute.For<ITwitchUsersApi>(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            Substitute.For<NomNomzBot.Application.Dashboard.Services.IStreamStatsService>()
         );
         return (
             new(

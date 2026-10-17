@@ -218,6 +218,7 @@ internal static class BundleConventions
         ["tts.voice.set"] = "manages viewer TTS voices",
         ["tts.voice.list"] = "manages viewer TTS voices",
         ["stats.viewer"] = "reads viewer statistics",
+        ["stats.stream"] = "reads stream statistics",
         ["widget.emit"] = "pushes events to overlay widgets",
         ["reward.get"] = "manages channel point rewards",
         ["reward.update"] = "manages channel point rewards",

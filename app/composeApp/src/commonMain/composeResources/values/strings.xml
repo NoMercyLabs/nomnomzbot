@@ -5113,6 +5113,32 @@
     <string name="widget_lucky_feather_stolenTemplate_help">Use {thief} and {victim}. Blank uses the built-in text.</string>
     <string name="widget_lucky_feather_bannerDurationMs_label">Banner time (ms)</string>
     <string name="widget_lucky_feather_accentColor_label">Accent color</string>
+    <string name="widget_raid_recap_holdSeconds_label">Show time (seconds)</string>
+    <string name="widget_raid_recap_showSubs_label">Show subscriptions</string>
+    <string name="widget_raid_recap_showRaids_label">Show raids</string>
+    <string name="widget_raid_recap_showChatters_label">Show top chatters</string>
+    <string name="widget_raid_recap_showSongs_label">Show song requesters</string>
+    <string name="widget_raid_recap_showBits_label">Show bits</string>
+    <string name="widget_raid_recap_showFollowers_label">Show new followers</string>
+    <string name="widget_raid_recap_showRedemptions_label">Show redemptions</string>
+    <string name="widget_raid_recap_showTopCommands_label">Show top commands</string>
+    <string name="widget_raid_recap_metrics_label">Stream numbers to read</string>
+    <string name="widget_raid_recap_metrics_option_duration">Time live</string>
+    <string name="widget_raid_recap_metrics_option_peakViewers">Peak viewers</string>
+    <string name="widget_raid_recap_metrics_option_followers">New followers</string>
+    <string name="widget_raid_recap_metrics_option_subs">Subscription counts</string>
+    <string name="widget_raid_recap_metrics_option_gifters">Gifters</string>
+    <string name="widget_raid_recap_metrics_option_selfSubs">Self subscribers</string>
+    <string name="widget_raid_recap_metrics_option_bits">Bits</string>
+    <string name="widget_raid_recap_metrics_option_raidsIn">Raids in</string>
+    <string name="widget_raid_recap_metrics_option_redemptions">Redemptions</string>
+    <string name="widget_raid_recap_metrics_option_songRequesters">Song requesters</string>
+    <string name="widget_raid_recap_metrics_option_chat">Chat activity</string>
+    <string name="widget_raid_recap_metrics_option_topChatters">Top chatters</string>
+    <string name="widget_raid_recap_metrics_option_commandsRun">Commands run</string>
+    <string name="widget_raid_recap_labels_label">Texts</string>
+    <string name="widget_raid_recap_labels_help">The words on the screen, as JSON. Keys such as title, kpi.duration and block.subs.</string>
+    <string name="widget_raid_recap_accentColor_label">Accent color</string>
     <string name="widget_crash_hideAfterMs_label">Hide after (ms)</string>
     <string name="widget_crash_accentColor_label">Accent color</string>
     <string name="widget_event_ticker_events_label">Event types</string>
@@ -5671,6 +5697,7 @@
     <string name="pipeline_set_variable_description">Set a pipeline variable</string>
     <string name="pipeline_set_viewer_data_description">Set a stored value on a viewer&apos;s profile</string>
     <string name="pipeline_shoutout_description">Give another channel a shoutout</string>
+    <string name="pipeline_show_raid_recap_description">Show the stream recap on the raid recap widget</string>
     <string name="pipeline_song_ban_description">Block the currently playing track from requests and skip it</string>
     <string name="pipeline_song_current_description">Show the currently playing track</string>
     <string name="pipeline_song_pause_description">Pause music playback</string>
@@ -6197,6 +6224,8 @@
     <string name="widget_gallery_top_cheerers_description">A ranked board of the session’s biggest cheerers by bits. It is the full leaderboard the labels widget only hints at with its single top cheerer, with a configurable depth and title.</string>
     <string name="widget_gallery_lucky_feather_name">Lucky Feather</string>
     <string name="widget_gallery_lucky_feather_description">Shows who holds the Lucky Feather and announces every steal.</string>
+    <string name="widget_gallery_raid_recap_name">Raid Recap</string>
+    <string name="widget_gallery_raid_recap_description">The stream recap as the ending scene. Blocks with no data are left out and the rest grow to fill the screen. Holds for a set time, then fades.</string>
 
     <!-- Code editor page (editor.js DEFAULT_LABELS): the words of the served editor, sent in the open payload -->
     <string name="editor_html_lang">en</string>

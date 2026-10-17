@@ -32339,12 +32339,12 @@
         }
       }
     },
-    "/api/v{version}/dashboard/{channelId}/stream-recap": {
+    "/api/v{version}/dashboard/{channelId}/stream-stats": {
       "get": {
         "tags": [
           "Dashboard"
         ],
-        "summary": "Recap of one stream (the latest, live or ended, when streamId is omitted): follows, subs,\r\ngift subs, bits, raids in, redemptions, song requests and chat, counted from recorded data in the stream window.",
+        "summary": "Any metrics of one stream (the latest, live or ended, when streamId is omitted), counted\r\nfrom recorded data in the stream window. metrics is a comma-separated list of metric keys\r\n(all when omitted); an unknown key is a 400 naming it. Each key fills the property of the same name.",
         "parameters": [
           {
             "name": "channelId",
@@ -32356,6 +32356,13 @@
           },
           {
             "name": "streamId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "metrics",
             "in": "query",
             "schema": {
               "type": "string"
@@ -32436,7 +32443,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfStreamRecap"
+                  "$ref": "#/components/schemas/StatusResponseOfStreamStats"
                 }
               }
             }
@@ -139222,43 +139229,6 @@
           }
         }
       },
-      "StatusResponseOfStreamRecap": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/StreamRecap"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "StatusResponseOfStreamStatus": {
         "type": "object",
         "properties": {
@@ -141712,335 +141682,6 @@
           }
         },
         "description": "One stream in the channel's history list, newest first — the per-stream entry point."
-      },
-      "StreamRecap": {
-        "required": [
-          "stream",
-          "subs",
-          "giftSubs",
-          "bits",
-          "raidsIn",
-          "redemptions",
-          "songs",
-          "chat"
-        ],
-        "type": "object",
-        "properties": {
-          "stream": {
-            "$ref": "#/components/schemas/StreamRecapStream"
-          },
-          "followers": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "New followers inside the window.",
-            "format": "int32"
-          },
-          "subs": {
-            "$ref": "#/components/schemas/StreamRecapSubs"
-          },
-          "giftSubs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapGifter"
-            },
-            "description": "Gifters inside the window, most gifts first. Anonymous gifters merge into one \"Anonymous\" entry."
-          },
-          "bits": {
-            "$ref": "#/components/schemas/StreamRecapBits"
-          },
-          "raidsIn": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapRaid"
-            }
-          },
-          "redemptions": {
-            "$ref": "#/components/schemas/StreamRecapRedemptions"
-          },
-          "songs": {
-            "description": "Song requests accepted inside the window.",
-            "$ref": "#/components/schemas/StreamRecapSongs"
-          },
-          "chat": {
-            "$ref": "#/components/schemas/StreamRecapChat"
-          }
-        },
-        "description": "What happened in one stream, counted from recorded data inside the stream window (`StartedAt` to\r\n`EndedAt`, or now while live). Returned by GET /api/v1/dashboard/{channelId}/stream-recap. A stat the bot\r\ndoes not record (average viewers, new chatters, commands run) is not part of this contract."
-      },
-      "StreamRecapBits": {
-        "required": [
-          "top"
-        ],
-        "type": "object",
-        "properties": {
-          "total": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "top": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapCheerer"
-            }
-          }
-        }
-      },
-      "StreamRecapChat": {
-        "type": "object",
-        "properties": {
-          "messages": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "uniqueChatters": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapCheerer": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "bits": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapGifter": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "count": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapRaid": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "viewers": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapRedemptions": {
-        "required": [
-          "top"
-        ],
-        "type": "object",
-        "properties": {
-          "count": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "top": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapRedemptionTitle"
-            }
-          }
-        }
-      },
-      "StreamRecapRedemptionTitle": {
-        "required": [
-          "title"
-        ],
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "count": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapSong": {
-        "required": [
-          "track"
-        ],
-        "type": "object",
-        "properties": {
-          "track": {
-            "type": "string"
-          },
-          "artist": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "StreamRecapSongs": {
-        "required": [
-          "recent"
-        ],
-        "type": "object",
-        "properties": {
-          "count": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "recent": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapSong"
-            }
-          }
-        }
-      },
-      "StreamRecapStream": {
-        "required": [
-          "id"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "endedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Null while the stream is still live.",
-            "format": "date-time"
-          },
-          "durationSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "peakViewers": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Null when no viewer-count sample ever landed.",
-            "format": "int32"
-          },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "game": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "StreamRecapSubs": {
-        "type": "object",
-        "properties": {
-          "new": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "First-time subscriptions that were not gifts.",
-            "format": "int32"
-          },
-          "resub": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "gift": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Subscriptions given away (the sum of each gift event's count).",
-            "format": "int32"
-          },
-          "total": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
       },
       "StreamStatus": {
         "required": [
@@ -150861,6 +150502,287 @@
           }
         },
         "description": "A row in a widget's version history (rollback / debug list)."
+      },
+      "StatusResponseOfStreamStats": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStats"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StreamStats": {
+        "required": [
+          "stream"
+        ],
+        "type": "object",
+        "properties": {
+          "stream": {
+            "$ref": "#/components/schemas/StreamStatsWindow"
+          },
+          "duration": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int64"
+          },
+          "peakViewers": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "followers": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "subs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsSubs"
+              }
+            ]
+          },
+          "gifters": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsNamedCount"
+            }
+          },
+          "selfSubs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "bits": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          },
+          "raidsIn": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsRaid"
+            }
+          },
+          "redemptions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          },
+          "songRequesters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          },
+          "chat": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsChat"
+              }
+            ]
+          },
+          "topChatters": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsNamedCount"
+            }
+          },
+          "commandsRun": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          }
+        }
+      },
+      "StreamStatsWindow": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "game": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "StreamStatsSubs": {
+        "type": "object",
+        "properties": {
+          "new": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resub": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gift": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StreamStatsNamedCount": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StreamStatsRanked": {
+        "required": [
+          "top"
+        ],
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "top": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsNamedCount"
+            }
+          }
+        }
+      },
+      "StreamStatsRaid": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "viewers": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StreamStatsChat": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uniqueChatters": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       }
     }
   },

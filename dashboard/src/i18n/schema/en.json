@@ -777,6 +777,9 @@
         "help": "The viewer to shout out."
       }
     },
+    "show_raid_recap": {
+      "description": "Show the stream recap on the raid recap widget"
+    },
     "song_ban": {
       "description": "Block the currently playing track from requests and skip it",
       "reason": {
@@ -1411,6 +1414,10 @@
         "description": "The live raffle round: the entrant roster and climbing pot as chatters type !raffle, and the winner reveal + payout board when one entrant takes the whole pot.",
         "name": "Raffle"
       },
+      "raid_recap": {
+        "description": "The stream recap as the ending scene. Blocks with no data are left out and the rest grow to fill the screen. Holds for a set time, then fades.",
+        "name": "Raid Recap"
+      },
       "recent_followers": {
         "description": "A persistent standings panel of the most recent followers, newest on top. It is an always-on list rather than a one-at-a-time alert, with a configurable count and title.",
         "name": "Recent Followers"
@@ -1587,6 +1594,60 @@
       },
       "hideAfterMs": {
         "label": "Hide after (ms)"
+      }
+    },
+    "raid_recap": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "holdSeconds": {
+        "label": "Show time (seconds)"
+      },
+      "labels": {
+        "help": "The words on the screen, as JSON. Keys such as title, kpi.duration and block.subs.",
+        "label": "Texts"
+      },
+      "metrics": {
+        "label": "Stream numbers to read",
+        "option": {
+          "bits": "Bits",
+          "chat": "Chat activity",
+          "commandsRun": "Commands run",
+          "duration": "Time live",
+          "followers": "New followers",
+          "gifters": "Gifters",
+          "peakViewers": "Peak viewers",
+          "raidsIn": "Raids in",
+          "redemptions": "Redemptions",
+          "selfSubs": "Self subscribers",
+          "songRequesters": "Song requesters",
+          "subs": "Subscription counts",
+          "topChatters": "Top chatters"
+        }
+      },
+      "showBits": {
+        "label": "Show bits"
+      },
+      "showChatters": {
+        "label": "Show top chatters"
+      },
+      "showFollowers": {
+        "label": "Show new followers"
+      },
+      "showRaids": {
+        "label": "Show raids"
+      },
+      "showRedemptions": {
+        "label": "Show redemptions"
+      },
+      "showSongs": {
+        "label": "Show song requesters"
+      },
+      "showSubs": {
+        "label": "Show subscriptions"
+      },
+      "showTopCommands": {
+        "label": "Show top commands"
       }
     },
     "recent_followers": {

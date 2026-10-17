@@ -62,13 +62,23 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
 
     public int Order => 85;
 
-    private sealed record FlowKey(string Key, string DisplayName, Func<string> BuildPayloadJson);
+    private sealed record FlowKey(
+        string Key,
+        string DisplayName,
+        Func<string> BuildPayloadJson,
+        string? RequiredAction = null
+    );
 
     private static readonly FlowKey[] Flows =
     [
         new("raid_out", "Raid out", RaidFlowSeeder.BuildPlatformContentPayloadJson),
         new("raid_start", "Raid starting", RaidStartFlowSeeder.BuildPlatformContentPayloadJson),
-        new("raid_commit", "Raid committed", RaidCommitFlowSeeder.BuildPlatformContentPayloadJson),
+        new(
+            "raid_commit",
+            "Raid committed",
+            RaidCommitFlowSeeder.BuildPlatformContentPayloadJson,
+            RequiredAction: "show_raid_recap"
+        ),
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
@@ -110,6 +120,7 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
             if (existing.TryGetValue(flow.Key, out PlatformContentDefinition? found))
             {
                 byKey[flow.Key] = found;
+                anyCreated |= await PublishNextVersionIfStaleAsync(flow, found, ct);
                 continue;
             }
 
@@ -153,6 +164,49 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
             await _db.SaveChangesAsync(ct);
 
         return byKey;
+    }
+
+    /// <summary>Publishes the next version of a flow whose current published version predates the flow's
+    /// required action (<see cref="FlowKey.RequiredAction"/>), e.g. <c>raid_commit</c> v2 adding
+    /// <c>show_raid_recap</c>. Not a hash comparison: the payload carries fresh step ids on every build, so
+    /// its hash differs on every run. Returns true when a version was added.</summary>
+    private async Task<bool> PublishNextVersionIfStaleAsync(
+        FlowKey flow,
+        PlatformContentDefinition definition,
+        CancellationToken ct
+    )
+    {
+        if (flow.RequiredAction is null || definition.CurrentVersionId is null)
+            return false;
+
+        PlatformContentVersion? current = await _db.PlatformContentVersions.FirstOrDefaultAsync(
+            v => v.Id == definition.CurrentVersionId,
+            ct
+        );
+        if (current is null || current.PayloadJson.Contains($"\"{flow.RequiredAction}\""))
+            return false;
+
+        int latest = await _db
+            .PlatformContentVersions.Where(v => v.DefinitionId == definition.Id)
+            .MaxAsync(v => v.Version, ct);
+
+        DateTime now = DateTime.UtcNow;
+        string payloadJson = flow.BuildPayloadJson();
+        PlatformContentVersion next = new()
+        {
+            DefinitionId = definition.Id,
+            Version = latest + 1,
+            ContentHash = PlatformContentHash.ComputeHash(payloadJson),
+            PayloadJson = payloadJson,
+            DraftedAt = now,
+            DraftedByPrincipalId = Guid.Empty,
+            PublishedAt = now,
+            PublishedByPrincipalId = Guid.Empty,
+        };
+        _db.PlatformContentVersions.Add(next);
+        definition.CurrentVersionId = next.Id;
+        definition.LatestDraftVersionId = next.Id;
+        return true;
     }
 
     /// <summary>Stamps provenance on every tenant's <c>raid</c> command's pipeline — the flat command-graph

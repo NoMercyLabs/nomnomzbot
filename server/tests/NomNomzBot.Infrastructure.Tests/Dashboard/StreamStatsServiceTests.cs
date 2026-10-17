@@ -13,11 +13,13 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Dashboard.Stats;
 using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Rewards.Entities;
-using NomNomzBot.Infrastructure.Dashboard;
+using NomNomzBot.Infrastructure.Dashboard.Stats;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 using Record = NomNomzBot.Domain.Platform.Entities.Record;
@@ -28,7 +30,7 @@ namespace NomNomzBot.Infrastructure.Tests.Dashboard;
 /// The stream recap counts recorded facts inside the stream window. Every test seeds real rows, some inside and
 /// some outside the window, and asserts the exact numbers and shapes the DTO carries.
 /// </summary>
-public sealed class StreamRecapServiceTests
+public sealed class StreamStatsServiceTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0192f000-0000-7000-8000-0000000000f1");
     private static readonly Guid OtherBroadcaster = Guid.Parse(
@@ -67,19 +69,50 @@ public sealed class StreamRecapServiceTests
         };
     }
 
-    private static StreamRecapService NewService(AuthDbContext db, DateTimeOffset now)
+    private static StreamStatsService NewService(AuthDbContext db, DateTimeOffset now)
     {
         TimeProvider clock = Substitute.For<TimeProvider>();
         clock.GetUtcNow().Returns(now);
-        return new StreamRecapService(db, clock);
+        StreamFactReader facts = new(db);
+        IStreamMetric[] metrics =
+        [
+            new DurationMetric(),
+            new PeakViewersMetric(),
+            new FollowersMetric(facts),
+            new SubsMetric(facts),
+            new GiftersMetric(facts),
+            new SelfSubsMetric(facts),
+            new BitsMetric(facts),
+            new RaidsInMetric(facts),
+            new RedemptionsMetric(db),
+            new SongRequestersMetric(db),
+            new ChatMetric(db),
+            new TopChattersMetric(db),
+            new CommandsRunMetric(db),
+        ];
+        return new StreamStatsService(db, clock, metrics);
     }
 
-    private static Record Song(string track, string artist, DateTimeOffset at) =>
+    private static User Viewer(string twitchId, string name) =>
+        new()
+        {
+            TwitchUserId = twitchId,
+            Username = name.ToLowerInvariant(),
+            UsernameNormalized = name.ToLowerInvariant(),
+            DisplayName = name,
+        };
+
+    private static Record Song(
+        string track,
+        string artist,
+        string requesterId,
+        DateTimeOffset at
+    ) =>
         new()
         {
             BroadcasterId = Broadcaster,
             RecordType = SongRequestHistory.RecordType,
-            UserId = "viewer-1",
+            UserId = requesterId,
             Data = JsonSerializer.Serialize(
                 new SongRequestHistory("spotify:track:" + track, track, artist, null, "spotify"),
                 new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
@@ -114,6 +147,17 @@ public sealed class StreamRecapServiceTests
             UserType = "viewer",
             Message = "hi",
             CreatedAt = Started.UtcDateTime.AddMinutes(10),
+        };
+
+    private static CommandUsage Ran(string name, DateTimeOffset at) =>
+        new()
+        {
+            BroadcasterId = Broadcaster,
+            CommandNameSnapshot = name,
+            ViewerProfileId = Guid.NewGuid(),
+            ViewerUserId = Guid.NewGuid(),
+            WasSuccessful = true,
+            CreatedAt = at.UtcDateTime,
         };
 
     private static async Task<AuthDbContext> SeededAsync()
@@ -167,7 +211,7 @@ public sealed class StreamRecapServiceTests
             Fact(
                 Broadcaster,
                 "channel.subscription.message",
-                inside,
+                inside.AddMinutes(3),
                 new { userId = "r1", userDisplayName = "Returning" }
             ),
             Fact(
@@ -275,9 +319,22 @@ public sealed class StreamRecapServiceTests
         );
 
         db.Records.AddRange(
-            Song("Song A", "Artist A", inside),
-            Song("Song B", "Artist B", inside.AddMinutes(4)),
-            Song("Song C", "Artist C", after)
+            Song("Song A", "Artist A", "tw-alice", inside),
+            Song("Song B", "Artist B", "tw-bob", inside.AddMinutes(4)),
+            Song("Song D", "Artist D", "tw-alice", inside.AddMinutes(6)),
+            Song("Song C", "Artist C", "tw-bob", after)
+        );
+
+        db.Users.AddRange(Viewer("tw-alice", "Alice"), Viewer("tw-bob", "Bob"));
+
+        db.CommandUsages.AddRange(
+            Ran("!hug", inside),
+            Ran("!hug", inside.AddMinutes(1)),
+            Ran("!hug", inside.AddMinutes(2)),
+            Ran("!lurk", inside.AddMinutes(3)),
+            Ran("!lurk", inside.AddMinutes(4)),
+            Ran("!so", inside.AddMinutes(5)),
+            Ran("!old", before)
         );
 
         db.ChatMessages.AddRange(
@@ -291,60 +348,112 @@ public sealed class StreamRecapServiceTests
         return db;
     }
 
-    [Fact]
-    public async Task Counts_every_fact_inside_the_window_and_none_outside_it()
+    private static async Task<StreamStatsDto> AllAsync()
     {
         AuthDbContext db = await SeededAsync();
-        StreamRecapService service = NewService(db, Ended.AddHours(1));
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-1", null);
+        result.IsSuccess.Should().BeTrue();
+        return result.Value;
+    }
 
-        Result<StreamRecapDto> result = await service.GetRecapAsync(Broadcaster, "s-1");
+    [Fact]
+    public async Task Window_and_scalar_metrics_count_only_inside_the_window()
+    {
+        StreamStatsDto stats = await AllAsync();
+
+        stats.Stream.Id.Should().Be("s-1");
+        stats.Stream.StartedAt.Should().Be(Started);
+        stats.Stream.EndedAt.Should().Be(Ended);
+        stats.Stream.Title.Should().Be("Celeste night");
+        stats.Stream.Game.Should().Be("Celeste");
+        stats.Duration.Should().Be(12600);
+        stats.PeakViewers.Should().Be(87);
+        stats
+            .Followers.Should()
+            .Be(3, "the follows before, after and on another channel are outside");
+    }
+
+    [Fact]
+    public async Task Sub_metrics_split_new_resub_gift_and_self_subscribers()
+    {
+        StreamStatsDto stats = await AllAsync();
+
+        stats.Subs!.New.Should().Be(2, "a gift recipient's own subscribe row is not a new sub");
+        stats.Subs.Resub.Should().Be(1);
+        stats.Subs.Gift.Should().Be(4, "3 from the named gifter plus 1 anonymous");
+        stats.Subs.Total.Should().Be(7);
+        stats
+            .Gifters!.Select(g => (g.Name, g.Count))
+            .Should()
+            .Equal(("Generous", 3), ("Anonymous", 1));
+        stats.SelfSubs.Should().Equal("NewOne", "NewTwo", "Returning");
+    }
+
+    [Fact]
+    public async Task Bits_and_raids_count_only_inside_the_window()
+    {
+        StreamStatsDto stats = await AllAsync();
+
+        stats.Bits!.Total.Should().Be(500);
+        stats.Bits.Top.Select(c => (c.Name, c.Count)).Should().Equal(("Cheerer", 500));
+        stats.RaidsIn!.Select(r => (r.Name, r.Viewers)).Should().Equal(("Raider", 12));
+    }
+
+    [Fact]
+    public async Task Table_metrics_rank_redemptions_requesters_chatters_and_commands()
+    {
+        StreamStatsDto stats = await AllAsync();
+
+        stats.Redemptions!.Total.Should().Be(4);
+        stats
+            .Redemptions.Top.Select(t => (t.Name, t.Count))
+            .Should()
+            .Equal(("Hydrate", 3), ("Stretch", 1));
+        stats.SongRequesters!.Total.Should().Be(3);
+        stats
+            .SongRequesters.Top.Select(r => (r.Name, r.Count))
+            .Should()
+            .Equal(("Alice", 2), ("Bob", 1));
+        stats.Chat!.Messages.Should().Be(3);
+        stats.Chat.UniqueChatters.Should().Be(2);
+        stats.TopChatters!.Select(c => (c.Name, c.Count)).Should().Equal(("alice", 2), ("bob", 1));
+        stats.CommandsRun!.Total.Should().Be(6);
+        stats
+            .CommandsRun.Top.Select(c => (c.Name, c.Count))
+            .Should()
+            .Equal(("!hug", 3), ("!lurk", 2), ("!so", 1));
+    }
+
+    [Fact]
+    public async Task Only_the_requested_metrics_are_filled()
+    {
+        AuthDbContext db = await SeededAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-1", ["followers", "bits"]);
 
         result.IsSuccess.Should().BeTrue();
-        StreamRecapDto recap = result.Value;
+        result.Value.Followers.Should().Be(3);
+        result.Value.Bits!.Total.Should().Be(500);
+        result.Value.Subs.Should().BeNull();
+        result.Value.Gifters.Should().BeNull();
+        result.Value.Chat.Should().BeNull();
+        result.Value.CommandsRun.Should().BeNull();
+        result.Value.Duration.Should().BeNull();
+    }
 
-        recap.Stream.Id.Should().Be("s-1");
-        recap.Stream.StartedAt.Should().Be(Started);
-        recap.Stream.EndedAt.Should().Be(Ended);
-        recap.Stream.DurationSeconds.Should().Be(12600);
-        recap.Stream.PeakViewers.Should().Be(87);
-        recap.Stream.Title.Should().Be("Celeste night");
-        recap.Stream.Game.Should().Be("Celeste");
+    [Fact]
+    public async Task An_unknown_metric_key_fails_validation_naming_the_key()
+    {
+        AuthDbContext db = await SeededAsync();
 
-        recap.Followers.Should().Be(3);
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-1", ["followers", "nonsense"]);
 
-        recap.Subs.New.Should().Be(2, "a gift recipient's own subscribe row is not a new sub");
-        recap.Subs.Resub.Should().Be(1);
-        recap.Subs.Gift.Should().Be(4, "3 from the named gifter plus 1 anonymous");
-        recap.Subs.Total.Should().Be(7);
-
-        recap.GiftSubs.Should().HaveCount(2);
-        recap.GiftSubs[0].Name.Should().Be("Generous");
-        recap.GiftSubs[0].Count.Should().Be(3);
-        recap.GiftSubs[1].Name.Should().Be("Anonymous");
-        recap.GiftSubs[1].Count.Should().Be(1);
-
-        recap.Bits.Total.Should().Be(500);
-        recap.Bits.Top.Should().ContainSingle();
-        recap.Bits.Top[0].Name.Should().Be("Cheerer");
-        recap.Bits.Top[0].Bits.Should().Be(500);
-
-        recap.RaidsIn.Should().ContainSingle();
-        recap.RaidsIn[0].Name.Should().Be("Raider");
-        recap.RaidsIn[0].Viewers.Should().Be(12);
-
-        recap.Redemptions.Count.Should().Be(4);
-        recap.Redemptions.Top.Should().HaveCount(2);
-        recap.Redemptions.Top[0].Title.Should().Be("Hydrate");
-        recap.Redemptions.Top[0].Count.Should().Be(3);
-        recap.Redemptions.Top[1].Title.Should().Be("Stretch");
-        recap.Redemptions.Top[1].Count.Should().Be(1);
-
-        recap.Songs.Count.Should().Be(2);
-        recap.Songs.Recent.Select(s => s.Track).Should().Equal("Song B", "Song A");
-        recap.Songs.Recent[0].Artist.Should().Be("Artist B");
-
-        recap.Chat.Messages.Should().Be(3);
-        recap.Chat.UniqueChatters.Should().Be(2);
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("'nonsense'");
     }
 
     [Fact]
@@ -353,24 +462,24 @@ public sealed class StreamRecapServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Streams.Add(NewStream("s-empty", Started, Ended));
         await db.SaveChangesAsync();
-        StreamRecapService service = NewService(db, Ended.AddHours(1));
 
-        Result<StreamRecapDto> result = await service.GetRecapAsync(Broadcaster, null);
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, null, null);
 
         result.IsSuccess.Should().BeTrue();
-        StreamRecapDto recap = result.Value;
-        recap.Followers.Should().Be(0);
-        recap.Subs.Total.Should().Be(0);
-        recap.GiftSubs.Should().BeEmpty();
-        recap.Bits.Total.Should().Be(0);
-        recap.Bits.Top.Should().BeEmpty();
-        recap.RaidsIn.Should().BeEmpty();
-        recap.Redemptions.Count.Should().Be(0);
-        recap.Redemptions.Top.Should().BeEmpty();
-        recap.Songs.Count.Should().Be(0);
-        recap.Songs.Recent.Should().BeEmpty();
-        recap.Chat.Messages.Should().Be(0);
-        recap.Chat.UniqueChatters.Should().Be(0);
+        StreamStatsDto stats = result.Value;
+        stats.Followers.Should().Be(0);
+        stats.Subs!.Total.Should().Be(0);
+        stats.Gifters.Should().BeEmpty();
+        stats.SelfSubs.Should().BeEmpty();
+        stats.Bits!.Total.Should().Be(0);
+        stats.Bits.Top.Should().BeEmpty();
+        stats.RaidsIn.Should().BeEmpty();
+        stats.Redemptions!.Top.Should().BeEmpty();
+        stats.SongRequesters!.Top.Should().BeEmpty();
+        stats.Chat!.Messages.Should().Be(0);
+        stats.TopChatters.Should().BeEmpty();
+        stats.CommandsRun!.Total.Should().Be(0);
     }
 
     [Fact]
@@ -391,14 +500,14 @@ public sealed class StreamRecapServiceTests
             )
         );
         await db.SaveChangesAsync();
-        StreamRecapService service = NewService(db, Started.AddHours(2));
 
-        Result<StreamRecapDto> result = await service.GetRecapAsync(Broadcaster, null);
+        Result<StreamStatsDto> result = await NewService(db, Started.AddHours(2))
+            .GetAsync(Broadcaster, null, ["followers", "duration"]);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Stream.Id.Should().Be("s-live");
         result.Value.Stream.EndedAt.Should().BeNull();
-        result.Value.Stream.DurationSeconds.Should().Be(7200);
+        result.Value.Duration.Should().Be(7200);
         result.Value.Followers.Should().Be(1);
     }
 
@@ -406,9 +515,9 @@ public sealed class StreamRecapServiceTests
     public async Task An_unknown_stream_fails_with_not_found()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        StreamRecapService service = NewService(db, Ended);
 
-        Result<StreamRecapDto> result = await service.GetRecapAsync(Broadcaster, "missing");
+        Result<StreamStatsDto> result = await NewService(db, Ended)
+            .GetAsync(Broadcaster, "missing", null);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
