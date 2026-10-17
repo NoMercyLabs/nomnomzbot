@@ -27668,7 +27668,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/dashboard/{channelId}/stream-recap": {
+    "/api/v{version}/dashboard/{channelId}/stream-stats": {
         parameters: {
             query?: never;
             header?: never;
@@ -27676,13 +27676,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Recap of one stream (the latest, live or ended, when streamId is omitted): follows, subs,
-         *     gift subs, bits, raids in, redemptions, song requests and chat, counted from recorded data in the stream window.
+         * Any metrics of one stream (the latest, live or ended, when streamId is omitted), counted
+         *     from recorded data in the stream window. metrics is a comma-separated list of metric keys
+         *     (all when omitted); an unknown key is a 400 naming it. Each key fills the property of the same name.
          */
         get: {
             parameters: {
                 query?: {
                     streamId?: string;
+                    metrics?: string;
                 };
                 header?: never;
                 path: {
@@ -27699,7 +27701,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfStreamRecap"];
+                        "application/json": components["schemas"]["StatusResponseOfStreamStats"];
                     };
                 };
                 /** @description Bad Request */
@@ -59003,6 +59005,106 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["StatusResponseOfstring"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/overlay/stream-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Any metrics of one stream of the token's channel (the latest, live or ended, when streamId
+         *     is omitted): the same answer as the dashboard's `stream-stats`, for the SDK's
+         *     `data.streamStats`. metrics is a comma-separated key list; an unknown key is a 400.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    streamId?: string;
+                    metrics?: string;
+                    token?: string;
+                };
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfStreamStats"];
                     };
                 };
                 /** @description Bad Request */
@@ -98929,9 +99031,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfStreamRecap: {
+        StatusResponseOfStreamStats: {
             status?: string;
-            data?: null | components["schemas"]["StreamRecap"];
+            data?: null | components["schemas"]["StreamStats"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -99777,106 +99879,127 @@ export interface components {
             newFollowers: number | string;
         };
         /**
-         * @description What happened in one stream, counted from recorded data inside the stream window (`StartedAt` to
-         *     `EndedAt`, or now while live). Returned by GET /api/v1/dashboard/{channelId}/stream-recap. A stat the bot
-         *     does not record (average viewers, new chatters, commands run) is not part of this contract.
+         * @description The answer to `stream-stats`: the stream window plus one named property per requested metric key. A metric
+         *     that was not requested (or has nothing to show, such as the peak of a stream that never recorded one) is omitted.
+         *     A new metric adds a property here and a class implementing `IStreamMetric`; never an endpoint.
          */
-        StreamRecap: {
-            stream: components["schemas"]["StreamRecapStream"];
+        StreamStats: {
+            /** @description The stream these numbers belong to. */
+            stream: components["schemas"]["StreamStatsWindow"];
+            /**
+             * Format: int64
+             * @description Seconds from the start of the stream to its end (or to now while live).
+             */
+            duration?: null | number | string;
             /**
              * Format: int32
-             * @description New followers inside the window.
-             */
-            followers?: number | string;
-            subs: components["schemas"]["StreamRecapSubs"];
-            /** @description Gifters inside the window, most gifts first. Anonymous gifters merge into one "Anonymous" entry. */
-            giftSubs: components["schemas"]["StreamRecapGifter"][];
-            bits: components["schemas"]["StreamRecapBits"];
-            raidsIn: components["schemas"]["StreamRecapRaid"][];
-            redemptions: components["schemas"]["StreamRecapRedemptions"];
-            /** @description Song requests accepted inside the window. */
-            songs: components["schemas"]["StreamRecapSongs"];
-            chat: components["schemas"]["StreamRecapChat"];
-        };
-        StreamRecapBits: {
-            /** Format: int32 */
-            total?: number | string;
-            top: components["schemas"]["StreamRecapCheerer"][];
-        };
-        StreamRecapChat: {
-            /** Format: int32 */
-            messages?: number | string;
-            /** Format: int32 */
-            uniqueChatters?: number | string;
-        };
-        StreamRecapCheerer: {
-            name: string;
-            /** Format: int32 */
-            bits?: number | string;
-        };
-        StreamRecapGifter: {
-            name: string;
-            /** Format: int32 */
-            count?: number | string;
-        };
-        StreamRecapRaid: {
-            name: string;
-            /** Format: int32 */
-            viewers?: number | string;
-        };
-        StreamRecapRedemptions: {
-            /** Format: int32 */
-            count?: number | string;
-            top: components["schemas"]["StreamRecapRedemptionTitle"][];
-        };
-        StreamRecapRedemptionTitle: {
-            title: string;
-            /** Format: int32 */
-            count?: number | string;
-        };
-        StreamRecapSong: {
-            track: string;
-            artist?: null | string;
-        };
-        StreamRecapSongs: {
-            /** Format: int32 */
-            count?: number | string;
-            recent: components["schemas"]["StreamRecapSong"][];
-        };
-        StreamRecapStream: {
-            id: string;
-            /** Format: date-time */
-            startedAt?: string;
-            /**
-             * Format: date-time
-             * @description Null while the stream is still live.
-             */
-            endedAt?: null | string;
-            /** Format: int64 */
-            durationSeconds?: number | string;
-            /**
-             * Format: int32
-             * @description Null when no viewer-count sample ever landed.
+             * @description The highest viewer count the stream recorded.
              */
             peakViewers?: null | number | string;
-            title?: null | string;
-            game?: null | string;
-        };
-        StreamRecapSubs: {
             /**
              * Format: int32
-             * @description First-time subscriptions that were not gifts.
+             * @description New followers during the stream.
+             */
+            followers?: null | number | string;
+            subs?: null | components["schemas"]["StreamStatsSubs"];
+            /** @description Gifters by gift count; anonymous gifts are merged as "Anonymous". */
+            gifters?: null | components["schemas"]["StreamStatsNamedCount"][];
+            /** @description Viewers who subscribed or resubscribed themselves (gift recipients excluded), in order. */
+            selfSubs?: null | string[];
+            bits?: null | components["schemas"]["StreamStatsRanked"];
+            /** @description Raids that arrived during the stream: who raided and with how many viewers. */
+            raidsIn?: null | components["schemas"]["StreamStatsRaid"][];
+            redemptions?: null | components["schemas"]["StreamStatsRanked"];
+            songRequesters?: null | components["schemas"]["StreamStatsRanked"];
+            chat?: null | components["schemas"]["StreamStatsChat"];
+            /** @description The chatters with the most messages. */
+            topChatters?: null | components["schemas"]["StreamStatsNamedCount"][];
+            commandsRun?: null | components["schemas"]["StreamStatsRanked"];
+        };
+        /** @description Chat activity of a stream. */
+        StreamStatsChat: {
+            /**
+             * Format: int32
+             * @description The number of chat messages.
+             */
+            messages?: number | string;
+            /**
+             * Format: int32
+             * @description The number of different chatters.
+             */
+            uniqueChatters?: number | string;
+        };
+        /** @description A name with a count. */
+        StreamStatsNamedCount: {
+            /** @description The viewer or reward name. */
+            name: string;
+            /**
+             * Format: int32
+             * @description How many times it counted.
+             */
+            count?: number | string;
+        };
+        /** @description One raid that arrived. */
+        StreamStatsRaid: {
+            /** @description The raiding channel. */
+            name: string;
+            /**
+             * Format: int32
+             * @description How many viewers came with the raid.
+             */
+            viewers?: number | string;
+        };
+        /** @description A total and its top entries, ranked by count then name. */
+        StreamStatsRanked: {
+            /**
+             * Format: int32
+             * @description The total across all entries.
+             */
+            total?: number | string;
+            /** @description The top entries, highest first. */
+            top: components["schemas"]["StreamStatsNamedCount"][];
+        };
+        /** @description Subscription counts of a stream. */
+        StreamStatsSubs: {
+            /**
+             * Format: int32
+             * @description First-time subscriptions.
              */
             new?: number | string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Resubscriptions.
+             */
             resub?: number | string;
             /**
              * Format: int32
-             * @description Subscriptions given away (the sum of each gift event's count).
+             * @description Gifted subscriptions.
              */
             gift?: number | string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description All subscriptions together.
+             */
             total?: number | string;
+        };
+        /** @description The window of one stream: its id, start, end, title and game. */
+        StreamStatsWindow: {
+            /** @description The stream id. */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the stream started.
+             */
+            startedAt?: string;
+            /**
+             * Format: date-time
+             * @description When the stream ended. Null while it is live.
+             */
+            endedAt?: null | string;
+            /** @description The stream title. */
+            title?: null | string;
+            /** @description The game or category name. */
+            game?: null | string;
         };
         StreamStatus: {
             isLive: boolean;
