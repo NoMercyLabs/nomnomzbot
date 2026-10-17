@@ -244,27 +244,6 @@ function rejectOpen(open: boolean): void {
           <span class="min-w-0 flex-1 truncate text-sm text-muted-foreground">
             {{ $t('dashboard.channelPoints.redemptions.range', { count: visible.length }) }}
           </span>
-          <template v-if="canManage">
-            <Button
-              variant="destructive"
-              size="sm"
-              data-redemption-bulk-reject
-              :disabled="bulkIds.length === 0"
-              @click="rejecting = bulkIds"
-            >
-              <Cross aria-hidden="true" />
-              {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: bulkIds.length }) }}
-            </Button>
-            <Button
-              size="sm"
-              data-redemption-bulk-complete
-              :disabled="bulkIds.length === 0"
-              @click="decide(bulkIds, 'fulfill')"
-            >
-              <CheckDouble aria-hidden="true" />
-              {{ $t('dashboard.channelPoints.redemptions.completeAll', { count: bulkIds.length }) }}
-            </Button>
-          </template>
         </div>
 
         <p
@@ -334,6 +313,31 @@ function rejectOpen(open: boolean): void {
             </div>
           </li>
         </ul>
+
+        <div
+          v-if="canManage"
+          class="mt-auto flex flex-none items-center justify-end gap-2 border-t border-border px-3 py-2"
+        >
+          <Button
+            variant="destructive"
+            size="sm"
+            data-redemption-bulk-reject
+            :disabled="bulkIds.length === 0"
+            @click="rejecting = bulkIds"
+          >
+            <Cross aria-hidden="true" />
+            {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: bulkIds.length }) }}
+          </Button>
+          <Button
+            size="sm"
+            data-redemption-bulk-complete
+            :disabled="bulkIds.length === 0"
+            @click="decide(bulkIds, 'fulfill')"
+          >
+            <CheckDouble aria-hidden="true" />
+            {{ $t('dashboard.channelPoints.redemptions.completeAll', { count: bulkIds.length }) }}
+          </Button>
+        </div>
       </div>
     </div>
   </PanelCard>
