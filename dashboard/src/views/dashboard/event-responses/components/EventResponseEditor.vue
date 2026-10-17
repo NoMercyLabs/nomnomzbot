@@ -30,6 +30,8 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import ReplyModeField from '@/components/layout/ReplyModeField.vue';
+
 import { changeOf, draftOf, nameOf, sameDraft, type EventDraft } from './eventResponseDraft';
 
 const props = defineProps<{ row: EventResponse }>();
@@ -169,16 +171,18 @@ function useDefault(): Promise<void> {
         {{ $t('dashboard.eventResponses.editor.following') }}
       </p>
 
-      <TemplateField
-        v-model="draft.message"
-        :label="$t('dashboard.eventResponses.editor.message')"
-        context="eventResponse"
-        :event-type="row.eventType"
-      />
-      <p class="-mt-3 text-sm text-muted-foreground">
-        {{ $t('dashboard.eventResponses.editor.messageHelp') }}
-        <span v-if="variables">{{ $t('dashboard.eventResponses.editor.variables', { names: variables }) }}</span>
-      </p>
+      <ReplyModeField v-model:mode="draft.mode" v-model:pipeline-id="draft.pipelineId">
+        <TemplateField
+          v-model="draft.message"
+          :label="$t('dashboard.eventResponses.editor.message')"
+          context="eventResponse"
+          :event-type="row.eventType"
+        />
+        <p class="text-sm text-muted-foreground">
+          {{ $t('dashboard.eventResponses.editor.messageHelp') }}
+          <span v-if="variables">{{ $t('dashboard.eventResponses.editor.variables', { names: variables }) }}</span>
+        </p>
+      </ReplyModeField>
 
       <RowGroup>
         <SettingRow

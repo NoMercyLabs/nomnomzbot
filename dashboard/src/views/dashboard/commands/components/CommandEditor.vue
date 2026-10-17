@@ -21,9 +21,9 @@ import {
   type CommandChange,
   type CommandListItem,
 } from '@/api/commands';
-import { usePipelines } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
@@ -53,7 +53,6 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const update = useUpdateCommand(channelId);
 const toggle = useToggleCommand(channelId);
-const pipelines = usePipelines(channelId);
 
 const draft = ref<CommandDraft>(draftOf(props.row));
 // What the form was last loaded or saved with. A row that changes under an edited form never overwrites the edits.
@@ -133,7 +132,11 @@ function remove(): void {
         />
       </RowGroup>
 
-      <template v-if="row.tier === 'template'">
+      <ReplyModeField
+        v-if="row.tier !== 'code'"
+        v-model:mode="draft.mode"
+        v-model:pipeline-id="draft.pipelineId"
+      >
         <TemplateField
           v-if="!random"
           v-model="draft.templateResponse"
@@ -150,27 +153,7 @@ function remove(): void {
             @update:model-value="setRandom"
           />
         </RowGroup>
-      </template>
-      <Field v-else-if="row.tier === 'pipeline'">
-        <FieldLabel>{{ $t('dashboard.commands.editor.pipeline') }}</FieldLabel>
-        <Select v-model="draft.pipelineId">
-          <SelectTrigger :aria-label="$t('dashboard.commands.editor.pipeline')" class="w-full">
-            <SelectValue :placeholder="$t('dashboard.commands.editor.pipelinePlaceholder')" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem
-              v-for="pipeline in pipelines.data.value ?? []"
-              :key="pipeline.id"
-              :value="pipeline.id"
-            >
-              {{ pipeline.name }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <FieldDescription v-if="draft.pipelineId === ''">{{
-          $t('dashboard.commands.editor.noPipeline')
-        }}</FieldDescription>
-      </Field>
+      </ReplyModeField>
       <CodeTierNote v-else />
 
       <RowGroup>

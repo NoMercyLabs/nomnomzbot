@@ -67,6 +67,15 @@
     },
     "chart": {
       "period": "Period"
+    },
+    "replyMode": {
+      "label": "Reply type",
+      "simple": "Simple reply",
+      "full": "Full pipeline",
+      "pipeline": "Pipeline",
+      "pipelinePlaceholder": "Pick a pipeline",
+      "none": "This answers nothing until you pick a pipeline. The pipeline has its own reply step.",
+      "open": "Open in the pipeline editor"
     }
   },
   "template": {

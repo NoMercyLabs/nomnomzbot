@@ -257,6 +257,50 @@ describe('Event responses page', () => {
     expect(writes('PUT')[0]!.body).toEqual({ message: 'Hi {user}, welcome in' });
   });
 
+  it('shows the message or the pipeline picker, never both', async () => {
+    await open();
+    await click(rowOf('channel.follow'));
+    expect(editor()!.querySelector('textarea')).not.toBeNull();
+    expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
+
+    await click(buttonByText('Full pipeline'));
+
+    expect(editor()!.querySelector('textarea')).toBeNull();
+    expect(editor()!.querySelector('[data-reply-pipeline]')).not.toBeNull();
+  });
+
+  it('opens a pipeline response in Full mode and saves Simple as a chat message with the pipeline cleared', async () => {
+    rows = [response('channel.follow', { responseType: 'pipeline', pipelineId: 'p1' })];
+
+    await open();
+    await click(rowOf('channel.follow'));
+    expect(editor()!.querySelector('textarea')).toBeNull();
+
+    await click(buttonByText('Simple reply'));
+    expect(messageBox().value).toBe('Welcome {user}!');
+
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({
+      responseType: 'chat_message',
+      pipelineId: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  it('saves a chat message switched to Full pipeline as the pipeline type with its pipeline, and no message', async () => {
+    rows = [response('channel.follow', { pipelineId: 'p1' })];
+
+    await open();
+    await click(rowOf('channel.follow'));
+    await click(buttonByText('Full pipeline'));
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({
+      responseType: 'pipeline',
+      pipelineId: 'p1',
+    });
+  });
+
   it('keeps the draft and shows the reason when the bot refuses the save', async () => {
     refusePut = 'Message too long';
     await open();

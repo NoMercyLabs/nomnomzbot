@@ -10,10 +10,13 @@
 
 import type { CommandChange, CommandListItem } from '@/api/commands';
 
+import type { ReplyMode } from '@/components/layout/replyMode';
+
 import { permissionLevels } from './permissionLevels';
 
 // What the editor form holds. Empty replies means "one reply" mode; a pipeline of '' means none picked.
 export interface CommandDraft {
+  mode: ReplyMode;
   templateResponse: string;
   replies: string[];
   pipelineId: string;
@@ -33,6 +36,9 @@ function canonicalLevel(level: string): string {
 
 export function draftOf(row: CommandListItem): CommandDraft {
   return {
+    mode: row.tier === 'pipeline'
+      ? 'full'
+      : 'simple',
     templateResponse: row.templateResponse ?? '',
     replies: [...(row.templateResponses ?? [])],
     pipelineId: row.pipelineId ?? '',
@@ -55,15 +61,25 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
   const saved = draftOf(row);
   const change: CommandChange = {};
 
-  if (row.tier === 'template' && draft.templateResponse !== saved.templateResponse) {
+  const replyTier = row.tier === 'template' || row.tier === 'pipeline';
+  const simple = replyTier && draft.mode === 'simple';
+  const full = replyTier && draft.mode === 'full' && draft.pipelineId !== '';
+
+  // The reply text stays on the command when it runs a pipeline; only the tier says which one answers.
+  if (simple && draft.templateResponse !== saved.templateResponse) {
     change.templateResponse = draft.templateResponse;
   }
 
-  if (row.tier === 'template' && !sameReplies(draft.replies, saved.replies)) {
+  if (simple && !sameReplies(draft.replies, saved.replies)) {
     change.templateResponses = draft.replies;
   }
 
-  if (row.tier === 'pipeline' && draft.pipelineId !== saved.pipelineId && draft.pipelineId !== '') {
+  if (simple && row.tier === 'pipeline') {
+    change.tier = 'template';
+  }
+
+  if (full && (row.tier !== 'pipeline' || draft.pipelineId !== saved.pipelineId)) {
+    change.tier = 'pipeline';
     change.pipelineId = draft.pipelineId;
   }
 
@@ -88,6 +104,7 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
 
 export function sameDraft(left: CommandDraft, right: CommandDraft): boolean {
   return (
+    left.mode === right.mode &&
     left.templateResponse === right.templateResponse &&
     sameReplies(left.replies, right.replies) &&
     left.pipelineId === right.pipelineId &&

@@ -189,6 +189,42 @@ describe('Chat triggers tab', () => {
     ]);
   });
 
+  it('shows the reply or the pipeline picker, never both', async () => {
+    await open();
+    await click(rowOf('words a'));
+    expect(document.body.querySelector('#trigger-response')).not.toBeNull();
+    expect(document.body.querySelector('[data-reply-pipeline]')).toBeNull();
+
+    await click(buttonByText('Full pipeline'));
+
+    expect(document.body.querySelector('#trigger-response')).toBeNull();
+    expect(document.body.querySelector('[data-reply-pipeline]')).not.toBeNull();
+  });
+
+  it('opens a trigger that runs a pipeline in Full mode and clears the pipeline when Simple is saved', async () => {
+    rows = [trigger('a', { pipelineId: 'p1', response: 'Fallback text' })];
+
+    await open();
+    await click(rowOf('words a'));
+    expect(document.body.querySelector('#trigger-response')).toBeNull();
+
+    await click(buttonByText('Simple reply'));
+
+    expect((document.body.querySelector('#trigger-response') as HTMLTextAreaElement).value).toBe(
+      'Fallback text',
+    );
+
+    await click(buttonByText('Save changes'));
+
+    expect(calls.filter((call) => call.method === 'PATCH')).toEqual([
+      {
+        method: 'PATCH',
+        id: 'a',
+        body: { pipelineId: '00000000-0000-0000-0000-000000000000' },
+      },
+    ]);
+  });
+
   it('keeps the draft and shows the reason when the bot refuses the save', async () => {
     refusePatch = 'Pattern too long';
     await open();

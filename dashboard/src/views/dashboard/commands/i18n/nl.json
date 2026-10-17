@@ -42,7 +42,6 @@
         "replyNumber": "Antwoord {number}",
         "pipeline": "Pipeline",
         "pipelinePlaceholder": "Kies een pipeline",
-        "noPipeline": "Dit commando doet niets tot je een pipeline kiest.",
         "codeNote": "Dit commando draait een codescript. Een script aan een commando koppelen kan hier nog niet.",
         "codeError": "De scripts konden niet laden: {message}",
         "role": "Wie mag het gebruiken",

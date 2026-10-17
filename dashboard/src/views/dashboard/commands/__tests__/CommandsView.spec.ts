@@ -548,6 +548,57 @@ describe('CommandsView editor', () => {
     expect(editor()!.querySelector('textarea')).toBeNull();
   });
 
+  it('shows the reply or the pipeline picker, never both, and brings the reply back on Simple', async () => {
+    await open('/app/commands?command=hello');
+    expect(reply()).not.toBeNull();
+    expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
+
+    buttonByText('Full pipeline').click();
+    await settle();
+
+    expect(editor()!.querySelector('textarea')).toBeNull();
+    expect(editor()!.querySelector('[data-reply-pipeline]')).not.toBeNull();
+
+    buttonByText('Simple reply').click();
+    await settle();
+
+    expect(reply().value).toBe('Hello there');
+    expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
+  });
+
+  it('saves a command switched to Full pipeline as the pipeline tier with its pipeline, and no reply text', async () => {
+    rows[0] = command('hello', { pipelineId: 'p1' });
+
+    await open('/app/commands?command=hello');
+    buttonByText('Full pipeline').click();
+    await settle();
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')).toHaveLength(1);
+    expect(writes('PUT')[0]!.body).toEqual({ tier: 'pipeline', pipelineId: 'p1' });
+  });
+
+  it('saves a pipeline command switched to Simple reply as the template tier with its reply', async () => {
+    rows[2] = command('pipe', {
+      tier: 'pipeline',
+      pipelineId: 'p1',
+      templateResponse: 'Back to text',
+    });
+
+    await open('/app/commands?command=pipe');
+    expect(editor()!.querySelector('textarea')).toBeNull();
+
+    buttonByText('Simple reply').click();
+    await settle();
+    expect(reply().value).toBe('Back to text');
+
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ tier: 'template' });
+  });
+
   it('has no Followers rung in the role list', () => {
     expect(permissionLevels).toEqual([
       'Everyone',
