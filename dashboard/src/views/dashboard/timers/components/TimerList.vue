@@ -60,13 +60,20 @@ function detailOf(row: Timer): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <SearchField v-model="search" data-page-inset :placeholder="$t('dashboard.timers.list.search')" />
     <PanelCard
       :title="$t('dashboard.timers.list.title')"
       :state="state"
       :error-text="$t('dashboard.timers.list.error')"
       @retry="timers.refetch()"
     >
+      <template #actions>
+        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+        <SearchField
+          v-model="search"
+          class="-mr-2 w-52 rounded-[12px]"
+          :placeholder="$t('dashboard.timers.list.search')"
+        />
+      </template>
       <div
         v-if="none"
         data-slot="panel-empty"

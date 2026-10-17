@@ -51,11 +51,6 @@ function detailOf(row: EventResponse): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <SearchField
-      v-model="search"
-      data-page-inset
-      :placeholder="$t('dashboard.eventResponses.list.search')"
-    />
     <PanelCard
       :title="$t('dashboard.eventResponses.list.title')"
       :state="state"
@@ -63,6 +58,14 @@ function detailOf(row: EventResponse): string {
       :error-text="$t('dashboard.eventResponses.list.error')"
       @retry="responses.refetch()"
     >
+      <template #actions>
+        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+        <SearchField
+          v-model="search"
+          class="-mr-2 w-52 rounded-[12px]"
+          :placeholder="$t('dashboard.eventResponses.list.search')"
+        />
+      </template>
       <p v-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
         {{ $t('dashboard.eventResponses.list.noMatch') }}
       </p>

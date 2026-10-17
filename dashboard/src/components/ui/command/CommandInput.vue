@@ -40,6 +40,9 @@ const { filterState } = useCommand()
       <InputGroupAddon>
         <SearchIcon class="size-4 shrink-0 opacity-50" />
       </InputGroupAddon>
+      <InputGroupAddon v-if="$slots.default" align="inline-end">
+        <slot />
+      </InputGroupAddon>
     </InputGroup>
   </div>
 </template>

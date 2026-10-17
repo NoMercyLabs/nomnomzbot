@@ -118,12 +118,11 @@ const creating = ref(false);
       </Button>
     </template>
     <template #bar>
-      <!-- The sort sits over the list it orders, as wide as the list column (ListDetail: 22rem). It stays in
-           place on the Built-in tab, shut, so switching tabs never moves the tabs. -->
+      <!-- The sort sits over the list it orders. It stays in place on the Built-in tab, shut, so switching
+           tabs never moves the tabs. -->
       <SegmentedControl
         v-model="sort"
         :disabled="!listed"
-        class="md:mr-1 md:flex-[0_0_22rem]! *:flex-[1_1_0]!"
         :label="$t('dashboard.commands.list.sort')"
         :options="sortOptions"
       />

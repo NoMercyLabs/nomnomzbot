@@ -199,7 +199,7 @@ const buttonByText = (label: string): HTMLButtonElement =>
 const field = (label: string): HTMLInputElement =>
   document.body.querySelector(`[aria-label="${label}"]`) as HTMLInputElement;
 const switchOf = (title: string): HTMLButtonElement =>
-  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')]
+  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"], label')]
     .find((row) => row.textContent?.includes(title))
     ?.querySelector('button[role="switch"]') as HTMLButtonElement;
 const writes = (method: string): Call[] => calls.filter((call) => call.method === method);

@@ -18,8 +18,7 @@ import { useToggleTimer, type Timer as TimerRow } from '@/api/liveOps';
 import { useTimer, useUpdateTimer, type Timer } from '@/api/timers';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
-import RowGroup from '@/components/layout/RowGroup.vue';
-import SettingRow from '@/components/layout/SettingRow.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
@@ -130,20 +129,14 @@ function remove(): void {
     @retry="timer.refetch()"
   >
     <template #actions>
-      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
-        <Trash2 aria-hidden="true" />
-        {{ $t('dashboard.timers.editor.delete') }}
-      </Button>
+      <LabeledSwitch
+        :label="$t('dashboard.timers.editor.enabled')"
+        :help="$t('dashboard.timers.editor.enabledHelp')"
+        :model-value="row.isEnabled"
+        @update:model-value="toggle.mutate(row.id)"
+      />
     </template>
     <div v-if="draft" class="grid gap-5">
-      <RowGroup>
-        <SettingRow
-          :title="$t('dashboard.timers.editor.enabled')"
-          :description="$t('dashboard.timers.editor.enabledHelp')"
-          :model-value="row.isEnabled"
-          @update:model-value="toggle.mutate(row.id)"
-        />
-      </RowGroup>
 
       <Field>
         <FieldLabel for="timer-name">{{ $t('dashboard.timers.editor.name') }}</FieldLabel>
@@ -164,51 +157,64 @@ function remove(): void {
         :help="$t('dashboard.timers.editor.messagesHelp')"
       />
 
-      <Field>
-        <FieldLabel for="timer-interval">{{ $t('dashboard.timers.editor.interval') }}</FieldLabel>
-        <Input
-          id="timer-interval"
-          type="number"
-          min="1"
-          step="1"
-          :aria-label="$t('dashboard.timers.editor.interval')"
-          :model-value="draft.intervalMinutes"
-          @update:model-value="setNumber('intervalMinutes', $event)"
-        />
-      </Field>
+      <!-- When it runs: how often, and how busy chat must be. -->
+      <div class="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel for="timer-interval">{{ $t('dashboard.timers.editor.interval') }}</FieldLabel>
+          <Input
+            id="timer-interval"
+            type="number"
+            min="1"
+            step="1"
+            :aria-label="$t('dashboard.timers.editor.interval')"
+            :model-value="draft.intervalMinutes"
+            @update:model-value="setNumber('intervalMinutes', $event)"
+          />
+        </Field>
 
-      <Field>
-        <div class="flex items-center gap-1.5">
-          <FieldLabel for="timer-activity">{{ $t('dashboard.timers.editor.activity') }}</FieldLabel>
-          <FieldInfo>{{ $t('dashboard.timers.editor.activityHelp') }}</FieldInfo>
-        </div>
-        <Input
-          id="timer-activity"
-          type="number"
-          min="0"
-          step="1"
-          :aria-label="$t('dashboard.timers.editor.activity')"
-          :model-value="draft.minChatActivity"
-          @update:model-value="setNumber('minChatActivity', $event)"
-        />
-      </Field>
+        <Field>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel for="timer-activity">{{ $t('dashboard.timers.editor.activity') }}</FieldLabel>
+            <FieldInfo>{{ $t('dashboard.timers.editor.activityHelp') }}</FieldInfo>
+          </div>
+          <Input
+            id="timer-activity"
+            type="number"
+            min="0"
+            step="1"
+            :aria-label="$t('dashboard.timers.editor.activity')"
+            :model-value="draft.minChatActivity"
+            @update:model-value="setNumber('minChatActivity', $event)"
+          />
+        </Field>
+      </div>
 
-      <RowGroup>
-        <SettingRow
+      <div class="flex flex-wrap gap-x-8 gap-y-3">
+        <LabeledSwitch
           v-model="draft.fireOnce"
-          :title="$t('dashboard.timers.editor.once')"
-          :description="$t('dashboard.timers.editor.onceHelp')"
+          :label="$t('dashboard.timers.editor.once')"
+          :help="$t('dashboard.timers.editor.onceHelp')"
         />
-        <SettingRow
+        <LabeledSwitch
           v-model="draft.speakWithTts"
-          :title="$t('dashboard.timers.editor.speak')"
-          :description="$t('dashboard.timers.editor.speakHelp')"
+          :label="$t('dashboard.timers.editor.speak')"
+          :help="$t('dashboard.timers.editor.speakHelp')"
         />
-      </RowGroup>
+      </div>
 
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
+      <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        @click="confirmOpen = true"
+      >
+        <Trash2 aria-hidden="true" />
+        {{ $t('dashboard.timers.editor.delete') }}
+      </Button>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button type="button" variant="outline" size="sm" @click="discard">{{
         $t('dashboard.timers.editor.discard')

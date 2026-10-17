@@ -87,23 +87,13 @@
   background: var(--muted);
   box-shadow: none;
 }
-/* Every segmented control spans its container, as the kit's Segmented Controls do (owner 2026-10-14: "please
-   span all segment controls"). A strip too narrow for its options keeps them whole and scrolls sideways.
-   Two controls in one flex row share it equally (flex-basis 0 wins over the width there); alone, width spans. */
-[data-slot='tabs'],
+/* A tab strip and a segmented control hug their options; they never stretch across the row (owner 2026-10-17:
+   "i don't like the stretched switch bars, they are way too spacious", which replaces 2026-10-14's "span all
+   segment controls"). A strip too narrow for its options keeps them whole and scrolls sideways. */
 [data-slot='tabs-list'],
 [data-segmented] {
-  flex: 1 1 0;
-  width: 100%;
-}
-/* A horizontal tabs block holds strip and content in a column: a zero basis there collapsed it in an auto-height
-   parent (the profile dialog showed no tab content on desktop, 2026-10-15). It grows from its content instead. */
-[data-slot='tabs'][data-orientation='horizontal'] {
-  flex-basis: auto;
-}
-/* Horizontal tabs stack strip over content: there the strip's grow would stretch it tall. */
-[data-slot='tabs'][data-orientation='horizontal'] > [data-slot='tabs-list'] {
   flex: none;
+  width: fit-content;
 }
 /* A key cap means nothing without a keyboard: touch screens never show one. */
 @media (pointer: coarse) {

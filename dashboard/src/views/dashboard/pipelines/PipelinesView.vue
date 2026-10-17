@@ -98,13 +98,20 @@ const creating = ref(false);
     </template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:pt-3 max-md:pb-0">
-    <SearchField v-model="search" data-page-inset :placeholder="$t('dashboard.pipelines.list.search')" />
     <PanelCard
       :title="$t('dashboard.pipelines.list.title')"
       :state="state"
       :error-text="$t('dashboard.pipelines.list.error')"
       @retry="pipelines.refetch()"
     >
+      <template #actions>
+        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+        <SearchField
+          v-model="search"
+          class="-mr-2 w-52 rounded-[12px]"
+          :placeholder="$t('dashboard.pipelines.list.search')"
+        />
+      </template>
       <div
         v-if="none"
         data-slot="panel-empty"

@@ -336,6 +336,7 @@ async function submit(): Promise<void> {
         <ReplyModeField
           v-model:mode="mode"
           v-model:pipeline-id="pipelineId"
+          :new-pipeline-name="reward.title"
           :disabled="!reward.isManageable"
         >
           <TemplateField

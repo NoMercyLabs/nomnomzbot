@@ -202,7 +202,7 @@ const buttonByText = (label: string): HTMLButtonElement =>
     (b) => b.textContent?.trim() === label,
   ) as HTMLButtonElement;
 const switchOf = (title: string): HTMLButtonElement =>
-  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')]
+  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"], label')]
     .find((row) => row.textContent?.includes(title))
     ?.querySelector('button[role="switch"]') as HTMLButtonElement;
 const messageBox = (): HTMLTextAreaElement =>
@@ -267,6 +267,16 @@ describe('Event responses page', () => {
 
     expect(editor()!.querySelector('textarea')).toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).not.toBeNull();
+  });
+
+  it('offers Read it aloud only for a text reply, never for a pipeline', async () => {
+    await open();
+    await click(rowOf('channel.follow'));
+    expect(switchOf('Read it aloud')).toBeDefined();
+
+    await click(buttonByText('Pipeline'));
+
+    expect(switchOf('Read it aloud')).toBeUndefined();
   });
 
   it('opens a pipeline response in Full mode and saves Simple as a chat message with the pipeline cleared', async () => {

@@ -61,15 +61,14 @@ const { channelId } = useCurrentChannel();
 const pipelines = usePipelines(channelId);
 const create = useCreatePipeline(channelId);
 
-// The pipeline picker keeps the height the simple reply last had, so a switch never moves what sits below.
+// Every mode keeps the tallest height any mode has had (text, random reply, pipeline), so a switch never
+// moves what sits below (owner 2026-10-17: "its a huge layout shift").
 const simpleBox = useTemplateRef<HTMLElement>('simpleBox');
-const { height: simpleHeight } = useElementSize(simpleBox);
+const { height: simpleHeight } = useElementSize(simpleBox, undefined, { box: 'border-box' });
 const reservedHeight = ref(0);
 
 watch(simpleHeight, (height: number): void => {
-  if (height > 0) {
-    reservedHeight.value = height;
-  }
+  reservedHeight.value = Math.max(reservedHeight.value, height);
 });
 
 const simple = computed<readonly Option[]>(() =>
@@ -137,7 +136,13 @@ async function createPipeline(): Promise<void> {
       :disabled="disabled"
     />
 
-    <div v-if="mode === 'simple'" ref="simpleBox" data-reply-simple class="grid gap-3">
+    <div
+      v-if="mode === 'simple'"
+      ref="simpleBox"
+      data-reply-simple
+      class="grid content-start gap-3"
+      :style="{ minHeight: `${reservedHeight}px` }"
+    >
       <slot />
     </div>
 

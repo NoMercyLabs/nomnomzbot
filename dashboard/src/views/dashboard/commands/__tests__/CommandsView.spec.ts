@@ -261,7 +261,7 @@ const field = (label: string): HTMLInputElement =>
 const reply = (): HTMLTextAreaElement => editor()!.querySelector('textarea') as HTMLTextAreaElement;
 const unsaved = (): string => editor()!.querySelector('[data-unsaved]')?.textContent?.trim() ?? '';
 const switchOf = (title: string): HTMLButtonElement =>
-  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')]
+  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"], label')]
     .find((row) => row.textContent?.includes(title))
     ?.querySelector('button[role="switch"]') as HTMLButtonElement;
 const writes = (method: string): Call[] => calls.filter((call) => call.method === method);
@@ -542,26 +542,30 @@ describe('CommandsView editor', () => {
     expect(writes('PUT')[0]!.body).toEqual({ speakWithTts: true });
   });
 
-  it('switches a text command to Random reply in place: the random panel appears and the text seeds the first reply', async () => {
+  it('switches a text command to Random reply in place: a reply count and an Edit replies button, the text seeds the first reply', async () => {
     await open('/app/commands?command=hello');
     const panel = (): HTMLElement | null =>
       document.body.querySelector<HTMLElement>('[data-random-panel]');
 
-    expect(panel()).toBeNull();
     buttonByText('Random reply').click();
     await settle();
 
-    expect(panel()).not.toBeNull();
+    expect(panel()).toBeNull();
+    expect(editor()!.querySelector('[data-random-summary]')?.textContent).toContain('1 reply');
     expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
+    buttonByText('Edit replies').click();
+    await settle();
     const first = panel()!.querySelector<HTMLTextAreaElement>('[data-random-reply] textarea')!;
 
     expect(first.value).toBe('Hello there');
   });
 
-  it('edits the random replies directly in the panel and sends them as templateResponses on Save', async () => {
+  it('edits the random replies in the dialog and sends them as templateResponses on Save', async () => {
     await open('/app/commands?command=hello');
 
     buttonByText('Random reply').click();
+    await settle();
+    buttonByText('Edit replies').click();
     await settle();
     const inputs = (): HTMLTextAreaElement[] => [
       ...document.body.querySelectorAll<HTMLTextAreaElement>(
@@ -573,7 +577,10 @@ describe('CommandsView editor', () => {
     buttonByText('Add a reply').click();
     await settle();
     await type(inputs()[1]!, 'Two');
+    buttonByText('Use these replies').click();
+    await settle();
 
+    expect(editor()!.querySelector('[data-random-summary]')?.textContent).toContain('2 replies');
     buttonByText('Save changes').click();
     await settle();
 
@@ -601,6 +608,8 @@ describe('CommandsView editor', () => {
 
     buttonByText('Random reply').click();
     await settle();
+    buttonByText('Edit replies').click();
+    await settle();
     buttonByText('Use the replies of !dice').click();
     await settle();
     const inputs = [
@@ -610,21 +619,40 @@ describe('CommandsView editor', () => {
     ];
 
     expect(inputs.map((input) => input.value)).toEqual(['Red', 'Blue']);
+    buttonByText('Use these replies').click();
+    await settle();
     buttonByText('Save changes').click();
     await settle();
 
     expect(writes('PUT')[0]!.body).toEqual({ templateResponses: ['Red', 'Blue'] });
   });
 
-  it('hides the random panel on a pipeline', async () => {
+  it('keeps every reply when the owner looks at Text and comes back, with nothing unsaved', async () => {
+    rows[2] = command('dice', { templateResponse: null, templateResponses: ['One', 'Two', 'Three'] });
+    await open('/app/commands?command=dice');
+
+    buttonByText('Text').click();
+    await settle();
+    buttonByText('Random reply').click();
+    await settle();
+
+    expect(editor()!.querySelector('[data-random-summary]')?.textContent).toContain('3 replies');
+    expect(unsaved()).toBe('');
+  });
+
+  it('drops dialog edits on Cancel, so the draft keeps its replies', async () => {
     rows[2] = command('dice', { templateResponse: null, templateResponses: ['One'] });
     await open('/app/commands?command=dice');
 
-    expect(document.body.querySelector('[data-random-panel]')).not.toBeNull();
-    buttonByText('Pipeline').click();
+    buttonByText('Edit replies').click();
+    await settle();
+    buttonByText('Add a reply').click();
+    await settle();
+    buttonByText('Cancel').click();
     await settle();
 
-    expect(document.body.querySelector('[data-random-panel]')).toBeNull();
+    expect(editor()!.querySelector('[data-random-summary]')?.textContent).toContain('1 reply');
+    expect(unsaved()).toBe('');
   });
 
   it('removes a command only after the confirm, with a DELETE for that name', async () => {

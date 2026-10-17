@@ -23,8 +23,7 @@ import {
   type EventResponsePreset,
 } from '@/api/eventResponses';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
-import RowGroup from '@/components/layout/RowGroup.vue';
-import SettingRow from '@/components/layout/SettingRow.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -146,6 +145,12 @@ function useDefault(): Promise<void> {
     @retry="response.refetch()"
   >
     <template #actions>
+      <LabeledSwitch
+        :label="$t('dashboard.eventResponses.editor.enabled')"
+        :help="$t('dashboard.eventResponses.editor.enabledHelp')"
+        :model-value="row.isEnabled"
+        @update:model-value="toggle"
+      />
       <Button
         v-if="!row.followsPlatformDefault"
         type="button"
@@ -158,20 +163,15 @@ function useDefault(): Promise<void> {
       </Button>
     </template>
     <div v-if="draft" class="grid gap-5">
-      <RowGroup>
-        <SettingRow
-          :title="$t('dashboard.eventResponses.editor.enabled')"
-          :description="$t('dashboard.eventResponses.editor.enabledHelp')"
-          :model-value="row.isEnabled"
-          @update:model-value="toggle"
-        />
-      </RowGroup>
-
       <p v-if="row.followsPlatformDefault" class="text-sm text-muted-foreground">
         {{ $t('dashboard.eventResponses.editor.following') }}
       </p>
 
-      <ReplyModeField v-model:mode="draft.mode" v-model:pipeline-id="draft.pipelineId">
+      <ReplyModeField
+        v-model:mode="draft.mode"
+        v-model:pipeline-id="draft.pipelineId"
+        :new-pipeline-name="nameOf(row.eventType)"
+      >
         <TemplateField
           v-model="draft.message"
           :label="$t('dashboard.eventResponses.editor.message')"
@@ -183,15 +183,13 @@ function useDefault(): Promise<void> {
           {{ $t('dashboard.eventResponses.editor.messageHelp') }}
           <span v-if="variables">{{ $t('dashboard.eventResponses.editor.variables', { names: variables }) }}</span>
         </p>
-      </ReplyModeField>
-
-      <RowGroup>
-        <SettingRow
+        <!-- Speech belongs to a text reply; a pipeline speaks through its own step. -->
+        <LabeledSwitch
           v-model="draft.speakWithTts"
-          :title="$t('dashboard.eventResponses.editor.speak')"
-          :description="$t('dashboard.eventResponses.editor.speakHelp')"
+          :label="$t('dashboard.eventResponses.editor.speak')"
+          :help="$t('dashboard.eventResponses.editor.speakHelp')"
         />
-      </RowGroup>
+      </ReplyModeField>
 
       <div class="flex items-center gap-3">
         <Button type="button" variant="outline" size="sm" disabled>

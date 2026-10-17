@@ -25,7 +25,9 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+import { Kbd } from '@/components/ui/kbd';
 import { useLocalizedText } from '@/composables/useLocalizedText';
+import { useShortcut } from '@/composables/useShortcut';
 
 import { ADDABLE_BLOCKS, type AddableBlock } from './newSteps';
 import { actionIcon, blockIcon } from './stepIcons';
@@ -97,6 +99,11 @@ function focus(): void {
   root.value?.querySelector('input')?.focus();
 }
 
+// The step search is the search of this page, so it answers "/" like every list search.
+const shortcut = { key: '/', label: 'common.shortcuts.search' } as const;
+
+useShortcut(shortcut, focus);
+
 defineExpose({ focus });
 </script>
 
@@ -108,7 +115,10 @@ defineExpose({ focus });
       class="flex min-h-0 flex-1 flex-col"
     >
       <Command class="min-h-0 flex-1 rounded-xl border bg-card">
-        <CommandInput :placeholder="$t('dashboard.pipelines.workbench.palette.find')" />
+        <CommandInput :placeholder="$t('dashboard.pipelines.workbench.palette.find')">
+          <!-- The same quiet key cap as SearchField, curved to this field (8px minus the 4px inset). -->
+          <Kbd class="rounded-[4px]! border border-border bg-transparent">{{ shortcut.key }}</Kbd>
+        </CommandInput>
         <p
           v-if="target"
           data-palette-target

@@ -23,10 +23,9 @@ import {
   type CommandListItem,
 } from '@/api/commands';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
-import RowGroup from '@/components/layout/RowGroup.vue';
-import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -43,9 +42,16 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 import CodeTierNote from './CodeTierNote.vue';
-import { changeOf, draftOf, sameDraft, triggerValid, type CommandDraft } from './commandDraft';
+import {
+  changeOf,
+  draftOf,
+  sameDraft,
+  triggerValid,
+  type CommandDraft,
+  type ReplyKind,
+} from './commandDraft';
 import { permissionLevels } from './permissionLevels';
-import RandomReplyPanel, { type ReplySet } from './RandomReplyPanel.vue';
+import RandomReplyDialog, { type ReplySet } from './RandomReplyDialog.vue';
 import TriggerFields from './TriggerFields.vue';
 
 const props = defineProps<{ row: CommandListItem }>();
@@ -75,24 +81,43 @@ watch(
 
 const change = computed<CommandChange>(() => changeOf(draft.value, props.row));
 const dirtyCount = computed<number>(() => Object.keys(change.value).length);
+
+// One short line of the cooldowns that are set, so the folded group still tells what is on.
+const limitsSummary = computed<string>(() => {
+  const parts: string[] = [];
+
+  if (draft.value.cooldownSeconds > 0) {
+    parts.push(t('dashboard.commands.editor.limitChat', { count: draft.value.cooldownSeconds }));
+  }
+
+  if (draft.value.userCooldownSeconds > 0) {
+    parts.push(t('dashboard.commands.editor.limitPerson', { count: draft.value.userCooldownSeconds }));
+  }
+
+  return parts.length === 0
+    ? t('dashboard.commands.editor.limitsNone')
+    : parts.join(' · ');
+});
 const unsaved = computed<string>(() =>
   dirtyCount.value === 0
     ? ''
     : t('dashboard.commands.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
 );
 const valid = computed(() => triggerValid(draft.value));
-const random = computed<boolean>(() => draft.value.replies.length > 0);
+const random = computed<boolean>(() => draft.value.kind === 'random');
 
-// Text becomes the first random reply; the first random reply becomes the text again.
-function setRandom(on: boolean): void {
-  if (on) {
+// A switch changes only the kind; an empty side starts from the other one (the text seeds the
+// first reply, the first reply seeds an empty text).
+function setKind(kind: ReplyKind): void {
+  if (kind === 'random' && draft.value.replies.length === 0) {
     draft.value.replies = [draft.value.templateResponse];
-
-    return;
   }
 
-  draft.value.templateResponse = draft.value.replies[0] ?? '';
-  draft.value.replies = [];
+  if (kind === 'text' && draft.value.templateResponse === '') {
+    draft.value.templateResponse = draft.value.replies[0] ?? '';
+  }
+
+  draft.value.kind = kind;
 }
 
 const replyTypes = computed(
@@ -103,14 +128,11 @@ const replyTypes = computed(
     ] as const satisfies { value: string; label: string }[],
 );
 const replyType = computed<string>({
-  get: () =>
-    random.value
-      ? 'random'
-      : 'text',
+  get: () => draft.value.kind,
   set: (type: string): void => {
-    if ((type === 'random') !== random.value) {
-      setRandom(type === 'random');
-    }
+    setKind(type === 'random'
+      ? 'random'
+      : 'text');
   },
 });
 // The reply lists of the channel's other random-reply commands, to start a list from.
@@ -125,8 +147,9 @@ const sets = computed<ReplySet[]>(() =>
       replies: item.templateResponses ?? [],
     })),
 );
-const randomShown = computed<boolean>(
-  () => props.row.tier !== 'code' && draft.value.mode === 'simple' && random.value,
+const repliesOpen = ref(false);
+const replyCount = computed<number>(
+  () => draft.value.replies.filter((line: string): boolean => line.trim() !== '').length,
 );
 
 function setNumber(key: 'cooldownSeconds' | 'userCooldownSeconds', value: string | number): void {
@@ -161,20 +184,40 @@ function remove(): void {
 <template>
   <PanelCard data-command-editor tier="lead" pad :title="`!${row.name}`">
     <template #actions>
-      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
-        <Trash2 aria-hidden="true" />
-        {{ $t("dashboard.commands.editor.delete") }}
-      </Button>
+      <LabeledSwitch
+        :label="$t('dashboard.commands.editor.enabled')"
+        :help="$t('dashboard.commands.editor.enabledHelp')"
+        :model-value="row.isEnabled"
+        @update:model-value="toggle.mutate({ commandName: row.name, isEnabled: $event })"
+      />
     </template>
     <div class="grid gap-5">
-      <RowGroup>
-        <SettingRow
-          :title="$t('dashboard.commands.editor.enabled')"
-          :description="$t('dashboard.commands.editor.enabledHelp')"
-          :model-value="row.isEnabled"
-          @update:model-value="toggle.mutate({ commandName: row.name, isEnabled: $event })"
-        />
-      </RowGroup>
+      <!-- Who may trigger it comes first: it decides whether the reaction below ever runs. -->
+      <div class="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel>{{ $t("dashboard.commands.editor.role") }}</FieldLabel>
+          <Select v-model="draft.minPermissionLevel">
+            <SelectTrigger :aria-label="$t('dashboard.commands.editor.role')" class="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="level in permissionLevels" :key="level" :value="level">
+                {{ $t(`dashboard.commands.roles.${level}`) }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel for="command-platforms">{{
+            $t("dashboard.commands.editor.platforms")
+          }}</FieldLabel>
+          <Input
+            id="command-platforms"
+            disabled
+            :model-value="$t('dashboard.commands.editor.platformsOnly')"
+          />
+        </Field>
+      </div>
 
       <ReplyModeField
         v-if="row.tier !== 'code'"
@@ -184,64 +227,52 @@ function remove(): void {
         :simple-options="replyTypes"
         :new-pipeline-name="`!${row.name}`"
       >
-        <TemplateField
-          v-if="!random"
-          v-model="draft.templateResponse"
-          context="command"
-          :maxlength="500"
-          :label="$t('dashboard.commands.editor.reply')"
-          :placeholder="$t('dashboard.commands.editor.replyPlaceholder')"
+        <!-- Text and Random reply share one grid cell; the hidden one still holds its height, so the
+             switch between them never moves what sits below. -->
+        <div class="grid *:[grid-area:1/1]">
+          <TemplateField
+            v-model="draft.templateResponse"
+            context="command"
+            :class="random ? 'invisible' : ''"
+            :inert="random"
+            :maxlength="500"
+            :label="$t('dashboard.commands.editor.reply')"
+            :placeholder="$t('dashboard.commands.editor.replyPlaceholder')"
+          />
+          <Field v-if="random" data-random-summary class="content-start">
+            <FieldLabel>{{ $t("dashboard.commands.editor.randomPanel") }}</FieldLabel>
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-muted-foreground">{{
+                $t("dashboard.commands.editor.replyCount", replyCount)
+              }}</span>
+              <Button type="button" variant="outline" size="sm" @click="repliesOpen = true">
+                {{ $t("dashboard.commands.editor.editReplies") }}
+              </Button>
+            </div>
+          </Field>
+        </div>
+        <!-- Speech belongs to a text reply; a pipeline speaks through its own step. -->
+        <LabeledSwitch
+          v-model="draft.speakWithTts"
+          :label="$t('dashboard.commands.editor.speak')"
+          :help="$t('dashboard.commands.editor.speakHelp')"
         />
-        <p v-else class="text-sm text-muted-foreground">
-          {{ $t("dashboard.commands.editor.randomMoved") }}
-        </p>
       </ReplyModeField>
       <CodeTierNote v-else />
 
-      <RowGroup v-if="draft.mode !== 'full'">
-        <SettingRow
-          v-model="draft.speakWithTts"
-          :title="$t('dashboard.commands.editor.speak')"
-          :description="$t('dashboard.commands.editor.speakHelp')"
-        />
-      </RowGroup>
-
-      <Field>
-        <FieldLabel>{{ $t("dashboard.commands.editor.role") }}</FieldLabel>
-        <Select v-model="draft.minPermissionLevel">
-          <SelectTrigger :aria-label="$t('dashboard.commands.editor.role')" class="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="level in permissionLevels" :key="level" :value="level">
-              {{ $t(`dashboard.commands.roles.${level}`) }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <Field>
-        <FieldLabel for="command-platforms">{{
-          $t("dashboard.commands.editor.platforms")
-        }}</FieldLabel>
-        <Input
-          id="command-platforms"
-          disabled
-          :model-value="$t('dashboard.commands.editor.platformsOnly')"
-        />
-      </Field>
-
-      <Collapsible>
-        <CollapsibleTrigger as-child>
-          <Button type="button" variant="ghost" size="sm" class="group -ml-2">
-            <ChevronDown
-              class="transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
-              aria-hidden="true"
-            />
-            {{ $t("dashboard.commands.editor.moreOptions") }}
-          </Button>
+      <Collapsible class="rounded-lg border border-border">
+        <CollapsibleTrigger
+          data-limits-trigger
+          class="group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
+        >
+          <span class="font-medium">{{ $t("dashboard.commands.editor.limits") }}</span>
+          <span class="ml-auto truncate text-muted-foreground">{{ limitsSummary }}</span>
+          <ChevronDown
+            aria-hidden="true"
+            class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+          />
         </CollapsibleTrigger>
-        <CollapsibleContent force-mount class="grid gap-4 pt-3 data-[state=closed]:hidden">
+        <CollapsibleContent force-mount class="grid gap-4 border-t border-border p-3 data-[state=closed]:hidden">
           <TriggerFields
             v-model:prefix-mode="draft.prefixMode"
             v-model:custom-prefix="draft.customPrefix"
@@ -288,6 +319,16 @@ function remove(): void {
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
+      <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        @click="confirmOpen = true"
+      >
+        <Trash2 aria-hidden="true" />
+        {{ $t("dashboard.commands.editor.delete") }}
+      </Button>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button type="button" variant="outline" size="sm" @click="discard">{{
         $t("dashboard.commands.editor.discard")
@@ -309,5 +350,5 @@ function remove(): void {
       @confirm="remove"
     />
   </PanelCard>
-  <RandomReplyPanel v-if="randomShown" v-model="draft.replies" :sets="sets" />
+  <RandomReplyDialog v-model:open="repliesOpen" v-model="draft.replies" :sets="sets" />
 </template>

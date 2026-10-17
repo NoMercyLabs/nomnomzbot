@@ -8,9 +8,12 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The panel of a random-reply command: create a list by editing the lines here, or choose the
-// list of another random-reply command to start from. A chosen list is copied, never shared.
-import PanelCard from '@/components/layout/PanelCard.vue';
+// The replies of a random-reply command, edited in a dialog so the editor never changes height.
+// The dialog edits a copy: Use these replies puts it in the command draft, Cancel drops it.
+// Another command's list can be the start; a chosen list is copied, never shared.
+import { ref, watch } from 'vue';
+
+import FormDialog from '@/components/layout/FormDialog.vue';
 import { Button } from '@/components/ui/button';
 
 import RandomReplyList from './RandomReplyList.vue';
@@ -20,20 +23,41 @@ export interface ReplySet {
   replies: string[];
 }
 
+const open = defineModel<boolean>('open', { required: true });
 const replies = defineModel<string[]>({ required: true });
 
 defineProps<{ sets: ReplySet[] }>();
 
+const copy = ref<string[]>([]);
+
+watch(open, (isOpen: boolean): void => {
+  if (isOpen) {
+    copy.value = [...replies.value];
+  }
+}, { immediate: true });
+
 function choose(set: ReplySet): void {
-  replies.value = [...set.replies];
+  copy.value = [...set.replies];
+}
+
+function apply(): void {
+  replies.value = [...copy.value];
+  open.value = false;
 }
 </script>
 
 <template>
-  <PanelCard data-random-panel pad :title="$t('dashboard.commands.editor.randomPanel')">
+  <FormDialog
+    v-model:open="open"
+    data-random-panel
+    :title="$t('dashboard.commands.editor.randomPanel')"
+    :description="$t('dashboard.commands.editor.randomHelp')"
+    :action="$t('dashboard.commands.editor.useReplies')"
+    class="sm:max-w-2xl"
+    @submit="apply"
+  >
     <div class="grid gap-4">
-      <p class="text-sm text-muted-foreground">{{ $t("dashboard.commands.editor.randomHelp") }}</p>
-      <RandomReplyList v-model="replies" />
+      <RandomReplyList v-model="copy" />
       <div v-if="sets.length > 0" data-reply-sets class="grid gap-2 border-t border-border pt-4">
         <h4 class="text-sm font-medium">{{ $t("dashboard.commands.editor.chooseSet") }}</h4>
         <div class="flex flex-wrap gap-2">
@@ -50,5 +74,5 @@ function choose(set: ReplySet): void {
         </div>
       </div>
     </div>
-  </PanelCard>
+  </FormDialog>
 </template>

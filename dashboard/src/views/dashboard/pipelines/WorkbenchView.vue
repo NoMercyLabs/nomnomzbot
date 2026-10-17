@@ -351,18 +351,26 @@ const leaveOpen = computed<boolean>({
       <StatusBadge tone="off" :label="$t('dashboard.pipelines.workbench.off')" />
     </template>
     <template #actions>
-      <span class="flex items-center gap-1" :title="canWrite ? undefined : $t('dashboard.pipelines.noWrite')">
-        <Button
-          data-detail-back
-          type="button"
-          variant="ghost"
-          size="sm"
-          class="md:hidden"
-          @click="router.push({ name: 'dashboard-pipelines' })"
-        >
-          <ArrowLeft aria-hidden="true" />
-          {{ $t('dashboard.pipelines.back') }}
-        </Button>
+      <Button
+        data-detail-back
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="md:hidden"
+        @click="router.push({ name: 'dashboard-pipelines' })"
+      >
+        <ArrowLeft aria-hidden="true" />
+        {{ $t('dashboard.pipelines.back') }}
+      </Button>
+    </template>
+    <!-- The editing controls act on the steps, so they sit in the bar beside the tabs, not in the title row. -->
+    <template #bar>
+      <PageTabs :tabs="views" />
+      <span
+        data-workbench-controls
+        class="ml-auto flex shrink-0 items-center gap-1"
+        :title="canWrite ? undefined : $t('dashboard.pipelines.noWrite')"
+      >
         <Button
           data-workbench-undo
           type="button"
@@ -417,7 +425,6 @@ const leaveOpen = computed<boolean>({
         />
       </span>
     </template>
-    <template #bar><PageTabs :tabs="views" /></template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 flex-1 gap-3 p-6 max-md:py-0">
     <SidePanel

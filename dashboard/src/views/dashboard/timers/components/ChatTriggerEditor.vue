@@ -18,8 +18,7 @@ import { useUpdateChatTrigger, type ChatTrigger } from '@/api/chatTriggers';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
-import RowGroup from '@/components/layout/RowGroup.vue';
-import SettingRow from '@/components/layout/SettingRow.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
@@ -89,54 +88,52 @@ function remove(): void {
 <template>
   <PanelCard data-trigger-editor tier="lead" pad :title="row.pattern">
     <template #actions>
-      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
-        <Trash2 aria-hidden="true" />
-        {{ $t('dashboard.timers.editor.delete') }}
-      </Button>
+      <LabeledSwitch
+        :label="$t('dashboard.timers.triggers.editor.enabled')"
+        :help="$t('dashboard.timers.triggers.editor.enabledHelp')"
+        :model-value="row.isEnabled"
+        @update:model-value="toggle"
+      />
     </template>
     <div class="grid gap-5">
-      <RowGroup>
-        <SettingRow
-          :title="$t('dashboard.timers.triggers.editor.enabled')"
-          :description="$t('dashboard.timers.triggers.editor.enabledHelp')"
-          :model-value="row.isEnabled"
-          @update:model-value="toggle"
-        />
-      </RowGroup>
-
-      <Field>
-        <FieldLabel for="trigger-pattern">{{ $t('dashboard.timers.triggers.editor.pattern') }}</FieldLabel>
-        <Input
-          id="trigger-pattern"
-          v-model="draft.pattern"
-          autocomplete="off"
-          :aria-label="$t('dashboard.timers.triggers.editor.pattern')"
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel>{{ $t('dashboard.timers.triggers.editor.matchType') }}</FieldLabel>
-        <Select v-model="draft.matchType">
-          <SelectTrigger :aria-label="$t('dashboard.timers.triggers.editor.matchType')" class="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="kind in matchTypes" :key="kind" :value="kind">
-              {{ $t(`dashboard.timers.triggers.match.${kind}`) }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <RowGroup>
-        <SettingRow
+      <!-- What to watch for: the words and how they match are one decision, so they share a row. -->
+      <div class="grid gap-3">
+        <div class="grid gap-4 md:grid-cols-[2fr_1fr]">
+          <Field>
+            <FieldLabel for="trigger-pattern">{{ $t('dashboard.timers.triggers.editor.pattern') }}</FieldLabel>
+            <Input
+              id="trigger-pattern"
+              v-model="draft.pattern"
+              autocomplete="off"
+              :aria-label="$t('dashboard.timers.triggers.editor.pattern')"
+            />
+          </Field>
+          <Field>
+            <FieldLabel>{{ $t('dashboard.timers.triggers.editor.matchType') }}</FieldLabel>
+            <Select v-model="draft.matchType">
+              <SelectTrigger :aria-label="$t('dashboard.timers.triggers.editor.matchType')" class="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="kind in matchTypes" :key="kind" :value="kind">
+                  {{ $t(`dashboard.timers.triggers.match.${kind}`) }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <LabeledSwitch
           v-model="draft.caseSensitive"
-          :title="$t('dashboard.timers.triggers.editor.caseSensitive')"
-          :description="$t('dashboard.timers.triggers.editor.caseSensitiveHelp')"
+          :label="$t('dashboard.timers.triggers.editor.caseSensitive')"
+          :help="$t('dashboard.timers.triggers.editor.caseSensitiveHelp')"
         />
-      </RowGroup>
+      </div>
 
-      <ReplyModeField v-model:mode="draft.mode" v-model:pipeline-id="draft.pipelineId">
+      <ReplyModeField
+        v-model:mode="draft.mode"
+        v-model:pipeline-id="draft.pipelineId"
+        :new-pipeline-name="row.pattern"
+      >
         <TemplateField
           id="trigger-response"
           v-model="draft.response"
@@ -147,39 +144,51 @@ function remove(): void {
         />
       </ReplyModeField>
 
-      <Field>
-        <div class="flex items-center gap-1.5">
-          <FieldLabel for="trigger-cooldown">{{ $t('dashboard.timers.triggers.editor.cooldown') }}</FieldLabel>
-          <FieldInfo>{{ $t('dashboard.timers.triggers.editor.cooldownHelp') }}</FieldInfo>
-        </div>
-        <Input
-          id="trigger-cooldown"
-          type="number"
-          min="0"
-          step="1"
-          :aria-label="$t('dashboard.timers.triggers.editor.cooldown')"
-          :model-value="draft.cooldownSeconds"
-          @update:model-value="setCooldown"
-        />
-      </Field>
+      <div class="grid gap-4 md:grid-cols-2">
+        <Field>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel for="trigger-cooldown">{{ $t('dashboard.timers.triggers.editor.cooldown') }}</FieldLabel>
+            <FieldInfo>{{ $t('dashboard.timers.triggers.editor.cooldownHelp') }}</FieldInfo>
+          </div>
+          <Input
+            id="trigger-cooldown"
+            type="number"
+            min="0"
+            step="1"
+            :aria-label="$t('dashboard.timers.triggers.editor.cooldown')"
+            :model-value="draft.cooldownSeconds"
+            @update:model-value="setCooldown"
+          />
+        </Field>
 
-      <Field>
-        <FieldLabel>{{ $t('dashboard.timers.triggers.editor.role') }}</FieldLabel>
-        <Select v-model="draft.minPermissionLevel">
-          <SelectTrigger :aria-label="$t('dashboard.timers.triggers.editor.role')" class="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="level in roles" :key="level" :value="level">
-              {{ $t(`dashboard.timers.triggers.roles.${level}`) }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
+        <Field>
+          <FieldLabel>{{ $t('dashboard.timers.triggers.editor.role') }}</FieldLabel>
+          <Select v-model="draft.minPermissionLevel">
+            <SelectTrigger :aria-label="$t('dashboard.timers.triggers.editor.role')" class="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="level in roles" :key="level" :value="level">
+                {{ $t(`dashboard.timers.triggers.roles.${level}`) }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
 
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
+      <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        @click="confirmOpen = true"
+      >
+        <Trash2 aria-hidden="true" />
+        {{ $t('dashboard.timers.editor.delete') }}
+      </Button>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button type="button" variant="outline" size="sm" @click="discard">{{
         $t('dashboard.timers.editor.discard')

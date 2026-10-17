@@ -178,23 +178,23 @@ function opened(id: string | null): void {
     :aside-label="$t('dashboard.scripts.runs.title')"
   >
     <template #list>
-      <div data-page-inset class="mb-3 grid gap-2">
-        <SearchField
-          v-model="search"
-          class="w-full"
-          :placeholder="$t('dashboard.scripts.search')"
-        />
-        <p class="text-sm text-muted-foreground">{{ hint }}</p>
-      </div>
       <PanelCard
         class="min-h-80 flex-1"
         :title="$t('dashboard.scripts.list.title')"
-        :description="count"
+        :description="count === undefined ? hint : `${count} · ${hint}`"
         :state="panelState"
         :empty-text="emptyText"
         :error-text="listError"
         @retry="scripts.refetch()"
       >
+        <template #actions>
+          <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+          <SearchField
+            v-model="search"
+            class="-mr-2 w-52 rounded-[12px]"
+            :placeholder="$t('dashboard.scripts.search')"
+          />
+        </template>
         <ScriptRow
           v-for="script in visible"
           :key="script.id"

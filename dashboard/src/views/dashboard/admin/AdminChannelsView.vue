@@ -128,7 +128,6 @@ function pick(row: AdminTenant): void {
     </template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <SearchField v-model="search" :placeholder="$t('dashboard.admin.search')" />
     <PanelCard
       tier="lead"
       class="min-h-80 min-w-0 flex-1"
@@ -139,6 +138,14 @@ function pick(row: AdminTenant): void {
       :error-text="listError"
       @retry="tenants.refetch()"
     >
+      <template #actions>
+        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+        <SearchField
+          v-model="search"
+          class="-mr-2 w-52 rounded-[12px]"
+          :placeholder="$t('dashboard.admin.search')"
+        />
+      </template>
       <ChannelsTable :rows="rows" :selected-id="selectedId" @pick="pick" />
       <template #footer>
         <span class="text-sm text-muted-foreground tabular-nums" role="status">

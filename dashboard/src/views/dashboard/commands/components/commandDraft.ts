@@ -29,13 +29,17 @@ function matchModeOf(raw: string): MatchMode {
   return matchModes.find((mode: MatchMode): boolean => mode === raw) ?? 'StartsWith';
 }
 
-// What the editor form holds. Empty replies means "one reply" mode; a pipeline of '' means none picked.
+export type ReplyKind = 'text' | 'random';
+
+// What the editor form holds; a pipeline of '' means none picked. The kind says which of the text and
+// the replies answers. Both stay in the draft, so a look at the other kind never throws one away.
 export interface CommandDraft {
   prefixMode: PrefixMode;
   customPrefix: string;
   matchMode: MatchMode;
   matchPattern: string;
   mode: ReplyMode;
+  kind: ReplyKind;
   templateResponse: string;
   replies: string[];
   pipelineId: string;
@@ -62,6 +66,9 @@ export function draftOf(row: CommandListItem): CommandDraft {
     mode: row.tier === 'pipeline'
       ? 'full'
       : 'simple',
+    kind: (row.templateResponses ?? []).length > 0
+      ? 'random'
+      : 'text',
     templateResponse: row.templateResponse ?? '',
     replies: [...(row.templateResponses ?? [])],
     pipelineId: row.pipelineId ?? '',
@@ -89,12 +96,17 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
   const full = replyTier && draft.mode === 'full' && draft.pipelineId !== '';
 
   // The reply text stays on the command when it runs a pipeline; only the tier says which one answers.
-  if (simple && draft.templateResponse !== saved.templateResponse) {
+  if (simple && draft.kind === 'text' && draft.templateResponse !== saved.templateResponse) {
     change.templateResponse = draft.templateResponse;
   }
 
-  if (simple && !sameReplies(draft.replies, saved.replies)) {
-    change.templateResponses = draft.replies;
+  // A text command sends no replies: the bot answers with the list whenever it has one.
+  const replies: string[] = draft.kind === 'random'
+    ? draft.replies
+    : [];
+
+  if (simple && !sameReplies(replies, saved.replies)) {
+    change.templateResponses = replies;
   }
 
   if (simple && row.tier === 'pipeline') {
@@ -157,6 +169,7 @@ export function sameDraft(left: CommandDraft, right: CommandDraft): boolean {
     left.matchMode === right.matchMode &&
     left.matchPattern === right.matchPattern &&
     left.mode === right.mode &&
+    left.kind === right.kind &&
     left.templateResponse === right.templateResponse &&
     sameReplies(left.replies, right.replies) &&
     left.pipelineId === right.pipelineId &&
