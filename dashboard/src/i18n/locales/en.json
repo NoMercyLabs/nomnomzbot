@@ -822,6 +822,7 @@
         "approveReview": "Approve a review queue item",
         "denyReview": "Deny a review queue item",
         "toggleTimer": "Toggle timer {id}",
+        "deleteTimer": "Delete timer {name}",
         "startPoll": "Start poll {title}",
         "startPrediction": "Start prediction {title}",
         "lockPrediction": "Lock prediction {id}",

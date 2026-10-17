@@ -1,0 +1,54 @@
+{
+  "dashboard": {
+    "timers": {
+      "title": "Triggers and timers",
+      "crumb": "Build",
+      "new": "New timer",
+      "back": "Back to the list",
+      "list": {
+        "title": "Timers",
+        "search": "Search timers",
+        "empty": "No timers yet.",
+        "makeFirst": "Make the first timer",
+        "error": "The timers could not load.",
+        "noMatch": "No timer matches your search.",
+        "off": "Off",
+        "every": "Every {minutes} minute | Every {minutes} minutes",
+        "once": "Once",
+        "messages": "{count} message | {count} messages",
+        "pick": "Pick a timer to edit it.",
+        "pickTitle": "No timer open"
+      },
+      "editor": {
+        "enabled": "Enabled",
+        "enabledHelp": "A timer that is off stays in the list and posts nothing.",
+        "name": "Name",
+        "messages": "Messages",
+        "messagesHelp": "One message per line. The timer posts them in turn.",
+        "interval": "Minutes between posts",
+        "activity": "Chat lines needed",
+        "activityHelp": "The timer waits until chat has this many new lines since its last post.",
+        "once": "Post once",
+        "onceHelp": "The timer posts one time and then turns itself off.",
+        "speak": "Read it aloud",
+        "speakHelp": "Each post also plays as speech on your stream.",
+        "unsaved": "{count} unsaved change | {count} unsaved changes",
+        "save": "Save changes",
+        "discard": "Discard",
+        "delete": "Delete",
+        "error": "The timer could not load.",
+        "confirmTitle": "Delete {name}?",
+        "confirmBody": "The timer is removed for good. It stops posting.",
+        "confirmAction": "Delete timer"
+      },
+      "dialog": {
+        "title": "New timer",
+        "description": "Pick a name, what the timer says and how often it posts.",
+        "namePlaceholder": "Follow reminder",
+        "nameRequired": "Give the timer a name.",
+        "messageRequired": "Write at least one message.",
+        "create": "Create timer"
+      }
+    }
+  }
+}

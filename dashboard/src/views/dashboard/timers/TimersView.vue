@@ -1,0 +1,95 @@
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<script setup lang="ts">
+// The Triggers and Timers page: the channel's timers on the left, the open timer on the right.
+import Plus from '~icons/nnz/add';
+import ArrowLeft from '~icons/nnz/arrow-left';
+import { computed, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+
+import { useTimers, type Timer } from '@/api/liveOps';
+import { useDeleteTimer } from '@/api/timers';
+import ListDetail from '@/components/layout/ListDetail.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+
+import NewTimerDialog from './components/NewTimerDialog.vue';
+import TimerEditor from './components/TimerEditor.vue';
+import TimerList from './components/TimerList.vue';
+
+const route = useRoute();
+const router = useRouter();
+const { channelId } = useCurrentChannel();
+const timers = useTimers(channelId);
+const remove = useDeleteTimer(channelId);
+
+// The open timer lives in the address (?timer=), so a refresh or a link keeps it.
+const selected = computed<string | null>(() =>
+  typeof route.query.timer === 'string'
+    ? route.query.timer
+    : null,
+);
+const row = computed<Timer | undefined>(() =>
+  (timers.data.value ?? []).find((item: Timer): boolean => item.id === selected.value),
+);
+
+function select(id: string | undefined): void {
+  void router.push({ query: { ...route.query, timer: id } });
+}
+
+function removeTimer(item: Timer): void {
+  select(undefined);
+  remove.mutate({ timerId: item.id, name: item.name });
+}
+
+const creating = ref(false);
+</script>
+
+<template>
+  <PageHeader :title="$t('dashboard.timers.title')" :crumb="$t('dashboard.timers.crumb')">
+    <template #actions>
+      <Button type="button" variant="outline" size="sm" @click="creating = true">
+        <Plus aria-hidden="true" />
+        {{ $t('dashboard.timers.new') }}
+      </Button>
+    </template>
+  </PageHeader>
+  <ListDetail :show-detail="row !== undefined">
+    <template #list>
+      <TimerList :selected="selected" @pick="select" @create="creating = true" />
+    </template>
+    <template #detail>
+      <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
+        <Button
+          data-detail-back
+          data-page-inset
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="self-start md:hidden"
+          @click="select(undefined)"
+        >
+          <ArrowLeft aria-hidden="true" />
+          {{ $t('dashboard.timers.back') }}
+        </Button>
+        <TimerEditor :key="row.id" :row="row" @remove="removeTimer" />
+      </div>
+      <PanelCard
+        v-else
+        state="empty"
+        :title="$t('dashboard.timers.list.pickTitle')"
+        :empty-text="$t('dashboard.timers.list.pick')"
+      />
+    </template>
+  </ListDetail>
+  <NewTimerDialog v-model:open="creating" />
+</template>
