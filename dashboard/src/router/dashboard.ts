@@ -23,6 +23,7 @@ import {
   dashboardAdminSpamDefaultsRoute,
   dashboardAdminTenantsRoute,
   dashboardAdminUsersRoute,
+  dashboardAdminWebhookDeliveriesRoute,
 } from '@/views/dashboard/admin/route';
 import { dashboardAnalyticsRoute } from '@/views/dashboard/analytics/route';
 import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route';
@@ -77,6 +78,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardSettingsRoute,
   dashboardAdminChannelsRoute,
   dashboardAdminEventSubHealthRoute,
+  dashboardAdminWebhookDeliveriesRoute,
   dashboardAdminOverviewRoute,
   dashboardAdminUsersRoute,
   dashboardAdminSpamDefaultsRoute,

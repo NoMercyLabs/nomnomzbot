@@ -180,6 +180,32 @@
           "forbidden": "You may not see the EventSub health."
         }
       },
+      "webhookDeliveries": {
+        "title": "Webhook deliveries",
+        "count": "{count} attempts",
+        "ms": "{ms} ms",
+        "none": "None",
+        "replay": "Replay",
+        "replayed": "Delivery replayed as a new attempt.",
+        "replayError": "The delivery could not be replayed: {reason}",
+        "columns": {
+          "endpoint": "Endpoint",
+          "event": "Event",
+          "status": "Status",
+          "code": "Code",
+          "duration": "Duration",
+          "attempt": "Attempt",
+          "sent": "Sent",
+          "error": "Error"
+        },
+        "list": {
+          "title": "Delivery log",
+          "newestFirst": "Newest first",
+          "empty": "No webhook has been delivered yet.",
+          "error": "The webhook deliveries could not load.",
+          "forbidden": "You may not see the webhook deliveries."
+        }
+      },
       "pager": {
         "page": "Page {page} of {pages}",
         "previous": "Previous",

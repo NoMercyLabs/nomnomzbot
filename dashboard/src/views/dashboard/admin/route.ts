@@ -83,6 +83,18 @@ export const dashboardAdminTenantsRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
+export const dashboardAdminWebhookDeliveriesRoute = {
+  path: 'admin/webhook-deliveries',
+  name: 'dashboard-admin-webhook-deliveries',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminWebhookDeliveriesView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
 export const dashboardAdminSpamDefaultsRoute = {
   path: 'admin/spam-defaults',
   name: 'dashboard-admin-spam-defaults',

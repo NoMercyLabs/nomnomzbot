@@ -180,6 +180,32 @@
           "forbidden": "Je mag de EventSub-gezondheid niet zien."
         }
       },
+      "webhookDeliveries": {
+        "title": "Webhook-leveringen",
+        "count": "{count} pogingen",
+        "ms": "{ms} ms",
+        "none": "Geen",
+        "replay": "Opnieuw sturen",
+        "replayed": "Levering opnieuw verstuurd als nieuwe poging.",
+        "replayError": "De levering kon niet opnieuw worden verstuurd: {reason}",
+        "columns": {
+          "endpoint": "Eindpunt",
+          "event": "Gebeurtenis",
+          "status": "Status",
+          "code": "Code",
+          "duration": "Duur",
+          "attempt": "Poging",
+          "sent": "Verstuurd",
+          "error": "Fout"
+        },
+        "list": {
+          "title": "Leveringslog",
+          "newestFirst": "Nieuwste eerst",
+          "empty": "Er is nog geen webhook geleverd.",
+          "error": "De webhook-leveringen konden niet laden.",
+          "forbidden": "Je mag de webhook-leveringen niet zien."
+        }
+      },
       "pager": {
         "page": "Pagina {page} van {pages}",
         "previous": "Vorige",
