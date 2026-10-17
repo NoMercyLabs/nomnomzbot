@@ -8,16 +8,14 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The pipeline's own actions, in view: the Enabled switch saves at once, like every editor's, and Delete
-// asks first. The delete confirm names everything that starts the pipeline, because all of it stops running it.
+// Delete asks first, and the confirm names everything that starts the pipeline, because all of it stops running it.
 import Trash2 from '~icons/nnz/trash';
 import { toast } from 'vue-sonner';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useDeletePipeline, useSavePipeline, type Pipeline } from '@/api/pipelines';
+import { useDeletePipeline, type Pipeline } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
 import { errorText } from '@/lib/errors';
 
@@ -35,22 +33,7 @@ const emit = defineEmits<{ deleted: [] }>();
 const { t } = useI18n();
 const page = 'dashboard.pipelines.workbench';
 
-const saving = useSavePipeline(() => props.channelId);
 const removing = useDeletePipeline(() => props.channelId);
-
-function setPower(isEnabled: boolean): void {
-  const { id, name } = props.pipeline;
-  const done = isEnabled
-    ? 'turnedOn'
-    : 'turnedOff';
-
-  saving.mutate({ id, isEnabled }, {
-    onSuccess: () => {
-      toast.success(t(`${page}.power.${done}`, { name }));
-    },
-  });
-}
-
 const deleting = ref(false);
 
 const consequences = computed(() =>
@@ -74,27 +57,17 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <span class="flex shrink-0 items-center gap-3">
-    <LabeledSwitch
-      data-workbench-power
-      :label="$t(`${page}.power.label`)"
-      :help="$t(`${page}.power.help`)"
-      :disabled="!canWrite"
-      :model-value="pipeline.isEnabled"
-      @update:model-value="setPower"
-    />
-    <Button
-      data-workbench-delete
-      type="button"
-      variant="outline"
-      size="sm"
-      :disabled="!canWrite"
-      @click="deleting = true"
-    >
-      <Trash2 aria-hidden="true" />
-      {{ $t(`${page}.delete.item`) }}
-    </Button>
-  </span>
+  <Button
+    data-workbench-delete
+    type="button"
+    variant="outline"
+    size="sm"
+    :disabled="!canWrite"
+    @click="deleting = true"
+  >
+    <Trash2 aria-hidden="true" />
+    {{ $t(`${page}.delete.item`) }}
+  </Button>
   <ConfirmDialog
     v-model:open="deleting"
     :title="$t(`${page}.delete.title`, { name: pipeline.name })"

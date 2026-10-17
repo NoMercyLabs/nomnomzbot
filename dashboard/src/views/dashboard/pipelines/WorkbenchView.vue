@@ -48,7 +48,8 @@ import { usePanelState } from '@/composables/usePanelState';
 import { useShortcut } from '@/composables/useShortcut';
 
 import { newAction, newBlock, type AddableBlock } from './components/newSteps';
-import PipelineItemActions from './components/PipelineItemActions.vue';
+import PipelineDeleteButton from './components/PipelineDeleteButton.vue';
+import PipelinePowerSwitch from './components/PipelinePowerSwitch.vue';
 import RunsPanel from './components/RunsPanel.vue';
 import StepCard from './components/StepCard.vue';
 import StepInspector from './components/StepInspector.vue';
@@ -365,14 +366,6 @@ const leaveOpen = computed<boolean>({
     <!-- The editing controls act on the steps, so they sit in the bar beside the tabs, not in the title row. -->
     <template #bar>
       <PageTabs :tabs="views" />
-      <PipelineItemActions
-        v-if="pipeline.data.value"
-        :channel-id="channelId"
-        :pipeline="pipeline.data.value"
-        :can-write="canWrite"
-        :sources="sources"
-        @deleted="leaveDeleted"
-      />
       <span
         data-workbench-controls
         class="ml-auto flex shrink-0 items-center gap-1"
@@ -452,8 +445,9 @@ const leaveOpen = computed<boolean>({
       :error-text="$t('dashboard.pipelines.workbench.error')"
       @retry="pipeline.refetch()"
     >
-      <template v-if="summary" #actions>
-        <span data-run-summary class="flex flex-wrap items-center justify-end gap-2">
+      <!-- Like every editor: the Enabled switch in the card header, Delete apart at the bottom. -->
+      <template #actions>
+        <span v-if="summary" data-run-summary class="flex flex-wrap items-center justify-end gap-2">
           <StatusBadge
             :tone="summary.failed > 0 ? 'bad' : 'ok'"
             :label="$t(`${page}.run.summary`, { number: runCount, ran: summary.ran }, summary.ran)"
@@ -472,6 +466,12 @@ const leaveOpen = computed<boolean>({
             {{ $t(`${page}.run.again`) }}
           </Button>
         </span>
+        <PipelinePowerSwitch
+          v-if="pipeline.data.value"
+          :channel-id="channelId"
+          :pipeline="pipeline.data.value"
+          :can-write="canWrite"
+        />
       </template>
       <div data-workbench-canvas class="mx-auto flex w-full max-w-3xl flex-col gap-3 p-4">
         <p data-workbench-start class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm">
@@ -512,6 +512,15 @@ const leaveOpen = computed<boolean>({
           {{ $t('dashboard.pipelines.workbench.end') }}
         </p>
       </div>
+      <template v-if="pipeline.data.value" #footer>
+        <PipelineDeleteButton
+          :channel-id="channelId"
+          :pipeline="pipeline.data.value"
+          :can-write="canWrite"
+          :sources="sources"
+          @deleted="leaveDeleted"
+        />
+      </template>
     </PanelCard>
     <SidePanel v-model:open="inspecting" :label="$t('dashboard.pipelines.workbench.inspector.label')">
       <StepInspector
