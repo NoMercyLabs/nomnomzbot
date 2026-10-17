@@ -361,6 +361,69 @@ public sealed class WebSocketEventSubTransportTests
         await transport.StopAsync();
     }
 
+    private const string ViewerChatFrame = """
+        {"metadata":{"message_id":"n-v","message_type":"notification","message_timestamp":"2026-06-20T12:04:00Z"},
+         "payload":{"subscription":{"id":"sub-v","type":"channel.chat.message","version":"1","status":"enabled"},
+                    "event":{"broadcaster_user_id":"off-bot-7","chatter_user_id":"55","message_id":"m-1",
+                             "message":{"text":"hello","fragments":[]}}}}
+        """;
+
+    [Fact]
+    public async Task A_viewer_session_frame_reaches_only_the_viewer_sink_never_the_bot_pipeline()
+    {
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        CapturingSink pipeline = new();
+        CapturingSink viewerSink = new();
+        ScriptedChannel channel = new(
+            [Welcome("viewer-session"), ViewerChatFrame],
+            idleAfterScript: true
+        );
+        WebSocketEventSubTransport transport = NewTransport(new(channel), clock, pipeline);
+        string ownerKey = EventSubOwnerKeys.Viewer(Guid.NewGuid());
+
+        Result<string> opened = await transport.OpenAsync(ownerKey, viewerSink);
+        await viewerSink.WaitForNotificationsAsync(1);
+
+        opened.IsSuccess.Should().BeTrue(opened.ErrorMessage);
+        opened.Value.Should().Be("viewer-session");
+        viewerSink.Welcomes.Should().ContainSingle().Which.Should().Be("viewer-session");
+        CapturedNotification line = viewerSink.Notifications.Should().ContainSingle().Subject;
+        line.SubscriptionType.Should().Be("channel.chat.message");
+        line.TwitchBroadcasterUserId.Should().Be("off-bot-7");
+        pipeline.Welcomes.Should().BeEmpty("a viewer session never registers bot topics");
+        pipeline.Notifications.Should().BeEmpty("a viewer's chat never feeds the bot pipeline");
+
+        await transport.StopAsync();
+    }
+
+    [Fact]
+    public async Task Closing_a_viewer_session_stops_only_that_session()
+    {
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        CapturingSink pipeline = new();
+        CapturingSink viewerSink = new();
+        ScriptedChannel botChannel = new([Welcome("bot-session")], idleAfterScript: true);
+        ScriptedChannel viewerChannel = new([Welcome("viewer-session")], idleAfterScript: true);
+        WebSocketEventSubTransport transport = NewTransport(
+            new(botChannel, viewerChannel),
+            clock,
+            pipeline
+        );
+        string ownerKey = EventSubOwnerKeys.Viewer(Guid.NewGuid());
+
+        await transport.StartAsync();
+        await transport.OpenAsync(ownerKey, viewerSink);
+        await transport.CloseAsync(ownerKey);
+
+        viewerChannel.WasDisposed.Should().BeTrue("the viewer's socket is closed");
+        transport.CurrentSessionId(ownerKey).Should().BeNull();
+        transport.KnownOwnerKeys.Should().NotContain(ownerKey, "a full restart must not reopen it");
+        botChannel.WasDisposed.Should().BeFalse("the bot session keeps running");
+        transport.CurrentSessionId(EventSubOwnerKeys.Bot).Should().Be("bot-session");
+
+        await transport.StopAsync();
+    }
+
     // ── Fakes ────────────────────────────────────────────────────────────────
 
     private sealed record CapturedNotification(

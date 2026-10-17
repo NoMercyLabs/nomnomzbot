@@ -102,7 +102,8 @@ public sealed class DashboardHubAuthorizationTests
             chat,
             access,
             gate2,
-            operatorSender
+            operatorSender,
+            Substitute.For<IExternalChatRelay>()
         )
         {
             Context = context,

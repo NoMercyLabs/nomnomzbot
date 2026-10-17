@@ -9,12 +9,16 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Chat.Dtos;
 
 namespace NomNomzBot.Api.Hubs.Clients;
 
 public interface IDashboardClient
 {
     Task ChatMessage(DashboardChatMessageDto message);
+
+    /// <summary>A line, deletion or clear from an off-bot channel this connection reads.</summary>
+    Task ExternalChatEvent(ExternalChatEvent chatEvent);
     Task ChannelEvent(ChannelEventDto evt);
     Task PermissionChanged(PermissionChangedDto evt);
     Task MusicStateChanged(MusicStateDto state);

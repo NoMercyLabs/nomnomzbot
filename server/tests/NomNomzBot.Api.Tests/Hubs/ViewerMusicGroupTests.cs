@@ -67,7 +67,8 @@ public sealed class ViewerMusicGroupTests
             Substitute.For<IChatProvider>(),
             access,
             authorization,
-            Substitute.For<IOperatorChatSender>()
+            Substitute.For<IOperatorChatSender>(),
+            Substitute.For<IExternalChatRelay>()
         )
         {
             Context = context,

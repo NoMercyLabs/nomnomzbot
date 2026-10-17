@@ -42,6 +42,7 @@ public class DashboardHub : Hub<IDashboardClient>
     private readonly IChannelAccessService _access;
     private readonly IActionAuthorizationService _authorization;
     private readonly IOperatorChatSender _operatorSender;
+    private readonly IExternalChatRelay _externalChat;
 
     public DashboardHub(
         IChannelRegistry registry,
@@ -49,9 +50,11 @@ public class DashboardHub : Hub<IDashboardClient>
         IChatProvider chat,
         IChannelAccessService access,
         IActionAuthorizationService authorization,
-        IOperatorChatSender operatorSender
+        IOperatorChatSender operatorSender,
+        IExternalChatRelay externalChat
     )
     {
+        _externalChat = externalChat;
         _registry = registry;
         _logger = logger;
         _chat = chat;
@@ -84,6 +87,7 @@ public class DashboardHub : Hub<IDashboardClient>
                     _registry.ReleaseMusicDemand(tenantId, Context.ConnectionId);
             }
         }
+        await _externalChat.DisconnectAsync(Context.ConnectionId);
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -278,6 +282,37 @@ public class DashboardHub : Hub<IDashboardClient>
         );
         return new(true, null, null);
     }
+
+    /// <summary>
+    /// Reads the chat of any Twitch channel, keyed by its Twitch broadcaster id, on the caller's own token
+    /// (chat-client.md "Any Twitch channel"). Any signed-in user may: Twitch decides what the token can read.
+    /// The lines arrive as <c>ExternalChatEvent</c> on this connection only.
+    /// </summary>
+    public async Task<JoinChannelResponse> JoinTwitchChat(string twitchBroadcasterId)
+    {
+        string? userId = CallerId;
+        if (userId is null || !Guid.TryParse(userId, out Guid callerId))
+            return new(false, "Not authenticated", null);
+
+        if (
+            string.IsNullOrWhiteSpace(twitchBroadcasterId)
+            || !twitchBroadcasterId.All(char.IsAsciiDigit)
+        )
+            return new(false, "Unknown channel", null);
+
+        Result joined = await _externalChat.JoinAsync(
+            callerId,
+            Context.ConnectionId,
+            twitchBroadcasterId,
+            Context.ConnectionAborted
+        );
+        return joined.IsSuccess
+            ? new(true, null, null)
+            : new(false, joined.ErrorMessage ?? "Could not open this chat", null);
+    }
+
+    public Task LeaveTwitchChat(string twitchBroadcasterId) =>
+        _externalChat.LeaveAsync(Context.ConnectionId, twitchBroadcasterId);
 
     public async Task LeaveViewerChat(string broadcasterId)
     {
