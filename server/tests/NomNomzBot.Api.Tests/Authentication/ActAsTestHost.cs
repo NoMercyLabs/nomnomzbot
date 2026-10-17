@@ -345,6 +345,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddSingleton(Substitute.For<IUserIdentityService>());
         services.AddSingleton(Substitute.For<IActionRequiredChangeNotifier>());
         services.AddSingleton(Substitute.For<IOperatorChatSender>());
+        services.AddSingleton(Substitute.For<IExternalChatRelay>());
         services.AddSingleton(Substitute.For<ITwitchOAuthStateService>());
         services.AddSingleton(Substitute.For<ILoginProviderRegistry>());
         services.AddSingleton(Substitute.For<IExternalLoginService>());

@@ -36,8 +36,10 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
 
     private readonly ICacheService _cache;
     private readonly IServiceScopeFactory _scopes;
-    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _failedUntil = new();
-    private readonly ConcurrentDictionary<Guid, Task> _inFlight = new();
+
+    // Keyed by the channel set's cache key, so a tenant channel and an off-bot channel share one guard.
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _failedUntil = new();
+    private readonly ConcurrentDictionary<string, Task> _inFlight = new();
 
     public ChatBadgeResolver(ICacheService cache, IServiceScopeFactory scopes)
     {
@@ -49,6 +51,31 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
         Guid broadcasterId,
         IReadOnlyList<ChatBadge> badges,
         CancellationToken ct = default
+    ) =>
+        await ResolveWithChannelSetAsync(
+            ChatBadgeCacheKeys.Channel(broadcasterId),
+            warmer => warmer.WarmChannelAsync(broadcasterId),
+            badges,
+            ct
+        );
+
+    public async Task<IReadOnlyList<ResolvedChatBadge>> ResolveByTwitchIdAsync(
+        string twitchBroadcasterId,
+        IReadOnlyList<ChatBadge> badges,
+        CancellationToken ct = default
+    ) =>
+        await ResolveWithChannelSetAsync(
+            ChatBadgeCacheKeys.TwitchChannel(twitchBroadcasterId),
+            warmer => warmer.WarmTwitchChannelAsync(twitchBroadcasterId),
+            badges,
+            ct
+        );
+
+    private async Task<IReadOnlyList<ResolvedChatBadge>> ResolveWithChannelSetAsync(
+        string channelKey,
+        Func<ChatBadgeCacheWarmer, Task<bool>> warm,
+        IReadOnlyList<ChatBadge> badges,
+        CancellationToken ct
     )
     {
         if (badges.Count == 0)
@@ -56,8 +83,8 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
 
         Dictionary<(string Set, string Version), IReadOnlyDictionary<string, string>> index = new();
         await IndexSetsAsync(index, ChatBadgeCacheKeys.Global, ct);
-        await EnsureChannelSetAsync(broadcasterId, ct);
-        await IndexSetsAsync(index, ChatBadgeCacheKeys.Channel(broadcasterId), ct);
+        await EnsureChannelSetAsync(channelKey, warm, ct);
+        await IndexSetsAsync(index, channelKey, ct);
 
         List<ResolvedChatBadge> resolved = new(badges.Count);
         foreach (ChatBadge badge in badges)
@@ -74,22 +101,29 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
         return resolved;
     }
 
-    private async Task EnsureChannelSetAsync(Guid broadcasterId, CancellationToken ct)
+    private async Task EnsureChannelSetAsync(
+        string channelKey,
+        Func<ChatBadgeCacheWarmer, Task<bool>> warm,
+        CancellationToken ct
+    )
     {
-        if (await _cache.ExistsAsync(ChatBadgeCacheKeys.Channel(broadcasterId), ct))
+        if (await _cache.ExistsAsync(channelKey, ct))
             return;
         if (
-            _failedUntil.TryGetValue(broadcasterId, out DateTimeOffset until)
+            _failedUntil.TryGetValue(channelKey, out DateTimeOffset until)
             && until > DateTimeOffset.UtcNow
         )
             return;
 
-        Task warm = _inFlight.GetOrAdd(broadcasterId, WarmChannelAsync);
-        await warm.WaitAsync(ct);
-        _inFlight.TryRemove(new KeyValuePair<Guid, Task>(broadcasterId, warm));
+        Task warming = _inFlight.GetOrAdd(channelKey, key => WarmChannelAsync(key, warm));
+        await warming.WaitAsync(ct);
+        _inFlight.TryRemove(new KeyValuePair<string, Task>(channelKey, warming));
     }
 
-    private async Task WarmChannelAsync(Guid broadcasterId)
+    private async Task WarmChannelAsync(
+        string channelKey,
+        Func<ChatBadgeCacheWarmer, Task<bool>> warm
+    )
     {
         bool warmed;
         try
@@ -97,7 +131,7 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
             await using AsyncServiceScope scope = _scopes.CreateAsyncScope();
             ChatBadgeCacheWarmer warmer =
                 scope.ServiceProvider.GetRequiredService<ChatBadgeCacheWarmer>();
-            warmed = await warmer.WarmChannelAsync(broadcasterId);
+            warmed = await warm(warmer);
         }
         catch (Exception)
         {
@@ -105,9 +139,9 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
         }
 
         if (warmed)
-            _failedUntil.TryRemove(broadcasterId, out _);
+            _failedUntil.TryRemove(channelKey, out _);
         else
-            _failedUntil[broadcasterId] = DateTimeOffset.UtcNow + RetryAfter;
+            _failedUntil[channelKey] = DateTimeOffset.UtcNow + RetryAfter;
     }
 
     private async Task IndexSetsAsync(

@@ -143,6 +143,58 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         return Result.Success(await WithOwnerChannelsAsync(Dedup(all), ct));
     }
 
+    public async Task<Result<IReadOnlyList<ChatEmote>>> GetForTwitchChannelAsync(
+        string twitchBroadcasterId,
+        Guid operatorUserId,
+        CancellationToken ct = default
+    )
+    {
+        // The bot is not on this channel, so nothing warmed its sets: each channel source is read through by its
+        // raw Twitch id. Precedence matches GetForChannelAsync (channel, operator, global; Twitch before third-party).
+        string? operatorTwitchId = await _identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        string login = await OwnerLoginAsync(twitchBroadcasterId, ct);
+
+        List<ChatEmote> all =
+        [
+            .. TagTwitch(
+                await TwitchChannelByIdAsync(twitchBroadcasterId, ct),
+                twitchBroadcasterId,
+                operatorTwitchId
+            ),
+            .. TagTwitch(
+                await TwitchUserEmotesAsync(operatorUserId, twitchBroadcasterId, ct),
+                twitchBroadcasterId,
+                operatorTwitchId
+            ),
+            .. TagGlobal(await TwitchGlobalAsync(ct)),
+        ];
+
+        foreach (EmoteProvider provider in ThirdParty)
+            all.AddRange(
+                TagChannelSet(
+                    await ThirdPartyChannelAsync(provider, twitchBroadcasterId, login, ct),
+                    twitchBroadcasterId
+                )
+            );
+
+        foreach (EmoteProvider provider in ThirdParty)
+            all.AddRange(TagGlobal(await CachedAsync(ChatEmoteCacheKeys.Global(provider), ct)));
+
+        return Result.Success(await WithOwnerChannelsAsync(Dedup(all), ct));
+    }
+
+    private async Task<string> OwnerLoginAsync(string twitchId, CancellationToken ct)
+    {
+        IReadOnlyDictionary<string, ChatEmoteOwner> owners = await _owners.ResolveAsync(
+            [twitchId],
+            ct
+        );
+
+        return owners.TryGetValue(twitchId, out ChatEmoteOwner? owner)
+            ? owner.Login ?? string.Empty
+            : string.Empty;
+    }
+
     public async Task<Result<IReadOnlyList<ChatEmote>>> GetForPersonAsync(
         Guid personUserId,
         CancellationToken ct = default
@@ -152,13 +204,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         if (string.IsNullOrEmpty(twitchId))
             return Result.Success<IReadOnlyList<ChatEmote>>([]);
 
-        IReadOnlyDictionary<string, ChatEmoteOwner> owners = await _owners.ResolveAsync(
-            [twitchId],
-            ct
-        );
-        string login = owners.TryGetValue(twitchId, out ChatEmoteOwner? person)
-            ? person.Login ?? string.Empty
-            : string.Empty;
+        string login = await OwnerLoginAsync(twitchId, ct);
 
         List<ChatEmote> all =
         [

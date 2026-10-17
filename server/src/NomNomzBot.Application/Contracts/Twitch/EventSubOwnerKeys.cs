@@ -37,4 +37,10 @@ public static class EventSubOwnerKeys
     /// </summary>
     public static string For(Guid broadcasterId, bool requiresBroadcasterToken) =>
         requiresBroadcasterToken ? broadcasterId.ToString() : Bot;
+
+    /// <summary>
+    /// The session a signed-in viewer reads an off-bot channel's chat on, with the viewer's own token. Its
+    /// frames go to the viewer's own sink, never to the bot pipeline.
+    /// </summary>
+    public static string Viewer(Guid userId) => $"viewer:{userId}";
 }

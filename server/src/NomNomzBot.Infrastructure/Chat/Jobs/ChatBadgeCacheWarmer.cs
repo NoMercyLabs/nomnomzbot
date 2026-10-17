@@ -61,6 +61,19 @@ public sealed class ChatBadgeCacheWarmer
             ct
         );
 
+    /// <summary>Caches the badge set of a channel the bot is not on, by its raw Twitch id; returns whether it was warmed.</summary>
+    public async Task<bool> WarmTwitchChannelAsync(
+        string twitchBroadcasterId,
+        CancellationToken ct = default
+    ) =>
+        await CacheOrKeepAsync(
+            await _helix.ChatAssets.GetChannelChatBadgesByTwitchIdAsync(twitchBroadcasterId, ct),
+            ChatBadgeCacheKeys.TwitchChannel(twitchBroadcasterId),
+            ChannelTtl,
+            $"twitch channel {twitchBroadcasterId}",
+            ct
+        );
+
     private async Task<bool> CacheOrKeepAsync(
         Result<IReadOnlyList<TwitchChatBadgeSet>> result,
         string cacheKey,

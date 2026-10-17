@@ -1879,7 +1879,20 @@ public static class DependencyInjection
         // yet (the seam IEventSubTransport admits the second impl additively, no rewrite). Self-host is the
         // only profile today, so the WebSocket transport is wired unconditionally.
         services.AddSingleton<IWebSocketChannelFactory, ClientWebSocketChannelFactory>();
-        services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();
+        services.AddSingleton<WebSocketEventSubTransport>();
+        services.AddSingleton<IEventSubTransport>(sp =>
+            sp.GetRequiredService<WebSocketEventSubTransport>()
+        );
+        // A viewer reading an off-bot channel rides the same transport on its own session and sink.
+        services.AddSingleton<IViewerEventSubSessions>(sp =>
+            sp.GetRequiredService<WebSocketEventSubTransport>()
+        );
+        services.AddSingleton<Application.Chat.Services.IExternalChatRelay, ExternalChatRelay>();
+        // The hub-backed pusher lives in NomNomzBot.Api and replaces this fallback (registered after AddInfrastructure).
+        services.TryAddSingleton<
+            Application.Chat.Services.IExternalChatPush,
+            UnavailableExternalChatPush
+        >();
         services.AddSingleton<EventSubOutageLedger>();
 
         // The conduit + shard owner behind the zero-downtime blue/green handover (twitch-eventsub §10).

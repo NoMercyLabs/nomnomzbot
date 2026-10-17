@@ -149,6 +149,7 @@ public sealed class ChannelDirectoryTests
                 "ProfileImageUrl",
                 "IsLive",
                 "Provider",
+                "OnBot",
             ]);
     }
 
@@ -189,5 +190,105 @@ public sealed class ChannelDirectoryTests
 
         allowed.IsSuccess.Should().BeTrue();
         allowed.Value.Should().BeTrue();
+    }
+
+    private static TwitchSearchChannel Hit(string id, string login, bool live) =>
+        new(
+            id,
+            login,
+            login.ToUpperInvariant(),
+            "en",
+            "",
+            "",
+            live,
+            [],
+            [],
+            $"https://img/{login}",
+            "",
+            default
+        );
+
+    private static ChannelDirectoryService Directory(AuthDbContext db, ITwitchSearchApi search) =>
+        new(Service(db), search);
+
+    [Fact]
+    public async Task A_search_appends_twitch_channels_off_the_bot_after_the_bot_channels()
+    {
+        AuthDbContext db = await SeededAsync();
+        ITwitchSearchApi search = Substitute.For<ITwitchSearchApi>();
+        search
+            .SearchChannelsAsync(
+                "fillz",
+                null,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchSearchChannel>(
+                        [Hit("tw-d1", "FillZ", true), Hit("tw-x9", "fillzfan", false)],
+                        null,
+                        2
+                    )
+                )
+            );
+
+        Result<PagedList<PublicChannelDto>> result = await Directory(db, search)
+            .SearchAsync("fillz", new(1, 25));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TotalCount.Should().Be(2);
+        result
+            .Value.Items.Should()
+            .Equal(
+                new PublicChannelDto(
+                    Fillz.ToString(),
+                    "fillz",
+                    "FillZ",
+                    "https://img/fillz.png",
+                    true,
+                    "twitch"
+                ),
+                new PublicChannelDto(
+                    "tw-x9",
+                    "fillzfan",
+                    "FILLZFAN",
+                    "https://img/fillzfan",
+                    false,
+                    "twitch",
+                    OnBot: false
+                )
+            );
+    }
+
+    [Fact]
+    public async Task A_twitch_failure_or_an_empty_search_keeps_only_the_bot_channels()
+    {
+        AuthDbContext db = await SeededAsync();
+        ITwitchSearchApi search = Substitute.For<ITwitchSearchApi>();
+        search
+            .SearchChannelsAsync(
+                Arg.Any<string>(),
+                null,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchPage<TwitchSearchChannel>>("down", "TWITCH_UNAVAILABLE"));
+
+        Result<PagedList<PublicChannelDto>> failed = await Directory(db, search)
+            .SearchAsync("fillz", new(1, 25));
+        Result<PagedList<PublicChannelDto>> empty = await Directory(db, search)
+            .SearchAsync("", new(1, 25));
+
+        failed.Value.Items.Should().ContainSingle().Which.OnBot.Should().BeTrue();
+        empty.Value.Items.Should().OnlyContain(c => c.OnBot);
+        await search
+            .Received(1)
+            .SearchChannelsAsync(
+                Arg.Any<string>(),
+                null,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

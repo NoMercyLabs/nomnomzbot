@@ -828,6 +828,54 @@ public sealed class ChatEmoteCatalogueTests
     }
 
     [Fact]
+    public async Task GetForTwitchChannelAsync_returns_an_off_bot_channels_own_emotes_by_its_twitch_id()
+    {
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        StubNoUserEmotes(assets);
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([Global("Kappa")]));
+        assets
+            .GetChannelEmotesByTwitchIdAsync(PersonTwitchId, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchChannelEmote>>([
+                    ChannelTyped("offBotSub", "40", "subscriptions"),
+                ])
+            );
+        IThirdPartyEmoteProviderRegistry registry = Registry(
+            EmoteProvider.SevenTv,
+            Result.Success<IReadOnlyList<ChatEmote>>([SevenTv("offBotJAM")])
+        );
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(
+                new FakeCache(),
+                assets,
+                Identity(),
+                PersonUsers(),
+                registry
+            )
+            .GetForTwitchChannelAsync(PersonTwitchId, Operator);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Select(e => e.Code).Should().BeEquivalentTo("offBotSub", "offBotJAM", "Kappa");
+        ChatEmote sub = result.Value.Single(e => e.Code == "offBotSub");
+        sub.Origin.Should().Be(ChatEmoteOrigin.Channel);
+        sub.OwnerChannel!.Login.Should().Be("personchan");
+        result.Value.Single(e => e.Code == "Kappa").Origin.Should().Be(ChatEmoteOrigin.Global);
+        await assets
+            .Received(1)
+            .GetUserEmotesAsOperatorAsync(
+                Operator,
+                PersonTwitchId,
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await assets
+            .DidNotReceive()
+            .GetChannelEmotesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetForPersonAsync_returns_the_persons_twitch_and_third_party_channel_emotes_as_their_own()
     {
         ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
