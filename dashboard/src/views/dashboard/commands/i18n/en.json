@@ -119,6 +119,8 @@
         "userCooldown": "Per-person cooldown (seconds)",
         "speak": "Read it aloud",
         "default": "Default: {value}",
+        "on": "On",
+        "off": "Off",
         "overrides": "Overrides the default ({value})",
         "usingDefault": "Using the default",
         "back": "Back to default",

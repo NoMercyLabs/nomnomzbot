@@ -53,6 +53,7 @@ const props = withDefaults(
     dataField?: string;
     disabled?: boolean;
     panel?: boolean;
+    localNames?: readonly string[];
   }>(),
   {
     eventType: undefined,
@@ -64,6 +65,7 @@ const props = withDefaults(
     dataField: undefined,
     disabled: false,
     panel: true,
+    localNames: () => [],
   },
 );
 
@@ -95,9 +97,11 @@ const matches = computed<readonly TemplateHelper[]>(() =>
     : [],
 );
 const showing = computed<boolean>(() => matches.value.length > 0);
+// A field can add names only it knows, such as the variables of one built-in reply.
 const unknown = computed<string[]>(() =>
   known.value.length > 0
     ? unknownPlaceholders(text.value, known.value)
+        .filter((name: string) => !props.localNames.some((local: string) => braced(local) === name))
     : [],
 );
 
@@ -182,10 +186,26 @@ defineExpose({ insert });
 </script>
 
 <template>
-  <Field>
+  <!-- The helper toggle sits in the label row and shows only on the field being edited, so a page
+       with many template fields carries one visible toggle instead of one per field. -->
+  <Field class="group/template">
     <div class="flex items-center gap-1.5">
       <FieldLabel :for="id">{{ label }}</FieldLabel>
       <FieldInfo v-if="help">{{ help }}</FieldInfo>
+      <Button
+        v-if="panel && !disabled"
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="ml-auto h-6! px-2! text-xs!"
+        :class="panelOpen ? '' : 'opacity-0 group-focus-within/template:opacity-100 focus-visible:opacity-100'"
+        data-helper-toggle
+        :aria-expanded="panelOpen"
+        @mousedown.prevent
+        @click="panelOpen = !panelOpen"
+      >
+        {{ t(panelOpen ? 'template.field.hideHelpers' : 'template.field.showHelpers') }}
+      </Button>
       <FieldCount v-if="maxlength" :value="text" :max="maxlength" />
     </div>
     <Popover :open="showing">
@@ -240,22 +260,8 @@ defineExpose({ insert });
         </Command>
       </PopoverContent>
     </Popover>
-    <div v-if="panel" class="flex flex-col gap-2">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        class="self-start"
-        data-helper-toggle
-        :aria-expanded="panelOpen"
-        :disabled="disabled"
-        @mousedown.prevent
-        @click="panelOpen = !panelOpen"
-      >
-        {{ t(panelOpen ? 'template.field.hideHelpers' : 'template.field.showHelpers') }}
-      </Button>
+    <div v-if="panel && panelOpen" class="flex flex-col gap-2">
       <div
-        v-if="panelOpen"
         data-template-panel
         class="flex h-64 flex-col rounded-[16px] border border-border p-2"
       >

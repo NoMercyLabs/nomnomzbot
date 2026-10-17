@@ -119,6 +119,8 @@
         "userCooldown": "Wachttijd per persoon (seconden)",
         "speak": "Voorlezen",
         "default": "Standaard: {value}",
+        "on": "Aan",
+        "off": "Uit",
         "overrides": "Overschrijft de standaard ({value})",
         "usingDefault": "Gebruikt de standaard",
         "back": "Terug naar standaard",

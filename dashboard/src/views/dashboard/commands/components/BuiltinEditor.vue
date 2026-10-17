@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useLocalizedText } from '@/composables/useLocalizedText';
 
 import { permissionLevels } from './permissionLevels';
 
@@ -56,6 +57,7 @@ type Draft = {
 };
 
 const { t } = useI18n();
+const textOf = useLocalizedText();
 const { channelId } = useCurrentChannel();
 const toggle = useToggleBuiltin(channelId);
 const updateSettings = useUpdateBuiltinSettings(channelId);
@@ -134,14 +136,35 @@ watch(hasOverrides, (value) => {
   }
 });
 
-function hint(current: string | number | boolean, standard: string | number | boolean): string {
+type Setting = string | number | boolean;
+
+function hint(current: Setting, standard: Setting, shown: string = String(standard)): string {
   if (!customized.value)
-    return t('dashboard.commands.builtin.default', { value: standard });
+    return t('dashboard.commands.builtin.default', { value: shown });
 
   return current === standard
     ? t('dashboard.commands.builtin.usingDefault')
-    : t('dashboard.commands.builtin.overrides', { value: standard });
+    : t('dashboard.commands.builtin.overrides', { value: shown });
 }
+
+// The reply box already shows the default text, so it is only named again once it is overridden.
+function replyHint(slot: BuiltinReply): string {
+  const current = draft.value.texts[slot.slot] ?? '';
+
+  if (!customized.value || current === slot.defaultTemplate)
+    return '';
+
+  return t('dashboard.commands.builtin.overrides', { value: slot.defaultTemplate });
+}
+
+function slotLabel(slot: BuiltinReply): string {
+  return textOf(slot.label, slot.slot);
+}
+
+const onOff = (value: boolean): string =>
+  value
+    ? t('dashboard.commands.builtin.on')
+    : t('dashboard.commands.builtin.off');
 
 const settingsBody = (change: Partial<Record<'cooldown' | 'userCooldown' | 'level', boolean>>) => ({
   builtinKey: props.builtin.builtinKey,
@@ -256,10 +279,11 @@ const unsaved = computed<string>(() =>
           v-model="draft.texts[slot.slot]"
           context="command"
           :maxlength="500"
-          :label="slot.label.text ?? slot.slot"
+          :label="slotLabel(slot)"
+          :local-names="slot.variables.map((variable) => variable.name)"
           :disabled="!editable || slot.isLocked"
         />
-        <p class="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+        <p v-if="slot.variables.length > 0" class="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
           <span>{{ $t('dashboard.commands.builtin.variables') }}</span>
           <span
             v-for="variable in slot.variables"
@@ -272,14 +296,14 @@ const unsaved = computed<string>(() =>
           <span class="text-sm text-muted-foreground">
             {{ slot.isLocked
               ? $t('dashboard.commands.builtin.replyLocked')
-              : hint(draft.texts[slot.slot] ?? '', slot.defaultTemplate) }}
+              : replyHint(slot) }}
           </span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             :class="slot.isOverridden && editable && !slot.isLocked ? '' : 'invisible'"
-            :aria-label="$t('dashboard.commands.builtin.backTo', { field: slot.label.text ?? slot.slot })"
+            :aria-label="$t('dashboard.commands.builtin.backTo', { field: slotLabel(slot) })"
             @click="backToDefaultReply(slot)"
           >
             {{ $t('dashboard.commands.builtin.back') }}
@@ -383,7 +407,7 @@ const unsaved = computed<string>(() =>
         </div>
         <div class="flex min-h-9 items-center justify-between gap-2">
           <span class="text-sm text-muted-foreground">{{
-            hint(draft.tts, false)
+            hint(draft.tts, false, onOff(false))
           }}</span>
           <Button
             type="button"
