@@ -18,16 +18,25 @@ import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePageView } from '@/composables/usePageView';
 
+import CommercialPanel from './CommercialPanel.vue';
 import GoLiveChecklist from './GoLiveChecklist.vue';
 import { formatDuration } from './formatDuration';
 import PlatformRows from './PlatformRows.vue';
+import RaidRulesPanel from './RaidRulesPanel.vue';
+import SchedulePanel from './SchedulePanel.vue';
 import StreamInfoPanel from './StreamInfoPanel.vue';
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const VIEWS = ['overview', 'schedule', 'raids', 'ads'] as const satisfies readonly string[];
+const view = usePageView(VIEWS);
+const tabs = computed<PageTab[]>(() =>
+  VIEWS.map((value) => ({ value, label: t(`dashboard.stream.views.${value}`) })));
 const infoQuery = useStreamInfo(channelId);
 const historyQuery = useStreamHistory(channelId);
 const now = useNow({ scheduler: (tick: () => void) => useIntervalFn(tick, 30_000) });
@@ -83,9 +92,13 @@ const panels = computed(() => [
       />
     </template>
     <template v-if="meta" #meta>{{ meta }}</template>
+    <template #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
-  <BoardGrid :panels="panels" :rows="2">
+  <div v-if="view === 'schedule'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><SchedulePanel /></div>
+  <div v-else-if="view === 'raids'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><RaidRulesPanel /></div>
+  <div v-else-if="view === 'ads'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><CommercialPanel /></div>
+  <BoardGrid v-else :panels="panels" :rows="2">
     <BoardCell panel="info" :span="8" :rows="2"><StreamInfoPanel /></BoardCell>
     <BoardCell panel="platforms" :span="4"><PlatformRows /></BoardCell>
     <BoardCell panel="checklist" :span="4"><GoLiveChecklist /></BoardCell>

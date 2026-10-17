@@ -27,9 +27,16 @@ const results = useCategorySearch(() => props.channelId, asked);
 const found = computed<Category[]>(() => results.data.value ?? []);
 const searching = computed(() => asked.value.trim() !== '' && results.isPending.value);
 
+const emit = defineEmits<{ picked: [category: Category] }>();
+
 function pick(name: string): void {
   game.value = name;
   search.value = '';
+}
+
+function pickFound(category: Category): void {
+  pick(category.name);
+  emit('picked', category);
 }
 </script>
 
@@ -57,7 +64,7 @@ function pick(name: string): void {
         type="button"
         data-category-result
         class="min-h-9 rounded-[8px] px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
-        @click="pick(category.name)"
+        @click="pickFound(category)"
       >
         {{ category.name }}
       </button>

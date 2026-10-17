@@ -135,3 +135,26 @@ export function shortDate(iso: string, locale: string): string {
     day: 'numeric',
   });
 }
+
+const MINUTE_MS = 60_000;
+
+// The value a datetime-local input shows for a moment: the viewer's own clock, to the minute, no zone.
+export function toLocalInput(iso: string | null | undefined): string {
+  if (!iso)
+    return '';
+
+  const moment = new Date(iso);
+  const shifted = new Date(moment.getTime() - moment.getTimezoneOffset() * MINUTE_MS);
+
+  return shifted.toISOString().slice(0, 16);
+}
+
+// The moment a datetime-local value means on the viewer's clock, as the ISO text the API takes.
+export function fromLocalInput(value: string): string {
+  return new Date(value).toISOString();
+}
+
+// Whole minutes between two ISO moments.
+export function minutesBetween(startIso: string, endIso: string): number {
+  return Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / MINUTE_MS);
+}
