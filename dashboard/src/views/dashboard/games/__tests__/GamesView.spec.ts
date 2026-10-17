@@ -199,6 +199,50 @@ describe('GamesView', () => {
     expect(call?.body).not.toHaveProperty('id');
   });
 
+  it('saves the edited limits as numbers and sends null for an emptied field', async () => {
+    await open();
+
+    button('[data-edit-game="coinflip"]').click();
+    await flushPromises();
+
+    const field = (name: string): HTMLInputElement =>
+      document.querySelector(`[data-game-field="${name}"]`) as HTMLInputElement;
+
+    expect(field('minBet').value).toBe('10');
+    expect(field('maxBet').value).toBe('');
+
+    field('minBet').value = '25';
+    field('minBet').dispatchEvent(new Event('input'));
+    field('maxBet').value = '500';
+    field('maxBet').dispatchEvent(new Event('input'));
+    field('minBet').value = '';
+    field('minBet').dispatchEvent(new Event('input'));
+    field('winChancePercent').value = '45.5';
+    field('winChancePercent').dispatchEvent(new Event('input'));
+    await flushPromises();
+
+    button('[data-save-game-config]').click();
+    await flushPromises();
+
+    const call = state.calls[0];
+
+    expect(call?.method).toBe('PUT');
+
+    expect(call?.body).toMatchObject({
+      gameType: 'coinflip',
+      isEnabled: false,
+      cooldownSeconds: 5,
+      minBet: null,
+      maxBet: 500,
+      winChancePercent: 45.5,
+      houseEdgePercent: null,
+      payoutMultiplier: null,
+      maxPlaysPerStream: null,
+    });
+
+    expect(call?.body).not.toHaveProperty('id');
+  });
+
   it('marks the game queries stale on a ConfigChanged with an unlisted domain', async () => {
     await open();
 

@@ -41,7 +41,19 @@
         "empty": "No mini-games are set up.",
         "error": "The mini-games could not be loaded.",
         "age": "18+",
-        "unavailable": "Bet limits, odds and cooldowns are not available yet."
+        "edit": "Edit {name}",
+        "editTitle": "{name} settings",
+        "editHint": "Leave a field empty for no limit.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "fields": {
+          "minBet": "Minimum bet",
+          "maxBet": "Maximum bet",
+          "houseEdgePercent": "House edge (%)",
+          "winChancePercent": "Win chance (%)",
+          "payoutMultiplier": "Payout multiplier",
+          "maxPlaysPerStream": "Plays per stream"
+        }
       },
       "retry": "Try again"
     }

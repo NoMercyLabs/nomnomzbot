@@ -179,6 +179,32 @@ export function useCancelGame(
   });
 }
 
+// Saves the whole setup of a mini-game (limits, odds, payout, plays per stream).
+export function useSaveGameConfig(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, GameConfig, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, GameConfig, undefined>({
+    mutationFn: async (config): Promise<void> => {
+      const { id: _id, ...rest } = config;
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/economy/games',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: rest,
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('save game config', error, response.status);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: gameConfigsKey(toValue(channelId)) });
+    },
+  });
+}
+
 // Turns a mini-game on or off. The PUT takes the whole setup, so the rest of the row travels unchanged.
 export function useSetGameEnabled(
   channelId: MaybeRefOrGetter<string | null>,

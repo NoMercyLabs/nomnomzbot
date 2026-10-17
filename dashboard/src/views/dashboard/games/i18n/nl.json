@@ -41,7 +41,19 @@
         "empty": "Er zijn geen minispellen ingesteld.",
         "error": "De minispellen konden niet worden geladen.",
         "age": "18+",
-        "unavailable": "Inzetlimieten, kansen en wachttijden zijn nog niet beschikbaar."
+        "edit": "{name} bewerken",
+        "editTitle": "Instellingen van {name}",
+        "editHint": "Laat een veld leeg voor geen limiet.",
+        "cancel": "Annuleren",
+        "save": "Opslaan",
+        "fields": {
+          "minBet": "Minimale inzet",
+          "maxBet": "Maximale inzet",
+          "houseEdgePercent": "Huisvoordeel (%)",
+          "winChancePercent": "Winkans (%)",
+          "payoutMultiplier": "Uitbetalingsfactor",
+          "maxPlaysPerStream": "Spellen per stream"
+        }
       },
       "retry": "Opnieuw proberen"
     }

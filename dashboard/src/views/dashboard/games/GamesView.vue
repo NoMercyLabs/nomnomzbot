@@ -36,8 +36,10 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+import Edit from '~icons/nnz/edit';
 import Play from '~icons/nnz/play';
 
+import GameConfigDialog from './components/GameConfigDialog.vue';
 import { sessionTone, statusKey } from './gameStatus';
 
 const { t, n, locale } = useI18n();
@@ -62,6 +64,15 @@ const configState = usePanelState(configs, (rows) =>
   rows.length === 0);
 
 const confirming = ref(false);
+const editing = ref<GameConfig | null>(null);
+const editOpen = computed({
+  get: () => editing.value !== null,
+  set: (value: boolean) => {
+    if (!value) {
+      editing.value = null;
+    }
+  },
+});
 const runningGame = computed(() => active.data.value ?? null);
 const finished = computed(() =>
   (history.data.value ?? []).filter((row) => row.id !== runningGame.value?.id));
@@ -185,17 +196,26 @@ function toggle(config: GameConfig, enabled: boolean): void {
         :key="config.id"
         :data-game-config="config.gameType"
       >
-        <SettingRow
-          :model-value="config.isEnabled"
-          :title="nameOf(config.gameType)"
-          :description="config.requires18Plus ? t('dashboard.games.configs.age') : undefined"
-          :disabled="setEnabled.isPending.value"
-          @update:model-value="toggle(config, $event)"
-        />
+        <div class="flex items-center gap-2">
+          <SettingRow
+            class="flex-1"
+            :model-value="config.isEnabled"
+            :title="nameOf(config.gameType)"
+            :description="config.requires18Plus ? t('dashboard.games.configs.age') : undefined"
+            :disabled="setEnabled.isPending.value"
+            @update:model-value="toggle(config, $event)"
+          />
+          <Button
+            :data-edit-game="config.gameType"
+            variant="ghost"
+            size="icon"
+            :aria-label="t('dashboard.games.configs.edit', { name: nameOf(config.gameType) })"
+            @click="editing = config"
+          >
+            <Edit class="size-5" aria-hidden="true" />
+          </Button>
+        </div>
       </div>
-      <p class="px-3 pt-2 text-sm text-muted-foreground">
-        {{ t('dashboard.games.configs.unavailable') }}
-      </p>
     </PanelCard>
 
     <PanelCard
@@ -219,6 +239,12 @@ function toggle(config: GameConfig, enabled: boolean): void {
         </li>
       </ul>
     </PanelCard>
+
+    <GameConfigDialog
+      v-model:open="editOpen"
+      :config="editing"
+      :name="editing === null ? '' : nameOf(editing.gameType)"
+    />
 
     <ConfirmDialog
       v-model:open="confirming"
