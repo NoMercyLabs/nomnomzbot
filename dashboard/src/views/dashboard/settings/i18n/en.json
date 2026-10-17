@@ -21,6 +21,74 @@
         "description": "These settings stay in this browser. They do not change your channel.",
         "openReadability": "Open readability"
       },
+      "engagement": {
+        "title": "Greetings and streaks",
+        "description": "Choose which moments the bot greets, how long it waits between greetings, and which watch streaks it celebrates.",
+        "error": "Could not load the greeting settings.",
+        "invalid": "Fix the numbers marked in red to save.",
+        "save": "Save changes",
+        "moments": {
+          "title": "Moments"
+        },
+        "firstTime": {
+          "title": "First message ever",
+          "description": "Greet a viewer the first time they chat in your channel."
+        },
+        "returning": {
+          "title": "Back after a break",
+          "description": "Welcome a viewer who has not chatted for a while."
+        },
+        "streak": {
+          "title": "Watch streaks",
+          "description": "Celebrate a viewer who watches stream after stream."
+        },
+        "cooldown": {
+          "section": "Pace",
+          "title": "Time between greetings",
+          "description": "The bot greets at most one viewer in this time. Use 0 for no limit.",
+          "unit": "seconds"
+        },
+        "milestones": {
+          "title": "Streak milestones",
+          "description": "The bot celebrates a viewer when their streak reaches one of these counts.",
+          "item": "Milestone {number}",
+          "unit": "streams in a row",
+          "add": "Add milestone",
+          "remove": "Remove milestone {number}",
+          "empty": "No milestones. Add one to celebrate streaks."
+        }
+      },
+      "basics": {
+        "title": "Basics",
+        "description": "How the bot starts commands, which language it uses and when it is active in your chat.",
+        "loadFailed": "The basics could not be loaded.",
+        "saved": "Basics saved.",
+        "saveFailed": "The basics could not be saved.",
+        "save": "Save",
+        "discard": "Discard changes",
+        "prefix": {
+          "title": "Command prefix",
+          "description": "The first characters of a command, such as !. One to five characters, no spaces."
+        },
+        "botLinePrefix": {
+          "title": "Bot line marker",
+          "description": "Shown before lines the bot posts through your own account. Leave empty for none."
+        },
+        "locale": {
+          "title": "Language",
+          "description": "The default language of the bot's replies.",
+          "placeholder": "Choose a language"
+        },
+        "timezone": {
+          "title": "Timezone",
+          "description": "Used for schedules and for times shown in replies.",
+          "placeholder": "Choose a timezone"
+        },
+        "autoJoin": {
+          "title": "Join chat automatically",
+          "description": "The bot joins your chat by itself when it starts."
+        }
+      },
       "readability": {
         "title": "Readability",
         "description": "How text looks for you on every page. Chat has its own layout options in its Display panel.",

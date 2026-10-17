@@ -26,6 +26,7 @@ export type ApiOrigin =
   'community' |
   'discord' |
   'economy' |
+  'engagement' |
   'favoriteEmotes' |
   'games' |
   'home' |
@@ -115,6 +116,8 @@ export const apiOperations = {
   'create savings jar': 'economy',
   'save savings jar': 'economy',
   'delete savings jar': 'economy',
+  'engagement config': 'engagement',
+  'save engagement config': 'engagement',
   'live game catalog': 'games',
   'active live game': 'games',
   'live game history': 'games',

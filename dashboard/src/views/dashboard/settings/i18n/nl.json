@@ -21,6 +21,74 @@
         "description": "Deze instellingen blijven in deze browser. Ze veranderen je kanaal niet.",
         "openReadability": "Leesbaarheid openen"
       },
+      "engagement": {
+        "title": "Begroetingen en reeksen",
+        "description": "Kies welke momenten de bot begroet, hoe lang hij wacht tussen begroetingen en welke kijkreeksen hij viert.",
+        "error": "De begroetingsinstellingen konden niet worden geladen.",
+        "invalid": "Corrigeer de rood gemarkeerde getallen om op te slaan.",
+        "save": "Wijzigingen opslaan",
+        "moments": {
+          "title": "Momenten"
+        },
+        "firstTime": {
+          "title": "Allereerste bericht",
+          "description": "Begroet een kijker de eerste keer dat die in je kanaal chat."
+        },
+        "returning": {
+          "title": "Terug na een pauze",
+          "description": "Heet een kijker welkom die een tijd niet heeft gechat."
+        },
+        "streak": {
+          "title": "Kijkreeksen",
+          "description": "Vier een kijker die stream na stream meekijkt."
+        },
+        "cooldown": {
+          "section": "Tempo",
+          "title": "Tijd tussen begroetingen",
+          "description": "De bot begroet in deze tijd hooguit een kijker. Gebruik 0 voor geen limiet.",
+          "unit": "seconden"
+        },
+        "milestones": {
+          "title": "Mijlpalen van reeksen",
+          "description": "De bot viert een kijker wanneer de reeks een van deze aantallen bereikt.",
+          "item": "Mijlpaal {number}",
+          "unit": "streams achter elkaar",
+          "add": "Mijlpaal toevoegen",
+          "remove": "Mijlpaal {number} verwijderen",
+          "empty": "Geen mijlpalen. Voeg er een toe om reeksen te vieren."
+        }
+      },
+      "basics": {
+        "title": "Basis",
+        "description": "Hoe de bot commando's start, welke taal hij gebruikt en wanneer hij in je chat actief is.",
+        "loadFailed": "De basisinstellingen konden niet worden geladen.",
+        "saved": "Basisinstellingen opgeslagen.",
+        "saveFailed": "De basisinstellingen konden niet worden opgeslagen.",
+        "save": "Opslaan",
+        "discard": "Wijzigingen weggooien",
+        "prefix": {
+          "title": "Commandovoorvoegsel",
+          "description": "De eerste tekens van een commando, zoals !. Een tot vijf tekens, geen spaties."
+        },
+        "botLinePrefix": {
+          "title": "Markering voor botregels",
+          "description": "Staat voor regels die de bot via je eigen account plaatst. Laat leeg voor geen."
+        },
+        "locale": {
+          "title": "Taal",
+          "description": "De standaardtaal van de antwoorden van de bot.",
+          "placeholder": "Kies een taal"
+        },
+        "timezone": {
+          "title": "Tijdzone",
+          "description": "Wordt gebruikt voor schema's en voor tijden in antwoorden.",
+          "placeholder": "Kies een tijdzone"
+        },
+        "autoJoin": {
+          "title": "Automatisch in de chat komen",
+          "description": "De bot komt zelf in je chat als hij start."
+        }
+      },
       "readability": {
         "title": "Leesbaarheid",
         "description": "Hoe tekst eruitziet voor jou op elke pagina. De chat heeft eigen opmaakopties in het paneel Weergave.",
