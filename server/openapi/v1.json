@@ -20333,7 +20333,7 @@
         "tags": [
           "Channels"
         ],
-        "summary": "Search every channel this deployment serves, so any signed-in person can open its viewer chat\r\n(chat-client.md §9a \"Reaching any channel\"). Public fields only; live channels first.",
+        "summary": "Search every channel this deployment serves, so any signed-in person can open its viewer chat\r\n(chat-client.md §9a \"Reaching any channel\"). Public fields only; live channels first. A search also\r\nlists Twitch channels off the bot (`onBot=false`, §9a \"Any Twitch channel\").",
         "parameters": [
           {
             "name": "Page",
@@ -123454,9 +123454,13 @@
           },
           "provider": {
             "type": "string"
+          },
+          "onBot": {
+            "type": "boolean",
+            "default": true
           }
         },
-        "description": "One channel in the deployment's public directory (chat-client.md §9a \"Reaching any channel\"): only what\r\nthe channel shows every visitor on Twitch. No role, no settings, no tokens."
+        "description": "One channel in the deployment's public directory (chat-client.md §9a \"Reaching any channel\"): only what\r\nthe channel shows every visitor on Twitch. No role, no settings, no tokens. `OnBot` is false for a\r\nTwitch channel this deployment does not serve; its `Id` is then the Twitch user id, not a tenant Guid."
       },
       "PublicMessage": {
         "required": [

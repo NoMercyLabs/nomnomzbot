@@ -79,11 +79,15 @@ class VtsController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Inventory only populates when VTS is authorized + connected — best-effort, null otherwise.
+        // Inventory only exists while VTS is connected; asking otherwise is a guaranteed 503, so skip the call.
         val inventory: VtsModelInventory? =
-            when (val result: ApiResult<VtsModelInventory> = vtsApi.inventory(id)) {
-                is ApiResult.Ok -> result.value
-                is ApiResult.Failure -> null
+            if (connection.status != STATUS_CONNECTED) {
+                null
+            } else {
+                when (val result: ApiResult<VtsModelInventory> = vtsApi.inventory(id)) {
+                    is ApiResult.Ok -> result.value
+                    is ApiResult.Failure -> null
+                }
             }
 
         _state.value = VtsUiState.Ready(connection = connection, inventory = inventory)
@@ -188,6 +192,10 @@ class VtsController(
 
     private fun failWrite(detail: String) {
         feedback.error(Res.string.vts_action_error, detail)
+    }
+
+    private companion object {
+        const val STATUS_CONNECTED: String = "connected"
     }
 
 }

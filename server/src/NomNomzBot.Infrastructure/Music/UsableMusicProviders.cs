@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -29,10 +30,24 @@ internal static class UsableMusicProviders
         CancellationToken cancellationToken
     )
     {
+        // Tokens live in the vault (S036c-b), so a live connected IntegrationConnections row is the truth.
+        // The legacy Services row stays as well: Spotify is still mirrored there.
         List<string> connected = await db
-            .Services.Where(s => s.BroadcasterId == channelId && s.Enabled && s.AccessToken != null)
-            .Select(s => s.Name)
+            .IntegrationConnections.Where(c =>
+                c.BroadcasterId == channelId
+                && c.DeletedAt == null
+                && c.Status == AuthEnums.IntegrationStatus.Connected
+            )
+            .Select(c => c.Provider)
             .ToListAsync(cancellationToken);
+        connected.AddRange(
+            await db
+                .Services.Where(s =>
+                    s.BroadcasterId == channelId && s.Enabled && s.AccessToken != null
+                )
+                .Select(s => s.Name)
+                .ToListAsync(cancellationToken)
+        );
 
         List<IMusicProvider> usable = [];
         foreach (IMusicProvider provider in providers)

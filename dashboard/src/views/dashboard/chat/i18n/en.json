@@ -10,6 +10,15 @@
         "live": "Live",
         "offline": "Offline"
       },
+      "external": {
+        "crumb": "Twitch chat",
+        "note": "Live only. This channel does not use NomNomzBot, so there is no history. You chat as yourself.",
+        "empty": "Waiting for the next message.",
+        "failed": "This chat could not be opened.",
+        "needsScope": "Sending needs the Twitch permission {scope}. Grant it again to continue.",
+        "placeholder": "Message {name}",
+        "send": "Send"
+      },
       "popout": "Pop out",
       "copyDockLink": "Copy dock link",
       "identity": {

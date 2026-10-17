@@ -238,7 +238,8 @@ public sealed class ViewerChatTests
             Substitute.For<IChatProvider>(),
             access,
             authorization,
-            Substitute.For<IOperatorChatSender>()
+            Substitute.For<IOperatorChatSender>(),
+            Substitute.For<IExternalChatRelay>()
         )
         {
             Context = context,
@@ -334,14 +335,17 @@ public sealed class ViewerChatTests
     }
 
     private static bool IsAnonymousDeletion(object? data) =>
-        data is MessageDeletedDto d
-        && d.MessageId == "msg-9"
-        && d.TargetUserId == "target-id"
-        && d.DeletedByUserId == string.Empty
-        && d.DeletedByDisplayName == string.Empty;
+        data
+            is MessageDeletedDto
+            {
+                MessageId: "msg-9",
+                TargetUserId: "target-id",
+                DeletedByUserId: "",
+                DeletedByDisplayName: "",
+            };
 
     private static bool IsAnonymousClear(object? data) =>
-        data is ChatClearedDto c && c.ClearedByUserId == string.Empty;
+        data is ChatClearedDto { ClearedByUserId: "" };
 
     [Fact]
     public async Task Moderation_only_events_never_reach_the_viewer_group()

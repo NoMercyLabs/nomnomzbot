@@ -128,12 +128,14 @@ public class ChannelsController : BaseController
 
     /// <summary>
     /// Search every channel this deployment serves, so any signed-in person can open its viewer chat
-    /// (chat-client.md §9a "Reaching any channel"). Public fields only; live channels first.
+    /// (chat-client.md §9a "Reaching any channel"). Public fields only; live channels first. A search also
+    /// lists Twitch channels off the bot (<c>onBot=false</c>, §9a "Any Twitch channel").
     /// </summary>
     [HttpGet("directory")]
     [ProducesResponseType<PaginatedResponse<PublicChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchDirectory(
         [FromQuery] PageRequestDto request,
+        [FromServices] IChannelDirectoryService directory,
         CancellationToken ct
     )
     {
@@ -141,8 +143,11 @@ public class ChannelsController : BaseController
         request.Page = Math.Max(request.Page, 1);
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
 
-        Result<PagedList<PublicChannelDto>> result =
-            await _channelService.SearchPublicChannelsAsync(request.Search, pagination, ct);
+        Result<PagedList<PublicChannelDto>> result = await directory.SearchAsync(
+            request.Search,
+            pagination,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

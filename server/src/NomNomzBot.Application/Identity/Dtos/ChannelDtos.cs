@@ -49,7 +49,8 @@ public sealed record ChannelSummaryDto(
 
 /// <summary>
 /// One channel in the deployment's public directory (chat-client.md §9a "Reaching any channel"): only what
-/// the channel shows every visitor on Twitch. No role, no settings, no tokens.
+/// the channel shows every visitor on Twitch. No role, no settings, no tokens. <c>OnBot</c> is false for a
+/// Twitch channel this deployment does not serve; its <c>Id</c> is then the Twitch user id, not a tenant Guid.
 /// </summary>
 public sealed record PublicChannelDto(
     string Id,
@@ -57,7 +58,8 @@ public sealed record PublicChannelDto(
     string DisplayName,
     string? ProfileImageUrl,
     bool IsLive,
-    string Provider
+    string Provider,
+    bool OnBot = true
 );
 
 /// <summary>Lightweight channel info returned when looking up by overlay token.</summary>

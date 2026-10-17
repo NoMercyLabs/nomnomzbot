@@ -10,7 +10,7 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
-import { viewerChatRoute } from '@/views/dashboard/chat/route';
+import { viewerChatRoute, viewerExternalChatRoute } from '@/views/dashboard/chat/route';
 import { viewerMeRoute } from '@/views/viewer/me/route';
 
 // The pages a signed-in viewer sees, outside the management shell.
@@ -18,5 +18,5 @@ export const viewerRoutes: RouteRecordRaw = {
   path: '/me',
   component: () => import('@/layouts/ViewerLayout.vue'),
   meta: { requiresAuth: true },
-  children: [viewerMeRoute, viewerChatRoute],
+  children: [viewerMeRoute, viewerChatRoute, viewerExternalChatRoute],
 };

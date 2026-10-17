@@ -41,7 +41,7 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// with the owner key so the service re-registers only that session's slice.
 /// </para>
 /// </summary>
-public sealed class WebSocketEventSubTransport : IEventSubTransport
+public sealed class WebSocketEventSubTransport : IEventSubTransport, IViewerEventSubSessions
 {
     private readonly IOutboundSanctionAccessor _sanctions;
 
@@ -64,6 +64,9 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
     // One live WebSocket session per token owner (bot + one per broadcaster). Keyed by EventSubOwnerKeys.
     private readonly ConcurrentDictionary<string, WsSession> _sessions = new();
     private IEventSubNotificationSink? _sink;
+
+    // Sessions that are not the bot pipeline's (a viewer reading an off-bot channel) forward to their own sink.
+    private readonly ConcurrentDictionary<string, IEventSubNotificationSink> _ownerSinks = new();
 
     public WebSocketEventSubTransport(
         IWebSocketChannelFactory channelFactory,
@@ -477,6 +480,70 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             await session.StopAsync();
     }
 
+    // ── Viewer sessions (IViewerEventSubSessions) ───────────────────────────────
+
+    public async Task<Result<string>> OpenAsync(
+        string ownerKey,
+        IEventSubNotificationSink sink,
+        CancellationToken ct = default
+    )
+    {
+        // Bound before the socket opens, so even the first welcome goes to the owner's sink.
+        _ownerSinks[ownerKey] = sink;
+        Result<EventSubTransportHandle> handle = await EnsureSessionAsync(ownerKey, ct);
+        return handle.IsFailure
+            ? Result.Failure<string>(handle.ErrorMessage!, handle.ErrorCode)
+            : Result.Success(handle.Value.SessionId!);
+    }
+
+    public async Task<Result<string>> SubscribeAsViewerAsync(
+        Guid viewerUserId,
+        string sessionId,
+        string eventType,
+        string version,
+        IReadOnlyDictionary<string, string> condition,
+        CancellationToken ct = default
+    )
+    {
+        // The viewer opened this channel's chat themself; the subscription is that action.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.UserAction("chat:external:read", viewerUserId)
+        );
+
+        var body = new
+        {
+            type = eventType,
+            version,
+            condition,
+            transport = new { method = "websocket", session_id = sessionId },
+        };
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "eventsub/subscriptions",
+            TwitchHelixAuth.Operator,
+            Body: body,
+            OperatorUserId: viewerUserId
+        );
+
+        Result<TwitchEventSubWireSubscription> sent = await WithHelixAsync(helix =>
+            helix.SendWithResultAsync<TwitchEventSubWireSubscription>(request, ct)
+        );
+        return sent.IsFailure
+            ? Result.Failure<string>(sent.ErrorMessage!, sent.ErrorCode, sent.ErrorDetail)
+            : Result.Success(sent.Value.Id ?? string.Empty);
+    }
+
+    public async Task CloseAsync(string ownerKey)
+    {
+        _ownerSinks.TryRemove(ownerKey, out _);
+        if (_sessions.TryRemove(ownerKey, out WsSession? session))
+            await session.StopAsync();
+    }
+
+    // The owner's own sink when it has one (a viewer session), else the bot pipeline's sink.
+    private IEventSubNotificationSink? SinkFor(string ownerKey) =>
+        _ownerSinks.TryGetValue(ownerKey, out IEventSubNotificationSink? owner) ? owner : _sink;
+
     // ── Sink forwarding (called by every WsSession receive loop) ────────────────
 
     private Task ForwardWelcomeAsync(
@@ -485,17 +552,18 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         string? handoffFromSessionId,
         CancellationToken ct
     ) =>
-        _sink?.OnSessionWelcomeAsync(sessionId, ownerKey, handoffFromSessionId, ct)
+        SinkFor(ownerKey)?.OnSessionWelcomeAsync(sessionId, ownerKey, handoffFromSessionId, ct)
         ?? Task.CompletedTask;
 
     // A sink failure must never strand the session: when the answer is unknown, keep reconnecting.
     private async Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct)
     {
-        if (_sink is null)
+        IEventSubNotificationSink? sink = SinkFor(ownerKey);
+        if (sink is null)
             return true;
         try
         {
-            return await _sink.ShouldReconnectAsync(ownerKey, ct);
+            return await sink.ShouldReconnectAsync(ownerKey, ct);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
@@ -509,6 +577,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
     }
 
     private Task ForwardNotificationAsync(
+        string ownerKey,
         string messageId,
         DateTimeOffset messageTimestamp,
         string subscriptionType,
@@ -517,15 +586,17 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         JsonElement @event,
         CancellationToken ct
     ) =>
-        _sink?.OnNotificationAsync(
-            messageId,
-            messageTimestamp,
-            subscriptionType,
-            subscriptionVersion,
-            twitchBroadcasterUserId,
-            @event,
-            ct
-        ) ?? Task.CompletedTask;
+        SinkFor(ownerKey)
+            ?.OnNotificationAsync(
+                messageId,
+                messageTimestamp,
+                subscriptionType,
+                subscriptionVersion,
+                twitchBroadcasterUserId,
+                @event,
+                ct
+            )
+        ?? Task.CompletedTask;
 
     private Task ForwardDisconnectedAsync(
         string ownerKey,
@@ -534,23 +605,26 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         TimeSpan nextRetryIn,
         CancellationToken ct
     ) =>
-        _sink?.OnSessionDisconnectedAsync(ownerKey, sessionId, reason, nextRetryIn, ct)
+        SinkFor(ownerKey)?.OnSessionDisconnectedAsync(ownerKey, sessionId, reason, nextRetryIn, ct)
         ?? Task.CompletedTask;
 
     private Task ForwardRevocationAsync(
+        string ownerKey,
         string twitchSubscriptionId,
         string subscriptionType,
         string status,
         string twitchBroadcasterUserId,
         CancellationToken ct
     ) =>
-        _sink?.OnRevocationAsync(
-            twitchSubscriptionId,
-            subscriptionType,
-            status,
-            twitchBroadcasterUserId,
-            ct
-        ) ?? Task.CompletedTask;
+        SinkFor(ownerKey)
+            ?.OnRevocationAsync(
+                twitchSubscriptionId,
+                subscriptionType,
+                status,
+                twitchBroadcasterUserId,
+                ct
+            )
+        ?? Task.CompletedTask;
 
     // ── One WebSocket session (one token owner) ─────────────────────────────────
 
@@ -964,6 +1038,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                     Wire.Subscription? sub = envelope.Payload?.Subscription;
                     if (sub is not null)
                         await _owner.ForwardRevocationAsync(
+                            _ownerKey,
                             sub.Id ?? string.Empty,
                             sub.Type ?? string.Empty,
                             sub.Status ?? "authorization_revoked",
@@ -981,6 +1056,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                         break;
 
                     await _owner.ForwardNotificationAsync(
+                        _ownerKey,
                         envelope.Metadata.MessageId ?? Guid.NewGuid().ToString(),
                         ParseTimestamp(envelope.Metadata.MessageTimestamp),
                         sub.Type,
