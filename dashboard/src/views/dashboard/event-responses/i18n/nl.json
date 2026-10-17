@@ -17,7 +17,7 @@
         "pickTitle": "Geen event open"
       },
       "editor": {
-        "enabled": "Aan",
+        "enabled": "Ingeschakeld",
         "enabledHelp": "Een event dat uit staat blijft in de lijst en zegt niets.",
         "message": "Reactie",
         "messageHelp": "De bot plaatst dit in de chat als het event gebeurt.",

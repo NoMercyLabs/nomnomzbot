@@ -21,9 +21,27 @@ export type CurrentUser = components['schemas']['CurrentUser'];
 const version = { path: { version: '1' } };
 
 // The access token lives in this module only. The refresh token is the server's httpOnly cookie.
-let accessToken: string | null = null;
+// A dev build keeps it for the tab too: a hand-made sign-in has no cookie, so every hot reload signed it out.
+const devTokenKey = 'nnz-dev-access-token';
+const keepsDevToken = import.meta.env.DEV && import.meta.env.MODE !== 'test';
+let accessToken: string | null = keepsDevToken
+  ? sessionStorage.getItem(devTokenKey)
+  : null;
+
+function setAccessToken(token: string | null): void {
+  accessToken = token;
+
+  if (!keepsDevToken) return;
+
+  if (token) {
+    sessionStorage.setItem(devTokenKey, token);
+  } else {
+    sessionStorage.removeItem(devTokenKey);
+  }
+}
+
 // Follows the sign-in for the live connection; a token swapped by the 401 retry does not move it.
-const signedIn = ref(false);
+const signedIn = ref(accessToken !== null);
 let restoring: Promise<boolean> | null = null;
 let refreshRefused = false;
 
@@ -78,7 +96,7 @@ client.use({
     if (response.status !== 401 || !original || isSignInCall)
       return response;
 
-    accessToken = null;
+    setAccessToken(null);
 
     if (!(await restoreSession()))
       return response;
@@ -107,7 +125,7 @@ export function getAccessToken(): string {
 
 // A sign-in that finished on this page (the device code) hands its access token over here.
 export function acceptAccessToken(token: string): void {
-  accessToken = token;
+  setAccessToken(token);
   refreshRefused = false;
   signedIn.value = true;
 }
@@ -124,7 +142,7 @@ function consumeFragment(): boolean {
   if (!token)
     return false;
 
-  accessToken = token;
+  setAccessToken(token);
   signedIn.value = true;
   stripFragment();
 
@@ -200,7 +218,7 @@ async function refreshNow(): Promise<boolean> {
   }
 
   refreshRefused = false;
-  accessToken = token;
+  setAccessToken(token);
   signedIn.value = true;
 
   return true;
@@ -239,7 +257,7 @@ export function useCurrentUser(): UseQueryReturnType<CurrentUser | null, Error> 
 export function switchBot(origin: string): void {
   if (origin === activeBot.value) return;
 
-  accessToken = null;
+  setAccessToken(null);
   signedIn.value = false;
   queryClient.clear();
   activeBot.value = origin;
@@ -247,7 +265,7 @@ export function switchBot(origin: string): void {
 
 export async function signOut(): Promise<void> {
   await client.POST('/api/v{version}/auth/logout', { params: version, credentials: 'include' });
-  accessToken = null;
+  setAccessToken(null);
   signedIn.value = false;
   queryClient.clear();
 }

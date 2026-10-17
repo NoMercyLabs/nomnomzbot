@@ -31,7 +31,7 @@
         "pickTitle": "Geen commando open"
       },
       "editor": {
-        "enabled": "Aan",
+        "enabled": "Ingeschakeld",
         "enabledHelp": "Een commando dat uit staat blijft in de lijst en antwoordt niemand.",
         "reply": "Antwoord",
         "replyPlaceholder": "Wat de bot in de chat zegt",

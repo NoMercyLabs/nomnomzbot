@@ -39,7 +39,7 @@
             "globalCooldownSeconds": "Cooldown in seconden",
             "timerDurationSeconds": "Timer in seconden",
             "backgroundColor": "Kleur",
-            "isEnabled": "Aan",
+            "isEnabled": "Ingeschakeld",
             "isPaused": "Gepauzeerd",
             "isUserInputRequired": "Kijker typt een bericht"
           },
