@@ -193,7 +193,7 @@ public static class TemplateHelperRegistry
                 "template.helper.ad_automatic",
                 eventScoped: true
             ),
-            // Polls (channel.poll.end only)
+            // Polls (channel.poll.begin and channel.poll.end)
             Literal(
                 "poll.title",
                 EventSourceOnlyContexts,
@@ -228,6 +228,103 @@ public static class TemplateHelperRegistry
                 "poll.results",
                 EventSourceOnlyContexts,
                 "template.helper.poll_results",
+                eventScoped: true
+            ),
+            // Poll start, predictions and hype train (their begin, lock and end events)
+            Literal(
+                "poll.id",
+                EventSourceOnlyContexts,
+                "template.helper.poll_id",
+                eventScoped: true
+            ),
+            Literal(
+                "poll.duration",
+                EventSourceOnlyContexts,
+                "template.helper.poll_duration",
+                eventScoped: true
+            ),
+            Literal(
+                "poll.choices",
+                EventSourceOnlyContexts,
+                "template.helper.poll_choices",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.id",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_id",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.title",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_title",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.window",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_window",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.outcomes",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_outcomes",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.total_points",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_total_points",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.status",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_status",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.winner",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_winner",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.winner.points",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_winner_points",
+                eventScoped: true
+            ),
+            Literal(
+                "prediction.winner.users",
+                EventSourceOnlyContexts,
+                "template.helper.prediction_winner_users",
+                eventScoped: true
+            ),
+            Literal(
+                "hype_train.id",
+                EventSourceOnlyContexts,
+                "template.helper.hype_train_id",
+                eventScoped: true
+            ),
+            Literal(
+                "hype_train.level",
+                EventSourceOnlyContexts,
+                "template.helper.hype_train_level",
+                eventScoped: true
+            ),
+            Literal(
+                "hype_train.total",
+                EventSourceOnlyContexts,
+                "template.helper.hype_train_total",
+                eventScoped: true
+            ),
+            Literal(
+                "hype_train.goal",
+                EventSourceOnlyContexts,
+                "template.helper.hype_train_goal",
                 eventScoped: true
             ),
             // ── Follow (channel.follow) ──────────────────────────────────────

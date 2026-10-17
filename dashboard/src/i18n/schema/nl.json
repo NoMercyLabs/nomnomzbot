@@ -1452,14 +1452,32 @@
       "channel_follow": {
         "template": "Bedankt voor het volgen, {'{'}user{'}'}!"
       },
+      "channel_hype_train_begin": {
+        "template": "Er is een hype train gestart op level {'{'}hype_train.level{'}'}! Hou hem gaande!"
+      },
+      "channel_hype_train_end": {
+        "template": "De hype train eindigde op level {'{'}hype_train.level{'}'} met {'{'}hype_train.total{'}'} punten. Bedankt allemaal!"
+      },
       "channel_moderator_add": {
         "template": "{'{'}user{'}'} is toegevoegd als moderator in het kanaal."
       },
       "channel_moderator_remove": {
         "template": "{'{'}user{'}'} is verwijderd als moderator in het kanaal."
       },
+      "channel_poll_begin": {
+        "template": "Er is een poll gestart: {'{'}poll.title{'}'}. Kies tussen {'{'}poll.choices{'}'}. Hij loopt {'{'}poll.duration{'}'}!"
+      },
       "channel_poll_end": {
         "template": "De poll {'{'}poll.title{'}'} is afgelopen - {'{'}poll.winner{'}'} won{'{'}poll.winner.percentage{'}'}!"
+      },
+      "channel_prediction_begin": {
+        "template": "Er staat een voorspelling open: {'{'}prediction.title{'}'}. Doe je gok: {'{'}prediction.outcomes{'}'}."
+      },
+      "channel_prediction_end": {
+        "template": "De voorspelling {'{'}prediction.title{'}'} is voorbij - {'{'}prediction.winner{'}'} won met {'{'}prediction.winner.users{'}'} kijkers!"
+      },
+      "channel_prediction_lock": {
+        "template": "De voorspellingen zijn dicht voor {'{'}prediction.title{'}'}. Er zit {'{'}prediction.total_points{'}'} kanaalpunten in!"
       },
       "channel_raid": {
         "template": "{'{'}user{'}'} raidt met {'{'}viewers{'}'} kijkers. Welkom, raiders!"
@@ -2470,6 +2488,10 @@
       "gendered_term": "Een term die past bij de voornaamwoorden van de persoon (bijv. kerel/dame)",
       "gifter": "Wie deze kijker een sub gaf (\"Anonymous\" als de gever anoniem bleef)",
       "gifter_id": "Het platform-gebruikers-id van de gever; leeg als de gever anoniem bleef",
+      "hype_train_goal": "De punten voor het volgende level",
+      "hype_train_id": "Het hype train-ID",
+      "hype_train_level": "Het level van de hype train",
+      "hype_train_total": "Het totaal aan punten van de hype train",
       "input": "De tekstinvoer van de kijker bij de inwisseling, indien aanwezig",
       "link": "Een profiellink - het {'@'}vermelde doel indien aanwezig, anders de gebruiker die het activeerde",
       "list_pick": "Een willekeurig item uit een benoemde keuzelijst (bijv. {'{'}list.pick.jokes{'}'})",
@@ -2484,6 +2506,9 @@
       "object": "Het voornaamwoord in objectvorm (bijv. hen)",
       "obs_event_field": "Een veld uit de eigen payload van de OBS-gebeurtenis (bijv. {'{'}obs.event.sceneName{'}'})",
       "playlist_id": "De id van de afspeellijst waaraan het nummer is toegevoegd",
+      "poll_choices": "Alle keuzes van de poll, gescheiden door komma's",
+      "poll_duration": "Hoe lang de poll loopt, als tekst (bijv. \"5 minuten\")",
+      "poll_id": "Het poll-ID",
       "poll_results": "Elke keuze met stemmen en aandeel, gescheiden door {'|'}",
       "poll_status": "Hoe de poll eindigde (completed, terminated of archived)",
       "poll_title": "De vraag van de poll",
@@ -2491,6 +2516,15 @@
       "poll_winner_percentage": "Het winnende aandeel als tekst, zoals (68%), of niets als niemand stemde",
       "poll_winner_votes": "Het aantal stemmen van de winnende keuze",
       "possessive": "Het bezittelijk voornaamwoord (bijv. hun)",
+      "prediction_id": "Het voorspelling-ID",
+      "prediction_outcomes": "Alle uitkomsten, gescheiden door komma's",
+      "prediction_status": "Hoe de voorspelling eindigde (resolved of canceled)",
+      "prediction_title": "De vraag van de voorspelling",
+      "prediction_total_points": "Alle kanaalpunten die tot nu toe zijn ingezet",
+      "prediction_window": "Hoeveel seconden kijkers kunnen voorspellen",
+      "prediction_winner": "De winnende uitkomst, of niets bij een geannuleerde voorspelling",
+      "prediction_winner_points": "De kanaalpunten die op de winnende uitkomst zijn ingezet",
+      "prediction_winner_users": "Het aantal kijkers dat de winnende uitkomst voorspelde",
       "present_tense": "De tegenwoordige tijd van zijn (bijv. is/zijn)",
       "provider": "Het platform dat de gebeurtenis heeft afgeleverd (bijv. twitch of kick)",
       "random_number": "Een willekeurig geheel getal van 1 tot en met N (bijv. {'{'}random.number.100{'}'})",

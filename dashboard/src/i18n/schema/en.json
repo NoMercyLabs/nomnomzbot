@@ -1452,14 +1452,32 @@
       "channel_follow": {
         "template": "Thanks for the follow, {'{'}user{'}'}!"
       },
+      "channel_hype_train_begin": {
+        "template": "A hype train just started at level {'{'}hype_train.level{'}'}! Keep it going!"
+      },
+      "channel_hype_train_end": {
+        "template": "The hype train ended at level {'{'}hype_train.level{'}'} with {'{'}hype_train.total{'}'} points. Thank you all!"
+      },
       "channel_moderator_add": {
         "template": "{'{'}user{'}'} has been added as a moderator in the channel."
       },
       "channel_moderator_remove": {
         "template": "{'{'}user{'}'} has been removed as a moderator in the channel."
       },
+      "channel_poll_begin": {
+        "template": "A poll just started: {'{'}poll.title{'}'}. Choose between {'{'}poll.choices{'}'}. It runs for {'{'}poll.duration{'}'}!"
+      },
       "channel_poll_end": {
         "template": "The poll {'{'}poll.title{'}'} is over - {'{'}poll.winner{'}'} won{'{'}poll.winner.percentage{'}'}!"
+      },
+      "channel_prediction_begin": {
+        "template": "A prediction is open: {'{'}prediction.title{'}'}. Place your bets: {'{'}prediction.outcomes{'}'}."
+      },
+      "channel_prediction_end": {
+        "template": "The prediction {'{'}prediction.title{'}'} is over - {'{'}prediction.winner{'}'} won with {'{'}prediction.winner.users{'}'} viewers!"
+      },
+      "channel_prediction_lock": {
+        "template": "Predictions are locked for {'{'}prediction.title{'}'}. {'{'}prediction.total_points{'}'} channel points are in!"
       },
       "channel_raid": {
         "template": "{'{'}user{'}'} is raiding with {'{'}viewers{'}'} viewers. Welcome, raiders!"
@@ -2470,6 +2488,10 @@
       "gendered_term": "A gendered term matching the person pronouns (e.g. guy/gal)",
       "gifter": "Who gifted the sub to this viewer (\"Anonymous\" when the gifter stayed anonymous)",
       "gifter_id": "The gifter's platform user id; empty when the gifter stayed anonymous",
+      "hype_train_goal": "The points needed for the next level",
+      "hype_train_id": "The hype train ID",
+      "hype_train_level": "The hype train level",
+      "hype_train_total": "The total points the hype train collected",
       "input": "The viewer's text input on the redemption, if any",
       "link": "A profile link - the {'@'}mention target if present, otherwise the triggering user",
       "list_pick": "A random entry from a named pick-list (e.g. {'{'}list.pick.jokes{'}'})",
@@ -2484,6 +2506,9 @@
       "object": "The object-case pronoun (e.g. them)",
       "obs_event_field": "A field from the OBS event's own payload (e.g. {'{'}obs.event.sceneName{'}'})",
       "playlist_id": "The id of the playlist the track was added to",
+      "poll_choices": "Every poll choice, separated by commas",
+      "poll_duration": "How long the poll runs, as text (e.g. \"5 minutes\")",
+      "poll_id": "The poll ID",
       "poll_results": "Every choice with its votes and share, separated by {'|'}",
       "poll_status": "How the poll ended (completed, terminated or archived)",
       "poll_title": "The poll question",
@@ -2491,6 +2516,15 @@
       "poll_winner_percentage": "The winning share as text, like (68%), or nothing when no one voted",
       "poll_winner_votes": "The number of votes the winning choice got",
       "possessive": "The possessive pronoun (e.g. their)",
+      "prediction_id": "The prediction ID",
+      "prediction_outcomes": "Every outcome, separated by commas",
+      "prediction_status": "How the prediction ended (resolved or canceled)",
+      "prediction_title": "The prediction question",
+      "prediction_total_points": "All channel points predicted so far",
+      "prediction_window": "How many seconds viewers can predict",
+      "prediction_winner": "The winning outcome, or nothing when canceled",
+      "prediction_winner_points": "The channel points predicted on the winning outcome",
+      "prediction_winner_users": "The number of viewers who predicted the winning outcome",
       "present_tense": "The present-tense to-be form (e.g. is/are)",
       "provider": "The platform that delivered the event (e.g. twitch or kick)",
       "random_number": "A random whole number from 1 up to N (e.g. {'{'}random.number.100{'}'})",
