@@ -44,8 +44,91 @@
         "error": "De kanaallijst kon niet laden.",
         "forbidden": "Je mag de kanaallijst niet zien."
       },
+      "tenants": {
+        "title": "Tenants",
+        "pick": "Kies een tenant om te beheren.",
+        "error": "De tenant kon niet laden.",
+        "restricted": "Tenants hosten voor derden is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "justification": "Onderbouwing",
+        "justificationRequired": "Vul een onderbouwing in. Die staat in het auditlog.",
+        "result": "Klaar: {value}",
+        "actions": {
+          "suspend": "Opschorten",
+          "reinstate": "Herstellen",
+          "access": "Toegang starten",
+          "remigrate": "Migraties opnieuw draaien",
+          "export": "Gegevens exporteren",
+          "erase": "Kanaal wissen"
+        },
+        "facts": {
+          "title": "Tenant",
+          "owner": "Eigenaar",
+          "status": "Status",
+          "tier": "Factuurniveau",
+          "mode": "Implementatiemodus",
+          "members": "Leden",
+          "suspendedReason": "Opgeschort wegens"
+        },
+        "suspend": {
+          "title": "{name} opschorten",
+          "description": "De bot stopt met dit kanaal te bedienen tot het is hersteld.",
+          "statusLabel": "Nieuwe status",
+          "status": {
+            "suspended": "Opgeschort",
+            "platform_banned": "Verbannen"
+          }
+        },
+        "reinstate": {
+          "title": "{name} herstellen",
+          "description": "De bot bedient dit kanaal weer."
+        },
+        "access": {
+          "title": "Toegang tot {name} starten",
+          "description": "Opent een tijdelijke supportsessie op deze tenant. Elke stap wordt vastgelegd.",
+          "breakGlass": "Noodtoegang (break glass)",
+          "expires": "Verloopt op"
+        },
+        "remigrate": {
+          "title": "Migraties opnieuw draaien voor {name}",
+          "description": "Past de databasemigraties toe die deze tenant nog mist."
+        },
+        "erase": {
+          "title": "{name} wissen",
+          "description": "Verwijdert het kanaal en de gegevens. Na de herstelperiode kan dit niet meer ongedaan.",
+          "window": "Herstelbaar gedurende {days} dagen, daarna definitief."
+        },
+        "members": {
+          "title": "Leden",
+          "search": "Leden zoeken",
+          "empty": "Geen lid gevonden.",
+          "error": "De leden konden niet laden.",
+          "relation": {
+            "owner": "Eigenaar",
+            "moderator": "Moderator",
+            "member": "Lid",
+            "viewer": "Kijker"
+          }
+        },
+        "limits": {
+          "title": "Limietaanpassingen",
+          "description": "Actuele quota-aanpassingen; wissen herstelt de standaard van het niveau.",
+          "empty": "Geen aanpassing: deze tenant volgt zijn niveau.",
+          "error": "De limieten konden niet laden.",
+          "add": "Limiet toevoegen",
+          "clear": "De aanpassing {key} wissen",
+          "noExpiry": "geen einddatum",
+          "invalid": "Vul een sleutel en een geheel getal in.",
+          "dialogTitle": "Limietaanpassing instellen",
+          "dialogDescription": "Vervangt de aanpassing voor deze sleutel als die bestaat.",
+          "save": "Limiet opslaan",
+          "key": "Limietsleutel",
+          "value": "Waarde",
+          "reason": "Reden",
+          "expires": "Verloopt op"
+        }
+      },
       "users": {
-        "title": "Gebruikers",
+        "title":"Gebruikers",
         "search": "Zoek gebruikers",
         "count": "{count} gebruikers",
         "never": "Nooit",
@@ -74,6 +157,27 @@
           "empty": "Geen gebruiker past bij deze filters.",
           "error": "De gebruikerslijst kon niet laden.",
           "forbidden": "Je mag de gebruikerslijst niet zien."
+        }
+      },
+      "eventsubHealth": {
+        "title": "EventSub-gezondheid",
+        "count": "{count} kanalen",
+        "columns": {
+          "channel": "Kanaal",
+          "topic": "Onderwerp",
+          "state": "Status",
+          "version": "Versie",
+          "confirmed": "Laatst bevestigd",
+          "error": "Laatste fout"
+        },
+        "noSubscriptions": "Geen abonnementen",
+        "noError": "Geen",
+        "list": {
+          "title": "Abonnementen per kanaal",
+          "description": "Het echte register dat de bot bij elke herverbinding opnieuw aanmeldt",
+          "empty": "Geen enkel kanaal heeft een EventSub-abonnement.",
+          "error": "De EventSub-gezondheid kon niet laden.",
+          "forbidden": "Je mag de EventSub-gezondheid niet zien."
         }
       },
       "pager": {
@@ -265,6 +369,66 @@
           "sd12": "Wij hosten de chat niet, dus niets hier houdt een bericht tegen voordat het geplaatst is. Wat we wel kunnen, is de eigen regels van het platform aanscherpen, en dat zeggen we eerlijk in plaats van dekking te suggereren die we niet hebben."
         }
       }
+    },
+    "adminFeatureFlags": {
+      "title": "Functievlaggen",
+      "crumb": "Beheer",
+      "explain": "Een vlag zet een functie aan of uit voor elk kanaal. Het uitrolpercentage bereikt maar een deel ervan. Een kanaaloverride wint van de vlag voor dat ene kanaal.",
+      "restricted": "Saas-modus is een beperkte optie: NomNomzBot als gehoste dienst voor derden draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+      "flagsTitle": "Vlaggen",
+      "newFlag": "Nieuwe vlag",
+      "edit": "Bewerken",
+      "empty": "Er bestaat nog geen vlag.",
+      "loadError": "De functievlaggen konden niet laden.",
+      "forbidden": "Je mag de functievlaggen niet zien.",
+      "on": "Aan",
+      "off": "Uit",
+      "rollout": "{percent}% van de kanalen",
+      "editorNew": "Nieuwe vlag",
+      "editorEdit": "Vlag {key}",
+      "fields": {
+        "key": "Sleutel",
+        "description": "Omschrijving",
+        "isEnabledGlobally": "Aan voor elk kanaal",
+        "rolloutPercentage": "Uitrolpercentage",
+        "minTierKey": "Laagste tier die het krijgt",
+        "requiresConsent": "Toestemming die het kanaal eerst geeft",
+        "deploymentMode": "Alleen in deze hostmodus"
+      },
+      "rolloutRange": "Vul een waarde in van 0 tot 100.",
+      "review": "Bekijk de wijziging",
+      "save": "Vlag opslaan",
+      "saving": "Opslaan",
+      "saved": "Vlag opgeslagen.",
+      "saveError": "De vlag kon niet worden opgeslagen: {reason}",
+      "confirmTitle": "Wie dit raakt",
+      "blastLoading": "De geraakte kanalen worden geteld.",
+      "blastError": "Het bereik kon niet worden geteld: {reason}",
+      "blastCount": "{count} actieve kanalen volgen deze vlag en merken de wijziging. Kanalen met een override houden hun eigen stand.",
+      "blastNames": "Bijvoorbeeld: {names}",
+      "confirm": "Bevestig en sla op",
+      "back": "Terug",
+      "overridesTitle": "Kanaaloverrides",
+      "overridesEmpty": "Geen kanaal heeft een override.",
+      "overridesError": "De overrides konden niet laden.",
+      "overrideOn": "Geforceerd aan",
+      "overrideOff": "Geforceerd uit",
+      "overrideNoExpiry": "Geen einddatum",
+      "overrideExpires": "Eindigt {when}",
+      "overrideDelete": "Override van {channel} verwijderen",
+      "overrideRemoved": "Override verwijderd.",
+      "overrideRemoveError": "De override kon niet worden verwijderd: {reason}",
+      "overrideFormTitle": "Override voor {key}",
+      "overrideFormHint": "Kies een vlag met Bewerken om een override voor een kanaal in te stellen.",
+      "overrideFields": {
+        "channel": "Kanaal-ID",
+        "enabled": "Vlag aan forceren voor dit kanaal",
+        "reason": "Reden",
+        "expiresAt": "Eindigt op"
+      },
+      "overrideSave": "Override opslaan",
+      "overrideSaved": "Override opgeslagen.",
+      "overrideSaveError": "De override kon niet worden opgeslagen: {reason}"
     },
     "adminOverview": {
       "title": "Overzicht",

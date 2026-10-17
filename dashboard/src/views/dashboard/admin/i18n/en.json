@@ -44,6 +44,89 @@
         "error": "The channel list could not load.",
         "forbidden": "You may not see the channel list."
       },
+      "tenants": {
+        "title": "Tenants",
+        "pick": "Pick a tenant to manage it.",
+        "error": "The tenant could not load.",
+        "restricted": "Hosting tenants for third parties is a restricted option: running NomNomzBot as a hosted service is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+        "justification": "Justification",
+        "justificationRequired": "Enter a justification. It is kept in the audit log.",
+        "result": "Done: {value}",
+        "actions": {
+          "suspend": "Suspend",
+          "reinstate": "Reinstate",
+          "access": "Begin access",
+          "remigrate": "Re-run migrations",
+          "export": "Export data",
+          "erase": "Erase channel"
+        },
+        "facts": {
+          "title": "Tenant",
+          "owner": "Owner",
+          "status": "Status",
+          "tier": "Billing tier",
+          "mode": "Deployment mode",
+          "members": "Members",
+          "suspendedReason": "Suspended because"
+        },
+        "suspend": {
+          "title": "Suspend {name}",
+          "description": "The bot stops serving this channel until it is reinstated.",
+          "statusLabel": "New status",
+          "status": {
+            "suspended": "Suspended",
+            "platform_banned": "Banned"
+          }
+        },
+        "reinstate": {
+          "title": "Reinstate {name}",
+          "description": "The bot serves this channel again."
+        },
+        "access": {
+          "title": "Begin access to {name}",
+          "description": "Opens a time-boxed support session on this tenant. Every step is audited.",
+          "breakGlass": "Break glass (emergency access)",
+          "expires": "Expires at"
+        },
+        "remigrate": {
+          "title": "Re-run migrations for {name}",
+          "description": "Applies the database migrations this tenant is still missing."
+        },
+        "erase": {
+          "title": "Erase {name}",
+          "description": "Removes the channel and its data. This cannot be undone after the restore window.",
+          "window": "Restorable for {days} days, then permanent."
+        },
+        "members": {
+          "title": "Members",
+          "search": "Search members",
+          "empty": "No member matches.",
+          "error": "The members could not load.",
+          "relation": {
+            "owner": "Owner",
+            "moderator": "Moderator",
+            "member": "Member",
+            "viewer": "Viewer"
+          }
+        },
+        "limits": {
+          "title": "Limit overrides",
+          "description": "Live quota overrides; clearing one returns to the tier default.",
+          "empty": "No override: this tenant follows its tier.",
+          "error": "The limits could not load.",
+          "add": "Add limit",
+          "clear": "Clear the {key} override",
+          "noExpiry": "no expiry",
+          "invalid": "Enter a key and a whole number.",
+          "dialogTitle": "Set a limit override",
+          "dialogDescription": "Replaces the override for this key if one exists.",
+          "save": "Save limit",
+          "key": "Limit key",
+          "value": "Value",
+          "reason": "Reason",
+          "expires": "Expires at"
+        }
+      },
       "users": {
         "title": "Users",
         "search": "Search users",
@@ -74,6 +157,27 @@
           "empty": "No user matches these filters.",
           "error": "The user list could not load.",
           "forbidden": "You may not see the user list."
+        }
+      },
+      "eventsubHealth": {
+        "title": "EventSub health",
+        "count": "{count} channels",
+        "columns": {
+          "channel": "Channel",
+          "topic": "Topic",
+          "state": "State",
+          "version": "Version",
+          "confirmed": "Last confirmed",
+          "error": "Last error"
+        },
+        "noSubscriptions": "No subscriptions",
+        "noError": "None",
+        "list": {
+          "title": "Subscriptions per channel",
+          "description": "The real registry the bot re-registers on every reconnect",
+          "empty": "No channel has an EventSub subscription.",
+          "error": "The EventSub health could not load.",
+          "forbidden": "You may not see the EventSub health."
         }
       },
       "pager": {
@@ -265,6 +369,66 @@
           "sd12": "We do not host the chat, so nothing here stops a message before it is published. What we can do is tighten the platform's own rules, and we say so plainly rather than implying cover we do not have."
         }
       }
+    },
+    "adminFeatureFlags": {
+      "title": "Feature flags",
+      "crumb": "Admin",
+      "explain": "A flag switches a feature on or off for every channel. The rollout share lets it reach only part of them. A channel override beats the flag for that one channel.",
+      "restricted": "Saas mode is a restricted option: running NomNomzBot as a hosted service for third parties is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+      "flagsTitle": "Flags",
+      "newFlag": "New flag",
+      "edit": "Edit",
+      "empty": "No flag exists yet.",
+      "loadError": "The feature flags could not load.",
+      "forbidden": "You may not see the feature flags.",
+      "on": "On",
+      "off": "Off",
+      "rollout": "{percent}% of channels",
+      "editorNew": "New flag",
+      "editorEdit": "Flag {key}",
+      "fields": {
+        "key": "Key",
+        "description": "Description",
+        "isEnabledGlobally": "On for every channel",
+        "rolloutPercentage": "Rollout share (percent)",
+        "minTierKey": "Lowest tier that gets it",
+        "requiresConsent": "Consent the channel must give first",
+        "deploymentMode": "Only in this deployment mode"
+      },
+      "rolloutRange": "Enter a value from 0 to 100.",
+      "review": "Review the change",
+      "save": "Save flag",
+      "saving": "Saving",
+      "saved": "Flag saved.",
+      "saveError": "The flag could not be saved: {reason}",
+      "confirmTitle": "Who this reaches",
+      "blastLoading": "Counting the channels this reaches.",
+      "blastError": "The reach could not be counted: {reason}",
+      "blastCount": "{count} active channels follow this flag and will feel the change. Channels with an override keep their own state.",
+      "blastNames": "For example: {names}",
+      "confirm": "Confirm and save",
+      "back": "Back",
+      "overridesTitle": "Channel overrides",
+      "overridesEmpty": "No channel has an override.",
+      "overridesError": "The overrides could not load.",
+      "overrideOn": "Forced on",
+      "overrideOff": "Forced off",
+      "overrideNoExpiry": "No expiry",
+      "overrideExpires": "Ends {when}",
+      "overrideDelete": "Remove override for {channel}",
+      "overrideRemoved": "Override removed.",
+      "overrideRemoveError": "The override could not be removed: {reason}",
+      "overrideFormTitle": "Override for {key}",
+      "overrideFormHint": "Choose a flag with Edit to set an override for one channel.",
+      "overrideFields": {
+        "channel": "Channel ID",
+        "enabled": "Force the flag on for this channel",
+        "reason": "Reason",
+        "expiresAt": "Ends at"
+      },
+      "overrideSave": "Save override",
+      "overrideSaved": "Override saved.",
+      "overrideSaveError": "The override could not be saved: {reason}"
     },
     "adminOverview": {
       "title": "Overview",

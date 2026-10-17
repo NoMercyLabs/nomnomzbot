@@ -59,6 +59,30 @@ export const dashboardAdminUsersRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
+export const dashboardAdminEventSubHealthRoute = {
+  path: 'admin/eventsub-health',
+  name: 'dashboard-admin-eventsub-health',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminEventSubHealthView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
+export const dashboardAdminTenantsRoute = {
+  path: 'admin/tenants',
+  name: 'dashboard-admin-tenants',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminTenantsView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
 export const dashboardAdminSpamDefaultsRoute = {
   path: 'admin/spam-defaults',
   name: 'dashboard-admin-spam-defaults',
@@ -67,6 +91,18 @@ export const dashboardAdminSpamDefaultsRoute = {
   component: () =>
     loadPage(
       () => import('./AdminSpamDefaultsView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
+export const dashboardAdminFeatureFlagsRoute = {
+  path: 'admin/feature-flags',
+  name: 'dashboard-admin-feature-flags',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminFeatureFlagsView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;

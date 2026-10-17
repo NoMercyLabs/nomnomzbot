@@ -16,8 +16,11 @@ import { channelVariants } from './channelRoutes';
 
 import {
   dashboardAdminChannelsRoute,
+  dashboardAdminEventSubHealthRoute,
+  dashboardAdminFeatureFlagsRoute,
   dashboardAdminOverviewRoute,
   dashboardAdminSpamDefaultsRoute,
+  dashboardAdminTenantsRoute,
   dashboardAdminUsersRoute,
 } from '@/views/dashboard/admin/route';
 import { dashboardAnalyticsRoute } from '@/views/dashboard/analytics/route';
@@ -72,9 +75,12 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardAnalyticsRoute,
   dashboardSettingsRoute,
   dashboardAdminChannelsRoute,
+  dashboardAdminEventSubHealthRoute,
   dashboardAdminOverviewRoute,
   dashboardAdminUsersRoute,
   dashboardAdminSpamDefaultsRoute,
+  dashboardAdminFeatureFlagsRoute,
+  dashboardAdminTenantsRoute,
 ];
 
 // Every other planned page of every sidebar opens the empty "coming soon" page.
