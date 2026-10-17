@@ -284,7 +284,7 @@ async function submit(): Promise<void> {
         <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.prompt') }}</FieldDescription>
       </Field>
 
-      <Field class="md:col-span-3">
+      <Field class="md:col-span-2">
         <FieldLabel for="reward-backgroundColor">{{ $t('dashboard.channelPoints.rewards.dialog.fields.backgroundColor') }}</FieldLabel>
         <ColorPicker
           id="reward-backgroundColor"
@@ -297,7 +297,7 @@ async function submit(): Promise<void> {
         <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.backgroundColor') }}</FieldDescription>
       </Field>
 
-      <Field orientation="horizontal" class="md:col-span-3">
+      <Field orientation="horizontal" class="items-start md:pt-6">
         <Switch
           id="reward-isUserInputRequired"
           v-model="flags.isUserInputRequired"
