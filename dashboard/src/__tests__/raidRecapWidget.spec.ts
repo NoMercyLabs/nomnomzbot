@@ -31,7 +31,7 @@ const sdk = {
     delete handlers[type];
   },
   data: {
-    streamStats: vi.fn(),
+    streamStats: vi.fn<(options: Record<string, unknown>) => Promise<unknown>>(),
   },
 };
 

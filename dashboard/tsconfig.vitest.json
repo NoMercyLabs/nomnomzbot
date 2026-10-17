@@ -3,7 +3,7 @@
 
   // Override to include only test files and clear exclusions.
   // Application code imported in tests is automatically included via module resolution.
-  "include": ["src/**/__tests__/*", "env.d.ts", "vitest.setup.ts"],
+  "include": ["src/**/__tests__/*", "env.d.ts", "vitest.setup.ts", "src/api/nnz-widget.d.ts"],
   "exclude": [],
 
   "compilerOptions": {
@@ -12,6 +12,13 @@
     // ES2022 like the app: the views the tests load use Intl.ListFormat.
     "lib": ["ES2022"],
     "types": ["node", "jsdom"],
+
+    // The server widget SFCs the specs import (raid_recap.vue) live outside the dashboard, so `vue` resolves here.
+    // Their SDK globals (NomNomz, NnzWidgetSettings, ...) come from the generated src/api/nnz-widget.d.ts above.
+    "paths": {
+      "@/*": ["./src/*"],
+      "vue": ["./node_modules/vue"]
+    },
 
     // `vue-tsc --build` produces a .tsbuildinfo file for incremental type-checking.
     // Specified here to keep it out of the root directory.

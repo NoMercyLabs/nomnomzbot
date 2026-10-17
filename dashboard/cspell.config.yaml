@@ -22,6 +22,8 @@ ignorePaths:
   - 'src/components/ui/**'
   # Generated from the server's OpenAPI document; its words come from the server.
   - 'src/api/schema.d.ts'
+  # Generated from the server's widget SDK emitter (DashboardWidgetSdkTypesTests).
+  - 'src/api/nnz-widget.d.ts'
 flagWords:
   - analyse->analyze
   - analysed->analyzed
