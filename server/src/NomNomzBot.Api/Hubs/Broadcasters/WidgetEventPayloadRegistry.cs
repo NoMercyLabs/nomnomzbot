@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Music;
@@ -50,6 +51,7 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("gift", typeof(GiftSubAlertDto)),
         new("cheer", typeof(CheerAlertDto)),
         new("raid", typeof(RaidAlertDto)),
+        new("raid_recap.show", typeof(StreamRecapDto)),
         new("ban", typeof(ModActionDto)),
         new("timeout", typeof(ModActionDto)),
         new("unban", typeof(ModActionDto)),

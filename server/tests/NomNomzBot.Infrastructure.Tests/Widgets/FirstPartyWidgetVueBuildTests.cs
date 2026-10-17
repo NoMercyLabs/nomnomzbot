@@ -66,6 +66,7 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
     [InlineData("countdown_timer")]
     [InlineData("emote_wall")]
     [InlineData("custom_data")]
+    [InlineData("raid_recap")]
     public async Task First_party_sfc_compiles_and_bundles_to_a_vue_iife(string key)
     {
         string sfc = LoadAsset(key);

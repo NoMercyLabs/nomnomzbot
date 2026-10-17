@@ -268,6 +268,20 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 NumberField(d, "bannerDurationMs", Behaviour, min: 0, step: 100),
                 Accent(d),
             ],
+            "raid_recap" =>
+            [
+                NumberField(d, "holdSeconds", Behaviour, min: 1, max: 600, step: 1),
+                Bool(d, "showSubs", Content),
+                Bool(d, "showRaids", Content),
+                Bool(d, "showChatters", Content),
+                Bool(d, "showSongs", Content),
+                Bool(d, "showBits", Content),
+                Bool(d, "showFollowers", Content),
+                Bool(d, "showRedemptions", Content),
+                Bool(d, "showTopCommands", Content),
+                JsonField(d, "labels", Content, help: true),
+                Accent(d),
+            ],
             _ => throw new InvalidOperationException(
                 $"No settings schema authored for first-party widget '{d.Key}'."
             ),

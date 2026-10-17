@@ -1407,6 +1407,10 @@
         "description": "Live poll- en voorspellingsbalken met keuzes, stempercentages, vergrendelstatus en de winnende uitkomst gemarkeerd bij afronding. Alleen zichtbaar zolang een ronde loopt.",
         "name": "Poll / Voorspelling"
       },
+      "raid_recap": {
+        "description": "De terugblik op de stream als eindscène. Blokken zonder gegevens vallen weg en de rest groeit mee. Blijft een ingestelde tijd staan en vervaagt dan.",
+        "name": "Raid-terugblik"
+      },
       "raffle": {
         "description": "De lopende verlotingsronde: de deelnemerslijst en de groeiende pot zodra chatters !raffle typen, en de onthulling van de winnaar met uitbetalingsbord wanneer één deelnemer de hele pot wint.",
         "name": "Verloting"
@@ -1579,6 +1583,42 @@
           "left": "Links",
           "right": "Rechts"
         }
+      }
+    },
+    "raid_recap": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "holdSeconds": {
+        "label": "Toontijd (seconden)"
+      },
+      "labels": {
+        "help": "De woorden op het scherm, als JSON. Sleutels zoals title, kpi.duration en block.subs.",
+        "label": "Teksten"
+      },
+      "showBits": {
+        "label": "Bits tonen"
+      },
+      "showChatters": {
+        "label": "Beste chatters tonen"
+      },
+      "showFollowers": {
+        "label": "Nieuwe volgers tonen"
+      },
+      "showRaids": {
+        "label": "Raids tonen"
+      },
+      "showRedemptions": {
+        "label": "Beloningen tonen"
+      },
+      "showSongs": {
+        "label": "Nummeraanvragers tonen"
+      },
+      "showSubs": {
+        "label": "Abonnementen tonen"
+      },
+      "showTopCommands": {
+        "label": "Meest gebruikte commando's tonen"
       }
     },
     "raffle": {

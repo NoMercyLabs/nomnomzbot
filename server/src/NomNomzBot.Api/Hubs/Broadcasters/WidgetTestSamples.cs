@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
@@ -122,6 +123,7 @@ internal static class WidgetTestSamples
             false
         ),
         ["raid"] = _ => new RaidAlertDto("100000006", "TestRaider", "testraider", 42),
+        ["raid_recap.show"] = now => RaidRecap(now),
         ["ban"] = now => ModAction("ban", "Spamming links", null, now),
         ["timeout"] = now => ModAction("timeout", "Calm down for a bit", 600, now),
         ["unban"] = now => ModAction("unban", null, null, now),
@@ -405,6 +407,44 @@ internal static class WidgetTestSamples
         string? message,
         bool recurring
     ) => new(kind, name, amountMinor, "USD", tier, quantity, message, recurring);
+
+    // A finished stream for the gallery preview: every block has data so the whole fluid layout shows.
+    private static StreamRecapDto RaidRecap(DateTimeOffset now) =>
+        new()
+        {
+            Stream = new()
+            {
+                Id = "test-stream",
+                StartedAt = now.AddHours(-4),
+                EndedAt = now,
+                DurationSeconds = 4 * 3600,
+                PeakViewers = 36,
+                Title = "Coding and tunes",
+                Game = "Software and Game Development",
+            },
+            Followers = 3,
+            Subs = new()
+            {
+                New = 2,
+                Resub = 1,
+                Gift = 4,
+                Total = 7,
+            },
+            GiftSubs = [new() { Name = "TestGifter", Count = 4 }],
+            SelfSubscribers = ["TestSubscriber"],
+            Bits = new() { Total = 200, Top = [new() { Name = "TestCheerer", Bits = 200 }] },
+            RaidsIn = [new() { Name = "TestRaider", Viewers = 42 }],
+            Redemptions = new() { Count = 6, Top = [new() { Title = "Hydrate!", Count = 6 }] },
+            Songs = new() { Count = 12, Recent = [] },
+            Chat = new()
+            {
+                Messages = 480,
+                UniqueChatters = 31,
+                TopChatters = [new() { Name = "TestChatter", Messages = 120 }],
+            },
+            CommandsRun = 55,
+            TopCommands = [new() { Name = "!hug", Count = 20 }],
+        };
 
     // A decorated chat line: resolved emote images, a native chat GIF (the branch a Tier 2+ viewer's GIF takes,
     // which a chat box can get wrong while emotes render fine), a broadcaster badge, name colour and pronouns.
