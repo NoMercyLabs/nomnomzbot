@@ -310,7 +310,7 @@ describe('ChannelPointsView', () => {
     it('shows the pipeline picker for a bound reward and hides the chat reply', async () => {
       await openDialog();
 
-      expect(has('[data-field="pipelineId"]')).toBe(true);
+      expect(has('[data-reply-pipeline]')).toBe(true);
       expect(has('[data-field="response"]')).toBe(false);
     });
 
@@ -318,7 +318,7 @@ describe('ChannelPointsView', () => {
       await openDialog();
       await chooseMode('simple');
 
-      expect(has('[data-field="pipelineId"]')).toBe(false);
+      expect(has('[data-reply-pipeline]')).toBe(false);
 
       const reply = pick('[data-field="response"]') as HTMLTextAreaElement;
 
@@ -345,10 +345,10 @@ describe('ChannelPointsView', () => {
 
       expect((pick('[data-field="response"]') as HTMLTextAreaElement).value).toBe('old reply');
 
-      await chooseMode('pipeline');
+      await chooseMode('full');
 
       expect(has('[data-field="response"]')).toBe(false);
-      expect(has('[data-field="pipelineId"]')).toBe(true);
+      expect(has('[data-reply-pipeline]')).toBe(true);
     });
 
     it('keeps the limits closed until opened and summarizes the active ones', async () => {

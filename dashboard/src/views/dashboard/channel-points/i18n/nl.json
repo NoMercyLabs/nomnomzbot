@@ -19,8 +19,6 @@
           "save": "Opslaan",
           "titleRequired": "Geef de beloning een naam.",
           "unmanageable": "Een andere app maakte deze beloning, dus alleen die app mag hem wijzigen op Twitch.",
-          "pipelineNone": "Geen pipeline",
-          "pipelineUnavailable": "De pipelines konden niet laden, dus dit kan nu niet wijzigen.",
           "limits": "Limieten",
           "limitsNone": "Geen limieten",
           "limitStream": "{count} per stream",
@@ -28,9 +26,6 @@
           "limitCooldown": "{count}s cooldown",
           "limitTimer": "{count}s timer",
           "limitPaused": "Gepauzeerd",
-          "replyMode": "Antwoord met",
-          "modeSimple": "Eenvoudig antwoord",
-          "modePipeline": "Volledige pipeline",
           "enabledSwitch": "Ingeschakeld",
           "pausedSwitch": "Gepauzeerd",
           "fields": {
@@ -45,8 +40,7 @@
             "backgroundColor": "Kleur",
             "isEnabled": "Aan",
             "isPaused": "Gepauzeerd",
-            "isUserInputRequired": "Kijker typt een bericht",
-            "pipelineId": "Pipeline"
+            "isUserInputRequired": "Kijker typt een bericht"
           },
           "hints": {
             "title": "De naam die kijkers in de kanaalpuntenlijst zien.",
@@ -60,8 +54,7 @@
             "backgroundColor": "De kleur van de beloning op Twitch, als hexcode zoals #9146FF.",
             "isEnabled": "Kijkers kunnen alleen inwisselen als hij aan staat.",
             "isPaused": "Een gepauzeerde beloning blijft zichtbaar maar is niet in te wisselen.",
-            "isUserInputRequired": "De kijker typt bij elke inwisseling een bericht.",
-            "pipelineId": "De pipeline die draait als iemand deze beloning inwisselt."
+            "isUserInputRequired": "De kijker typt bij elke inwisseling een bericht."
           }
         }
       },

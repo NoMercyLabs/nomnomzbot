@@ -15,27 +15,20 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { usePipelines } from '@/api/pipelines';
 import { useUpdateReward, type Reward, type RewardChange } from '@/api/rewards';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import ReplyModeField from '@/components/layout/ReplyModeField.vue';
+import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
-type ReplyMode = 'simple' | 'pipeline';
 type TextKey = 'title' | 'prompt' | 'response' | 'backgroundColor';
 type NumberKey =
   | 'cost' |
@@ -46,15 +39,12 @@ type NumberKey =
 type LimitKey = Exclude<NumberKey, 'cost'>;
 type FlagKey = 'isEnabled' | 'isPaused' | 'isUserInputRequired';
 
-const NO_PIPELINE = '00000000-0000-0000-0000-000000000000';
-
 const props = defineProps<{ reward: Reward }>();
 const open = defineModel<boolean>('open', { required: true });
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const update = useUpdateReward(channelId);
-const pipelines = usePipelines(channelId);
 
 const limitKeys = [
   'maxPerStream',
@@ -93,11 +83,6 @@ const pipelineId = ref('');
 const limitsOpen = ref(false);
 const error = ref<string | undefined>(undefined);
 
-const modeOptions = computed(() => [
-  { value: 'simple' as const, label: t('dashboard.channelPoints.rewards.dialog.modeSimple') },
-  { value: 'pipeline' as const, label: t('dashboard.channelPoints.rewards.dialog.modePipeline') },
-]);
-
 function numberText(value: number | string | null | undefined): string {
   return value === null || value === undefined
     ? ''
@@ -129,7 +114,7 @@ function load(reward: Reward): void {
   pipelineId.value = reward.pipelineId ?? '';
 
   mode.value = reward.pipelineId
-    ? 'pipeline'
+    ? 'full'
     : 'simple';
 
   limitsOpen.value = false;
@@ -175,7 +160,7 @@ const limitsSummary = computed(() => {
 // Simple mode sends the typed reply and clears the pipeline; pipeline mode sends the pipeline and clears the reply.
 function replyChange(): Pick<RewardChange, 'response' | 'pipelineId'> {
   return mode.value === 'simple'
-    ? { response: text.value.response, pipelineId: NO_PIPELINE }
+    ? { response: text.value.response, pipelineId: noPipelineId }
     : { response: '', pipelineId: pipelineId.value || undefined };
 }
 
@@ -324,54 +309,20 @@ async function submit(): Promise<void> {
       </Field>
 
       <div class="grid gap-2 md:col-span-3">
-        <div data-reply-mode>
-          <SegmentedControl
-            v-model="mode"
-            :label="$t('dashboard.channelPoints.rewards.dialog.replyMode')"
-            :options="modeOptions"
-          />
-        </div>
-
-        <Field v-if="mode === 'simple'">
-          <FieldLabel for="reward-response">{{ $t('dashboard.channelPoints.rewards.dialog.fields.response') }}</FieldLabel>
-          <Textarea
-            id="reward-response"
-            rows="2"
-            class="min-h-0"
-            v-model="text.response"
-            data-field="response"
-            :disabled="!reward.isManageable"
-          />
-          <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.response') }}</FieldDescription>
-        </Field>
-
-        <Field v-else>
-          <FieldLabel>{{ $t('dashboard.channelPoints.rewards.dialog.fields.pipelineId') }}</FieldLabel>
-          <Select v-model="pipelineId">
-            <SelectTrigger
-              data-field="pipelineId"
-              class="w-full"
-              :aria-label="$t('dashboard.channelPoints.rewards.dialog.fields.pipelineId')"
-              :disabled="!reward.isManageable || pipelines.isError.value"
-            >
-              <SelectValue :placeholder="$t('dashboard.channelPoints.rewards.dialog.pipelineNone')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="pipeline in pipelines.data.value ?? []"
-                :key="pipeline.id"
-                :value="pipeline.id"
-              >
-                {{ pipeline.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <FieldDescription>{{
-            pipelines.isError.value
-              ? $t('dashboard.channelPoints.rewards.dialog.pipelineUnavailable')
-              : $t('dashboard.channelPoints.rewards.dialog.hints.pipelineId')
-          }}</FieldDescription>
-        </Field>
+        <ReplyModeField v-model:mode="mode" v-model:pipeline-id="pipelineId">
+          <Field>
+            <FieldLabel for="reward-response">{{ $t('dashboard.channelPoints.rewards.dialog.fields.response') }}</FieldLabel>
+            <Textarea
+              id="reward-response"
+              rows="2"
+              class="min-h-0"
+              v-model="text.response"
+              data-field="response"
+              :disabled="!reward.isManageable"
+            />
+            <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.response') }}</FieldDescription>
+          </Field>
+        </ReplyModeField>
       </div>
     </div>
 
