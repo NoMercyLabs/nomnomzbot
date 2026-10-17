@@ -2,7 +2,19 @@
   "dashboard": {
     "polls": {
       "title": "Polls en voorspellingen",
-      "listTitle": "Alle polls en voorspellingen",
+      "historyTitle": "Geschiedenis",
+      "noVotes": "{count} zonder stemmen | {count} zonder stemmen",
+      "lead": {
+        "title": "Nu",
+        "idle": "Er loopt niets. Start iets voor je kijkers.",
+        "startPoll": "Start een poll",
+        "startPrediction": "Voorspelling",
+        "endPoll": "Poll beëindigen",
+        "lock": "Voorspellingen sluiten",
+        "resolve": "Kies de winnaar",
+        "details": "Details",
+        "locked": "Gesloten"
+      },
       "filterLabel": "Toon",
       "kinds": {
         "all": "Alles",

@@ -2,7 +2,19 @@
   "dashboard": {
     "polls": {
       "title": "Polls and predictions",
-      "listTitle": "Every poll and prediction",
+      "historyTitle": "History",
+      "noVotes": "{count} with no votes | {count} with no votes",
+      "lead": {
+        "title": "Now",
+        "idle": "Nothing is running. Start something for your viewers.",
+        "startPoll": "Start a poll",
+        "startPrediction": "Prediction",
+        "endPoll": "End poll",
+        "lock": "Lock predictions",
+        "resolve": "Pick the winner",
+        "details": "Details",
+        "locked": "Locked"
+      },
       "filterLabel": "Show",
       "kinds": {
         "all": "All",

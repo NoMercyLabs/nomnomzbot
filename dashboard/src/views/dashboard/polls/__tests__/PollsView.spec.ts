@@ -28,12 +28,18 @@ const option = (id: string, title: string, votes: number, share: number, isWinne
   isWinner,
 });
 
-const history = [
+const server = vi.hoisted(() => ({
+  history: [] as unknown[],
+  polls: [] as unknown[],
+  predictions: [] as unknown[],
+}));
+
+const baseHistory = [
   {
     id: 'p1',
     kind: 'poll',
     title: 'Best snack?',
-    status: 'completed',
+    status: 'archived',
     startedAt: '2026-10-15T18:00:00Z',
     endedAt: '2026-10-15T18:01:00Z',
     totalVotes: 80,
@@ -43,18 +49,80 @@ const history = [
     id: 'q1',
     kind: 'chat-poll',
     title: 'Map?',
-    status: 'open',
+    status: 'closed',
     startedAt: '2026-10-15T17:00:00Z',
     endedAt: null,
     totalVotes: 1,
-    options: [option('1', 'Forest', 1, 100, false)],
+    options: [option('1', 'Forest', 1, 100, true)],
+  },
+  {
+    id: 'pr1',
+    kind: 'prediction',
+    title: 'Win the boss?',
+    status: 'canceled',
+    startedAt: '2026-10-14T17:00:00Z',
+    endedAt: null,
+    totalVotes: 5,
+    options: [option('o1', 'Yes', 3, 60, false), option('o2', 'No', 2, 40, false)],
+  },
+  {
+    id: 'z1',
+    kind: 'poll',
+    title: 'Nobody answered',
+    status: 'archived',
+    startedAt: '2026-10-13T17:00:00Z',
+    endedAt: null,
+    totalVotes: 0,
+    options: [option('a', 'A', 0, 0, false), option('b', 'B', 0, 0, false)],
   },
 ];
+
+const runningPoll = {
+  id: 'live1',
+  broadcasterId: 'b',
+  broadcasterName: 'B',
+  broadcasterLogin: 'b',
+  title: 'Play next?',
+  choices: [
+    {
+      id: 'x',
+      title: 'Cats',
+      votes: 7,
+      channelPointsVotes: 0,
+      bitsVotes: 0,
+    },
+    {
+      id: 'y',
+      title: 'Dogs',
+      votes: 3,
+      channelPointsVotes: 0,
+      bitsVotes: 0,
+    },
+  ],
+  bitsVotingEnabled: false,
+  bitsPerVote: 0,
+  channelPointsVotingEnabled: false,
+  channelPointsPerVote: 0,
+  status: 'ACTIVE',
+  duration: 120,
+  startedAt: new Date().toISOString(),
+  endedAt: null,
+};
 
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ({ data: { data: history }, response: { status: 200, ok: true } }),
+    GET: async (path: string) => {
+      let data = server.predictions;
+
+      if (path.endsWith('/history')) {
+        data = server.history;
+      } else if (path.endsWith('/polls')) {
+        data = server.polls;
+      }
+
+      return { data: { data }, response: { status: 200, ok: true } };
+    },
   },
 }));
 
@@ -68,6 +136,9 @@ beforeEach(() => {
   localStorage.clear();
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
+  server.history = baseHistory;
+  server.polls = [];
+  server.predictions = [];
 });
 
 afterEach(() => {
@@ -91,44 +162,124 @@ async function open(): Promise<void> {
   await flushPromises();
 }
 
-const rowTexts = (): string[] =>
-  Array.from(document.querySelectorAll('[data-poll-row]')).map((row) => row.textContent ?? '');
+const cardTexts = (): string[] =>
+  Array.from(document.querySelectorAll('[data-history-card]')).map(
+    (card) => card.textContent ?? '',
+  );
 
-describe('PollsView', () => {
-  it('lists every poll with its kind, status and choices, and marks only the winner', async () => {
+function clickText(selector: string, text: string): void {
+  const target = Array.from(document.querySelectorAll(selector)).find(
+    (element) => element.textContent?.trim() === text,
+  );
+
+  (target as HTMLElement).click();
+}
+
+describe('PollsView lead panel', () => {
+  it('offers one primary Start a poll with an outline Prediction sibling when nothing runs', async () => {
     await open();
 
-    const rows = rowTexts();
+    const lead = document.querySelector('[data-lead="empty"]');
 
-    expect(rows).toHaveLength(2);
-    expect(rows[0]).toContain('Best snack?');
-    expect(rows[0]).toContain(en.dashboard.polls.kind.poll);
-    expect(rows[0]).toContain(en.dashboard.polls.status.completed);
-    expect(rows[0]).toContain('50 votes · 63%');
-    expect(rows[1]).toContain(en.dashboard.polls.kind['chat-poll']);
+    expect(lead).not.toBeNull();
+    expect(document.querySelector('[data-lead="running"]')).toBeNull();
 
-    const winners = Array.from(document.querySelectorAll('[data-poll-option][data-winner] [data-option-title]'));
+    const start = lead?.querySelector('[data-lead-start="poll"]');
+    const prediction = lead?.querySelector('[data-lead-start="prediction"]');
 
-    expect(winners.map((winner) => winner.textContent)).toEqual(['Fruit']);
+    expect(start?.textContent?.trim()).toBe(en.dashboard.polls.lead.startPoll);
+    expect(start?.getAttribute('data-variant')).toBe('default');
+    expect(prediction?.getAttribute('data-variant')).toBe('outline');
+  });
+
+  it('opens the existing poll dialog from Start a poll', async () => {
+    await open();
+
+    (document.querySelector('[data-lead-start="poll"]') as HTMLElement).click();
+    await flushPromises();
+
+    expect(document.body.textContent).toContain(en.dashboard.polls.lead.startPoll);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it('shows the running poll with large bars and its End action instead of the start buttons', async () => {
+    server.polls = [runningPoll];
+    await open();
+
+    const lead = document.querySelector('[data-lead="running"]');
+
+    expect(lead).not.toBeNull();
+    expect(lead?.textContent).toContain('Play next?');
+    expect(lead?.textContent).toContain('Cats');
+    expect(lead?.textContent).toContain('70%');
+    expect(lead?.querySelector('[data-lead-end]')).not.toBeNull();
+    expect(lead?.querySelector('[data-lead-start]')).toBeNull();
+
+    const leading = lead?.querySelectorAll('[data-bar-fill][data-leading]');
+
+    expect(leading).toHaveLength(1);
+    expect(leading?.[0]?.className).toContain('bg-primary');
+  });
+});
+
+describe('PollsView history', () => {
+  it('shows compact cards with the winner and its share, never in the accent', async () => {
+    await open();
+
+    const cards = cardTexts();
+
+    expect(cards).toHaveLength(3);
+    expect(cards[0]).toContain('Best snack?');
+    expect(cards[0]).toContain(en.dashboard.polls.kind.poll);
+    expect(cards[0]).toContain('Fruit');
+    expect(cards[0]).toContain('63%');
+
+    const cardHtml = Array.from(document.querySelectorAll('[data-history-card]'))
+      .map((card) => card.innerHTML)
+      .join('');
+
+    expect(cardHtml).not.toContain('bg-primary');
+    expect(cardHtml).not.toContain('text-primary');
+  });
+
+  it('shows a status only when it carries meaning', async () => {
+    await open();
+
+    const cards = cardTexts();
+
+    expect(cards[0]).not.toContain(en.dashboard.polls.status.archived);
+    expect(cards[1]).not.toContain(en.dashboard.polls.status.closed);
+    expect(cards[2]).toContain(en.dashboard.polls.status.canceled);
+  });
+
+  it('collapses polls with no votes into one line that expands', async () => {
+    await open();
+
+    expect(cardTexts().some((card) => card.includes('Nobody answered'))).toBe(false);
+
+    const toggle = document.querySelector('[data-zero-votes-toggle]');
+
+    expect(toggle?.textContent).toContain('1');
+
+    (toggle as HTMLElement).click();
+    await flushPromises();
+
+    expect(cardTexts().some((card) => card.includes('Nobody answered'))).toBe(true);
   });
 
   it('filters by kind and keeps the chosen kind after a remount', async () => {
     await open();
 
-    const chatPolls = Array.from(document.querySelectorAll('[data-segment]')).find(
-      (segment) => segment.textContent?.trim() === en.dashboard.polls.kinds['chat-poll'],
-    );
-
-    (chatPolls as HTMLElement).click();
+    clickText('[data-segment]', en.dashboard.polls.kinds['chat-poll']);
     await flushPromises();
 
-    expect(rowTexts().map((row) => row.includes('Map?'))).toEqual([true]);
+    expect(cardTexts().map((card) => card.includes('Map?'))).toEqual([true]);
 
     mounted?.unmount();
     document.body.innerHTML = '';
     await open();
 
     expect(localStorage.getItem('nnz.polls.kind')).toBe('chat-poll');
-    expect(rowTexts()).toHaveLength(1);
+    expect(cardTexts()).toHaveLength(1);
   });
 });
