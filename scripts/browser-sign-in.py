@@ -38,6 +38,7 @@ SSH = [
     "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "root@192.168.2.60",
 ]
 MINT = Path(__file__).with_name("mint-jwt.py")
+FORWARD_DELAY_MS = 4000
 
 
 def remote(command: str) -> str:
@@ -101,7 +102,9 @@ def prove(app: str, token: str) -> None:
 def serve_once(port: int, target: str) -> None:
     page = (
         "<!doctype html><title>sign-in handoff</title><p>Signing in...</p>"
-        f"<script>location.replace({json.dumps(target)})</script>"
+        # The delay lets new_page/navigate_page return (they print the page list) while the address is still
+        # this harmless page; forwarding at once leaked the token URL into a transcript on 2026-10-17.
+        f"<script>setTimeout(function () {{ location.replace({json.dumps(target)}); }}, {FORWARD_DELAY_MS})</script>"
     ).encode("utf-8")
 
     class Handler(http.server.BaseHTTPRequestHandler):
