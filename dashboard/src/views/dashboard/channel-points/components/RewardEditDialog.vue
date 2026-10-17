@@ -297,17 +297,17 @@ async function submit(): Promise<void> {
         <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.backgroundColor') }}</FieldDescription>
       </Field>
 
-      <Field orientation="horizontal" class="items-start md:pt-6">
-        <Switch
-          id="reward-isUserInputRequired"
-          v-model="flags.isUserInputRequired"
-          data-field="isUserInputRequired"
-          :disabled="!reward.isManageable"
-        />
-        <div class="grid gap-1">
-          <FieldLabel for="reward-isUserInputRequired">{{ $t('dashboard.channelPoints.rewards.dialog.fields.isUserInputRequired') }}</FieldLabel>
-          <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.isUserInputRequired') }}</FieldDescription>
+      <Field>
+        <FieldLabel for="reward-isUserInputRequired">{{ $t('dashboard.channelPoints.rewards.dialog.fields.isUserInputRequired') }}</FieldLabel>
+        <div class="flex h-9 items-center">
+          <Switch
+            id="reward-isUserInputRequired"
+            v-model="flags.isUserInputRequired"
+            data-field="isUserInputRequired"
+            :disabled="!reward.isManageable"
+          />
         </div>
+        <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.isUserInputRequired') }}</FieldDescription>
       </Field>
 
       <div class="grid gap-2 md:col-span-3">

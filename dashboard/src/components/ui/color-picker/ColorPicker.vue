@@ -25,11 +25,15 @@ const model = defineModel<string>({ required: true });
 
 const hexPattern = /^#[0-9a-f]{6}$/i;
 
-// The native picker only takes #rrggbb, so anything else shows as black until the text is a full hex.
+// The native picker only takes #rrggbb. An empty field shows the placeholder's color, the one that applies.
+const fallback = computed(() =>
+  hexPattern.test(props.placeholder ?? '')
+    ? props.placeholder ?? ''
+    : '#000000');
 const swatch = computed(() =>
   hexPattern.test(model.value)
     ? model.value
-    : '#000000');
+    : fallback.value);
 
 function pick(event: Event): void {
   model.value = (event.target as HTMLInputElement).value.toUpperCase();
