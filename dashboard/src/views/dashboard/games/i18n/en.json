@@ -1,0 +1,49 @@
+{
+  "dashboard": {
+    "games": {
+      "title": "Games",
+      "active": {
+        "title": "Running now",
+        "empty": "No game is running. Start one below.",
+        "error": "The running game could not be loaded.",
+        "players": "{count} player | {count} players",
+        "cancel": "Cancel game",
+        "cancelTitle": "Cancel this game?",
+        "cancelBody": "The game stops now.",
+        "cancelRefund": "Every entry fee is refunded.",
+        "cancelConfirm": "Cancel game"
+      },
+      "catalog": {
+        "title": "Start a game",
+        "empty": "This bot has no chat games.",
+        "error": "The game list could not be loaded.",
+        "start": "Start",
+        "keywords": "Chat words: {words}",
+        "lobby": "Lobby {seconds} s",
+        "playerRange": "{min} to {max} players",
+        "entryFee": "Entry fee"
+      },
+      "history": {
+        "title": "Finished games",
+        "empty": "No game has finished yet.",
+        "error": "The history could not be loaded."
+      },
+      "status": {
+        "lobby": "Lobby",
+        "running": "Running",
+        "active": "Running",
+        "resolved": "Finished",
+        "completed": "Finished",
+        "canceled": "Canceled"
+      },
+      "configs": {
+        "title": "Mini-games",
+        "empty": "No mini-games are set up.",
+        "error": "The mini-games could not be loaded.",
+        "age": "18+",
+        "unavailable": "Bet limits, odds and cooldowns are not available yet."
+      },
+      "retry": "Try again"
+    }
+  }
+}

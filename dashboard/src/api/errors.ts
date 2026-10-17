@@ -27,6 +27,7 @@ export type ApiOrigin =
   'discord' |
   'economy' |
   'favoriteEmotes' |
+  'games' |
   'home' |
   'liveOps' |
   'moderation' |
@@ -106,6 +107,13 @@ export const apiOperations = {
   'create discord rule': 'discord',
   'discord preview': 'discord',
   'currency config': 'economy',
+  'live game catalog': 'games',
+  'active live game': 'games',
+  'live game history': 'games',
+  'start live game': 'games',
+  'cancel live game': 'games',
+  'game configs': 'games',
+  'save game config': 'games',
   'favorite emotes': 'favoriteEmotes',
   'favorite emote change': 'favoriteEmotes',
   stats: 'home',
