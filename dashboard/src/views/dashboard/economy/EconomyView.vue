@@ -18,8 +18,10 @@ import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import { Button } from '@/components/ui/button';
 import { usePageView } from '@/composables/usePageView';
 
+import CatalogPanel from './components/CatalogPanel.vue';
 import CurrencyPanel from './components/CurrencyPanel.vue';
 import EarningRules from './components/EarningRules.vue';
+import LeaderboardsPanel from './components/LeaderboardsPanel.vue';
 import SavingsJars from './components/SavingsJars.vue';
 
 const { t } = useI18n();
@@ -28,11 +30,15 @@ const tabs = computed<PageTab[]>(() => [
   { value: 'currency', label: t('dashboard.economy.tabs.currency') },
   { value: 'rules', label: t('dashboard.economy.tabs.rules') },
   { value: 'jars', label: t('dashboard.economy.tabs.jars') },
+  { value: 'catalog', label: t('dashboard.economy.tabs.catalog') },
+  { value: 'leaderboards', label: t('dashboard.economy.tabs.leaderboards') },
 ]);
-const view = usePageView(['currency', 'rules', 'jars']);
+const view = usePageView(['currency', 'rules', 'jars', 'catalog', 'leaderboards']);
 
 const addingRule = ref(false);
 const addingJar = ref(false);
+const addingItem = ref(false);
+const addingBoard = ref(false);
 </script>
 
 <template>
@@ -58,6 +64,26 @@ const addingJar = ref(false);
         <Plus aria-hidden="true" />
         {{ $t('dashboard.economy.jars.new') }}
       </Button>
+      <Button
+        v-if="view === 'catalog'"
+        type="button"
+        variant="outline"
+        size="sm"
+        @click="addingItem = true"
+      >
+        <Plus aria-hidden="true" />
+        {{ $t('dashboard.economy.catalog.new') }}
+      </Button>
+      <Button
+        v-if="view === 'leaderboards'"
+        type="button"
+        variant="outline"
+        size="sm"
+        @click="addingBoard = true"
+      >
+        <Plus aria-hidden="true" />
+        {{ $t('dashboard.economy.leaderboards.new') }}
+      </Button>
     </template>
     <template #bar>
       <PageTabs :tabs="tabs" />
@@ -66,6 +92,8 @@ const addingJar = ref(false);
   <div data-page-body class="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
     <CurrencyPanel v-if="view === 'currency'" />
     <EarningRules v-else-if="view === 'rules'" v-model:adding="addingRule" />
-    <SavingsJars v-else v-model:adding="addingJar" />
+    <SavingsJars v-else-if="view === 'jars'" v-model:adding="addingJar" />
+    <CatalogPanel v-else-if="view === 'catalog'" v-model:adding="addingItem" />
+    <LeaderboardsPanel v-else v-model:adding="addingBoard" />
   </div>
 </template>

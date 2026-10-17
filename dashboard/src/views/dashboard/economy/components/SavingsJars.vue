@@ -11,6 +11,7 @@
 // The channel's savings jars: shared pots viewers put currency into toward a goal. An open jar takes
 // money; a closed jar keeps its balance.
 import Trash from '~icons/nnz/trash';
+import UserAdd from '~icons/nnz/user-add';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -28,6 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+import InviteDialog from './InviteDialog.vue';
 import JarDialog from './JarDialog.vue';
 
 const adding = defineModel<boolean>('adding', { required: true });
@@ -43,6 +45,15 @@ const state = usePanelState(jars, (data: readonly SavingsJar[]): boolean =>
 const rows = computed<readonly SavingsJar[]>(() => jars.data.value ?? []);
 
 const deleting = ref<SavingsJar | null>(null);
+const inviting = ref<SavingsJar | null>(null);
+const inviteOpen = computed<boolean>({
+  get: () => inviting.value !== null,
+  set: (open: boolean): void => {
+    if (!open) {
+      inviting.value = null;
+    }
+  },
+});
 const confirmOpen = computed<boolean>({
   get: () => deleting.value !== null,
   set: (open: boolean): void => {
@@ -107,6 +118,16 @@ async function confirmDelete(): Promise<void> {
           </span>
           <StatusBadge v-if="!row.isOpen" tone="off" :label="$t('dashboard.economy.jars.closed')" />
           <Button
+            data-jar-invite
+            type="button"
+            variant="ghost"
+            size="icon"
+            :aria-label="$t('dashboard.economy.jars.invite.open')"
+            @click="inviting = row"
+          >
+            <UserAdd aria-hidden="true" class="size-5" />
+          </Button>
+          <Button
             data-jar-delete
             type="button"
             variant="ghost"
@@ -126,6 +147,7 @@ async function confirmDelete(): Promise<void> {
       :empty-text="$t('dashboard.economy.jars.notYet')"
     />
     <JarDialog v-model:open="adding" />
+    <InviteDialog v-model:open="inviteOpen" :jar="inviting" />
     <ConfirmDialog
       v-model:open="confirmOpen"
       :title="$t('dashboard.economy.jars.confirmTitle', { name: deleting?.name ?? '' })"

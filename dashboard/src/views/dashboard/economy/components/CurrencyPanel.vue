@@ -33,6 +33,7 @@ const plural = ref('');
 const starting = ref(0);
 const max = ref<number | ''>('');
 const decimals = ref(0);
+const iconUrl = ref('');
 const error = ref<string | undefined>(undefined);
 
 function fill(row: CurrencyConfig | null | undefined): void {
@@ -47,6 +48,7 @@ function fill(row: CurrencyConfig | null | undefined): void {
       : Number(row.maxBalance);
 
   decimals.value = Number(row?.decimalPlaces ?? 0);
+  iconUrl.value = row?.iconUrl ?? '';
 }
 
 watch(() => currency.data.value, fill, { immediate: true });
@@ -81,6 +83,9 @@ async function submit(): Promise<void> {
         ? null
         : max.value,
       decimalPlaces: decimals.value,
+      iconUrl: iconUrl.value.trim() === ''
+        ? null
+        : iconUrl.value.trim(),
     });
   } catch (failure) {
     error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
@@ -164,6 +169,16 @@ async function submit(): Promise<void> {
             max="4"
             step="1"
             :aria-label="$t('dashboard.economy.currency.decimals')"
+          />
+        </Field>
+        <Field>
+          <FieldLabel for="currency-icon">{{ $t('dashboard.economy.currency.icon') }}</FieldLabel>
+          <Input
+            id="currency-icon"
+            v-model="iconUrl"
+            type="url"
+            autocomplete="off"
+            :aria-label="$t('dashboard.economy.currency.icon')"
           />
         </Field>
       </div>

@@ -42,6 +42,8 @@ const calls: Call[] = [];
 let config: Row | null = null;
 let rules: Row[] = [];
 let jars: Row[] = [];
+let catalog: Row[] = [];
+let boards: Row[] = [];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -83,6 +85,12 @@ function read(path: string): Answer {
   if (path.endsWith('/jars'))
     return ok(jars);
 
+  if (path.endsWith('/economy/catalog'))
+    return ok(catalog);
+
+  if (path.endsWith('/leaderboards/configs'))
+    return ok(boards);
+
   return ok(null);
 }
 
@@ -114,6 +122,19 @@ function write(method: string, path: string, options?: Options): Answer {
 
   if (method === 'DELETE' && path.endsWith('{ruleId}')) {
     rules = rules.filter((row) => row.id !== params?.ruleId);
+  }
+
+  if (method === 'POST' && path.endsWith('/economy/catalog')) {
+    catalog = [...catalog, {
+      id: 'i-new',
+      cost: 0,
+      isEnabled: true,
+      ...body,
+    }];
+  }
+
+  if (method === 'PUT' && path.endsWith('/leaderboards/configs')) {
+    boards = [...boards, { id: 'b-new', ...body }];
   }
 
   if (method === 'POST' && path.endsWith('/jars')) {
@@ -161,6 +182,8 @@ beforeEach(() => {
   config = null;
   rules = [rule('r1', 'ChatMessage'), rule('r2', 'Follow', { isEnabled: false, rate: 50 })];
   jars = [jar('j1', 'New camera')];
+  catalog = [];
+  boards = [];
   pinia = createPinia();
   setActivePinia(pinia);
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -314,6 +337,91 @@ describe('Economy page', () => {
     });
 
     expect(names('jar')).toContain('Charity');
+  });
+
+  it('sends the currency icon with the currency form', async () => {
+    await open('currency');
+    await type(field('Currency name'), 'Nomz');
+    await type(field('Currency icon URL'), 'https://cdn.example/nomz.png');
+    await click(buttonByText('Save currency'));
+
+    expect(writes('PUT')[0]!.body).toMatchObject({ iconUrl: 'https://cdn.example/nomz.png' });
+  });
+
+  it('sends a jar icon and take-out cap with the new jar', async () => {
+    await open('jars');
+    await click(buttonByText('New jar'));
+    await type(field('Jar name'), 'Charity');
+    await type(field('Jar icon URL'), 'https://cdn.example/jar.png');
+    await type(field('Take-out cap per channel'), '40');
+    await click(buttonByText('Create jar'));
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      iconUrl: 'https://cdn.example/jar.png',
+      maxWithdrawalPerChannel: 40,
+    });
+  });
+
+  it('invites a channel into a jar with its caps', async () => {
+    await open('jars');
+    await click(rowOf('jar', 'New camera').querySelector('[data-jar-invite]') as HTMLElement);
+    await type(field('Channel ID'), 'chan-2');
+    await type(field('Put-in cap per stream'), '25');
+    await type(field('Take-out cap'), '10');
+    await click(buttonByText('Send invite'));
+
+    expect(writes('POST')[0]!.path).toContain('/jars/{jarId}/invite');
+    expect(writes('POST')[0]!.path_?.jarId).toBe('j1');
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      invitedBroadcasterId: 'chan-2',
+      role: 'Partner',
+      contributionCapPerStream: 25,
+      withdrawalCap: 10,
+    });
+  });
+
+  it('creates a store item with its limits and lists it', async () => {
+    await open('catalog');
+    await click(buttonByText('New item'));
+    await type(field('Item name'), 'Song bump');
+    await type(field('Effect kind'), 'pipeline');
+    await type(field('Cost'), '300');
+    await type(field('Stock'), '5');
+    await type(field('Per viewer per stream'), '2');
+    await type(field('Sort order'), '3');
+    await type(field('Cooldown (seconds)'), '60');
+    await type(field('Item icon URL'), 'https://cdn.example/i.png');
+    await click(buttonByText('Save item'));
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'Song bump',
+      sinkType: 'pipeline',
+      cost: 300,
+      stockLimit: 5,
+      maxPerViewerPerStream: 2,
+      sortOrder: 3,
+      cooldownSeconds: 60,
+      cooldownPerUser: false,
+      iconUrl: 'https://cdn.example/i.png',
+    });
+
+    expect(names('catalog')).toContain('Song bump');
+  });
+
+  it('saves a leaderboard with its top places', async () => {
+    await open('leaderboards');
+    await click(buttonByText('New leaderboard'));
+    await type(field('Places shown'), '5');
+    await click(buttonByText('Save leaderboard'));
+
+    expect(writes('PUT')[0]!.body).toMatchObject({
+      metric: 'balance',
+      scope: 'channel',
+      period: 'alltime',
+      topN: 5,
+      isPublic: true,
+    });
   });
 
   it('closes a jar from its switch', async () => {

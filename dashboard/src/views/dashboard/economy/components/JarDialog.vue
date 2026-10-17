@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateSavingsJar } from '@/api/economy';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
@@ -28,6 +28,8 @@ const create = useCreateSavingsJar(channelId);
 const name = ref('');
 const description = ref('');
 const goal = ref<number | ''>('');
+const iconUrl = ref('');
+const maxWithdrawal = ref<number | ''>('');
 const error = ref<string | undefined>(undefined);
 
 watch(open, (isOpen: boolean): void => {
@@ -36,6 +38,8 @@ watch(open, (isOpen: boolean): void => {
   name.value = '';
   description.value = '';
   goal.value = '';
+  iconUrl.value = '';
+  maxWithdrawal.value = '';
   error.value = undefined;
 });
 
@@ -57,6 +61,12 @@ async function submit(): Promise<void> {
       goalAmount: goal.value === ''
         ? null
         : goal.value,
+      iconUrl: iconUrl.value.trim() === ''
+        ? null
+        : iconUrl.value.trim(),
+      maxWithdrawalPerChannel: maxWithdrawal.value === ''
+        ? null
+        : maxWithdrawal.value,
       isOpen: true,
     });
   } catch (failure) {
@@ -106,6 +116,32 @@ async function submit(): Promise<void> {
         min="1"
         step="1"
         :aria-label="$t('dashboard.economy.jars.dialog.goal')"
+      />
+    </Field>
+    <Field>
+      <FieldLabel for="jar-icon">{{ $t('dashboard.economy.jars.dialog.icon') }}</FieldLabel>
+      <Input
+        id="jar-icon"
+        v-model="iconUrl"
+        type="url"
+        autocomplete="off"
+        :aria-label="$t('dashboard.economy.jars.dialog.icon')"
+      />
+    </Field>
+    <Field>
+      <div class="flex items-center gap-1.5">
+        <FieldLabel for="jar-max-withdrawal">{{
+          $t('dashboard.economy.jars.dialog.maxWithdrawal')
+        }}</FieldLabel>
+        <FieldInfo>{{ $t('dashboard.economy.jars.dialog.maxWithdrawalHelp') }}</FieldInfo>
+      </div>
+      <Input
+        id="jar-max-withdrawal"
+        v-model.number="maxWithdrawal"
+        type="number"
+        min="1"
+        step="1"
+        :aria-label="$t('dashboard.economy.jars.dialog.maxWithdrawal')"
       />
     </Field>
   </FormDialog>

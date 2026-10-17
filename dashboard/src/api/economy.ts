@@ -269,3 +269,192 @@ export function useDeleteSavingsJar(
     },
   );
 }
+
+export type CatalogItem = components['schemas']['CatalogItem'];
+export type NewCatalogItem = components['schemas']['CreateCatalogItemRequest'];
+export type CatalogItemChange = components['schemas']['UpdateCatalogItemRequest'];
+export type LeaderboardConfig = components['schemas']['LeaderboardConfig'];
+export type LeaderboardConfigChange = components['schemas']['UpsertLeaderboardConfigRequest'];
+export type JarInvite = components['schemas']['InviteChannelRequest'];
+
+export const catalogKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'economy',
+  'catalog',
+];
+
+export const leaderboardConfigsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'economy',
+  'leaderboards',
+  'configs',
+];
+
+export function useCatalogItems(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<readonly CatalogItem[], Error> {
+  return channelQuery(
+    channelId,
+    catalogKey,
+    async (id: string): Promise<readonly CatalogItem[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/economy/catalog',
+        { params: { path: { version, channelId: id }, query: { PageSize: 100 } } },
+      );
+
+      if (error !== undefined)
+        throw failed('catalog items', response.status, error);
+
+      return data?.data ?? [];
+    },
+  );
+}
+
+export function useCreateCatalogItem(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, NewCatalogItem, undefined> {
+  return useEconomyWrite(
+    channelId,
+    catalogKey,
+    async (id: string, item: NewCatalogItem): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/economy/catalog',
+        { params: { path: { version, channelId: id } }, body: item },
+      );
+
+      if (error !== undefined)
+        throw refusal('create catalog item', error, response.status);
+    },
+  );
+}
+
+export function useUpdateCatalogItem(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, { itemId: string; change: CatalogItemChange }, undefined> {
+  return useEconomyWrite(
+    channelId,
+    catalogKey,
+    async (
+      id: string,
+      { itemId, change }: { itemId: string; change: CatalogItemChange },
+    ): Promise<void> => {
+      const { error, response } = await client.PATCH(
+        '/api/v{version}/channels/{channelId}/economy/catalog/{itemId}',
+        { params: { path: {
+          version,
+          channelId: id,
+          itemId,
+        } }, body: change },
+      );
+
+      if (error !== undefined)
+        throw refusal('save catalog item', error, response.status);
+    },
+  );
+}
+
+export function useDeleteCatalogItem(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  return useEconomyWrite(
+    channelId,
+    catalogKey,
+    async (id: string, itemId: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/economy/catalog/{itemId}',
+        { params: { path: {
+          version,
+          channelId: id,
+          itemId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('delete catalog item', error, response.status);
+    },
+  );
+}
+
+export function useLeaderboardConfigs(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<readonly LeaderboardConfig[], Error> {
+  return channelQuery(
+    channelId,
+    leaderboardConfigsKey,
+    async (id: string): Promise<readonly LeaderboardConfig[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/economy/leaderboards/configs',
+        { params: { path: { version, channelId: id } } },
+      );
+
+      if (error !== undefined)
+        throw failed('leaderboard configs', response.status, error);
+
+      return data?.data ?? [];
+    },
+  );
+}
+
+export function useSaveLeaderboardConfig(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, LeaderboardConfigChange, undefined> {
+  return useEconomyWrite(
+    channelId,
+    leaderboardConfigsKey,
+    async (id: string, change: LeaderboardConfigChange): Promise<void> => {
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/economy/leaderboards/configs',
+        { params: { path: { version, channelId: id } }, body: change },
+      );
+
+      if (error !== undefined)
+        throw refusal('save leaderboard config', error, response.status);
+    },
+  );
+}
+
+export function useDeleteLeaderboardConfig(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  return useEconomyWrite(
+    channelId,
+    leaderboardConfigsKey,
+    async (id: string, configId: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/economy/leaderboards/configs/{configId}',
+        { params: { path: {
+          version,
+          channelId: id,
+          configId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('delete leaderboard config', error, response.status);
+    },
+  );
+}
+
+export function useInviteJarChannel(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, { jarId: string; invite: JarInvite }, undefined> {
+  return useEconomyWrite(
+    channelId,
+    savingsJarsKey,
+    async (id: string, { jarId, invite }: { jarId: string; invite: JarInvite }): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/economy/jars/{jarId}/invite',
+        { params: { path: {
+          version,
+          channelId: id,
+          jarId,
+        } }, body: invite },
+      );
+
+      if (error !== undefined)
+        throw refusal('invite jar channel', error, response.status);
+    },
+  );
+}

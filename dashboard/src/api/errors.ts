@@ -41,6 +41,7 @@ export type ApiOrigin =
   'pipelines' |
   'rewards' |
   'shield' |
+  'settings' |
   'shoutouts' |
   'stream' |
   'tts' |
@@ -54,6 +55,9 @@ export const apiOperations = {
   'action-required-dismiss': 'actionRequired',
   'admin tenants': 'admin',
   'admin tenant': 'admin',
+  'admin stats': 'admin',
+  'admin users': 'admin',
+  'admin spam defaults': 'admin',
   suspend: 'admin',
   reinstate: 'admin',
   'begin access': 'admin',
@@ -116,6 +120,14 @@ export const apiOperations = {
   'create savings jar': 'economy',
   'save savings jar': 'economy',
   'delete savings jar': 'economy',
+  'catalog items': 'economy',
+  'create catalog item': 'economy',
+  'save catalog item': 'economy',
+  'delete catalog item': 'economy',
+  'leaderboard configs': 'economy',
+  'save leaderboard config': 'economy',
+  'delete leaderboard config': 'economy',
+  'invite jar channel': 'economy',
   'engagement config': 'engagement',
   'save engagement config': 'engagement',
   'live game catalog': 'games',
@@ -257,6 +269,10 @@ export const apiOperations = {
   'widget test': 'widgets',
   'switch widget': 'widgets',
   'save widget settings': 'widgets',
+  'personality settings': 'settings',
+  'save personality': 'settings',
+  'basics settings': 'settings',
+  'save basics': 'settings',
 } as const satisfies Record<string, ApiOrigin>;
 
 export type ApiOperation = keyof typeof apiOperations;

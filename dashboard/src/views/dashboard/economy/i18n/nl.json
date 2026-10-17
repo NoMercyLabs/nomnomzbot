@@ -6,7 +6,9 @@
       "tabs": {
         "currency": "Valuta",
         "rules": "Verdienregels",
-        "jars": "Spaarpotten"
+        "jars": "Spaarpotten",
+        "catalog": "Winkel",
+        "leaderboards": "Ranglijsten"
       },
       "sources": {
         "ChatMessage": "Chatberichten",
@@ -31,7 +33,8 @@
         "maxHelp": "Leeg laten voor geen grens.",
         "decimals": "Decimalen",
         "save": "Valuta opslaan",
-        "nameRequired": "Geef de valuta een naam."
+        "nameRequired": "Geef de valuta een naam.",
+        "icon": "Icoon-URL van de valuta"
       },
       "rules": {
         "title": "Verdienregels",
@@ -84,7 +87,109 @@
           "about": "Over deze pot",
           "goal": "Doel",
           "create": "Pot maken",
-          "nameRequired": "Geef de pot een naam."
+          "nameRequired": "Geef de pot een naam.",
+          "icon": "Icoon-URL van de pot",
+          "maxWithdrawal": "Opneemlimiet per kanaal",
+          "maxWithdrawalHelp": "Het meeste dat een kanaal kan opnemen. Laat leeg voor geen limiet."
+        },
+        "invite": {
+          "open": "Kanaal uitnodigen",
+          "title": "Kanaal uitnodigen voor {name}",
+          "description": "Het andere kanaal moet accepteren voordat het de pot kan gebruiken.",
+          "target": "Kanaal-ID",
+          "targetHelp": "Het ID van het kanaal dat je uitnodigt.",
+          "targetRequired": "Vul het kanaal in dat je uitnodigt.",
+          "role": "Rol",
+          "roles": {
+            "Partner": "Partner",
+            "Viewer": "Kijker"
+          },
+          "contributionCap": "Stortlimiet per stream",
+          "withdrawalCap": "Opneemlimiet",
+          "capHelp": "Laat leeg voor geen limiet.",
+          "send": "Uitnodiging sturen"
+        }
+      },
+      "catalog": {
+        "title": "Winkelitems",
+        "description": "Dingen die kijkers met de valuta kopen.",
+        "new": "Nieuw item",
+        "empty": "Nog geen winkelitems.",
+        "error": "De winkelitems konden niet laden.",
+        "cost": "{cost} om te kopen",
+        "toggle": "{name} aan of uit",
+        "edit": "Item bewerken",
+        "delete": "Item verwijderen",
+        "confirmTitle": "{name} verwijderen?",
+        "confirmBody": "Kijkers kunnen het niet meer kopen. Eerdere aankopen blijven.",
+        "confirmAction": "Item verwijderen",
+        "dialog": {
+          "newTitle": "Nieuw winkelitem",
+          "editTitle": "Winkelitem bewerken",
+          "description": "Stel in wat het kost, wat het doet en wie het kan kopen.",
+          "name": "Naam item",
+          "about": "Over dit item",
+          "sink": "Soort effect",
+          "sinkHelp": "Wat het item doet als het gekocht wordt. Later niet te wijzigen.",
+          "cost": "Prijs",
+          "permission": "Wie kan kopen",
+          "pipeline": "Pipeline om uit te voeren",
+          "pipelineNone": "Geen",
+          "cooldown": "Cooldown (seconden)",
+          "stock": "Voorraad",
+          "stockHelp": "Hoeveel er in totaal gekocht kunnen worden. Laat leeg voor geen limiet.",
+          "perStream": "Per kijker per stream",
+          "perStreamHelp": "Hoeveel een kijker per stream kan kopen. Laat leeg voor geen limiet.",
+          "order": "Volgorde",
+          "icon": "Icoon-URL van het item",
+          "perUser": "Cooldown per kijker",
+          "perUserHelp": "Aan: elke kijker heeft een eigen cooldown. Uit: een cooldown voor iedereen.",
+          "save": "Item opslaan",
+          "nameRequired": "Geef het item een naam.",
+          "sinkRequired": "Vul de soort effect in."
+        }
+      },
+      "leaderboards": {
+        "title": "Ranglijsten",
+        "description": "Ranglijsten die kijkers kunnen volgen.",
+        "new": "Nieuwe ranglijst",
+        "empty": "Nog geen ranglijsten.",
+        "error": "De ranglijsten konden niet laden.",
+        "private": "Privé",
+        "detail": "{scope} · {period} · top {top}",
+        "edit": "Ranglijst bewerken",
+        "delete": "Ranglijst verwijderen",
+        "confirmTitle": "Deze ranglijst verwijderen?",
+        "confirmBody": "De ranglijst stopt. Saldo blijft.",
+        "confirmAction": "Ranglijst verwijderen",
+        "metrics": {
+          "balance": "Saldo",
+          "earned": "Verdiend",
+          "spent": "Uitgegeven"
+        },
+        "scopes": {
+          "channel": "Heel kanaal",
+          "jar": "Eén pot"
+        },
+        "periods": {
+          "alltime": "Altijd",
+          "daily": "Dagelijks",
+          "weekly": "Wekelijks",
+          "monthly": "Maandelijks"
+        },
+        "dialog": {
+          "newTitle": "Nieuwe ranglijst",
+          "editTitle": "Ranglijst bewerken",
+          "description": "Kies wat hij rangschikt en wie hem ziet.",
+          "metric": "Rangschikt op",
+          "period": "Periode",
+          "scope": "Over",
+          "topN": "Getoonde plekken",
+          "jar": "Pot",
+          "jarRequired": "Kies een pot.",
+          "public": "Zichtbaar voor kijkers",
+          "publicHelp": "Uit: alleen jij ziet deze ranglijst.",
+          "save": "Ranglijst opslaan"
         }
       }
     }

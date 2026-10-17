@@ -6,7 +6,9 @@
       "tabs": {
         "currency": "Currency",
         "rules": "Earning rules",
-        "jars": "Savings jars"
+        "jars": "Savings jars",
+        "catalog": "Store",
+        "leaderboards": "Leaderboards"
       },
       "sources": {
         "ChatMessage": "Chat messages",
@@ -31,7 +33,8 @@
         "maxHelp": "Leave empty for no limit.",
         "decimals": "Decimal places",
         "save": "Save currency",
-        "nameRequired": "Give the currency a name."
+        "nameRequired": "Give the currency a name.",
+        "icon": "Currency icon URL"
       },
       "rules": {
         "title": "Earning rules",
@@ -84,7 +87,109 @@
           "about": "About this jar",
           "goal": "Goal",
           "create": "Create jar",
-          "nameRequired": "Give the jar a name."
+          "nameRequired": "Give the jar a name.",
+          "icon": "Jar icon URL",
+          "maxWithdrawal": "Take-out cap per channel",
+          "maxWithdrawalHelp": "The most one channel can take out. Leave empty for no limit."
+        },
+        "invite": {
+          "open": "Invite a channel",
+          "title": "Invite a channel to {name}",
+          "description": "The other channel has to accept before it can use the jar.",
+          "target": "Channel ID",
+          "targetHelp": "The ID of the channel you invite.",
+          "targetRequired": "Enter the channel to invite.",
+          "role": "Role",
+          "roles": {
+            "Partner": "Partner",
+            "Viewer": "Viewer"
+          },
+          "contributionCap": "Put-in cap per stream",
+          "withdrawalCap": "Take-out cap",
+          "capHelp": "Leave empty for no limit.",
+          "send": "Send invite"
+        }
+      },
+      "catalog": {
+        "title": "Store items",
+        "description": "Things viewers buy with the currency.",
+        "new": "New item",
+        "empty": "No store items yet.",
+        "error": "The store items could not load.",
+        "cost": "{cost} to buy",
+        "toggle": "Turn {name} on or off",
+        "edit": "Edit item",
+        "delete": "Delete item",
+        "confirmTitle": "Delete {name}?",
+        "confirmBody": "Viewers can no longer buy it. Past purchases stay.",
+        "confirmAction": "Delete item",
+        "dialog": {
+          "newTitle": "New store item",
+          "editTitle": "Edit store item",
+          "description": "Set what it costs, what it runs and who can buy it.",
+          "name": "Item name",
+          "about": "About this item",
+          "sink": "Effect kind",
+          "sinkHelp": "What the item does when bought. You cannot change it later.",
+          "cost": "Cost",
+          "permission": "Who can buy",
+          "pipeline": "Pipeline to run",
+          "pipelineNone": "None",
+          "cooldown": "Cooldown (seconds)",
+          "stock": "Stock",
+          "stockHelp": "How many can be bought in total. Leave empty for no limit.",
+          "perStream": "Per viewer per stream",
+          "perStreamHelp": "How many one viewer can buy each stream. Leave empty for no limit.",
+          "order": "Sort order",
+          "icon": "Item icon URL",
+          "perUser": "Cooldown per viewer",
+          "perUserHelp": "When on, each viewer has their own cooldown. When off, one cooldown covers everyone.",
+          "save": "Save item",
+          "nameRequired": "Give the item a name.",
+          "sinkRequired": "Enter the effect kind."
+        }
+      },
+      "leaderboards": {
+        "title": "Leaderboards",
+        "description": "Rankings viewers can follow.",
+        "new": "New leaderboard",
+        "empty": "No leaderboards yet.",
+        "error": "The leaderboards could not load.",
+        "private": "Private",
+        "detail": "{scope} · {period} · top {top}",
+        "edit": "Edit leaderboard",
+        "delete": "Delete leaderboard",
+        "confirmTitle": "Delete this leaderboard?",
+        "confirmBody": "The ranking stops. Balances stay.",
+        "confirmAction": "Delete leaderboard",
+        "metrics": {
+          "balance": "Balance",
+          "earned": "Earned",
+          "spent": "Spent"
+        },
+        "scopes": {
+          "channel": "Whole channel",
+          "jar": "One jar"
+        },
+        "periods": {
+          "alltime": "All time",
+          "daily": "Daily",
+          "weekly": "Weekly",
+          "monthly": "Monthly"
+        },
+        "dialog": {
+          "newTitle": "New leaderboard",
+          "editTitle": "Edit leaderboard",
+          "description": "Choose what it ranks and who can see it.",
+          "metric": "Ranks by",
+          "period": "Period",
+          "scope": "Over",
+          "topN": "Places shown",
+          "jar": "Jar",
+          "jarRequired": "Pick a jar.",
+          "public": "Visible to viewers",
+          "publicHelp": "When off, only you see this ranking.",
+          "save": "Save leaderboard"
         }
       }
     }
