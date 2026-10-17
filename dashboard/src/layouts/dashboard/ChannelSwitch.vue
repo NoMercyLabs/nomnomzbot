@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
 
 import { useViewAs } from '@/api/viewAs';
@@ -26,6 +26,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel';
 import { initials } from '@/lib/text';
+import { switchLocation } from '@/router/channelRoutes';
 
 import ViewerChannelGroups from './ViewerChannelGroups.vue';
 
@@ -34,6 +35,7 @@ defineProps<{ compact?: boolean }>();
 
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 // In viewer chat a person reaches every channel this bot serves, not only the ones they manage.
 const viewerChat = computed(() => route.meta.viewerChat === true);
 const { channels, current, isPending, choose } = useCurrentChannel();
@@ -85,8 +87,26 @@ function stateWord(row: ChannelChoice): string | null {
     : t('frame.channel.offline');
 }
 
+// The address follows the choice: another channel is /app/u/<login>/<page>, and the address then
+// chooses it (useRouteChannel); the own channel is the short form, chosen after the address left the prefix.
 async function pick(row: ChannelChoice): Promise<void> {
-  await choose(row);
+  const own = row.kind === 'own';
+
+  if (viewerChat.value) {
+    await choose(row);
+    open.value = false;
+
+    return;
+  }
+
+  await router.push(switchLocation(route, own
+    ? null
+    : row.login));
+
+  if (own) {
+    await choose(row);
+  }
+
   open.value = false;
 }
 </script>

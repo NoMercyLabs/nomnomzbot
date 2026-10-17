@@ -33,6 +33,8 @@ export type CurrentChannel = {
   current: ComputedRef<ChannelChoice | null>;
   channelId: ComputedRef<string | null>;
   isPending: ComputedRef<boolean>;
+  // Both channel lists have answered, so an absent channel is truly absent.
+  isLoaded: ComputedRef<boolean>;
   choose: (choice: ChannelChoice) => Promise<void>;
 };
 
@@ -105,6 +107,7 @@ export function useCurrentChannel(): CurrentChannel {
     current,
     channelId: computed(() => current.value?.channelId ?? null),
     isPending: computed(() => enter.isPending.value),
+    isLoaded: computed(() => !mine.isPending.value && !moderated.isPending.value),
     choose,
   };
 }

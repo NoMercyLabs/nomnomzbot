@@ -12,6 +12,8 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { merge } from '@/lib/array';
 
+import { channelVariants } from './channelRoutes';
+
 import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route';
 import { dashboardAnalyticsRoute } from '@/views/dashboard/analytics/route';
 import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route';
@@ -69,11 +71,23 @@ const builtRoutes: RouteRecordRaw[] = [
 const builtNames = new Set(builtRoutes.map((route) => String(route.name)));
 const comingSoonRoutes = scaffoldRoutes(builtNames);
 
+const dashboardPages: RouteRecordRaw[] = import.meta.env.DEV
+  ? Array.from(merge(builtRoutes, comingSoonRoutes, [dashboardCatalogRoute]))
+  : Array.from(merge(builtRoutes, comingSoonRoutes));
+
+const dashboardLayout = () => import('@/layouts/DashboardLayout.vue');
+
 export const dashboardRoutes: RouteRecordRaw = {
   path: '/app',
-  component: () => import('@/layouts/DashboardLayout.vue'),
+  component: dashboardLayout,
   meta: { requiresAuth: true },
-  children: import.meta.env.DEV
-    ? Array.from(merge(builtRoutes, comingSoonRoutes, [dashboardCatalogRoute]))
-    : Array.from(merge(builtRoutes, comingSoonRoutes)),
+  children: dashboardPages,
+};
+
+// The same pages for one named channel: /app/u/<channelName>/<page>.
+export const dashboardChannelRoutes: RouteRecordRaw = {
+  path: '/app/u/:channelName',
+  component: dashboardLayout,
+  meta: { requiresAuth: true },
+  children: channelVariants(dashboardPages),
 };

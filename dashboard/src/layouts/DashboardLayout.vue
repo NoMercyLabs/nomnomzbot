@@ -18,10 +18,12 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { railWanted } from '@/composables/useFrameRail';
 import { useIntentPrefetch } from '@/composables/useIntentPrefetch';
+import { useRouteChannel } from '@/composables/useRouteChannel';
 import { applyAccent, defaultAccent } from '@/lib/accent';
 import { useRealtime } from '@/realtime/useRealtime';
 
 import BottomBar from './dashboard/BottomBar.vue';
+import ChannelNoAccess from './dashboard/ChannelNoAccess.vue';
 import ChannelSwitch from './dashboard/ChannelSwitch.vue';
 import DashboardSidebar from './dashboard/DashboardSidebar.vue';
 import FrameActions from './dashboard/FrameActions.vue';
@@ -36,6 +38,7 @@ const wide = useMediaQuery('(min-width: 840px)');
 const medium = useMediaQuery('(min-width: 600px)');
 
 const { current, channelId } = useCurrentChannel();
+const { name: channelName, denied } = useRouteChannel();
 
 // The theme wears the chat color of the channel being managed; the approved pink stands in without one.
 watchEffect(() => applyAccent(current.value?.chatColor ?? defaultAccent));
@@ -69,7 +72,8 @@ useReadableRedirect();
           </div>
         </header>
         <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <RouterView />
+          <ChannelNoAccess v-if="denied && channelName" :name="channelName" />
+          <RouterView v-else />
         </main>
         <BottomBar v-if="!medium" />
       </div>
