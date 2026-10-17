@@ -15,6 +15,7 @@ import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
 import { timersKey } from '@/api/liveOps';
 import { musicConfigKey, musicQueueKey } from '@/api/music';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
+import { personalityKey } from '@/api/personalitySettings';
 import { pipelinesKey } from '@/api/pipelines';
 import { ttsConfigKey } from '@/api/tts';
 import { widgetsKey } from '@/api/widgets';
@@ -42,7 +43,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   pipelines: [pipelinesKey],
   'music-config': [musicConfigKey, musicQueueKey],
   'sr-config': [musicConfigKey, musicQueueKey],
-  'channel-settings': [botStatusKey, connectionsKey],
+  'channel-settings': [botStatusKey, connectionsKey, personalityKey],
   features: [botStatusKey],
   webhooks: [connectionsKey],
   'moderation-history': [reviewQueueKey, communityListsKey],

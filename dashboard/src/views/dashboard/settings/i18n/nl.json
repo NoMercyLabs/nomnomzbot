@@ -21,6 +21,34 @@
         "description": "Deze instellingen blijven in deze browser. Ze veranderen je kanaal niet.",
         "openReadability": "Leesbaarheid openen"
       },
+      "personality": {
+        "title": "Persoonlijkheid",
+        "description": "De stem waarin je ingebouwde commando's antwoorden. Kies wat bij je kanaal past.",
+        "footer": "Een nieuwe keuze geldt voor het volgende antwoord. Eigen commando's houden hun eigen tekst.",
+        "error": "De persoonlijkheid kon niet worden geladen.",
+        "tones": {
+          "informative": {
+            "title": "Informatief",
+            "description": "Duidelijk, behulpzaam en beleefd. De standaardstem."
+          },
+          "friendly": {
+            "title": "Vriendelijk",
+            "description": "Warm, hartverwarmend en bemoedigend."
+          },
+          "sassy": {
+            "title": "Brutaal",
+            "description": "Gevat, plagerig en speels, nooit gemeen."
+          },
+          "hype": {
+            "title": "Hype",
+            "description": "Veel energie, hoofdletters en emotes."
+          },
+          "chill": {
+            "title": "Relaxed",
+            "description": "Rustig en beknopt."
+          }
+        }
+      },
       "engagement": {
         "title": "Begroetingen en reeksen",
         "description": "Kies welke momenten de bot begroet, hoe lang hij wacht tussen begroetingen en welke kijkreeksen hij viert.",

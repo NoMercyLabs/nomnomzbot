@@ -874,6 +874,8 @@
         "snoozeAd": "Volgende advertentie uitstellen",
         "updateStreamInfo": "Streaminformatie voor {title} bijwerken",
         "setTtsVoice": "TTS-stem {id} instellen",
+        "setTtsRules": "De tekst-naar-spraakregels opslaan",
+        "setPersonality": "Persoonlijkheid van de bot instellen op {tone}",
         "setPersonVoice": "Stem voor gebruiker {userId} instellen",
         "clearPersonVoice": "Stem voor gebruiker {userId} wissen",
         "turnOnWidget": "Widget {id} inschakelen",

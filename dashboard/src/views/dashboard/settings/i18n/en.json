@@ -21,6 +21,34 @@
         "description": "These settings stay in this browser. They do not change your channel.",
         "openReadability": "Open readability"
       },
+      "personality": {
+        "title": "Personality",
+        "description": "The voice your built-in commands answer in. Pick the one that fits your channel.",
+        "footer": "A new pick applies to the next reply. Custom commands keep their own text.",
+        "error": "The personality could not be loaded.",
+        "tones": {
+          "informative": {
+            "title": "Informative",
+            "description": "Clear, helpful and polite. The default voice."
+          },
+          "friendly": {
+            "title": "Friendly",
+            "description": "Warm, wholesome and encouraging."
+          },
+          "sassy": {
+            "title": "Sassy",
+            "description": "Witty, teasing and playful, never mean."
+          },
+          "hype": {
+            "title": "Hype",
+            "description": "High energy, capital letters and emotes."
+          },
+          "chill": {
+            "title": "Chill",
+            "description": "Laid back and minimal."
+          }
+        }
+      },
       "engagement": {
         "title": "Greetings and streaks",
         "description": "Choose which moments the bot greets, how long it waits between greetings, and which watch streaks it celebrates.",

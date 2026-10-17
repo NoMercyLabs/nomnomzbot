@@ -874,6 +874,8 @@
         "snoozeAd": "Snooze the next ad",
         "updateStreamInfo": "Update stream info for {title}",
         "setTtsVoice": "Set TTS voice {id}",
+        "setTtsRules": "Save the text to speech rules",
+        "setPersonality": "Set the bot personality to {tone}",
         "setPersonVoice": "Set voice for user {userId}",
         "clearPersonVoice": "Clear voice for user {userId}",
         "turnOnWidget": "Turn on widget {id}",
