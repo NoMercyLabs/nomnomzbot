@@ -8,7 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { keepPreviousData, useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryReturnType,
+} from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
@@ -54,5 +60,59 @@ export function useAdminEventSubHealth(
       return data ?? {};
     },
     placeholderData: keepPreviousData,
+  });
+}
+
+export type AdminWebhookDelivery = components['schemas']['AdminWebhookDelivery'];
+export type AdminWebhookDeliveriesPage =
+  components['schemas']['PaginatedResponseOfAdminWebhookDelivery'];
+export type AdminWebhookReplayResult = components['schemas']['AdminWebhookReplayResult'];
+
+export const adminWebhookDeliveriesPrefix: KeyParts = ['admin', 'webhook-deliveries'];
+
+function webhookDeliveriesKey(params: AdminPageParams): KeyParts {
+  const joined = merge(adminWebhookDeliveriesPrefix, [{ ...params }]);
+
+  return Array.from(joined);
+}
+
+export function useAdminWebhookDeliveries(
+  params: MaybeRefOrGetter<AdminPageParams>,
+): UseQueryReturnType<AdminWebhookDeliveriesPage, Error> {
+  return useQuery({
+    queryKey: computed((): KeyParts => webhookDeliveriesKey(toValue(params))),
+    queryFn: async (): Promise<AdminWebhookDeliveriesPage> => {
+      const { page, take } = toValue(params);
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/admin/webhooks/deliveries',
+        { params: { path: { version }, query: { Page: page, Take: take } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('admin webhook deliveries', response.status, error);
+
+      return data ?? {};
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+// A replay appends a new attempt row, so the log is read again afterwards.
+export function useAdminWebhookReplay() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (deliveryId: number): Promise<AdminWebhookReplayResult | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/admin/webhooks/deliveries/{deliveryId}/replay',
+        { params: { path: { version, deliveryId } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('admin webhook replay', response.status, error);
+
+      return data?.data ?? null;
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: adminWebhookDeliveriesPrefix }),
   });
 }
