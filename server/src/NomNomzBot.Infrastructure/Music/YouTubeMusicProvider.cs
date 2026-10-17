@@ -1451,50 +1451,7 @@ public sealed class YouTubeMusicProvider
         }
     }
 
-    /// <summary>
-    /// Extracts an 11-char YouTube video id from a bare id or a watch/short URL: <c>youtube.com/watch?v=</c>
-    /// (with extra <c>&amp;t=</c>/<c>&amp;list=</c> params), <c>youtu.be/</c>, <c>music.youtube.com</c>,
-    /// <c>m.youtube.com</c>, and <c>/shorts/</c>|<c>/embed/</c>|<c>/v/</c> paths. Null if none is present.
-    /// </summary>
-    private static string? ExtractVideoId(string uriOrId)
-    {
-        if (string.IsNullOrWhiteSpace(uriOrId))
-            return null;
-
-        string value = ChatLinkText.Normalize(uriOrId);
-
-        if (IsVideoId(value))
-            return value;
-
-        Uri? url = YouTubeUrl(value);
-        if (url is null)
-            return null;
-
-        // youtu.be/<id>
-        if (IsShortHost(url))
-        {
-            string shortId = url.AbsolutePath.Trim('/');
-            return IsVideoId(shortId) ? shortId : null;
-        }
-
-        // watch?v=<id> (ignores any other params like t=, list=, index=)
-        string? watchId = QueryValue(url.Query, "v");
-        if (watchId is not null && IsVideoId(watchId))
-            return watchId;
-
-        // /shorts/<id>, /embed/<id>, /v/<id>, /live/<id>
-        string[] segments = url.AbsolutePath.Trim('/').Split('/');
-        if (
-            segments.Length == 2
-            && VideoPathPrefixes.Contains(segments[0], StringComparer.OrdinalIgnoreCase)
-            && IsVideoId(segments[1])
-        )
-            return segments[1];
-
-        return null;
-    }
-
-    private static readonly string[] VideoPathPrefixes = ["shorts", "embed", "v", "live"];
+    private static string? ExtractVideoId(string uriOrId) => YouTubeVideoId.Extract(uriOrId);
 
     private static readonly string[] NonVideoPathPrefixes =
     [
@@ -1529,48 +1486,11 @@ public sealed class YouTubeMusicProvider
             : MusicProviderFailureReason.UnreadableLink;
     }
 
-    /// <summary>The absolute URL when it is on a YouTube host (youtube.com, m./music./www., youtu.be); else null.</summary>
-    private static Uri? YouTubeUrl(string value)
-    {
-        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? url))
-            return null;
-        if (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)
-            return null;
+    private static Uri? YouTubeUrl(string value) => YouTubeVideoId.YouTubeUrl(value);
 
-        string host = url.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
-            ? url.Host[4..]
-            : url.Host;
-        bool isYouTubeHost =
-            string.Equals(host, "youtu.be", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(host, "youtube.com", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(host, "music.youtube.com", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(host, "m.youtube.com", StringComparison.OrdinalIgnoreCase);
-        return isYouTubeHost ? url : null;
-    }
+    private static bool IsShortHost(Uri url) => YouTubeVideoId.IsShortHost(url);
 
-    private static bool IsShortHost(Uri url) =>
-        url.Host.EndsWith("youtu.be", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsVideoId(string value) =>
-        value.Length == 11 && value.All(c => char.IsLetterOrDigit(c) || c is '_' or '-');
-
-    /// <summary>Reads a single query-string value (leading '?' tolerated) without an ASP.NET dependency.</summary>
-    private static string? QueryValue(string query, string key)
-    {
-        foreach (
-            string pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
-        )
-        {
-            int equals = pair.IndexOf('=');
-            if (equals <= 0)
-                continue;
-
-            if (string.Equals(pair[..equals], key, StringComparison.OrdinalIgnoreCase))
-                return Uri.UnescapeDataString(pair[(equals + 1)..]);
-        }
-
-        return null;
-    }
+    private static bool IsVideoId(string value) => YouTubeVideoId.IsVideoId(value);
 
     // ─── YouTube Data API response models ─────────────────────────────────────
 

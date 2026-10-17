@@ -30,7 +30,10 @@ internal static partial class ChatLinkText
         ':',
         '"',
         '\'',
+        '>',
     ];
+
+    private static readonly char[] LeadingWrappers = ['<', '(', '"', '\''];
 
     /// <summary>True when the text is one link and nothing else — with or without a scheme.</summary>
     public static bool LooksLikeLink(string text)
@@ -57,8 +60,7 @@ internal static partial class ChatLinkText
 
     private static string Unwrap(string text)
     {
-        string trimmed = text.Trim();
-        return trimmed is ['<', .., '>'] ? trimmed[1..^1].Trim() : trimmed;
+        return text.Trim().TrimStart(LeadingWrappers).TrimEnd(TrailingPunctuation).Trim();
     }
 
     /// <summary>A host with at least one dot followed by a path, e.g. <c>youtu.be/abc</c> or
