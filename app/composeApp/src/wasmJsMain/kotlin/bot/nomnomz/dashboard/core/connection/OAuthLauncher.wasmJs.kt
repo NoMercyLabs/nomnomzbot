@@ -16,7 +16,8 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.window
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import org.w3c.dom.events.Event
 
 // Web OAuth — standard same-origin redirect (frontend.md §6). The page navigates to the backend
 // authorize URL; the backend completes the dance and returns to the served origin.
@@ -74,10 +75,18 @@ actual class OAuthLauncher {
                     window.location.assign(url.value)
                     return CompletableDeferred<ApiResult<Unit>>().await()
                 }
-                // Spin until the /oauth-relay page closes the popup (it auto-closes after
-                // postMessage-ing the result back). The calling controller re-polls status on return.
-                while (!popup.closed) {
-                    delay(300)
+                // The /oauth-relay page postMessages `oauth_relay` here, then closes itself. Wait for that
+                // message instead of polling popup.closed: the provider page's Cross-Origin-Opener-Policy makes
+                // every `closed` read log a console error. The timeout bounds a popup the user closed by hand.
+                val relayed: CompletableDeferred<Unit> = CompletableDeferred()
+                val listener: (Event) -> Unit = { event ->
+                    if (relayMessageType(event) == "oauth_relay") relayed.complete(Unit)
+                }
+                window.addEventListener("message", listener)
+                try {
+                    withTimeoutOrNull(RELAY_TIMEOUT_MS) { relayed.await() }
+                } finally {
+                    window.removeEventListener("message", listener)
                 }
                 ApiResult.Ok(Unit)
             }
@@ -149,6 +158,11 @@ fun readReturnedConnect(): ConnectReturn? {
 
 /** A connect outcome the backend handed back to the served origin after a bot/integration connect. */
 data class ConnectReturn(val provider: String?, val connected: Boolean, val errorCode: String?)
+
+private const val RELAY_TIMEOUT_MS: Long = 300_000L
+
+/** The `type` of a window message, or null when the message carries no data. */
+private fun relayMessageType(event: Event): String? = js("event.data && event.data.type")
 
 /** The current `#/<slug>` hash route, without the leading `#/` — empty when there is none. */
 private fun currentRouteSlug(): String = window.location.hash.removePrefix("#/")
