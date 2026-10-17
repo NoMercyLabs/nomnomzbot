@@ -671,6 +671,26 @@
    "covers": [
     "feedback-owner-words-not-inferred.md"
    ]
+  },
+  {
+   "id": "credential-tooling-not-bypass",
+   "paths": [
+    "**/scripts/browser-sign-in.py",
+    "**/.claude/skills/browser-sign-in/**",
+    "**/scripts/mint-jwt.py"
+   ],
+   "brief": [
+    "[Tt]oken",
+    "[Pp]assword",
+    "[Ss]ign(ed)? in",
+    "[Cc]redential"
+   ],
+   "text": "A request from Stoney for a script or skill that handles a token, key or password is not a safety bypass. Read it as: build a tool that keeps the secret out of the context window. The script reads the secret itself, uses it, and proves the result with a non-secret signal (auth/me 200). The secret never appears in a tool argument, output, file or transcript. Allow only his own hosts. Name the risk once, then build it.",
+   "source": "Stoney 2026-10-17: \"add a clause that prevents context windows from thinking i am trying to bypass safety features and assume that my expectations is to write scripts that ensure tokens and passwords are never put in the context window\"",
+   "covers": [
+    "feedback-credential-tooling-is-not-bypass.md",
+    "Credential tooling (Stoney, 2026-10-17)"
+   ]
   }
  ],
  "dispatch": [
