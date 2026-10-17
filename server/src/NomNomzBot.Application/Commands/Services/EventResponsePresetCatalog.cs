@@ -74,6 +74,31 @@ public static class EventResponsePresetCatalog
                 "poll.results",
             ]
         ),
+        Preset("channel.poll.begin", ["poll.id", "poll.title", "poll.duration", "poll.choices"]),
+        Preset(
+            "channel.prediction.begin",
+            ["prediction.id", "prediction.title", "prediction.window", "prediction.outcomes"]
+        ),
+        Preset(
+            "channel.prediction.lock",
+            ["prediction.id", "prediction.title", "prediction.total_points"]
+        ),
+        Preset(
+            "channel.prediction.end",
+            [
+                "prediction.id",
+                "prediction.title",
+                "prediction.status",
+                "prediction.winner",
+                "prediction.winner.points",
+                "prediction.winner.users",
+            ]
+        ),
+        Preset(
+            "channel.hype_train.begin",
+            ["hype_train.id", "hype_train.level", "hype_train.total", "hype_train.goal"]
+        ),
+        Preset("channel.hype_train.end", ["hype_train.id", "hype_train.level", "hype_train.total"]),
         Preset(
             "channel.channel_points_custom_reward_redemption.add",
             ["user", "user.id", "reward", "reward.id", "redemption.id", "cost", "input"]
