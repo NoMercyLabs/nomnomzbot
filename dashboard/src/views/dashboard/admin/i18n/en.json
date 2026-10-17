@@ -394,6 +394,30 @@
           "sd11": "A viewer with standing, such as a moderator or subscriber anywhere or real watch time here, is never automatically banned or timed out. The most that can happen is a message removed and flagged.",
           "sd12": "We do not host the chat, so nothing here stops a message before it is published. What we can do is tighten the platform's own rules, and we say so plainly rather than implying cover we do not have."
         }
+      },
+      "scheduledJobs": {
+        "title": "Scheduled jobs",
+        "count": "{count} jobs",
+        "none": "None",
+        "retry": "Retry",
+        "retried": "Job queued again as a new run.",
+        "retryError": "The job could not be retried: {reason}",
+        "columns": {
+          "channel": "Channel",
+          "pipeline": "Pipeline",
+          "state": "State",
+          "due": "Due",
+          "fired": "Ran",
+          "trigger": "Started by"
+        },
+        "pipelineGone": "Pipeline removed",
+        "list": {
+          "title": "Job queue",
+          "newestFirst": "Newest first",
+          "empty": "No job has been scheduled yet.",
+          "error": "The scheduled jobs could not load.",
+          "forbidden": "You may not see the scheduled jobs."
+        }
       }
     },
     "adminFeatureFlags": {

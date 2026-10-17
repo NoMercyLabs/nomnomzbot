@@ -128,7 +128,7 @@
         }
       },
       "users": {
-        "title":"Gebruikers",
+        "title": "Gebruikers",
         "search": "Zoek gebruikers",
         "count": "{count} gebruikers",
         "never": "Nooit",
@@ -393,6 +393,30 @@
           "sd9": "Aanwezig zijn is nooit een overtreding. Niemand wordt aangepakt omdat diegene stil is, nieuw is, of tijdens een aanval binnenkwam. Elke actie vereist bewijs van dat account zelf.",
           "sd11": "Een kijker met status, zoals een moderator of abonnee waar dan ook of echte kijktijd hier, wordt nooit automatisch verbannen of getimed. Het hoogste wat kan gebeuren is een verwijderd en gemarkeerd bericht.",
           "sd12": "Wij hosten de chat niet, dus niets hier houdt een bericht tegen voordat het geplaatst is. Wat we wel kunnen, is de eigen regels van het platform aanscherpen, en dat zeggen we eerlijk in plaats van dekking te suggereren die we niet hebben."
+        }
+      },
+      "scheduledJobs": {
+        "title": "Geplande taken",
+        "count": "{count} taken",
+        "none": "Geen",
+        "retry": "Opnieuw",
+        "retried": "Taak opnieuw ingepland als nieuwe run.",
+        "retryError": "De taak kon niet opnieuw worden gestart: {reason}",
+        "columns": {
+          "channel": "Kanaal",
+          "pipeline": "Pipeline",
+          "state": "Status",
+          "due": "Gepland",
+          "fired": "Uitgevoerd",
+          "trigger": "Gestart door"
+        },
+        "pipelineGone": "Pipeline verwijderd",
+        "list": {
+          "title": "Takenwachtrij",
+          "newestFirst": "Nieuwste eerst",
+          "empty": "Er is nog geen taak gepland.",
+          "error": "De geplande taken konden niet laden.",
+          "forbidden": "Je mag de geplande taken niet bekijken."
         }
       }
     },

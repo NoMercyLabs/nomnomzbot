@@ -116,3 +116,55 @@ export function useAdminWebhookReplay() {
     onSuccess: () => queries.invalidateQueries({ queryKey: adminWebhookDeliveriesPrefix }),
   });
 }
+
+export type AdminScheduledJob = components['schemas']['AdminScheduledJob'];
+export type AdminScheduledJobsPage = components['schemas']['PaginatedResponseOfAdminScheduledJob'];
+export type AdminScheduledJobRetryResult = components['schemas']['AdminScheduledJobRetryResult'];
+
+export const adminScheduledJobsPrefix: KeyParts = ['admin', 'scheduled-jobs'];
+
+function scheduledJobsKey(params: AdminPageParams): KeyParts {
+  const joined = merge(adminScheduledJobsPrefix, [{ ...params }]);
+
+  return Array.from(joined);
+}
+
+export function useAdminScheduledJobs(
+  params: MaybeRefOrGetter<AdminPageParams>,
+): UseQueryReturnType<AdminScheduledJobsPage, Error> {
+  return useQuery({
+    queryKey: computed((): KeyParts => scheduledJobsKey(toValue(params))),
+    queryFn: async (): Promise<AdminScheduledJobsPage> => {
+      const { page, take } = toValue(params);
+      const { data, error, response } = await client.GET('/api/v{version}/admin/jobs', {
+        params: { path: { version }, query: { Page: page, Take: take } },
+      });
+
+      if (error !== undefined)
+        throw problemError('admin jobs', response.status, error);
+
+      return data ?? {};
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+// A retry appends a new queued job and leaves the failed one as it was, so the queue is read again.
+export function useAdminScheduledJobRetry() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (taskId: string): Promise<AdminScheduledJobRetryResult | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/admin/jobs/{taskId}/retry',
+        { params: { path: { version, taskId } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('admin job retry', response.status, error);
+
+      return data?.data ?? null;
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: adminScheduledJobsPrefix }),
+  });
+}

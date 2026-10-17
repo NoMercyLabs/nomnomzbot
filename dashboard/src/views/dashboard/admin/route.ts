@@ -130,3 +130,15 @@ export const dashboardAdminFeatureFlagsRoute = {
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
+
+export const dashboardAdminScheduledJobsRoute = {
+  path: 'admin/scheduled-jobs',
+  name: 'dashboard-admin-scheduled-jobs',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminScheduledJobsView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
