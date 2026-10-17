@@ -87,7 +87,24 @@
         "title": "Ingebouwde commando's",
         "empty": "Geen ingebouwde commando's.",
         "error": "De ingebouwde commando's konden niet laden.",
-        "enabled": "Antwoordt in de chat"
+        "enabled": "Antwoordt in de chat",
+        "customize": "Aanpassen",
+        "customizeHelp": "Dit zijn de standaardwaarden. Pas aan om ze van jou te maken; elke wijziging overschrijft de standaard.",
+        "reserved": "Dit is een datarechten-commando. Het antwoordt altijd en de instellingen liggen vast.",
+        "replyLocked": "Dit antwoord ligt vast en kan niet worden gewijzigd.",
+        "variables": "Variabelen:",
+        "role": "Wie mag het gebruiken",
+        "globalCooldown": "Wachttijd voor de chat (seconden)",
+        "userCooldown": "Wachttijd per persoon (seconden)",
+        "speak": "Voorlezen",
+        "default": "Standaard: {value}",
+        "overrides": "Overschrijft de standaard ({value})",
+        "usingDefault": "Gebruikt de standaard",
+        "back": "Terug naar standaard",
+        "backTo": "Terug naar standaard: {field}",
+        "unsaved": "{count} niet-opgeslagen wijziging | {count} niet-opgeslagen wijzigingen",
+        "save": "Wijzigingen opslaan",
+        "discard": "Weggooien"
       }
     }
   }
