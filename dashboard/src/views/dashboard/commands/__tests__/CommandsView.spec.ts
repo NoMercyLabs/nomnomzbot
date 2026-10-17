@@ -130,6 +130,17 @@ function write(method: string, path: string, options?: Options): Answer {
     rows = rows.filter((row) => row.name !== options?.params?.path?.commandName);
   }
 
+  if (method === 'POST' && path.endsWith('/pipelines')) {
+    const pipeline = {
+      id: 'p-new',
+      name: String(options?.body?.name),
+      isEnabled: true,
+      graph: { steps: [] },
+    };
+
+    return { data: { data: pipeline }, response: { status: 200, ok: true } };
+  }
+
   if (method === 'POST') {
     const name = String(options?.body?.name);
 
@@ -610,7 +621,7 @@ describe('CommandsView editor', () => {
     await open('/app/commands?command=dice');
 
     expect(document.body.querySelector('[data-random-panel]')).not.toBeNull();
-    buttonByText('Full pipeline').click();
+    buttonByText('Pipeline').click();
     await settle();
 
     expect(document.body.querySelector('[data-random-panel]')).toBeNull();
@@ -664,24 +675,71 @@ describe('CommandsView editor', () => {
     expect(reply()).not.toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
 
-    buttonByText('Full pipeline').click();
+    buttonByText('Pipeline').click();
     await settle();
 
     expect(editor()!.querySelector('textarea')).toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).not.toBeNull();
 
-    buttonByText('Simple reply').click();
+    buttonByText('Text').click();
     await settle();
 
     expect(reply().value).toBe('Hello there');
     expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
   });
 
+  it('holds text, random reply and pipeline in one reply control', async () => {
+    await open('/app/commands?command=hello');
+
+    const controls = editor()!.querySelectorAll('[data-reply-mode] [data-segmented]');
+    const labels = [...controls[0]!.querySelectorAll('button')].map((button) => button.textContent?.trim());
+
+    expect(controls).toHaveLength(1);
+    expect(labels).toEqual(['Text', 'Random reply', 'Pipeline']);
+  });
+
+  it('creates a new pipeline from the picker and saves the command with it', async () => {
+    await open('/app/commands?command=hello');
+    buttonByText('Pipeline').click();
+    await settle();
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    editor()!.querySelector<HTMLElement>('[data-reply-pipeline] [role="combobox"]')!.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
+
+    await settle();
+
+    document.body.querySelector<HTMLElement>('[data-pipeline-create]')!.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
+
+    await settle();
+
+    expect(writes('POST')).toHaveLength(1);
+    expect(writes('POST')[0]!.body).toMatchObject({ name: '!hello', graph: { steps: [] } });
+
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ tier: 'pipeline', pipelineId: 'p-new' });
+  });
+
   it('saves a command switched to Full pipeline as the pipeline tier with its pipeline, and no reply text', async () => {
     rows[0] = command('hello', { pipelineId: 'p1' });
 
     await open('/app/commands?command=hello');
-    buttonByText('Full pipeline').click();
+    buttonByText('Pipeline').click();
     await settle();
     buttonByText('Save changes').click();
     await settle();
@@ -700,7 +758,7 @@ describe('CommandsView editor', () => {
     await open('/app/commands?command=pipe');
     expect(editor()!.querySelector('textarea')).toBeNull();
 
-    buttonByText('Simple reply').click();
+    buttonByText('Text').click();
     await settle();
     expect(reply().value).toBe('Back to text');
 
@@ -888,7 +946,7 @@ describe('CommandsView trigger options', () => {
     await open('/app/commands?command=hello');
     expect(switchOf('Read it aloud')).toBeDefined();
 
-    inEditor('Full pipeline').click();
+    inEditor('Pipeline').click();
     await settle();
     expect(switchOf('Read it aloud')).toBeUndefined();
 

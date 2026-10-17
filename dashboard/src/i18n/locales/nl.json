@@ -72,11 +72,13 @@
     "replyMode": {
       "label": "Reactie",
       "simple": "Eenvoudig antwoord",
-      "full": "Volledige pipeline",
+      "full": "Pipeline",
       "pipeline": "Pipeline",
-      "pipelinePlaceholder": "Kies een pipeline",
+      "pipelinePlaceholder": "Kies of maak een pipeline",
       "none": "De pipeline heeft zijn eigen antwoordstap. Er wordt niets beantwoord tot je er een kiest.",
-      "open": "Open in de pipeline-editor"
+      "open": "Open in de pipeline-editor",
+      "create": "Nieuwe pipeline maken",
+      "newName": "Nieuwe pipeline"
     }
   },
   "template": {

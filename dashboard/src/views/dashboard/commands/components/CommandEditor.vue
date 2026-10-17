@@ -26,7 +26,6 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
-import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
@@ -181,12 +180,10 @@ function remove(): void {
         v-if="row.tier !== 'code'"
         v-model:mode="draft.mode"
         v-model:pipeline-id="draft.pipelineId"
+        v-model:simple-kind="replyType"
+        :simple-options="replyTypes"
+        :new-pipeline-name="`!${row.name}`"
       >
-        <SegmentedControl
-          v-model="replyType"
-          :label="$t('dashboard.commands.editor.replyType')"
-          :options="replyTypes"
-        />
         <TemplateField
           v-if="!random"
           v-model="draft.templateResponse"

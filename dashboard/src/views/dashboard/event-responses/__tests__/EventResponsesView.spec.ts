@@ -263,7 +263,7 @@ describe('Event responses page', () => {
     expect(editor()!.querySelector('textarea')).not.toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
 
-    await click(buttonByText('Full pipeline'));
+    await click(buttonByText('Pipeline'));
 
     expect(editor()!.querySelector('textarea')).toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).not.toBeNull();
@@ -292,7 +292,7 @@ describe('Event responses page', () => {
 
     await open();
     await click(rowOf('channel.follow'));
-    await click(buttonByText('Full pipeline'));
+    await click(buttonByText('Pipeline'));
     await click(buttonByText('Save changes'));
 
     expect(writes('PUT')[0]!.body).toEqual({

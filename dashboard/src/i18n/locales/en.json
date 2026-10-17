@@ -72,11 +72,13 @@
     "replyMode": {
       "label": "Reaction",
       "simple": "Simple reply",
-      "full": "Full pipeline",
+      "full": "Pipeline",
       "pipeline": "Pipeline",
-      "pipelinePlaceholder": "Pick a pipeline",
+      "pipelinePlaceholder": "Choose or create a pipeline",
       "none": "This answers nothing until you pick a pipeline. The pipeline has its own reply step.",
-      "open": "Open in the pipeline editor"
+      "open": "Open in the pipeline editor",
+      "create": "Create a new pipeline",
+      "newName": "New pipeline"
     }
   },
   "template": {

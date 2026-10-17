@@ -195,7 +195,7 @@ describe('Chat triggers tab', () => {
     expect(document.body.querySelector('#trigger-response')).not.toBeNull();
     expect(document.body.querySelector('[data-reply-pipeline]')).toBeNull();
 
-    await click(buttonByText('Full pipeline'));
+    await click(buttonByText('Pipeline'));
 
     expect(document.body.querySelector('#trigger-response')).toBeNull();
     expect(document.body.querySelector('[data-reply-pipeline]')).not.toBeNull();
