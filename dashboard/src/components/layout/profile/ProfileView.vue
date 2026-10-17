@@ -434,11 +434,15 @@ async function banNow(): Promise<void> {
                 data-profile-timeout
                 type="button"
                 variant="outline"
+                class="group"
                 :disabled="!canBan"
                 :title="lockedTip(canBan)"
               >
                 {{ $t('profile.timeout.button') }}
-                <ChevronDown class="size-4" aria-hidden="true" />
+                <ChevronDown
+                  class="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+                  aria-hidden="true"
+                />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

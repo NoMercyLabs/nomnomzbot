@@ -13,7 +13,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
+import ChevronDown from '~icons/nnz/chevron-down';
 
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandInput, CommandList } from '@/components/ui/command';
@@ -40,10 +40,13 @@ const label = computed(() => {
         variant="outline"
         data-slot="viewer-channel-finder"
         :aria-label="t('frame.channel.switch')"
-        class="min-w-0 max-w-48 gap-2!"
+        class="group min-w-0 max-w-48 gap-2!"
       >
         <span class="truncate">{{ label }}</span>
-        <ArrowsUpDown class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <ChevronDown
+          class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
       </Button>
     </PopoverTrigger>
     <PopoverContent align="end" class="w-72 p-0">

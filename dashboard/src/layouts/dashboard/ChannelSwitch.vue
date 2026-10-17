@@ -11,7 +11,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
+import ChevronDown from '~icons/nnz/chevron-down';
 
 import { useViewAs } from '@/api/viewAs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -133,7 +133,7 @@ async function pick(row: ChannelChoice): Promise<void> {
         type="button"
         data-slot="channel-switch"
         :aria-label="t('frame.channel.switch')"
-        class="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-md p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring"
+        class="group flex min-h-11 w-full min-w-0 items-center gap-2 rounded-md p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Avatar class="size-8 rounded-lg">
           <AvatarImage v-if="current?.profileImageUrl" :src="current.profileImageUrl" :alt="''" />
@@ -157,7 +157,10 @@ async function pick(row: ChannelChoice): Promise<void> {
             {{ stateWord(current) }}
           </span>
         </span>
-        <ArrowsUpDown class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <ChevronDown
+          class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
       </button>
     </PopoverTrigger>
     <PopoverContent align="start" class="w-72 p-0">

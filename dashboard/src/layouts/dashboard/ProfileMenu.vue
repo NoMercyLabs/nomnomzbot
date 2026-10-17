@@ -11,7 +11,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter, type RouteLocationRaw } from 'vue-router';
-import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
+import ChevronDown from '~icons/nnz/chevron-down';
 import BookOpen from '~icons/nnz/book-open';
 import DoorOut from '~icons/nnz/door-out';
 import Eye from '~icons/nnz/eye';
@@ -85,7 +85,7 @@ async function leave(): Promise<void> {
         type="button"
         data-slot="profile-menu"
         :aria-label="t('frame.profile.menu')"
-        class="flex min-h-11 min-w-0 items-center gap-2 rounded-md p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring"
+        class="group flex min-h-11 min-w-0 items-center gap-2 rounded-md p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring"
         :class="icon ? '' : 'w-full'"
       >
         <Avatar class="size-8 rounded-lg">
@@ -97,7 +97,10 @@ async function leave(): Promise<void> {
             <span class="block truncate text-sm font-medium">{{ user?.displayName }}</span>
             <span class="block truncate text-xs text-muted-foreground">{{ role }}</span>
           </span>
-          <ArrowsUpDown class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <ChevronDown
+            class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
         </template>
       </button>
     </PopoverTrigger>

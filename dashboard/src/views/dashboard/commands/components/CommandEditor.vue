@@ -191,8 +191,11 @@ function remove(): void {
 
       <Collapsible>
         <CollapsibleTrigger as-child>
-          <Button type="button" variant="ghost" size="sm" class="-ml-2">
-            <ChevronDown aria-hidden="true" />
+          <Button type="button" variant="ghost" size="sm" class="group -ml-2">
+            <ChevronDown
+              class="transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
             {{ $t('dashboard.commands.editor.moreOptions') }}
           </Button>
         </CollapsibleTrigger>

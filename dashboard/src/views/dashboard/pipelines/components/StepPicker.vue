@@ -11,7 +11,7 @@
 // A step setting that names something the bot knows (a voice, a viewer, a sound, a reward): the bot lists and
 // searches them, an item it cannot use now says why, and the typed text can be kept as is, so a setting can
 // also be a word that fills in from the run. A source the bot cannot reach says so instead of an empty list.
-import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
+import ChevronDown from '~icons/nnz/chevron-down';
 import Check from '~icons/nnz/check';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
@@ -91,7 +91,7 @@ function choose(value: string | undefined): void {
         variant="outline"
         role="combobox"
         :aria-expanded="open"
-        class="w-full justify-between font-normal"
+        class="group w-full justify-between font-normal"
       >
         <span class="flex min-w-0 items-center gap-2">
           <Avatar v-if="chosen?.imageUrl" class="size-5">
@@ -101,7 +101,10 @@ function choose(value: string | undefined): void {
             {{ chosen?.label ?? (value || $t('dashboard.pipelines.workbench.inspector.notSet')) }}
           </span>
         </span>
-        <ArrowsUpDown class="text-muted-foreground" aria-hidden="true" />
+        <ChevronDown
+          class="text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
       </Button>
     </PopoverTrigger>
     <PopoverContent align="start" class="w-(--reka-popover-trigger-width) min-w-64 p-0">

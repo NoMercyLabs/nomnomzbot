@@ -40,11 +40,14 @@ function choose(index: number): void {
         type="button"
         variant="ghost"
         size="sm"
-        class="gap-0.5! rounded-[calc(var(--radius-md)-8px)] px-1.5!"
+        class="group gap-0.5! rounded-[calc(var(--radius-md)-8px)] px-1.5!"
         :aria-label="$t('dashboard.chat.picker.toneForAll')"
       >
         <span class="text-xl leading-none" aria-hidden="true">{{ hands[tone] }}</span>
-        <ChevronDown class="size-4 text-muted-foreground" aria-hidden="true" />
+        <ChevronDown
+          class="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
       </Button>
     </PopoverTrigger>
     <PopoverContent
