@@ -14,7 +14,11 @@ import type { AcceptableValue } from 'reka-ui';
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-defineProps<{ label: string; options: readonly { value: T; label: string }[] }>();
+defineProps<{
+  label: string;
+  options: readonly { value: T; label: string }[];
+  disabled?: boolean;
+}>();
 
 const chosen = defineModel<T>({ required: true });
 
@@ -34,6 +38,7 @@ function choose(next: AcceptableValue | AcceptableValue[]): void {
     data-segmented
     :aria-label="label"
     :model-value="chosen"
+    :disabled="disabled"
     @update:model-value="choose"
   >
     <ToggleGroupItem

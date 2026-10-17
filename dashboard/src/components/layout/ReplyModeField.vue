@@ -31,6 +31,9 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 const mode = defineModel<ReplyMode>('mode', { required: true });
 const pipelineId = defineModel<string>('pipelineId', { default: '' });
 
+// A locked editor shows the setting but lets no one change it.
+defineProps<{ disabled?: boolean }>();
+
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const pipelines = usePipelines(channelId);
@@ -43,13 +46,18 @@ const options = computed<{ value: ReplyMode; label: string }[]>(() => [
 
 <template>
   <div data-reply-mode class="grid gap-3">
-    <SegmentedControl v-model="mode" :label="$t('common.replyMode.label')" :options="options" />
+    <SegmentedControl
+      v-model="mode"
+      :label="$t('common.replyMode.label')"
+      :options="options"
+      :disabled="disabled"
+    />
 
     <slot v-if="mode === 'simple'" />
 
     <Field v-else data-reply-pipeline>
       <FieldLabel>{{ $t('common.replyMode.pipeline') }}</FieldLabel>
-      <Select v-model="pipelineId">
+      <Select v-model="pipelineId" :disabled="disabled">
         <SelectTrigger :aria-label="$t('common.replyMode.pipeline')" class="w-full">
           <SelectValue :placeholder="$t('common.replyMode.pipelinePlaceholder')" />
         </SelectTrigger>

@@ -260,6 +260,10 @@ describe('ChannelPointsView', () => {
     await flushPromises();
 
     expect((document.body.querySelector('[data-field="title"]') as HTMLInputElement).disabled).toBe(true);
+    const segments = [...document.body.querySelectorAll<HTMLButtonElement>('[data-reply-mode] [data-segment]')];
+
+    expect(segments.length).toBe(2);
+    expect(segments.every((segment: HTMLButtonElement) => segment.disabled)).toBe(true);
     const reason = en.dashboard.channelPoints.rewards.dialog.unmanageable;
 
     expect(document.body.textContent).toContain(reason);
@@ -379,6 +383,8 @@ describe('ChannelPointsView', () => {
       const chevron = trigger.querySelector('[data-limits-chevron]') as Element;
 
       expect(chevron).not.toBeNull();
+      // A tag with no import renders as an empty unknown element; the icon must be a drawn svg.
+      expect(chevron.tagName.toLowerCase()).toBe('svg');
       expect(trigger.getAttribute('data-state')).toBe('closed');
       expect(chevron.getAttribute('class')).toContain('group-data-[state=open]:rotate-180');
 

@@ -24,6 +24,8 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
+import ChevronDown from '~icons/nnz/chevron-down';
+
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -309,7 +311,11 @@ async function submit(): Promise<void> {
       </Field>
 
       <div class="grid gap-2 md:col-span-3">
-        <ReplyModeField v-model:mode="mode" v-model:pipeline-id="pipelineId">
+        <ReplyModeField
+          v-model:mode="mode"
+          v-model:pipeline-id="pipelineId"
+          :disabled="!reward.isManageable"
+        >
           <Field>
             <FieldLabel for="reward-response">{{ $t('dashboard.channelPoints.rewards.dialog.fields.response') }}</FieldLabel>
             <Textarea
