@@ -52,7 +52,7 @@
             "maxPerUserPerStream": "Most redeems per viewer in one stream. Empty keeps the current limit.",
             "globalCooldownSeconds": "Seconds to wait between any two redeems. Empty keeps the current cooldown.",
             "timerDurationSeconds": "Countdown for a timed reward. 0 clears it.",
-            "backgroundColor": "The reward color on Twitch, as a hex code like #9146FF.",
+            "backgroundColor": "A hex code, like #9146FF.",
             "isEnabled": "Viewers can redeem it only while it is on.",
             "isPaused": "A paused reward stays visible but viewers cannot redeem it.",
             "isUserInputRequired": "The viewer types a message with each redeem."

@@ -52,7 +52,7 @@
             "maxPerUserPerStream": "Maximaal aantal inwisselingen per kijker in een stream. Leeg laat de limiet staan.",
             "globalCooldownSeconds": "Seconden wachten tussen twee inwisselingen. Leeg laat de cooldown staan.",
             "timerDurationSeconds": "Aftelling voor een beloning met tijdslimiet. 0 wist die.",
-            "backgroundColor": "De kleur van de beloning op Twitch, als hexcode zoals #9146FF.",
+            "backgroundColor": "Een hexcode, zoals #9146FF.",
             "isEnabled": "Kijkers kunnen alleen inwisselen als hij aan staat.",
             "isPaused": "Een gepauzeerde beloning blijft zichtbaar maar is niet in te wisselen.",
             "isUserInputRequired": "De kijker typt bij elke inwisseling een bericht."
