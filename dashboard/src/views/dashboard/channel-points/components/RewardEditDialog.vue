@@ -179,6 +179,8 @@ function changeOf(): RewardChange {
     ...fields,
     ...flags.value,
     ...replyChange(),
+    // Twitch refuses an empty color (400), so an empty field leaves the color as it is.
+    backgroundColor: fields.backgroundColor || undefined,
     cost: numberOf('cost'),
     maxPerStream: numberOf('maxPerStream'),
     maxPerUserPerStream: numberOf('maxPerUserPerStream'),

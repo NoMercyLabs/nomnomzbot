@@ -25,10 +25,12 @@ import AlertTriangle from '~icons/nnz/alert-triangle';
 
 import { useTemplateHelpers, type TemplateContext, type TemplateHelper } from '@/api/templates';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { Field, FieldCount, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 
+import HelperPanel from './HelperPanel.vue';
 import { useHelperText } from './useHelperText';
 import {
   braced,
@@ -44,14 +46,34 @@ const props = withDefaults(
     context: TemplateContext;
     eventType?: string;
     placeholder?: string;
+    id?: string;
+    rows?: number;
+    help?: string;
+    maxlength?: number;
+    dataField?: string;
+    disabled?: boolean;
+    panel?: boolean;
   }>(),
-  { eventType: undefined, placeholder: undefined },
+  {
+    eventType: undefined,
+    placeholder: undefined,
+    id: undefined,
+    rows: undefined,
+    help: undefined,
+    maxlength: undefined,
+    dataField: undefined,
+    disabled: false,
+    panel: true,
+  },
 );
 
 const text = defineModel<string>({ default: '' });
 const { t } = useI18n();
 const { describe } = useHelperText();
-const id = useId();
+const generatedId = useId();
+const id = computed<string>(() => props.id ?? generatedId);
+const panelOpen = ref(false);
+const panelTarget = { insert: (insertion: string): Promise<void> => insert(insertion) };
 
 const area = useTemplateRef<ComponentPublicInstance>('area');
 const helpers = useTemplateHelpers(
@@ -161,7 +183,11 @@ defineExpose({ insert });
 
 <template>
   <Field>
-    <FieldLabel :for="id">{{ label }}</FieldLabel>
+    <div class="flex items-center gap-1.5">
+      <FieldLabel :for="id">{{ label }}</FieldLabel>
+      <FieldInfo v-if="help">{{ help }}</FieldInfo>
+      <FieldCount v-if="maxlength" :value="text" :max="maxlength" />
+    </div>
     <Popover :open="showing">
       <PopoverAnchor as-child>
         <Textarea
@@ -169,6 +195,11 @@ defineExpose({ insert });
           ref="area"
           v-model="text"
           :placeholder="placeholder"
+          :aria-label="label"
+          :rows="rows"
+          :maxlength="maxlength"
+          :disabled="disabled"
+          :data-field="dataField"
           aria-autocomplete="list"
           aria-haspopup="listbox"
           :aria-expanded="showing"
@@ -209,6 +240,28 @@ defineExpose({ insert });
         </Command>
       </PopoverContent>
     </Popover>
+    <div v-if="panel" class="flex flex-col gap-2">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="self-start"
+        data-helper-toggle
+        :aria-expanded="panelOpen"
+        :disabled="disabled"
+        @mousedown.prevent
+        @click="panelOpen = !panelOpen"
+      >
+        {{ t(panelOpen ? 'template.field.hideHelpers' : 'template.field.showHelpers') }}
+      </Button>
+      <div
+        v-if="panelOpen"
+        data-template-panel
+        class="flex h-64 flex-col rounded-[16px] border border-border p-2"
+      >
+        <HelperPanel :target="panelTarget" :context="context" :event-type="eventType" />
+      </div>
+    </div>
     <p
       v-if="unknown.length > 0"
       data-template-warning

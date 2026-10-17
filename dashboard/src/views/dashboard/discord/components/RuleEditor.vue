@@ -224,7 +224,7 @@ function removeField(index: number): void {
     <TemplateField
       v-model="draft.message"
       :label="t('dashboard.discord.editor.message')"
-      context="eventResponse"
+      context="discord"
       :event-type="trigger"
     />
 

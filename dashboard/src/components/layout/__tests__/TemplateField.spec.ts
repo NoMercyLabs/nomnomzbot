@@ -256,6 +256,27 @@ describe('the helper panel', () => {
     expect(document.activeElement).toBe(area);
   });
 
+  it('opens its own full helper panel and inserts the pressed helper at the caret', async () => {
+    const area: HTMLTextAreaElement = await host('ab cd');
+
+    expect(document.body.querySelector('[data-template-panel]')).toBeNull();
+
+    await type(area, 'ab cd', 2);
+
+    (document.body.querySelector('[data-helper-toggle]') as HTMLElement).click();
+    await flushPromises();
+
+    const rows: string[] = [...document.body.querySelectorAll('[data-template-panel] [data-helper-row]')]
+      .map((row: Element) => row.getAttribute('data-helper-row') ?? '');
+
+    expect(rows).toEqual(['user', 'user.name', 'channel', 'args.<n>']);
+
+    (document.body.querySelector('[data-helper-row="user.name"]') as HTMLElement).click();
+    await flushPromises();
+
+    expect(text.value).toBe('ab{user.name} cd');
+  });
+
   it('replaces the selected text when something is selected', async () => {
     const area: HTMLTextAreaElement = await host('ab cd', true);
 

@@ -107,6 +107,7 @@ function remove(): void {
       v-model="draft"
       data-profile-shoutout-field
       context="eventResponse"
+      :maxlength="500"
       :label="$t('profile.shoutout.label')"
       :placeholder="$t('profile.shoutout.placeholder')"
     />

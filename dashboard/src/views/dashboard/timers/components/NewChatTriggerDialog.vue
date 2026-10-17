@@ -15,9 +15,9 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateChatTrigger } from '@/api/chatTriggers';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -85,14 +85,13 @@ async function submit(): Promise<void> {
         :aria-label="$t('dashboard.timers.triggers.editor.pattern')"
       />
     </Field>
-    <Field>
-      <FieldLabel for="new-trigger-response">{{ $t('dashboard.timers.triggers.editor.response') }}</FieldLabel>
-      <Textarea
-        id="new-trigger-response"
-        v-model="response"
-        rows="3"
-        :aria-label="$t('dashboard.timers.triggers.editor.response')"
-      />
-    </Field>
+    <TemplateField
+      id="new-trigger-response"
+      v-model="response"
+      context="command"
+      :rows="3"
+      :maxlength="500"
+      :label="$t('dashboard.timers.triggers.editor.response')"
+    />
   </FormDialog>
 </template>

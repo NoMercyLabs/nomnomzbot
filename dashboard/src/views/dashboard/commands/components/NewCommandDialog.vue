@@ -136,6 +136,7 @@ async function submit(): Promise<void> {
       v-if="kind === 'template'"
       v-model="reply"
       context="command"
+      :maxlength="500"
       :label="$t('dashboard.commands.editor.reply')"
     />
     <Field v-else>

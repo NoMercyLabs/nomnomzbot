@@ -15,7 +15,7 @@ import type { components } from './schema';
 import { client } from './client';
 
 export type TemplateHelper = components['schemas']['TemplateHelper'];
-export type TemplateContext = 'command' | 'eventResponse' | 'timer';
+export type TemplateContext = 'command' | 'eventResponse' | 'timer' | 'pipeline' | 'discord' | 'webhook';
 
 async function fetchHelpers(
   context: TemplateContext,

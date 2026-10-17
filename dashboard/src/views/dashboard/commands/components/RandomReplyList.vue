@@ -13,7 +13,7 @@ import Plus from '~icons/nnz/add';
 import X from '~icons/nnz/cross';
 
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import TemplateField from '@/components/layout/TemplateField.vue';
 
 const replies = defineModel<string[]>({ required: true });
 
@@ -42,15 +42,19 @@ function remove(index: number): void {
       data-random-reply
       class="flex items-start gap-2"
     >
-      <Textarea
+      <TemplateField
+        class="min-w-0 flex-1"
+        context="command"
         :model-value="reply"
-        :aria-label="$t('dashboard.commands.editor.replyNumber', { number: index + 1 })"
+        :maxlength="500"
+        :label="$t('dashboard.commands.editor.replyNumber', { number: index + 1 })"
         @update:model-value="set(index, $event)"
       />
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
+        class="mt-7"
         :disabled="replies.length === 1"
         :aria-label="$t('dashboard.commands.editor.removeReply', { number: index + 1 })"
         @click="remove(index)"

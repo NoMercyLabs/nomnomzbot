@@ -46,7 +46,9 @@ watch(text, (value: string): void => {
 function commitDraft(event: FocusEvent): void {
   const next = event.relatedTarget;
 
-  if (next instanceof Node && event.currentTarget instanceof Node && event.currentTarget.contains(next)) return;
+  const field = event.currentTarget;
+
+  if (next instanceof Node && field instanceof Node && field.contains(next)) return;
 
   if (draft.value === text.value) return;
 

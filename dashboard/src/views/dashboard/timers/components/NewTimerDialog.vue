@@ -15,9 +15,9 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateTimer } from '@/api/timers';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -98,17 +98,13 @@ async function submit(): Promise<void> {
         :placeholder="$t('dashboard.timers.dialog.namePlaceholder')"
       />
     </Field>
-    <Field>
-      <FieldLabel for="new-timer-messages">{{
-        $t('dashboard.timers.editor.messages')
-      }}</FieldLabel>
-      <Textarea
-        id="new-timer-messages"
-        v-model="messages"
-        rows="3"
-        :aria-label="$t('dashboard.timers.editor.messages')"
-      />
-    </Field>
+    <TemplateField
+      id="new-timer-messages"
+      v-model="messages"
+      context="timer"
+      :rows="3"
+      :label="$t('dashboard.timers.editor.messages')"
+    />
     <Field>
       <FieldLabel for="new-timer-interval">{{
         $t('dashboard.timers.editor.interval')

@@ -176,6 +176,7 @@ function useDefault(): Promise<void> {
           v-model="draft.message"
           :label="$t('dashboard.eventResponses.editor.message')"
           context="eventResponse"
+          :maxlength="500"
           :event-type="row.eventType"
         />
         <p class="text-sm text-muted-foreground">
