@@ -23,6 +23,7 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
 import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
+import { pipelineRunsKey } from './pipelineRuns';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
@@ -437,7 +438,12 @@ export type TestRunRequest = {
 export function useTestRunPipeline(
   channelId: MaybeRefOrGetter<string | null>,
 ) {
+  const queries = useQueryClient();
+
   return useMutation({
+    // The bot keeps every test run under its pipeline's Runs, so the list shows it at once.
+    onSuccess: (_run: PipelineTestRun, { id }: TestRunRequest) =>
+      queries.invalidateQueries({ queryKey: pipelineRunsKey(toValue(channelId), id) }),
     mutationFn: async ({ id, variables, graph }: TestRunRequest): Promise<PipelineTestRun> => {
       const { data, error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/pipelines/{id}/test-run',

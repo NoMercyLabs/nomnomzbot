@@ -178,7 +178,8 @@
         },
         "runs": {
           "title": "Runs",
-          "description": "Elke keer dat chat, een event of een timer deze pipeline startte, nieuwste eerst. Een testrun wordt hier niet bewaard.",
+          "description": "Elke keer dat chat, een event of een timer deze pipeline startte, nieuwste eerst, met je testruns gemarkeerd.",
+          "testRun": "Testrun",
           "empty": "Deze pipeline heeft nog niet gedraaid.",
           "error": "De runs konden niet laden.",
           "older": "Oudere runs tonen",

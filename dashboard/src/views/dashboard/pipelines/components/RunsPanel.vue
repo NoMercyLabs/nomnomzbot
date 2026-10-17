@@ -17,6 +17,7 @@ import ChevronDown from '~icons/nnz/chevron-down';
 import { usePipelineRuns, type PipelineRun, type PipelineRunPage } from '@/api/pipelineRuns';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { agoText, durationText } from '@/lib/time';
@@ -109,6 +110,9 @@ function toggle(id: string, isOpen: boolean): void {
             class="group flex w-full items-center gap-3 rounded-md px-3 py-2 text-left hover:bg-muted/50"
           >
             <StatusBadge :tone="toneOf(run)" :label="statusText(run)" class="text-xs" />
+            <Badge v-if="run.triggerKind === 'test_run'" data-run-test variant="outline" class="text-xs">
+              {{ $t(`${page}.runs.testRun`) }}
+            </Badge>
             <span class="grid min-w-0 flex-1">
               <span class="truncate text-sm text-muted-foreground">{{ whenText(run) }}</span>
               <span v-if="run.errorMessage" class="truncate text-xs text-destructive">{{ run.errorMessage }}</span>

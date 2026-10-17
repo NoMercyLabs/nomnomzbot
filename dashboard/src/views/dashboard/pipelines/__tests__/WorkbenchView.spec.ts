@@ -341,7 +341,7 @@ const stored = vi.hoisted(() => ({
     {
       id: 6,
       pipelineId: 'p1',
-      triggerKind: 'pipeline',
+      triggerKind: 'test_run',
       status: 'success',
       hostCallCount: 1,
       durationMs: 340,
@@ -1009,6 +1009,14 @@ describe('the Runs view', () => {
     expect(rows[0]).toContain('Twitch refused the message');
     expect(rows[1]).toContain('Done');
     expect(rows[1]).toContain('took 340 ms');
+  });
+
+  it('marks a test run, and only a test run', async () => {
+    await openRuns();
+
+    const marked = runRows().map((row: HTMLElement) => row.querySelector('[data-run-test]')?.textContent?.trim() ?? null);
+
+    expect(marked).toEqual([null, 'Test run']);
   });
 
   it('opens a run to say what each step did, in the order they ran', async () => {

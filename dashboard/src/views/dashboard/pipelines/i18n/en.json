@@ -178,7 +178,8 @@
         },
         "runs": {
           "title": "Runs",
-          "description": "Each time chat, an event or a timer started this pipeline, newest first. A test run is not kept here.",
+          "description": "Each time chat, an event or a timer started this pipeline, newest first, with your test runs marked.",
+          "testRun": "Test run",
           "empty": "This pipeline has not run yet.",
           "error": "The runs could not load.",
           "older": "Show older runs",
