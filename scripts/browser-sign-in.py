@@ -32,7 +32,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-ALLOWED_APPS = {"192.168.2.60", "dev.nomnomz.bot"}
+ALLOWED_APPS = {"192.168.2.60", "dev.nomnomz.bot", "vue.nomnomz.bot"}
 SSH = [
     "ssh", "-i", str(Path.home() / ".ssh" / "docker_proxmox"),
     "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "root@192.168.2.60",
@@ -83,7 +83,11 @@ def mint(secret: str, sub: str, tenant: str, sid: str, channel: str, minutes: in
 
 
 def prove(app: str, token: str) -> None:
-    request = urllib.request.Request(f"{app}/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    request = urllib.request.Request(f"{app}/api/v1/auth/me", headers={
+        "Authorization": f"Bearer {token}",
+        # Cloudflare (vue.nomnomz.bot) answers 403 to the default Python-urllib agent.
+        "User-Agent": "nomnomzbot-browser-sign-in",
+    })
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
             json.load(response)
