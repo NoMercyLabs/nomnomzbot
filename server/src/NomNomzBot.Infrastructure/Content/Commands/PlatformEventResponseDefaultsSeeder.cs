@@ -60,6 +60,16 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         "channel.moderator.remove",
     };
 
+    /// <summary>The ad break warning, start and end lines, which the old bot announced; the tone catalogue speaks them.</summary>
+    internal static readonly IReadOnlySet<string> AdBreakLines = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "channel.ad_break.upcoming",
+        "channel.ad_break.begin",
+        "channel.ad_break.end",
+    };
+
     /// <summary>The types that also speak their line through TTS by default: the old bot spoke a gifted-sub recipient's line, like the sub line.</summary>
     internal static readonly IReadOnlySet<string> SpokenByDefault = new HashSet<string>(
         StringComparer.Ordinal
@@ -68,9 +78,9 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         "channel.subscription.gift.received",
     };
 
-    /// <summary>The types that ship ON: the legacy alerts, the poll result and the moderation notices, which the old bot also announced.</summary>
+    /// <summary>The types that ship ON: the legacy alerts, the poll result, the moderation notices and the ad breaks, which the old bot also announced.</summary>
     internal static readonly HashSet<string> EnabledByDefault = new(
-        LegacyMessages.Keys.Append("channel.poll.end").Concat(ModerationLines),
+        LegacyMessages.Keys.Append("channel.poll.end").Concat(ModerationLines).Concat(AdBreakLines),
         StringComparer.Ordinal
     );
 
@@ -90,7 +100,7 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
                 row.Message = null;
 
             if (
-                ModerationLines.Contains(row.EventType)
+                (ModerationLines.Contains(row.EventType) || AdBreakLines.Contains(row.EventType))
                 && row is { IsEnabled: false, Message: null, UpdatedByUserId: null }
             )
                 row.IsEnabled = true;

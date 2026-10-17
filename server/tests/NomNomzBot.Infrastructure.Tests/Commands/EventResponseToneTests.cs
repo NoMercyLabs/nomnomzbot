@@ -222,10 +222,10 @@ public sealed class EventResponseToneTests
         row.IsEnabled = true;
         row.ResponseType = "chat_message";
         row.Message = null;
+        PlatformEventResponseDefault platform =
+            await h.Db.PlatformEventResponseDefaults.SingleAsync(d => d.EventType == AdBreak);
+        platform.IsEnabled = false;
         await h.Db.SaveChangesAsync();
-        (await h.Db.PlatformEventResponseDefaults.SingleAsync(d => d.EventType == AdBreak))
-            .IsEnabled.Should()
-            .BeFalse("the ad-break default ships off, so only the row's own switch can turn it on");
 
         await h.Executor.ExecuteAsync(
             SassyChannel,
@@ -472,6 +472,9 @@ public sealed class EventResponseToneTests
                         "channel.unban",
                         "channel.moderator.add",
                         "channel.moderator.remove",
+                        "channel.ad_break.upcoming",
+                        "channel.ad_break.begin",
+                        "channel.ad_break.end",
                     ])
                     .ToList()
             );
@@ -502,6 +505,28 @@ public sealed class EventResponseToneTests
         rows.Single(r => r.EventType == "channel.unban")
             .IsEnabled.Should()
             .BeFalse("an admin turned it off on purpose");
+    }
+
+    [Theory]
+    [InlineData("channel.ad_break.upcoming")]
+    [InlineData("channel.ad_break.begin")]
+    [InlineData("channel.ad_break.end")]
+    public async Task The_seeder_turns_an_untouched_ad_break_row_on(string eventType)
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await new PlatformEventResponseDefaultsSeeder(db).SeedAsync();
+        PlatformEventResponseDefault row = await db.PlatformEventResponseDefaults.SingleAsync(d =>
+            d.EventType == eventType
+        );
+        row.IsEnabled = false;
+        await db.SaveChangesAsync();
+
+        await new PlatformEventResponseDefaultsSeeder(db).SeedAsync();
+
+        PlatformEventResponseDefault seeded = await db
+            .PlatformEventResponseDefaults.AsNoTracking()
+            .SingleAsync(d => d.EventType == eventType);
+        seeded.IsEnabled.Should().BeTrue();
     }
 
     [Theory]
