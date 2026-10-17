@@ -1,0 +1,38 @@
+{
+  "dashboard": {
+    "eventResponses": {
+      "title": "Reacties op events",
+      "crumb": "Bouwen",
+      "back": "Terug naar de lijst",
+      "list": {
+        "title": "Events",
+        "search": "Zoek events",
+        "empty": "Nog geen events om op te reageren.",
+        "error": "De events konden niet laden.",
+        "noMatch": "Geen event past bij je zoekopdracht.",
+        "off": "Uit",
+        "default": "Standaard van het platform",
+        "own": "Je eigen tekst",
+        "pick": "Kies een event om de reactie aan te passen.",
+        "pickTitle": "Geen event open"
+      },
+      "editor": {
+        "enabled": "Aan",
+        "enabledHelp": "Een event dat uit staat blijft in de lijst en zegt niets.",
+        "message": "Reactie",
+        "messageHelp": "De bot plaatst dit in de chat als het event gebeurt.",
+        "variables": "Je kunt gebruiken: {names}",
+        "speak": "Lees voor",
+        "speakHelp": "De reactie wordt ook als spraak op je stream afgespeeld.",
+        "following": "Dit event volgt de standaard van het platform. Je eigen tekst opslaan vervangt die voor jouw kanaal.",
+        "unsaved": "{count} niet-opgeslagen wijziging | {count} niet-opgeslagen wijzigingen",
+        "save": "Wijzigingen opslaan",
+        "discard": "Weggooien",
+        "reset": "Standaard van het platform gebruiken",
+        "test": "Stuur een test",
+        "testUnavailable": "Nog niet beschikbaar: de bot kan hier geen testreactie sturen.",
+        "error": "Het event kon niet laden."
+      }
+    }
+  }
+}
