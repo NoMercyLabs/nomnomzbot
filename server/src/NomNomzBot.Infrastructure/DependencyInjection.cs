@@ -31,6 +31,7 @@ using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.YouTube;
+using NomNomzBot.Application.Dashboard.Stats;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -1110,6 +1111,9 @@ public static class DependencyInjection
         // Every alert handler also offers a typed sample of its own event for a script test run.
         services.AddImplementationsOf<ITriggerSampleSource>(infrastructure, ServiceLifetime.Scoped);
         services.AddScoped<ITriggerSampleCatalog, TriggerSampleCatalog>();
+        // Every stream metric (stream-stats?metrics=...) is one registered class; the fact reader is shared per request.
+        services.AddImplementationsOf<IStreamMetric>(infrastructure, ServiceLifetime.Scoped);
+        services.AddScoped<Dashboard.Stats.StreamFactReader>();
         services.AddScoped<EventStore.JournaledDomainEventReader>();
         services.AddScoped<Dashboard.Replay.GiftBombChainResolver>();
         services.AddScoped<Dashboard.Replay.ShoutoutReplayPresenter>();

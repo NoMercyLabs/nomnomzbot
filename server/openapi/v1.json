@@ -32720,12 +32720,12 @@
         }
       }
     },
-    "/api/v{version}/dashboard/{channelId}/stream-recap": {
+    "/api/v{version}/dashboard/{channelId}/stream-stats": {
       "get": {
         "tags": [
           "Dashboard"
         ],
-        "summary": "Recap of one stream (the latest, live or ended, when streamId is omitted): follows, subs,\r\ngift subs, bits, raids in, redemptions, song requests and chat, counted from recorded data in the stream window.",
+        "summary": "Any metrics of one stream (the latest, live or ended, when streamId is omitted), counted\r\nfrom recorded data in the stream window. metrics is a comma-separated list of metric keys\r\n(all when omitted); an unknown key is a 400 naming it. Each key fills the property of the same name.",
         "parameters": [
           {
             "name": "channelId",
@@ -32737,6 +32737,13 @@
           },
           {
             "name": "streamId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "metrics",
             "in": "query",
             "schema": {
               "type": "string"
@@ -32817,7 +32824,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfStreamRecap"
+                  "$ref": "#/components/schemas/StatusResponseOfStreamStats"
                 }
               }
             }
@@ -150351,302 +150358,6 @@
         },
         "description": "A row in a widget's version history (rollback / debug list)."
       },
-      "StreamRecap": {
-        "required": [
-          "stream",
-          "subs",
-          "giftSubs",
-          "bits",
-          "raidsIn",
-          "redemptions",
-          "songs",
-          "chat"
-        ],
-        "type": "object",
-        "properties": {
-          "stream": {
-            "$ref": "#/components/schemas/StreamRecapStream"
-          },
-          "followers": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "subs": {
-            "$ref": "#/components/schemas/StreamRecapSubs"
-          },
-          "giftSubs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapGifter"
-            }
-          },
-          "bits": {
-            "$ref": "#/components/schemas/StreamRecapBits"
-          },
-          "raidsIn": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapRaid"
-            }
-          },
-          "redemptions": {
-            "$ref": "#/components/schemas/StreamRecapRedemptions"
-          },
-          "songs": {
-            "$ref": "#/components/schemas/StreamRecapSongs"
-          },
-          "chat": {
-            "$ref": "#/components/schemas/StreamRecapChat"
-          }
-        }
-      },
-      "StreamRecapStream": {
-        "required": [
-          "id"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "endedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "durationSeconds": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "peakViewers": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "format": "int32"
-          },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "game": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "StreamRecapSubs": {
-        "type": "object",
-        "properties": {
-          "new": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "resub": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "gift": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "total": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapGifter": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "count": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapBits": {
-        "required": [
-          "top"
-        ],
-        "type": "object",
-        "properties": {
-          "total": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "top": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapCheerer"
-            }
-          }
-        }
-      },
-      "StreamRecapCheerer": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "bits": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapRaid": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "viewers": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapRedemptions": {
-        "required": [
-          "top"
-        ],
-        "type": "object",
-        "properties": {
-          "count": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "top": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapRedemptionTitle"
-            }
-          }
-        }
-      },
-      "StreamRecapRedemptionTitle": {
-        "required": [
-          "title"
-        ],
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "count": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "StreamRecapSongs": {
-        "required": [
-          "recent"
-        ],
-        "type": "object",
-        "properties": {
-          "count": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "recent": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StreamRecapSong"
-            }
-          }
-        }
-      },
-      "StreamRecapSong": {
-        "required": [
-          "track"
-        ],
-        "type": "object",
-        "properties": {
-          "track": {
-            "type": "string"
-          },
-          "artist": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "StreamRecapChat": {
-        "type": "object",
-        "properties": {
-          "messages": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "uniqueChatters": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "StatusResponseOfStreamRecap": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/StreamRecap"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "PublicChannel": {
         "required": [
           "id",
@@ -150715,6 +150426,287 @@
               "integer",
               "string"
             ],
+            "format": "int32"
+          }
+        }
+      },
+      "StatusResponseOfStreamStats": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStats"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StreamStats": {
+        "required": [
+          "stream"
+        ],
+        "type": "object",
+        "properties": {
+          "stream": {
+            "$ref": "#/components/schemas/StreamStatsWindow"
+          },
+          "duration": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int64"
+          },
+          "peakViewers": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "followers": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "subs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsSubs"
+              }
+            ]
+          },
+          "gifters": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsNamedCount"
+            }
+          },
+          "selfSubs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "bits": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          },
+          "raidsIn": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsRaid"
+            }
+          },
+          "redemptions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          },
+          "songRequesters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          },
+          "chat": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsChat"
+              }
+            ]
+          },
+          "topChatters": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsNamedCount"
+            }
+          },
+          "commandsRun": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StreamStatsRanked"
+              }
+            ]
+          }
+        }
+      },
+      "StreamStatsWindow": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "game": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "StreamStatsSubs": {
+        "type": "object",
+        "properties": {
+          "new": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resub": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gift": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StreamStatsNamedCount": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StreamStatsRanked": {
+        "required": [
+          "top"
+        ],
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "top": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamStatsNamedCount"
+            }
+          }
+        }
+      },
+      "StreamStatsRaid": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "viewers": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StreamStatsChat": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uniqueChatters": {
+            "type": "integer",
             "format": "int32"
           }
         }

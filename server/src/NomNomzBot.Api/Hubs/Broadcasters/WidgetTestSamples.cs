@@ -409,7 +409,7 @@ internal static class WidgetTestSamples
     ) => new(kind, name, amountMinor, "USD", tier, quantity, message, recurring);
 
     // A finished stream for the gallery preview: every block has data so the whole fluid layout shows.
-    private static StreamRecapDto RaidRecap(DateTimeOffset now) =>
+    private static StreamStatsDto RaidRecap(DateTimeOffset now) =>
         new()
         {
             Stream = new()
@@ -417,11 +417,11 @@ internal static class WidgetTestSamples
                 Id = "test-stream",
                 StartedAt = now.AddHours(-4),
                 EndedAt = now,
-                DurationSeconds = 4 * 3600,
-                PeakViewers = 36,
                 Title = "Coding and tunes",
                 Game = "Software and Game Development",
             },
+            Duration = 4 * 3600,
+            PeakViewers = 36,
             Followers = 3,
             Subs = new()
             {
@@ -430,25 +430,19 @@ internal static class WidgetTestSamples
                 Gift = 4,
                 Total = 7,
             },
-            GiftSubs = [new() { Name = "TestGifter", Count = 4 }],
-            SelfSubscribers = ["TestSubscriber"],
-            Bits = new() { Total = 200, Top = [new() { Name = "TestCheerer", Bits = 200 }] },
+            Gifters = [new() { Name = "TestGifter", Count = 4 }],
+            SelfSubs = ["TestSubscriber"],
+            Bits = new() { Total = 200, Top = [new() { Name = "TestCheerer", Count = 200 }] },
             RaidsIn = [new() { Name = "TestRaider", Viewers = 42 }],
-            Redemptions = new() { Count = 6, Top = [new() { Title = "Hydrate!", Count = 6 }] },
-            Songs = new()
+            Redemptions = new() { Total = 6, Top = [new() { Name = "Hydrate!", Count = 6 }] },
+            SongRequesters = new()
             {
-                Count = 12,
-                Recent = [],
-                TopRequesters = [new() { Name = "TestChatter", Count = 4 }],
+                Total = 12,
+                Top = [new() { Name = "TestChatter", Count = 4 }],
             },
-            Chat = new()
-            {
-                Messages = 480,
-                UniqueChatters = 31,
-                TopChatters = [new() { Name = "TestChatter", Messages = 120 }],
-            },
-            CommandsRun = 55,
-            TopCommands = [new() { Name = "!hug", Count = 20 }],
+            Chat = new() { Messages = 480, UniqueChatters = 31 },
+            TopChatters = [new() { Name = "TestChatter", Count = 120 }],
+            CommandsRun = new() { Total = 55, Top = [new() { Name = "!hug", Count = 20 }] },
         };
 
     // A decorated chat line: resolved emote images, a native chat GIF (the branch a Tier 2+ viewer's GIF takes,

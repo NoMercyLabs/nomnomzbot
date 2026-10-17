@@ -40,7 +40,10 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// </summary>
 public sealed class DashboardControllerReplayTests
 {
-    private static DashboardController BuildController(IActivityReplayService replay) =>
+    private static DashboardController BuildController(
+        IActivityReplayService replay,
+        IStreamStatsService? streamStats = null
+    ) =>
         new(
             Substitute.For<Domain.Platform.Interfaces.IChannelRegistry>(),
             Substitute.For<Application.Identity.Services.IChannelService>(),
@@ -48,7 +51,7 @@ public sealed class DashboardControllerReplayTests
             Substitute.For<ITwitchChannelsApi>(),
             Substitute.For<ITwitchSubscriptionsApi>(),
             replay,
-            Substitute.For<Application.Dashboard.Services.IStreamRecapService>(),
+            streamStats ?? Substitute.For<IStreamStatsService>(),
             TimeProvider.System,
             Substitute.For<Microsoft.Extensions.Logging.ILogger<DashboardController>>()
         );
@@ -254,6 +257,84 @@ public sealed class DashboardControllerReplayTests
             .Subject;
         body.Status.Should().Be("error");
         body.Message.Should().Be("Nothing to replay.");
+    }
+
+    [Fact]
+    public async Task Stream_stats_splits_the_metrics_query_into_the_requested_keys()
+    {
+        IStreamStatsService stats = Substitute.For<IStreamStatsService>();
+        Guid channel = Guid.CreateVersion7();
+        stats
+            .GetAsync(
+                channel,
+                "s1",
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new StreamStatsDto
+                    {
+                        Stream = new() { Id = "s1" },
+                        Followers = 4,
+                    }
+                )
+            );
+
+        IActionResult result = await BuildController(
+                Substitute.For<IActivityReplayService>(),
+                stats
+            )
+            .GetStreamStats(channel.ToString(), "s1", "followers, bits,", CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should()
+            .BeOfType<StatusResponseDto<StreamStatsDto>>()
+            .Subject.Data!.Followers.Should()
+            .Be(4);
+        await stats
+            .Received(1)
+            .GetAsync(
+                channel,
+                "s1",
+                Arg.Is<IReadOnlyCollection<string>>(k =>
+                    k.SequenceEqual(new[] { "followers", "bits" })
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Stream_stats_answers_400_naming_an_unknown_metric_key()
+    {
+        IStreamStatsService stats = Substitute.For<IStreamStatsService>();
+        Guid channel = Guid.CreateVersion7();
+        stats
+            .GetAsync(
+                channel,
+                null,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<StreamStatsDto>(
+                    "Unknown stream metric 'nope'. Known metrics: bits, chat.",
+                    "VALIDATION_FAILED"
+                )
+            );
+
+        IActionResult result = await BuildController(
+                Substitute.For<IActivityReplayService>(),
+                stats
+            )
+            .GetStreamStats(channel.ToString(), null, "nope", CancellationToken.None);
+
+        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        StatusResponseDto<object> body = bad
+            .Value.Should()
+            .BeOfType<StatusResponseDto<object>>()
+            .Subject;
+        body.Message.Should().Contain("'nope'");
     }
 }
 
