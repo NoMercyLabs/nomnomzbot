@@ -108,6 +108,26 @@ const fields = (): Field[] => [
     group: text('Data'),
     default: {},
   },
+  {
+    key: 'badgeTexts',
+    label: text('Badge texts'),
+    type: 'list',
+    group: text('Data'),
+    default: ['Stoney_Eagle', 'NoMercy TV'],
+  },
+  {
+    key: 'timing',
+    label: text('Timing'),
+    type: 'group',
+    group: text('Data'),
+    default: {
+      open: 10,
+      loop: true,
+      name: 'badge',
+      tags: ['one'],
+      inner: { depth: 2 },
+    },
+  },
 ];
 
 const widget = (
@@ -309,6 +329,19 @@ async function type(key: string, value: string): Promise<void> {
   await settle();
 }
 
+const listRows = (key: string): HTMLInputElement[] => [
+  ...row(key).querySelectorAll<HTMLInputElement>('[data-list-item] input'),
+];
+const listButton = (key: string, name: string, index: number): HTMLButtonElement =>
+  row(key).querySelectorAll<HTMLButtonElement>(`[data-list-${name}]`)[index];
+
+async function typeInto(box: HTMLInputElement, value: string): Promise<void> {
+  box.value = value;
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+  box.dispatchEvent(new Event('change', { bubbles: true }));
+  await settle();
+}
+
 describe('the overlay settings form', () => {
   it('shows the saved keys read-only when the bot has no schema (404), without waiting on retries', async () => {
     schemaless = ['w2'];
@@ -504,5 +537,81 @@ describe('the preview', () => {
 
     expect(preview.textContent).toContain(en.dashboard.overlays.detail.preview.unavailable);
     expect(preview.textContent).toContain('1920 × 1080');
+  });
+
+  it('edits a list field row by row and saves the list as an array of strings', async () => {
+    await open();
+
+    expect(listRows('badgeTexts').map((box) => box.value)).toEqual(['Stoney_Eagle', 'NoMercy TV']);
+
+    await typeInto(listRows('badgeTexts')[0], 'Fillz');
+    listButton('badgeTexts', 'add', 0).click();
+    await settle();
+    await typeInto(listRows('badgeTexts')[2], 'https://nomercy.tv');
+    listButton('badgeTexts', 'down', 0).click();
+    await settle();
+    listButton('badgeTexts', 'remove', 0).click();
+    await settle();
+
+    expect(listRows('badgeTexts').map((box) => box.value)).toEqual([
+      'Fillz',
+      'https://nomercy.tv',
+    ]);
+
+    expect(changed('badgeTexts')).toBe(true);
+
+    saveButton().click();
+    await settle();
+
+    expect(puts().map((call) => call.body)).toEqual([
+      {
+        settings: {
+          size: 30,
+          extra: 'kept',
+          badgeTexts: ['Fillz', 'https://nomercy.tv'],
+        },
+      },
+    ]);
+  });
+
+  it('edits a group field in place and saves the whole nested object', async () => {
+    await open();
+
+    const open10 = row('timing').querySelector('[data-group-key="open"] input') as HTMLInputElement;
+    const loop = row('timing').querySelector('[data-group-key="loop"] [role="switch"]') as HTMLElement;
+    const depth = row('timing').querySelector(
+      '[data-group-key="inner"] [data-group-key="depth"] input',
+    ) as HTMLInputElement;
+
+    expect(open10.value).toBe('10');
+    expect(loop.getAttribute('aria-checked')).toBe('true');
+
+    await typeInto(open10, '12.5');
+    loop.click();
+    await typeInto(depth, '3');
+
+    await typeInto(
+      row('timing').querySelector('[data-list-item] input') as HTMLInputElement,
+      'two',
+    );
+
+    saveButton().click();
+    await settle();
+
+    expect(puts().map((call) => call.body)).toEqual([
+      {
+        settings: {
+          size: 30,
+          extra: 'kept',
+          timing: {
+            open: 12.5,
+            loop: false,
+            name: 'badge',
+            tags: ['two'],
+            inner: { depth: 3 },
+          },
+        },
+      },
+    ]);
   });
 });

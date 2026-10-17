@@ -88,7 +88,15 @@
           "error": "De instellingen konden niet laden.",
           "reset": "Zet {name} terug naar de standaard",
           "save": "Instellingen opslaan",
-          "changed": "Anders dan de standaard"
+          "changed": "Anders dan de standaard",
+          "list": {
+            "empty": "Nog geen items.",
+            "item": "Item {number}",
+            "up": "Verplaats item {number} omhoog",
+            "down": "Verplaats item {number} omlaag",
+            "remove": "Verwijder item {number}",
+            "add": "Item toevoegen"
+          }
         },
         "module": {
           "title": "Module",

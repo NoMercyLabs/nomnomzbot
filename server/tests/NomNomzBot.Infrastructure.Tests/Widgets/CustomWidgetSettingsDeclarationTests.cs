@@ -233,4 +233,44 @@ public sealed class CustomWidgetSettingsDeclarationTests
         field.Label.Should().Be(LocalizedText.Verbatim("size"));
         field.Group.Should().Be(LocalizedText.Verbatim("Look"));
     }
+
+    [Fact]
+    public void Parse_ListAndGroupFields_KeepTheirStructuredDefaults()
+    {
+        Result<IReadOnlyList<WidgetSettingsField>> result = CustomWidgetSettingsDeclaration.Parse(
+            """
+            { "fields": [
+              { "key": "texts", "type": "list", "default": ["Stoney_Eagle", "NoMercy TV"] },
+              { "key": "timing", "type": "group",
+                "default": { "open": 10.5, "loop": true, "name": "x", "tags": ["a"], "inner": { "depth": 2 } } }
+            ] }
+            """
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Select(f => f.Type).Should().Equal("list", "group");
+        ((IEnumerable<string>)result.Value[0].Default!)
+            .Should()
+            .Equal("Stoney_Eagle", "NoMercy TV");
+        Dictionary<string, object?> group = (Dictionary<string, object?>)result.Value[1].Default!;
+        group["open"].Should().Be(10.5d);
+        group["loop"].Should().Be(true);
+        group["name"].Should().Be("x");
+        ((IEnumerable<string>)group["tags"]!).Should().Equal("a");
+        ((Dictionary<string, object?>)group["inner"]!)["depth"].Should().Be(2d);
+    }
+
+    [Theory]
+    [InlineData("""{ "key": "a", "type": "list", "default": "x" }""", "list")]
+    [InlineData("""{ "key": "a", "type": "list", "default": [1] }""", "strings")]
+    [InlineData("""{ "key": "a", "type": "group", "default": [] }""", "object")]
+    public void Parse_BadListOrGroupDefault_FailsAndNamesTheRule(string field, string rule)
+    {
+        Result<IReadOnlyList<WidgetSettingsField>> result = CustomWidgetSettingsDeclaration.Parse(
+            One(field)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("\"a\"").And.Contain(rule);
+    }
 }

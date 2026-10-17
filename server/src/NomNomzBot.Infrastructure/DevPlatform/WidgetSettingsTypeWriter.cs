@@ -57,6 +57,7 @@ internal static partial class WidgetSettingsTypeWriter
             "text" or "color" => "string",
             "select" => OptionUnion(field) ?? "string",
             "multiselect" => OptionUnion(field) is { } union ? $"({union})[]" : "string[]",
+            "list" => "string[]",
             _ => "unknown",
         };
 

@@ -48,3 +48,17 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
 
   return runs;
 }
+
+// A copy of the list with the item at `from` moved to `to`; an index outside the list leaves it as it was.
+export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
+  const moved = [...items];
+
+  if (from < 0 || from >= moved.length || to < 0 || to >= moved.length)
+    return moved;
+
+  const [item] = moved.splice(from, 1);
+
+  moved.splice(to, 0, item);
+
+  return moved;
+}

@@ -88,7 +88,15 @@
           "error": "The settings could not load.",
           "reset": "Reset {name} to default",
           "save": "Save settings",
-          "changed": "Changed from the default"
+          "changed": "Changed from the default",
+          "list": {
+            "empty": "No items yet.",
+            "item": "Item {number}",
+            "up": "Move item {number} up",
+            "down": "Move item {number} down",
+            "remove": "Remove item {number}",
+            "add": "Add item"
+          }
         },
         "module": {
           "title": "Module",

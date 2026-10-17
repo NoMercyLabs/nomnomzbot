@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { JsonValue } from '@/lib/json';
+import type { JsonObject, JsonValue } from '@/lib/json';
 // One settings field: label and "key . type . help" on the left, the control its type asks for,
 // and Reset when the value differs from the default (12-overlays.html:304-313).
 // A type the dashboard does not know shows its value read-only.
@@ -31,7 +31,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 import { humanize } from '@/lib/text';
 
+import SettingGroup from './SettingGroup.vue';
 import { clampNumber } from './settingField';
+import StringListEditor from './StringListEditor.vue';
 
 const props = defineProps<{
   field: WidgetSettingsField;
@@ -77,8 +79,15 @@ const shown = computed<string>(() =>
     ? ''
     : String(props.value),
 );
+const group = computed<JsonObject>(() =>
+  props.value !== null && typeof props.value === 'object' && !Array.isArray(props.value)
+    ? props.value
+    : {},
+);
 const known = computed<boolean>(() =>
-  ['bool', 'number', 'text', 'color', 'select', 'multiselect'].includes(props.field.type),
+  ['bool', 'number', 'text', 'color', 'select', 'multiselect', 'list', 'group'].includes(
+    props.field.type,
+  ),
 );
 
 // The number is held inside min and max on change; the box shows the held value even when it did not move.
@@ -174,6 +183,16 @@ function onNumber(event: Event): void {
         :model-value="picked"
         :aria-labelledby="titleId"
         @update:model-value="emit('update', $event)"
+      />
+      <StringListEditor
+        v-else-if="field.type === 'list'"
+        :items="picked"
+        @update="emit('update', $event)"
+      />
+      <SettingGroup
+        v-else-if="field.type === 'group'"
+        :value="group"
+        @update="emit('update', $event)"
       />
       <Textarea
         v-else

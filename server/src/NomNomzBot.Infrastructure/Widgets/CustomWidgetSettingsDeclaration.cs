@@ -39,6 +39,8 @@ public static partial class CustomWidgetSettingsDeclaration
         "select",
         "multiselect",
         "json",
+        "list",
+        "group",
     ];
 
     [GeneratedRegex("^[A-Za-z][A-Za-z0-9_]*$")]
@@ -215,11 +217,55 @@ public static partial class CustomWidgetSettingsDeclaration
                     : Result.Failure<object?>("default must be the value of one of its options.");
             case "multiselect":
                 return ParseMultiDefault(value, options!);
+            case "list":
+                return ParseListDefault(value);
+            case "group":
+                return value.ValueKind == JsonValueKind.Object
+                    ? Result.Success(ToClr(value))
+                    : Result.Failure<object?>("default must be an object for a group field.");
             default:
                 return present && value.ValueKind == JsonValueKind.String
                     ? Result.Success<object?>(value.GetString())
                     : Result.Failure<object?>($"default must be a string for a {type} field.");
         }
+    }
+
+    private static Result<object?> ParseListDefault(JsonElement value)
+    {
+        const string rule = "default must be an array of strings for a list field.";
+        if (value.ValueKind != JsonValueKind.Array)
+            return Result.Failure<object?>(rule);
+
+        List<string> items = [];
+        foreach (JsonElement item in value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+                return Result.Failure<object?>(rule);
+            items.Add(item.GetString()!);
+        }
+
+        return Result.Success<object?>(items);
+    }
+
+    // A group default is a nested object of plain JSON values; an array of strings stays a List<string>.
+    private static object? ToClr(JsonElement element) =>
+        element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Array => ToClrList(element),
+            JsonValueKind.Object => element
+                .EnumerateObject()
+                .ToDictionary(p => p.Name, p => ToClr(p.Value)),
+            _ => null,
+        };
+
+    private static object ToClrList(JsonElement array)
+    {
+        List<object?> items = array.EnumerateArray().Select(ToClr).ToList();
+        return items.All(i => i is string) ? items.Cast<string>().ToList() : items;
     }
 
     private static Result<object?> ParseMultiDefault(
