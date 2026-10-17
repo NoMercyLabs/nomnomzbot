@@ -1,0 +1,54 @@
+{
+  "dashboard": {
+    "timers": {
+      "title": "Triggers en timers",
+      "crumb": "Bouwen",
+      "new": "Nieuwe timer",
+      "back": "Terug naar de lijst",
+      "list": {
+        "title": "Timers",
+        "search": "Timers zoeken",
+        "empty": "Nog geen timers.",
+        "makeFirst": "Maak de eerste timer",
+        "error": "De timers konden niet laden.",
+        "noMatch": "Geen timer past bij je zoekopdracht.",
+        "off": "Uit",
+        "every": "Elke {minutes} minuut | Elke {minutes} minuten",
+        "once": "Eenmalig",
+        "messages": "{count} bericht | {count} berichten",
+        "pick": "Kies een timer om hem te bewerken.",
+        "pickTitle": "Geen timer open"
+      },
+      "editor": {
+        "enabled": "Aan",
+        "enabledHelp": "Een timer die uit staat blijft in de lijst en plaatst niets.",
+        "name": "Naam",
+        "messages": "Berichten",
+        "messagesHelp": "Een bericht per regel. De timer plaatst ze om de beurt.",
+        "interval": "Minuten tussen berichten",
+        "activity": "Benodigde chatregels",
+        "activityHelp": "De timer wacht tot de chat zoveel nieuwe regels heeft sinds zijn laatste bericht.",
+        "once": "Eenmalig plaatsen",
+        "onceHelp": "De timer plaatst een keer en zet zichzelf dan uit.",
+        "speak": "Voorlezen",
+        "speakHelp": "Elk bericht wordt ook als spraak op je stream afgespeeld.",
+        "unsaved": "{count} niet-opgeslagen wijziging | {count} niet-opgeslagen wijzigingen",
+        "save": "Wijzigingen opslaan",
+        "discard": "Weggooien",
+        "delete": "Verwijderen",
+        "error": "De timer kon niet laden.",
+        "confirmTitle": "{name} verwijderen?",
+        "confirmBody": "De timer wordt definitief verwijderd. Hij stopt met plaatsen.",
+        "confirmAction": "Timer verwijderen"
+      },
+      "dialog": {
+        "title": "Nieuwe timer",
+        "description": "Kies een naam, wat de timer zegt en hoe vaak hij plaatst.",
+        "namePlaceholder": "Volg-herinnering",
+        "nameRequired": "Geef de timer een naam.",
+        "messageRequired": "Schrijf minstens een bericht.",
+        "create": "Timer maken"
+      }
+    }
+  }
+}

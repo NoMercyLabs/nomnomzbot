@@ -31,6 +31,7 @@ import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
 import { scaffoldRoutes } from '@/views/dashboard/scaffold/route';
 import { dashboardStreamRoute } from '@/views/dashboard/stream/route';
 import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
+import { dashboardTimersRoute } from '@/views/dashboard/timers/route';
 import { dashboardTtsRoute } from '@/views/dashboard/tts/route';
 
 // The pages that are built.
@@ -39,6 +40,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardChatRoute,
   dashboardViewerChatRoute,
   dashboardCommandsRoute,
+  dashboardTimersRoute,
   dashboardMusicRoute,
   dashboardChannelPointsRoute,
   dashboardSupportersRoute,
