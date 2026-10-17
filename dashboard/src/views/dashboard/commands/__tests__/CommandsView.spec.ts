@@ -329,13 +329,19 @@ describe('CommandsView list', () => {
 
     expect(bar.querySelector('[data-segmented]')?.textContent).toContain('A to Z');
 
-    expect(bar.querySelector('[data-segmented]')!.compareDocumentPosition(bar.querySelector('[role="tablist"]')!))
-      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      bar
+        .querySelector('[data-segmented]')!
+        .compareDocumentPosition(bar.querySelector('[role="tablist"]')!),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
     expect(bar.querySelector('[data-slot="search-field"]')).toBeNull();
 
-    expect(document.body.querySelector('[data-slot="list-detail-list"] [data-slot="panel-card"] header [data-slot="search-field"]'))
-      .not.toBeNull();
+    expect(
+      document.body.querySelector(
+        '[data-slot="list-detail-list"] [data-slot="panel-card"] header [data-slot="search-field"]',
+      ),
+    ).not.toBeNull();
 
     mounted!.unmount();
     mounted = null;
@@ -352,7 +358,10 @@ describe('CommandsView list', () => {
   it('shows all commands by default: the custom ones and the built-in ones with a single "!"', async () => {
     await open();
 
-    expect(document.body.querySelector('[role="tab"][data-state="active"]')?.textContent).toContain('All');
+    expect(document.body.querySelector('[role="tab"][data-state="active"]')?.textContent).toContain(
+      'All',
+    );
+
     expect(rowNames().sort()).toEqual(['hello', 'pipe', 'socials', 'uptime']);
     const uptime = rowEls().find((row) => row.dataset.commandName === 'uptime')!;
 
@@ -370,7 +379,10 @@ describe('CommandsView list', () => {
     const detail = document.body.querySelector('[data-builtin-detail]')!;
 
     expect(detail.textContent).toContain('!uptime');
-    expect(detail.querySelector('button[role="switch"]')?.getAttribute('aria-checked')).toBe('true');
+
+    expect(detail.querySelector('button[role="switch"]')?.getAttribute('aria-checked')).toBe(
+      'true',
+    );
   });
 
   it('keeps the A to Z order after the page is opened again', async () => {
@@ -519,16 +531,33 @@ describe('CommandsView editor', () => {
     expect(writes('PUT')[0]!.body).toEqual({ speakWithTts: true });
   });
 
-  it('turns on random replies, takes a list of replies and sends them as templateResponses', async () => {
+  it('switches a text command to Random reply in place: the random panel appears and the text seeds the first reply', async () => {
+    await open('/app/commands?command=hello');
+    const panel = (): HTMLElement | null =>
+      document.body.querySelector<HTMLElement>('[data-random-panel]');
+
+    expect(panel()).toBeNull();
+    buttonByText('Random reply').click();
+    await settle();
+
+    expect(panel()).not.toBeNull();
+    expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
+    const first = panel()!.querySelector<HTMLTextAreaElement>('[data-random-reply] textarea')!;
+
+    expect(first.value).toBe('Hello there');
+  });
+
+  it('edits the random replies directly in the panel and sends them as templateResponses on Save', async () => {
     await open('/app/commands?command=hello');
 
-    switchOf('Pick a random reply').click();
+    buttonByText('Random reply').click();
     await settle();
     const inputs = (): HTMLTextAreaElement[] => [
-      ...editor()!.querySelectorAll<HTMLTextAreaElement>('[data-random-reply] textarea'),
+      ...document.body.querySelectorAll<HTMLTextAreaElement>(
+        '[data-random-panel] [data-random-reply] textarea',
+      ),
     ];
 
-    expect(inputs()).toHaveLength(1);
     await type(inputs()[0]!, 'One');
     buttonByText('Add a reply').click();
     await settle();
@@ -538,6 +567,53 @@ describe('CommandsView editor', () => {
     await settle();
 
     expect(writes('PUT')[0]!.body).toEqual({ templateResponses: ['One', 'Two'] });
+  });
+
+  it('switching back to Text keeps the first reply as the text and clears the list', async () => {
+    rows[2] = command('dice', { templateResponse: null, templateResponses: ['One', 'Two'] });
+    await open('/app/commands?command=dice');
+
+    buttonByText('Text').click();
+    await settle();
+
+    expect(document.body.querySelector('[data-random-panel]')).toBeNull();
+    expect(reply().value).toBe('One');
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ templateResponse: 'One', templateResponses: [] });
+  });
+
+  it('chooses an existing reply set from another command and sends a copy of it', async () => {
+    rows[2] = command('dice', { templateResponse: null, templateResponses: ['Red', 'Blue'] });
+    await open('/app/commands?command=hello');
+
+    buttonByText('Random reply').click();
+    await settle();
+    buttonByText('Use the replies of !dice').click();
+    await settle();
+    const inputs = [
+      ...document.body.querySelectorAll<HTMLTextAreaElement>(
+        '[data-random-panel] [data-random-reply] textarea',
+      ),
+    ];
+
+    expect(inputs.map((input) => input.value)).toEqual(['Red', 'Blue']);
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ templateResponses: ['Red', 'Blue'] });
+  });
+
+  it('hides the random panel on a pipeline', async () => {
+    rows[2] = command('dice', { templateResponse: null, templateResponses: ['One'] });
+    await open('/app/commands?command=dice');
+
+    expect(document.body.querySelector('[data-random-panel]')).not.toBeNull();
+    buttonByText('Full pipeline').click();
+    await settle();
+
+    expect(document.body.querySelector('[data-random-panel]')).toBeNull();
   });
 
   it('removes a command only after the confirm, with a DELETE for that name', async () => {
@@ -838,24 +914,26 @@ describe('CommandsView trigger options', () => {
     Element.prototype.releasePointerCapture = (): void => undefined;
     Element.prototype.scrollIntoView = (): void => undefined;
 
-    dialog
-      .querySelector<HTMLElement>('[role="combobox"]')!
-      .dispatchEvent(new PointerEvent('pointerdown', {
+    dialog.querySelector<HTMLElement>('[role="combobox"]')!.dispatchEvent(
+      new PointerEvent('pointerdown', {
         bubbles: true,
         button: 0,
         pointerType: 'mouse',
-      }));
+      }),
+    );
 
     await settle();
-    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
-      (el) => el.textContent?.includes('random reply'),
+    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find((el) =>
+      el.textContent?.includes('random reply'),
     )!;
 
-    option.dispatchEvent(new PointerEvent('pointerup', {
-      bubbles: true,
-      button: 0,
-      pointerType: 'mouse',
-    }));
+    option.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
 
     option.click();
     await settle();
