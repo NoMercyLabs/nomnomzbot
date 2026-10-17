@@ -194,8 +194,12 @@
   height: 14px;
 }
 
-/* Concentric radius: a list option sits 4px (the group's p-1) inside a --radius-md list. */
-[data-slot='select-item'] {
+/* Concentric radius: a list option sits 4px (the list's p-1) inside a --radius-md list. */
+[data-slot='select-item'],
+[data-slot='dropdown-menu-item'],
+[data-slot='dropdown-menu-checkbox-item'],
+[data-slot='dropdown-menu-radio-item'],
+[data-slot='dropdown-menu-sub-trigger'] {
   border-radius: calc(var(--radius-md) - 4px);
 }
 
