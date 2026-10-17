@@ -9,6 +9,10 @@
       },
       "back": "Terug naar instellingen",
       "nav": {
+        "channel": "Jouw kanaal",
+        "basics": "Basis",
+        "personality": "Persoonlijkheid",
+        "engagement": "Begroetingen en reeksen",
         "you": "Jij",
         "readability": "Leesbaarheid"
       },

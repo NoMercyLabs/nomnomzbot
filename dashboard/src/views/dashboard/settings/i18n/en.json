@@ -9,6 +9,10 @@
       },
       "back": "Back to settings",
       "nav": {
+        "channel": "Your channel",
+        "basics": "Basics",
+        "personality": "Personality",
+        "engagement": "Greetings and streaks",
         "you": "You",
         "readability": "Readability"
       },
