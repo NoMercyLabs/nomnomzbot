@@ -12,7 +12,8 @@
 // separate rights; without the write right the box shows but is locked, so a note that cannot save is never typed.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import MenuDots from '~icons/nnz/menu-dots-horizontal';
+import Edit from '~icons/nnz/edit';
+import Trash2 from '~icons/nnz/trash';
 
 import { useChannelAccess } from '@/api/access';
 import { useAddNote, useDeleteNote, useUserNotes, type UserNote } from '@/api/people';
@@ -21,12 +22,6 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -88,7 +83,7 @@ function add(): void {
   pinned.value = false;
 }
 
-// The note a menu acted on; Edit and Delete each open their own dialog for it.
+// The note a button acted on; Edit and Delete each open their own dialog for it.
 const chosen = ref<UserNote | null>(null);
 const editOpen = ref(false);
 const deleteOpen = ref(false);
@@ -136,33 +131,35 @@ function confirmDelete(): void {
             {{ byline(note) }}
           </span>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button
-              data-profile-note-menu
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              :disabled="!canWrite || Number(note.id) < 0"
-              :title="canWrite ? undefined : $t('profile.notes.noWrite')"
-              :aria-label="$t('profile.notes.menu')"
-            >
-              <MenuDots class="size-4" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem data-profile-note-edit @select="editNote(note)">
-              {{ $t('profile.notes.edit') }}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-profile-note-delete
-              variant="destructive"
-              @select="askDelete(note)"
-            >
-              {{ $t('profile.notes.delete') }}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <span
+          class="flex shrink-0 items-center"
+          :title="canWrite ? undefined : $t('profile.notes.noWrite')"
+        >
+          <Button
+            data-profile-note-edit
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            :disabled="!canWrite || Number(note.id) < 0"
+            :aria-label="$t('profile.notes.edit')"
+            :title="$t('profile.notes.edit')"
+            @click="editNote(note)"
+          >
+            <Edit aria-hidden="true" />
+          </Button>
+          <Button
+            data-profile-note-delete
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            :disabled="!canWrite || Number(note.id) < 0"
+            :aria-label="$t('profile.notes.delete')"
+            :title="$t('profile.notes.delete')"
+            @click="askDelete(note)"
+          >
+            <Trash2 aria-hidden="true" />
+          </Button>
+        </span>
       </li>
     </ul>
     <ProfileNoteEdit v-model:open="editOpen" :user-id="userId" :note="chosen" />

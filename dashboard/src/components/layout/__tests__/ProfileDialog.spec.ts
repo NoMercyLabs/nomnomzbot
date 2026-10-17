@@ -1327,13 +1327,11 @@ describe('the profile dialog', () => {
     expect(((await vipItem()) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('edits a note and its pin from the note menu, keeping the rest of the note', async () => {
+  it('edits a note and its pin from its Edit button, keeping the rest of the note', async () => {
     await openPage();
     await openUser('u1');
     await openTab('Moderation');
 
-    openMenu(button('[data-profile-note-menu]'));
-    await settle();
     button('[data-profile-note-edit]').click();
     await settle();
 
@@ -1364,8 +1362,6 @@ describe('the profile dialog', () => {
     await openUser('u1');
     await openTab('Moderation');
 
-    openMenu(button('[data-profile-note-menu]'));
-    await settle();
     button('[data-profile-note-delete]').click();
     await settle();
 
