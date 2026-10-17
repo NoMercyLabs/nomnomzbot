@@ -44,6 +44,7 @@ vi.mock('@/composables/useCurrentChannel', () => ({
     current,
     channelId: ref(null),
     isPending: ref(false),
+    isLoaded: ref(true),
     choose: vi.fn<() => Promise<void>>(),
   }),
 }));
@@ -57,9 +58,17 @@ const stub = (slot: string) => defineComponent({ render: () => h('div', { 'data-
 function mountLayout(width: number): VueWrapper {
   setWidth(width);
 
+  const framed: Router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/app/u/:channelName/:rest*', component: stub('page') },
+      { path: '/app/:rest(.*)*', component: stub('page') },
+    ],
+  });
+
   return mount(DashboardLayout, {
     global: {
-      plugins: [i18n],
+      plugins: [i18n, framed],
       stubs: {
         DashboardSidebar: stub('sidebar'),
         NavRail: stub('rail'),
@@ -149,6 +158,30 @@ describe('the dashboard frame by window width', () => {
     expect(shown).toContain('switch');
     expect(shown).not.toContain('sidebar');
     expect(shown).not.toContain('rail');
+  });
+});
+
+describe('a link to a channel the person cannot manage', () => {
+  it('shows the no-access state instead of the page', async () => {
+    const wrapper = mountLayout(1000);
+
+    await wrapper.vm.$router.push('/app/u/stranger/stream');
+    await flushPromises();
+
+    const state = wrapper.find('[data-slot="channel-no-access"]');
+
+    expect(state.exists()).toBe(true);
+    expect(state.text()).toContain('stranger');
+    expect(frames(wrapper)).not.toContain('view');
+  });
+
+  it('shows the page on the short route', async () => {
+    const wrapper = mountLayout(1000);
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-slot="channel-no-access"]').exists()).toBe(false);
+    expect(frames(wrapper)).toContain('view');
   });
 });
 

@@ -767,6 +767,10 @@
       "none": "No channel",
       "find": "Find a channel",
       "noMatch": "No channel found.",
+      "noAccess": {
+        "title": "No access to {name}",
+        "description": "You do not manage this channel. Pick one of your channels in the switcher, or ask the streamer to make you a moderator."
+      },
       "yours": "Your channel",
       "recent": "Recent channels",
       "every": "Every channel",

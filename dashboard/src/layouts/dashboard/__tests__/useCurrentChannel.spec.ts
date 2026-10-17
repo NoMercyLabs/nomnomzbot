@@ -17,6 +17,7 @@ const mutateAsync = vi.fn<(twitchId: string) => Promise<{ id: string } | null>>(
 
 vi.mock('@/api/channels', () => ({
   useMyChannels: () => ({
+    isPending: ref(false),
     data: ref([
       {
         id: 'own-id',
@@ -37,6 +38,7 @@ vi.mock('@/api/channels', () => ({
     ]),
   }),
   useModeratedChannels: () => ({
+    isPending: ref(false),
     data: ref([
       {
         id: 'tw-1',
