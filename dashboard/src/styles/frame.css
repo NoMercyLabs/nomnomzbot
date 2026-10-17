@@ -314,3 +314,10 @@ body:has([data-slot='side-panel'][data-see-through]) [data-slot='sheet-overlay']
   background: transparent;
   backdrop-filter: none;
 }
+
+/* A box that scrolls up and down never scrolls sideways (owner 2026-10-17: "why is there horizontal scroll on
+   the step pannel?"). A switch or info button widens its tap target past its edge, and at the box's edge that
+   alone made a 7px sideways scrollbar. A box that should scroll sideways says overflow-x-auto. */
+.overflow-y-auto:not(.overflow-x-auto, .overflow-auto) {
+  overflow-x: hidden;
+}
