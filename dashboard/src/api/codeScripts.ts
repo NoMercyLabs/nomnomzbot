@@ -32,10 +32,10 @@ import type { KeyParts } from '@/lib/array';
 
 import { problemError } from './errors';
 
-export type CodeScriptSummary = components['schemas']['CodeScriptSummaryDto'];
-export type CodeScriptDetail = components['schemas']['CodeScriptDetailDto'];
-export type ScriptProject = components['schemas']['ProjectDto'];
-export type BlastRadius = components['schemas']['BlastRadiusDto'];
+export type CodeScriptSummary = components['schemas']['CodeScriptSummary'];
+export type CodeScriptDetail = components['schemas']['CodeScriptDetail'];
+export type ScriptProject = components['schemas']['Project'];
+export type BlastRadius = components['schemas']['BlastRadius'];
 export type ScriptTestRequest = components['schemas']['ScriptTestRunRequest'];
 export type NewCodeScript = components['schemas']['CreateCodeScriptRequest'];
 
@@ -203,7 +203,7 @@ function retryWindow(response: Response): number | null {
 }
 
 // The dry-run result in the shape the editor and the runs panel read.
-export function toTestRunResult(dto: components['schemas']['TestRunResultDto']): TestRunResult {
+export function toTestRunResult(dto: components['schemas']['TestRunResult']): TestRunResult {
   const position = dto.errorPosition;
   const message = dto.error ?? '';
 
@@ -214,12 +214,12 @@ export function toTestRunResult(dto: components['schemas']['TestRunResultDto']):
     error: dto.error ?? null,
     chatOutput: dto.chatOutput ?? null,
     variablesSet: dto.variablesSet ?? null,
-    timeline: (dto.timeline ?? []).map((entry: components['schemas']['TimelineEntryDto']) => ({
+    timeline: (dto.timeline ?? []).map((entry: components['schemas']['TimelineEntry']) => ({
       ...entry,
       seq: Number(entry.seq),
     })),
     console: dto.console ?? null,
-    effects: dto.capturedEffects.map((effect: components['schemas']['CapturedEffectDto']) => ({
+    effects: dto.capturedEffects.map((effect: components['schemas']['CapturedEffect']) => ({
       name: effect.name,
       argsPreview: effect.argsPreview,
     })),
@@ -283,7 +283,7 @@ export async function fetchTestTriggers(): Promise<TestTrigger[]> {
   if (error !== undefined)
     throw refusal('test triggers', error, response.status);
 
-  return (data?.data ?? []).map((sample: components['schemas']['TestTriggerDto']): TestTrigger => ({
+  return (data?.data ?? []).map((sample: components['schemas']['TestTrigger']): TestTrigger => ({
     id: sample.id,
     label: sample.userDisplayName
       ? `${sample.responseKey} (${sample.userDisplayName})`
@@ -306,7 +306,7 @@ export async function fetchScriptVersions(
     throw refusal('script versions', error, response.status);
 
   return {
-    versions: (data?.data ?? []).map((entry: components['schemas']['CodeScriptVersionDto']) => ({
+    versions: (data?.data ?? []).map((entry: components['schemas']['CodeScriptVersion']) => ({
       id: entry.id,
       version: Number(entry.version),
       validationStatus: entry.validationStatus,

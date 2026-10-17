@@ -26,14 +26,14 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type PipelineListItem = components['schemas']['PipelineListItemDto'];
-export type PipelineBlastRadius = components['schemas']['PipelineBlastRadiusDto'];
+export type PipelineListItem = components['schemas']['PipelineListItem'];
+export type PipelineBlastRadius = components['schemas']['PipelineBlastRadius'];
 // cspell:disable-next-line -- the server names this DTO.
-export type PipelineCatalog = components['schemas']['PipelineCatalogueDto'];
-export type PipelineActionDescriptor = components['schemas']['PipelineActionDescriptorDto'];
-export type PipelineActionField = components['schemas']['PipelineActionFieldDto'];
-export type PipelineTestRun = components['schemas']['TestRunResultDto'];
-export type PipelineTraceStep = components['schemas']['PipelineTraceStepDto'];
+export type PipelineCatalog = components['schemas']['PipelineCatalogue'];
+export type PipelineActionDescriptor = components['schemas']['PipelineActionDescriptor'];
+export type PipelineActionField = components['schemas']['PipelineActionField'];
+export type PipelineTestRun = components['schemas']['TestRunResult'];
+export type PipelineTraceStep = components['schemas']['PipelineTraceStep'];
 
 // The graph is a JsonElement on the wire, so its shape is typed here from the server's
 // PipelineStepDefinition (Abstractions/Pipeline). A step with a null id is new; the save gives it one.
@@ -74,7 +74,7 @@ export type PipelineStep = {
 
 export type PipelineGraph = { steps: PipelineStep[] };
 
-export type Pipeline = Omit<components['schemas']['PipelineDto'], 'graph' | 'triggerCount'> & {
+export type Pipeline = Omit<components['schemas']['Pipeline'], 'graph' | 'triggerCount'> & {
   triggerCount: number;
   graph: PipelineGraph;
 };
@@ -143,13 +143,13 @@ function parseStep(step: WireStep): PipelineStep {
   };
 }
 
-function parseGraph(graph: components['schemas']['PipelineDto']['graph']): PipelineGraph {
+function parseGraph(graph: components['schemas']['Pipeline']['graph']): PipelineGraph {
   const steps = (graph as { steps?: WireStep[] } | null)?.steps ?? [];
 
   return { steps: steps.map(parseStep) };
 }
 
-function parsePipeline(dto: components['schemas']['PipelineDto']): Pipeline {
+function parsePipeline(dto: components['schemas']['Pipeline']): Pipeline {
   return {
     ...dto,
     triggerCount: Number(dto.triggerCount),

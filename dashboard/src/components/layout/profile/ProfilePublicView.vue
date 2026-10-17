@@ -54,14 +54,14 @@ function badgeText(set: string): string {
     : set;
 }
 
-function dateOrNull(iso: string | null): string | null {
-  return iso === null
+function dateOrNull(iso?: string | null): string | null {
+  return iso == null
     ? null
     : shortDate(iso, locale.value);
 }
 
-function tierText(code: string | null): string | null {
-  const tier = tierNumber(code);
+function tierText(code?: string | null): string | null {
+  const tier = tierNumber(code ?? null);
 
   return tier === null
     ? null

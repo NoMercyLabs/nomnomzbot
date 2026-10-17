@@ -127,6 +127,14 @@ New read endpoint, additive: `GET /api/v1/dashboard/{channelId}/stream-recap?str
 
 DTO fields: `stream` (id, start, end, durationSeconds, peakViewers, title, game), `followers`, `subs` (`new`, `resub`, `gift`, `total`), `giftSubs` (list of gifter display name and count, anonymous merged as "Anonymous"), `bits` (total, top list), `raidsIn` (list), `redemptions` (count, top titles), `songs` (count, list), `chat` (messages, uniqueChatters, topChatters), `commandsRun`. Each list is capped (default 5).
 
+Stoney, verbatim (2026-10-17): "all those hand made endpoints... can we not get something simpler like one endpoint that you can ask for any metric of today's stream?"
+
+Decision: this replaces the single-purpose recap endpoint. One endpoint `GET /api/v1/dashboard/{channelId}/stream-stats?streamId=&metrics=a,b,c` (default: latest stream, all metrics). Each metric is one class implementing `IStreamMetric` (key, typed result, compute over the stream window), registered in DI. A new metric is a new class, never a new endpoint. The response maps each requested key to its typed result; OpenAPI describes every metric shape, so no client sees `unknown`. An unknown key is a 400 naming the key. The recap widget and the `show_raid_recap` action request the metric list from the widget settings.
+
+Stoney, verbatim: "if we can fold this into the api and sdk as a single call with all the options that would be way cleaner than adding more and more endpoints and extra sdk calls"
+
+- SDK: one call, `nnz.data.streamStats({ stream?, metrics })` for widgets and the same shape as `nnz.api.stats.stream(...)` for scripts, both generated in `SdkRuntimeSurface.cs`. The return type is `Pick<NnzStreamMetricMap, K>` over the requested keys, so a wrong key is a type error. A new metric extends the map; it never adds an SDK method.
+
 Contract rule: land the Kotlin DTO and `server/openapi/v1.json` change in the same commit as the endpoint (CLAUDE.md, KMP contract).
 
 ## 6. Widget

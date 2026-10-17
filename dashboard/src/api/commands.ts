@@ -24,9 +24,9 @@ import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
 export type CommandListItem = components['schemas']['CommandListItem'];
-export type CommandChange = components['schemas']['UpdateCommandDto'];
-export type NewCommand = components['schemas']['CreateCommandDto'];
-export type BuiltinCommand = components['schemas']['BuiltinCommandDto'];
+export type CommandChange = components['schemas']['UpdateCommand'];
+export type NewCommand = components['schemas']['CreateCommand'];
+export type BuiltinCommand = components['schemas']['BuiltinCommand'];
 
 const version = '1';
 const pageSize = 100;

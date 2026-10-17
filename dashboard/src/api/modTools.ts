@@ -18,8 +18,8 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type ChatSettings = components['schemas']['ChatSettingsDto'];
-export type RaidAssessment = components['schemas']['RaidAssessmentDto'];
+export type ChatSettings = components['schemas']['ChatSettings'];
+export type RaidAssessment = components['schemas']['RaidAssessment'];
 
 const version = '1';
 const settingsPath = '/api/v{version}/channels/{channelId}/chat/settings';

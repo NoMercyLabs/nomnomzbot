@@ -21,8 +21,8 @@ import type { ApiError } from './errors';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type ChatIdentity = components['schemas']['ChatIdentityDto'];
-export type ScopeRegrant = components['schemas']['ScopeRegrantStartDto'];
+export type ChatIdentity = components['schemas']['ChatIdentity'];
+export type ScopeRegrant = components['schemas']['ScopeRegrantStart'];
 
 const version = '1';
 

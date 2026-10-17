@@ -24,9 +24,9 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type PipelineRun = components['schemas']['PipelineExecutionSummaryDto'];
-export type PipelineRunDetail = components['schemas']['PipelineExecutionDetailDto'];
-export type PipelineRunStep = components['schemas']['PipelineExecutionStepLogDto'];
+export type PipelineRun = components['schemas']['PipelineExecutionSummary'];
+export type PipelineRunDetail = components['schemas']['PipelineExecutionDetail'];
+export type PipelineRunStep = components['schemas']['PipelineExecutionStepLog'];
 
 export type PipelineRunPage = {
   runs: PipelineRun[];

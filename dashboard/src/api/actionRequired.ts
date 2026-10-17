@@ -22,7 +22,7 @@ import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type ActionRequiredItem = components['schemas']['ActionRequiredItemDto'];
+export type ActionRequiredItem = components['schemas']['ActionRequiredItem'];
 
 export const actionRequiredKey = (channelId: string | null): KeyParts => [
   'channels',

@@ -16,7 +16,7 @@ import { problemError } from './errors';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type CurrencyConfig = components['schemas']['CurrencyConfigDto'];
+export type CurrencyConfig = components['schemas']['CurrencyConfig'];
 
 export const currencyConfigKey = (channelId: string | null): KeyParts => [
   'channels',

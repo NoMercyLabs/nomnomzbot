@@ -23,11 +23,11 @@ import { problemError } from './errors';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type AdminTenant = components['schemas']['AdminTenantDto'];
-export type AdminTenantDetail = components['schemas']['AdminTenantDetailDto'];
-export type AdminTenantsPage = components['schemas']['PaginatedResponseOfAdminTenantDto'];
-export type AdminAccessGrant = components['schemas']['TenantAccessGrantDto'];
-export type AdminImpersonationToken = components['schemas']['ImpersonationTokenDto'];
+export type AdminTenant = components['schemas']['AdminTenant'];
+export type AdminTenantDetail = components['schemas']['AdminTenantDetail'];
+export type AdminTenantsPage = components['schemas']['PaginatedResponseOfAdminTenant'];
+export type AdminAccessGrant = components['schemas']['TenantAccessGrant'];
+export type AdminImpersonationToken = components['schemas']['ImpersonationToken'];
 
 export type AdminTenantsParams = {
   search?: string;

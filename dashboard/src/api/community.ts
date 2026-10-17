@@ -25,10 +25,10 @@ import type { ChatEmoteEntry } from './chat';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
-export type CommunityMember = components['schemas']['UserDetailDto'];
-export type CommunityRow = components['schemas']['CommunityUserDto'];
-export type ViewerOption = components['schemas']['ViewerOptionDto'];
-export type TwitchViewer = components['schemas']['PlatformViewerDto'];
+export type CommunityMember = components['schemas']['UserDetail'];
+export type CommunityRow = components['schemas']['CommunityUser'];
+export type ViewerOption = components['schemas']['ViewerOption'];
+export type TwitchViewer = components['schemas']['PlatformViewer'];
 
 const version = '1';
 

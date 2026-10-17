@@ -18,7 +18,7 @@ import { client } from './client';
 import { failed } from './errors';
 import type { components } from './schema';
 
-export type SupporterEvent = components['schemas']['SupporterEventDto'];
+export type SupporterEvent = components['schemas']['SupporterEvent'];
 
 const version = '1';
 const pageSize = 50;
