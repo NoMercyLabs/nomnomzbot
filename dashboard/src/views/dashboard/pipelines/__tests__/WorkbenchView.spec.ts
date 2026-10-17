@@ -941,23 +941,17 @@ const mark = (id: string, part: string): string | undefined =>
 const stateOf = (id: string): string | undefined =>
   card(id).querySelector<HTMLElement>(':scope > button [data-run-state]')?.dataset.state;
 
-describe('the More menu', () => {
-  async function openMore(): Promise<void> {
-    const trigger = document.body.querySelector<HTMLButtonElement>('[data-workbench-more]')!;
-
-    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await flushPromises();
-  }
+describe('the pipeline actions in the bar', () => {
+  const powerSwitch = (): HTMLButtonElement =>
+    document.body.querySelector<HTMLButtonElement>('[data-workbench-power] [role="switch"]')!;
 
   it('turns the pipeline off without sending the steps', async () => {
     await open();
-    await openMore();
 
-    const power = document.body.querySelector<HTMLElement>('[data-workbench-power]')!;
+    expect(document.body.querySelector('[data-workbench-power]')!.textContent).toContain('Enabled');
+    expect(powerSwitch().getAttribute('aria-checked')).toBe('true');
 
-    expect(power.textContent?.trim()).toBe('Turn off');
-
-    power.click();
+    powerSwitch().click();
     await flushPromises();
 
     expect(save.mutate).toHaveBeenCalledTimes(1);
@@ -968,7 +962,6 @@ describe('the More menu', () => {
     await open();
     await press('[data-step-id="pause"] button');
     await press('[data-step-remove]');
-    await openMore();
     await press('[data-workbench-delete]');
 
     const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"]')!;
@@ -983,11 +976,12 @@ describe('the More menu', () => {
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines');
   });
 
-  it('cannot be opened by a role that cannot change pipelines', async () => {
+  it('cannot be used by a role that cannot change pipelines', async () => {
     held.value = [];
     await open();
 
-    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-more]')!.disabled).toBe(true);
+    expect(powerSwitch().disabled).toBe(true);
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-delete]')!.disabled).toBe(true);
   });
 });
 

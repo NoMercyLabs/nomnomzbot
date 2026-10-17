@@ -223,10 +223,9 @@
           "description": "Je wijzigingen aan deze pipeline zijn nog niet opgeslagen. Ze gaan verloren als je weggaat.",
           "action": "Weggaan zonder opslaan"
         },
-        "more": "Meer acties",
         "power": {
-          "off": "Uitzetten",
-          "on": "Aanzetten",
+          "label": "Ingeschakeld",
+          "help": "Uit: niets start deze pipeline tot je hem aanzet.",
           "turnedOff": "{name} staat uit. Niets start hem tot je hem aanzet.",
           "turnedOn": "{name} staat aan."
         },

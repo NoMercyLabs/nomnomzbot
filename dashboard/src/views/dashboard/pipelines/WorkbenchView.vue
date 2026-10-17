@@ -48,7 +48,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { useShortcut } from '@/composables/useShortcut';
 
 import { newAction, newBlock, type AddableBlock } from './components/newSteps';
-import PipelineMenu from './components/PipelineMenu.vue';
+import PipelineItemActions from './components/PipelineItemActions.vue';
 import RunsPanel from './components/RunsPanel.vue';
 import StepCard from './components/StepCard.vue';
 import StepInspector from './components/StepInspector.vue';
@@ -356,7 +356,6 @@ const leaveOpen = computed<boolean>({
         type="button"
         variant="ghost"
         size="sm"
-        class="md:hidden"
         @click="router.push({ name: 'dashboard-pipelines' })"
       >
         <ArrowLeft aria-hidden="true" />
@@ -366,6 +365,14 @@ const leaveOpen = computed<boolean>({
     <!-- The editing controls act on the steps, so they sit in the bar beside the tabs, not in the title row. -->
     <template #bar>
       <PageTabs :tabs="views" />
+      <PipelineItemActions
+        v-if="pipeline.data.value"
+        :channel-id="channelId"
+        :pipeline="pipeline.data.value"
+        :can-write="canWrite"
+        :sources="sources"
+        @deleted="leaveDeleted"
+      />
       <span
         data-workbench-controls
         class="ml-auto flex shrink-0 items-center gap-1"
@@ -415,14 +422,6 @@ const leaveOpen = computed<boolean>({
         >
           {{ $t('dashboard.pipelines.workbench.save') }}
         </Button>
-        <PipelineMenu
-          v-if="pipeline.data.value"
-          :channel-id="channelId"
-          :pipeline="pipeline.data.value"
-          :can-write="canWrite"
-          :sources="sources"
-          @deleted="leaveDeleted"
-        />
       </span>
     </template>
   </PageHeader>

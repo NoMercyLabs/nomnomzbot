@@ -8,23 +8,18 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The rarer actions of the Workbench (mockup 5-workbench): turn the pipeline off or on, or delete it.
-// The delete confirm names everything that starts the pipeline, because all of it stops running it.
-import MenuDots from '~icons/nnz/menu-dots-horizontal';
+// The pipeline's own actions, in view: the Enabled switch saves at once, like every editor's, and Delete
+// asks first. The delete confirm names everything that starts the pipeline, because all of it stops running it.
+import Trash2 from '~icons/nnz/trash';
 import { toast } from 'vue-sonner';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useDeletePipeline, useSavePipeline, type Pipeline } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
 import { errorText } from '@/lib/errors';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 import type { StartSource } from './stepWords';
 
@@ -43,13 +38,13 @@ const page = 'dashboard.pipelines.workbench';
 const saving = useSavePipeline(() => props.channelId);
 const removing = useDeletePipeline(() => props.channelId);
 
-function togglePower(): void {
-  const { id, name, isEnabled } = props.pipeline;
+function setPower(isEnabled: boolean): void {
+  const { id, name } = props.pipeline;
   const done = isEnabled
-    ? 'turnedOff'
-    : 'turnedOn';
+    ? 'turnedOn'
+    : 'turnedOff';
 
-  saving.mutate({ id, isEnabled: !isEnabled }, {
+  saving.mutate({ id, isEnabled }, {
     onSuccess: () => {
       toast.success(t(`${page}.power.${done}`, { name }));
     },
@@ -79,29 +74,27 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <DropdownMenu>
-    <DropdownMenuTrigger as-child>
-      <Button
-        data-workbench-more
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        :disabled="!canWrite"
-        :aria-label="$t(`${page}.more`)"
-        :title="$t(`${page}.more`)"
-      >
-        <MenuDots aria-hidden="true" />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuItem data-workbench-power @select="togglePower">
-        {{ $t(`${page}.power.${pipeline.isEnabled ? 'off' : 'on'}`) }}
-      </DropdownMenuItem>
-      <DropdownMenuItem data-workbench-delete variant="destructive" @select="deleting = true">
-        {{ $t(`${page}.delete.item`) }}
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
+  <span class="flex shrink-0 items-center gap-3">
+    <LabeledSwitch
+      data-workbench-power
+      :label="$t(`${page}.power.label`)"
+      :help="$t(`${page}.power.help`)"
+      :disabled="!canWrite"
+      :model-value="pipeline.isEnabled"
+      @update:model-value="setPower"
+    />
+    <Button
+      data-workbench-delete
+      type="button"
+      variant="outline"
+      size="sm"
+      :disabled="!canWrite"
+      @click="deleting = true"
+    >
+      <Trash2 aria-hidden="true" />
+      {{ $t(`${page}.delete.item`) }}
+    </Button>
+  </span>
   <ConfirmDialog
     v-model:open="deleting"
     :title="$t(`${page}.delete.title`, { name: pipeline.name })"

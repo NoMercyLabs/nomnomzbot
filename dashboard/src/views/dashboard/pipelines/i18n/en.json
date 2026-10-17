@@ -223,10 +223,9 @@
           "description": "Your changes to this pipeline are not saved yet. They are lost when you leave.",
           "action": "Leave without saving"
         },
-        "more": "More actions",
         "power": {
-          "off": "Turn off",
-          "on": "Turn on",
+          "label": "Enabled",
+          "help": "Off: nothing starts this pipeline until you turn it on.",
           "turnedOff": "{name} is off. Nothing starts it until you turn it on.",
           "turnedOn": "{name} is on."
         },
