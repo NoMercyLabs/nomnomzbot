@@ -120,7 +120,7 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         // Exactly ONE request is ever at the provider. That is what keeps the fair queue authoritative:
         // everything behind the current track is still ours, so a viewer's first request can still be
         // re-ranked ahead of someone's third. Hand the next one over only once the provider is free.
-        if (_queueStore.GetInFlight(broadcasterId) is null && !queue.IsEmpty)
+        if (_queueStore.GetInFlight(broadcasterId) is null)
             await _handover.HandOverNextAsync(broadcasterId, cancellationToken);
 
         if (dropped == 0)

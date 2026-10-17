@@ -2550,7 +2550,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         SongRequestEntry? next = queue.Peek();
         if (next is null)
+        {
+            await ResumeSpotifyAfterYouTubeAsync(tenantId, broadcasterId, cancellationToken);
             return;
+        }
 
         IMusicProvider? provider = await GetProviderForTrackAsync(
             tenantId,
@@ -2623,6 +2626,53 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             }
         }
         return true;
+    }
+
+    /// <summary>
+    /// Spotify was paused for a YouTube request. When the queue runs dry and that request is over, Spotify
+    /// plays on by itself. An already playing Spotify is left alone, and the engine is recorded so the
+    /// resume happens once.
+    /// </summary>
+    private async Task ResumeSpotifyAfterYouTubeAsync(
+        Guid tenantId,
+        string broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (_queueStore.GetLastEngine(broadcasterId) != "youtube")
+            return;
+        if (_queueStore.GetPlayingRequest(broadcasterId) is not null)
+            return;
+
+        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
+        IMusicProvider? spotify = (
+            await GetAllowedProvidersAsync(tenantId, config, cancellationToken)
+        ).FirstOrDefault(p =>
+            p.Provider == "spotify" && HasCapability(p, MusicProviderCapabilities.PlaybackControl)
+        );
+        if (spotify is null)
+            return;
+
+        if (await ReadPlayingAsync(spotify, tenantId, cancellationToken) is not { IsPlaying: true })
+        {
+            using IDisposable sanction = _sanctions.Begin(
+                OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
+            );
+            try
+            {
+                await spotify.PlayAsync(tenantId, cancellationToken);
+            }
+            catch (Exception ex) when (IsPlayerUnavailable(ex))
+            {
+                _logger.LogDebug(
+                    ex,
+                    "Could not resume Spotify for {BroadcasterId}.",
+                    broadcasterId
+                );
+                return;
+            }
+        }
+        _queueStore.SetLastEngine(broadcasterId, spotify.Provider);
     }
 
     private bool IsEngineSwitch(string broadcasterId, IMusicProvider incoming) =>

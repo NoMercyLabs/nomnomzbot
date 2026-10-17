@@ -211,4 +211,58 @@ public sealed class SongRequestCrossProviderHandoverTests
             .AddToQueueAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>());
         await _spotify.DidNotReceive().SkipAsync(ChannelId, Arg.Any<CancellationToken>());
     }
+
+    private void EmptyQueueAfter(string lastEngine, bool spotifyPlaying)
+    {
+        _store.GetOrCreate(ChannelId.ToString());
+        _store.SetLastEngine(ChannelId.ToString(), lastEngine);
+        _spotify
+            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
+            .Returns(Playing("spotify:track:playlist", spotifyPlaying));
+    }
+
+    [Fact]
+    public async Task A_dry_queue_after_a_youtube_request_resumes_spotify_once()
+    {
+        EmptyQueueAfter("youtube", spotifyPlaying: false);
+        MusicService service = NewService();
+
+        await service.HandOverNextAsync(ChannelId.ToString());
+        await service.HandOverNextAsync(ChannelId.ToString());
+
+        await _spotify.Received(1).PlayAsync(ChannelId, Arg.Any<CancellationToken>());
+        _store.GetLastEngine(ChannelId.ToString()).Should().Be("spotify");
+    }
+
+    [Fact]
+    public async Task A_dry_queue_after_a_spotify_request_changes_nothing()
+    {
+        EmptyQueueAfter("spotify", spotifyPlaying: false);
+
+        await NewService().HandOverNextAsync(ChannelId.ToString());
+
+        await _spotify.DidNotReceive().PlayAsync(ChannelId, Arg.Any<CancellationToken>());
+        await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_dry_queue_does_not_resume_spotify_that_is_already_playing()
+    {
+        EmptyQueueAfter("youtube", spotifyPlaying: true);
+
+        await NewService().HandOverNextAsync(ChannelId.ToString());
+
+        await _spotify.DidNotReceive().PlayAsync(ChannelId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_dry_queue_waits_while_a_youtube_request_is_still_playing()
+    {
+        EmptyQueueAfter("youtube", spotifyPlaying: false);
+        _store.SetPlayingRequest(ChannelId.ToString(), Entry(YouTubeUri));
+
+        await NewService().HandOverNextAsync(ChannelId.ToString());
+
+        await _spotify.DidNotReceive().PlayAsync(ChannelId, Arg.Any<CancellationToken>());
+    }
 }
