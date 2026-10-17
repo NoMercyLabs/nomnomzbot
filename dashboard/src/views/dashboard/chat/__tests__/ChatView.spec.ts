@@ -1691,9 +1691,12 @@ describe('ChatView reply', () => {
     search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(document.activeElement).not.toBe(search);
 
+    // TipTap focuses on the next animation frame, which a busy run can push past one settle.
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }));
-    await settle();
-    expect(input().contains(document.activeElement)).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(input().contains(document.activeElement)).toBe(true);
+    });
   });
 
   // Stoney 2026-10-14: "can you add the shortcut mark to chat so people know it?"
