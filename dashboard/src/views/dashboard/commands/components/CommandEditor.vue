@@ -42,9 +42,10 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 import CodeTierNote from './CodeTierNote.vue';
-import { changeOf, draftOf, sameDraft, type CommandDraft } from './commandDraft';
+import { changeOf, draftOf, sameDraft, triggerValid, type CommandDraft } from './commandDraft';
 import { permissionLevels } from './permissionLevels';
 import RandomReplyList from './RandomReplyList.vue';
+import TriggerFields from './TriggerFields.vue';
 
 const props = defineProps<{ row: CommandListItem }>();
 const emit = defineEmits<{ remove: [name: string] }>();
@@ -77,6 +78,7 @@ const unsaved = computed<string>(() =>
     ? ''
     : t('dashboard.commands.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
 );
+const valid = computed(() => triggerValid(draft.value));
 const random = computed<boolean>(() => draft.value.replies.length > 0);
 
 function setRandom(on: boolean): void {
@@ -157,7 +159,7 @@ function remove(): void {
       </ReplyModeField>
       <CodeTierNote v-else />
 
-      <RowGroup>
+      <RowGroup v-if="draft.mode !== 'full'">
         <SettingRow
           v-model="draft.speakWithTts"
           :title="$t('dashboard.commands.editor.speak')"
@@ -201,6 +203,12 @@ function remove(): void {
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent force-mount class="grid gap-4 pt-3 data-[state=closed]:hidden">
+          <TriggerFields
+            v-model:prefix-mode="draft.prefixMode"
+            v-model:custom-prefix="draft.customPrefix"
+            v-model:match-mode="draft.matchMode"
+            v-model:match-pattern="draft.matchPattern"
+          />
           <Field>
             <div class="flex items-center gap-1.5">
               <FieldLabel for="command-chat-cooldown">{{
@@ -248,7 +256,7 @@ function remove(): void {
       <Button
         type="button"
         size="sm"
-        :disabled="dirtyCount === 0 || update.isPending.value"
+        :disabled="dirtyCount === 0 || !valid || update.isPending.value"
         @click="save"
       >
         {{ $t('dashboard.commands.editor.save') }}

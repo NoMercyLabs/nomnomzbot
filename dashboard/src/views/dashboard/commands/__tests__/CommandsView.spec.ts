@@ -709,6 +709,194 @@ describe('CommandsView new command', () => {
   });
 });
 
+describe('CommandsView trigger options', () => {
+  const inEditor = (label: string): HTMLButtonElement => buttonByText(label, editor()!);
+  const prefixInput = (): HTMLInputElement | null =>
+    editor()!.querySelector<HTMLInputElement>('[aria-label="Custom prefix"]');
+  const patternInput = (): HTMLInputElement | null =>
+    editor()!.querySelector<HTMLInputElement>('[aria-label="Regex pattern"]');
+
+  it('shows the custom prefix field only while the prefix is Custom, and the pattern only for Regex', async () => {
+    await open('/app/commands?command=hello');
+
+    expect(prefixInput()).toBeNull();
+    expect(patternInput()).toBeNull();
+
+    inEditor('Custom').click();
+    await settle();
+    expect(prefixInput()).not.toBeNull();
+    expect(patternInput()).toBeNull();
+
+    inEditor('None').click();
+    await settle();
+    expect(prefixInput()).toBeNull();
+
+    inEditor('Regex').click();
+    await settle();
+    expect(patternInput()).not.toBeNull();
+
+    inEditor('Exact').click();
+    await settle();
+    expect(patternInput()).toBeNull();
+  });
+
+  it('fills the options from the saved command', async () => {
+    rows[0] = command('hello', {
+      prefixMode: 'Custom',
+      customPrefix: '$',
+      matchMode: 'Regex',
+      matchPattern: '^hi',
+    });
+
+    await open('/app/commands?command=hello');
+
+    expect(prefixInput()!.value).toBe('$');
+    expect(patternInput()!.value).toBe('^hi');
+    expect(unsaved()).toBe('');
+  });
+
+  it('sends the chosen prefix mode and custom prefix on Save, and nothing else', async () => {
+    await open('/app/commands?command=hello');
+    inEditor('Custom').click();
+    await settle();
+    await type(prefixInput()!, '$');
+
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ prefixMode: 'Custom', customPrefix: '$' });
+  });
+
+  it('sends the match mode and the regex pattern on Save', async () => {
+    await open('/app/commands?command=hello');
+    inEditor('Regex').click();
+    await settle();
+    await type(patternInput()!, '^hello');
+
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ matchMode: 'Regex', matchPattern: '^hello' });
+  });
+
+  it('sends only the mode when a mode that needs no extra text is chosen', async () => {
+    await open('/app/commands?command=hello');
+    inEditor('None').click();
+    await settle();
+    inEditor('Exact').click();
+    await settle();
+
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ prefixMode: 'None', matchMode: 'Exact' });
+  });
+
+  it('keeps Save shut while Custom has no prefix or Regex has no pattern', async () => {
+    await open('/app/commands?command=hello');
+    inEditor('Custom').click();
+    await settle();
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await type(prefixInput()!, '$');
+    expect(buttonByText('Save changes').disabled).toBe(false);
+
+    inEditor('Regex').click();
+    await settle();
+    expect(buttonByText('Save changes').disabled).toBe(true);
+  });
+
+  it('hides Read it aloud on Full pipeline and saves speakWithTts false', async () => {
+    rows[0] = command('hello', { pipelineId: 'p1', speakWithTts: true });
+
+    await open('/app/commands?command=hello');
+    expect(switchOf('Read it aloud')).toBeDefined();
+
+    inEditor('Full pipeline').click();
+    await settle();
+    expect(switchOf('Read it aloud')).toBeUndefined();
+
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({
+      tier: 'pipeline',
+      pipelineId: 'p1',
+      speakWithTts: false,
+    });
+  });
+
+  it('creates a random-reply command with its list of replies', async () => {
+    await open();
+    buttonByText('New command').click();
+    await settle();
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+
+    await type(document.body.querySelector<HTMLInputElement>('[data-new-name]')!, 'dice');
+    // jsdom lacks these three; the select calls them when it opens.
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    dialog
+      .querySelector<HTMLElement>('[role="combobox"]')!
+      .dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }));
+
+    await settle();
+    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (el) => el.textContent?.includes('random reply'),
+    )!;
+
+    option.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }));
+
+    option.click();
+    await settle();
+    await type(dialog.querySelector<HTMLTextAreaElement>('textarea')!, 'One');
+    document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+    await settle();
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'dice',
+      tier: 'template',
+      templateResponses: ['One'],
+    });
+  });
+
+  it('creates a command with the chosen prefix and match options', async () => {
+    await open();
+    buttonByText('New command').click();
+    await settle();
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+
+    await type(document.body.querySelector<HTMLInputElement>('[data-new-name]')!, 'raid');
+    await type(dialog.querySelector<HTMLTextAreaElement>('textarea')!, 'Raid time');
+    buttonByText('Custom', dialog).click();
+    await settle();
+    await type(dialog.querySelector<HTMLInputElement>('[aria-label="Custom prefix"]')!, '$');
+    buttonByText('Regex', dialog).click();
+    await settle();
+    await type(dialog.querySelector<HTMLInputElement>('[aria-label="Regex pattern"]')!, 'raid');
+    document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+    await settle();
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'raid',
+      prefixMode: 'Custom',
+      customPrefix: '$',
+      matchMode: 'Regex',
+      matchPattern: 'raid',
+    });
+  });
+});
+
 describe('CommandsView built-in tab', () => {
   it('lists the built-in commands and switches one off with a PATCH of enabled', async () => {
     await open('/app/commands?view=builtin');

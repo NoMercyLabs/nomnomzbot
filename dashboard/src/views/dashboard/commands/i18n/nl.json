@@ -80,8 +80,29 @@
         "nameRequired": "Geef het commando een naam.",
         "type": "Wat het doet",
         "typeTemplate": "Stuurt een antwoord",
+        "typeRandom": "Stuurt een willekeurig antwoord",
         "typePipeline": "Draait een pipeline",
+        "triggerRequired": "Vul de eigen prefix of het regex-patroon in dat je koos.",
         "create": "Commando maken"
+      },
+      "trigger": {
+        "prefixLabel": "Prefix",
+        "prefixHelp": "Het teken dat de chat voor het commando typt. Kanaalstandaard gebruikt de prefix van je kanaal.",
+        "prefix": {
+          "Default": "Kanaalstandaard",
+          "Custom": "Eigen",
+          "None": "Geen"
+        },
+        "customPrefix": "Eigen prefix",
+        "matchLabel": "Overeenkomst",
+        "matchHelp": "Hoe een chatbericht eruit moet zien om het commando te starten. Regex test het hele bericht met je patroon.",
+        "match": {
+          "StartsWith": "Begint met",
+          "Exact": "Exact",
+          "Contains": "Bevat",
+          "Regex": "Regex"
+        },
+        "matchPattern": "Regex-patroon"
       },
       "builtin": {
         "title": "Ingebouwde commando's",
