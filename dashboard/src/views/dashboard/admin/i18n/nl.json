@@ -430,6 +430,44 @@
       "overrideSaved": "Override opgeslagen.",
       "overrideSaveError": "De override kon niet worden opgeslagen: {reason}"
     },
+    "adminProviders": {
+      "title": "Providers",
+      "crumb": "Beheer",
+      "explain": "Elke provider heeft een OAuth-app nodig. Een secret dat je hier typt wordt versleuteld opgeslagen en nooit meer getoond. Een leeg veld laat die waarde ongemoeid.",
+      "restricted": "Saas-modus is een beperkte optie: NomNomzBot als gehoste dienst voor derden draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+      "listTitle": "OAuth-apps",
+      "empty": "Er zijn geen providers bekend.",
+      "loadError": "De providers konden niet laden.",
+      "forbidden": "Je mag de providers niet zien.",
+      "unsupported": "Deze build ondersteunt deze provider nog niet.",
+      "decisionRecorded": "App-keuze vastgelegd",
+      "decisionMissing": "Geen app-keuze vastgelegd",
+      "clientIdNone": "Geen client-ID",
+      "source": {
+        "stored": "Opgeslagen",
+        "environment": "Omgeving",
+        "unset": "Niet ingesteld"
+      },
+      "clientIdLabel": "Client-ID: {source}",
+      "secretLabel": "Secret: {source}",
+      "apiKeyLabel": "API-sleutel: {source}",
+      "fields": {
+        "clientId": "Client-ID",
+        "clientSecret": "Nieuw client-secret",
+        "apiKey": "Nieuwe API-sleutel"
+      },
+      "secretHint": "Alleen schrijven. De opgeslagen waarde wordt nooit getoond.",
+      "save": "Opslaan",
+      "saving": "Opslaan",
+      "saved": "Provider opgeslagen.",
+      "saveError": "De provider kon niet worden opgeslagen: {reason}",
+      "clear": "Opgeslagen wissen",
+      "clearConfirmText": "Alle opgeslagen waarden van deze provider wissen? De bot gebruikt dan de omgeving.",
+      "clearConfirm": "Nu wissen",
+      "cancel": "Annuleren",
+      "cleared": "Opgeslagen waarden gewist.",
+      "clearError": "De opgeslagen waarden konden niet worden gewist: {reason}"
+    },
     "adminOverview": {
       "title": "Overzicht",
       "panel": "Platform",

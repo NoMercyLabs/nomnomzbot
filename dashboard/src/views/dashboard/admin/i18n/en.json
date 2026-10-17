@@ -430,6 +430,44 @@
       "overrideSaved": "Override saved.",
       "overrideSaveError": "The override could not be saved: {reason}"
     },
+    "adminProviders": {
+      "title": "Providers",
+      "crumb": "Admin",
+      "explain": "Each provider needs an OAuth app. A secret you type here is stored sealed and is never shown again. An empty box leaves that value as it is.",
+      "restricted": "Saas mode is a restricted option: running NomNomzBot as a hosted service for third parties is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+      "listTitle": "OAuth apps",
+      "empty": "No providers are known.",
+      "loadError": "The providers could not load.",
+      "forbidden": "You may not see the providers.",
+      "unsupported": "This build does not support this provider yet.",
+      "decisionRecorded": "App choice recorded",
+      "decisionMissing": "No app choice recorded",
+      "clientIdNone": "No client ID",
+      "source": {
+        "stored": "Stored",
+        "environment": "Environment",
+        "unset": "Not set"
+      },
+      "clientIdLabel": "Client ID: {source}",
+      "secretLabel": "Secret: {source}",
+      "apiKeyLabel": "API key: {source}",
+      "fields": {
+        "clientId": "Client ID",
+        "clientSecret": "New client secret",
+        "apiKey": "New API key"
+      },
+      "secretHint": "Write only. The stored value is never shown.",
+      "save": "Save",
+      "saving": "Saving",
+      "saved": "Provider saved.",
+      "saveError": "The provider could not be saved: {reason}",
+      "clear": "Clear stored",
+      "clearConfirmText": "Clear every stored value for this provider? The bot then uses the environment.",
+      "clearConfirm": "Clear now",
+      "cancel": "Cancel",
+      "cleared": "Stored values cleared.",
+      "clearError": "The stored values could not be cleared: {reason}"
+    },
     "adminOverview": {
       "title": "Overview",
       "panel": "Platform",

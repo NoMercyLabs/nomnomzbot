@@ -95,6 +95,18 @@ export const dashboardAdminSpamDefaultsRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
+export const dashboardAdminProvidersRoute = {
+  path: 'admin/providers',
+  name: 'dashboard-admin-providers',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminProvidersView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
 export const dashboardAdminFeatureFlagsRoute = {
   path: 'admin/feature-flags',
   name: 'dashboard-admin-feature-flags',
