@@ -14,6 +14,8 @@ import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
+import ChevronDown from '~icons/nnz/chevron-down';
+
 import MapField from './MapField.vue';
 
 const input = defineModel<Record<string, string>>({ required: true });
@@ -28,8 +30,17 @@ function change(value: Record<string, string> | undefined): void {
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <Button data-run-input type="button" variant="ghost" size="sm">
+      <Button data-run-input
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="group"
+      >
         {{ $t('dashboard.pipelines.workbench.run.input', { count }, count) }}
+        <ChevronDown
+          class="transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
       </Button>
     </PopoverTrigger>
     <PopoverContent align="end" class="flex w-80 flex-col gap-3">
