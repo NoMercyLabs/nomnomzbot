@@ -1,0 +1,49 @@
+{
+  "dashboard": {
+    "games": {
+      "title": "Spellen",
+      "active": {
+        "title": "Nu bezig",
+        "empty": "Er loopt geen spel. Start er hieronder een.",
+        "error": "Het lopende spel kon niet worden geladen.",
+        "players": "{count} speler | {count} spelers",
+        "cancel": "Spel annuleren",
+        "cancelTitle": "Dit spel annuleren?",
+        "cancelBody": "Het spel stopt nu.",
+        "cancelRefund": "Elke inleg wordt terugbetaald.",
+        "cancelConfirm": "Spel annuleren"
+      },
+      "catalog": {
+        "title": "Start een spel",
+        "empty": "Deze bot heeft geen chatspellen.",
+        "error": "De spellenlijst kon niet worden geladen.",
+        "start": "Start",
+        "keywords": "Chatwoorden: {words}",
+        "lobby": "Lobby {seconds} s",
+        "playerRange": "{min} tot {max} spelers",
+        "entryFee": "Inleg"
+      },
+      "history": {
+        "title": "Afgeronde spellen",
+        "empty": "Er is nog geen spel afgerond.",
+        "error": "De geschiedenis kon niet worden geladen."
+      },
+      "status": {
+        "lobby": "Lobby",
+        "running": "Bezig",
+        "active": "Bezig",
+        "resolved": "Afgerond",
+        "completed": "Afgerond",
+        "canceled": "Geannuleerd"
+      },
+      "configs": {
+        "title": "Minispellen",
+        "empty": "Er zijn geen minispellen ingesteld.",
+        "error": "De minispellen konden niet worden geladen.",
+        "age": "18+",
+        "unavailable": "Inzetlimieten, kansen en wachttijden zijn nog niet beschikbaar."
+      },
+      "retry": "Opnieuw proberen"
+    }
+  }
+}
