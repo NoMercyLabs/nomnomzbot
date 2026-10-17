@@ -1,0 +1,38 @@
+{
+  "dashboard": {
+    "eventResponses": {
+      "title": "Event responses",
+      "crumb": "Build",
+      "back": "Back to the list",
+      "list": {
+        "title": "Events",
+        "search": "Search events",
+        "empty": "No events to answer yet.",
+        "error": "The events could not load.",
+        "noMatch": "No event matches your search.",
+        "off": "Off",
+        "default": "Platform default",
+        "own": "Your own text",
+        "pick": "Pick an event to edit its reply.",
+        "pickTitle": "No event open"
+      },
+      "editor": {
+        "enabled": "Enabled",
+        "enabledHelp": "An event that is off stays in the list and says nothing.",
+        "message": "Reply",
+        "messageHelp": "The bot posts this in chat when the event happens.",
+        "variables": "You can use: {names}",
+        "speak": "Read it aloud",
+        "speakHelp": "The reply also plays as speech on your stream.",
+        "following": "This event follows the platform default. Saving your own text replaces it for your channel.",
+        "unsaved": "{count} unsaved change | {count} unsaved changes",
+        "save": "Save changes",
+        "discard": "Discard",
+        "reset": "Use the platform default",
+        "test": "Send a test",
+        "testUnavailable": "Not available yet: the bot cannot send a test reply from here.",
+        "error": "The event could not load."
+      }
+    }
+  }
+}
