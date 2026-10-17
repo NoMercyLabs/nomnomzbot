@@ -276,6 +276,10 @@ public interface IMusicProvider
     /// it no longer exists. A link no provider owns is never searched as text.</summary>
     bool OwnsLink(string link) => false;
 
+    /// <summary>True when a queued track URI (what <see cref="AddToQueueAsync"/> takes) belongs to this
+    /// provider, so a mixed song-request queue plays each item on its own engine.</summary>
+    bool OwnsTrackUri(string trackUri) => OwnsLink(trackUri);
+
     Task<bool> AddToQueueAsync(
         Guid broadcasterId,
         string trackUri,

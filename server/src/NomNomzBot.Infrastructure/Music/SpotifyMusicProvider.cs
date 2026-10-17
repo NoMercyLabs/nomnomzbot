@@ -421,6 +421,9 @@ public sealed class SpotifyMusicProvider
         Uri.TryCreate(link.Trim(), UriKind.Absolute, out Uri? url)
         && url.Host.EndsWith("open.spotify.com", StringComparison.OrdinalIgnoreCase);
 
+    public bool OwnsTrackUri(string trackUri) =>
+        trackUri.StartsWith("spotify:", StringComparison.OrdinalIgnoreCase) || OwnsLink(trackUri);
+
     public async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
         Guid broadcasterId,
         string uriOrId,

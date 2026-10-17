@@ -186,10 +186,10 @@ public sealed class SongRequestQueueReconcilerTests
         await sut.HandleAsync(PlaybackOf("spotify:track:c"));
 
         Titles(queue).Should().BeEmpty();
-        // The provider is free again — and with nothing left pending there is nothing to hand over, so
-        // the reconciler must NOT push anything rather than re-pushing a track that already played.
+        // The provider is free again. The hand-over is asked once so a dry queue lets Spotify play on; with
+        // nothing left pending it pushes nothing, so no track that already played is re-pushed.
         store.GetInFlight(ChannelId.ToString()).Should().BeNull();
-        handover.Calls.Should().BeEmpty();
+        handover.Calls.Should().HaveCount(1);
     }
 
     [Fact]
