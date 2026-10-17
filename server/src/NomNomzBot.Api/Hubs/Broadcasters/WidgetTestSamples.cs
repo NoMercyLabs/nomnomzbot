@@ -435,7 +435,12 @@ internal static class WidgetTestSamples
             Bits = new() { Total = 200, Top = [new() { Name = "TestCheerer", Bits = 200 }] },
             RaidsIn = [new() { Name = "TestRaider", Viewers = 42 }],
             Redemptions = new() { Count = 6, Top = [new() { Title = "Hydrate!", Count = 6 }] },
-            Songs = new() { Count = 12, Recent = [] },
+            Songs = new()
+            {
+                Count = 12,
+                Recent = [],
+                TopRequesters = [new() { Name = "TestChatter", Count = 4 }],
+            },
             Chat = new()
             {
                 Messages = 480,

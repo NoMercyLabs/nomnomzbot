@@ -69,6 +69,13 @@ public sealed class StreamRecapService(IApplicationDbContext db, TimeProvider ti
 
         List<Fact> facts = await LoadFactsAsync(broadcasterId, from, to, cancellationToken);
 
+        (int Run, List<StreamRecapCommandDto> Top) commands = await BuildCommandsAsync(
+            broadcasterId,
+            from,
+            to,
+            cancellationToken
+        );
+
         StreamRecapDto recap = new()
         {
             Stream = new()
@@ -89,6 +96,9 @@ public sealed class StreamRecapService(IApplicationDbContext db, TimeProvider ti
             Redemptions = await BuildRedemptionsAsync(broadcasterId, from, to, cancellationToken),
             Songs = await BuildSongsAsync(broadcasterId, from, to, cancellationToken),
             Chat = await BuildChatAsync(broadcasterId, stream.Id, cancellationToken),
+            SelfSubscribers = BuildSelfSubscribers(facts),
+            CommandsRun = commands.Run,
+            TopCommands = commands.Top,
         };
 
         return Result.Success(recap);
@@ -150,6 +160,9 @@ public sealed class StreamRecapService(IApplicationDbContext db, TimeProvider ti
             DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
             out at
         );
+
+    private static DateTime OccurredAt(JsonObject data) =>
+        TryOccurredAt(data, out DateTime at) ? at : DateTime.MaxValue;
 
     private static List<Fact> Of(List<Fact> facts, string type) =>
         facts.Where(f => f.Type == type).ToList();
@@ -272,20 +285,51 @@ public sealed class StreamRecapService(IApplicationDbContext db, TimeProvider ti
                 && r.CreatedAt <= to
             )
             .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new { r.Data })
+            .Select(r => new { r.UserId, r.Data })
             .ToListAsync(cancellationToken);
 
         List<StreamRecapSongDto> songs = [];
+        List<string> requesterIds = [];
         foreach (var row in rows)
         {
             SongRequestHistory? track = Deserialize(row.Data);
-            if (track is not null)
-                songs.Add(
-                    new StreamRecapSongDto { Track = track.TrackName, Artist = track.Artist }
-                );
+            if (track is null)
+                continue;
+
+            songs.Add(new StreamRecapSongDto { Track = track.TrackName, Artist = track.Artist });
+            requesterIds.Add(row.UserId);
         }
 
-        return new() { Count = songs.Count, Recent = songs.Take(ListCap).ToList() };
+        return new()
+        {
+            Count = songs.Count,
+            Recent = songs.Take(ListCap).ToList(),
+            TopRequesters = await BuildRequestersAsync(requesterIds, cancellationToken),
+        };
+    }
+
+    private async Task<List<StreamRecapRequesterDto>> BuildRequestersAsync(
+        List<string> requesterIds,
+        CancellationToken cancellationToken
+    )
+    {
+        List<string> distinct = requesterIds.Distinct().ToList();
+        Dictionary<string, string> names = await db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId != null && distinct.Contains(u.TwitchUserId))
+            .ToDictionaryAsync(u => u.TwitchUserId!, u => u.DisplayName, cancellationToken);
+
+        return requesterIds
+            .GroupBy(id => id)
+            .Select(g => new StreamRecapRequesterDto
+            {
+                Name = names.GetValueOrDefault(g.Key, g.Key),
+                Count = g.Count(),
+            })
+            .OrderByDescending(r => r.Count)
+            .ThenBy(r => r.Name, StringComparer.Ordinal)
+            .Take(ListCap)
+            .ToList();
     }
 
     private static SongRequestHistory? Deserialize(string data)
@@ -306,12 +350,65 @@ public sealed class StreamRecapService(IApplicationDbContext db, TimeProvider ti
         CancellationToken cancellationToken
     )
     {
-        List<string> chatters = await db
+        var rows = await db
             .ChatMessages.AsNoTracking()
             .Where(m => m.BroadcasterId == broadcasterId && m.StreamId == streamId)
-            .Select(m => m.UserId)
+            .Select(m => new { m.UserId, m.DisplayName })
             .ToListAsync(cancellationToken);
 
-        return new() { Messages = chatters.Count, UniqueChatters = chatters.Distinct().Count() };
+        return new()
+        {
+            Messages = rows.Count,
+            UniqueChatters = rows.Select(r => r.UserId).Distinct().Count(),
+            TopChatters = rows.GroupBy(r => r.UserId)
+                .Select(g => new StreamRecapChatterDto
+                {
+                    Name = g.First().DisplayName,
+                    Messages = g.Count(),
+                })
+                .OrderByDescending(c => c.Messages)
+                .ThenBy(c => c.Name, StringComparer.Ordinal)
+                .Take(ListCap)
+                .ToList(),
+        };
+    }
+
+    private static List<string> BuildSelfSubscribers(List<Fact> facts) =>
+        facts
+            .Where(f =>
+                (f.Type == "channel.subscribe" && !Flag(f.Data, "isGift"))
+                || f.Type == "channel.subscription.message"
+            )
+            .OrderBy(f => OccurredAt(f.Data))
+            .Select(f => Text(f.Data, "userDisplayName"))
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.Ordinal)
+            .Take(ListCap)
+            .ToList();
+
+    private async Task<(int Run, List<StreamRecapCommandDto> Top)> BuildCommandsAsync(
+        Guid broadcasterId,
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken
+    )
+    {
+        List<string> names = await db
+            .CommandUsages.AsNoTracking()
+            .Where(u =>
+                u.BroadcasterId == broadcasterId && u.CreatedAt >= from && u.CreatedAt <= to
+            )
+            .Select(u => u.CommandNameSnapshot)
+            .ToListAsync(cancellationToken);
+
+        List<StreamRecapCommandDto> top = names
+            .GroupBy(n => n)
+            .Select(g => new StreamRecapCommandDto { Name = g.Key, Count = g.Count() })
+            .OrderByDescending(c => c.Count)
+            .ThenBy(c => c.Name, StringComparer.Ordinal)
+            .Take(ListCap)
+            .ToList();
+        return (names.Count, top);
     }
 }

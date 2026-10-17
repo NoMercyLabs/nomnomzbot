@@ -150360,7 +150360,9 @@
           "raidsIn",
           "redemptions",
           "songs",
-          "chat"
+          "chat",
+          "selfSubscribers",
+          "topCommands"
         ],
         "type": "object",
         "properties": {
@@ -150397,6 +150399,52 @@
           },
           "chat": {
             "$ref": "#/components/schemas/StreamRecapChatDto"
+          },
+          "selfSubscribers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "commandsRun": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "topCommands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamRecapCommandDto"
+            }
+          }
+        }
+      },
+      "StreamRecapCommandDto": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StreamRecapChatterDto": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -150564,7 +150612,8 @@
       },
       "StreamRecapSongsDto": {
         "required": [
-          "recent"
+          "recent",
+          "topRequesters"
         ],
         "type": "object",
         "properties": {
@@ -150577,6 +150626,28 @@
             "items": {
               "$ref": "#/components/schemas/StreamRecapSongDto"
             }
+          },
+          "topRequesters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamRecapRequesterDto"
+            },
+            "description": "Viewers who requested the most songs inside the window, most requests first, capped at 5."
+          }
+        }
+      },
+      "StreamRecapRequesterDto": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -150598,6 +150669,9 @@
         }
       },
       "StreamRecapChatDto": {
+        "required": [
+          "topChatters"
+        ],
         "type": "object",
         "properties": {
           "messages": {
@@ -150607,6 +150681,12 @@
           "uniqueChatters": {
             "type": "integer",
             "format": "int32"
+          },
+          "topChatters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamRecapChatterDto"
+            }
           }
         }
       },

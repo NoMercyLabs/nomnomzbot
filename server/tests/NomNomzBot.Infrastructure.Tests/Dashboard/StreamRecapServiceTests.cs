@@ -14,6 +14,7 @@ using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -74,12 +75,26 @@ public sealed class StreamRecapServiceTests
         return new StreamRecapService(db, clock);
     }
 
-    private static Record Song(string track, string artist, DateTimeOffset at) =>
+    private static User Viewer(string twitchId, string name) =>
+        new()
+        {
+            TwitchUserId = twitchId,
+            Username = name.ToLowerInvariant(),
+            UsernameNormalized = name.ToLowerInvariant(),
+            DisplayName = name,
+        };
+
+    private static Record Song(
+        string track,
+        string artist,
+        string requesterId,
+        DateTimeOffset at
+    ) =>
         new()
         {
             BroadcasterId = Broadcaster,
             RecordType = SongRequestHistory.RecordType,
-            UserId = "viewer-1",
+            UserId = requesterId,
             Data = JsonSerializer.Serialize(
                 new SongRequestHistory("spotify:track:" + track, track, artist, null, "spotify"),
                 new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
@@ -114,6 +129,17 @@ public sealed class StreamRecapServiceTests
             UserType = "viewer",
             Message = "hi",
             CreatedAt = Started.UtcDateTime.AddMinutes(10),
+        };
+
+    private static CommandUsage Ran(string name, DateTimeOffset at) =>
+        new()
+        {
+            BroadcasterId = Broadcaster,
+            CommandNameSnapshot = name,
+            ViewerProfileId = Guid.NewGuid(),
+            ViewerUserId = Guid.NewGuid(),
+            WasSuccessful = true,
+            CreatedAt = at.UtcDateTime,
         };
 
     private static async Task<AuthDbContext> SeededAsync()
@@ -167,7 +193,7 @@ public sealed class StreamRecapServiceTests
             Fact(
                 Broadcaster,
                 "channel.subscription.message",
-                inside,
+                inside.AddMinutes(3),
                 new { userId = "r1", userDisplayName = "Returning" }
             ),
             Fact(
@@ -275,9 +301,22 @@ public sealed class StreamRecapServiceTests
         );
 
         db.Records.AddRange(
-            Song("Song A", "Artist A", inside),
-            Song("Song B", "Artist B", inside.AddMinutes(4)),
-            Song("Song C", "Artist C", after)
+            Song("Song A", "Artist A", "tw-alice", inside),
+            Song("Song B", "Artist B", "tw-bob", inside.AddMinutes(4)),
+            Song("Song D", "Artist D", "tw-alice", inside.AddMinutes(6)),
+            Song("Song C", "Artist C", "tw-bob", after)
+        );
+
+        db.Users.AddRange(Viewer("tw-alice", "Alice"), Viewer("tw-bob", "Bob"));
+
+        db.CommandUsages.AddRange(
+            Ran("!hug", inside),
+            Ran("!hug", inside.AddMinutes(1)),
+            Ran("!hug", inside.AddMinutes(2)),
+            Ran("!lurk", inside.AddMinutes(3)),
+            Ran("!lurk", inside.AddMinutes(4)),
+            Ran("!so", inside.AddMinutes(5)),
+            Ran("!old", before)
         );
 
         db.ChatMessages.AddRange(
@@ -339,12 +378,28 @@ public sealed class StreamRecapServiceTests
         recap.Redemptions.Top[1].Title.Should().Be("Stretch");
         recap.Redemptions.Top[1].Count.Should().Be(1);
 
-        recap.Songs.Count.Should().Be(2);
-        recap.Songs.Recent.Select(s => s.Track).Should().Equal("Song B", "Song A");
-        recap.Songs.Recent[0].Artist.Should().Be("Artist B");
+        recap.Songs.Count.Should().Be(3);
+        recap.Songs.Recent.Select(s => s.Track).Should().Equal("Song D", "Song B", "Song A");
+        recap.Songs.Recent[1].Artist.Should().Be("Artist B");
+        recap
+            .Songs.TopRequesters.Select(r => (r.Name, r.Count))
+            .Should()
+            .Equal(("Alice", 2), ("Bob", 1));
 
         recap.Chat.Messages.Should().Be(3);
         recap.Chat.UniqueChatters.Should().Be(2);
+        recap
+            .Chat.TopChatters.Select(c => (c.Name, c.Messages))
+            .Should()
+            .Equal(("alice", 2), ("bob", 1));
+
+        recap.SelfSubscribers.Should().Equal("NewOne", "NewTwo", "Returning");
+
+        recap.CommandsRun.Should().Be(6);
+        recap
+            .TopCommands.Select(c => (c.Name, c.Count))
+            .Should()
+            .Equal(("!hug", 3), ("!lurk", 2), ("!so", 1));
     }
 
     [Fact]
@@ -369,8 +424,13 @@ public sealed class StreamRecapServiceTests
         recap.Redemptions.Top.Should().BeEmpty();
         recap.Songs.Count.Should().Be(0);
         recap.Songs.Recent.Should().BeEmpty();
+        recap.Songs.TopRequesters.Should().BeEmpty();
         recap.Chat.Messages.Should().Be(0);
         recap.Chat.UniqueChatters.Should().Be(0);
+        recap.Chat.TopChatters.Should().BeEmpty();
+        recap.SelfSubscribers.Should().BeEmpty();
+        recap.CommandsRun.Should().Be(0);
+        recap.TopCommands.Should().BeEmpty();
     }
 
     [Fact]

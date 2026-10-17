@@ -48,6 +48,36 @@ public sealed record StreamRecapDto
 
     [JsonPropertyName("chat")]
     public required StreamRecapChatDto Chat { get; init; }
+
+    /// <summary>Display names of people who subscribed themselves (new or resub, never gifted), in time order, capped.</summary>
+    [JsonPropertyName("selfSubscribers")]
+    public required List<string> SelfSubscribers { get; init; }
+
+    /// <summary>Commands run inside the window (all commands, not only the capped top list).</summary>
+    [JsonPropertyName("commandsRun")]
+    public int CommandsRun { get; init; }
+
+    /// <summary>Most-used commands inside the window, most runs first.</summary>
+    [JsonPropertyName("topCommands")]
+    public required List<StreamRecapCommandDto> TopCommands { get; init; }
+}
+
+public sealed record StreamRecapCommandDto
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("count")]
+    public int Count { get; init; }
+}
+
+public sealed record StreamRecapChatterDto
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("messages")]
+    public int Messages { get; init; }
 }
 
 public sealed record StreamRecapStreamDto
@@ -154,6 +184,19 @@ public sealed record StreamRecapSongsDto
 
     [JsonPropertyName("recent")]
     public required List<StreamRecapSongDto> Recent { get; init; }
+
+    /// <summary>Viewers who requested the most songs inside the window, most requests first, capped at 5.</summary>
+    [JsonPropertyName("topRequesters")]
+    public required List<StreamRecapRequesterDto> TopRequesters { get; init; }
+}
+
+public sealed record StreamRecapRequesterDto
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("count")]
+    public int Count { get; init; }
 }
 
 public sealed record StreamRecapSongDto
@@ -172,4 +215,8 @@ public sealed record StreamRecapChatDto
 
     [JsonPropertyName("uniqueChatters")]
     public int UniqueChatters { get; init; }
+
+    /// <summary>Most active chatters by display name, most messages first.</summary>
+    [JsonPropertyName("topChatters")]
+    public required List<StreamRecapChatterDto> TopChatters { get; init; }
 }

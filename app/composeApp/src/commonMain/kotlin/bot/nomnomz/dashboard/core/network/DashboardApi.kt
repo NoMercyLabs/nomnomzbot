@@ -106,3 +106,70 @@ data class DashboardStats(
     /** Seconds the current stream has been live, or null when offline. */
     val uptime: Long? = null,
 )
+
+/** One stream's recap (backend `StreamRecapDto`): everything counted inside the stream window. */
+@Serializable
+data class StreamRecap(
+    val stream: StreamRecapStream,
+    val followers: Int = 0,
+    val subs: StreamRecapSubs = StreamRecapSubs(),
+    val giftSubs: List<StreamRecapGifter> = emptyList(),
+    val bits: StreamRecapBits = StreamRecapBits(),
+    val raidsIn: List<StreamRecapRaid> = emptyList(),
+    val redemptions: StreamRecapRedemptions = StreamRecapRedemptions(),
+    val songs: StreamRecapSongs = StreamRecapSongs(),
+    val chat: StreamRecapChat = StreamRecapChat(),
+    /** People who subscribed themselves (new or resub, never gifted), by display name. */
+    val selfSubscribers: List<String> = emptyList(),
+    val commandsRun: Int = 0,
+    val topCommands: List<StreamRecapCommand> = emptyList(),
+)
+
+@Serializable
+data class StreamRecapStream(
+    val id: String,
+    val startedAt: String = "",
+    val endedAt: String? = null,
+    val durationSeconds: Long = 0,
+    val peakViewers: Int? = null,
+    val title: String? = null,
+    val game: String? = null,
+)
+
+@Serializable
+data class StreamRecapSubs(val new: Int = 0, val resub: Int = 0, val gift: Int = 0, val total: Int = 0)
+
+@Serializable data class StreamRecapGifter(val name: String, val count: Int = 0)
+
+@Serializable data class StreamRecapBits(val total: Int = 0, val top: List<StreamRecapCheerer> = emptyList())
+
+@Serializable data class StreamRecapCheerer(val name: String, val bits: Int = 0)
+
+@Serializable data class StreamRecapRaid(val name: String, val viewers: Int = 0)
+
+@Serializable
+data class StreamRecapRedemptions(val count: Int = 0, val top: List<StreamRecapRedemptionTitle> = emptyList())
+
+@Serializable data class StreamRecapRedemptionTitle(val title: String, val count: Int = 0)
+
+@Serializable
+data class StreamRecapSongs(
+    val count: Int = 0,
+    val recent: List<StreamRecapSong> = emptyList(),
+    val topRequesters: List<StreamRecapRequester> = emptyList(),
+)
+
+@Serializable data class StreamRecapRequester(val name: String, val count: Int = 0)
+
+@Serializable data class StreamRecapSong(val track: String, val artist: String? = null)
+
+@Serializable
+data class StreamRecapChat(
+    val messages: Int = 0,
+    val uniqueChatters: Int = 0,
+    val topChatters: List<StreamRecapChatter> = emptyList(),
+)
+
+@Serializable data class StreamRecapChatter(val name: String, val messages: Int = 0)
+
+@Serializable data class StreamRecapCommand(val name: String, val count: Int = 0)
