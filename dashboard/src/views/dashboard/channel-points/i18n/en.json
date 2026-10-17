@@ -11,7 +11,7 @@
         "runsNothing": "Only lands in the queue",
         "paused": "Paused",
         "enabled": "Turn {title} on or off",
-        "costValue": "{count} points",
+        "costValue": "{count} point | {count} points",
         "edit": "Edit {title}",
         "editButton": "Edit",
         "dialog": {
@@ -67,7 +67,8 @@
         "emptyFilter": "No requests are waiting for this reward.",
         "error": "The redemptions could not load.",
         "range": "{count} waiting",
-        "cost": " · {count} points",
+        "separator": "·",
+        "cost": "{count} point | {count} points",
         "selectAll": "Select all requests",
         "selectRow": "Select {title} from {name}",
         "complete": "Complete",

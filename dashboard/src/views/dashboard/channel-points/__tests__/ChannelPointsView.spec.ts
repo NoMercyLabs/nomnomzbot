@@ -12,9 +12,10 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
 
 import ChannelPointsView from '../ChannelPointsView.vue';
@@ -113,7 +114,10 @@ async function open(): Promise<VueWrapper> {
 
   await router.push('/');
 
-  mounted = mount(ChannelPointsView, {
+  const framed = defineComponent(() => () => h(TooltipProvider, () =>
+    h(ChannelPointsView)));
+
+  mounted = mount(framed, {
     global: {
       plugins: [i18n, router, [VueQueryPlugin, { queryClient }]],
     },

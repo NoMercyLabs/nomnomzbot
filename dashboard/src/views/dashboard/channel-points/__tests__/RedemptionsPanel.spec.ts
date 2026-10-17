@@ -12,8 +12,9 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
@@ -130,7 +131,10 @@ let mounted: VueWrapper | null = null;
 async function open(): Promise<VueWrapper> {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-  mounted = mount(RedemptionsPanel, {
+  const framed = defineComponent(() => () => h(TooltipProvider, () =>
+    h(RedemptionsPanel)));
+
+  mounted = mount(framed, {
     attachTo: document.body,
     global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] },
   });
@@ -267,6 +271,29 @@ describe('RedemptionsPanel', () => {
     const again = await open();
 
     expect(again.get('[data-redemption-filter="r2"]').attributes('aria-pressed')).toBe('true');
+  });
+
+  it('says "1 point" for a cost of one and "500 points" otherwise', async () => {
+    queue = [
+      { ...redemption('d1', 'r1', 'unfulfilled'), cost: 1 },
+      redemption('d4', 'r1', 'unfulfilled'),
+    ];
+
+    const view = await open();
+    const text = (id: string): string =>
+      view.get(`[data-redemption-item="${id}"]`).text();
+
+    expect(text('d1')).toMatch(/Viewer d1\s*·\s*1 point$/);
+    expect(text('d4')).toMatch(/500 points$/);
+  });
+
+  it('acts through icon-only buttons and keeps select-all out of the header', async () => {
+    const view = await open();
+    const reject = view.get('[data-redemption-item="d1"] [data-redemption-reject]');
+
+    expect(reject.text()).toBe('');
+    expect(reject.attributes('aria-label')).toContain('Hydrate');
+    expect(view.get('[data-redemption-select-all]').element.closest('[data-slot="panel-actions"]')).toBeNull();
   });
 
   it('gives a role without reward:manage the list but no actions', async () => {

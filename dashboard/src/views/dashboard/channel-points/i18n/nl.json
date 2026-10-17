@@ -11,7 +11,7 @@
         "runsNothing": "Komt alleen in de wachtrij",
         "paused": "Gepauzeerd",
         "enabled": "{title} aan of uit zetten",
-        "costValue": "{count} punten",
+        "costValue": "{count} punt | {count} punten",
         "edit": "{title} bewerken",
         "editButton": "Bewerken",
         "dialog": {
@@ -67,7 +67,8 @@
         "emptyFilter": "Er wachten geen verzoeken voor deze beloning.",
         "error": "De inwisselingen konden niet laden.",
         "range": "{count} wachtend",
-        "cost": " · {count} punten",
+        "separator": "·",
+        "cost": "{count} punt | {count} punten",
         "selectAll": "Selecteer alle verzoeken",
         "selectRow": "Selecteer {title} van {name}",
         "complete": "Afronden",

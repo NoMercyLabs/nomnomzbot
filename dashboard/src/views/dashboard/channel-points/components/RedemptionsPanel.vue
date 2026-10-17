@@ -35,6 +35,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { agoText } from '@/lib/time';
@@ -191,14 +192,6 @@ function rejectOpen(open: boolean): void {
     @retry="queue.refetch()"
   >
     <template #actions>
-      <Checkbox
-        v-if="canManage"
-        data-redemption-select-all
-        :model-value="allChosen"
-        :disabled="visible.length === 0"
-        :aria-label="$t('dashboard.channelPoints.redemptions.selectAll')"
-        @update:model-value="toggleAll"
-      />
       <span class="text-sm text-muted-foreground tabular-nums">
         {{ $t('dashboard.channelPoints.redemptions.range', { count: visible.length }) }}
       </span>
@@ -254,16 +247,27 @@ function rejectOpen(open: boolean): void {
             : 'dashboard.channelPoints.redemptions.emptyFilter') }}
         </p>
 
-        <ul v-else class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+        <div v-if="canManage && visible.length > 0" class="flex min-h-9 flex-none items-center gap-3 px-3">
+          <Checkbox
+            data-redemption-select-all
+            :model-value="allChosen"
+            :aria-label="$t('dashboard.channelPoints.redemptions.selectAll')"
+            @update:model-value="toggleAll"
+          />
+          <span class="text-sm text-muted-foreground">
+            {{ $t('dashboard.channelPoints.redemptions.selectAll') }}
+          </span>
+        </div>
+
+        <ul v-if="visible.length > 0" class="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <li
             v-for="row in visible"
             :key="row.redemptionId"
             :data-redemption-item="row.redemptionId"
-            class="flex min-h-11 items-start gap-3 rounded-[12px] px-2 py-2 hover:bg-accent/50"
+            class="flex min-h-14 items-center gap-3 rounded-[8px] px-3 py-2 hover:bg-accent/50"
           >
             <Checkbox
               v-if="canManage"
-              class="mt-1"
               data-redemption-select
               :model-value="selected.includes(row.redemptionId)"
               :aria-label="$t('dashboard.channelPoints.redemptions.selectRow', { title: row.rewardTitle, name: row.userDisplayName })"
@@ -276,12 +280,13 @@ function rejectOpen(open: boolean): void {
                   {{ when(row) }}
                 </span>
               </div>
-              <div class="text-sm text-muted-foreground">
+              <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <UserName
                   :user-id="row.userId"
                   :name="row.userDisplayName"
                   :color="row.userColor"
                 />
+                <span aria-hidden="true">{{ $t('dashboard.channelPoints.redemptions.separator') }}</span>
                 <span>{{ $t('dashboard.channelPoints.redemptions.cost', { count: Number(row.cost) }) }}</span>
               </div>
               <p v-if="row.userInput" class="mt-1 text-sm break-words">
@@ -289,25 +294,34 @@ function rejectOpen(open: boolean): void {
               </p>
             </div>
             <div v-if="canManage" class="flex flex-none items-center gap-1.5">
-              <Button
-                variant="ghost"
-                size="sm"
-                :aria-label="$t('dashboard.channelPoints.redemptions.rejectRow', { title: row.rewardTitle, name: row.userDisplayName })"
-                data-redemption-reject
-                @click="rejecting = [row.redemptionId]"
-              >
-                {{ $t('dashboard.channelPoints.redemptions.reject') }}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                :aria-label="$t('dashboard.channelPoints.redemptions.completeRow', { title: row.rewardTitle, name: row.userDisplayName })"
-                data-redemption-complete
-                @click="decide([row.redemptionId], 'fulfill')"
-              >
-                <Check aria-hidden="true" />
-                {{ $t('dashboard.channelPoints.redemptions.complete') }}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    :aria-label="$t('dashboard.channelPoints.redemptions.rejectRow', { title: row.rewardTitle, name: row.userDisplayName })"
+                    data-redemption-reject
+                    @click="rejecting = [row.redemptionId]"
+                  >
+                    <Cross class="size-5" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{{ $t('dashboard.channelPoints.redemptions.reject') }}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    :aria-label="$t('dashboard.channelPoints.redemptions.completeRow', { title: row.rewardTitle, name: row.userDisplayName })"
+                    data-redemption-complete
+                    @click="decide([row.redemptionId], 'fulfill')"
+                  >
+                    <Check class="size-5" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{{ $t('dashboard.channelPoints.redemptions.complete') }}</TooltipContent>
+              </Tooltip>
             </div>
           </li>
         </ul>
