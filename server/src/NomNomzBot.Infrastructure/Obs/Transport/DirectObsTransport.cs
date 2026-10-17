@@ -127,6 +127,17 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
                 session.ErrorCode!
             );
 
+        return await SendBatchOnSessionAsync(broadcasterId, session.Value, commandId, batch, ct);
+    }
+
+    private async Task<Result<IReadOnlyList<ObsResponse>>> SendBatchOnSessionAsync(
+        Guid broadcasterId,
+        ObsSession session,
+        Guid commandId,
+        ObsRequestBatch batch,
+        CancellationToken ct
+    )
+    {
         string requestId = commandId.ToString();
         string frame = JsonSerializer.Serialize(
             new
@@ -151,7 +162,7 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
 
         Result<JsonElement> reply = await RoundTripAsync(
             broadcasterId,
-            session.Value,
+            session,
             requestId,
             frame,
             ct
@@ -320,7 +331,11 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
                 {
                     try
                     {
-                        await PublishCurrentStateAsync(broadcasterId, CancellationToken.None);
+                        await PublishCurrentStateAsync(
+                            broadcasterId,
+                            session,
+                            CancellationToken.None
+                        );
                     }
                     catch (Exception ex)
                     {
@@ -362,10 +377,17 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
     /// start/stop transition, since OBS-WS never replays a state-change event for history that predates
     /// the connection. Best-effort: a failed probe here never fails the connect itself.
     /// </summary>
-    private async Task PublishCurrentStateAsync(Guid broadcasterId, CancellationToken ct)
+    private async Task PublishCurrentStateAsync(
+        Guid broadcasterId,
+        ObsSession session,
+        CancellationToken ct
+    )
     {
-        Result<IReadOnlyList<ObsResponse>> batch = await SendBatchAsync(
+        // Bound to the session it was started for: if that session drops first, the probe fails
+        // instead of dialing a brand-new connection behind the keeper's back.
+        Result<IReadOnlyList<ObsResponse>> batch = await SendBatchOnSessionAsync(
             broadcasterId,
+            session,
             Guid.CreateVersion7(),
             new([new("GetStreamStatus", null), new("GetRecordStatus", null)]),
             ct
