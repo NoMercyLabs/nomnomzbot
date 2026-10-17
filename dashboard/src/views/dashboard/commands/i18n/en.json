@@ -108,7 +108,24 @@
         "title": "Built-in commands",
         "empty": "No built-in commands.",
         "error": "The built-in commands could not load.",
-        "enabled": "Answers in chat"
+        "enabled": "Answers in chat",
+        "customize": "Customize",
+        "customizeHelp": "These are the defaults. Customize to make them your own; each change overrides the default.",
+        "reserved": "This is a data-rights command. It always answers and its settings are fixed.",
+        "replyLocked": "This reply is fixed and cannot be changed.",
+        "variables": "Variables:",
+        "role": "Who can use it",
+        "globalCooldown": "Chat cooldown (seconds)",
+        "userCooldown": "Per-person cooldown (seconds)",
+        "speak": "Read it aloud",
+        "default": "Default: {value}",
+        "overrides": "Overrides the default ({value})",
+        "usingDefault": "Using the default",
+        "back": "Back to default",
+        "backTo": "Back to default: {field}",
+        "unsaved": "{count} unsaved change | {count} unsaved changes",
+        "save": "Save changes",
+        "discard": "Discard"
       }
     }
   }

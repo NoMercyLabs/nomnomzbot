@@ -308,3 +308,172 @@ export function useToggleBuiltin(
       ),
   });
 }
+
+export type BuiltinReplyGroup = components['schemas']['BuiltinReplyGroup'];
+export type BuiltinReply = components['schemas']['BuiltinReply'];
+
+export const builtinRepliesKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'builtin-replies',
+];
+
+async function readBuiltinReplies(channelId: string): Promise<BuiltinReplyGroup[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/builtins/replies',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined)
+    throw failed('built-in commands', response.status, error);
+
+  return [...(data?.data ?? [])];
+}
+
+export function useBuiltinReplies(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<BuiltinReplyGroup[], Error> {
+  return channelQuery(channelId, builtinRepliesKey, readBuiltinReplies);
+}
+
+// A null field means "the default applies"; the server replaces all three at once, so every save names all three.
+export type BuiltinSettingsChange = {
+  builtinKey: string;
+  cooldownSeconds: number | null;
+  userCooldownSeconds: number | null;
+  minPermissionLevel: string | null;
+};
+
+export function useUpdateBuiltinSettings(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<BuiltinCommand[], Error, BuiltinSettingsChange, number> {
+  return useOptimisticSave<BuiltinCommand[], BuiltinSettingsChange>({
+    describe: ({ builtinKey }) => ({ key: 'changeBuiltinSettings', params: { name: builtinKey } }),
+    queryKey: () => builtinsKey(toValue(channelId)),
+    mutationFn: async ({
+      builtinKey,
+      ...body
+    }: BuiltinSettingsChange): Promise<BuiltinCommand[]> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/builtins/{builtinKey}/settings',
+        { params: { path: {
+          version,
+          channelId: id,
+          builtinKey,
+        } }, body },
+      );
+
+      if (error !== undefined)
+        throw refusal('built-in command', error, response.status);
+
+      return readBuiltins(id);
+    },
+    apply: (
+      current: BuiltinCommand[] | undefined,
+      change: BuiltinSettingsChange,
+    ): BuiltinCommand[] =>
+      (current ?? []).map((row: BuiltinCommand) =>
+        row.builtinKey === change.builtinKey
+          ? {
+              ...row,
+              cooldownSecondsOverride: change.cooldownSeconds,
+              userCooldownSecondsOverride: change.userCooldownSeconds,
+              minPermissionLevelOverride: change.minPermissionLevel,
+            }
+          : row,
+      ),
+  });
+}
+
+export type BuiltinReplyChange = {
+  builtinKey: string;
+  slot: string;
+  // null = put the slot back to the default (DELETE); text = the channel's own wording (PUT).
+  template: string | null;
+};
+
+export function useSetBuiltinReply(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<BuiltinReplyGroup[], Error, BuiltinReplyChange, number> {
+  return useOptimisticSave<BuiltinReplyGroup[], BuiltinReplyChange>({
+    describe: ({ builtinKey, slot, template }) => ({
+      key: template === null
+        ? 'resetBuiltinReply'
+        : 'changeBuiltinReply',
+      params: { name: builtinKey, slot },
+    }),
+    queryKey: () => builtinRepliesKey(toValue(channelId)),
+    mutationFn: async ({
+      builtinKey,
+      slot,
+      template,
+    }: BuiltinReplyChange): Promise<BuiltinReplyGroup[]> => {
+      const id = toValue(channelId) as string;
+      const path = {
+        version,
+        channelId: id,
+        builtinKey,
+        slot,
+      };
+      const url = '/api/v{version}/channels/{channelId}/builtins/{builtinKey}/replies/{slot}';
+      const { error, response } = template === null
+        ? await client.DELETE(url, { params: { path } })
+        : await client.PUT(url, { params: { path }, body: { template } });
+
+      if (error !== undefined)
+        throw refusal('built-in command', error, response.status);
+
+      return readBuiltinReplies(id);
+    },
+    apply: (
+      current: BuiltinReplyGroup[] | undefined,
+      { builtinKey, slot, template }: BuiltinReplyChange,
+    ): BuiltinReplyGroup[] =>
+      (current ?? []).map((group: BuiltinReplyGroup) => ({
+        ...group,
+        replies: group.replies.map((reply: BuiltinReply) =>
+          reply.builtinKey === builtinKey && reply.slot === slot
+            ? {
+                ...reply,
+                effectiveTemplate: template ?? reply.defaultTemplate,
+                isOverridden: template !== null,
+              }
+            : reply,
+        ),
+      })),
+  });
+}
+
+export type BuiltinTtsChange = { builtinKey: string; enabled: boolean };
+
+export function useSetBuiltinTts(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<BuiltinCommand[], Error, BuiltinTtsChange, number> {
+  return useOptimisticSave<BuiltinCommand[], BuiltinTtsChange>({
+    describe: ({ builtinKey }) => ({ key: 'changeBuiltinTts', params: { name: builtinKey } }),
+    queryKey: () => builtinsKey(toValue(channelId)),
+    mutationFn: async ({ builtinKey, enabled }): Promise<BuiltinCommand[]> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/builtins/{builtinKey}/tts',
+        { params: { path: {
+          version,
+          channelId: id,
+          builtinKey,
+        } }, body: { enabled } },
+      );
+
+      if (error !== undefined)
+        throw refusal('built-in command', error, response.status);
+
+      return readBuiltins(id);
+    },
+    apply: (current: BuiltinCommand[] | undefined, { builtinKey, enabled }): BuiltinCommand[] =>
+      (current ?? []).map((row: BuiltinCommand) =>
+        row.builtinKey === builtinKey
+          ? { ...row, speakWithTts: enabled }
+          : row,
+      ),
+  });
+}

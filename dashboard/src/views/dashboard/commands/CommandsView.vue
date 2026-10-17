@@ -20,7 +20,6 @@ import {
   useBuiltins,
   useCommands,
   useDeleteCommand,
-  useToggleBuiltin,
   type BuiltinCommand,
   type CommandListItem,
 } from '@/api/commands';
@@ -28,13 +27,12 @@ import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
-import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 
+import BuiltinEditor from './components/BuiltinEditor.vue';
 import BuiltinList from './components/BuiltinList.vue';
 import CommandEditor from './components/CommandEditor.vue';
 import CommandList, { type CommandSort } from './components/CommandList.vue';
@@ -47,7 +45,6 @@ const { channelId } = useCurrentChannel();
 const commands = useCommands(channelId);
 const remove = useDeleteCommand(channelId);
 const builtins = useBuiltins(channelId);
-const toggleBuiltin = useToggleBuiltin(channelId);
 
 const tabs = computed<PageTab[]>(() => [
   { value: 'all', label: t('dashboard.commands.tabs.all') },
@@ -94,12 +91,6 @@ function select(name: string | undefined): void {
     command: name,
     builtin: undefined,
   } });
-}
-
-function setBuiltin(enabled: boolean): void {
-  if (builtin.value) {
-    toggleBuiltin.mutate({ builtinKey: builtin.value.builtinKey, enabled });
-  }
 }
 
 function selectBuiltin(name: string): void {
@@ -167,20 +158,12 @@ const creating = ref(false);
         </Button>
         <CommandEditor :key="row.name" :row="row" @remove="removeCommand" />
       </div>
-      <PanelCard
+      <BuiltinEditor
         v-else-if="builtin && view === 'all'"
+        :key="builtin.builtinKey"
         data-builtin-detail
-        :title="`!${triggerWord(builtin)}`"
-        :description="$t('dashboard.commands.list.kindBuiltin')"
-      >
-        <RowGroup>
-          <SettingRow
-            :title="$t('dashboard.commands.builtin.enabled')"
-            :model-value="builtin.isEnabled"
-            @update:model-value="setBuiltin"
-          />
-        </RowGroup>
-      </PanelCard>
+        :builtin="builtin"
+      />
       <PanelCard
         v-else
         state="empty"
