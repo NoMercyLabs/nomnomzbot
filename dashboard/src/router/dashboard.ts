@@ -28,6 +28,7 @@ import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboa
 import { dashboardPollsRoute } from '@/views/dashboard/polls/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
 import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
+import { dashboardEconomyRoute } from '@/views/dashboard/economy/route';
 import { scaffoldRoutes } from '@/views/dashboard/scaffold/route';
 import { dashboardStreamRoute } from '@/views/dashboard/stream/route';
 import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
@@ -41,6 +42,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardViewerChatRoute,
   dashboardCommandsRoute,
   dashboardTimersRoute,
+  dashboardEconomyRoute,
   dashboardMusicRoute,
   dashboardChannelPointsRoute,
   dashboardSupportersRoute,

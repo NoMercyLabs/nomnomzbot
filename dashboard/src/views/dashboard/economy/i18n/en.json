@@ -1,0 +1,92 @@
+{
+  "dashboard": {
+    "economy": {
+      "title": "Economy",
+      "crumb": "Community",
+      "tabs": {
+        "currency": "Currency",
+        "rules": "Earning rules",
+        "jars": "Savings jars"
+      },
+      "sources": {
+        "ChatMessage": "Chat messages",
+        "WatchTime": "Watch time",
+        "Follow": "Follows",
+        "Subscription": "Twitch subscriptions",
+        "GiftSubscription": "Twitch gift subscriptions",
+        "Cheer": "Cheers",
+        "Raid": "Raids",
+        "Supporter": "Supporter events"
+      },
+      "currency": {
+        "title": "Channel currency",
+        "description": "The points viewers collect in your channel.",
+        "error": "The currency could not load.",
+        "enabled": "Currency on",
+        "enabledHelp": "When it is off, viewers earn nothing and the currency commands stay quiet.",
+        "name": "Currency name",
+        "plural": "Plural name",
+        "starting": "Starting balance",
+        "max": "Highest balance",
+        "maxHelp": "Leave empty for no limit.",
+        "decimals": "Decimal places",
+        "save": "Save currency",
+        "nameRequired": "Give the currency a name."
+      },
+      "rules": {
+        "title": "Earning rules",
+        "description": "How viewers earn the currency. One rule per source.",
+        "new": "New rule",
+        "empty": "No earning rules yet. Viewers earn nothing until you add one.",
+        "error": "The earning rules could not load.",
+        "off": "Off",
+        "rate": "{rate} point | {rate} points",
+        "window": "every {seconds} second | every {seconds} seconds",
+        "toggle": "Turn {source} on or off",
+        "edit": "Edit rule",
+        "delete": "Delete rule",
+        "confirmTitle": "Delete this rule?",
+        "confirmBody": "Viewers stop earning from this source. Balances they already have stay.",
+        "confirmAction": "Delete rule",
+        "dialog": {
+          "newTitle": "New earning rule",
+          "editTitle": "Edit earning rule",
+          "description": "Choose what viewers do to earn, and how much they get.",
+          "source": "Source",
+          "sourceNone": "Every source has a rule",
+          "sourceRequired": "Pick a source.",
+          "rate": "Amount earned",
+          "window": "Seconds per payout",
+          "windowHelp": "For chat and watch time: how often a viewer can earn. Leave empty for each event.",
+          "save": "Save rule"
+        }
+      },
+      "jars": {
+        "title": "Savings jars",
+        "description": "Shared pots viewers fill toward a goal.",
+        "new": "New jar",
+        "empty": "No savings jars yet.",
+        "error": "The savings jars could not load.",
+        "closed": "Closed",
+        "balance": "{balance} saved",
+        "progress": "{balance} of {goal} saved",
+        "toggle": "Open or close {name}",
+        "delete": "Delete jar",
+        "confirmTitle": "Delete {name}?",
+        "confirmBody": "The jar and its balance are removed.",
+        "confirmAction": "Delete jar",
+        "moneyTitle": "Deposits, withdrawals and invites",
+        "notYet": "Not available here yet. Viewers use the chat commands for now.",
+        "dialog": {
+          "title": "New savings jar",
+          "description": "The jar starts open, so viewers can put currency in right away.",
+          "name": "Jar name",
+          "about": "About this jar",
+          "goal": "Goal",
+          "create": "Create jar",
+          "nameRequired": "Give the jar a name."
+        }
+      }
+    }
+  }
+}

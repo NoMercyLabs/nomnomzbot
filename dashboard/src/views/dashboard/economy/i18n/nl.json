@@ -1,0 +1,92 @@
+{
+  "dashboard": {
+    "economy": {
+      "title": "Economie",
+      "crumb": "Community",
+      "tabs": {
+        "currency": "Valuta",
+        "rules": "Verdienregels",
+        "jars": "Spaarpotten"
+      },
+      "sources": {
+        "ChatMessage": "Chatberichten",
+        "WatchTime": "Kijktijd",
+        "Follow": "Follows",
+        "Subscription": "Abonnementen",
+        "GiftSubscription": "Cadeau-abonnementen",
+        "Cheer": "Cheers",
+        "Raid": "Raids",
+        "Supporter": "Supporter-events"
+      },
+      "currency": {
+        "title": "Kanaalvaluta",
+        "description": "De punten die kijkers in je kanaal verzamelen.",
+        "error": "De valuta kon niet laden.",
+        "enabled": "Valuta aan",
+        "enabledHelp": "Als hij uit staat, verdienen kijkers niets en zwijgen de valutacommando's.",
+        "name": "Naam valuta",
+        "plural": "Meervoud",
+        "starting": "Startsaldo",
+        "max": "Hoogste saldo",
+        "maxHelp": "Leeg laten voor geen grens.",
+        "decimals": "Decimalen",
+        "save": "Valuta opslaan",
+        "nameRequired": "Geef de valuta een naam."
+      },
+      "rules": {
+        "title": "Verdienregels",
+        "description": "Hoe kijkers de valuta verdienen. Eén regel per bron.",
+        "new": "Nieuwe regel",
+        "empty": "Nog geen verdienregels. Kijkers verdienen niets tot je er een toevoegt.",
+        "error": "De verdienregels konden niet laden.",
+        "off": "Uit",
+        "rate": "{rate} punt | {rate} punten",
+        "window": "elke {seconds} seconde | elke {seconds} seconden",
+        "toggle": "{source} aan of uit",
+        "edit": "Regel bewerken",
+        "delete": "Regel verwijderen",
+        "confirmTitle": "Deze regel verwijderen?",
+        "confirmBody": "Kijkers verdienen niets meer met deze bron. Hun saldo blijft.",
+        "confirmAction": "Regel verwijderen",
+        "dialog": {
+          "newTitle": "Nieuwe verdienregel",
+          "editTitle": "Verdienregel bewerken",
+          "description": "Kies wat kijkers doen om te verdienen, en hoeveel ze krijgen.",
+          "source": "Bron",
+          "sourceNone": "Elke bron heeft een regel",
+          "sourceRequired": "Kies een bron.",
+          "rate": "Verdiend bedrag",
+          "window": "Seconden per uitbetaling",
+          "windowHelp": "Voor chat en kijktijd: hoe vaak een kijker kan verdienen. Leeg laten voor elk event.",
+          "save": "Regel opslaan"
+        }
+      },
+      "jars": {
+        "title": "Spaarpotten",
+        "description": "Gedeelde potten die kijkers vullen tot een doel.",
+        "new": "Nieuwe pot",
+        "empty": "Nog geen spaarpotten.",
+        "error": "De spaarpotten konden niet laden.",
+        "closed": "Dicht",
+        "balance": "{balance} gespaard",
+        "progress": "{balance} van {goal} gespaard",
+        "toggle": "{name} open of dicht",
+        "delete": "Pot verwijderen",
+        "confirmTitle": "{name} verwijderen?",
+        "confirmBody": "De pot en zijn saldo worden verwijderd.",
+        "confirmAction": "Pot verwijderen",
+        "moneyTitle": "Storten, opnemen en uitnodigen",
+        "notYet": "Nog niet beschikbaar hier. Kijkers gebruiken voorlopig de chatcommando's.",
+        "dialog": {
+          "title": "Nieuwe spaarpot",
+          "description": "De pot start open, zodat kijkers meteen valuta kunnen storten.",
+          "name": "Naam pot",
+          "about": "Over deze pot",
+          "goal": "Doel",
+          "create": "Pot maken",
+          "nameRequired": "Geef de pot een naam."
+        }
+      }
+    }
+  }
+}

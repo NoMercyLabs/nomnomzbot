@@ -20,6 +20,7 @@ import {
   musicQueueKey,
   musicTopRequestersKey,
 } from '@/api/music';
+import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { pipelinesKey } from '@/api/pipelines';
 import { redemptionsKey, rewardsKey, type Redemption } from '@/api/rewards';
@@ -81,6 +82,9 @@ const everyKey: Keys[] = [
   pipelinesKey,
   actionRequiredKey,
   communityListsKey,
+  currencyConfigKey,
+  earningRulesKey,
+  savingsJarsKey,
 ];
 
 // Each hub event with the keys it must mark stale for the joined channel.
@@ -290,6 +294,9 @@ const domainKeys: [string, Keys[]][] = [
   ['unban-requests', [reviewQueueKey, communityListsKey]],
   ['viewer-reports', [reviewQueueKey, communityListsKey]],
   ['raid-assessments', [reviewQueueKey, communityListsKey]],
+  ['economy-config', [currencyConfigKey]],
+  ['earning-rules', [earningRulesKey]],
+  ['savings-jar', [savingsJarsKey]],
 ];
 
 describe('a saved or removed shoutout message refreshes the open profiles', () => {
@@ -328,7 +335,7 @@ describe('every ConfigChanged domain refreshes its page', () => {
     expect(staleFor(queries, keys, 'other')).toEqual(keys.map(() => false));
   });
 
-  it.each(['catalog', 'earning-rules', 'economy-config', 'quotes', 'savings-jar', 'picklists'])(
+  it.each(['catalog', 'quotes', 'picklists'])(
     'the %s domain has no page key of its own and marks every query of the joined channel stale',
     async (domain) => {
       const [queries, connection] = await started();
