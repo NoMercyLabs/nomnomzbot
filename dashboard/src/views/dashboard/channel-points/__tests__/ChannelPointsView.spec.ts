@@ -192,14 +192,15 @@ describe('ChannelPointsView', () => {
 
     await type('title', 'Stay hydrated');
     await type('prompt', 'Drink up');
-    await type('response', '{{user}} drank');
     await type('cost', '750');
     await type('backgroundColor', '#112233');
+    (document.body.querySelector('[data-limits-trigger]') as HTMLButtonElement).click();
+    await flushPromises();
     await type('maxPerStream', '5');
     await type('maxPerUserPerStream', '2');
     await type('globalCooldownSeconds', '60');
     await type('timerDurationSeconds', '30');
-    field('isEnabled').click();
+    (document.body.querySelector('[data-reward-dialog-enabled]') as HTMLButtonElement).click();
     field('isPaused').click();
     field('isUserInputRequired').click();
     await flushPromises();
@@ -212,7 +213,7 @@ describe('ChannelPointsView', () => {
     expect(patch?.body).toEqual({
       title: 'Stay hydrated',
       prompt: 'Drink up',
-      response: '{{user}} drank',
+      response: '',
       cost: 750,
       isEnabled: false,
       isPaused: true,
@@ -262,6 +263,178 @@ describe('ChannelPointsView', () => {
     const reason = en.dashboard.channelPoints.rewards.dialog.unmanageable;
 
     expect(document.body.textContent).toContain(reason);
+  });
+
+  describe('edit dialog layout', () => {
+    const pick = (selector: string): HTMLElement =>
+      document.body.querySelector(selector) as HTMLElement;
+    const has = (selector: string): boolean => document.body.querySelector(selector) !== null;
+
+    async function openDialog(): Promise<void> {
+      const view = await open();
+
+      await view.get('[data-reward-edit]').trigger('click');
+      await flushPromises();
+    }
+
+    async function chooseMode(mode: string): Promise<void> {
+      pick(`[data-reply-mode] [data-segment][value="${mode}"]`).click();
+      await flushPromises();
+    }
+
+    async function save(): Promise<Call | undefined> {
+      pick('[data-form-action]').click();
+      await flushPromises();
+
+      return calls.find((call) => call.method === 'PATCH');
+    }
+
+    it('toggles enabled with the switch in the header', async () => {
+      await openDialog();
+
+      const toggle = pick('[data-form-header] [data-reward-dialog-enabled]');
+
+      expect(toggle.getAttribute('aria-checked')).toBe('true');
+      expect(has('[data-field="isEnabled"]')).toBe(false);
+
+      toggle.click();
+      await flushPromises();
+
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+      const patch = await save();
+
+      expect(patch?.body).toMatchObject({ isEnabled: false });
+    });
+
+    it('shows the pipeline picker for a bound reward and hides the chat reply', async () => {
+      await openDialog();
+
+      expect(has('[data-field="pipelineId"]')).toBe(true);
+      expect(has('[data-field="response"]')).toBe(false);
+    });
+
+    it('simple reply mode hides the pipeline, sends the reply and clears the pipeline', async () => {
+      await openDialog();
+      await chooseMode('simple');
+
+      expect(has('[data-field="pipelineId"]')).toBe(false);
+
+      const reply = pick('[data-field="response"]') as HTMLTextAreaElement;
+
+      reply.value = '{{user}} drank';
+      reply.dispatchEvent(new Event('input', { bubbles: true }));
+      await flushPromises();
+
+      const patch = await save();
+
+      expect(patch?.body).toMatchObject({
+        response: '{{user}} drank',
+        pipelineId: '00000000-0000-0000-0000-000000000000',
+      });
+    });
+
+    it('pipeline mode hides the chat reply and sends the pipeline with an empty reply', async () => {
+      reward = {
+        ...reward,
+        pipelineId: null,
+        response: 'old reply',
+      };
+
+      await openDialog();
+
+      expect((pick('[data-field="response"]') as HTMLTextAreaElement).value).toBe('old reply');
+
+      await chooseMode('pipeline');
+
+      expect(has('[data-field="response"]')).toBe(false);
+      expect(has('[data-field="pipelineId"]')).toBe(true);
+    });
+
+    it('keeps the limits closed until opened and summarizes the active ones', async () => {
+      reward = {
+        ...reward,
+        maxPerStream: 5,
+        globalCooldownSeconds: 60,
+      };
+
+      await openDialog();
+
+      expect(has('[data-field="maxPerStream"]')).toBe(false);
+      expect(pick('[data-limits-trigger]').textContent).toContain('5');
+      expect(pick('[data-limits-trigger]').textContent).toContain('60');
+
+      pick('[data-limits-trigger]').click();
+      await flushPromises();
+
+      expect(has('[data-field="maxPerStream"]')).toBe(true);
+      expect(has('[data-form-header] [data-field="isPaused"]')).toBe(true);
+      expect(document.body.querySelectorAll('[data-field="isPaused"]')).toHaveLength(1);
+    });
+
+    it('shows a chevron on the limits trigger that rotates when opened', async () => {
+      await openDialog();
+
+      const trigger = pick('[data-limits-trigger]');
+      const chevron = trigger.querySelector('[data-limits-chevron]') as Element;
+
+      expect(chevron).not.toBeNull();
+      expect(trigger.getAttribute('data-state')).toBe('closed');
+      expect(chevron.getAttribute('class')).toContain('group-data-[state=open]:rotate-180');
+
+      trigger.click();
+      await flushPromises();
+
+      expect(trigger.getAttribute('data-state')).toBe('open');
+      expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('labels the Enabled and Paused switches in the header and saves Paused', async () => {
+      await openDialog();
+
+      const header = pick('[data-form-header]');
+
+      expect(header.textContent).toContain('Enabled');
+      expect(header.textContent).toContain('Paused');
+
+      const paused = pick('[data-form-header] [data-reward-dialog-paused]');
+
+      expect(paused.getAttribute('aria-checked')).toBe('false');
+
+      paused.click();
+      await flushPromises();
+
+      expect(paused.getAttribute('aria-checked')).toBe('true');
+      expect((await save())?.body).toMatchObject({ isPaused: true });
+    });
+
+    it('labels the prompt field Description, apart from the reply setting', async () => {
+      await openDialog();
+
+      const label = pick('label[for="reward-prompt"]');
+
+      expect(label.textContent).toBe('Description');
+      expect(has('[data-reply-mode] [data-field="prompt"]')).toBe(false);
+    });
+
+    it('paints the swatch with the current color value', async () => {
+      reward = { ...reward, backgroundColor: '#9146FF' };
+      await openDialog();
+
+      const chip = pick('[data-color-chip]');
+
+      expect(chip.style.backgroundColor).toBe('rgb(145, 70, 255)');
+    });
+
+    it('draws the color swatch and hex field as one input group', async () => {
+      await openDialog();
+
+      const group = pick('[data-color-picker]');
+
+      expect(group.querySelector('[data-color-swatch]')).not.toBeNull();
+      expect(group.querySelector('[data-field="backgroundColor"]')).not.toBeNull();
+      expect(group.getAttribute('data-slot')).toBe('input-group');
+    });
   });
 
   it('lists only the waiting redemption and completes it', async () => {

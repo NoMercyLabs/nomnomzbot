@@ -8,10 +8,11 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// A color field: the browser's own color picker as a swatch, beside a hex text field. Both edit one value.
+// A color field as one input group: the browser's own color picker as a swatch at the left inside the
+// hex text field, with one border and one focus ring. Both edit one value.
 import { computed } from 'vue';
 
-import { Input } from '@/components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 
 defineOptions({ inheritAttrs: false });
 
@@ -36,17 +37,26 @@ function pick(event: Event): void {
 </script>
 
 <template>
-  <div class="flex items-center gap-2" data-color-picker>
-    <input
-      type="color"
-      data-color-swatch
-      class="size-9 flex-none cursor-pointer rounded-md border border-input bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50"
-      :value="swatch"
-      :disabled="props.disabled"
-      :aria-label="props.label"
-      @input="pick"
-    >
-    <Input
+  <InputGroup data-color-picker>
+    <InputGroupAddon>
+      <span
+        data-color-chip
+        class="relative size-5 flex-none overflow-hidden rounded-sm border border-input"
+        :class="{ 'opacity-50': props.disabled }"
+        :style="{ backgroundColor: swatch }"
+      >
+        <input
+          type="color"
+          data-color-swatch
+          class="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+          :value="swatch"
+          :disabled="props.disabled"
+          :aria-label="props.label"
+          @input="pick"
+        >
+      </span>
+    </InputGroupAddon>
+    <InputGroupInput
       v-bind="$attrs"
       v-model="model"
       autocomplete="off"
@@ -54,5 +64,5 @@ function pick(event: Event): void {
       :disabled="props.disabled"
       :aria-label="props.label"
     />
-  </div>
+  </InputGroup>
 </template>

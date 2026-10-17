@@ -11,6 +11,7 @@
 // The one dialog for a small form (spec row Dialog): 5 fields or fewer. Six or more become an editor page.
 // Same frame as ConfirmDialog: header and footer stay, only the body scrolls, at most 90% of the window.
 // The owner puts the fields in the default slot and keeps their values; this dialog only submits.
+// The optional header-action slot sits at the right of the title (for example an on/off switch).
 // Pressing the primary button, or Enter in a field, emits submit once and leaves the dialog open:
 // the owner closes it (v-model:open) on success, or sets error, so the typed values survive a failure.
 // While pending the primary is disabled and Esc, Cancel and a click outside do not close it.
@@ -97,7 +98,7 @@ function focusFirstField(event: Event): void {
     <DialogContent
       v-bind="$attrs"
       :show-close-button="false"
-      class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-115"
+      class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-200"
       @open-auto-focus="focusFirstField"
       @escape-key-down="keepOpenWhilePending"
       @pointer-down-outside="keepOpenWhilePending"
@@ -109,11 +110,14 @@ function focusFirstField(event: Event): void {
         @submit.prevent="submit"
         @keydown.enter="submitFromField"
       >
-        <div class="grid flex-none gap-1.5 px-6 pt-6 pb-4">
-          <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription v-if="description" class="text-sm text-muted-foreground">
-            {{ description }}
-          </DialogDescription>
+        <div data-form-header class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4">
+          <div class="grid gap-1.5">
+            <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
+            <DialogDescription v-if="description" class="text-sm text-muted-foreground">
+              {{ description }}
+            </DialogDescription>
+          </div>
+          <slot name="header-action" />
         </div>
         <div ref="body" class="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
           <ReadOnlyScope :read-only="false" class="flex flex-col gap-4">
