@@ -20,22 +20,34 @@ import UserAdd from '~icons/nnz/user-add';
 import UsersSwap from '~icons/nnz/users-swap';
 
 import type { EventResponseChange, EventResponseDetail } from '@/api/eventResponses';
+import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
 
 // What the editor form holds. The switch for "enabled" is not here: it saves at once.
 export interface EventDraft {
+  mode: ReplyMode;
   message: string;
+  pipelineId: string;
   speakWithTts: boolean;
 }
 
 export function draftOf(saved: EventResponseDetail): EventDraft {
   return {
+    mode: saved.responseType === 'pipeline'
+      ? 'full'
+      : 'simple',
     message: saved.message ?? '',
+    pipelineId: saved.pipelineId ?? '',
     speakWithTts: saved.speakWithTts,
   };
 }
 
 export function sameDraft(left: EventDraft, right: EventDraft): boolean {
-  return left.message === right.message && left.speakWithTts === right.speakWithTts;
+  return (
+    left.mode === right.mode &&
+    left.message === right.message &&
+    left.pipelineId === right.pipelineId &&
+    left.speakWithTts === right.speakWithTts
+  );
 }
 
 // Only the fields that differ from the saved response travel to the bot.
@@ -43,8 +55,21 @@ export function changeOf(draft: EventDraft, saved: EventResponseDetail): EventRe
   const base = draftOf(saved);
   const change: EventResponseChange = {};
 
-  if (draft.message !== base.message) {
+  // The message stays on the response when a pipeline answers; only the response type says which one runs.
+  if (draft.mode === 'simple' && draft.message !== base.message) {
     change.message = draft.message;
+  }
+
+  if (draft.mode === 'simple' && base.mode === 'full') {
+    change.responseType = 'chat_message';
+    change.pipelineId = noPipelineId;
+  }
+
+  const full = draft.mode === 'full' && draft.pipelineId !== '';
+
+  if (full && (base.mode === 'simple' || draft.pipelineId !== base.pipelineId)) {
+    change.responseType = 'pipeline';
+    change.pipelineId = draft.pipelineId;
   }
 
   if (draft.speakWithTts !== base.speakWithTts) {

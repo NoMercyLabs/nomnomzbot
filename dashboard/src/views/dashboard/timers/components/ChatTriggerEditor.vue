@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import { useUpdateChatTrigger, type ChatTrigger } from '@/api/chatTriggers';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
@@ -135,15 +136,17 @@ function remove(): void {
         />
       </RowGroup>
 
-      <Field>
-        <FieldLabel for="trigger-response">{{ $t('dashboard.timers.triggers.editor.response') }}</FieldLabel>
-        <Textarea
-          id="trigger-response"
-          v-model="draft.response"
-          rows="3"
-          :aria-label="$t('dashboard.timers.triggers.editor.response')"
-        />
-      </Field>
+      <ReplyModeField v-model:mode="draft.mode" v-model:pipeline-id="draft.pipelineId">
+        <Field>
+          <FieldLabel for="trigger-response">{{ $t('dashboard.timers.triggers.editor.response') }}</FieldLabel>
+          <Textarea
+            id="trigger-response"
+            v-model="draft.response"
+            rows="3"
+            :aria-label="$t('dashboard.timers.triggers.editor.response')"
+          />
+        </Field>
+      </ReplyModeField>
 
       <Field>
         <FieldLabel for="trigger-cooldown">{{ $t('dashboard.timers.triggers.editor.cooldown') }}</FieldLabel>

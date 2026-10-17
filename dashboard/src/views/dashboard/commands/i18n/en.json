@@ -42,7 +42,6 @@
         "replyNumber": "Reply {number}",
         "pipeline": "Pipeline",
         "pipelinePlaceholder": "Pick a pipeline",
-        "noPipeline": "This command answers nothing until you pick a pipeline.",
         "codeNote": "This command runs a code script. Linking a script to a command is not possible here yet.",
         "codeError": "The scripts could not load: {message}",
         "role": "Who can use it",

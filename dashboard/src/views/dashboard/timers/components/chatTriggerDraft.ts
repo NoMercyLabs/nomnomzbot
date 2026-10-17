@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { ChatTrigger, ChatTriggerChange } from '@/api/chatTriggers';
+import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
 
 export const matchTypes = ['contains', 'exact', 'starts_with', 'regex'] as const;
 
@@ -29,7 +30,9 @@ export interface ChatTriggerDraft {
   pattern: string;
   matchType: string;
   caseSensitive: boolean;
+  mode: ReplyMode;
   response: string;
+  pipelineId: string;
   cooldownSeconds: number;
   minPermissionLevel: string;
 }
@@ -39,7 +42,11 @@ export function draftOf(trigger: ChatTrigger): ChatTriggerDraft {
     pattern: trigger.pattern,
     matchType: trigger.matchType,
     caseSensitive: trigger.caseSensitive,
+    mode: trigger.pipelineId
+      ? 'full'
+      : 'simple',
     response: trigger.response ?? '',
+    pipelineId: trigger.pipelineId ?? '',
     cooldownSeconds: Number(trigger.cooldownSeconds),
     minPermissionLevel: trigger.minPermissionLevel,
   };
@@ -62,8 +69,17 @@ export function changeOf(draft: ChatTriggerDraft, trigger: ChatTrigger): ChatTri
     change.caseSensitive = draft.caseSensitive;
   }
 
-  if (draft.response !== saved.response) {
+  // The reply text stays on the trigger when a pipeline answers; the bot runs the pipeline first.
+  if (draft.mode === 'simple' && draft.response !== saved.response) {
     change.response = draft.response;
+  }
+
+  if (draft.mode === 'simple' && saved.pipelineId !== '') {
+    change.pipelineId = noPipelineId;
+  }
+
+  if (draft.mode === 'full' && draft.pipelineId !== '' && draft.pipelineId !== saved.pipelineId) {
+    change.pipelineId = draft.pipelineId;
   }
 
   if (draft.cooldownSeconds !== saved.cooldownSeconds) {

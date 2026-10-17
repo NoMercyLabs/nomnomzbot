@@ -67,6 +67,15 @@
     },
     "chart": {
       "period": "Periode"
+    },
+    "replyMode": {
+      "label": "Soort antwoord",
+      "simple": "Eenvoudig antwoord",
+      "full": "Volledige pipeline",
+      "pipeline": "Pipeline",
+      "pipelinePlaceholder": "Kies een pipeline",
+      "none": "De pipeline heeft zijn eigen antwoordstap. Er wordt niets beantwoord tot je er een kiest.",
+      "open": "Open in de pipeline-editor"
     }
   },
   "template": {
