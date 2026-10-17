@@ -17,7 +17,7 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import {
   Field,
   FieldContent,
-  FieldDescription,
+  FieldInfo,
   FieldLabel,
   FieldTitle,
 } from '@/components/ui/field';
@@ -83,8 +83,10 @@ function save(): void {
       <FieldLabel v-for="option in CHOICES" :key="option" :for="`profile-standing-${option}`">
         <Field orientation="horizontal">
           <FieldContent>
-            <FieldTitle>{{ $t(`profile.botStanding.levels.${option}.name`) }}</FieldTitle>
-            <FieldDescription>{{ $t(`profile.botStanding.levels.${option}.effect`) }}</FieldDescription>
+            <div class="flex items-center gap-1.5">
+              <FieldTitle>{{ $t(`profile.botStanding.levels.${option}.name`) }}</FieldTitle>
+              <FieldInfo>{{ $t(`profile.botStanding.levels.${option}.effect`) }}</FieldInfo>
+            </div>
           </FieldContent>
           <RadioGroupItem
             :id="`profile-standing-${option}`"

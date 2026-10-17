@@ -21,6 +21,7 @@
     "close": "Close",
     "cancel": "Cancel",
     "copied": "Copied",
+    "fieldInfo": "More about this field",
     "readOnly": "You can view this, but your role cannot change it.",
     "shortcuts": {
       "title": "Keyboard shortcuts",
@@ -69,7 +70,7 @@
       "period": "Period"
     },
     "replyMode": {
-      "label": "Reply type",
+      "label": "Reaction",
       "simple": "Simple reply",
       "full": "Full pipeline",
       "pipeline": "Pipeline",
@@ -80,7 +81,9 @@
   },
   "template": {
     "field": {
-      "unknown": "Not a known helper here: {names}"
+      "unknown": "Not a known helper here: {names}",
+      "showHelpers": "Show all helpers",
+      "hideHelpers": "Hide helpers"
     },
     "panel": {
       "search": "Search helpers",

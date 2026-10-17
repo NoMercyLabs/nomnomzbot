@@ -29,7 +29,7 @@ import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -141,6 +141,7 @@ function remove(): void {
           v-if="!random"
           v-model="draft.templateResponse"
           context="command"
+          :maxlength="500"
           :label="$t('dashboard.commands.editor.reply')"
           :placeholder="$t('dashboard.commands.editor.replyPlaceholder')"
         />
@@ -201,9 +202,12 @@ function remove(): void {
         </CollapsibleTrigger>
         <CollapsibleContent force-mount class="grid gap-4 pt-3 data-[state=closed]:hidden">
           <Field>
-            <FieldLabel for="command-chat-cooldown">{{
-              $t('dashboard.commands.editor.chatCooldown')
-            }}</FieldLabel>
+            <div class="flex items-center gap-1.5">
+              <FieldLabel for="command-chat-cooldown">{{
+                $t('dashboard.commands.editor.chatCooldown')
+              }}</FieldLabel>
+              <FieldInfo>{{ $t('dashboard.commands.editor.chatCooldownHelp') }}</FieldInfo>
+            </div>
             <Input
               id="command-chat-cooldown"
               type="number"
@@ -213,14 +217,14 @@ function remove(): void {
               :model-value="draft.cooldownSeconds"
               @update:model-value="setNumber('cooldownSeconds', $event)"
             />
-            <FieldDescription>{{
-              $t('dashboard.commands.editor.chatCooldownHelp')
-            }}</FieldDescription>
           </Field>
           <Field>
-            <FieldLabel for="command-person-cooldown">{{
-              $t('dashboard.commands.editor.personCooldown')
-            }}</FieldLabel>
+            <div class="flex items-center gap-1.5">
+              <FieldLabel for="command-person-cooldown">{{
+                $t('dashboard.commands.editor.personCooldown')
+              }}</FieldLabel>
+              <FieldInfo>{{ $t('dashboard.commands.editor.personCooldownHelp') }}</FieldInfo>
+            </div>
             <Input
               id="command-person-cooldown"
               type="number"
@@ -230,9 +234,6 @@ function remove(): void {
               :model-value="draft.userCooldownSeconds"
               @update:model-value="setNumber('userCooldownSeconds', $event)"
             />
-            <FieldDescription>{{
-              $t('dashboard.commands.editor.personCooldownHelp')
-            }}</FieldDescription>
           </Field>
         </CollapsibleContent>
       </Collapsible>

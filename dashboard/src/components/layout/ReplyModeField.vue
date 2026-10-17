@@ -18,7 +18,7 @@ import { usePipelines } from '@/api/pipelines';
 import type { ReplyMode } from '@/components/layout/replyMode';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -46,6 +46,7 @@ const options = computed<{ value: ReplyMode; label: string }[]>(() => [
 
 <template>
   <div data-reply-mode class="grid gap-3">
+    <h3 data-reply-mode-heading class="text-sm font-semibold">{{ $t('common.replyMode.label') }}</h3>
     <SegmentedControl
       v-model="mode"
       :label="$t('common.replyMode.label')"
@@ -53,37 +54,52 @@ const options = computed<{ value: ReplyMode; label: string }[]>(() => [
       :disabled="disabled"
     />
 
-    <slot v-if="mode === 'simple'" />
+    <div v-if="mode === 'simple'" data-reply-simple class="grid gap-3">
+      <slot />
+    </div>
 
     <Field v-else data-reply-pipeline>
-      <FieldLabel>{{ $t('common.replyMode.pipeline') }}</FieldLabel>
-      <Select v-model="pipelineId" :disabled="disabled">
-        <SelectTrigger :aria-label="$t('common.replyMode.pipeline')" class="w-full">
-          <SelectValue :placeholder="$t('common.replyMode.pipelinePlaceholder')" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem
-            v-for="pipeline in pipelines.data.value ?? []"
-            :key="pipeline.id"
-            :value="pipeline.id"
-          >
-            {{ pipeline.name }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      <FieldDescription v-if="pipelineId === ''">{{ $t('common.replyMode.none') }}</FieldDescription>
-      <Button
-        v-else
-        as-child
-        type="button"
-        variant="outline"
-        size="sm"
-        class="w-fit"
-      >
-        <RouterLink :to="`/app/pipelines/${pipelineId}`">
+      <div class="flex items-center gap-1.5">
+        <FieldLabel>{{ $t('common.replyMode.pipeline') }}</FieldLabel>
+        <FieldInfo v-if="pipelineId === ''">{{ $t('common.replyMode.none') }}</FieldInfo>
+      </div>
+      <!-- One row, and the button always holds its place: picking a pipeline never moves the layout. -->
+      <div class="flex items-center gap-2">
+        <Select v-model="pipelineId" :disabled="disabled">
+          <SelectTrigger :aria-label="$t('common.replyMode.pipeline')" class="min-w-0 flex-1">
+            <SelectValue :placeholder="$t('common.replyMode.pipelinePlaceholder')" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="pipeline in pipelines.data.value ?? []"
+              :key="pipeline.id"
+              :value="pipeline.id"
+            >
+              {{ pipeline.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          v-if="pipelineId !== ''"
+          as-child
+          type="button"
+          variant="outline"
+          class="flex-none"
+        >
+          <RouterLink :to="`/app/pipelines/${pipelineId}`">
+            {{ $t('common.replyMode.open') }}
+          </RouterLink>
+        </Button>
+        <Button
+          v-else
+          type="button"
+          variant="outline"
+          class="flex-none"
+          disabled
+        >
           {{ $t('common.replyMode.open') }}
-        </RouterLink>
-      </Button>
+        </Button>
+      </div>
     </Field>
   </div>
 </template>

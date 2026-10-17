@@ -15,7 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useSaveEarningRule, type EarningRule } from '@/api/economy';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -146,7 +146,10 @@ async function submit(): Promise<void> {
       />
     </Field>
     <Field>
-      <FieldLabel for="rule-window">{{ $t('dashboard.economy.rules.dialog.window') }}</FieldLabel>
+      <div class="flex items-center gap-1.5">
+        <FieldLabel for="rule-window">{{ $t('dashboard.economy.rules.dialog.window') }}</FieldLabel>
+        <FieldInfo>{{ $t('dashboard.economy.rules.dialog.windowHelp') }}</FieldInfo>
+      </div>
       <Input
         id="rule-window"
         v-model.number="window"
@@ -155,7 +158,6 @@ async function submit(): Promise<void> {
         step="1"
         :aria-label="$t('dashboard.economy.rules.dialog.window')"
       />
-      <FieldDescription>{{ $t('dashboard.economy.rules.dialog.windowHelp') }}</FieldDescription>
     </Field>
   </FormDialog>
 </template>

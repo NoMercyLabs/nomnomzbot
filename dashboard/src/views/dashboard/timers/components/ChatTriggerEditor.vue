@@ -21,7 +21,8 @@ import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import TemplateField from '@/components/layout/TemplateField.vue';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -137,19 +138,21 @@ function remove(): void {
       </RowGroup>
 
       <ReplyModeField v-model:mode="draft.mode" v-model:pipeline-id="draft.pipelineId">
-        <Field>
-          <FieldLabel for="trigger-response">{{ $t('dashboard.timers.triggers.editor.response') }}</FieldLabel>
-          <Textarea
-            id="trigger-response"
-            v-model="draft.response"
-            rows="3"
-            :aria-label="$t('dashboard.timers.triggers.editor.response')"
-          />
-        </Field>
+        <TemplateField
+          id="trigger-response"
+          v-model="draft.response"
+          context="command"
+          :rows="3"
+          :maxlength="500"
+          :label="$t('dashboard.timers.triggers.editor.response')"
+        />
       </ReplyModeField>
 
       <Field>
-        <FieldLabel for="trigger-cooldown">{{ $t('dashboard.timers.triggers.editor.cooldown') }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="trigger-cooldown">{{ $t('dashboard.timers.triggers.editor.cooldown') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.timers.triggers.editor.cooldownHelp') }}</FieldInfo>
+        </div>
         <Input
           id="trigger-cooldown"
           type="number"
@@ -159,7 +162,6 @@ function remove(): void {
           :model-value="draft.cooldownSeconds"
           @update:model-value="setCooldown"
         />
-        <FieldDescription>{{ $t('dashboard.timers.triggers.editor.cooldownHelp') }}</FieldDescription>
       </Field>
 
       <Field>

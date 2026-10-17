@@ -1,7 +1,7 @@
 import type { VariantProps } from 'class-variance-authority'
 import { cva } from 'class-variance-authority'
 
-export const fieldVariants = cva('data-[invalid=true]:text-destructive gap-3 group/field flex w-full', {
+export const fieldVariants = cva('data-[invalid=true]:text-destructive gap-2 group/field flex w-full', {
   variants: {
     orientation: {
       vertical:
@@ -21,8 +21,10 @@ export type FieldVariants = VariantProps<typeof fieldVariants>
 
 export { default as Field } from './Field.vue'
 export { default as FieldContent } from './FieldContent.vue'
+export { default as FieldCount } from './FieldCount.vue'
 export { default as FieldDescription } from './FieldDescription.vue'
 export { default as FieldError } from './FieldError.vue'
+export { default as FieldInfo } from './FieldInfo.vue'
 export { default as FieldGroup } from './FieldGroup.vue'
 export { default as FieldLabel } from './FieldLabel.vue'
 export { default as FieldLegend } from './FieldLegend.vue'

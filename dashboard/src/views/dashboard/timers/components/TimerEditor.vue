@@ -21,7 +21,8 @@ import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import TemplateField from '@/components/layout/TemplateField.vue';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -155,16 +156,14 @@ function remove(): void {
         />
       </Field>
 
-      <Field>
-        <FieldLabel for="timer-messages">{{ $t('dashboard.timers.editor.messages') }}</FieldLabel>
-        <Textarea
-          id="timer-messages"
-          v-model="draft.messages"
-          rows="4"
-          :aria-label="$t('dashboard.timers.editor.messages')"
-        />
-        <FieldDescription>{{ $t('dashboard.timers.editor.messagesHelp') }}</FieldDescription>
-      </Field>
+      <TemplateField
+        id="timer-messages"
+        v-model="draft.messages"
+        context="timer"
+        :rows="4"
+        :label="$t('dashboard.timers.editor.messages')"
+        :help="$t('dashboard.timers.editor.messagesHelp')"
+      />
 
       <Field>
         <FieldLabel for="timer-interval">{{ $t('dashboard.timers.editor.interval') }}</FieldLabel>
@@ -180,7 +179,10 @@ function remove(): void {
       </Field>
 
       <Field>
-        <FieldLabel for="timer-activity">{{ $t('dashboard.timers.editor.activity') }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="timer-activity">{{ $t('dashboard.timers.editor.activity') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.timers.editor.activityHelp') }}</FieldInfo>
+        </div>
         <Input
           id="timer-activity"
           type="number"
@@ -190,7 +192,6 @@ function remove(): void {
           :model-value="draft.minChatActivity"
           @update:model-value="setNumber('minChatActivity', $event)"
         />
-        <FieldDescription>{{ $t('dashboard.timers.editor.activityHelp') }}</FieldDescription>
       </Field>
 
       <RowGroup>

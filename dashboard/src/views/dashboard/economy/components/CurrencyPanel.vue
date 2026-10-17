@@ -17,7 +17,7 @@ import { useCurrencyConfig, useSaveCurrencyConfig, type CurrencyConfig } from '@
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
@@ -139,7 +139,10 @@ async function submit(): Promise<void> {
           />
         </Field>
         <Field>
-          <FieldLabel for="currency-max">{{ $t('dashboard.economy.currency.max') }}</FieldLabel>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel for="currency-max">{{ $t('dashboard.economy.currency.max') }}</FieldLabel>
+            <FieldInfo>{{ $t('dashboard.economy.currency.maxHelp') }}</FieldInfo>
+          </div>
           <Input
             id="currency-max"
             v-model.number="max"
@@ -148,7 +151,6 @@ async function submit(): Promise<void> {
             step="1"
             :aria-label="$t('dashboard.economy.currency.max')"
           />
-          <FieldDescription>{{ $t('dashboard.economy.currency.maxHelp') }}</FieldDescription>
         </Field>
         <Field>
           <FieldLabel for="currency-decimals">{{

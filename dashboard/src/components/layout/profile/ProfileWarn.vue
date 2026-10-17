@@ -16,7 +16,7 @@ import { toast } from 'vue-sonner';
 
 import { useWarn } from '@/api/people';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { Field, FieldError, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -78,7 +78,10 @@ async function send(): Promise<void> {
     @submit="send"
   >
     <Field :data-invalid="reasonError ? true : undefined">
-      <FieldLabel for="profile-warn-reason">{{ $t('profile.warn.reason') }}</FieldLabel>
+      <div class="flex items-center gap-1.5">
+        <FieldLabel for="profile-warn-reason">{{ $t('profile.warn.reason') }}</FieldLabel>
+        <FieldInfo>{{ $t('profile.warn.left', { count: REASON_MAX - reason.length }) }}</FieldInfo>
+      </div>
       <Textarea
         id="profile-warn-reason"
         v-model="reason"
@@ -89,9 +92,6 @@ async function send(): Promise<void> {
         @keydown.enter.ctrl.prevent="send"
       />
       <FieldError v-if="reasonError">{{ reasonError }}</FieldError>
-      <FieldDescription v-else>{{
-        $t('profile.warn.left', { count: REASON_MAX - reason.length })
-      }}</FieldDescription>
     </Field>
   </FormDialog>
 </template>

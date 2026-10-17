@@ -119,6 +119,21 @@ describe('folder layout', () => {
     expect(tinted).toEqual([]);
   });
 
+  // Owner 2026-10-17: gray hint lines under every field clutter a form. A field hint is a FieldInfo icon
+  // after the label (hover, focus or tap), so no view builds a FieldDescription line.
+  it('gives a field hint through FieldInfo, never a FieldDescription line', () => {
+    const lined: string[] = allPaths(src)
+      .filter(
+        (path) =>
+          path.endsWith('.vue') &&
+          !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
+      )
+      .filter((path) => /<FieldDescription\b/.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(src, path).replace(/\\/g, '/'));
+
+    expect(lined).toEqual([]);
+  });
+
   // A phone swipes a sideways row like the Twitch app; a scrollbar under the profile tabs looked broken
   // (2026-10-14). A code block keeps its bar: a desktop reader needs it to reach a long line.
   it('shows no scrollbar under a sideways row, except a code block', () => {

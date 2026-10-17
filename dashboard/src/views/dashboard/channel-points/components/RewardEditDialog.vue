@@ -21,7 +21,8 @@ import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ColorPicker } from '@/components/ui/color-picker';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import TemplateField from '@/components/layout/TemplateField.vue';
+import { Field, FieldCount, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
 import ChevronDown from '~icons/nnz/chevron-down';
@@ -82,6 +83,11 @@ const flags = ref<Record<FlagKey, boolean>>({
 });
 const mode = ref<ReplyMode>('simple');
 const pipelineId = ref('');
+// Twitch's limits: a reward title holds 45 characters, its description 200, a chat message 500.
+const TITLE_MAX = 45;
+const PROMPT_MAX = 200;
+const RESPONSE_MAX = 500;
+// The limits start shut each time the dialog opens, to keep the form short.
 const limitsOpen = ref(false);
 const error = ref<string | undefined>(undefined);
 
@@ -244,21 +250,28 @@ async function submit(): Promise<void> {
       {{ $t('dashboard.channelPoints.rewards.dialog.unmanageable') }}
     </p>
 
-    <div class="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+    <div class="grid grid-cols-1 gap-x-4 gap-y-6 md:grid-cols-3">
       <Field class="md:col-span-2">
-        <FieldLabel for="reward-title">{{ $t('dashboard.channelPoints.rewards.dialog.fields.title') }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="reward-title">{{ $t('dashboard.channelPoints.rewards.dialog.fields.title') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.title') }}</FieldInfo>
+          <FieldCount :value="text.title" :max="TITLE_MAX" />
+        </div>
         <Input
           id="reward-title"
+          :maxlength="TITLE_MAX"
           v-model="text.title"
           data-field="title"
           autocomplete="off"
           :disabled="!reward.isManageable"
         />
-        <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.title') }}</FieldDescription>
       </Field>
 
       <Field>
-        <FieldLabel for="reward-cost">{{ $t('dashboard.channelPoints.rewards.dialog.fields.cost') }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="reward-cost">{{ $t('dashboard.channelPoints.rewards.dialog.fields.cost') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.cost') }}</FieldInfo>
+        </div>
         <Input
           id="reward-cost"
           v-model="numbers.cost"
@@ -268,24 +281,30 @@ async function submit(): Promise<void> {
           data-field="cost"
           :disabled="!reward.isManageable"
         />
-        <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.cost') }}</FieldDescription>
       </Field>
 
       <Field class="md:col-span-3">
-        <FieldLabel for="reward-prompt">{{ $t('dashboard.channelPoints.rewards.dialog.fields.prompt') }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="reward-prompt">{{ $t('dashboard.channelPoints.rewards.dialog.fields.prompt') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.prompt') }}</FieldInfo>
+          <FieldCount :value="text.prompt" :max="PROMPT_MAX" />
+        </div>
         <Textarea
           id="reward-prompt"
+          :maxlength="PROMPT_MAX"
           rows="2"
           class="min-h-0"
           v-model="text.prompt"
           data-field="prompt"
           :disabled="!reward.isManageable"
         />
-        <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.prompt') }}</FieldDescription>
       </Field>
 
       <Field>
-        <FieldLabel for="reward-backgroundColor">{{ $t('dashboard.channelPoints.rewards.dialog.fields.backgroundColor') }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="reward-backgroundColor">{{ $t('dashboard.channelPoints.rewards.dialog.fields.backgroundColor') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.backgroundColor') }}</FieldInfo>
+        </div>
         <ColorPicker
           id="reward-backgroundColor"
           v-model="text.backgroundColor"
@@ -294,11 +313,13 @@ async function submit(): Promise<void> {
           :label="$t('dashboard.channelPoints.rewards.dialog.fields.backgroundColor')"
           :disabled="!reward.isManageable"
         />
-        <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.backgroundColor') }}</FieldDescription>
       </Field>
 
       <Field class="md:col-span-2">
-        <FieldLabel for="reward-isUserInputRequired">{{ $t('dashboard.channelPoints.rewards.dialog.fields.isUserInputRequired') }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="reward-isUserInputRequired">{{ $t('dashboard.channelPoints.rewards.dialog.fields.isUserInputRequired') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.isUserInputRequired') }}</FieldInfo>
+        </div>
         <div class="flex h-9 items-center">
           <Switch
             id="reward-isUserInputRequired"
@@ -307,7 +328,6 @@ async function submit(): Promise<void> {
             :disabled="!reward.isManageable"
           />
         </div>
-        <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.isUserInputRequired') }}</FieldDescription>
       </Field>
 
       <div class="grid gap-2 md:col-span-3">
@@ -316,18 +336,18 @@ async function submit(): Promise<void> {
           v-model:pipeline-id="pipelineId"
           :disabled="!reward.isManageable"
         >
-          <Field>
-            <FieldLabel for="reward-response">{{ $t('dashboard.channelPoints.rewards.dialog.fields.response') }}</FieldLabel>
-            <Textarea
-              id="reward-response"
-              rows="2"
-              class="min-h-0"
-              v-model="text.response"
-              data-field="response"
-              :disabled="!reward.isManageable"
-            />
-            <FieldDescription>{{ $t('dashboard.channelPoints.rewards.dialog.hints.response') }}</FieldDescription>
-          </Field>
+          <TemplateField
+            id="reward-response"
+            v-model="text.response"
+            context="eventResponse"
+            event-type="channel.channel_points_custom_reward_redemption.add"
+            data-field="response"
+            :rows="1"
+            :maxlength="RESPONSE_MAX"
+            :label="$t('dashboard.channelPoints.rewards.dialog.fields.response')"
+            :help="$t('dashboard.channelPoints.rewards.dialog.hints.response')"
+            :disabled="!reward.isManageable"
+          />
         </ReplyModeField>
       </div>
     </div>
@@ -348,7 +368,10 @@ async function submit(): Promise<void> {
       <CollapsibleContent>
         <div class="grid grid-cols-1 gap-x-4 gap-y-3 border-t border-border p-3 md:grid-cols-2">
           <Field v-for="key in limitKeys" :key="key">
-            <FieldLabel :for="`reward-${key}`">{{ $t(`dashboard.channelPoints.rewards.dialog.fields.${key}`) }}</FieldLabel>
+            <div class="flex items-center gap-1.5">
+              <FieldLabel :for="`reward-${key}`">{{ $t(`dashboard.channelPoints.rewards.dialog.fields.${key}`) }}</FieldLabel>
+              <FieldInfo>{{ $t(`dashboard.channelPoints.rewards.dialog.hints.${key}`) }}</FieldInfo>
+            </div>
             <Input
               :id="`reward-${key}`"
               v-model="numbers[key]"
@@ -358,7 +381,6 @@ async function submit(): Promise<void> {
               :data-field="key"
               :disabled="!reward.isManageable"
             />
-            <FieldDescription>{{ $t(`dashboard.channelPoints.rewards.dialog.hints.${key}`) }}</FieldDescription>
           </Field>
         </div>
       </CollapsibleContent>

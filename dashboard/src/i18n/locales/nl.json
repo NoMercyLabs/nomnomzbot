@@ -21,6 +21,7 @@
     "close": "Sluiten",
     "cancel": "Annuleren",
     "copied": "Gekopieerd",
+    "fieldInfo": "Meer over dit veld",
     "readOnly": "Je kunt dit bekijken, maar je rol kan het niet wijzigen.",
     "shortcuts": {
       "title": "Sneltoetsen",
@@ -69,7 +70,7 @@
       "period": "Periode"
     },
     "replyMode": {
-      "label": "Soort antwoord",
+      "label": "Reactie",
       "simple": "Eenvoudig antwoord",
       "full": "Volledige pipeline",
       "pipeline": "Pipeline",
@@ -80,7 +81,9 @@
   },
   "template": {
     "field": {
-      "unknown": "Hier geen bekende helper: {names}"
+      "unknown": "Hier geen bekende helper: {names}",
+      "showHelpers": "Toon alle helpers",
+      "hideHelpers": "Verberg helpers"
     },
     "panel": {
       "search": "Zoek helpers",
