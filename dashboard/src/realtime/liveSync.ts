@@ -20,6 +20,7 @@ import {
   reviewQueueKey,
 } from '@/api/home';
 import { pollHistoryKey, pollsKey, predictionsKey } from '@/api/liveOps';
+import { mediaShareQueueKey } from '@/api/mediaShare';
 import { musicHistoryKey, musicQueueKey, musicTopRequestersKey } from '@/api/music';
 import { obsBridgeKey, obsConnectionKey, obsScenesKey, obsStateKey } from '@/api/obs';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
@@ -95,6 +96,7 @@ const pollEventKeys = [
   { prefix: 'poll_', keys: [pollsKey, pollHistoryKey] },
   { prefix: 'prediction_', keys: [predictionsKey, pollHistoryKey] },
   { prefix: 'ChatPollChanged', keys: [pollHistoryKey] },
+  { prefix: 'media_share_', keys: [mediaShareQueueKey] },
 ] as const;
 
 const pollEventsChanged = {
