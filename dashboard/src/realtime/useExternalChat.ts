@@ -1,0 +1,100 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+import { onScopeDispose, ref, type Ref } from 'vue';
+
+import type { ChatLine } from '@/api/chat';
+import { chatLineLimit } from '@/api/chat';
+
+import { joinTwitchChat, leaveTwitchChat, sendTwitchChat, startDashboardHub } from './dashboardHub';
+import { onExternalChat, toChatLine, type ExternalChatPayload } from './externalChat';
+import { queryClient } from '@/api/queryClient';
+
+export const writeScope = 'user:write:chat';
+
+export type ExternalChat = {
+  lines: Ref<ChatLine[]>;
+  // The Twitch permission the viewer's token lacks, or null.
+  missingScope: Ref<string | null>;
+  failure: Ref<string | null>;
+  send: (message: string, replyToMessageId?: string | null) => Promise<boolean>;
+};
+
+// One Twitch channel the bot does not serve, read and written on the viewer's own token. It joins when the
+// page opens and leaves when the page closes (chat-client.md 9a "Any Twitch channel"). No history exists.
+export function useExternalChat(twitchBroadcasterId: string): ExternalChat {
+  const lines = ref<ChatLine[]>([]);
+  const missingScope = ref<string | null>(null);
+  const failure = ref<string | null>(null);
+
+  function apply(payload: ExternalChatPayload): void {
+    if (payload.broadcasterTwitchId !== twitchBroadcasterId) return;
+
+    if (payload.kind === 'ChatCleared') {
+      lines.value = [];
+
+      return;
+    }
+
+    if (payload.kind === 'MessageDeleted') {
+      lines.value = lines.value.filter((line) =>
+        line.id !== payload.messageId);
+
+      return;
+    }
+
+    lines.value = [...lines.value, toChatLine(payload)].slice(-chatLineLimit);
+  }
+
+  const stopListening = onExternalChat(apply);
+
+  void open();
+
+  async function open(): Promise<void> {
+    await startDashboardHub(queryClient);
+
+    const answer = await joinTwitchChat(twitchBroadcasterId);
+
+    if (!answer.success) {
+      failure.value = answer.error;
+    }
+  }
+
+  async function send(message: string, replyToMessageId: string | null = null): Promise<boolean> {
+    const answer = await sendTwitchChat(twitchBroadcasterId, message, replyToMessageId);
+
+    if (answer.success) {
+      missingScope.value = null;
+
+      return true;
+    }
+
+    // The server answers a missing permission in words only; the scope name is the sign of it.
+    missingScope.value = answer.error?.includes(writeScope)
+      ? writeScope
+      : null;
+
+    failure.value = answer.error;
+
+    return false;
+  }
+
+  onScopeDispose(() => {
+    stopListening();
+    void leaveTwitchChat(twitchBroadcasterId);
+  });
+
+  return {
+    lines,
+    missingScope,
+    failure,
+    send,
+  };
+}

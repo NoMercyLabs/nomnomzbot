@@ -60,6 +60,11 @@ function buildRouter() {
         name: 'viewer-chat',
         component: { template: '<div />' },
       },
+      {
+        path: '/me/:channel/twitch',
+        name: 'viewer-external-chat',
+        component: { template: '<div />' },
+      },
     ],
   });
 }
@@ -104,6 +109,7 @@ describe('the viewer channel finder', () => {
         login: 'kitte',
         displayName: 'Kitte',
         profileImageUrl: null,
+        id: 'c1',
       },
     ]);
 
@@ -136,7 +142,9 @@ describe('the viewer channel finder', () => {
     row?.click();
     await flushPromises();
 
+    expect(router.currentRoute.value.name).toBe('viewer-external-chat');
     expect(router.currentRoute.value.params.channel).toBe('twitch');
+    expect(router.currentRoute.value.query.id).toBe('12826');
 
     finder.unmount();
   });

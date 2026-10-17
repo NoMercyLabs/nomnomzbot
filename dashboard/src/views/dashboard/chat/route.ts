@@ -40,6 +40,18 @@ export const viewerChatRoute = {
   meta: { viewerChat: true },
 } as const satisfies RouteRecordRaw;
 
+// The chat of a Twitch channel the bot does not serve, found by its Twitch id in `?id=` (chat-client.md 9a).
+export const viewerExternalChatRoute = {
+  path: ':channel/twitch',
+  name: 'viewer-external-chat',
+  component: () =>
+    loadPage(
+      () => import('./ExternalChatView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+  meta: { viewerChat: true },
+} as const satisfies RouteRecordRaw;
+
 // The same page in its own window, under the popout frame.
 export const popoutChatRoute = {
   path: 'chat',

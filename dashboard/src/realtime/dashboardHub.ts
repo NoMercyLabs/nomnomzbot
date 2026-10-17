@@ -17,6 +17,7 @@ import { merge } from '@/lib/array';
 
 import { channelHandlers } from './channels';
 import { chatHandlers } from './chat';
+import { externalChatHandlers } from './externalChat';
 import { communityHandlers } from './community';
 import { attachHandlers, buildHub, retryDelay } from './hubConnection';
 import { dashboardHubStatus, dashboardJoinErrors } from './hubStatus';
@@ -33,6 +34,8 @@ let joinedChannel: string | null = null;
 // The channel a viewer page follows for its queue pushes.
 let viewerMusicChannel: string | null = null;
 let viewerChatChannel: string | null = null;
+// The Twitch channels the bot does not serve that pages read on the viewer's own token (chat-client.md 9a).
+const externalChats = new Set<string>();
 // The channels watched with their own event classes (the chat page). Separate from joinedChannel, which the other pages use.
 const watched = new Map();
 
@@ -118,6 +121,13 @@ function afterReconnect(queries: QueryClient): void {
 
   void joinWatched();
   void joinViewerMusic();
+  void rejoinExternalChats();
+}
+
+async function rejoinExternalChats(): Promise<void> {
+  for (const id of externalChats) {
+    await send('JoinTwitchChat', id);
+  }
 }
 
 async function joinViewerMusic(): Promise<void> {
@@ -141,6 +151,7 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
       channelHandlers,
       communityHandlers,
       chatHandlers,
+      externalChatHandlers,
       liveHandlers,
       obsHandlers,
       viewerHandlers,
@@ -279,4 +290,36 @@ export async function stopDashboardHub(): Promise<void> {
   dashboardJoinErrors.value = [];
   await closing?.stop();
   dashboardHubStatus.value = 'offline';
+}
+
+export type ExternalChatAnswer = { success: boolean; error: string | null };
+
+// Opens a Twitch channel the bot does not serve; the lines arrive as ExternalChatEvent on this connection.
+export async function joinTwitchChat(twitchBroadcasterId: string): Promise<ExternalChatAnswer> {
+  externalChats.add(twitchBroadcasterId);
+
+  const answer = await send<ExternalChatAnswer>('JoinTwitchChat', twitchBroadcasterId);
+
+  return answer ?? { success: false, error: 'The chat link is not up yet.' };
+}
+
+export async function leaveTwitchChat(twitchBroadcasterId: string): Promise<void> {
+  externalChats.delete(twitchBroadcasterId);
+  await send('LeaveTwitchChat', twitchBroadcasterId);
+}
+
+// Sends one line as the signed-in viewer on their own Twitch token, never as the bot.
+export async function sendTwitchChat(
+  twitchBroadcasterId: string,
+  message: string,
+  replyToMessageId: string | null,
+): Promise<ExternalChatAnswer> {
+  const answer = await send<ExternalChatAnswer>(
+    'SendTwitchChatMessage',
+    twitchBroadcasterId,
+    message,
+    replyToMessageId,
+  );
+
+  return answer ?? { success: false, error: 'The chat link is not up yet.' };
 }

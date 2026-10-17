@@ -14,7 +14,8 @@ import type { Ref } from 'vue';
 import type { PublicChannel } from '@/api/channels';
 
 // The viewer chats a person opened last, on this device (chat-client.md 9a "Reaching any channel").
-export type RecentChannel = Pick<PublicChannel, 'login' | 'displayName' | 'profileImageUrl'>;
+export type RecentChannel = Pick<PublicChannel, 'login' | 'displayName' | 'profileImageUrl'> &
+  Partial<Pick<PublicChannel, 'id' | 'onBot'>>;
 
 export const RECENT_CHANNEL_LIMIT = 5;
 
@@ -38,6 +39,8 @@ export function useRecentChannels(): RecentChannels {
       login: entry.login,
       displayName: entry.displayName,
       profileImageUrl: entry.profileImageUrl ?? null,
+      id: entry.id,
+      onBot: entry.onBot,
     });
   }
 

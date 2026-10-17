@@ -56,6 +56,17 @@ async function open(row: RecentChannel): Promise<void> {
   remember(row);
   emit('picked');
 
+  // A channel the bot does not serve has no tenant: its page reads and sends through the Twitch id.
+  if (row.onBot === false) {
+    await router.push({
+      name: 'viewer-external-chat',
+      params: { channel: row.login },
+      query: { id: row.id },
+    });
+
+    return;
+  }
+
   await router.push({
     name: 'viewer-chat',
     params: { channel: row.login },

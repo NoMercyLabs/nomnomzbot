@@ -23,7 +23,8 @@ import { client } from './client';
 export type ChannelSummary = components['schemas']['ChannelSummary'];
 export type ModeratedChannel = components['schemas']['ModeratedChannel'];
 // Any channel this bot serves, with what every visitor already sees (chat-client.md 9a "Reaching any channel").
-export type PublicChannel = components['schemas']['PublicChannel'];
+// onBot (false = a Twitch channel this deployment does not serve) is not in the OpenAPI snapshot until it is regenerated.
+export type PublicChannel = components['schemas']['PublicChannel'] & { onBot?: boolean };
 
 const version = { path: { version: '1' } };
 
