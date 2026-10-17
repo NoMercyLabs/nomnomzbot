@@ -158,17 +158,17 @@ async function createPipeline(): Promise<void> {
             <SelectValue :placeholder="$t('common.replyMode.pipelinePlaceholder')" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem data-pipeline-create :value="CREATE">
+              <Plus aria-hidden="true" />
+              {{ $t('common.replyMode.create') }}
+            </SelectItem>
+            <SelectSeparator />
             <SelectItem
               v-for="pipeline in pipelines.data.value ?? []"
               :key="pipeline.id"
               :value="pipeline.id"
             >
               {{ pipeline.name }}
-            </SelectItem>
-            <SelectSeparator />
-            <SelectItem data-pipeline-create :value="CREATE">
-              <Plus aria-hidden="true" />
-              {{ $t('common.replyMode.create') }}
             </SelectItem>
           </SelectContent>
         </Select>
