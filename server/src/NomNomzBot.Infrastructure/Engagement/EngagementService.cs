@@ -17,6 +17,7 @@ using NomNomzBot.Application.Engagement.Dtos;
 using NomNomzBot.Application.Engagement.Services;
 using NomNomzBot.Domain.Engagement.Entities;
 using NomNomzBot.Domain.Engagement.Events;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Engagement;
@@ -210,6 +211,15 @@ public sealed class EngagementService : IEngagementService
         config.GreetCooldownSeconds = request.GreetCooldownSeconds;
         config.StreakMilestonesJson = SerializeMilestones(request.StreakMilestones);
         await _db.SaveChangesAsync(ct);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "engagement",
+                Action = "updated",
+            },
+            ct
+        );
 
         return Result.Success(ToDto(config));
     }

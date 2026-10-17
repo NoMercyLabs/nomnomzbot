@@ -15,6 +15,7 @@ using NomNomzBot.Application.Engagement.Dtos;
 using NomNomzBot.Domain.Engagement.Entities;
 using NomNomzBot.Domain.Engagement.Events;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Engagement;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
@@ -334,6 +335,35 @@ public sealed class EngagementServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task UpdateConfig_PublishesOneEngagementConfigChangedEvent()
+    {
+        Harness h = Build();
+
+        await h.Sut.UpdateConfigAsync(Channel, new(true, false, true, [5], 8));
+
+        ChannelConfigChangedEvent published = h
+            .Bus.Published.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ChannelConfigChangedEvent>()
+            .Subject;
+        published.BroadcasterId.Should().Be(Channel);
+        published.Domain.Should().Be("engagement");
+        published.Action.Should().Be("updated");
+    }
+
+    [Fact]
+    public async Task UpdateConfig_WhenValidationRejects_PublishesNothing()
+    {
+        Harness h = Build();
+
+        await h.Sut.UpdateConfigAsync(Channel, new(true, false, false, [0], 5));
+        await h.Sut.UpdateConfigAsync(Channel, new(true, false, false, [5], -1));
+
+        h.Bus.Published.Should().BeEmpty();
     }
 
     [Fact]

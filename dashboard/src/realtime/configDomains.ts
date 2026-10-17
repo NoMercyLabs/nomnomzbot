@@ -11,6 +11,7 @@
 import { actionRequiredKey } from '@/api/actionRequired';
 import { builtinsKey, commandsKey } from '@/api/commands';
 import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
+import { engagementConfigKey } from '@/api/engagement';
 import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
 import { timersKey } from '@/api/liveOps';
 import { musicConfigKey, musicQueueKey } from '@/api/music';
@@ -44,6 +45,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   pipelines: [pipelinesKey],
   'music-config': [musicConfigKey, musicQueueKey],
   'sr-config': [musicConfigKey, musicQueueKey],
+  engagement: [engagementConfigKey],
   'channel-settings': [botStatusKey, connectionsKey, personalityKey, basicsKey],
   features: [botStatusKey],
   webhooks: [connectionsKey],
