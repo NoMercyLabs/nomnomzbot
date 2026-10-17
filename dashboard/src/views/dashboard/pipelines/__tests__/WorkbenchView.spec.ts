@@ -989,21 +989,17 @@ describe('the Runs view', () => {
   async function openRuns(): Promise<void> {
     await open();
 
-    const runsTab = [...document.body.querySelectorAll<HTMLElement>('[role="tab"]')]
-      .find((tab: HTMLElement) => tab.textContent?.trim() === 'Runs');
-
-    runsTab!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
-    await flushPromises();
+    await press('[data-workbench-runs]');
   }
 
   const runRows = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-run]')];
 
-  it('takes the canvas place and lists the stored runs of this pipeline, with outcome, age, length and error', async () => {
+  it('opens beside the steps and lists the stored runs of this pipeline, with outcome, age, length and error', async () => {
     stored.asked.length = 0;
     await openRuns();
 
     expect(router.currentRoute.value.query.view).toBe('runs');
-    expect(document.body.querySelector('[data-workbench-canvas]')).toBeNull();
+    expect(document.body.querySelector('[data-workbench-canvas]')).not.toBeNull();
     expect(stored.asked).toContain('p1');
 
     const rows = runRows().map((row: HTMLElement) => row.textContent?.replace(/\s+/g, ' ').trim());

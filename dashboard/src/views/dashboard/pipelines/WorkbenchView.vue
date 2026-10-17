@@ -13,6 +13,7 @@
 // Narrower than a laptop the palette and the details slide in as drawers, and the back button closes them.
 import Add from '~icons/nnz/add';
 import ArrowLeft from '~icons/nnz/arrow-left';
+import ClockBackward from '~icons/nnz/clock-backward';
 import Undo from '~icons/nnz/arrow-back-up';
 import Redo from '~icons/nnz/arrow-forward-up';
 import Flag from '~icons/nnz/flag';
@@ -36,7 +37,6 @@ import {
 } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -68,11 +68,20 @@ const { channelId } = useCurrentChannel();
 const id = computed(() => String(route.params.id));
 const page = 'dashboard.pipelines.workbench';
 
-// Steps edits the pipeline; Runs lists what it did when it really ran, in the canvas's place (mockup #runs-view).
+// Runs lists what the pipeline did when it really ran, in a side panel beside the steps (owner 2026-10-17:
+// "can runs not be a side pannel?"). The address keeps ?view=runs, so a link opens it.
 const VIEWS = ['steps', 'runs'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
-const views = computed<PageTab[]>(() =>
-  VIEWS.map((value) => ({ value, label: t(`${page}.views.${value}`) })));
+const runsOpen = computed<boolean>({
+  get: () => view.value === 'runs',
+  set: (open: boolean) => {
+    if (open === (view.value === 'runs')) return;
+
+    view.value = open
+      ? 'runs'
+      : 'steps';
+  },
+});
 
 const pipeline = usePipeline(channelId, id);
 const catalog = usePipelineCatalog(channelId);
@@ -119,7 +128,16 @@ const inspecting = computed<boolean>({
   },
 });
 
+// Runs and the step details share the right side, so one opening closes the other.
+watch(runsOpen, (open: boolean) => {
+  if (open) {
+    selectedKey.value = null;
+  }
+});
+
 function pick(key: string): void {
+  runsOpen.value = false;
+
   selectedKey.value = key === selectedKey.value
     ? null
     : key;
@@ -365,7 +383,17 @@ const leaveOpen = computed<boolean>({
     </template>
     <!-- The editing controls act on the steps, so they sit in the bar beside the tabs, not in the title row. -->
     <template #bar>
-      <PageTabs :tabs="views" />
+      <Button
+        data-workbench-runs
+        type="button"
+        variant="ghost"
+        size="sm"
+        :aria-pressed="runsOpen"
+        @click="runsOpen = !runsOpen"
+      >
+        <ClockBackward aria-hidden="true" />
+        {{ $t(`${page}.views.runs`) }}
+      </Button>
       <span
         data-workbench-controls
         class="ml-auto flex shrink-0 items-center gap-1"
@@ -436,9 +464,7 @@ const leaveOpen = computed<boolean>({
         @release="target = null"
       />
     </SidePanel>
-    <RunsPanel v-if="view === 'runs'" :channel-id="channelId" :pipeline-id="id" />
     <PanelCard
-      v-else
       class="min-w-0 flex-1"
       :title="$t('dashboard.pipelines.workbench.steps', { count: stepCount }, stepCount)"
       :state="state"
@@ -533,6 +559,9 @@ const leaveOpen = computed<boolean>({
         @remove="remove"
         @patch="patch"
       />
+    </SidePanel>
+    <SidePanel v-model:open="runsOpen" :label="$t(`${page}.runs.title`)">
+      <RunsPanel :channel-id="channelId" :pipeline-id="id" />
     </SidePanel>
   </div>
   <ConfirmDialog
