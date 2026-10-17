@@ -95,6 +95,12 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
 
         b.Entity<ChannelAudioMix>(e => e.HasKey(m => m.Id));
 
+        b.Entity<PickList>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Channel);
+        });
+
         b.Entity<SoundClip>(e =>
         {
             e.HasKey(c => c.Id);
@@ -148,6 +154,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         typeof(Reward),
         typeof(TtsVoice),
         typeof(SoundClip),
+        typeof(PickList),
         typeof(ChannelAudioMix),
         typeof(Widget),
         typeof(ChannelAsset),

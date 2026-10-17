@@ -49,7 +49,7 @@ public sealed class PickFromListAction : ICommandAction
         [
             new(
                 "list",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.PickList,
                 Required: true,
                 Description: new("pipeline.pick_from_list.list.help")
             ),

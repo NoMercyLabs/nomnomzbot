@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
@@ -22,6 +23,7 @@ using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Assets.Pipeline;
 using NomNomzBot.Infrastructure.Discord.Pipeline;
 using NomNomzBot.Infrastructure.Identity.Pipeline;
+using NomNomzBot.Infrastructure.PickLists.Pipeline;
 using NomNomzBot.Infrastructure.Rewards.Pipeline;
 using NomNomzBot.Infrastructure.Sound.Pipeline;
 using NomNomzBot.Infrastructure.Tts.Pipeline;
@@ -188,6 +190,67 @@ public sealed class PipelineOptionProviderTests
         PipelineOption option = Assert.Single(result.Value.Items);
         Assert.Equal("Airhorn", option.Label);
         Assert.Equal("2.5s", option.SecondaryText);
+    }
+
+    // ── pick_list ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PickList_options_are_this_tenants_lists_filtered_by_search_and_valued_by_name()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        db.PickLists.AddRange(
+            new PickList
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = Broadcaster,
+                Name = "fight_moves",
+                Items = ["a", "b", "c"],
+            },
+            new PickList
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = Broadcaster,
+                Name = "greetings",
+                Items = ["hi"],
+            },
+            new PickList
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = OtherBroadcaster,
+                Name = "fight_secrets",
+                Items = ["x"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        PickListOptionProvider provider = new(db);
+
+        Result<PipelineOptionListResult> all = await provider.GetOptionsAsync(
+            Broadcaster,
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
+        );
+        Assert.Equal(["fight_moves", "greetings"], all.Value.Items.Select(o => o.Value));
+
+        Result<PipelineOptionListResult> searched = await provider.GetOptionsAsync(
+            Broadcaster,
+            new PipelineOptionQuery(Search: "FIGHT", Value: null, DefaultPage)
+        );
+        PipelineOption match = Assert.Single(searched.Value.Items);
+        Assert.Equal("fight_moves", match.Value);
+        Assert.Equal("fight_moves", match.Label);
+        Assert.Equal("3 entries", match.SecondaryText);
+
+        Result<PipelineOptionListResult> lookup = await provider.GetOptionsAsync(
+            Broadcaster,
+            new PipelineOptionQuery(Search: null, Value: "greetings", DefaultPage)
+        );
+        Assert.Equal("greetings", Assert.Single(lookup.Value.Items).Value);
+
+        Result<PipelineOptionListResult> otherTenantsName = await provider.GetOptionsAsync(
+            Broadcaster,
+            new PipelineOptionQuery(Search: null, Value: "fight_secrets", DefaultPage)
+        );
+        Assert.Empty(otherTenantsName.Value.Items);
     }
 
     // ── widget ────────────────────────────────────────────────────────────────

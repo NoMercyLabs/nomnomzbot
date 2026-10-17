@@ -57,6 +57,23 @@ const brief = (rows: FieldRow[]): string[] =>
     `${row.name}:${row.control}:${String(row.value)}`);
 
 describe('the step form rows', () => {
+  it('shows Pick from list as a picker of saved lists that keeps the saved list name', () => {
+    const descriptor: PipelineActionDescriptor = {
+      type: 'pick_from_list',
+      category: { key: 'pipeline.category.pick_lists' },
+      description: { key: 'pipeline.pick_from_list.description' },
+      fields: [field({
+        name: 'list',
+        kind: 'pick_list',
+        required: true,
+      })],
+    };
+    const rows = actionRows(step({ action: { type: 'pick_from_list', list: 'fight_moves' } }), descriptor, words);
+
+    expect(brief(rows)).toEqual(['list:pick:fight_moves']);
+    expect(rows[0]?.kind).toBe('pick_list');
+  });
+
   it('gives each action field the control its kind needs, with its saved value', () => {
     const descriptor: PipelineActionDescriptor = {
       type: 'announce',

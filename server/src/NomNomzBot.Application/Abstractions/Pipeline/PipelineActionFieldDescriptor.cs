@@ -31,6 +31,7 @@ public enum PipelineActionFieldKind
     Widget,
     Voice,
     SoundClip,
+    PickList,
     Asset,
     ResourceId,
 
@@ -113,6 +114,7 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.Widget => "widget",
             PipelineActionFieldKind.Voice => "voice",
             PipelineActionFieldKind.SoundClip => "sound_clip",
+            PipelineActionFieldKind.PickList => "pick_list",
             PipelineActionFieldKind.Asset => "asset",
             PipelineActionFieldKind.ResourceId => "resource_id",
             PipelineActionFieldKind.KeyValueMap => "key_value_map",

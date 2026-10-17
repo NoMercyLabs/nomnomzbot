@@ -352,6 +352,7 @@ export const PICKER_KINDS = [
   'widget',
   'voice',
   'sound_clip',
+  'pick_list',
   'discord_channel',
   'discord_role',
   'twitch_user',
