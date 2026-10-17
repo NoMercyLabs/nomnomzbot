@@ -78,7 +78,6 @@
         "notYet": "Not available yet.",
         "missing": {
           "cost": "Cost",
-          "length": "Longest song",
           "words": "Blocked words"
         },
         "save": "Save",
@@ -86,6 +85,14 @@
         "open": "Requests are open",
         "limits": "Limits",
         "queueSize": "Songs in the queue, at most",
+        "songSeconds": "Longest song, in seconds",
+        "perStream": "Songs per person per stream",
+        "perStreamHelp": "Counts songs that already played. 0 turns the cap off.",
+        "allowExplicit": "Allow explicit songs",
+        "banger": "Banger playlist",
+        "bangerHelp": "The playlist !banger adds to.",
+        "bangerAuto": "Choose automatically",
+        "bangerAutoCreate": "Make a playlist on first use",
         "perRoleHelp": "Songs per person by role. Leave a box blank to use the cap above.",
         "sameAsPerPerson": "Same",
         "roles": {

@@ -15,6 +15,25 @@ export const roleRungs = ['viewer', 'subscriber', 'vip', 'moderator', 'broadcast
 export const providers = ['auto', 'spotify', 'youtube'] as const;
 export const queueLimits = { min: 1, max: 500 } as const;
 export const requestLimits = { min: 1, max: 50 } as const;
+export const songSecondsLimits = { min: 10, max: 3600 } as const;
+// 0 turns the per-stream cap off (the bot stores no cap); 1 to 100 turns it on.
+export const perStreamLimits = { min: 0, max: 100 } as const;
+
+// The banger playlist travels as one select value so the provider that owns it is never guessed.
+const playlistSeparator = '|';
+
+// A select item cannot hold an empty value, so "no playlist chosen" has its own word.
+export const noPlaylist = 'none';
+
+export function playlistValue(provider: string, id: string): string {
+  return `${provider}${playlistSeparator}${id}`;
+}
+
+function splitPlaylist(value: string): { provider: string; id: string } {
+  const at = value.indexOf(playlistSeparator);
+
+  return { provider: value.slice(0, at), id: value.slice(at + 1) };
+}
 
 export type RoleRung = (typeof roleRungs)[number];
 type RoleCap = string | number;
@@ -28,6 +47,11 @@ export type RuleDraft = {
   allowYouTube: boolean;
   allowSpotify: boolean;
   preferredProvider: string;
+  allowExplicit: boolean;
+  maxSongSeconds: number;
+  perStreamLimit: number;
+  bangerAutoCreate: boolean;
+  bangerPlaylist: string;
   roleCaps: Record<RoleRung, RoleCap>;
 };
 
@@ -42,6 +66,13 @@ export function draftOf(config: MusicConfig): RuleDraft {
     allowYouTube: config.allowYouTube,
     allowSpotify: config.allowSpotify,
     preferredProvider: config.preferredProvider,
+    allowExplicit: config.allowExplicit,
+    maxSongSeconds: Number(config.maxSongSeconds),
+    perStreamLimit: Number(config.perStreamLimit ?? 0),
+    bangerAutoCreate: config.bangerAutoCreate,
+    bangerPlaylist: config.bangerPlaylistId
+      ? playlistValue(config.bangerPlaylistProvider ?? '', config.bangerPlaylistId)
+      : noPlaylist,
     roleCaps: Object.fromEntries(
       roleRungs.map((rung: RoleRung): [RoleRung, string] => [
         rung,
@@ -72,6 +103,8 @@ export function draftValid(draft: RuleDraft): boolean {
   return (
     inRange(draft.perPerson, requestLimits.min, requestLimits.max) &&
     inRange(draft.maxQueueSize, queueLimits.min, queueLimits.max) &&
+    inRange(draft.maxSongSeconds, songSecondsLimits.min, songSecondsLimits.max) &&
+    inRange(draft.perStreamLimit, perStreamLimits.min, perStreamLimits.max) &&
     caps.every(roleCapValid)
   );
 }
@@ -89,6 +122,17 @@ function sameMap(a: Record<string, number>, b: Record<string, number>): boolean 
   const sameSize = keys.length === Object.keys(b).length;
 
   return sameSize && keys.every((key: string): boolean => a[key] === b[key]);
+}
+
+// An empty id clears the playlist; the bot then makes one on first use if auto-create is on.
+function playlistChange(value: string): MusicConfigChange {
+  if (value === noPlaylist) {
+    return { bangerPlaylistId: '', bangerPlaylistProvider: '' };
+  }
+
+  const { provider, id } = splitPlaylist(value);
+
+  return { bangerPlaylistId: id, bangerPlaylistProvider: provider };
 }
 
 // Only the fields that differ from the saved config are sent.
@@ -122,6 +166,26 @@ export function changeOf(config: MusicConfig, draft: RuleDraft): MusicConfigChan
 
   if (draft.preferredProvider !== saved.preferredProvider) {
     result.preferredProvider = draft.preferredProvider;
+  }
+
+  if (draft.allowExplicit !== saved.allowExplicit) {
+    result.allowExplicit = draft.allowExplicit;
+  }
+
+  if (draft.maxSongSeconds !== saved.maxSongSeconds) {
+    result.maxSongSeconds = draft.maxSongSeconds;
+  }
+
+  if (draft.perStreamLimit !== saved.perStreamLimit) {
+    result.perStreamLimit = draft.perStreamLimit;
+  }
+
+  if (draft.bangerAutoCreate !== saved.bangerAutoCreate) {
+    result.bangerAutoCreate = draft.bangerAutoCreate;
+  }
+
+  if (draft.bangerPlaylist !== saved.bangerPlaylist) {
+    Object.assign(result, playlistChange(draft.bangerPlaylist));
   }
 
   const roleMap = roleMapOf(draft.roleCaps);

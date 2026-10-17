@@ -75,11 +75,13 @@ async function readQueue(channelId: string): Promise<MusicQueue> {
   if (error !== undefined)
     throw failed('music queue', response.status, error);
 
-  return data?.data ?? {
-    nowPlaying: null,
-    queue: [],
-    requestsOpen: true,
-  };
+  return (
+    data?.data ?? {
+      nowPlaying: null,
+      queue: [],
+      requestsOpen: true,
+    }
+  );
 }
 
 async function readBlocked(channelId: string): Promise<BlockedTrack[]> {
@@ -584,6 +586,37 @@ export function useSaveMusicConfig(
         ? { ...current, ...definedOnly(change) }
         : null,
   });
+}
+
+export type MusicPlaylist = components['schemas']['MusicPlaylist'];
+
+const playlistLimit = 50;
+
+export const musicPlaylistsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'music-playlists',
+];
+
+async function readPlaylists(channelId: string): Promise<MusicPlaylist[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/music/playlists',
+    {
+      params: { path: { version, channelId }, query: { limit: playlistLimit } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('music playlists', response.status, error);
+
+  return data?.data ?? [];
+}
+
+// The playlists of the connected music account; the banger picker lists them.
+export function useMusicPlaylists(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<MusicPlaylist[], Error> {
+  return channelQuery(channelId, musicPlaylistsKey, readPlaylists);
 }
 
 export type SongHistoryItem = components['schemas']['SongHistoryItem'];

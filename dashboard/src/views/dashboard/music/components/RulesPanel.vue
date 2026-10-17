@@ -18,6 +18,7 @@ import {
   useBlockedTracks,
   useBlockTrack,
   useMusicConfig,
+  useMusicPlaylists,
   useSaveMusicConfig,
   useUnblockTrack,
   type BlockedTrack,
@@ -32,6 +33,13 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
@@ -41,10 +49,14 @@ import {
   changeOf,
   draftOf,
   draftValid,
+  noPlaylist,
+  perStreamLimits,
+  playlistValue,
   providers,
   queueLimits,
   requestLimits,
   roleRungs,
+  songSecondsLimits,
   type RuleDraft,
 } from './requestRules';
 
@@ -58,11 +70,14 @@ const trustLevels: readonly string[] = [
 ];
 const perPersonId = useId();
 const queueSizeId = useId();
+const songSecondsId = useId();
+const perStreamId = useId();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const configQuery = useMusicConfig(channelId);
 const blockedQuery = useBlockedTracks(channelId);
+const playlistsQuery = useMusicPlaylists(channelId);
 const save = useSaveMusicConfig(channelId);
 const unblock = useUnblockTrack(channelId);
 const block = useBlockTrack(channelId);
@@ -107,9 +122,7 @@ function discard(): void {
     : null;
 }
 
-const blocked = computed<BlockedTrack[]>(
-  () => blockedQuery.data.value ?? [],
-);
+const blocked = computed<BlockedTrack[]>(() => blockedQuery.data.value ?? []);
 
 // Allow takes the row out at once; the notice below keeps the song for a short window so Undo can block it again.
 const allowed = ref<BlockedTrack | null>(null);
@@ -152,7 +165,7 @@ function undoAllow(): void {
 }
 
 const missing = computed<KeyValueItem[]>(() =>
-  ['cost', 'length', 'words'].map((key: string): KeyValueItem => ({
+  ['cost', 'words'].map((key: string): KeyValueItem => ({
     label: t(`dashboard.music.rules.missing.${key}`),
     reason: t('dashboard.music.rules.notYet'),
   })),
@@ -171,9 +184,9 @@ const missing = computed<KeyValueItem[]>(() =>
   >
     <div v-if="draft" class="grid gap-5">
       <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
-        <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.who') }}</h3>
+        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
         <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t('dashboard.music.rules.open') }}</span>
+          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.open") }}</span>
           <Switch v-model="draft.requestsOpen" data-setting="requests-open" />
         </label>
         <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
@@ -184,10 +197,10 @@ const missing = computed<KeyValueItem[]>(() =>
         </RadioGroup>
       </section>
       <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.limits')">
-        <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.limits') }}</h3>
+        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.limits") }}</h3>
         <div class="flex items-center gap-3">
           <label :for="queueSizeId" class="min-w-0 flex-1 text-sm">{{
-            $t('dashboard.music.rules.queueSize')
+            $t("dashboard.music.rules.queueSize")
           }}</label>
           <Input
             :id="queueSizeId"
@@ -204,10 +217,10 @@ const missing = computed<KeyValueItem[]>(() =>
         <div class="flex items-center gap-3">
           <span class="min-w-0 flex-1">
             <label :for="perPersonId" class="block text-sm">{{
-              $t('dashboard.music.rules.perPerson')
+              $t("dashboard.music.rules.perPerson")
             }}</label>
             <span class="block text-sm text-muted-foreground">{{
-              $t('dashboard.music.rules.perPersonHelp')
+              $t("dashboard.music.rules.perPersonHelp")
             }}</span>
           </span>
           <Input
@@ -222,7 +235,48 @@ const missing = computed<KeyValueItem[]>(() =>
             class="w-20"
           />
         </div>
-        <p class="text-sm text-muted-foreground">{{ $t('dashboard.music.rules.perRoleHelp') }}</p>
+        <div class="flex items-center gap-3">
+          <label :for="songSecondsId" class="min-w-0 flex-1 text-sm">{{
+            $t("dashboard.music.rules.songSeconds")
+          }}</label>
+          <Input
+            :id="songSecondsId"
+            v-model.number="draft.maxSongSeconds"
+            name="song-seconds"
+            type="number"
+            :min="songSecondsLimits.min"
+            :max="songSecondsLimits.max"
+            step="1"
+            :aria-invalid="!valid || undefined"
+            class="w-20"
+          />
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="min-w-0 flex-1">
+            <label :for="perStreamId" class="block text-sm">{{
+              $t("dashboard.music.rules.perStream")
+            }}</label>
+            <span class="block text-sm text-muted-foreground">{{
+              $t("dashboard.music.rules.perStreamHelp")
+            }}</span>
+          </span>
+          <Input
+            :id="perStreamId"
+            v-model.number="draft.perStreamLimit"
+            name="per-stream-limit"
+            type="number"
+            :min="perStreamLimits.min"
+            :max="perStreamLimits.max"
+            step="1"
+            :aria-invalid="!valid || undefined"
+            class="w-20"
+          />
+        </div>
+        <label class="flex items-center gap-3 text-sm">
+          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowExplicit") }}</span>
+          <Switch v-model="draft.allowExplicit" data-setting="allow-explicit" />
+        </label>
+        <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.perRoleHelp") }}</p>
         <label v-for="rung in roleRungs" :key="rung" class="flex items-center gap-3 text-sm">
           <span class="min-w-0 flex-1">{{ $t(`dashboard.music.rules.roles.${rung}`) }}</span>
           <Input
@@ -239,33 +293,66 @@ const missing = computed<KeyValueItem[]>(() =>
         </label>
       </section>
       <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.sources')">
-        <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.sources') }}</h3>
+        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.sources") }}</h3>
         <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t('dashboard.music.rules.allowSpotify') }}</span>
+          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowSpotify") }}</span>
           <Switch v-model="draft.allowSpotify" data-setting="allow-spotify" />
         </label>
         <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t('dashboard.music.rules.allowYouTube') }}</span>
+          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowYouTube") }}</span>
           <Switch v-model="draft.allowYouTube" data-setting="allow-youtube" />
         </label>
-        <p class="text-sm text-muted-foreground">{{ $t('dashboard.music.rules.preferred') }}</p>
+        <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
         <RadioGroup v-model="draft.preferredProvider" class="gap-2">
-          <label v-for="provider in providers" :key="provider" class="flex items-center gap-2 text-sm">
+          <label
+            v-for="provider in providers"
+            :key="provider"
+            class="flex items-center gap-2 text-sm"
+          >
             <RadioGroupItem :value="provider" />
             {{ $t(`dashboard.music.rules.providers.${provider}`) }}
           </label>
         </RadioGroup>
       </section>
+      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.banger')">
+        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.banger") }}</h3>
+        <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.bangerHelp") }}</p>
+        <Select v-model="draft.bangerPlaylist">
+          <SelectTrigger
+            data-setting="banger-playlist"
+            :aria-label="$t('dashboard.music.rules.banger')"
+            class="w-full"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem :value="noPlaylist">{{
+              $t("dashboard.music.rules.bangerAuto")
+            }}</SelectItem>
+            <SelectItem
+              v-for="playlist in playlistsQuery.data.value ?? []"
+              :key="playlist.id"
+              :value="playlistValue(playlist.provider, playlist.id)"
+            >
+              {{ playlist.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <label class="flex items-center gap-3 text-sm">
+          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.bangerAutoCreate") }}</span>
+          <Switch v-model="draft.bangerAutoCreate" data-setting="banger-auto-create" />
+        </label>
+      </section>
       <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.blocked')">
-        <h3 class="text-sm font-medium">{{ $t('dashboard.music.rules.blocked') }}</h3>
+        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.blocked") }}</h3>
         <p v-if="blockedQuery.isError.value" role="alert" class="text-sm text-destructive">
-          {{ $t('dashboard.music.rules.blockedError') }}
+          {{ $t("dashboard.music.rules.blockedError") }}
         </p>
         <p
           v-else-if="!blockedQuery.isPending.value && blocked.length === 0"
           class="text-sm text-muted-foreground"
         >
-          {{ $t('dashboard.music.rules.blockedEmpty') }}
+          {{ $t("dashboard.music.rules.blockedEmpty") }}
         </p>
         <RowGroup v-if="blocked.length > 0">
           <SummaryRow
@@ -283,17 +370,17 @@ const missing = computed<KeyValueItem[]>(() =>
                 :aria-label="$t('dashboard.music.rules.allowRow', { title: track.title })"
                 @click="allow(track)"
               >
-                {{ $t('dashboard.music.rules.allow') }}
+                {{ $t("dashboard.music.rules.allow") }}
               </Button>
             </template>
           </SummaryRow>
         </RowGroup>
         <p v-if="allowed" role="status" class="flex items-center gap-2 text-sm">
           <span class="min-w-0 flex-1">{{
-            $t('dashboard.music.rules.allowed', { title: allowed.title })
+            $t("dashboard.music.rules.allowed", { title: allowed.title })
           }}</span>
           <Button variant="outline" size="sm" @click="undoAllow">{{
-            $t('common.flow.undo')
+            $t("common.flow.undo")
           }}</Button>
         </p>
       </section>
@@ -301,10 +388,10 @@ const missing = computed<KeyValueItem[]>(() =>
     </div>
     <template v-if="state === 'ready'" #footer>
       <Button variant="outline" size="sm" :disabled="!dirty" @click="discard">{{
-        $t('dashboard.music.rules.discard')
+        $t("dashboard.music.rules.discard")
       }}</Button>
       <Button size="sm" :disabled="!dirty" @click="saveRules">{{
-        $t('dashboard.music.rules.save')
+        $t("dashboard.music.rules.save")
       }}</Button>
     </template>
   </PanelCard>

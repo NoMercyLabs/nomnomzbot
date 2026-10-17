@@ -218,6 +218,7 @@ export const apiOperations = {
   'unblock song': 'music',
   'save music config': 'music',
   'music history': 'music',
+  'music playlists': 'music',
   'top requesters': 'music',
   'community list': 'people',
   'viewer profile': 'people',

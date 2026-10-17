@@ -68,6 +68,14 @@
           "broadcaster": "Alleen ik"
         },
         "perPerson": "Nummers per persoon",
+        "songSeconds": "Langste nummer, in seconden",
+        "perStream": "Nummers per persoon per stream",
+        "perStreamHelp": "Telt nummers die al gespeeld zijn. 0 zet de limiet uit.",
+        "allowExplicit": "Expliciete nummers toestaan",
+        "banger": "Banger-afspeellijst",
+        "bangerHelp": "De afspeellijst waar !banger aan toevoegt.",
+        "bangerAuto": "Automatisch kiezen",
+        "bangerAutoCreate": "Maak een afspeellijst bij eerste gebruik",
         "perPersonHelp": "Hoeveel nummers één kijker tegelijk in de wachtrij kan hebben.",
         "blocked": "Geblokkeerde nummers",
         "blockedEmpty": "Er zijn geen nummers geblokkeerd.",
@@ -78,7 +86,6 @@
         "notYet": "Nog niet beschikbaar.",
         "missing": {
           "cost": "Kosten",
-          "length": "Langste nummer",
           "words": "Geblokkeerde woorden"
         },
         "save": "Opslaan",
