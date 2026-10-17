@@ -29,11 +29,11 @@ const panels = computed(() => [
 
 <template>
   <PageHeader :title="$t('dashboard.channelPoints.title')" />
-  <BoardGrid :panels="panels" :rows="2">
-    <BoardCell panel="redemptions" :span="12">
+  <BoardGrid :panels="panels" :rows="1">
+    <BoardCell panel="redemptions" :span="6">
       <RedemptionsPanel />
     </BoardCell>
-    <BoardCell panel="rewards" :span="12">
+    <BoardCell panel="rewards" :span="6">
       <RewardsPanel />
     </BoardCell>
   </BoardGrid>

@@ -69,12 +69,18 @@ type Filter = {
   reward: Reward | null;
 };
 
+// A redemption carries Twitch's reward id and the reward list carries ours, so the two meet on the title,
+// which Twitch keeps unique per channel.
+function rowsOf(reward: Reward): Redemption[] {
+  return pending.value.filter((row: Redemption) =>
+    row.rewardTitle === reward.title);
+}
+
 const filters = computed<Filter[]>(() => {
   const perReward = (reward: Reward): Filter => ({
     id: reward.id,
     title: reward.title,
-    count: pending.value.filter((row: Redemption) =>
-      row.rewardId === reward.id).length,
+    count: rowsOf(reward).length,
     reward,
   });
   const everything: Filter = {
@@ -94,17 +100,28 @@ const filter = computed<string>(() =>
     ? chosen.value
     : allRewards);
 
-const visible = computed<Redemption[]>(() =>
-  filter.value === allRewards
-    ? pending.value
-    : pending.value.filter((row: Redemption) =>
-        row.rewardId === filter.value));
+const visible = computed<Redemption[]>(() => {
+  const reward = filters.value.find((entry: Filter) =>
+    entry.id === filter.value)?.reward;
+
+  return reward
+    ? rowsOf(reward)
+    : pending.value;
+});
 
 const chosenIds = computed<string[]>(() =>
   visible.value
     .map((row: Redemption) => row.redemptionId)
     .filter((id: string) =>
       selected.value.includes(id)));
+
+// Like Twitch, the section's Reject all / Complete all stay in place: they act on the ticked rows, or on
+// every row of the open section when nothing is ticked.
+const bulkIds = computed<string[]>(() =>
+  chosenIds.value.length > 0
+    ? chosenIds.value
+    : visible.value.map((row: Redemption) =>
+        row.redemptionId));
 
 const allChosen = computed<boolean | 'indeterminate'>(() => {
   if (chosenIds.value.length === 0)
@@ -173,7 +190,10 @@ function rejectOpen(open: boolean): void {
     :error-text="$t('dashboard.channelPoints.redemptions.error')"
     @retry="queue.refetch()"
   >
-    <div class="grid min-h-0 flex-1 grid-cols-[minmax(10rem,14rem)_minmax(0,1fr)] divide-x divide-border">
+    <div
+      class="grid h-full min-h-0 grid-cols-[minmax(10rem,14rem)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)]
+        divide-x divide-border"
+    >
       <nav
         class="flex min-h-0 flex-col gap-0.5 overflow-y-auto p-2"
         :aria-label="$t('dashboard.channelPoints.redemptions.filterLabel')"
@@ -224,19 +244,25 @@ function rejectOpen(open: boolean): void {
           <span class="min-w-0 flex-1 truncate text-sm text-muted-foreground">
             {{ $t('dashboard.channelPoints.redemptions.range', { count: visible.length }) }}
           </span>
-          <template v-if="canManage && chosenIds.length > 0">
+          <template v-if="canManage">
             <Button
               variant="destructive"
               size="sm"
               data-redemption-bulk-reject
-              @click="rejecting = chosenIds"
+              :disabled="bulkIds.length === 0"
+              @click="rejecting = bulkIds"
             >
               <Cross aria-hidden="true" />
-              {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: chosenIds.length }) }}
+              {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: bulkIds.length }) }}
             </Button>
-            <Button size="sm" data-redemption-bulk-complete @click="decide(chosenIds, 'fulfill')">
+            <Button
+              size="sm"
+              data-redemption-bulk-complete
+              :disabled="bulkIds.length === 0"
+              @click="decide(bulkIds, 'fulfill')"
+            >
               <CheckDouble aria-hidden="true" />
-              {{ $t('dashboard.channelPoints.redemptions.completeAll', { count: chosenIds.length }) }}
+              {{ $t('dashboard.channelPoints.redemptions.completeAll', { count: bulkIds.length }) }}
             </Button>
           </template>
         </div>
