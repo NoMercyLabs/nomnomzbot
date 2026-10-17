@@ -247,7 +247,6 @@ describe('folder layout', () => {
       'views/dashboard/people/PeopleView.vue',
       'views/dashboard/overlays/OverlaysView.vue',
       'views/dashboard/scripts/ScriptsView.vue',
-      'views/dashboard/commands/components/CommandList.vue',
     ];
 
     expect(frame).toMatch(/\[data-page-body\] \[data-page-inset\]\s*\{\s*margin-inline:\s*1rem;/);

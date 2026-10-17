@@ -88,7 +88,7 @@ function freshAnswers(): Record<string, () => Answer> {
       ok([
         {
           builtinKey: 'uptime',
-          name: 'uptime',
+          name: '!uptime',
           isEnabled: true,
           isReserved: false,
           speakWithTts: false,
@@ -277,7 +277,7 @@ describe('CommandsView list', () => {
       useCount: 3,
     });
 
-    await open();
+    await open('/app/commands?view=custom');
 
     expect(rowNames().sort()).toEqual(['dice', 'hello', 'socials']);
     const hello = rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent ?? '';
@@ -312,7 +312,7 @@ describe('CommandsView list', () => {
   });
 
   it('orders by most used first and by name when A to Z is chosen', async () => {
-    await open();
+    await open('/app/commands?view=custom');
     expect(rowNames()).toEqual(['socials', 'hello', 'pipe']);
 
     buttonByText('A to Z').click();
@@ -321,32 +321,67 @@ describe('CommandsView list', () => {
     expect(rowNames()).toEqual(['hello', 'pipe', 'socials']);
   });
 
-  // Owner 2026-10-14: "only th controls, keep the search above".
-  it('puts the sort choice in the control bar and keeps the search above the list', async () => {
+  // Owner 2026-10-17: the sort leads the bar over the list column, the search sits in the list panel's header,
+  // so the list and detail panels start on one line.
+  it('puts the sort first in the control bar and the search in the list panel header', async () => {
     await open();
     const bar = document.body.querySelector('[data-slot="page-bar"]')!;
 
     expect(bar.querySelector('[data-segmented]')?.textContent).toContain('A to Z');
+
+    expect(bar.querySelector('[data-segmented]')!.compareDocumentPosition(bar.querySelector('[role="tablist"]')!))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
     expect(bar.querySelector('[data-slot="search-field"]')).toBeNull();
-    expect(document.body.querySelector('[data-slot="search-field"]')).not.toBeNull();
+
+    expect(document.body.querySelector('[data-slot="list-detail-list"] [data-slot="panel-card"] header [data-slot="search-field"]'))
+      .not.toBeNull();
 
     mounted!.unmount();
     mounted = null;
     document.body.innerHTML = '';
 
+    // The Built-in tab keeps the sort in place, shut, so the tabs never move.
     await open('/app/commands?view=builtin');
-    expect(document.body.querySelector('[data-slot="page-bar"] [data-segmented]')).toBeNull();
+    const sort = document.body.querySelector('[data-slot="page-bar"] [data-segmented]')!;
+
+    expect(sort).not.toBeNull();
+    expect(sort.querySelector('button')!.disabled).toBe(true);
+  });
+
+  it('shows all commands by default: the custom ones and the built-in ones with a single "!"', async () => {
+    await open();
+
+    expect(document.body.querySelector('[role="tab"][data-state="active"]')?.textContent).toContain('All');
+    expect(rowNames().sort()).toEqual(['hello', 'pipe', 'socials', 'uptime']);
+    const uptime = rowEls().find((row) => row.dataset.commandName === 'uptime')!;
+
+    expect(uptime.hasAttribute('data-command-builtin')).toBe(true);
+    expect(uptime.textContent).toContain('!uptime');
+    expect(uptime.textContent).not.toContain('!!uptime');
+    expect(uptime.textContent).toContain('Built-in');
+  });
+
+  it('opens a built-in from the All list with its on/off switch, and keeps it in the address', async () => {
+    await open();
+    await pick('uptime');
+
+    expect(router.currentRoute.value.query.builtin).toBe('uptime');
+    const detail = document.body.querySelector('[data-builtin-detail]')!;
+
+    expect(detail.textContent).toContain('!uptime');
+    expect(detail.querySelector('button[role="switch"]')?.getAttribute('aria-checked')).toBe('true');
   });
 
   it('keeps the A to Z order after the page is opened again', async () => {
-    await open();
+    await open('/app/commands?view=custom');
     buttonByText('A to Z').click();
     await settle();
     mounted!.unmount();
     mounted = null;
     document.body.innerHTML = '';
 
-    await open();
+    await open('/app/commands?view=custom');
 
     expect(rowNames()).toEqual(['hello', 'pipe', 'socials']);
   });
@@ -361,7 +396,7 @@ describe('CommandsView list', () => {
 
   it('shows an error with Retry, and Retry loads the list again', async () => {
     answers['/commands'] = (): Answer => refused('boom', 500);
-    await open();
+    await open('/app/commands?view=custom');
     expect(document.body.querySelector('[data-slot="panel-error"]')).not.toBeNull();
 
     answers['/commands'] = freshAnswers()['/commands']!;

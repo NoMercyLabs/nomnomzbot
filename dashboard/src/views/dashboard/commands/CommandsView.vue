@@ -15,12 +15,22 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { useCommands, useDeleteCommand, type CommandListItem } from '@/api/commands';
+import {
+  triggerWord,
+  useBuiltins,
+  useCommands,
+  useDeleteCommand,
+  useToggleBuiltin,
+  type BuiltinCommand,
+  type CommandListItem,
+} from '@/api/commands';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
@@ -36,12 +46,16 @@ const router = useRouter();
 const { channelId } = useCurrentChannel();
 const commands = useCommands(channelId);
 const remove = useDeleteCommand(channelId);
+const builtins = useBuiltins(channelId);
+const toggleBuiltin = useToggleBuiltin(channelId);
 
 const tabs = computed<PageTab[]>(() => [
+  { value: 'all', label: t('dashboard.commands.tabs.all') },
   { value: 'custom', label: t('dashboard.commands.tabs.custom') },
   { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
 ]);
-const view = usePageView(['custom', 'builtin']);
+const view = usePageView(['all', 'custom', 'builtin']);
+const listed = computed<boolean>(() => view.value !== 'builtin');
 
 const sort = useLocalStorage<CommandSort>('nnz.commands.sort', 'uses');
 const sortOptions = computed(() => [
@@ -61,8 +75,39 @@ const row = computed<CommandListItem | undefined>(() =>
   ),
 );
 
+// A built-in command opens by its name under ?builtin=, beside a custom one under ?command=.
+const selectedBuiltin = computed<string | null>(() =>
+  typeof route.query.builtin === 'string'
+    ? route.query.builtin
+    : null,
+);
+const builtin = computed<BuiltinCommand | undefined>(() =>
+  (builtins.data.value ?? []).find(
+    (item: BuiltinCommand): boolean => triggerWord(item) === selectedBuiltin.value,
+  ),
+);
+const open = computed<boolean>(() => row.value !== undefined || builtin.value !== undefined);
+
 function select(name: string | undefined): void {
-  void router.push({ query: { ...route.query, command: name } });
+  void router.push({ query: {
+    ...route.query,
+    command: name,
+    builtin: undefined,
+  } });
+}
+
+function setBuiltin(enabled: boolean): void {
+  if (builtin.value) {
+    toggleBuiltin.mutate({ builtinKey: builtin.value.builtinKey, enabled });
+  }
+}
+
+function selectBuiltin(name: string): void {
+  void router.push({ query: {
+    ...route.query,
+    command: undefined,
+    builtin: name,
+  } });
 }
 
 function removeCommand(name: string): void {
@@ -82,22 +127,27 @@ const creating = ref(false);
       </Button>
     </template>
     <template #bar>
-      <PageTabs :tabs="tabs" />
+      <!-- The sort sits over the list it orders, as wide as the list column (ListDetail: 22rem). It stays in
+           place on the Built-in tab, shut, so switching tabs never moves the tabs. -->
       <SegmentedControl
-        v-if="view === 'custom'"
         v-model="sort"
-        class="ml-auto"
+        :disabled="!listed"
+        class="md:mr-1 md:flex-[0_0_22rem]! *:flex-[1_1_0]!"
         :label="$t('dashboard.commands.list.sort')"
         :options="sortOptions"
       />
+      <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
-  <ListDetail v-if="view === 'custom'" :show-detail="row !== undefined">
+  <ListDetail v-if="listed" :show-detail="open">
     <template #list>
       <CommandList
         :selected="selected"
+        :selected-builtin="selectedBuiltin"
         :sort="sort"
+        :with-builtins="view === 'all'"
         @pick="select"
+        @pick-builtin="selectBuiltin"
         @create="creating = true"
       />
     </template>
@@ -117,6 +167,20 @@ const creating = ref(false);
         </Button>
         <CommandEditor :key="row.name" :row="row" @remove="removeCommand" />
       </div>
+      <PanelCard
+        v-else-if="builtin && view === 'all'"
+        data-builtin-detail
+        :title="`!${triggerWord(builtin)}`"
+        :description="$t('dashboard.commands.list.kindBuiltin')"
+      >
+        <RowGroup>
+          <SettingRow
+            :title="$t('dashboard.commands.builtin.enabled')"
+            :model-value="builtin.isEnabled"
+            @update:model-value="setBuiltin"
+          />
+        </RowGroup>
+      </PanelCard>
       <PanelCard
         v-else
         state="empty"

@@ -28,6 +28,11 @@ export type CommandChange = components['schemas']['UpdateCommand'];
 export type NewCommand = components['schemas']['CreateCommand'];
 export type BuiltinCommand = components['schemas']['BuiltinCommand'];
 
+// A built-in's name is its chat trigger with the "!" (`!sr`); the dashboard shows the bare word under its own "!".
+export function triggerWord(command: BuiltinCommand): string {
+  return command.name.replace(/^!+/, '');
+}
+
 const version = '1';
 const pageSize = 100;
 // A guard against a server that never says "no more": 100 pages of 100 is far beyond any channel.

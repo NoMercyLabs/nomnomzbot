@@ -12,6 +12,7 @@
 // On a phone only one shows: the list, or the detail over the list once showDetail is true. There the layout
 // itself is the one scroller, so a detail taller than the screen scrolls with the page.
 // The aside sits in the row where it fits; narrower, it is a drawer from the right that asideOpen opens.
+// Beside each other, the last panel in a column grows to the column's full height, so no column ends half way. A panel one wrapper deep (a search above a list) grows the same way.
 import SidePanel from '@/components/layout/SidePanel.vue';
 
 withDefaults(defineProps<{ showDetail?: boolean; asideLabel?: string }>(), {
@@ -33,14 +34,14 @@ const asideOpen = defineModel<boolean>('asideOpen', { default: false });
   >
     <div
       data-slot="list-detail-list"
-      class="flex min-h-0 min-w-0 flex-col"
+      class="flex min-h-0 min-w-0 flex-col md:*:last:flex-1 md:[&>:last-child>[data-slot=panel-card]:last-child]:flex-1"
       :class="showDetail ? 'max-md:hidden' : ''"
     >
       <slot name="list" />
     </div>
     <div
       data-slot="list-detail-detail"
-      class="flex min-h-0 min-w-0 flex-col"
+      class="flex min-h-0 min-w-0 flex-col md:*:last:flex-1 md:[&>:last-child>[data-slot=panel-card]:last-child]:flex-1"
       :class="showDetail ? '' : 'max-md:hidden'"
     >
       <slot name="detail" />

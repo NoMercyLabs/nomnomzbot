@@ -6,6 +6,7 @@
       "new": "New command",
       "back": "Back to the list",
       "tabs": {
+        "all": "All",
         "custom": "Custom",
         "builtin": "Built-in"
       },
@@ -22,6 +23,7 @@
         "off": "Off",
         "uses": "{count} use | {count} uses",
         "kindText": "Text reply",
+        "kindBuiltin": "Built-in",
         "kindRandom": "Random reply",
         "kindPipeline": "Pipeline",
         "kindCode": "Code script",
@@ -84,7 +86,8 @@
       "builtin": {
         "title": "Built-in commands",
         "empty": "No built-in commands.",
-        "error": "The built-in commands could not load."
+        "error": "The built-in commands could not load.",
+        "enabled": "Answers in chat"
       }
     }
   }

@@ -6,6 +6,7 @@
       "new": "Nieuw commando",
       "back": "Terug naar de lijst",
       "tabs": {
+        "all": "Alles",
         "custom": "Eigen",
         "builtin": "Ingebouwd"
       },
@@ -22,6 +23,7 @@
         "off": "Uit",
         "uses": "{count} keer gebruikt | {count} keer gebruikt",
         "kindText": "Tekstantwoord",
+        "kindBuiltin": "Ingebouwd",
         "kindRandom": "Willekeurig antwoord",
         "kindPipeline": "Pipeline",
         "kindCode": "Codescript",
@@ -84,7 +86,8 @@
       "builtin": {
         "title": "Ingebouwde commando's",
         "empty": "Geen ingebouwde commando's.",
-        "error": "De ingebouwde commando's konden niet laden."
+        "error": "De ingebouwde commando's konden niet laden.",
+        "enabled": "Antwoordt in de chat"
       }
     }
   }

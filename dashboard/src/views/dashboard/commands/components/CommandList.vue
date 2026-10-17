@@ -8,11 +8,17 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The custom commands: a search box and one row per command, in the page's sort. The open command is the `selected` name.
+// The commands: one row per command that matches the search, in the page's sort. The open command is the `selected` name.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useCommands, type CommandListItem } from '@/api/commands';
+import {
+  triggerWord,
+  useBuiltins,
+  useCommands,
+  type BuiltinCommand,
+  type CommandListItem,
+} from '@/api/commands';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -20,16 +26,31 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { merge } from '@/lib/array';
 
 export type CommandSort = 'uses' | 'name';
 
-// The sort choice sits in the page control bar (owner 2026-10-14); the search stays above the list.
-const props = defineProps<{ selected: string | null; sort: CommandSort }>();
-const emit = defineEmits<{ pick: [name: string]; create: [] }>();
+// The sort sits in the page control bar; the search sits in the panel header, so the list panel lines up with the detail panel.
+// With `withBuiltins` (the All tab) the bot's own commands join the list, after the custom ones by use.
+const props = withDefaults(
+  defineProps<{
+    selected: string | null;
+    selectedBuiltin?: string | null;
+    sort: CommandSort;
+    withBuiltins?: boolean;
+  }>(),
+  { selectedBuiltin: null, withBuiltins: false },
+);
+const emit = defineEmits<{
+  pick: [name: string];
+  pickBuiltin: [name: string];
+  create: [];
+}>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const commands = useCommands(channelId);
+const builtins = useBuiltins(channelId);
 
 const search = ref('');
 
@@ -48,18 +69,68 @@ function matches(row: CommandListItem, needle: string): boolean {
   );
 }
 
-const rows = computed<CommandListItem[]>(() => {
-  const needle = search.value.trim().replace(/^!+/, '').toLowerCase();
-  const found: CommandListItem[] = (commands.data.value ?? []).filter(
-    (row: CommandListItem): boolean => matches(row, needle),
-  );
+// One list row: a custom command, or a built-in one when the page shows all. A built-in has no use count.
+type ListRow = {
+  key: string;
+  name: string;
+  detail: string;
+  isEnabled: boolean;
+  uses: number;
+  builtin: boolean;
+};
 
-  return found.sort((left: CommandListItem, right: CommandListItem): number =>
+const needle = computed<string>(() => search.value.trim().replace(/^!+/, '').toLowerCase());
+
+const customRows = computed<ListRow[]>(() =>
+  (commands.data.value ?? [])
+    .filter((row: CommandListItem): boolean => matches(row, needle.value))
+    .map((row: CommandListItem): ListRow => ({
+      key: row.id,
+      name: row.name,
+      detail: detailOf(row),
+      isEnabled: row.isEnabled,
+      uses: Number(row.useCount),
+      builtin: false,
+    })));
+
+const builtinRows = computed<ListRow[]>(() => {
+  if (!props.withBuiltins)
+    return [];
+
+  return (builtins.data.value ?? [])
+    .filter((row: BuiltinCommand): boolean => triggerWord(row).toLowerCase().includes(needle.value))
+    .map((row: BuiltinCommand): ListRow => ({
+      key: `builtin:${row.builtinKey}`,
+      name: triggerWord(row),
+      detail: t('dashboard.commands.list.kindBuiltin'),
+      isEnabled: row.isEnabled,
+      uses: -1,
+      builtin: true,
+    }));
+});
+
+const rows = computed<ListRow[]>(() =>
+  merge(customRows.value, builtinRows.value).slice().sort((left: ListRow, right: ListRow): number =>
     props.sort === 'name'
       ? left.name.localeCompare(right.name)
-      : Number(right.useCount) - Number(left.useCount),
-  );
-});
+      : right.uses - left.uses,
+  ));
+
+function isSelected(row: ListRow): boolean {
+  return row.builtin
+    ? row.name === props.selectedBuiltin
+    : row.name === props.selected;
+}
+
+function pick(row: ListRow): void {
+  if (row.builtin) {
+    emit('pickBuiltin', row.name);
+
+    return;
+  }
+
+  emit('pick', row.name);
+}
 
 // The row names what kind of command it is; the reply text itself lives in the editor (owner 2026-10-13).
 function kindOf(row: CommandListItem): string {
@@ -84,13 +155,20 @@ function detailOf(row: CommandListItem): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <SearchField v-model="search" data-page-inset :placeholder="$t('dashboard.commands.list.search')" />
     <PanelCard
       :title="$t('dashboard.commands.list.title')"
       :state="state"
       :error-text="$t('dashboard.commands.list.error')"
       @retry="commands.refetch()"
     >
+      <template #actions>
+        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+        <SearchField
+          v-model="search"
+          class="-mr-2 w-52 rounded-[12px]"
+          :placeholder="$t('dashboard.commands.list.search')"
+        />
+      </template>
       <div
         v-if="none"
         data-slot="panel-empty"
@@ -107,14 +185,15 @@ function detailOf(row: CommandListItem): string {
       <SummaryRow
         v-for="row in rows"
         v-else
-        :key="row.id"
+        :key="row.key"
         pick
-        :selected="row.name === selected"
+        :selected="isSelected(row)"
         :title="`!${row.name}`"
-        :detail="detailOf(row)"
+        :detail="row.detail"
         data-command-row
         :data-command-name="row.name"
-        @click="emit('pick', row.name)"
+        :data-command-builtin="row.builtin ? '' : undefined"
+        @click="pick(row)"
       >
         <template v-if="!row.isEnabled" #end>
           <StatusBadge tone="off" :label="$t('dashboard.commands.list.off')" />

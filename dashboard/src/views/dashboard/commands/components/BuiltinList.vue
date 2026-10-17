@@ -11,7 +11,7 @@
 // The commands the bot ships with. This slice only switches them on and off.
 import { computed } from 'vue';
 
-import { useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands';
+import { triggerWord, useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -42,7 +42,7 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
         <SettingRow
           v-for="row in rows"
           :key="row.builtinKey"
-          :title="`!${row.name}`"
+          :title="`!${triggerWord(row)}`"
           :model-value="row.isEnabled"
           @update:model-value="toggle.mutate({ builtinKey: row.builtinKey, enabled: $event })"
         />
