@@ -28,6 +28,7 @@ class FakeVtsApi(
 ) : VtsApi {
     val sent: MutableList<UpsertVtsConnectionBody> = mutableListOf()
     val controls: MutableList<VtsControlBody> = mutableListOf()
+    var inventoryCalls: Int = 0
 
     private fun <T> unavailable(): ApiResult<T> = ApiResult.Failure(ApiError(404, "STUB", "stub"))
 
@@ -42,8 +43,10 @@ class FakeVtsApi(
 
     override suspend fun rotateBridgeToken(channelId: String): ApiResult<VtsConnection> = unavailable()
 
-    override suspend fun inventory(channelId: String): ApiResult<VtsModelInventory> =
-        inventory?.let { ApiResult.Ok(it) } ?: unavailable()
+    override suspend fun inventory(channelId: String): ApiResult<VtsModelInventory> {
+        inventoryCalls++
+        return inventory?.let { ApiResult.Ok(it) } ?: unavailable()
+    }
 
     override suspend fun control(channelId: String, body: VtsControlBody): ApiResult<VtsRequestResult> {
         controls += body
