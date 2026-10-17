@@ -113,6 +113,84 @@ public sealed class DashboardHubAuthorizationTests
     }
 
     [Fact]
+    public async Task SendTwitchChatMessage_sends_to_an_off_bot_channel_as_the_caller_never_the_bot()
+    {
+        Fixture f = Build(entryAllowed: false, gate2Allows: false);
+        f.OperatorSender.SendToTwitchChannelAsync(
+                Caller,
+                "9001",
+                "hi there",
+                "reply-1",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        SendMessageResponse response = await f.Hub.SendTwitchChatMessage(
+            "9001",
+            "hi there",
+            "reply-1"
+        );
+
+        response.Success.Should().BeTrue();
+        await f
+            .OperatorSender.Received(1)
+            .SendToTwitchChannelAsync(
+                Caller,
+                "9001",
+                "hi there",
+                "reply-1",
+                Arg.Any<CancellationToken>()
+            );
+        await f
+            .Chat.DidNotReceive()
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendTwitchChatMessage_reports_the_missing_scope_error_from_the_sender()
+    {
+        Fixture f = Build(entryAllowed: false, gate2Allows: false);
+        f.OperatorSender.SendToTwitchChannelAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Missing required scope 'user:write:chat'.", "missing_scope"));
+
+        SendMessageResponse response = await f.Hub.SendTwitchChatMessage("9001", "hi", null);
+
+        response.Success.Should().BeFalse();
+        response.Error.Should().Contain("user:write:chat");
+    }
+
+    [Theory]
+    [InlineData("abc", "hi")]
+    [InlineData("", "hi")]
+    [InlineData("9001", "  ")]
+    public async Task SendTwitchChatMessage_rejects_a_bad_channel_or_empty_message_without_sending(
+        string twitchId,
+        string message
+    )
+    {
+        Fixture f = Build(entryAllowed: false, gate2Allows: false);
+
+        SendMessageResponse response = await f.Hub.SendTwitchChatMessage(twitchId, message, null);
+
+        response.Success.Should().BeFalse();
+        await f
+            .OperatorSender.DidNotReceive()
+            .SendToTwitchChannelAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task SendChatMessage_from_a_caller_below_the_chat_send_floor_fails_and_never_sends()
     {
         Fixture f = Build(entryAllowed: true, gate2Allows: false);

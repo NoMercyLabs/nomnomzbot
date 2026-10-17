@@ -311,6 +311,40 @@ public class DashboardHub : Hub<IDashboardClient>
             : new(false, joined.ErrorMessage ?? "Could not open this chat", null);
     }
 
+    /// <summary>
+    /// Sends one chat line to any Twitch channel by its Twitch id, as the caller on their own token
+    /// (chat-client.md "Any Twitch channel", Send). Never the bot. Twitch decides whether the caller may speak.
+    /// </summary>
+    public async Task<SendMessageResponse> SendTwitchChatMessage(
+        string twitchBroadcasterId,
+        string message,
+        string? replyToMessageId
+    )
+    {
+        if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
+            return new(false, "Message too long or empty", null);
+
+        if (
+            string.IsNullOrWhiteSpace(twitchBroadcasterId)
+            || !twitchBroadcasterId.All(char.IsAsciiDigit)
+        )
+            return new(false, "Unknown channel", null);
+
+        if (CallerId is null || !Guid.TryParse(CallerId, out Guid callerId))
+            return new(false, "Not authenticated", null);
+
+        Result sent = await _operatorSender.SendToTwitchChannelAsync(
+            callerId,
+            twitchBroadcasterId,
+            message.Trim(),
+            replyToMessageId,
+            Context.ConnectionAborted
+        );
+        return sent.IsSuccess
+            ? new(true, null, null)
+            : new(false, sent.ErrorMessage ?? "The message could not be sent to Twitch.", null);
+    }
+
     public Task LeaveTwitchChat(string twitchBroadcasterId) =>
         _externalChat.LeaveAsync(Context.ConnectionId, twitchBroadcasterId);
 

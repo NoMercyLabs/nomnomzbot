@@ -28,16 +28,19 @@ public sealed class OperatorChatSender : IOperatorChatSender
 {
     private readonly ITwitchHelixTransport _transport;
     private readonly ITwitchIdentityResolver _identity;
+    private readonly ITwitchTokenResolver _tokens;
     private readonly ILogger<OperatorChatSender> _logger;
 
     public OperatorChatSender(
         ITwitchHelixTransport transport,
         ITwitchIdentityResolver identity,
+        ITwitchTokenResolver tokens,
         ILogger<OperatorChatSender> logger
     )
     {
         _transport = transport;
         _identity = identity;
+        _tokens = tokens;
         _logger = logger;
     }
 
@@ -59,6 +62,23 @@ public sealed class OperatorChatSender : IOperatorChatSender
             return Result.Failure("Channel is not known locally.", TwitchErrorCodes.NotFound);
         }
 
+        return await SendToTwitchChannelAsync(
+            operatorUserId,
+            targetChannelId,
+            message,
+            replyToMessageId,
+            ct
+        );
+    }
+
+    public async Task<Result> SendToTwitchChannelAsync(
+        Guid operatorUserId,
+        string targetChannelId,
+        string message,
+        string? replyToMessageId,
+        CancellationToken ct = default
+    )
+    {
         // sender_id is the operator's OWN Twitch account id (Users.TwitchUserId) — the same account whose token
         // the transport resolves for Auth.Operator, so Twitch accepts the send as that user.
         string? senderId = await _identity.GetTwitchUserIdAsync(operatorUserId, ct);
@@ -67,6 +87,14 @@ public sealed class OperatorChatSender : IOperatorChatSender
             return Result.Failure(
                 "You have no linked Twitch identity to send as.",
                 TwitchErrorCodes.NoToken
+            );
+        }
+
+        if (!await _tokens.HasScopeAsync(operatorUserId, TwitchScopes.UserWriteChat, ct))
+        {
+            return Result.Failure(
+                $"Missing required scope '{TwitchScopes.UserWriteChat}'.",
+                TwitchErrorCodes.MissingScope
             );
         }
 
@@ -91,7 +119,7 @@ public sealed class OperatorChatSender : IOperatorChatSender
             _logger.LogWarning(
                 "OperatorChatSender: send by {OperatorUserId} to {BroadcasterId} failed: {Error}",
                 operatorUserId,
-                broadcasterId,
+                targetChannelId,
                 result.ErrorMessage
             );
         }

@@ -49,6 +49,7 @@ public sealed class OperatorChatSenderTests
         OperatorChatSender sender = new(
             transport,
             identity,
+            GrantedTokens(),
             NullLogger<OperatorChatSender>.Instance
         );
 
@@ -82,6 +83,7 @@ public sealed class OperatorChatSenderTests
         OperatorChatSender sender = new(
             transport,
             identity,
+            GrantedTokens(),
             NullLogger<OperatorChatSender>.Instance
         );
 
@@ -109,6 +111,7 @@ public sealed class OperatorChatSenderTests
         OperatorChatSender sender = new(
             transport,
             identity,
+            GrantedTokens(),
             NullLogger<OperatorChatSender>.Instance
         );
 
@@ -119,6 +122,75 @@ public sealed class OperatorChatSenderTests
         await transport
             .DidNotReceive()
             .SendAsync(Arg.Any<TwitchHelixRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendToTwitchChannelAsync_posts_on_the_viewers_own_token_to_an_off_bot_channel()
+    {
+        ITwitchHelixTransport transport = Substitute.For<ITwitchHelixTransport>();
+        TwitchHelixRequest? sent = null;
+        transport
+            .SendAsync(Arg.Do<TwitchHelixRequest>(r => sent = r), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity.GetTwitchUserIdAsync(Operator, Arg.Any<CancellationToken>()).Returns("viewer-42");
+        OperatorChatSender sender = new(
+            transport,
+            identity,
+            GrantedTokens(),
+            NullLogger<OperatorChatSender>.Instance
+        );
+
+        Result result = await sender.SendToTwitchChannelAsync(Operator, "9001", "hello", null);
+
+        result.IsSuccess.Should().BeTrue();
+        sent.Should().NotBeNull();
+        sent!.Auth.Should().Be(TwitchHelixAuth.Operator);
+        sent.OperatorUserId.Should().Be(Operator);
+        sent.Path.Should().Be("chat/messages");
+        Body(sent, "BroadcasterId").Should().Be("9001");
+        Body(sent, "SenderId").Should().Be("viewer-42");
+        Body(sent, "Message").Should().Be("hello");
+        // An off-bot channel has no tenant, so no tenant lookup happens.
+        await identity
+            .DidNotReceive()
+            .GetTwitchChannelIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendToTwitchChannelAsync_fails_missing_scope_naming_it_and_never_calls_twitch()
+    {
+        ITwitchHelixTransport transport = Substitute.For<ITwitchHelixTransport>();
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity.GetTwitchUserIdAsync(Operator, Arg.Any<CancellationToken>()).Returns("viewer-42");
+        ITwitchTokenResolver tokens = Substitute.For<ITwitchTokenResolver>();
+        tokens
+            .HasScopeAsync(Operator, TwitchScopes.UserWriteChat, Arg.Any<CancellationToken>())
+            .Returns(false);
+        OperatorChatSender sender = new(
+            transport,
+            identity,
+            tokens,
+            NullLogger<OperatorChatSender>.Instance
+        );
+
+        Result result = await sender.SendToTwitchChannelAsync(Operator, "9001", "hello", null);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
+        result.ErrorMessage.Should().Contain("user:write:chat");
+        await transport
+            .DidNotReceive()
+            .SendAsync(Arg.Any<TwitchHelixRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    private static ITwitchTokenResolver GrantedTokens()
+    {
+        ITwitchTokenResolver tokens = Substitute.For<ITwitchTokenResolver>();
+        tokens
+            .HasScopeAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        return tokens;
     }
 
     private static string? Body(TwitchHelixRequest request, string property) =>

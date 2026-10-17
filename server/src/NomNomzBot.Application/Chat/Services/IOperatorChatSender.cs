@@ -34,4 +34,17 @@ public interface IOperatorChatSender
         string? replyToMessageId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Same send, for any Twitch channel by its Twitch id (a channel off the bot has no tenant). Needs the
+    /// operator's <c>user:write:chat</c> scope: without it the result fails <c>missing_scope</c> naming the scope,
+    /// and Twitch is never called.
+    /// </summary>
+    Task<Result> SendToTwitchChannelAsync(
+        Guid operatorUserId,
+        string twitchChannelId,
+        string message,
+        string? replyToMessageId,
+        CancellationToken ct = default
+    );
 }
