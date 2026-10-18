@@ -254,21 +254,18 @@ describe('RulesPanel', () => {
   });
 
   // Stoney 2026-10-18: "you got to apply the same rules as all other pannels with a toggle in the header bar".
-  it('puts the requests-open toggle in the panel header, not the body, and saves it as before', async () => {
+  it('puts the requests-open switch in the panel header and saves it at once, like the other panels', async () => {
     config = { ...baseConfig(), requestsOpen: true };
     await open();
 
     const header = document.body.querySelector<HTMLElement>('[data-slot="panel-actions"]');
-    const toggle = header?.querySelector<HTMLButtonElement>('button[data-setting="requests-open"]');
-    const inBody = document.body.querySelectorAll('button[data-setting="requests-open"]');
+    const row = header?.querySelector<HTMLElement>('[data-labeled-switch]');
+    const toggle = row?.querySelector<HTMLButtonElement>('button[role="switch"]');
 
-    expect(toggle).not.toBeNull();
-    expect(toggle?.getAttribute('aria-label')).toBe('Requests are open');
-    expect(inBody).toHaveLength(1);
+    expect(header?.innerHTML ?? 'no header').toContain('Requests are open');
+    expect(row?.textContent).toContain('Requests are open');
 
     toggle?.click();
-    await settle();
-    buttonIn('Save').click();
     await settle();
 
     expect(puts()).toHaveLength(1);

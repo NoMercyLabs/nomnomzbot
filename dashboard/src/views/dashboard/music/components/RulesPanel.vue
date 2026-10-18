@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
@@ -110,6 +111,15 @@ const change = computed<MusicConfigChange>(() => {
 });
 const valid = computed<boolean>(() => draft.value === null || draftValid(draft.value));
 const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0);
+
+// The header switch saves on its own; the draft follows it so Save never sends it a second time.
+function setRequestsOpen(open: boolean): void {
+  if (draft.value) {
+    draft.value.requestsOpen = open;
+  }
+
+  save.mutate({ requestsOpen: open });
+}
 
 function saveRules(): void {
   if (dirty.value) {
@@ -185,13 +195,14 @@ const missing = computed<KeyValueItem[]>(() =>
     :error-text="$t('dashboard.music.rules.error')"
     @retry="configQuery.refetch()"
   >
-    <!-- The master switch of the panel sits in its header bar, like the other panels' on/off. -->
+    <!-- The master switch sits in the header bar and saves at once, like every other panel's on/off. -->
     <template v-if="draft" #actions>
-      <GatedSwitch
-        v-model="draft.requestsOpen"
+      <LabeledSwitch
+        :label="$t('dashboard.music.rules.open')"
         action="music:config:write"
-        :aria-label="$t('dashboard.music.rules.open')"
+        :model-value="draft.requestsOpen"
         data-setting="requests-open"
+        @update:model-value="setRequestsOpen"
       />
     </template>
     <div v-if="draft" class="grid gap-5">

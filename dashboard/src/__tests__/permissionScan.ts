@@ -83,8 +83,18 @@ function directives(node: TemplateNode, names: string[]): TemplateProp[] {
   return props.filter((prop) => prop.type === directiveProp && names.includes(prop.name));
 }
 
+// A LabeledSwitch given a static `action` renders GatedSwitch, which checks that permission itself.
+function carriesOwnGate(node: TemplateNode): boolean {
+  const staticAction = (node.props ?? []).some((prop) => prop.name === 'action' && prop.value?.content);
+
+  return node.tag === 'LabeledSwitch' && staticAction;
+}
+
 function isGate(node: TemplateNode): boolean {
-  return directives(node, gateDirectives).some((prop) => gateExpression.test(prop.exp?.content ?? ''));
+  const gatedByDirective = directives(node, gateDirectives)
+    .some((prop) => gateExpression.test(prop.exp?.content ?? ''));
+
+  return gatedByDirective || carriesOwnGate(node);
 }
 
 function signatureOf(node: TemplateNode): string {
