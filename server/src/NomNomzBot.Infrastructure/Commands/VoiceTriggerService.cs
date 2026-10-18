@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Events;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -108,6 +109,7 @@ public sealed class VoiceTriggerService : IVoiceTriggerService
         };
         _db.VoiceTriggers.Add(trigger);
         await _db.SaveChangesAsync(cancellationToken);
+        await AnnounceAsync(broadcaster, trigger.Id, "created", cancellationToken);
 
         return Result.Success(await ToDtoAsync(trigger, cancellationToken));
     }
@@ -176,6 +178,7 @@ public sealed class VoiceTriggerService : IVoiceTriggerService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await AnnounceAsync(broadcaster, trigger.Id, "updated", cancellationToken);
 
         return Result.Success(await ToDtoAsync(trigger, cancellationToken));
     }
@@ -198,6 +201,7 @@ public sealed class VoiceTriggerService : IVoiceTriggerService
 
         _db.VoiceTriggers.Remove(trigger);
         await _db.SaveChangesAsync(cancellationToken);
+        await AnnounceAsync(broadcaster, triggerId, "deleted", cancellationToken);
 
         return Result.Success();
     }
@@ -259,6 +263,7 @@ public sealed class VoiceTriggerService : IVoiceTriggerService
         match.CurrentCount += 1;
         match.LastFiredAt = now.UtcDateTime;
         await _db.SaveChangesAsync(cancellationToken);
+        await AnnounceAsync(broadcasterId, match.Id, "updated", cancellationToken);
 
         string? stickerUrl = null;
         if (match.StickerAssetId is { } assetId)
@@ -310,6 +315,24 @@ public sealed class VoiceTriggerService : IVoiceTriggerService
             ? Errors.NotFound<string>("Channel", broadcasterId)
             : Result.Success(token);
     }
+
+    // Tells every open dashboard of the channel to refetch the voice-trigger list.
+    private Task AnnounceAsync(
+        Guid broadcaster,
+        Guid triggerId,
+        string action,
+        CancellationToken cancellationToken
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                Domain = "voice-triggers",
+                EntityId = triggerId.ToString(),
+                Action = action,
+            },
+            cancellationToken
+        );
 
     private async Task<VoiceTriggerDto> ToDtoAsync(
         VoiceTrigger t,

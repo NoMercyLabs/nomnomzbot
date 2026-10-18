@@ -15,6 +15,7 @@ using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Events;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -314,5 +315,35 @@ public sealed class VoiceTriggerServiceTests
         (await db.VoiceTriggers.IgnoreQueryFilters().CountAsync(t => t.DeletedAt == null))
             .Should()
             .Be(0);
+    }
+
+    [Fact]
+    public async Task Every_change_and_every_fire_announces_the_voice_triggers_domain()
+    {
+        (VoiceTriggerService service, _, _, IEventBus eventBus, _) = Build();
+
+        Guid id = (await service.CreateAsync(Tenant.ToString(), new() { Word = "technically" }))
+            .Value
+            .Id;
+        await service.UpdateAsync(Tenant.ToString(), id, new() { IsEnabled = false });
+        await service.UpdateAsync(Tenant.ToString(), id, new() { IsEnabled = true });
+        await service.ReportAsync(Tenant, "technically");
+        await service.DeleteAsync(Tenant.ToString(), id);
+
+        List<ChannelConfigChangedEvent> announced = eventBus
+            .ReceivedCalls()
+            .Select(call => call.GetArguments()[0])
+            .OfType<ChannelConfigChangedEvent>()
+            .ToList();
+        announced
+            .Select(e => (e.BroadcasterId, e.Domain, e.EntityId, e.Action))
+            .Should()
+            .Equal(
+                (Tenant, "voice-triggers", id.ToString(), "created"),
+                (Tenant, "voice-triggers", id.ToString(), "updated"),
+                (Tenant, "voice-triggers", id.ToString(), "updated"),
+                (Tenant, "voice-triggers", id.ToString(), "updated"),
+                (Tenant, "voice-triggers", id.ToString(), "deleted")
+            );
     }
 }
