@@ -84,4 +84,5 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 2026-10-18: "no autocomplete search? we know all the options up front"
 2026-10-18: "90 days is crooked"
 2026-10-18: "i want more details and accuracy" (OBS stats against OBS's own status bar)
+2026-10-18: "we probably need a add to youtube playlist and add to spotify playlist action" — decided: one "Add to playlist" step with a Spotify/YouTube service choice; the playlist picker lists that service's playlists.
 2026-10-18: "HOLY MOLY THAT OBS PAGE!!! can you slap more things on in pannels that large?! how is that managible by the streamer while live?"
