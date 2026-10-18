@@ -165,6 +165,8 @@
     <string name="builtin_reply_sr_revoked_description">Iemand die 10 of meer nummers heeft geband vraagt een nummer aan.</string>
     <string name="builtin_reply_sr_sourcenotallowed_label">Muziekdienst uit</string>
     <string name="builtin_reply_sr_sourcenotallowed_description">Een kijker plakte een link voor een muziekdienst die dit kanaal heeft uitgezet.</string>
+    <string name="builtin_reply_sr_sourceneedsrole_label">Muziekdienst vraagt een rol</string>
+    <string name="builtin_reply_sr_sourceneedsrole_description">Een kijker plakte een link voor een muziekdienst waarvoor die kijker op dit kanaal de rol niet heeft.</string>
     <string name="builtin_reply_banger_nothing_label">Niets aan het spelen</string>
     <string name="builtin_reply_banger_nothing_description">Er speelt niets, dus er is geen nummer om aan de bangers-afspeellijst toe te voegen.</string>
     <string name="builtin_reply_banger_added_label">Banger toegevoegd</string>

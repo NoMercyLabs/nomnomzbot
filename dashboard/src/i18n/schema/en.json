@@ -992,6 +992,10 @@
           "description": "A person who banned 10 or more songs asks for a song.",
           "label": "Requests revoked"
         },
+        "sourceneedsrole": {
+          "description": "A viewer pasted a link for a music service they do not have the role for on this channel.",
+          "label": "Music service needs a role"
+        },
         "sourcenotallowed": {
           "description": "A viewer pasted a link for a music service this channel has switched off.",
           "label": "Music service off"
@@ -1749,6 +1753,11 @@
     },
     "music_play_pause": {
       "description": "Toggle playback based on the current state"
+    },
+    "music_playlist": {
+      "provider": {
+        "help": "Which music service the playlist is on. Blank uses the channel's active music service."
+      }
     },
     "music_previous": {
       "description": "Go back to the previous track"

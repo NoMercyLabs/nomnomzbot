@@ -992,6 +992,10 @@
           "description": "Iemand die 10 of meer nummers heeft geband vraagt een nummer aan.",
           "label": "Verzoeken ingetrokken"
         },
+        "sourceneedsrole": {
+          "description": "Een kijker plakte een link voor een muziekdienst waarvoor die kijker op dit kanaal de rol niet heeft.",
+          "label": "Muziekdienst vraagt een rol"
+        },
         "sourcenotallowed": {
           "description": "Een kijker plakte een link voor een muziekdienst die dit kanaal heeft uitgezet.",
           "label": "Muziekdienst uit"
@@ -1749,6 +1753,11 @@
     },
     "music_play_pause": {
       "description": "Schakel afspelen om op basis van de huidige status"
+    },
+    "music_playlist": {
+      "provider": {
+        "help": "Op welke muziekdienst de afspeellijst staat. Leeg gebruikt de actieve muziekdienst van het kanaal."
+      }
     },
     "music_previous": {
       "description": "Ga terug naar het vorige nummer"
