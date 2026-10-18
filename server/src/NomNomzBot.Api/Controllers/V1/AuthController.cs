@@ -141,7 +141,9 @@ public class AuthController : BaseController
 
         // "View as" is a full identity swap: the previewed role never sees the platform-admin flag.
         if (result.IsSuccess && _viewAs.CeilingLevel is not null)
-            return ResultResponse(Result.Success(result.Value with { IsAdmin = false }));
+            return ResultResponse(
+                Result.Success(result.Value with { IsAdmin = false, PlatformPermissions = [] })
+            );
 
         return ResultResponse(result);
     }

@@ -56,6 +56,7 @@ vi.mock('@/api/auth', () => ({
     data: ref({
       displayName: 'Stoney_Eagle',
       isAdmin: true,
+      platformPermissions: [],
       profileImageUrl: null,
     }),
   }),

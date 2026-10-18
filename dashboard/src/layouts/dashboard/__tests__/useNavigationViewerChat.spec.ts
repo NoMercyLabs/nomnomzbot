@@ -18,6 +18,11 @@ import { useNavigation, type Navigation } from '../useNavigation';
 // What the bot says the person may read.
 const held = vi.hoisted(() => ({ keys: [] as string[] }));
 
+// The bot has not told the platform keys yet, so no admin entry is hidden.
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: false }, can: () => false }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));

@@ -14,6 +14,7 @@ import { createMemoryHistory, createRouter, type RouteRecordRaw, type Router } f
 import { currentUserQuery, type CurrentUser } from '@/api/auth';
 import { queryClient } from '@/api/queryClient';
 import { adminNav } from '@/layouts/dashboard/adminNavigation';
+import { adminPageKeys } from '@/views/dashboard/admin/adminKeys';
 import { adminOnly } from '@/views/dashboard/admin/route';
 
 import { accessGuard } from '../accessGuard';
@@ -42,7 +43,12 @@ function realRouter(): Router {
   return router;
 }
 
-function signedInAs(isAdmin: boolean): void {
+const everyPageKey = Object.values(adminPageKeys);
+
+// An admin by default holds every key an admin page needs; a test hands in fewer to take one away.
+function signedInAs(isAdmin: boolean, platformPermissions: string[] = isAdmin
+  ? everyPageKey
+  : []): void {
   const user: CurrentUser = {
     id: 'u1',
     username: 'someone',
@@ -50,6 +56,7 @@ function signedInAs(isAdmin: boolean): void {
     broadcasterType: '',
     isAdmin,
     createdAt: '2026-01-01T00:00:00Z',
+    platformPermissions,
   };
 
   queryClient.setQueryData(currentUserQuery.queryKey, user);
@@ -145,6 +152,38 @@ describe('a person who is not a platform admin', () => {
 
   it('is sent home when the signed-in person cannot be read', async () => {
     queryClient.setQueryData(currentUserQuery.queryKey, null);
+    const router = realRouter();
+
+    await router.push('/app/admin/users');
+
+    expect(router.currentRoute.value.name).toBe(homePage);
+  });
+});
+
+describe('a platform admin who lacks the key of a page', () => {
+  it('has a key in the table for every admin page', () => {
+    const named = Object.keys(adminPageKeys);
+    const unkeyed = adminPages()
+      .map((route) => String(route.name))
+      .filter((name) => !named.includes(name));
+
+    expect(unkeyed).toEqual([]);
+  });
+
+  it('is sent home from that page and still opens the others', async () => {
+    signedInAs(true, everyPageKey.filter((key) => key !== adminPageKeys['dashboard-admin-billing']));
+    const billing = realRouter();
+    const users = realRouter();
+
+    await billing.push('/app/admin/billing');
+    await users.push('/app/admin/users');
+
+    expect(billing.currentRoute.value.name).toBe(homePage);
+    expect(users.currentRoute.value.name).toBe('dashboard-admin-users');
+  });
+
+  it('is sent home when the bot sent no platform keys at all', async () => {
+    signedInAs(true, []);
     const router = realRouter();
 
     await router.push('/app/admin/users');

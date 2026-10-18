@@ -18,8 +18,10 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const units = useBillingPricedUnits();
 const state = usePanelState(units, (list) =>
@@ -55,7 +57,12 @@ async function submit(): Promise<void> {
     @retry="units.refetch()"
   >
     <template #actions>
-      <Button variant="outline" size="sm" data-unit-new @click="open = true">
+      <Button v-if="can('billing:write')"
+              variant="outline"
+              size="sm"
+              data-unit-new
+              @click="open = true"
+      >
         {{ t("dashboard.admin.billing.units.new") }}
       </Button>
     </template>

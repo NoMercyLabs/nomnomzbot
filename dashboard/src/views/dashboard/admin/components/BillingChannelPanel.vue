@@ -31,10 +31,12 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { usePanelState } from '@/composables/usePanelState';
 import { merge } from '@/lib/array';
+import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const typed = ref('');
 const channelId = refDebounced(typed, 300);
@@ -89,13 +91,13 @@ const confirmTitle = computed<string>(() => {
 
   return t('dashboard.admin.billing.channel.tierTitle', { channel: channelId.value, tier: tierName.value });
 });
-const consequences = computed<readonly string[]>(() => {
+const consequences = computed<string[]>(() => {
   const count = Number(counted.value?.changedLimitCount ?? 0);
   const changed = action.value === 'comp'
     ? [t('dashboard.admin.billing.channel.changed', { count })]
     : [];
 
-  return merge(changed, counted.value?.changedLimitKeys ?? []);
+  return Array.from(merge(changed, counted.value?.changedLimitKeys ?? []));
 });
 
 async function confirmRefund(): Promise<void> {
@@ -155,7 +157,12 @@ async function confirmAction(): Promise<void> {
       <li v-for="invoice in invoices.data.value ?? []" :key="invoice.id" data-invoice-row class="flex items-center gap-3 px-2 py-2">
         <span class="min-w-0 flex-1">{{ invoice.number }} <span class="text-muted-foreground">{{ invoice.status }}</span></span>
         <span class="tabular-nums">{{ amount(invoice) }}</span>
-        <Button variant="outline" size="sm" data-invoice-refund @click="refunding = invoice">
+        <Button v-if="can('billing:refund')"
+                variant="outline"
+                size="sm"
+                data-invoice-refund
+                @click="refunding = invoice"
+        >
           {{ t("dashboard.admin.billing.channel.refund") }}
         </Button>
       </li>
@@ -165,7 +172,7 @@ async function confirmAction(): Promise<void> {
         {{ grant.grantedTierKey }} <span class="text-muted-foreground">{{ grant.reason }}</span>
       </li>
     </ul>
-    <template v-if="ready" #footer>
+    <template v-if="ready && can('billing:write')" #footer>
       <div class="flex flex-wrap items-center gap-2">
         <select v-model="tierId" data-grant-tier class="h-9 rounded-md border border-input bg-transparent px-3 text-sm">
           <option value="">{{ t("dashboard.admin.billing.channel.pickTier") }}</option>

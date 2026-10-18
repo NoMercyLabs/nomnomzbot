@@ -19,8 +19,10 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform;
@@ -81,14 +83,22 @@ internal static class AuthTestBuilder
     public static IUserService UserService(
         IApplicationDbContext db,
         ICurrentUserService currentUser,
-        IServiceScopeFactory scopeFactory
+        IServiceScopeFactory scopeFactory,
+        IPlatformIamService? platformIam = null
     ) =>
         new UserService(
             db,
             currentUser,
             scopeFactory,
             new UserIdentityService(db, scopeFactory, TimeProvider.System, new RecordingEventBus()),
-            TimeProvider.System
+            TimeProvider.System,
+            platformIam
+                ?? new PlatformIamService(
+                    db,
+                    new RecordingEventBus(),
+                    TimeProvider.System,
+                    new(DeploymentMode.SelfHostLite)
+                )
         );
 
     // One keep-alive connection per shared database name — a SQLite "cache=shared" in-memory database

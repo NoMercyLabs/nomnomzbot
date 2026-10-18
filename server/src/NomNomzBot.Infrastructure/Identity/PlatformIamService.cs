@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Enums.Deployment;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
@@ -346,6 +347,29 @@ public sealed class PlatformIamService(
         Result.Success(
             await EffectivePermissionsAsync(principalId, scopeChannelId, cancellationToken)
         );
+
+    public async Task<IReadOnlyList<string>> GetHeldPermissionsForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!IsSaas)
+            return [.. IamPermissionKeys.All.Order(StringComparer.Ordinal)];
+
+        IamPrincipal? principal = await db.IamPrincipals.FirstOrDefaultAsync(
+            p => p.UserId == userId && p.IsActive,
+            cancellationToken
+        );
+        if (principal is null)
+            return [];
+
+        IReadOnlyList<string> effective = await EffectivePermissionsAsync(
+            principal.Id,
+            scopeChannelId: null,
+            cancellationToken
+        );
+        return [.. effective.Order(StringComparer.Ordinal)];
+    }
 
     public async Task<Result<IReadOnlyList<IamRoleDto>>> ListRolesAsync(
         CancellationToken cancellationToken = default

@@ -39,12 +39,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 type Action = 'suspend' | 'reinstate' | 'access' | 'remigrate' | 'erase';
 
 const props = defineProps<{ tenant: AdminTenantDetail }>();
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const action = ref<Action | null>(null);
 const text = ref('');
@@ -180,27 +182,39 @@ const pending = computed(
 
 <template>
   <div data-tenant-actions class="flex flex-wrap items-center gap-2">
-    <Button v-if="isActive" variant="outline" size="sm" @click="begin('suspend')">
-      <Pause aria-hidden="true" />
-      {{ t('dashboard.admin.tenants.actions.suspend') }}
-    </Button>
-    <Button v-else variant="outline" size="sm" @click="begin('reinstate')">
-      <Play aria-hidden="true" />
-      {{ t('dashboard.admin.tenants.actions.reinstate') }}
-    </Button>
-    <Button variant="outline" size="sm" @click="begin('access')">
+    <template v-if="can('tenant:suspend')">
+      <Button v-if="isActive" variant="outline" size="sm" @click="begin('suspend')">
+        <Pause aria-hidden="true" />
+        {{ t('dashboard.admin.tenants.actions.suspend') }}
+      </Button>
+      <Button v-else variant="outline" size="sm" @click="begin('reinstate')">
+        <Play aria-hidden="true" />
+        {{ t('dashboard.admin.tenants.actions.reinstate') }}
+      </Button>
+    </template>
+    <Button v-if="can('tenant:access')" variant="outline" size="sm" @click="begin('access')">
       <KeyModern aria-hidden="true" />
       {{ t('dashboard.admin.tenants.actions.access') }}
     </Button>
-    <Button variant="outline" size="sm" @click="begin('remigrate')">
+    <Button v-if="can('tenant:remigrate')" variant="outline" size="sm" @click="begin('remigrate')">
       <DataBaseRefresh aria-hidden="true" />
       {{ t('dashboard.admin.tenants.actions.remigrate') }}
     </Button>
-    <Button variant="outline" size="sm" :disabled="exporter.isPending.value" @click="exportData">
+    <Button v-if="can('tenant:erase')"
+            variant="outline"
+            size="sm"
+            :disabled="exporter.isPending.value"
+            @click="exportData"
+    >
       <Download aria-hidden="true" />
       {{ t('dashboard.admin.tenants.actions.export') }}
     </Button>
-    <Button class="ml-auto" variant="destructive" size="sm" @click="begin('erase')">
+    <Button v-if="can('tenant:erase')"
+            class="ml-auto"
+            variant="destructive"
+            size="sm"
+            @click="begin('erase')"
+    >
       <Trash aria-hidden="true" />
       {{ t('dashboard.admin.tenants.actions.erase') }}
     </Button>

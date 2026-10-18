@@ -29,8 +29,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const tiers = useBillingTiers();
 const rows = computed<BillingTier[]>(() => tiers.data.value ?? []);
@@ -151,7 +153,7 @@ const consequences = computed<string[]>(() => {
     @retry="tiers.refetch()"
   >
     <template #actions>
-      <Button size="sm" data-tier-new @click="openForm(null)">
+      <Button v-if="can('billing:write')" size="sm" data-tier-new @click="openForm(null)">
         {{ t("dashboard.admin.billing.tiers.new") }}
       </Button>
     </template>
@@ -167,7 +169,12 @@ const consequences = computed<string[]>(() => {
         <span class="text-muted-foreground tabular-nums">
           {{ (Number(tier.priceCents) / 100).toFixed(2) }} {{ tier.currency }}
         </span>
-        <Button variant="outline" size="sm" data-tier-edit @click="openForm(tier)">
+        <Button v-if="can('billing:write')"
+                variant="outline"
+                size="sm"
+                data-tier-edit
+                @click="openForm(tier)"
+        >
           {{ t("dashboard.admin.billing.tiers.edit") }}
         </Button>
       </li>

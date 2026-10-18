@@ -14,7 +14,9 @@ import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 
 import { useChannelAccess } from '@/api/access';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { isChannelPage, pageLocation, pageName, routeChannel } from '@/router/channelRoutes';
+import { adminPageKey } from '@/views/dashboard/admin/adminKeys';
 
 import { navByMode } from './navModes';
 import type { NavEntry, NavGroup, NavMode } from './navigation';
@@ -48,9 +50,20 @@ export function useNavigation(): Navigation {
   const route = useRoute();
   const { channelId, current } = useCurrentChannel();
   const access = useChannelAccess(channelId);
+  const platform = usePlatformCan();
+
+  // An admin page the person holds no platform key for has no entry either.
+  function holdsAdminKey(entry: NavEntry): boolean {
+    const key = adminPageKey(entry.route);
+
+    return key === undefined || !platform.known.value || platform.can(key);
+  }
 
   // A page the person may not read has no entry. Until the bot has answered, nothing is hidden.
   function readable(entry: NavEntry): boolean {
+    if (!holdsAdminKey(entry))
+      return false;
+
     if (!access.known.value)
       return true;
 

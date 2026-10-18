@@ -19,7 +19,8 @@ public sealed record CurrentUserDto(
     string? Color,
     string BroadcasterType,
     bool IsAdmin,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    IReadOnlyList<string> PlatformPermissions
 );
 
 /// <summary>Full user information.</summary>

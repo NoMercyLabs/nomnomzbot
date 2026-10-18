@@ -26,8 +26,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const invites = useBillingInvites();
 const tiers = useBillingTiers();
@@ -82,7 +84,12 @@ async function confirmRevoke(): Promise<void> {
     @retry="invites.refetch()"
   >
     <template #actions>
-      <Button variant="outline" size="sm" data-invite-new @click="formOpen = true">
+      <Button v-if="can('billing:write')"
+              variant="outline"
+              size="sm"
+              data-invite-new
+              @click="formOpen = true"
+      >
         {{ t("dashboard.admin.billing.invites.new") }}
       </Button>
     </template>
@@ -96,7 +103,12 @@ async function confirmRevoke(): Promise<void> {
             {{ t("dashboard.admin.billing.invites.founder") }}
           </Badge>
         </span>
-        <Button variant="outline" size="sm" data-invite-revoke @click="revoking = invite">
+        <Button v-if="can('billing:write')"
+                variant="outline"
+                size="sm"
+                data-invite-revoke
+                @click="revoking = invite"
+        >
           {{ t("dashboard.admin.billing.invites.revoke") }}
         </Button>
       </li>

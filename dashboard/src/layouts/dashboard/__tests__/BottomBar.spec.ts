@@ -19,6 +19,11 @@ import BottomBar from '../BottomBar.vue';
 import { dashboardNav } from '../navigation';
 
 // The navigation asks the bot what the person may read; these tests cover the frame, so nothing is known yet and nothing is hidden.
+// The bot has not told the platform keys yet, so no admin entry is hidden.
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: false }, can: () => false }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
     channelId: ref(null),

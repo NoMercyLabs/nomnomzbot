@@ -110142,7 +110142,8 @@
           "displayName",
           "broadcasterType",
           "isAdmin",
-          "createdAt"
+          "createdAt",
+          "platformPermissions"
         ],
         "type": "object",
         "properties": {
@@ -110176,6 +110177,12 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "platformPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "description": "The currently authenticated user, as surfaced to the dashboard."

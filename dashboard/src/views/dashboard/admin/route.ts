@@ -8,17 +8,25 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteLocationRaw, RouteRecordRaw } from 'vue-router';
+import type { RouteLocationNormalized, RouteLocationRaw, RouteRecordRaw } from 'vue-router';
 
 import { currentUserQuery } from '@/api/auth';
 import { queryClient } from '@/api/queryClient';
+import { holdsPlatformKey } from '@/composables/usePlatformCan';
 import { loadPage } from '@/i18n';
 
-// Only a platform admin opens the page; anyone else goes to the home page.
-export async function adminOnly(): Promise<true | RouteLocationRaw> {
-  const user = await queryClient.ensureQueryData(currentUserQuery);
+import { adminPageKey } from './adminKeys';
 
-  return user?.isAdmin === true
+// Only a platform admin who holds the page's platform key opens it; anyone else goes to the home page.
+// A page with no key in the table needs the admin flag only.
+export async function adminOnly(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
+  const user = await queryClient.ensureQueryData(currentUserQuery);
+  const key = adminPageKey(String(to.name));
+  const open = key === undefined
+    ? user?.isAdmin === true
+    : holdsPlatformKey(user, key);
+
+  return open
     ? true
     : { name: 'dashboard-home' };
 }

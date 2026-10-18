@@ -22,6 +22,7 @@ import {
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,7 @@ import { Label } from '@/components/ui/label';
 const props = defineProps<{ tenantId: string }>();
 
 const { t, locale } = useI18n();
+const { can } = usePlatformCan();
 
 const limits = useTenantLimits(() => props.tenantId);
 const save = useSetTenantLimit();
@@ -100,7 +102,7 @@ function expiry(at: string | null | undefined): string {
     @retry="limits.refetch()"
   >
     <template #actions>
-      <Button variant="outline" size="sm" @click="begin">
+      <Button v-if="can('tenant:quota:manage')" variant="outline" size="sm" @click="begin">
         {{ t('dashboard.admin.tenants.limits.add') }}
       </Button>
     </template>
@@ -112,6 +114,7 @@ function expiry(at: string | null | undefined): string {
           <p class="text-muted-foreground">{{ row.reason }} {{ expiry(row.expiresAt) }}</p>
         </div>
         <Button
+          v-if="can('tenant:quota:manage')"
           variant="ghost"
           size="icon"
           :data-clear-limit="row.limitKey"

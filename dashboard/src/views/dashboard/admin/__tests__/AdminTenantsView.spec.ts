@@ -54,6 +54,11 @@ const detail = {
   membershipCount: 4,
 };
 
+// The signed-in admin holds every platform key, so every action button shows.
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: true }, can: () => true }),
+}));
+
 vi.mock('@/api/client', () => {
   const answer = (method: string, path: string): Record<string, unknown> => {
     if (path.endsWith('/admin/tenants'))

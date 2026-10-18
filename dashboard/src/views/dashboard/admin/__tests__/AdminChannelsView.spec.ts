@@ -295,7 +295,12 @@ describe('admin channels route', () => {
     });
 
   it('sends a non-admin to the home page', async () => {
-    queryClient.setQueryData(['auth', 'me'], { id: 'u1', isAdmin: false });
+    queryClient.setQueryData(['auth', 'me'], {
+      id: 'u1',
+      isAdmin: false,
+      platformPermissions: [],
+    });
+
     const guarded = testRouter();
 
     await guarded.push('/app/admin/channels');
@@ -304,7 +309,12 @@ describe('admin channels route', () => {
   });
 
   it('lets an admin in', async () => {
-    queryClient.setQueryData(['auth', 'me'], { id: 'u1', isAdmin: true });
+    queryClient.setQueryData(['auth', 'me'], {
+      id: 'u1',
+      isAdmin: true,
+      platformPermissions: ['tenant:read'],
+    });
+
     const guarded = testRouter();
 
     await guarded.push('/app/admin/channels');

@@ -17,7 +17,17 @@ import type { NavEntry } from '../navigation';
 import { useNavigation, type Navigation } from '../useNavigation';
 
 // What the bot says the person may read; null means it has not answered yet.
-const held = vi.hoisted(() => ({ keys: null as string[] | null }));
+const held = vi.hoisted(() => ({
+  keys: null as string[] | null,
+  platform: null as string[] | null,
+}));
+
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({
+    known: computed(() => held.platform !== null),
+    can: (key: string) => held.platform?.includes(key) === true,
+  }),
+}));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
@@ -75,6 +85,7 @@ const built: string[] = [
 // The open state is shared by every sidebar; a storage event makes it read the cleared storage again.
 beforeEach(() => {
   held.keys = null;
+  held.platform = null;
   localStorage.clear();
 
   window.dispatchEvent(
@@ -121,6 +132,34 @@ describe('the dashboard navigation', () => {
 
     expect(moderator.entries.value.map((entry) => entry.label)).toEqual(['home', 'chat']);
     expect(moderator.groups.value.map((group) => group.key)).toEqual(['home', 'live']);
+  });
+
+  it('hides an admin entry whose platform key the person does not hold', async () => {
+    const adminPages = ['dashboard-admin-users', 'dashboard-admin-billing', 'dashboard-admin-audit-log'];
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: adminPages.map((name: string) => ({
+        name,
+        path: `/${name}`,
+        component: page,
+        meta: { navMode: 'admin' },
+      })),
+    });
+
+    held.platform = ['iam:manage', 'billing:read'];
+    const navigation = await open(router, '/dashboard-admin-users');
+
+    expect(navigation.entries.value.map((entry) => entry.route)).toEqual([
+      'dashboard-admin-users',
+      'dashboard-admin-billing',
+    ]);
+
+    held.platform = null;
+    const unknown = await open(router, '/dashboard-admin-users');
+
+    const shown = unknown.entries.value.map((entry) => entry.route);
+
+    expect([...shown].sort()).toEqual([...adminPages].sort());
   });
 
   it('hides an entry whose page has no route and drops a group left empty', async () => {

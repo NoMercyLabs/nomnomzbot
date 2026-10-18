@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -29,15 +30,18 @@ public class UserService : IUserService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IUserIdentityService _identities;
     private readonly TimeProvider _clock;
+    private readonly IPlatformIamService _platformIam;
 
     public UserService(
         IApplicationDbContext db,
         ICurrentUserService currentUser,
         IServiceScopeFactory scopeFactory,
         IUserIdentityService identities,
-        TimeProvider clock
+        TimeProvider clock,
+        IPlatformIamService platformIam
     )
     {
+        _platformIam = platformIam;
         _db = db;
         _currentUser = currentUser;
         _scopeFactory = scopeFactory;
@@ -80,6 +84,12 @@ public class UserService : IUserService
         if (row is null)
             return Errors.NotFound<CurrentUserDto>("User", _currentUser.UserId);
 
+        // Only a platform-marked person can hold platform keys (the same entry gate the authorization
+        // handler applies); everyone else gets an empty list without touching the IAM plane.
+        IReadOnlyList<string> platformPermissions = row.IsPlatformPrincipal
+            ? await _platformIam.GetHeldPermissionsForUserAsync(row.Id, cancellationToken)
+            : [];
+
         CurrentUserDto user = new(
             OwnedIdCodec.Encode(row.Id),
             row.Username,
@@ -88,7 +98,8 @@ public class UserService : IUserService
             row.Color,
             row.BroadcasterType,
             row.IsPlatformPrincipal,
-            row.CreatedAt
+            row.CreatedAt,
+            platformPermissions
         );
 
         return Result.Success(user);

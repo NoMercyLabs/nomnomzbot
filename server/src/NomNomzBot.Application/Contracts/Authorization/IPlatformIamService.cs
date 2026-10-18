@@ -87,6 +87,17 @@ public interface IPlatformIamService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// The platform permission keys the signed-in USER holds, sorted — what the dashboard gates admin tabs and
+    /// buttons on. Self-host: the operator is implicitly full, so every catalog key. SaaS: the effective keys of
+    /// the user's active principal; no principal or an inactive one holds none. The caller decides who may ask
+    /// (the platform-principal marker); this never audits, it only reads.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetHeldPermissionsForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The role catalog with each role's permission bundle — the admin screen's role picker.</summary>
     Task<Result<IReadOnlyList<IamRoleDto>>> ListRolesAsync(
         CancellationToken cancellationToken = default

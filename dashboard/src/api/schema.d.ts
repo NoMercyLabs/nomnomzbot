@@ -89116,6 +89116,7 @@ export interface components {
             isAdmin: boolean;
             /** Format: date-time */
             createdAt: string;
+            platformPermissions: string[];
         };
         /** @description Safe read projection — the `AuthSecret` is never echoed; only its presence is surfaced. */
         CustomDataSource: {
