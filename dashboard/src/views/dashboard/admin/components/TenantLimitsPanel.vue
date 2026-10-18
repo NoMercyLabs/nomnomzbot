@@ -23,13 +23,15 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import { useTime } from '@/composables/useTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const props = defineProps<{ tenantId: string }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 const { can } = usePlatformCan();
 
 const limits = useTenantLimits(() => props.tenantId);
@@ -87,7 +89,7 @@ function submit(): void {
 
 function expiry(at: string | null | undefined): string {
   return at
-    ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(at))
+    ? time.date(at)
     : t('dashboard.admin.tenants.limits.noExpiry');
 }
 </script>

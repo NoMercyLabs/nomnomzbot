@@ -9,7 +9,6 @@
 -->
 <script setup lang="ts">
 // The people who use the bot, one row each. The bot sorts the list (newest first), so the heads do not sort.
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { AdminUser } from '@/api/adminUsers';
@@ -23,10 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useTime } from '@/composables/useTime';
 
 defineProps<{ rows: readonly AdminUser[] }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 
 function tone(role: string): StatusTone {
   return role === 'admin'
@@ -47,13 +48,9 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-const dates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-);
-
 function day(value: string | null | undefined): string {
   return value
-    ? dates.value.format(new Date(value))
+    ? time.date(value)
     : t('dashboard.admin.users.never');
 }
 </script>

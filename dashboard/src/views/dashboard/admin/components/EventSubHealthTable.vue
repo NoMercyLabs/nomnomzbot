@@ -11,12 +11,12 @@
 // One row per EventSub topic, grouped under its channel. A channel with no topic still shows one row,
 // so a missing registry is visible and never padded with a guessed "healthy" entry.
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import type {
   AdminEventSubTenantHealth,
   AdminEventSubTopicHealth,
 } from '@/api/adminActivity';
+import DateTime from '@/components/layout/DateTime.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import {
   Table,
@@ -34,8 +34,6 @@ type Line = {
 };
 
 const props = defineProps<{ rows: readonly AdminEventSubTenantHealth[] }>();
-
-const { locale } = useI18n();
 
 function linesOf(tenant: AdminEventSubTenantHealth): Line[] {
   if (tenant.topics.length === 0)
@@ -55,14 +53,6 @@ function linesOf(tenant: AdminEventSubTenantHealth): Line[] {
 }
 
 const lines = computed<Line[]>(() => props.rows.flatMap(linesOf));
-
-const dates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-);
-
-function day(value: string): string {
-  return dates.value.format(new Date(value));
-}
 </script>
 
 <template>
@@ -91,7 +81,7 @@ function day(value: string): string {
             />
           </TableCell>
           <TableCell class="tabular-nums text-muted-foreground">{{ line.topic.version }}</TableCell>
-          <TableCell class="text-muted-foreground">{{ day(line.topic.lastConfirmedAt) }}</TableCell>
+          <TableCell class="text-muted-foreground"><DateTime :value="line.topic.lastConfirmedAt" variant="date" /></TableCell>
           <TableCell class="text-muted-foreground">
             {{ line.topic.lastError ?? $t('dashboard.admin.eventsubHealth.noError') }}
           </TableCell>

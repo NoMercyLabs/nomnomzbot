@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
+import { useTime } from '@/composables/useTime';
 
 const { can } = useCan();
 const props = defineProps<{ endpoint: OutboundWebhook; busy: boolean }>();
@@ -31,13 +32,14 @@ defineEmits<{
   remove: [];
 }>();
 
+const time = useTime();
 const address = computed(() => `${props.endpoint.fqdn}${props.endpoint.path ?? ''}`);
 
 const switchedOff = computed(() => Boolean(props.endpoint.disabledAt));
 
 const lastDelivery = computed(() =>
   props.endpoint.lastDeliveryAt
-    ? new Date(props.endpoint.lastDeliveryAt).toLocaleString()
+    ? time.dateTime(props.endpoint.lastDeliveryAt)
     : undefined);
 </script>
 

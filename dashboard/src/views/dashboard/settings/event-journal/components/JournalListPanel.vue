@@ -16,6 +16,7 @@ import ChevronLeft from '~icons/nnz/chevron-left';
 import ChevronRight from '~icons/nnz/chevron-right';
 
 import { useJournalPage, type JournalFilters } from '@/api/eventJournal';
+import DateTime from '@/components/layout/DateTime.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,12 +30,10 @@ import {
 } from '@/components/ui/table';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
-import { useI18n } from 'vue-i18n';
 
 const PAGE_SIZE = 25;
 const TYPE_PAUSE_MS = 300;
 
-const { locale } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const eventType = useLocalStorage('nnz.event-journal.eventType', '');
@@ -73,14 +72,6 @@ const rows = computed(() => journal.data.value?.items ?? []);
 const total = computed(() => Number(journal.data.value?.totalCount ?? 0));
 const head = computed(() => journal.data.value?.headPosition ?? 0);
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
-
-const dates = computed(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'medium' }),
-);
-
-function when(value: string): string {
-  return dates.value.format(new Date(value));
-}
 
 function clear(): void {
   eventType.value = '';
@@ -150,7 +141,7 @@ function clear(): void {
           <TableCell class="tabular-nums text-muted-foreground">{{ row.streamPosition }}</TableCell>
           <TableCell class="font-medium">{{ row.eventType }}</TableCell>
           <TableCell>{{ row.source }}</TableCell>
-          <TableCell class="text-muted-foreground">{{ when(row.occurredAt) }}</TableCell>
+          <TableCell class="text-muted-foreground"><DateTime :value="row.occurredAt" variant="dateTimeFull" /></TableCell>
         </TableRow>
       </TableBody>
     </Table>

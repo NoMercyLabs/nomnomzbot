@@ -9,10 +9,8 @@
 -->
 <script setup lang="ts">
 // One row per audit entry, newest first: when, who, what permission, which tenant and what the answer was.
-import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-
 import type { AdminAuditEntry } from '@/api/adminAudit';
+import DateTime from '@/components/layout/DateTime.vue';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -25,15 +23,6 @@ import {
 
 defineProps<{ rows: readonly AdminAuditEntry[] }>();
 
-const { locale } = useI18n();
-
-const times = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'medium' }),
-);
-
-function when(row: AdminAuditEntry): string {
-  return times.value.format(new Date(row.occurredAt));
-}
 </script>
 
 <template>
@@ -50,7 +39,7 @@ function when(row: AdminAuditEntry): string {
     </TableHeader>
     <TableBody>
       <TableRow v-for="row in rows" :key="row.id" data-audit-row>
-        <TableCell class="whitespace-nowrap tabular-nums">{{ when(row) }}</TableCell>
+        <TableCell class="whitespace-nowrap tabular-nums"><DateTime :value="row.occurredAt" variant="dateTimeFull" /></TableCell>
         <TableCell>
           <span class="font-mono text-xs">{{ row.principalId }}</span>
           <span class="block text-xs text-muted-foreground">{{ row.principalType }}</span>

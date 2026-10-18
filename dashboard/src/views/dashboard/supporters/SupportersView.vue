@@ -26,6 +26,7 @@ import UserName from '@/components/layout/UserName.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTime } from '@/composables/useTime';
 
 import GiftCard from '~icons/nnz/gift-card';
 
@@ -40,7 +41,8 @@ import {
   type SubscriptionRow,
 } from './supporterRows';
 
-const { t, n, locale } = useI18n();
+const { t, n } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
@@ -67,10 +69,7 @@ const eventsState = usePanelState(events, (rows: SupporterEvent[]) =>
   rows.length === 0);
 
 function when(timestamp: string): string {
-  return new Intl.DateTimeFormat(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(timestamp));
+  return time.dateTime(timestamp);
 }
 
 function subscriptionDetail(row: SubscriptionRow): string {

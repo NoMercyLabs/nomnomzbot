@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTime } from '@/composables/useTime';
 
 import ArrowRight from '~icons/nnz/arrow-right';
 import Repeat from '~icons/nnz/repeat';
@@ -36,7 +37,8 @@ import { describeActivity, type ActivityRowText } from './activityKinds';
 
 defineProps<{ live: boolean }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const clock = useTime();
 const { channelId } = useCurrentChannel();
 const access = useChannelAccess(channelId);
 const replay = useActivityReplay(channelId);
@@ -106,12 +108,7 @@ function say(text: ActivityRowText): string {
 }
 
 function eventTime(event: ActivityEvent): string {
-  return new Intl.DateTimeFormat(locale.value, {
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date(event.timestamp));
+  return clock.weekdayTime(event.timestamp);
 }
 
 const rows = computed<Row[]>(() =>

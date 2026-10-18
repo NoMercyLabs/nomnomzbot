@@ -14,7 +14,6 @@
 // Run test is a dry run: nothing it does reaches chat. Edit code comes with the editor.
 // Powers are plain text here: the bot has no per-power switch yet.
 import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
-import { useTimeAgoIntl } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ArrowLeft from '~icons/nnz/arrow-left';
@@ -43,6 +42,7 @@ import { Switch } from '@/components/ui/switch';
 import type { TestTrigger } from '@/composables/useEditorBridge';
 import { useCan } from '@/composables/useCan';
 import { usePanelState } from '@/composables/usePanelState';
+import { useFormattedTime } from '@/composables/useTime';
 
 import type { SessionRun } from './sessionRun';
 import { useScriptTester } from './useScriptTester';
@@ -54,7 +54,7 @@ const emit = defineEmits<{
   ran: [run: Omit<SessionRun, 'id'>];
 }>();
 
-const { t, te, locale } = useI18n();
+const { t, te } = useI18n();
 const { can } = useCan();
 const detail = useScriptDetail(() => props.scriptId);
 const setEnabled = useSetScriptEnabled();
@@ -69,7 +69,7 @@ const state = usePanelState(detail, () =>
   false);
 const script = computed(() => detail.data.value);
 // The detail answer carries no run facts; the list row of the same script does.
-const ago = useTimeAgoIntl(() => props.summary?.lastRanAt ?? new Date(0), { locale: locale.value });
+const ago = useFormattedTime(() => props.summary?.lastRanAt, 'relative', { live: true });
 
 const runTone = computed<StatusTone>(() => {
   if (props.summary?.lastRuntimeError)

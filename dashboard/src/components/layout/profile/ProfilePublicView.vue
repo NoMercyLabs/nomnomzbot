@@ -17,6 +17,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { usePublicProfile, type PublicProfile } from '@/api/viewer';
+import DateTime from '@/components/layout/DateTime.vue';
 import EmoteText from '@/components/layout/EmoteText.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -29,7 +30,7 @@ import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { shortDate } from '@/lib/time';
+import { useTime } from '@/composables/useTime';
 
 const props = defineProps<{ userId: string }>();
 
@@ -37,7 +38,8 @@ const tab = defineModel<string>('tab', { default: 'overview' });
 
 const TABS = ['overview', 'chat', 'emotes'] as const;
 
-const { t, te, locale } = useI18n();
+const { t, te } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const inDialog = injectDialogRootContext(null) !== null;
 
@@ -57,7 +59,7 @@ function badgeText(set: string): string {
 function dateOrNull(iso?: string | null): string | null {
   return iso == null
     ? null
-    : shortDate(iso, locale.value);
+    : time.date(iso);
 }
 
 function tierText(code?: string | null): string | null {
@@ -77,12 +79,6 @@ function factsOf(person: PublicProfile): KeyValueItem[] {
   ];
 }
 
-function timeOf(iso: string): string {
-  return new Date(iso).toLocaleString(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
 </script>
 
 <template>
@@ -165,7 +161,7 @@ function timeOf(iso: string): string {
             >
               <ul data-profile-chat-lines class="grid gap-2">
                 <li v-for="line in profile.data.value.recentMessages" :key="line.id" class="flex gap-2 text-sm">
-                  <span class="shrink-0 text-xs text-muted-foreground">{{ timeOf(line.sentAt) }}</span>
+                  <span class="shrink-0 text-xs text-muted-foreground"><DateTime :value="line.sentAt" variant="dateTime" /></span>
                   <EmoteText class="wrap-anywhere" :text="line.message" />
                 </li>
               </ul>

@@ -14,6 +14,7 @@ import { computed } from 'vue';
 
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
+import { useTime } from '@/composables/useTime';
 
 const props = defineProps<{
   name?: string;
@@ -25,8 +26,9 @@ defineEmits<{ restore: [] }>();
 
 const { can } = useCan();
 
+const time = useTime();
 const until = computed(() =>
-  new Date(props.permanentAfter).toLocaleString());
+  time.dateTime(props.permanentAfter));
 </script>
 
 <template>

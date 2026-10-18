@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 
 import SpotifyCredentialsPanel from './components/SpotifyCredentialsPanel.vue';
@@ -43,6 +44,7 @@ import SpotifyCredentialsPanel from './components/SpotifyCredentialsPanel.vue';
 const primaryAccount = 'twitch';
 
 const { t, te } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const integrations = useIntegrations(channelId);
@@ -244,7 +246,7 @@ function setLeavingOpen(open: boolean): void {
               {{ $t('dashboard.settings.integrations.account', { account: accountOf(row) }) }}
             </span>
             <span v-if="row.lastSync" class="block text-sm text-muted-foreground">
-              {{ $t('dashboard.settings.integrations.lastSync', { date: new Date(row.lastSync).toLocaleString() }) }}
+              {{ $t('dashboard.settings.integrations.lastSync', { date: time.dateTime(row.lastSync) }) }}
             </span>
             <span v-if="scopesOf(row)" data-slot="scope-sets" class="block text-sm text-muted-foreground">{{ scopesOf(row) }}</span>
             <span v-if="capabilitiesOf(row).length > 0" data-slot="capabilities" class="block text-sm text-muted-foreground">

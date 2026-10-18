@@ -26,13 +26,12 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
-import { hoursMinutes } from '@/lib/time';
 
 import { averageSeconds } from './analyticsFacts';
 
 const props = defineProps<{ range: AnalyticsRange }>();
 
-const { t, n, locale } = useI18n();
+const { t, n } = useI18n();
 const time = useTime();
 const { channelId } = useCurrentChannel();
 const page = 'dashboard.analytics.streams';
@@ -43,25 +42,14 @@ const rows = computed<StreamRow[]>(() => streams.data.value ?? []);
 const state = usePanelState(streams, (list: StreamRow[]) =>
   list.length === 0);
 
-const days = computed(() =>
-  new Intl.DateTimeFormat(locale.value, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  }));
-const clock = computed(() =>
-  new Intl.DateTimeFormat(locale.value, { hour: 'numeric', minute: '2-digit' }));
-
 function started(row: StreamRow): string {
   return row.startedAt
-    ? days.value.format(new Date(row.startedAt))
+    ? time.weekdayDate(row.startedAt)
     : t(`${page}.unknown`);
 }
 
 function startedAt(row: StreamRow): string {
-  return row.startedAt
-    ? clock.value.format(new Date(row.startedAt))
-    : '';
+  return time.time(row.startedAt);
 }
 
 function length(row: StreamRow): string {
@@ -84,7 +72,7 @@ function brought(row: StreamRow): string {
 }
 
 const takeaway = computed(() => {
-  const average = t(`${page}.average`, { length: hoursMinutes(averageSeconds(rows.value), locale.value) });
+  const average = t(`${page}.average`, { length: time.duration(averageSeconds(rows.value)) });
   const busiest = [...rows.value].sort((a: StreamRow, b: StreamRow) =>
     Number(b.totalMessages) - Number(a.totalMessages))[0];
 

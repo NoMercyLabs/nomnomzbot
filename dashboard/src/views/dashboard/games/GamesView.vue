@@ -27,6 +27,7 @@ import {
   type GameSession,
 } from '@/api/games';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import DateTime from '@/components/layout/DateTime.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -43,7 +44,7 @@ import Play from '~icons/nnz/play';
 import GameConfigDialog from './components/GameConfigDialog.vue';
 import { sessionTone, statusKey } from './gameStatus';
 
-const { t, n, locale } = useI18n();
+const { t, n } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
@@ -100,13 +101,6 @@ const nameOf = (gameType: string): string =>
 
 function statusLabel(session: GameSession): string {
   return t(`dashboard.games.status.${statusKey(session.status)}`, session.status);
-}
-
-function when(timestamp: string): string {
-  return new Intl.DateTimeFormat(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(timestamp));
 }
 
 function players(session: GameSession): string {
@@ -244,7 +238,7 @@ function toggle(config: GameConfig, enabled: boolean): void {
         >
           <span class="font-medium">{{ nameOf(session.gameType) }}</span>
           <span class="text-sm text-muted-foreground">{{ players(session) }}</span>
-          <span class="text-sm text-muted-foreground tabular-nums">{{ when(session.startedAt) }}</span>
+          <span class="text-sm text-muted-foreground tabular-nums"><DateTime :value="session.startedAt" variant="dateTime" /></span>
           <StatusBadge class="ms-auto" :tone="sessionTone(session.status)" :label="statusLabel(session)" />
         </li>
       </ul>

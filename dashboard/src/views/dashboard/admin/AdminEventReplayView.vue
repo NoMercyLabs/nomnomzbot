@@ -26,6 +26,7 @@ import {
   useReplayPreview,
   type ReplayScope,
 } from '@/api/adminEventReplay';
+import DateTime from '@/components/layout/DateTime.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -113,10 +114,6 @@ const consequence = computed(() =>
     to: to.value,
   }),
 );
-
-function when(value: string): string {
-  return new Date(value).toLocaleString();
-}
 
 async function runPreview(): Promise<void> {
   const current = scope.value;
@@ -289,7 +286,7 @@ async function submit(): Promise<void> {
           <div class="min-w-0 flex-1">
             <span class="block text-sm font-medium">{{ row.targetResource }}</span>
             <span class="block text-xs text-muted-foreground">{{ row.justification }}</span>
-            <span class="block text-xs text-muted-foreground">{{ when(row.occurredAt) }}</span>
+            <span class="block text-xs text-muted-foreground"><DateTime :value="row.occurredAt" variant="dateTime" /></span>
           </div>
           <Badge variant="outline">{{ row.outcome }}</Badge>
         </li>

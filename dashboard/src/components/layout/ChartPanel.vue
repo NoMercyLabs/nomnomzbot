@@ -25,6 +25,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import { useTime } from '@/composables/useTime';
 import {
   ChartContainer,
   ChartCrosshair,
@@ -88,12 +89,7 @@ const numbers = computed(() => new Intl.NumberFormat(locale.value));
 const compactNumbers = computed<Intl.NumberFormat>(
   () => new Intl.NumberFormat(locale.value, { notation: 'compact' }),
 );
-const fullDates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-);
-const shortDates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { day: 'numeric', month: 'short' }),
-);
+const time = useTime();
 
 const isTime = computed(
   () =>
@@ -101,9 +97,9 @@ const isTime = computed(
 );
 const isBar = computed(() => props.kind === 'bar' || props.kind === 'groupedBar');
 
-function label(value: string | number | Date | undefined, formatter: Intl.DateTimeFormat): string {
+function label(value: string | number | Date | undefined, format: (value: Date) => string): string {
   return value instanceof Date
-    ? formatter.format(value)
+    ? format(value)
     : String(value ?? '');
 }
 
@@ -132,10 +128,10 @@ function xTick(tick: number | Date): string {
     : tick;
 
   if (isTime.value)
-    return shortDates.value.format(new Date(at));
+    return time.dateShort(at);
 
   return Number.isInteger(at)
-    ? label(props.data[at]?.[props.x], shortDates.value)
+    ? label(props.data[at]?.[props.x], time.dateShort)
     : '';
 }
 
@@ -166,7 +162,7 @@ function tooltip(row: ChartRow): string {
 
   return (
     `<div class="grid min-w-32 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">` +
-    `<div class="font-medium">${escapeHtml(label(row[props.x], fullDates.value))}</div>${lines}</div>`
+    `<div class="font-medium">${escapeHtml(label(row[props.x], time.date))}</div>${lines}</div>`
   );
 }
 
@@ -267,7 +263,7 @@ const yDomain = computed<[number | undefined, number | undefined]>(() =>
           </thead>
           <tbody>
             <tr v-for="(row, index) in data" :key="index">
-              <th scope="row">{{ label(row[x], fullDates) }}</th>
+              <th scope="row">{{ label(row[x], time.date) }}</th>
               <td v-for="entry in series" :key="entry.key">
                 {{ numbers.format(Number(row[entry.key] ?? 0)) }}
               </td>

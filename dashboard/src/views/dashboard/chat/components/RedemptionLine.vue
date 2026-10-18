@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { ChatLine } from '@/api/chat';
 import UserName from '@/components/layout/UserName.vue';
+import { useTime } from '@/composables/useTime';
 
 import { spacingPadding, type ChatDisplay } from '../chatDisplay';
 
@@ -45,12 +46,12 @@ const cost = computed<string>(() => {
   return t(`dashboard.chat.redemption.cost.${unit}`, { amount });
 });
 
-const time = computed<string>(() =>
-  new Date(props.line.timestamp).toLocaleTimeString(locale.value, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: props.display.timestamps === '12',
-  }));
+const clock = useTime();
+
+const stamp = computed<string>(() =>
+  props.display.timestamps === '12'
+    ? clock.time12(props.line.timestamp)
+    : clock.time24(props.line.timestamp));
 </script>
 
 <template>
@@ -65,7 +66,7 @@ const time = computed<string>(() =>
       v-if="display.timestamps !== 'off'"
       class="flex-none text-muted-foreground tabular-nums"
       :datetime="line.timestamp"
-    >{{ time }}</time>
+    >{{ stamp }}</time>
     <p class="min-w-0 flex-1 wrap-anywhere text-muted-foreground">
       <UserName :user-id="line.userId" :name="line.displayName" class="text-foreground" />
       {{ $t('dashboard.chat.redemption.redeemed') }}

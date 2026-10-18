@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { ChatHourCell } from '@/api/analytics';
+import { formatTime } from '@/lib/time';
 
 // The week runs Monday to Sunday; the bot numbers Sunday 0.
 export const WEEK = [1, 2, 3, 4, 5, 6, 0] as const satisfies readonly number[];
@@ -100,14 +101,14 @@ export function heatLevel(value: number, most: number): 0 | 1 | 2 | 3 {
 
 // 4 January 2026 is a Sunday, so the bot's day number is the days after it.
 export function dayName(day: number, width: 'short' | 'long', locale: string): string {
-  return new Intl.DateTimeFormat(locale, { weekday: width }).format(new Date(2026, 0, 4 + day));
+  return formatTime(new Date(2026, 0, 4 + day), width === 'long'
+    ? 'weekday'
+    : 'weekdayShort', locale);
 }
 
 // An hour as the reader's clock writes it: "16:00", or "4:00 PM"; short gives "16" or "4 PM".
 export function hourName(hour: number, locale: string, short = false): string {
-  const options: Intl.DateTimeFormatOptions = short
-    ? { hour: 'numeric' }
-    : { hour: 'numeric', minute: '2-digit' };
-
-  return new Intl.DateTimeFormat(locale, options).format(new Date(2026, 0, 4, hour));
+  return formatTime(new Date(2026, 0, 4, hour), short
+    ? 'hour'
+    : 'time', locale);
 }

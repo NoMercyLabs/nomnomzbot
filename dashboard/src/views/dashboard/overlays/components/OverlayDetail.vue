@@ -16,7 +16,7 @@ import Check from '~icons/nnz/check';
 import Code from '~icons/nnz/code';
 import Copy from '~icons/nnz/file-copy';
 import Play from '~icons/nnz/play';
-import { useTimeAgoIntl, useTimeoutFn } from '@vueuse/core';
+import { useTimeoutFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
 import type { JsonObject } from '@/lib/json';
@@ -41,6 +41,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useFormattedTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 import { numberOrNull } from '@/lib/number';
 
@@ -54,7 +55,7 @@ const props = defineProps<{ widget: Widget }>();
 
 defineEmits<{ back: [] }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const setEnabled = useSetWidgetEnabled(channelId);
@@ -68,7 +69,7 @@ const editorWidget = computed(() => ({
   name: props.widget.name,
   settings: (props.widget.settings ?? {}) as JsonObject,
 }));
-const ago = useTimeAgoIntl(() => props.widget.lastRanAt ?? new Date(0), { locale: locale.value });
+const ago = useFormattedTime(() => props.widget.lastRanAt, 'relative', { live: true });
 
 const copied = ref(false);
 const { start: resetCopied } = useTimeoutFn(

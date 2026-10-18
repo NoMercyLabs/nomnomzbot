@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import { useTime } from '@/composables/useTime';
 
 import { matchesRunFilter, type RunFilter, type SessionRun } from './sessionRun';
 
@@ -25,6 +26,7 @@ const props = defineProps<{ runs: SessionRun[] }>();
 defineEmits<{ open: [run: SessionRun] }>();
 
 const { t } = useI18n();
+const clock = useTime();
 const filter = useLocalStorage<RunFilter>('nnz.scripts.runFilter', 'all');
 
 const options = computed<FilterOption[]>(() =>
@@ -48,11 +50,7 @@ const emptyText = computed<string>(() =>
 );
 
 function timeOf(run: SessionRun): string {
-  return run.at.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+  return clock.timeSeconds(run.at);
 }
 </script>
 

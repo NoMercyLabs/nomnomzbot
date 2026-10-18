@@ -25,16 +25,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useCan } from '@/composables/useCan';
+import { useTime } from '@/composables/useTime';
 
 const { can } = useCan();
 
 defineProps<{ tokens: readonly AutomationToken[] }>();
 defineEmits<{ rotate: [token: AutomationToken]; revoke: [token: AutomationToken] }>();
 
+const time = useTime();
 const day = (value: string | null | undefined): string =>
-  value === null || value === undefined
-    ? ''
-    : new Date(value).toLocaleDateString();
+  time.date(value);
 
 function toneOf(token: AutomationToken): StatusTone {
   if (token.revokedAt !== null && token.revokedAt !== undefined)

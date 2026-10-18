@@ -19,13 +19,14 @@ import {
   useSupportTenantItems,
   type SupportTenantKind,
 } from '@/api/adminSupport';
+import DateTime from '@/components/layout/DateTime.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { usePanelState } from '@/composables/usePanelState';
 
 const props = defineProps<{ personId: string; justification: string }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 
 const history = useSupportHistory(
   () => props.personId,
@@ -71,10 +72,6 @@ const kinds = computed(() =>
     label: t(`dashboard.admin.support.items.${value}`),
   })),
 );
-
-const dates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-);
 </script>
 
 <template>
@@ -96,9 +93,9 @@ const dates = computed<Intl.DateTimeFormat>(
         <span class="text-muted-foreground">{{
           row.channelName ?? t("dashboard.admin.support.history.platform")
         }}</span>
-        <span class="text-muted-foreground tabular-nums">{{
-          dates.format(new Date(row.occurredAt))
-        }}</span>
+        <span class="text-muted-foreground tabular-nums">
+          <DateTime :value="row.occurredAt" variant="date" />
+        </span>
       </li>
     </ul>
   </PanelCard>

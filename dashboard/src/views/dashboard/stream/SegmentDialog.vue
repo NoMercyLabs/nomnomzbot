@@ -25,7 +25,7 @@ import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { fromLocalInput, minutesBetween, toLocalInput } from '@/lib/time';
+import { fromLocalInput, localTimeZone, minutesBetween, toLocalInput } from '@/lib/time';
 
 import CategoryPicker from './CategoryPicker.vue';
 
@@ -51,7 +51,7 @@ const pending = computed(() => create.isPending.value || update.isPending.value)
 const valid = computed(
   () => startTime.value !== '' && Number.isInteger(Number(duration.value)) && Number(duration.value) >= 30,
 );
-const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const zone = localTimeZone();
 
 watch(open, (isOpen: boolean) => {
   if (!isOpen) return;
