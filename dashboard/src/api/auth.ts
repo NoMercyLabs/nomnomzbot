@@ -216,10 +216,15 @@ async function refresh(): Promise<boolean> {
 type RefreshEnvelope = { data?: { accessToken?: string } | null };
 
 async function refreshNow(): Promise<boolean> {
-  const result: { data?: RefreshEnvelope; response: Response } = await client.POST(
-    '/api/v{version}/auth/refresh',
-    { params: version, credentials: 'include' },
-  );
+  // A bot that cannot be reached (offline, or a remembered address that blocks this origin) means signed
+  // out: the sign-in page can pick another bot, where a thrown fetch would break the router start.
+  const result: { data?: RefreshEnvelope; response: Response } | null = await client
+    .POST('/api/v{version}/auth/refresh', { params: version, credentials: 'include' })
+    .catch(() => null);
+
+  if (result === null)
+    return false;
+
   const { response } = result;
   // The OpenAPI document declares no 200 body for refresh yet, so the envelope is typed here.
   const token = result.data?.data?.accessToken;

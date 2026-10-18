@@ -150,6 +150,22 @@ describe('expired access token', () => {
   });
 });
 
+// 2026-10-18: a browser that had picked a bot address nobody runs (CORS-blocked) threw out of the router
+// on start and showed a blank page instead of the sign-in.
+describe('a bot that cannot be reached', () => {
+  it('leaves the visitor signed out instead of throwing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    }));
+
+    vi.resetModules();
+    const auth = await import('../auth');
+
+    expect(await auth.restoreSession()).toBe(false);
+    expect(auth.isSignedIn()).toBe(false);
+  });
+});
+
 // Stoney 2026-10-16: the login page called auth/refresh every ~5 s after a 401 and ran into the rate limit.
 describe('a refused refresh', () => {
   it('is asked once per page load, not again on every 401', async () => {
