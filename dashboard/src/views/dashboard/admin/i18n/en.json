@@ -620,6 +620,32 @@
           "off": "Off"
         }
       },
+      "platformBot": {
+        "title": "Platform bot",
+        "error": "The platform bot state could not be loaded.",
+        "failed": "The reconnect did not start. Check the reason and try again.",
+        "stale": "The channel count changed. Preview again before you reconnect.",
+        "denied": "The reconnect was not approved. Preview again to start over.",
+        "state": {
+          "title": "Connection",
+          "description": "The shared bot account that speaks for every channel without its own bot.",
+          "empty": "No platform bot state.",
+          "NeverConnected": "Never connected",
+          "ConnectedAndWorking": "Connected and working",
+          "ConnectedTokenUnusable": "Connected, token unusable"
+        },
+        "reconnect": {
+          "title": "Reconnect",
+          "description": "Replace the shared bot account. Every channel without its own bot speaks as the new account.",
+          "reason": "Reason",
+          "previewAction": "Preview channels",
+          "preview": "{count} channels speak through the platform bot.",
+          "start": "Reconnect for {count} channels",
+          "instruction": "Enter this code on Twitch as the new bot account.",
+          "open": "Open Twitch",
+          "waiting": "Waiting for approval."
+        }
+      },
       "content": {
         "title": "Content",
         "kindFilter": "Kind",

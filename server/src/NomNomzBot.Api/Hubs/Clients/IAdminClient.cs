@@ -19,5 +19,6 @@ public interface IAdminClient
     Task ReceiveBillingChanged(object change);
     Task ReceiveContentChanged(object change);
     Task ReceiveErrorBudgetChanged(object change);
+    Task ReceivePlatformBotChanged(object change);
     Task ReceiveAuditChanged(object change);
 }

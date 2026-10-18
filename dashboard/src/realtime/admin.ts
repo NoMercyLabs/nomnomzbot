@@ -20,6 +20,7 @@ import { adminAuditPrefix } from '@/api/adminAudit';
 import { billingPrefix } from '@/api/adminBilling';
 import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { contentPrefix } from '@/api/adminContent';
+import { platformBotPrefix } from '@/api/adminPlatformBot';
 import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
@@ -29,6 +30,7 @@ import type {
   AdminChannelRegistryPayload,
   AdminContentPayload,
   AdminErrorBudgetPayload,
+  AdminPlatformBotPayload,
   AdminSystemStatusPayload,
   AdminTrustSafetyPayload,
 } from './payloads';
@@ -96,6 +98,7 @@ export const adminHandlers: [
   HubEventHandler<AdminErrorBudgetPayload>,
   HubEventHandler<AdminContentPayload>,
   HubEventHandler<AdminBillingPayload>,
+  HubEventHandler<AdminPlatformBotPayload>,
   HubEventHandler<AdminAuditPayload>,
 ] = [
   {
@@ -134,6 +137,13 @@ export const adminHandlers: [
     event: 'ReceiveBillingChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: billingPrefix });
+    },
+  },
+  {
+    // The shared platform bot connected or disconnected: the state reloads from the server.
+    event: 'ReceivePlatformBotChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: platformBotPrefix });
     },
   },
   {

@@ -110,6 +110,13 @@ export type AdminAuditPayload = {
   targetBroadcasterId: string | null;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceivePlatformBotChanged (AdminPlatformBotBroadcastHandler). The shared platform
+// bot connected (botUsername set) or disconnected.
+export type AdminPlatformBotPayload = {
+  connected: boolean;
+  botUsername: string | null;
+};
+
 // Hubs/Clients/IAdminClient.cs: ReceiveContentChanged (AdminContentBroadcastHandler). An operator created a
 // definition, drafted or published a version, or retired a definition.
 export type AdminContentPayload = {

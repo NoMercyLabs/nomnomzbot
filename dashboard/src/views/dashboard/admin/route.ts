@@ -226,3 +226,15 @@ export const dashboardAdminAuditRoute = {
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
+
+export const dashboardAdminPlatformBotRoute = {
+  path: 'admin/platform-bot',
+  name: 'dashboard-admin-platform-bot',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminPlatformBotView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;

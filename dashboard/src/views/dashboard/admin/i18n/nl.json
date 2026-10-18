@@ -620,6 +620,32 @@
           "off": "Uit"
         }
       },
+      "platformBot": {
+        "title": "Platformbot",
+        "error": "De status van de platformbot kon niet worden geladen.",
+        "failed": "De herverbinding is niet gestart. Controleer de reden en probeer het opnieuw.",
+        "stale": "Het aantal kanalen is veranderd. Bekijk de voorvertoning opnieuw voordat je herverbindt.",
+        "denied": "De herverbinding is niet goedgekeurd. Bekijk de voorvertoning opnieuw om te beginnen.",
+        "state": {
+          "title": "Verbinding",
+          "description": "Het gedeelde botaccount dat spreekt voor elk kanaal zonder eigen bot.",
+          "empty": "Geen status van de platformbot.",
+          "NeverConnected": "Nooit verbonden",
+          "ConnectedAndWorking": "Verbonden en werkend",
+          "ConnectedTokenUnusable": "Verbonden, token onbruikbaar"
+        },
+        "reconnect": {
+          "title": "Herverbinden",
+          "description": "Vervang het gedeelde botaccount. Elk kanaal zonder eigen bot spreekt als het nieuwe account.",
+          "reason": "Reden",
+          "previewAction": "Kanalen bekijken",
+          "preview": "{count} kanalen spreken via de platformbot.",
+          "start": "Herverbinden voor {count} kanalen",
+          "instruction": "Voer deze code op Twitch in als het nieuwe botaccount.",
+          "open": "Twitch openen",
+          "waiting": "Wachten op goedkeuring."
+        }
+      },
       "content": {
         "title": "Inhoud",
         "kindFilter": "Soort",
