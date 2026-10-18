@@ -1,0 +1,66 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Instellen",
+      "channelManagement": {
+        "loadFailed": "Het kanaal kon niet worden geladen.",
+        "presence": {
+          "title": "De bot in je kanaal",
+          "description": "De bot luistert alleen naar je chat en je gebeurtenissen zolang hij in het kanaal zit.",
+          "in": "De bot zit in je kanaal",
+          "out": "De bot zit niet in je kanaal",
+          "since": "Hij is erbij gekomen op {when}.",
+          "outHelp": "Hij beantwoordt geen chat en reageert niet op volgers totdat je hem laat meedoen.",
+          "join": "Laat de bot meedoen",
+          "leave": "Laat de bot weggaan"
+        },
+        "leave": {
+          "title": "De bot uit je kanaal laten gaan?",
+          "description": "Je kunt hem op elk moment weer laten meedoen. Je instellingen blijven staan.",
+          "stopsChat": "De bot stopt met het beantwoorden van commando's in je chat.",
+          "stopsEvents": "De bot stopt met luisteren naar je kanaalgebeurtenissen, dus reacties op gebeurtenissen lopen niet."
+        },
+        "delete": {
+          "title": "Dit kanaal verwijderen",
+          "description": "Haalt het kanaal en alles erin weg bij de bot.",
+          "help": "Je ziet wat de verwijdering weghaalt voordat je bevestigt.",
+          "action": "Kanaal verwijderen",
+          "confirmTitle": "{name} verwijderen?",
+          "restoreWindow": "Je kunt het kanaal {days} dagen terugzetten. Daarna is het voorgoed weg.",
+          "typeLabel": "Typ de kanaalnaam om te bevestigen",
+          "line": "{count} {what}",
+          "nothing": "Niets anders hangt van dit kanaal af.",
+          "minimum": "Deze aantallen zijn een minimum. Sommige koppelingen zijn pas te tellen als ze lopen.",
+          "category": {
+            "channel_chat": "chatgegevens",
+            "channel_viewers": "kijkergegevens",
+            "commands": "commando's",
+            "pipelines": "pipelines",
+            "timers": "timers",
+            "widgets": "widgets",
+            "event_responses": "reacties op gebeurtenissen",
+            "rewards": "kanaalpuntenbeloningen",
+            "chat_triggers": "chattriggers",
+            "code_scripts": "codescripts",
+            "outbound_webhook_endpoints": "uitgaande webhooks",
+            "sound_clips": "geluidsfragmenten",
+            "assets": "geüploade bestanden"
+          },
+          "external": {
+            "twitch_rewards": "kanaalpuntenbeloningen op Twitch werken niet meer",
+            "overlay_sources": "overlaybronnen in OBS worden leeg",
+            "eventsub_subscriptions": "Twitch-gebeurtenisabonnementen worden verwijderd",
+            "discord_notifications": "Discord-meldingen stoppen",
+            "outbound_webhooks": "uitgaande webhooks versturen niets meer",
+            "oauth_connections": "gekoppelde accounts worden losgekoppeld"
+          }
+        },
+        "deleted": {
+          "title": "Het kanaal is verwijderd",
+          "help": "Je kunt het terugzetten tot {when}. Daarna is het voorgoed weg.",
+          "restore": "Zet het kanaal terug"
+        }
+      }
+    }
+  }
+}

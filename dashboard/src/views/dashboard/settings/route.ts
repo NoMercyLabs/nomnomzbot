@@ -17,6 +17,7 @@ import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
 import { settingsApiDevicesRoute } from './api-devices/route';
 import { settingsCustomEventFeedsRoute } from './custom-event-feeds/route';
 import { settingsBillingRoute } from './billing/route';
+import { settingsChannelManagementRoute } from './channel-management/route';
 import { settingsEventJournalRoute } from './event-journal/route';
 import { settingsFeaturesRoute } from './features/route';
 import { settingsFederationRoute } from './federation/route';
@@ -103,4 +104,5 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsYourDataRoute,
   settingsFederationRoute,
   settingsPermissionsRoute,
+  settingsChannelManagementRoute,
 ];

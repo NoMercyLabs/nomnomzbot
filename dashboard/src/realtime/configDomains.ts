@@ -18,6 +18,7 @@ import { integrationsKey, spotifyCredentialsKey } from '@/api/integrations';
 import { timersKey } from '@/api/liveOps';
 import { musicConfigKey, musicQueueKey } from '@/api/music';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
+import { actionMatrixKey, membersKey } from '@/api/permissions';
 import { personalityKey } from '@/api/personalitySettings';
 import { pipelinesKey } from '@/api/pipelines';
 import { basicsKey } from '@/api/settings';
@@ -64,6 +65,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'economy-config': [currencyConfigKey],
   'earning-rules': [earningRulesKey],
   'savings-jar': [savingsJarsKey],
+  permissions: [membersKey, actionMatrixKey],
 };
 
 // A domain with no page key of its own (catalog, quotes, picklists, or a

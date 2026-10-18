@@ -13,6 +13,8 @@
 // Cancel is outline on the left; the red button names the action. Pressing it emits confirm and
 // leaves the dialog open: the owner closes it (v-model:open) when the work is done, so pending can show.
 // The default slot shows the thing the action hits (a song, a user), between the header and the consequences.
+import { computed, ref, watch } from 'vue';
+
 import BlastList from '@/components/layout/BlastList.vue';
 import { useReadOnly } from '@/components/layout/readOnly';
 import {
@@ -24,9 +26,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     open: boolean;
     title: string;
@@ -34,11 +37,16 @@ withDefaults(
     consequences?: string[];
     action: string;
     pending?: boolean;
+    // A confirm that must be armed by typing: the exact words to type, and the label of the field that takes them.
+    typeToConfirm?: string;
+    typeLabel?: string;
   }>(),
   {
     description: undefined,
     consequences: () => [],
     pending: false,
+    typeToConfirm: undefined,
+    typeLabel: undefined,
   },
 );
 
@@ -46,6 +54,16 @@ defineEmits<{ 'update:open': [open: boolean]; confirm: [] }>();
 
 // The dialog renders in a portal, so it reads the lock of the scope that opened it.
 const locked = useReadOnly();
+
+// The typed words are cleared whenever the dialog opens or closes, so an old entry never arms a new confirm.
+const typed = ref('');
+const armed = computed(
+  () => props.typeToConfirm === undefined || typed.value === props.typeToConfirm,
+);
+
+watch(() => props.open, () => {
+  typed.value = '';
+});
 </script>
 
 <template>
@@ -65,12 +83,21 @@ const locked = useReadOnly();
       <div v-if="consequences.length > 0" class="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
         <BlastList :items="consequences" />
       </div>
+      <div v-if="typeToConfirm !== undefined" class="flex-none px-6 pb-4">
+        <Input
+          v-model="typed"
+          data-confirm-typed
+          :aria-label="typeLabel"
+          :placeholder="typeToConfirm"
+          autocomplete="off"
+        />
+      </div>
       <AlertDialogFooter class="flex-none border-t border-border px-6 py-4">
         <AlertDialogCancel>{{ $t('common.cancel') }}</AlertDialogCancel>
         <Button
           data-confirm-action
           variant="destructive"
-          :disabled="pending || locked"
+          :disabled="pending || locked || !armed"
           @click="$emit('confirm')"
         >
           <Spinner v-if="pending" />

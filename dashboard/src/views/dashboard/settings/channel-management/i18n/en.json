@@ -1,0 +1,66 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "channelManagement": {
+        "loadFailed": "The channel could not be loaded.",
+        "presence": {
+          "title": "The bot in your channel",
+          "description": "The bot listens to your chat and your events only while it is in the channel.",
+          "in": "The bot is in your channel",
+          "out": "The bot is not in your channel",
+          "since": "It joined on {when}.",
+          "outHelp": "It does not answer chat or follow events until you let it join.",
+          "join": "Let the bot join",
+          "leave": "Make the bot leave"
+        },
+        "leave": {
+          "title": "Make the bot leave your channel?",
+          "description": "You can let it join again at any time. Your settings stay as they are.",
+          "stopsChat": "The bot stops answering commands in your chat.",
+          "stopsEvents": "The bot stops listening to your channel events, so event responses do not run."
+        },
+        "delete": {
+          "title": "Delete this channel",
+          "description": "Removes the channel and everything in it from the bot.",
+          "help": "You see what the delete removes before you confirm.",
+          "action": "Delete channel",
+          "confirmTitle": "Delete {name}?",
+          "restoreWindow": "You can bring the channel back for {days} days. After that it is gone for good.",
+          "typeLabel": "Type the channel name to confirm",
+          "line": "{count} {what}",
+          "nothing": "Nothing else depends on this channel.",
+          "minimum": "These numbers are a minimum. Some links can only be counted when they run.",
+          "category": {
+            "channel_chat": "chat records",
+            "channel_viewers": "viewer records",
+            "commands": "commands",
+            "pipelines": "pipelines",
+            "timers": "timers",
+            "widgets": "widgets",
+            "event_responses": "event responses",
+            "rewards": "channel point rewards",
+            "chat_triggers": "chat triggers",
+            "code_scripts": "code scripts",
+            "outbound_webhook_endpoints": "outbound webhooks",
+            "sound_clips": "sound clips",
+            "assets": "uploaded files"
+          },
+          "external": {
+            "twitch_rewards": "channel point rewards on Twitch stop working",
+            "overlay_sources": "overlay sources in OBS go blank",
+            "eventsub_subscriptions": "Twitch event subscriptions are removed",
+            "discord_notifications": "Discord notifications stop",
+            "outbound_webhooks": "outbound webhooks stop sending",
+            "oauth_connections": "connected accounts are disconnected"
+          }
+        },
+        "deleted": {
+          "title": "The channel is deleted",
+          "help": "You can bring it back until {when}. After that it is gone for good.",
+          "restore": "Bring the channel back"
+        }
+      }
+    }
+  }
+}
