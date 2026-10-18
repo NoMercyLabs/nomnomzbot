@@ -436,7 +436,7 @@ afterEach(() => {
 
 let router: Router;
 
-async function open(): Promise<void> {
+async function open(url = '/app/pipelines/p1'): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
@@ -455,7 +455,7 @@ async function open(): Promise<void> {
     ],
   });
 
-  await router.push('/app/pipelines/p1');
+  await router.push(url);
   // Routed as in the app: the leave guard only binds inside a RouterView.
   mounted = mount(RouterView, { attachTo: document.body, global: { plugins: [i18n, router] } });
   await flushPromises();
@@ -547,6 +547,25 @@ describe('the step inspector', () => {
     steps.splice(0, steps.length, ...saved);
 
     expect(fieldInput('message').value).toBe('no id');
+  });
+
+  it('opens the step named in the address, and keeps the address on the open step', async () => {
+    await open('/app/pipelines/p1?step=hi');
+
+    expect(document.body.querySelector('[data-step-inspector]')).not.toBeNull();
+    expect(fieldInput('message').value).toBe('hi there');
+    expect(router.currentRoute.value.query.step).toBe('hi');
+
+    card('hi').querySelector<HTMLButtonElement>('button')!.click();
+    await flushPromises();
+
+    expect(router.currentRoute.value.query.step).toBeUndefined();
+  });
+
+  it('opens no step when the address names one the pipeline does not have', async () => {
+    await open('/app/pipelines/p1?step=gone');
+
+    expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
   });
 
   it('closes when the person picks the same step again', async () => {

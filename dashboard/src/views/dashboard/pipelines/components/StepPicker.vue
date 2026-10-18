@@ -13,12 +13,15 @@
 // also be a word that fills in from the run. A source the bot cannot reach says so instead of an empty list.
 import ChevronDown from '~icons/nnz/chevron-down';
 import Check from '~icons/nnz/check';
+import Edit from '~icons/nnz/edit';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import {
   usePipelineOption,
   usePipelineOptions,
+  type OptionContext,
   type PickerKind,
   type PipelineOption,
 } from '@/api/pipelines';
@@ -33,6 +36,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const props = defineProps<{
@@ -40,16 +44,23 @@ const props = defineProps<{
   kind: PickerKind;
   value: string;
   required: boolean;
+  // The step's other choice settings (provider = youtube): a list narrows by them.
+  context?: OptionContext;
 }>();
 
 const emit = defineEmits<{ change: [value: string | undefined] }>();
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
+const route = useRoute();
+const router = useRouter();
 const open = ref(false);
 const search = ref('');
 const asked = refDebounced(search, 250);
+const asking = computed(() =>
+  props.context ?? {});
 const options = usePipelineOptions(channelId, () =>
-  props.kind, asked);
+  props.kind, asked, asking);
 
 const list = computed(() =>
   options.data.value);
@@ -63,7 +74,7 @@ const named = usePipelineOption(channelId, () =>
   props.kind, () =>
   listed.value || options.isPending.value
     ? null
-    : props.value);
+    : props.value, asking);
 const chosen = computed(() =>
   listed.value ?? named.data.value ?? undefined);
 // The bot searches, so the answer decides "nothing matches": the Command only recounts when the text changes,
@@ -74,6 +85,18 @@ const typedIsOption = computed(() =>
   items.value.some((option: PipelineOption) =>
     option.value === search.value || option.label === search.value));
 
+// A chosen script opens in the script editor. The address carries this page, with its open step, as the way
+// back, so the editor's back link returns to the same step.
+const canEditScript = computed(() =>
+  props.kind === 'script' && props.value !== '' && can('code:script:author'));
+
+function editScript(): void {
+  void router.push({
+    name: 'dashboard-scripts',
+    query: { script: props.value, back: route.fullPath },
+  });
+}
+
 // The next open starts on the full list again, not on the last search.
 function choose(value: string | undefined): void {
   open.value = false;
@@ -83,81 +106,93 @@ function choose(value: string | undefined): void {
 </script>
 
 <template>
-  <Popover v-model:open="open">
-    <PopoverTrigger as-child>
-      <Button
-        :id="id"
-        type="button"
-        variant="outline"
-        role="combobox"
-        :aria-expanded="open"
-        class="group w-full justify-between font-normal"
-      >
-        <span class="flex min-w-0 items-center gap-2">
-          <Avatar v-if="chosen?.imageUrl" class="size-5">
-            <AvatarImage :src="chosen.imageUrl" alt="" />
-          </Avatar>
-          <span class="truncate" :class="value === '' && 'text-muted-foreground'">
-            {{ chosen?.label ?? (value || $t('dashboard.pipelines.workbench.inspector.notSet')) }}
+  <div class="flex items-center gap-2">
+    <Popover v-model:open="open">
+      <PopoverTrigger as-child>
+        <Button
+          :id="id"
+          type="button"
+          variant="outline"
+          role="combobox"
+          :aria-expanded="open"
+          class="group min-w-0 flex-1 justify-between font-normal"
+        >
+          <span class="flex min-w-0 items-center gap-2">
+            <Avatar v-if="chosen?.imageUrl" class="size-5">
+              <AvatarImage :src="chosen.imageUrl" alt="" />
+            </Avatar>
+            <span class="truncate" :class="value === '' && 'text-muted-foreground'">
+              {{ chosen?.label ?? (value || $t('dashboard.pipelines.workbench.inspector.notSet')) }}
+            </span>
           </span>
-        </span>
-        <ChevronDown
-          class="text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
-          aria-hidden="true"
-        />
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent align="start" class="w-(--reka-popover-trigger-width) min-w-64 p-0">
-      <Command>
-        <CommandSearch v-model="search">
-          <CommandInput :placeholder="$t('dashboard.pipelines.workbench.picker.find')" />
-        </CommandSearch>
-        <CommandList>
-          <p v-if="list && !list.sourceAvailable" data-picker-unavailable class="m-0 px-3 py-2 text-sm text-muted-foreground">
-            {{ list.unavailableReason || $t('dashboard.pipelines.workbench.picker.unavailable') }}
-          </p>
-          <p v-if="noMatch" data-picker-none class="m-0 py-6 text-center text-sm">
-            {{ $t('dashboard.pipelines.workbench.picker.noMatch') }}
-          </p>
-          <CommandGroup>
-            <CommandItem
-              v-for="option in items"
-              :key="option.value"
-              :data-picker-option="option.value"
-              :value="`${option.label} ${option.secondaryText ?? ''} ${option.value}`"
-              :disabled="!!option.reason"
-              @select="choose(option.value)"
-            >
-              <Avatar v-if="option.imageUrl" class="size-6">
-                <AvatarImage :src="option.imageUrl" alt="" />
-              </Avatar>
-              <span class="flex min-w-0 flex-1 flex-col">
-                <span class="truncate">{{ option.label }}</span>
-                <span v-if="option.reason || option.secondaryText" class="truncate text-xs text-muted-foreground">
-                  {{ option.reason || option.secondaryText }}
+          <ChevronDown
+            class="text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" class="w-(--reka-popover-trigger-width) min-w-64 p-0">
+        <Command>
+          <CommandSearch v-model="search">
+            <CommandInput :placeholder="$t('dashboard.pipelines.workbench.picker.find')" />
+          </CommandSearch>
+          <CommandList>
+            <p v-if="list && !list.sourceAvailable" data-picker-unavailable class="m-0 px-3 py-2 text-sm text-muted-foreground">
+              {{ list.unavailableReason || $t('dashboard.pipelines.workbench.picker.unavailable') }}
+            </p>
+            <p v-if="noMatch" data-picker-none class="m-0 py-6 text-center text-sm">
+              {{ $t('dashboard.pipelines.workbench.picker.noMatch') }}
+            </p>
+            <CommandGroup>
+              <CommandItem
+                v-for="option in items"
+                :key="option.value"
+                :data-picker-option="option.value"
+                :value="`${option.label} ${option.secondaryText ?? ''} ${option.value}`"
+                :disabled="!!option.reason"
+                @select="choose(option.value)"
+              >
+                <Avatar v-if="option.imageUrl" class="size-6">
+                  <AvatarImage :src="option.imageUrl" alt="" />
+                </Avatar>
+                <span class="flex min-w-0 flex-1 flex-col">
+                  <span class="truncate">{{ option.label }}</span>
+                  <span v-if="option.reason || option.secondaryText" class="truncate text-xs text-muted-foreground">
+                    {{ option.reason || option.secondaryText }}
+                  </span>
                 </span>
-              </span>
-              <Check v-if="option.value === value" aria-hidden="true" />
-            </CommandItem>
-            <CommandItem
-              v-if="search.trim() !== '' && !typedIsOption"
-              data-picker-typed
-              :value="search"
-              @select="choose(search.trim())"
-            >
-              {{ $t('dashboard.pipelines.workbench.picker.useTyped', { text: search.trim() }) }}
-            </CommandItem>
-            <CommandItem
-              v-if="!required && value !== '' && search === ''"
-              data-picker-clear
-              value="clear"
-              @select="choose(undefined)"
-            >
-              {{ $t('dashboard.pipelines.workbench.picker.clear') }}
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </PopoverContent>
-  </Popover>
+                <Check v-if="option.value === value" aria-hidden="true" />
+              </CommandItem>
+              <CommandItem
+                v-if="search.trim() !== '' && !typedIsOption"
+                data-picker-typed
+                :value="search"
+                @select="choose(search.trim())"
+              >
+                {{ $t('dashboard.pipelines.workbench.picker.useTyped', { text: search.trim() }) }}
+              </CommandItem>
+              <CommandItem
+                v-if="!required && value !== '' && search === ''"
+                data-picker-clear
+                value="clear"
+                @select="choose(undefined)"
+              >
+                {{ $t('dashboard.pipelines.workbench.picker.clear') }}
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+    <Button
+      v-if="canEditScript"
+      data-picker-edit
+      type="button"
+      variant="outline"
+      @click="editScript"
+    >
+      <Edit aria-hidden="true" />
+      {{ $t('dashboard.pipelines.workbench.picker.editScript') }}
+    </Button>
+  </div>
 </template>

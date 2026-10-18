@@ -134,6 +134,41 @@ const inspecting = computed<boolean>({
   },
 });
 
+// The open step lives in the address (?step=<step id>), so a page that sends the person away for one step's
+// sake (the script editor) can bring them back to it. The address is read once, when the steps first arrive.
+let stepRestored = false;
+
+watch(
+  tree,
+  (nodes) => {
+    const asked = route.query.step;
+
+    if (stepRestored || nodes.length === 0) return;
+
+    stepRestored = true;
+
+    if (typeof asked === 'string') {
+      selectedKey.value = findStepNode(nodes, asked)?.key ?? null;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => selected.value?.step.id,
+  (stepId) => {
+    if (!stepRestored || route.query.step === (stepId ?? undefined)) return;
+
+    const { step, ...rest } = route.query;
+
+    void step;
+
+    void router.replace({ query: stepId
+      ? { ...rest, step: stepId }
+      : rest });
+  },
+);
+
 // Runs and the step details share the right side, so one opening closes the other.
 watch(runsOpen, (open: boolean) => {
   if (open) {

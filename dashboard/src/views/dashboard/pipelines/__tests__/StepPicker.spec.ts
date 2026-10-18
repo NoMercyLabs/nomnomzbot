@@ -11,10 +11,12 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import type { PickerKind, PipelineOptionList } from '@/api/pipelines';
 import { i18n } from '@/i18n';
 
+import en from '../i18n/en.json';
 import StepPicker from '../components/StepPicker.vue';
 import { actionRows } from '../components/stepFields';
 
@@ -30,6 +32,15 @@ vi.mock('@/api/pipelines', async (importOriginal) => ({
   }),
   usePipelineOption: () => ({ data: computed(() =>
     null) }),
+}));
+
+const held = vi.hoisted(() => ({ keys: ['code:script:author'] as string[] }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => held.keys.includes(key),
+  }),
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
@@ -76,7 +87,29 @@ const playlists: PipelineOptionList = {
   totalCount: 1,
 };
 
+let router: Router;
+
 async function openPicker(kind: PickerKind, value = ''): Promise<VueWrapper> {
+  const blank = { template: '<div />' };
+
+  router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/app/pipelines/:id',
+        name: 'dashboard-pipeline',
+        component: blank,
+      },
+      {
+        path: '/app/scripts',
+        name: 'dashboard-scripts',
+        component: blank,
+      },
+    ],
+  });
+
+  await router.push('/app/pipelines/p1?step=s9');
+
   mounted = mount(StepPicker, {
     attachTo: document.body,
     props: {
@@ -85,7 +118,7 @@ async function openPicker(kind: PickerKind, value = ''): Promise<VueWrapper> {
       value,
       required: true,
     },
-    global: { plugins: [i18n] },
+    global: { plugins: [i18n, router] },
   });
 
   document.body.querySelector<HTMLButtonElement>('#picker')!.click();
@@ -93,6 +126,51 @@ async function openPicker(kind: PickerKind, value = ''): Promise<VueWrapper> {
 
   return mounted;
 }
+
+describe('editing the chosen script', () => {
+  const editButton = (): HTMLElement | null =>
+    document.body.querySelector<HTMLElement>('[data-picker-edit]');
+
+  it('opens the script in the editor with this step as the way back', async () => {
+    lists.byKind.script = scripts;
+    held.keys = ['code:script:author'];
+    i18n.global.mergeLocaleMessage('en', en);
+    await openPicker('script', '0192f0aa-0000-7000-8000-00000000a001');
+
+    expect(editButton()?.textContent?.trim()).toBe('Edit script');
+    expect(editButton()?.getAttribute('data-variant')).toBe('outline');
+
+    editButton()!.click();
+    await flushPromises();
+
+    expect(router.currentRoute.value.name).toBe('dashboard-scripts');
+
+    expect(router.currentRoute.value.query).toEqual({
+      script: '0192f0aa-0000-7000-8000-00000000a001',
+      back: '/app/pipelines/p1?step=s9',
+    });
+  });
+
+  it('is hidden without the scripts right, with no script chosen, and on other pickers', async () => {
+    lists.byKind.script = scripts;
+    held.keys = [];
+    await openPicker('script', '0192f0aa-0000-7000-8000-00000000a001');
+
+    expect(editButton()).toBeNull();
+
+    mounted?.unmount();
+    held.keys = ['code:script:author'];
+    await openPicker('script', '');
+
+    expect(editButton()).toBeNull();
+
+    mounted?.unmount();
+    lists.byKind.music_playlist = playlists;
+    await openPicker('music_playlist', '6GaEADx2wNUWA6DJsMVcct');
+
+    expect(editButton()).toBeNull();
+  });
+});
 
 describe('the script and playlist pickers', () => {
   it('lists the scripts by name and saves the id of the one picked', async () => {

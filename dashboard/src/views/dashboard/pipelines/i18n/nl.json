@@ -156,7 +156,8 @@
           "noMatch": "Niets past bij deze zoekopdracht.",
           "unavailable": "De bot kan deze lijst nu niet lezen.",
           "useTyped": "\"{text}\" gebruiken",
-          "clear": "Deze instelling leegmaken"
+          "clear": "Deze instelling leegmaken",
+          "editScript": "Script bewerken"
         },
         "run": {
           "start": "Testrun",

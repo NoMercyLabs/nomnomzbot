@@ -27,6 +27,7 @@ import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
+import { dashboardReturn } from '@/router/returnTarget';
 
 import FailedRunDialog from './components/FailedRunDialog.vue';
 import NewScriptDialog from './components/NewScriptDialog.vue';
@@ -35,7 +36,7 @@ import ScriptRow from './components/ScriptRow.vue';
 import ScriptRunsPanel from './components/ScriptRunsPanel.vue';
 import type { SessionRun } from './components/sessionRun';
 
-const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'failed'];
+const TAB_VALUES = ['all', 'on', 'off', 'failed'] as const satisfies readonly string[];
 
 const { t } = useI18n();
 const { can } = useCan();
@@ -122,6 +123,10 @@ const asked = computed<string>(() =>
 );
 const selectedId = asked;
 
+// A page that sent the person here for one script (a pipeline step) names the way back in ?back=.
+const backTo = computed(() =>
+  dashboardReturn(router, route.query.back));
+
 function pick(script: CodeScriptSummary): void {
   void router.push({ query: { ...route.query, script: script.id } });
 }
@@ -159,7 +164,12 @@ function opened(id: string | null): void {
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.scripts.title')" :crumb="$t('dashboard.scripts.crumb')">
+  <PageHeader
+    :title="$t('dashboard.scripts.title')"
+    :crumb="$t('dashboard.scripts.crumb')"
+    :back="backTo"
+    :back-label="$t('dashboard.scripts.backToPipeline')"
+  >
     <template #actions>
       <Button variant="outline" class="xl:hidden" @click="runsOpen = true">
         {{ $t('dashboard.scripts.runs.button') }}

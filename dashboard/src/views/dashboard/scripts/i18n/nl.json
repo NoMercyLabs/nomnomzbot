@@ -3,6 +3,7 @@
     "scripts": {
       "title": "Scripts",
       "crumb": "Bouwen",
+      "backToPipeline": "Terug naar de pipeline",
       "search": "Zoek scripts",
       "count": "{count} scripts",
       "noMatch": "Geen script past bij \"{query}\".",

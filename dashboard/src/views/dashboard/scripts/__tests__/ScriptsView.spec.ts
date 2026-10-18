@@ -318,6 +318,11 @@ async function open(url: string = '/app/scripts'): Promise<void> {
         name: 'dashboard-scripts',
         component: blank,
       },
+      {
+        path: '/app/pipelines/:id',
+        name: 'dashboard-pipeline',
+        component: blank,
+      },
     ],
   });
 
@@ -670,6 +675,30 @@ describe('ScriptsView', () => {
     await settle();
 
     expect(router.currentRoute.value.query.script).toBeUndefined();
+  });
+
+  it('offers a way back to the pipeline that sent the person here, and keeps it while a script is open', async () => {
+    await open('/app/scripts?script=s1&back=/app/pipelines/p1%3Fstep%3Dhi');
+
+    const back = document.body.querySelector<HTMLElement>('[data-slot="back-link"]');
+
+    expect(back?.textContent?.trim()).toBe('Back to the pipeline');
+
+    back!.click();
+    await settle();
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/pipelines/p1?step=hi');
+  });
+
+  it.each([
+    'https://evil.example/app/x',
+    '//evil.example/app/x',
+    '/login',
+    '/app/nowhere',
+  ])('ignores the back target %s that leaves the dashboard', async (bad: string) => {
+    await open(`/app/scripts?script=s1&back=${encodeURIComponent(bad)}`);
+
+    expect(document.body.querySelector('[data-slot="back-link"]')).toBeNull();
   });
 
   it('sets Delete apart from Run test in its own footer, below the content', async () => {

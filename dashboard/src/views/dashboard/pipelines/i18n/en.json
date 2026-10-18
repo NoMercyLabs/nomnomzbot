@@ -156,7 +156,8 @@
           "noMatch": "Nothing matches this search.",
           "unavailable": "The bot cannot read this list right now.",
           "useTyped": "Use \"{text}\"",
-          "clear": "Clear this setting"
+          "clear": "Clear this setting",
+          "editScript": "Edit script"
         },
         "run": {
           "start": "Test run",

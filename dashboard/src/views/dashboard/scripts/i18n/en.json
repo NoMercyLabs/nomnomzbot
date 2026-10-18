@@ -3,6 +3,7 @@
     "scripts": {
       "title": "Scripts",
       "crumb": "Build",
+      "backToPipeline": "Back to the pipeline",
       "search": "Search scripts",
       "count": "{count} scripts",
       "noMatch": "No script matches \"{query}\".",
