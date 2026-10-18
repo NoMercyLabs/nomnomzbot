@@ -174,6 +174,8 @@ internal sealed class AdminListsSearchTestDbContext : DbContext, IApplicationDbC
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Domain.Platform.Entities.Record> Records => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();

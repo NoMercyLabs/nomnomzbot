@@ -267,6 +267,65 @@ public class DashboardController : BaseController
         return ResultResponse(await _streamStats.GetAsync(tenantId, streamId, keys, ct));
     }
 
+    /// <summary>The kept recaps (end credits) of the channel's streams, newest stream first, paged.</summary>
+    [HttpGet("{channelId}/stream-recaps")]
+    [RequireAction("dashboard:read")]
+    [ProducesResponseType<PaginatedResponse<StreamRecapDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListStreamRecaps(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        [FromServices] IStreamRecapService recaps,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        PaginationParams pagination = new(request.Page, request.Take);
+        Result<PagedList<StreamRecapDto>> result = await recaps.ListAsync(tenantId, pagination, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>The kept recap of one stream.</summary>
+    [HttpGet("{channelId}/stream-recaps/{streamId}")]
+    [RequireAction("dashboard:read")]
+    [ProducesResponseType<StatusResponseDto<StreamRecapDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStreamRecap(
+        string channelId,
+        string streamId,
+        [FromServices] IStreamRecapService recaps,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(await recaps.GetAsync(tenantId, streamId, ct));
+    }
+
+    /// <summary>
+    /// Builds (or rebuilds) and keeps the recap of a past stream from the recorded data, through the same service
+    /// the live raid recap uses. Owner/admin only.
+    /// </summary>
+    [HttpPost("{channelId}/stream-recaps/{streamId}")]
+    [RequireAction("dashboard:recap:build")]
+    [ProducesResponseType<StatusResponseDto<StreamRecapDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BuildStreamRecap(
+        string channelId,
+        string streamId,
+        [FromServices] IStreamRecapService recaps,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(await recaps.BuildAsync(tenantId, streamId, null, ct));
+    }
+
     /// <summary>
     /// Returns recent channel activity events.
     /// </summary>

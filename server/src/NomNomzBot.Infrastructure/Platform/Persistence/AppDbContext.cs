@@ -166,6 +166,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => Set<ChatterAssignedColor>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<Domain.Stream.Entities.Stream> Streams => Set<Domain.Stream.Entities.Stream>();
+    public DbSet<Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        Set<Domain.Stream.Entities.StreamRecap>();
 
     // Config & Storage
     public DbSet<Domain.Platform.Entities.Configuration> Configurations =>

@@ -740,6 +740,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         Set<NomNomzBot.Domain.Stream.Entities.Stream>();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        Set<NomNomzBot.Domain.Stream.Entities.StreamRecap>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>

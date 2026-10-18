@@ -16,6 +16,8 @@ using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Widgets.Events;
 
 namespace NomNomzBot.Infrastructure.Widgets.PipelineActions;
 
@@ -33,22 +35,27 @@ public sealed class ShowRaidRecapAction : ICommandAction
     private const string EventType = "raid_recap.show";
     private const string MetricsSetting = "metrics";
 
-    private readonly IStreamStatsService _stats;
+    private readonly IStreamRecapService _recaps;
     private readonly IWidgetService _widgets;
     private readonly IWidgetEventNotifier _overlay;
+    private readonly IEventBus _events;
 
     public ShowRaidRecapAction(
-        IStreamStatsService stats,
+        IStreamRecapService recaps,
         IWidgetService widgets,
-        IWidgetEventNotifier overlay
+        IWidgetEventNotifier overlay,
+        IEventBus events
     )
     {
-        _stats = stats;
+        _recaps = recaps;
         _widgets = widgets;
         _overlay = overlay;
+        _events = events;
     }
 
-    public string ActionType => "show_raid_recap";
+    private const string ActionTypeName = "show_raid_recap";
+
+    public string ActionType => ActionTypeName;
 
     public LocalizedText Category => new("pipeline.category.widgets");
 
@@ -71,28 +78,49 @@ public sealed class ShowRaidRecapAction : ICommandAction
         if (!widget.Value.IsEnabled)
             return ActionResult.Failure($"show_raid_recap: the '{WidgetKey}' widget is disabled.");
         if (!widget.Value.IsAttached)
-            return ActionResult.Failure(
-                $"show_raid_recap: no browser source has the '{WidgetKey}' widget open, so nobody would see the recap."
-            );
+            return await FailNotAttachedAsync(ctx);
 
-        Result<StreamStatsDto> stats = await _stats.GetAsync(
+        Result<StreamRecapDto> recap = await _recaps.BuildAsync(
             ctx.BroadcasterId,
             null,
             MetricsFrom(widget.Value.Settings),
             ctx.CancellationToken
         );
-        if (!stats.IsSuccess)
+        if (!recap.IsSuccess)
             return ActionResult.Failure("show_raid_recap: this channel has no stream to recap.");
 
         await _overlay.SendWidgetEventAsync(
             ctx.BroadcasterId,
             widget.Value.Id,
             EventType,
-            stats.Value,
+            recap.Value.Stats,
             ctx.CancellationToken
         );
 
         return ActionResult.Success($"show_raid_recap:{widget.Value.Id}");
+    }
+
+    /// <summary>
+    /// The recap fires once per raid and is lost when no browser source shows it, so the streamer has to know:
+    /// the failure reaches the action-required inbox through <see cref="OwnerActionFailedEvent"/>, the same
+    /// route a failed owner action takes.
+    /// </summary>
+    private async Task<ActionResult> FailNotAttachedAsync(PipelineExecutionContext ctx)
+    {
+        string error =
+            "no browser source has the Raid Recap widget open, so nobody saw the recap. Add the Raid Recap browser source in OBS before the next raid.";
+        await _events.PublishAsync(
+            new OwnerActionFailedEvent
+            {
+                BroadcasterId = ctx.BroadcasterId,
+                ActionType = ActionTypeName,
+                Caller = "Raid starting",
+                Source = "pipeline",
+                Error = error,
+            },
+            ctx.CancellationToken
+        );
+        return ActionResult.Failure($"show_raid_recap: {error}");
     }
 
     /// <summary>The metric keys of the widget's <c>metrics</c> setting (a JSON array, a list or a comma list), or

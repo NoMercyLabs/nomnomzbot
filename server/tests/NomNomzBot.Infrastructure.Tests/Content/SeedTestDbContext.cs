@@ -229,6 +229,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         Set<global::NomNomzBot.Domain.Stream.Entities.Stream>();
+    public DbSet<global::NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<Storage> Storages => Set<Storage>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         Set<NomNomzBot.Domain.Platform.Entities.Record>();

@@ -238,6 +238,8 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();

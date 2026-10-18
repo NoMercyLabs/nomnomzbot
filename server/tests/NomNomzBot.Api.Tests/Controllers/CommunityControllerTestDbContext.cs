@@ -270,6 +270,8 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         Set<NomNomzBot.Domain.Stream.Entities.Stream>();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
     public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();

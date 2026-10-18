@@ -233,6 +233,7 @@ public sealed class ActionDefinitionClassificationTests
         // AutoMod levels decide what the platform holds for everyone — owner-shaped decisions, not a
         // moderator's day-to-day tooling, so both sit at the Broadcaster floor.
         "trust:policy:manage",
+        "dashboard:recap:build",
         "moderation:automod:twitch:manage",
         // Same reasoning as the trust weights, and the same floor: these decide who the bot auto-actions
         // channel-wide, and they are where enforcement gets switched on at all.

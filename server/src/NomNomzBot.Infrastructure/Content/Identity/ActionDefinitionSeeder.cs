@@ -421,6 +421,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Re-broadcasting a past alert to overlays is presentation-only (no currency/loyalty/reward
         // side effect), same moderator floor as the other widget/dashboard write actions.
         M("dashboard:replay", Mod);
+        // Building the kept recap of a past stream rewrites that stream's saved end credits: owner-shaped.
+        M("dashboard:recap:build", Broadcaster);
         M("setup:write", Broadcaster, grant: false);
         // Per-channel feature enablement (FeaturesController): read + toggle both default to Moderator —
         // reversible bot-internal tooling (S-MOD-PERMS).

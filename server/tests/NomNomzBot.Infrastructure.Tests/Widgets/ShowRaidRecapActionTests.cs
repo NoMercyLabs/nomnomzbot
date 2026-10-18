@@ -15,6 +15,8 @@ using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Widgets.PipelineActions;
 using NSubstitute;
 
@@ -35,7 +37,19 @@ public sealed class ShowRaidRecapActionTests
     private readonly IWidgetEventNotifier _overlay = Substitute.For<IWidgetEventNotifier>();
     private readonly IStreamStatsService _stats = Substitute.For<IStreamStatsService>();
 
-    private ShowRaidRecapAction Action() => new(_stats, _widgets, _overlay);
+    private ShowRaidRecapAction Action() =>
+        new(
+            new Infrastructure.Dashboard.Stats.StreamRecapService(
+                Identity.AuthTestBuilder.NewContext(),
+                _stats,
+                TimeProvider.System
+            ),
+            _widgets,
+            _overlay,
+            _events
+        );
+
+    private readonly IEventBus _events = Substitute.For<IEventBus>();
 
     private static PipelineExecutionContext Ctx() =>
         new()
@@ -173,6 +187,40 @@ public sealed class ShowRaidRecapActionTests
         await _overlay
             .DidNotReceiveWithAnyArgs()
             .SendWidgetEventAsync(default, default, default!, default);
+    }
+
+    [Fact]
+    public async Task A_recap_nobody_could_see_tells_the_owner_through_the_action_required_inbox()
+    {
+        SurfaceResolves(attached: false);
+        RecapResolves(Recap());
+
+        await Action().ExecuteAsync(Ctx(), Def());
+
+        await _events
+            .Received(1)
+            .PublishAsync(
+                Arg.Is<OwnerActionFailedEvent>(e =>
+                    e.BroadcasterId == Broadcaster
+                    && e.ActionType == "show_raid_recap"
+                    && e.Source == "pipeline"
+                    && e.Error.Contains("Raid Recap browser source")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_recap_that_reaches_an_open_widget_raises_no_owner_error()
+    {
+        SurfaceResolves();
+        RecapResolves(Recap());
+
+        await Action().ExecuteAsync(Ctx(), Def());
+
+        await _events
+            .DidNotReceiveWithAnyArgs()
+            .PublishAsync<OwnerActionFailedEvent>(default!, default);
     }
 
     [Fact]

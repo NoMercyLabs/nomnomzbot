@@ -286,6 +286,8 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>

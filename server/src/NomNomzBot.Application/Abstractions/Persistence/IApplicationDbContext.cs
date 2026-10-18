@@ -101,6 +101,7 @@ public interface IApplicationDbContext
     DbSet<ChatterAssignedColor> ChatterAssignedColors { get; }
     DbSet<ChannelEvent> ChannelEvents { get; }
     DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; }
+    DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps { get; }
     DbSet<Configuration> Configurations { get; }
     DbSet<Storage> Storages { get; }
     DbSet<Record> Records { get; }

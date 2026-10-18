@@ -89,6 +89,8 @@ internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
         Set<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest>();
     public DbSet<DomainStream> Streams => Set<DomainStream>();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder b)

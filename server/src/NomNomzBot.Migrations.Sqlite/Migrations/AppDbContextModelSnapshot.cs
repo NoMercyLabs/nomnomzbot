@@ -11042,6 +11042,52 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("Streams");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Stream.Entities.StreamRecap", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FromAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StreamId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ToAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StreamId");
+
+                    b.HasIndex("ChannelId", "FromAt")
+                        .HasDatabaseName("IX_StreamRecap_Channel_FromAt");
+
+                    b.HasIndex("ChannelId", "StreamId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_StreamRecap_Channel_Stream");
+
+                    b.ToTable("StreamRecaps");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Supporters.Entities.SupporterConnection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -13473,6 +13519,21 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired();
 
                     b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Stream.Entities.StreamRecap", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", null)
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Stream.Entities.Stream", null)
+                        .WithMany()
+                        .HasForeignKey("StreamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Supporters.Entities.SupporterConnection", b =>

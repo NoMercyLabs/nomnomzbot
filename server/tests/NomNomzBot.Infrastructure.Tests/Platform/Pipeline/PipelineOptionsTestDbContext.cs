@@ -288,6 +288,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         Set<NomNomzBot.Domain.Stream.Entities.Stream>();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
     public DbSet<Storage> Storages => Set<Storage>();

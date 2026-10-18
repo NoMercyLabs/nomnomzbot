@@ -553,6 +553,8 @@ internal sealed class ReplayTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
     public DbSet<Domain.Stream.Entities.Stream> Streams => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<Domain.Platform.Entities.Configuration> Configurations =>
         throw new NotSupportedException();
     public DbSet<Domain.Platform.Entities.Storage> Storages => throw new NotSupportedException();

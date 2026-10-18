@@ -289,6 +289,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<Domain.Stream.Entities.Stream> Streams => throw new NotSupportedException();
+    public DbSet<Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Domain.Platform.Entities.Record> Records => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();

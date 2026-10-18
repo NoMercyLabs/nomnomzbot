@@ -391,6 +391,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
+        throw new NotSupportedException();
     public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>

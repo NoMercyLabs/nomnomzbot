@@ -221,6 +221,7 @@ public static class ChannelBlastRadiusSources
         // Past stream sessions and the tenant's id sequence: real rows that die with the channel, but nothing
         // a streamer would look for under one of the six names. The remainder is where they belong.
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.Streams),
+        Of(BlastRadiusCategoryKeys.ChannelOther, db => db.StreamRecaps),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.VoiceTranscriptSegments),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.TenantSequences),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.ChannelEvents),
