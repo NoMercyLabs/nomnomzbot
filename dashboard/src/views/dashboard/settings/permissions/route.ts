@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsPermissionsRoute = {
   path: 'settings/permissions',
   name: 'dashboard-settings-permissions',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'roles:read',
+  },
   component: () =>
     loadPage(
       () => import('./PermissionsView.vue'),

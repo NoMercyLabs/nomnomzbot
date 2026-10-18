@@ -319,7 +319,7 @@ describe('Permissions route', () => {
 
     expect(entry).toBeDefined();
     expect(router.resolve({ name: 'dashboard-settings-permissions' }).path).toBe('/app/settings/permissions');
-    expect(record?.meta).toEqual({ navMode: 'settings' });
+    expect(record?.meta).toEqual({ navMode: 'settings', action: 'roles:read' });
     expect(loaded.default).toBe(PermissionsView);
   });
 });

@@ -15,7 +15,11 @@ import { loadPage } from '@/i18n';
 export const settingsYourDataRoute = {
   path: 'settings/your-data',
   name: 'dashboard-settings-your-data',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    // The page is about the signed-in person's own data, not a channel.
+    open: true,
+  },
   component: () =>
     loadPage(
       () => import('./YourDataView.vue'),
