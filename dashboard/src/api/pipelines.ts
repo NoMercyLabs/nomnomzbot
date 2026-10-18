@@ -357,6 +357,8 @@ export const PICKER_KINDS = [
   'discord_role',
   'twitch_user',
   'asset',
+  'script',
+  'music_playlist',
 ] as const satisfies string[];
 
 export type PickerKind = (typeof PICKER_KINDS)[number];

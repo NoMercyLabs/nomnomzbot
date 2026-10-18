@@ -128,6 +128,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
             e.Ignore(c => c.Channel);
         });
 
+        b.Entity<CodeScript>(e => e.HasKey(s => s.Id));
+
         b.Entity<ViewerProfile>(e => e.HasKey(p => p.Id));
 
         b.Entity<User>(e => e.HasKey(u => u.Id));
@@ -159,6 +161,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         typeof(Widget),
         typeof(ChannelAsset),
         typeof(DiscordGuildConnection),
+        typeof(CodeScript),
         typeof(ViewerProfile),
         typeof(User),
         typeof(Channel),

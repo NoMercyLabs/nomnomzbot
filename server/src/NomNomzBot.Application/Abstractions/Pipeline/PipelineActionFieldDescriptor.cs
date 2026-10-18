@@ -35,6 +35,12 @@ public enum PipelineActionFieldKind
     Asset,
     ResourceId,
 
+    /// <summary>One of the channel's custom-code scripts, picked by name; the saved value is the script id.</summary>
+    Script,
+
+    /// <summary>One playlist of the channel's connected music provider, picked by name; the saved value is the provider's playlist id.</summary>
+    MusicPlaylist,
+
     /// <summary>
     /// A labelled name→value map (S-PIPE-TREE-d2b(a)) — the builder renders one labelled field per
     /// declared name instead of an unlabelled positional list. Used by <c>run_pipeline</c>'s
@@ -117,6 +123,8 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.PickList => "pick_list",
             PipelineActionFieldKind.Asset => "asset",
             PipelineActionFieldKind.ResourceId => "resource_id",
+            PipelineActionFieldKind.Script => "script",
+            PipelineActionFieldKind.MusicPlaylist => "music_playlist",
             PipelineActionFieldKind.KeyValueMap => "key_value_map",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };

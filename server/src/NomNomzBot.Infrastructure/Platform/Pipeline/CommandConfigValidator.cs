@@ -49,6 +49,7 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
     {
         PipelineActionFieldKind.ResourceId,
         PipelineActionFieldKind.Widget,
+        PipelineActionFieldKind.Script,
         PipelineActionFieldKind.SoundClip,
         PipelineActionFieldKind.Asset,
     };

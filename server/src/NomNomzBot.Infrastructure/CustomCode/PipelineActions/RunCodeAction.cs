@@ -34,7 +34,7 @@ public sealed class RunCodeAction(IScriptRunner runner) : ICommandAction
         [
             new(
                 "code_script_id",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Script,
                 Required: true,
                 Description: new("pipeline.run_code.code_script_id.help")
             ),

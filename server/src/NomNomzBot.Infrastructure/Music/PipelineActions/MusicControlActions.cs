@@ -1037,7 +1037,7 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
         [
             new(
                 "playlistId",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.MusicPlaylist,
                 Required: true,
                 Description: new("pipeline.music_add_to_playlist.playlistId.help")
             ),
@@ -1095,7 +1095,7 @@ public sealed class MusicRemoveFromPlaylistAction : ICommandAction
         [
             new(
                 "playlistId",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.MusicPlaylist,
                 Required: true,
                 Description: new("pipeline.music_remove_from_playlist.playlistId.help")
             ),

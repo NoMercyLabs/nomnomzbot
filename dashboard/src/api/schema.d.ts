@@ -61056,7 +61056,7 @@ export interface paths {
         };
         /**
          * The option list for one resource-picker kind (`reward`, `widget`, `voice`,
-         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`), paged
+         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`), paged
          *     and optionally search-filtered. With `value` set, only the option whose stored value equals it
          *     exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the
          *     first page. A source that is not connected or could not be read comes back with
