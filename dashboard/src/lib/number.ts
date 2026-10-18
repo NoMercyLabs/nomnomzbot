@@ -19,3 +19,12 @@ export function numberOrNull(value: number | string | null | undefined): number 
     ? parsed
     : null;
 }
+
+// An amount in cents (the API sends an int32 as a number or a numeric string) as money in the reader's
+// language: 1250 and "EUR" read "€12.50" in English.
+export function centsAsMoney(cents: number | string, currency: string, locale: string): string {
+  const amount = numberOrNull(cents) ?? 0;
+  const style = { style: 'currency', currency } as const;
+
+  return new Intl.NumberFormat(locale, style).format(amount / 100);
+}

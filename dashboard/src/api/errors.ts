@@ -391,6 +391,17 @@ export const apiOperations = {
   'poll bot login': 'settings',
   'start bot browser login': 'settings',
   'disconnect bot': 'settings',
+  'billing subscription': 'settings',
+  'channel billing tiers': 'settings',
+  'channel billing invoices': 'settings',
+  'billing founders badge': 'settings',
+  'start checkout': 'settings',
+  'change plan': 'settings',
+  'cancel plan': 'settings',
+  'resume plan': 'settings',
+  'billing portal': 'settings',
+  'check invite code': 'settings',
+  'redeem invite code': 'settings',
 } as const satisfies Record<string, ApiOrigin>;
 
 export type ApiOperation = keyof typeof apiOperations;

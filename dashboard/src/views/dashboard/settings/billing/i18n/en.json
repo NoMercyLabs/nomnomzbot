@@ -1,0 +1,104 @@
+{
+  "dashboard": {
+    "settings": {
+      "billing": {
+        "crumb": "Account",
+        "restricted": "Running NomNomzBot as a hosted service for others is a restricted option, reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+        "status": {
+          "active": "Active",
+          "trialing": "Trial",
+          "past_due": "Payment overdue",
+          "canceled": "Canceled",
+          "incomplete": "Not finished"
+        },
+        "plan": {
+          "title": "Your plan",
+          "description": "The plan this channel is on and when it renews.",
+          "error": "The plan could not be loaded.",
+          "renews": "Renews on",
+          "endsOn": "Ends on",
+          "trialEnds": "Trial ends on",
+          "graceEnds": "Pay before",
+          "customBotName": "Custom bot name",
+          "prioritySupport": "Priority support",
+          "yes": "Included",
+          "no": "Not included",
+          "inviteGrant": "This plan came from an invite code. It has no payment to manage.",
+          "pendingCancel": "This plan is set to end. You keep it until the date above.",
+          "resume": "Keep my plan",
+          "resumeFailed": "The plan could not be kept.",
+          "payment": "Manage payment",
+          "paymentFailed": "The payment page could not be opened.",
+          "cancel": "Cancel plan",
+          "cancelTitle": "Cancel your plan?",
+          "cancelDescription": "The channel goes back to the free limits after the plan ends.",
+          "cancelNow": "Cancel right away",
+          "cancelNowHelp": "Off: the plan runs until the end of the period you paid for.",
+          "cancelReason": "Why are you leaving? (optional)",
+          "cancelFailed": "The plan could not be canceled.",
+          "cancelLimits": "Limits drop to the free plan.",
+          "cancelFeatures": "Paid features turn off.",
+          "cancelKeep": "Your data stays."
+        },
+        "tiers": {
+          "title": "Plans",
+          "description": "Pick the plan that fits this channel.",
+          "empty": "No plans are on offer.",
+          "error": "The plans could not be loaded.",
+          "free": "Free",
+          "perMonth": "{price} per month",
+          "current": "Current plan",
+          "choose": "Choose plan",
+          "switch": "Switch to this plan",
+          "atPeriodEnd": "Switch at the end of the period",
+          "atPeriodEndHelp": "Off: the new plan starts now.",
+          "customBotName": "Custom bot name",
+          "prioritySupport": "Priority support",
+          "checkoutFailed": "The payment page could not be opened.",
+          "changeFailed": "The plan could not be changed."
+        },
+        "invite": {
+          "title": "Invite code",
+          "description": "Got a code? It can unlock a plan or the founders badge.",
+          "code": "Code",
+          "check": "Check code",
+          "redeem": "Use code",
+          "valid": "This code is valid.",
+          "invalid": "This code is not valid.",
+          "grantsTier": "Unlocks the plan {tier}.",
+          "grantsBadge": "Gives the founders badge.",
+          "remaining": "{count} uses left.",
+          "expires": "Valid until {date}.",
+          "redeemed": "The code is used.",
+          "redeemedTier": "Plan unlocked: {tier}.",
+          "redeemedBadge": "Founders badge granted.",
+          "failed": "The code could not be used."
+        },
+        "badge": {
+          "title": "Founders badge",
+          "active": "This channel has the founders badge.",
+          "since": "Since {date}",
+          "withCode": "From code {code}",
+          "inactive": "The badge is no longer active.",
+          "none": "This channel has no founders badge."
+        },
+        "invoices": {
+          "title": "Invoices",
+          "description": "What you were billed and what you paid.",
+          "empty": "No invoices yet.",
+          "error": "The invoices could not be loaded.",
+          "number": "Invoice",
+          "issued": "Issued",
+          "due": "Due",
+          "paid": "Paid",
+          "refunded": "Refunded",
+          "status": "Status",
+          "open": "Open invoice",
+          "previous": "Previous page",
+          "next": "Next page",
+          "page": "Page {page}"
+        }
+      }
+    }
+  }
+}

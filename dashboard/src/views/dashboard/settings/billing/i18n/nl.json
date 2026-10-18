@@ -1,0 +1,104 @@
+{
+  "dashboard": {
+    "settings": {
+      "billing": {
+        "crumb": "Account",
+        "restricted": "NomNomzBot als gehoste dienst voor anderen draaien is een beperkte optie, voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "status": {
+          "active": "Actief",
+          "trialing": "Proefperiode",
+          "past_due": "Betaling achterstallig",
+          "canceled": "Opgezegd",
+          "incomplete": "Niet afgerond"
+        },
+        "plan": {
+          "title": "Jouw abonnement",
+          "description": "Het abonnement van dit kanaal en wanneer het verlengt.",
+          "error": "Het abonnement kon niet worden geladen.",
+          "renews": "Verlengt op",
+          "endsOn": "Eindigt op",
+          "trialEnds": "Proefperiode eindigt op",
+          "graceEnds": "Betaal voor",
+          "customBotName": "Eigen botnaam",
+          "prioritySupport": "Voorrangsondersteuning",
+          "yes": "Inbegrepen",
+          "no": "Niet inbegrepen",
+          "inviteGrant": "Dit abonnement komt van een uitnodigingscode. Er is geen betaling om te beheren.",
+          "pendingCancel": "Dit abonnement is ingesteld om te eindigen. Je houdt het tot de datum hierboven.",
+          "resume": "Abonnement behouden",
+          "resumeFailed": "Het abonnement kon niet worden behouden.",
+          "payment": "Betaling beheren",
+          "paymentFailed": "De betaalpagina kon niet worden geopend.",
+          "cancel": "Abonnement opzeggen",
+          "cancelTitle": "Abonnement opzeggen?",
+          "cancelDescription": "Het kanaal gaat terug naar de gratis limieten nadat het abonnement eindigt.",
+          "cancelNow": "Direct opzeggen",
+          "cancelNowHelp": "Uit: het abonnement loopt door tot het einde van de periode die je hebt betaald.",
+          "cancelReason": "Waarom stop je? (optioneel)",
+          "cancelFailed": "Het abonnement kon niet worden opgezegd.",
+          "cancelLimits": "De limieten vallen terug naar het gratis abonnement.",
+          "cancelFeatures": "Betaalde functies gaan uit.",
+          "cancelKeep": "Je gegevens blijven bewaard."
+        },
+        "tiers": {
+          "title": "Abonnementen",
+          "description": "Kies het abonnement dat bij dit kanaal past.",
+          "empty": "Er zijn geen abonnementen beschikbaar.",
+          "error": "De abonnementen konden niet worden geladen.",
+          "free": "Gratis",
+          "perMonth": "{price} per maand",
+          "current": "Huidig abonnement",
+          "choose": "Abonnement kiezen",
+          "switch": "Naar dit abonnement overstappen",
+          "atPeriodEnd": "Overstappen aan het einde van de periode",
+          "atPeriodEndHelp": "Uit: het nieuwe abonnement start nu.",
+          "customBotName": "Eigen botnaam",
+          "prioritySupport": "Voorrangsondersteuning",
+          "checkoutFailed": "De betaalpagina kon niet worden geopend.",
+          "changeFailed": "Het abonnement kon niet worden gewijzigd."
+        },
+        "invite": {
+          "title": "Uitnodigingscode",
+          "description": "Heb je een code? Die kan een abonnement of de oprichtersbadge ontgrendelen.",
+          "code": "Code",
+          "check": "Code controleren",
+          "redeem": "Code gebruiken",
+          "valid": "Deze code is geldig.",
+          "invalid": "Deze code is niet geldig.",
+          "grantsTier": "Ontgrendelt het abonnement {tier}.",
+          "grantsBadge": "Geeft de oprichtersbadge.",
+          "remaining": "Nog {count} keer te gebruiken.",
+          "expires": "Geldig tot {date}.",
+          "redeemed": "De code is gebruikt.",
+          "redeemedTier": "Abonnement ontgrendeld: {tier}.",
+          "redeemedBadge": "Oprichtersbadge toegekend.",
+          "failed": "De code kon niet worden gebruikt."
+        },
+        "badge": {
+          "title": "Oprichtersbadge",
+          "active": "Dit kanaal heeft de oprichtersbadge.",
+          "since": "Sinds {date}",
+          "withCode": "Van code {code}",
+          "inactive": "De badge is niet meer actief.",
+          "none": "Dit kanaal heeft geen oprichtersbadge."
+        },
+        "invoices": {
+          "title": "Facturen",
+          "description": "Wat je is gefactureerd en wat je hebt betaald.",
+          "empty": "Nog geen facturen.",
+          "error": "De facturen konden niet worden geladen.",
+          "number": "Factuur",
+          "issued": "Uitgegeven",
+          "due": "Vervalt",
+          "paid": "Betaald",
+          "refunded": "Terugbetaald",
+          "status": "Status",
+          "open": "Factuur openen",
+          "previous": "Vorige pagina",
+          "next": "Volgende pagina",
+          "page": "Pagina {page}"
+        }
+      }
+    }
+  }
+}
