@@ -490,7 +490,8 @@ public class ExpandedBlastRadiusTests
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
             [],
-            Substitute.For<IInboundWebhookEndpointService>()
+            Substitute.For<IInboundWebhookEndpointService>(),
+            Substitute.For<IEventBus>()
         );
 
     // ── Catalog items and leaderboard configs: plain FK counts ───────────────

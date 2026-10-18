@@ -21,6 +21,7 @@ using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Egress;
@@ -464,7 +465,8 @@ public sealed class HttpEgressAllowlistServiceTests
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
             [],
-            Substitute.For<IInboundWebhookEndpointService>()
+            Substitute.For<IInboundWebhookEndpointService>(),
+            Substitute.For<IEventBus>()
         );
         Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
         UpsertCustomDataSourceRequest request = new(

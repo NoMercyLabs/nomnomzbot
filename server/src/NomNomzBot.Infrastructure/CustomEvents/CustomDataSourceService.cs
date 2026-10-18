@@ -19,6 +19,8 @@ using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Domain.CustomEvents.Entities;
+using NomNomzBot.Domain.CustomEvents.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Enums;
 
 namespace NomNomzBot.Infrastructure.CustomEvents;
@@ -36,6 +38,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
     private readonly ICustomDataEgressFetcher _egressFetcher;
     private readonly IEnumerable<ICustomDataSourcePreset> _presets;
     private readonly IInboundWebhookEndpointService _endpoints;
+    private readonly IEventBus _bus;
 
     public CustomDataSourceService(
         IApplicationDbContext db,
@@ -43,7 +46,8 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         ICustomDataIngestService ingest,
         ICustomDataEgressFetcher egressFetcher,
         IEnumerable<ICustomDataSourcePreset> presets,
-        IInboundWebhookEndpointService endpoints
+        IInboundWebhookEndpointService endpoints,
+        IEventBus bus
     )
     {
         _db = db;
@@ -52,6 +56,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         _egressFetcher = egressFetcher;
         _presets = presets;
         _endpoints = endpoints;
+        _bus = bus;
     }
 
     public async Task<Result<PagedList<CustomDataSourceDto>>> ListAsync(
@@ -218,6 +223,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
         _db.CustomDataSources.Add(source);
         await SaveNewSourceOrDiscardEndpointAsync(source, ct);
+        await PublishChangedAsync(source, "created", ct);
 
         return Result<CustomDataSourceDto>.Success(await ToDtoAsync(source, ct));
     }
@@ -387,6 +393,8 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         if (staleEndpointId is { } staleId)
             await _endpoints.DeleteAsync(broadcasterId, staleId, ct);
 
+        await PublishChangedAsync(source, "updated", ct);
+
         return Result<CustomDataSourceDto>.Success(await ToDtoAsync(source, ct));
     }
 
@@ -413,9 +421,26 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
         source.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
+        await PublishChangedAsync(source, "deleted", ct);
 
         return Result.Success();
     }
+
+    private Task PublishChangedAsync(
+        CustomDataSource source,
+        string change,
+        CancellationToken ct
+    ) =>
+        _bus.PublishAsync(
+            new CustomDataSourceChangedEvent
+            {
+                BroadcasterId = source.BroadcasterId,
+                OccurredAt = DateTime.UtcNow,
+                SourceName = source.Name,
+                Change = change,
+            },
+            ct
+        );
 
     public async Task<Result> TestAsync(
         Guid broadcasterId,

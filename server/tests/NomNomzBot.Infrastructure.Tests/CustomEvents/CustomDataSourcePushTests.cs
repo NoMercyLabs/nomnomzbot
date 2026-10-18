@@ -153,7 +153,8 @@ public sealed class CustomDataSourcePushTests
             ingest,
             Substitute.For<ICustomDataEgressFetcher>(),
             [],
-            endpoints
+            endpoints,
+            bus
         );
 
         return new(service, db, endpoints, bus, dispatcher, bridge);

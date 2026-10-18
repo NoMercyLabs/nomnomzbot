@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Domain.CustomEvents.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -47,7 +48,8 @@ public sealed class CustomDataSourceServiceTestFetchTests
             ingest,
             fetcher,
             [],
-            Substitute.For<IInboundWebhookEndpointService>()
+            Substitute.For<IInboundWebhookEndpointService>(),
+            Substitute.For<IEventBus>()
         );
         return (sut, db, fetcher);
     }

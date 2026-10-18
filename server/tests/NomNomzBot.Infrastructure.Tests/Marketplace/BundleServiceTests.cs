@@ -126,7 +126,8 @@ public sealed class BundleServiceTests
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
             [],
-            Substitute.For<IInboundWebhookEndpointService>()
+            Substitute.For<IInboundWebhookEndpointService>(),
+            Substitute.For<IEventBus>()
         );
         BundleExportService export = new(
             db,

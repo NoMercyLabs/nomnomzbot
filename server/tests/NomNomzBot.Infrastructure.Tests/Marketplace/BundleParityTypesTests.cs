@@ -129,7 +129,8 @@ public sealed class BundleParityTypesTests
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
             [],
-            Substitute.For<IInboundWebhookEndpointService>()
+            Substitute.For<IInboundWebhookEndpointService>(),
+            Substitute.For<IEventBus>()
         );
         EventResponseService eventResponses = new(db, bus, new TemplateHelperValidator());
         ITwitchChannelPointsApi channelPoints = Substitute.For<ITwitchChannelPointsApi>();

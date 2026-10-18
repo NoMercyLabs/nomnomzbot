@@ -97,6 +97,15 @@ internal sealed class CustomDataIngestService : ICustomDataIngestService
             RawPayload = boundedRaw,
         };
         await _eventBus.PublishAsync(domainEvent, ct);
+        await _eventBus.PublishAsync(
+            new CustomDataSourceChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                SourceName = sourceName,
+                Change = "received",
+            },
+            ct
+        );
 
         return Result.Success();
     }
