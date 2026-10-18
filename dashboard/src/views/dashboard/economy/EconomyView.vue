@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
 
 import CatalogPanel from './components/CatalogPanel.vue';
@@ -26,14 +27,39 @@ import SavingsJars from './components/SavingsJars.vue';
 
 const { t } = useI18n();
 
-const tabs = computed<PageTab[]>(() => [
+const { can } = useCan();
+
+// Each tab needs the read key of its own endpoint; its New button needs the key that creates.
+const tabKeys = {
+  currency: { read: 'economy:config:read', create: null },
+  rules: { read: 'economy:earning-rules:read', create: 'economy:earning-rules:write' },
+  jars: { read: 'economy:jars:read', create: 'economy:jars:create' },
+  catalog: { read: 'economy:catalog:read', create: 'economy:catalog:create' },
+  leaderboards: {
+    read: 'economy:leaderboards:config:read',
+    create: 'economy:leaderboards:config:write',
+  },
+} as const satisfies Record<string, { read: string; create: string | null }>;
+const allTabs = computed<PageTab[]>(() => [
   { value: 'currency', label: t('dashboard.economy.tabs.currency') },
   { value: 'rules', label: t('dashboard.economy.tabs.rules') },
   { value: 'jars', label: t('dashboard.economy.tabs.jars') },
   { value: 'catalog', label: t('dashboard.economy.tabs.catalog') },
   { value: 'leaderboards', label: t('dashboard.economy.tabs.leaderboards') },
 ]);
-const view = usePageView(['currency', 'rules', 'jars', 'catalog', 'leaderboards']);
+
+function canRead(tab: PageTab): boolean {
+  return can(tabKeys[tab.value as keyof typeof tabKeys].read);
+}
+
+function canCreate(tab: keyof typeof tabKeys): boolean {
+  const key = tabKeys[tab].create;
+
+  return key !== null && can(key);
+}
+
+const tabs = computed<PageTab[]>(() => allTabs.value.filter(canRead));
+const view = usePageView(() => tabs.value.map((tab: PageTab): string => tab.value));
 
 const addingRule = ref(false);
 const addingJar = ref(false);
@@ -45,7 +71,7 @@ const addingBoard = ref(false);
   <PageHeader :title="$t('dashboard.economy.title')" :crumb="$t('dashboard.economy.crumb')">
     <template #actions>
       <Button
-        v-if="view === 'rules'"
+        v-if="view === 'rules' && canCreate('rules')"
         type="button"
         variant="outline"
         size="sm"
@@ -55,7 +81,7 @@ const addingBoard = ref(false);
         {{ $t('dashboard.economy.rules.new') }}
       </Button>
       <Button
-        v-if="view === 'jars'"
+        v-if="view === 'jars' && canCreate('jars')"
         type="button"
         variant="outline"
         size="sm"
@@ -65,7 +91,7 @@ const addingBoard = ref(false);
         {{ $t('dashboard.economy.jars.new') }}
       </Button>
       <Button
-        v-if="view === 'catalog'"
+        v-if="view === 'catalog' && canCreate('catalog')"
         type="button"
         variant="outline"
         size="sm"
@@ -75,7 +101,7 @@ const addingBoard = ref(false);
         {{ $t('dashboard.economy.catalog.new') }}
       </Button>
       <Button
-        v-if="view === 'leaderboards'"
+        v-if="view === 'leaderboards' && canCreate('leaderboards')"
         type="button"
         variant="outline"
         size="sm"
@@ -94,6 +120,6 @@ const addingBoard = ref(false);
     <EarningRules v-else-if="view === 'rules'" v-model:adding="addingRule" />
     <SavingsJars v-else-if="view === 'jars'" v-model:adding="addingJar" />
     <CatalogPanel v-else-if="view === 'catalog'" v-model:adding="addingItem" />
-    <LeaderboardsPanel v-else v-model:adding="addingBoard" />
+    <LeaderboardsPanel v-else-if="view === 'leaderboards'" v-model:adding="addingBoard" />
   </div>
 </template>

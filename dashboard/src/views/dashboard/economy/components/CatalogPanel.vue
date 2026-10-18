@@ -24,6 +24,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -32,6 +33,7 @@ import CatalogDialog from './CatalogDialog.vue';
 const adding = defineModel<boolean>('adding', { required: true });
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const items = useCatalogItems(channelId);
 const update = useUpdateCatalogItem(channelId);
 const remove = useDeleteCatalogItem(channelId);
@@ -95,6 +97,7 @@ async function confirmDelete(): Promise<void> {
         >
           <Switch
             :model-value="row.isEnabled"
+            :disabled="!can('economy:catalog:update')"
             :aria-label="$t('dashboard.economy.catalog.toggle', { name: row.name })"
             @update:model-value="toggle(row)"
           />
@@ -105,6 +108,7 @@ async function confirmDelete(): Promise<void> {
             }}</span>
           </span>
           <Button
+            v-if="can('economy:catalog:update')"
             data-catalog-edit
             type="button"
             variant="ghost"
@@ -115,6 +119,7 @@ async function confirmDelete(): Promise<void> {
             <Pencil aria-hidden="true" class="size-5" />
           </Button>
           <Button
+            v-if="can('economy:catalog:delete')"
             data-catalog-delete
             type="button"
             variant="ghost"

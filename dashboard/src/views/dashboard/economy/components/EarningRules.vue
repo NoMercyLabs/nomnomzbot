@@ -27,6 +27,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -36,6 +37,7 @@ const adding = defineModel<boolean>('adding', { required: true });
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const rules = useEarningRules(channelId);
 const save = useSaveEarningRule(channelId);
 const remove = useDeleteEarningRule(channelId);
@@ -127,6 +129,7 @@ async function confirmDelete(): Promise<void> {
       >
         <Switch
           :model-value="row.isEnabled"
+          :disabled="!can('economy:earning-rules:write')"
           :aria-label="$t('dashboard.economy.rules.toggle', { source: sourceName(row.source) })"
           @update:model-value="toggle(row)"
         />
@@ -136,6 +139,7 @@ async function confirmDelete(): Promise<void> {
         </span>
         <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.economy.rules.off')" />
         <Button
+          v-if="can('economy:earning-rules:write')"
           data-rule-edit
           type="button"
           variant="ghost"
@@ -146,6 +150,7 @@ async function confirmDelete(): Promise<void> {
           <Pencil aria-hidden="true" class="size-5" />
         </Button>
         <Button
+          v-if="can('economy:earning-rules:delete')"
           data-rule-delete
           type="button"
           variant="ghost"

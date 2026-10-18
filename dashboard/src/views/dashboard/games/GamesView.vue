@@ -33,6 +33,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -44,6 +45,7 @@ import { sessionTone, statusKey } from './gameStatus';
 
 const { t, n, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const catalog = useGameCatalog(channelId);
 const active = useActiveGame(channelId);
@@ -129,6 +131,7 @@ function toggle(config: GameConfig, enabled: boolean): void {
   <PageHeader :title="t('dashboard.games.title')" />
   <PageBody>
     <PanelCard
+      v-if="can('games:session:read')"
       tier="lead"
       :title="t('dashboard.games.active.title')"
       :state="activeState"
@@ -141,6 +144,7 @@ function toggle(config: GameConfig, enabled: boolean): void {
         <StatusBadge :tone="sessionTone(runningGame.status)" :label="statusLabel(runningGame)" />
         <span class="text-sm text-muted-foreground">{{ players(runningGame) }}</span>
         <Button
+          v-if="can('games:session:cancel')"
           data-cancel-game
           class="ms-auto"
           variant="outline"
@@ -152,6 +156,7 @@ function toggle(config: GameConfig, enabled: boolean): void {
     </PanelCard>
 
     <PanelCard
+      v-if="can('games:session:read')"
       :title="t('dashboard.games.catalog.title')"
       :state="catalogState"
       :empty-text="t('dashboard.games.catalog.empty')"
@@ -172,6 +177,7 @@ function toggle(config: GameConfig, enabled: boolean): void {
             </span>
           </div>
           <Button
+            v-if="can('games:session:start')"
             :data-start-game="entry.gameKey"
             variant="outline"
             :disabled="runningGame !== null || start.isPending.value"
@@ -185,6 +191,7 @@ function toggle(config: GameConfig, enabled: boolean): void {
     </PanelCard>
 
     <PanelCard
+      v-if="can('economy:games:read')"
       :title="t('dashboard.games.configs.title')"
       :state="configState"
       :empty-text="t('dashboard.games.configs.empty')"
@@ -202,10 +209,11 @@ function toggle(config: GameConfig, enabled: boolean): void {
             :model-value="config.isEnabled"
             :title="nameOf(config.gameType)"
             :description="config.requires18Plus ? t('dashboard.games.configs.age') : undefined"
-            :disabled="setEnabled.isPending.value"
+            :disabled="setEnabled.isPending.value || !can('economy:games:write')"
             @update:model-value="toggle(config, $event)"
           />
           <Button
+            v-if="can('economy:games:write')"
             :data-edit-game="config.gameType"
             variant="ghost"
             size="icon"
@@ -219,6 +227,7 @@ function toggle(config: GameConfig, enabled: boolean): void {
     </PanelCard>
 
     <PanelCard
+      v-if="can('games:session:read')"
       tier="quiet"
       :title="t('dashboard.games.history.title')"
       :state="historyState"

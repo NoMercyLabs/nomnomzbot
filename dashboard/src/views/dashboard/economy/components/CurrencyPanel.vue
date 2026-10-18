@@ -19,11 +19,13 @@ import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const currency = useCurrencyConfig(channelId);
 const save = useSaveCurrencyConfig(channelId);
 
@@ -105,6 +107,7 @@ async function submit(): Promise<void> {
   >
     <form class="flex flex-col gap-4" data-currency-form @submit.prevent="submit">
       <SettingRow
+        :disabled="!can('economy:config:write')"
         v-model="enabled"
         :title="$t('dashboard.economy.currency.enabled')"
         :description="$t('dashboard.economy.currency.enabledHelp')"
@@ -183,7 +186,13 @@ async function submit(): Promise<void> {
         </Field>
       </div>
       <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-      <Button type="submit" size="sm" class="self-start" :disabled="save.isPending.value">
+      <Button
+        v-if="can('economy:config:write')"
+        type="submit"
+        size="sm"
+        class="self-start"
+        :disabled="save.isPending.value"
+      >
         {{ $t('dashboard.economy.currency.save') }}
       </Button>
     </form>

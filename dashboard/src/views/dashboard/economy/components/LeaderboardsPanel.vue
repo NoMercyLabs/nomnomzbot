@@ -22,6 +22,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -30,6 +31,7 @@ import LeaderboardDialog from './LeaderboardDialog.vue';
 const adding = defineModel<boolean>('adding', { required: true });
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const configs = useLeaderboardConfigs(channelId);
 const remove = useDeleteLeaderboardConfig(channelId);
 
@@ -106,6 +108,7 @@ async function confirmDelete(): Promise<void> {
             :label="$t('dashboard.economy.leaderboards.private')"
           />
           <Button
+            v-if="can('economy:leaderboards:config:write')"
             data-leaderboard-edit
             type="button"
             variant="ghost"
@@ -116,6 +119,7 @@ async function confirmDelete(): Promise<void> {
             <Pencil aria-hidden="true" class="size-5" />
           </Button>
           <Button
+            v-if="can('economy:leaderboards:config:delete')"
             data-leaderboard-delete
             type="button"
             variant="ghost"

@@ -100,10 +100,27 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
+const allKeys = [
+  'games:session:read',
+  'games:session:start',
+  'games:session:cancel',
+  'economy:games:read',
+  'economy:games:write',
+];
+const access = vi.hoisted(() => ({ held: [] as string[] }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => access.held.includes(key),
+  }),
+}));
+
 let mounted: VueWrapper | null = null;
 let queryClient = new QueryClient();
 
 beforeEach(() => {
+  access.held = allKeys;
   localStorage.clear();
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
@@ -132,6 +149,58 @@ async function open(): Promise<void> {
 
 const button = (selector: string): HTMLElement =>
   document.querySelector(selector) as HTMLElement;
+
+const runningSession = {
+  id: 's1',
+  gameType: 'trivia',
+  status: 'Lobby',
+  participantCount: 3,
+  startedAt: '2026-10-17T10:00:00Z',
+};
+
+describe('GamesView gating', () => {
+  it('shows no panel and no action to a person who holds no game key', async () => {
+    access.held = [];
+    state.active = runningSession;
+
+    await open();
+
+    expect(document.body.textContent).not.toContain(en.dashboard.games.active.title);
+    expect(document.body.textContent).not.toContain(en.dashboard.games.catalog.title);
+    expect(document.body.textContent).not.toContain(en.dashboard.games.configs.title);
+    expect(document.body.textContent).not.toContain(en.dashboard.games.history.title);
+    expect(document.querySelector('[data-start-game]')).toBeNull();
+    expect(document.querySelector('[data-cancel-game]')).toBeNull();
+    expect(document.querySelector('[data-edit-game]')).toBeNull();
+  });
+
+  it('shows the read-only panels without start, cancel or edit when only the read keys are held', async () => {
+    access.held = ['games:session:read', 'economy:games:read'];
+    state.active = runningSession;
+
+    await open();
+
+    expect(document.body.textContent).toContain(en.dashboard.games.catalog.title);
+    expect(document.body.textContent).toContain(en.dashboard.games.configs.title);
+    expect(document.querySelector('[data-start-game]')).toBeNull();
+    expect(document.querySelector('[data-cancel-game]')).toBeNull();
+    expect(document.querySelector('[data-edit-game]')).toBeNull();
+
+    const toggle = button('[data-game-config="coinflip"] [role="switch"]');
+
+    expect(toggle.hasAttribute('disabled') || toggle.getAttribute('data-disabled') !== null).toBe(true);
+  });
+
+  it('shows start, cancel and edit when their keys are held', async () => {
+    state.active = runningSession;
+
+    await open();
+
+    expect(document.querySelector('[data-start-game="trivia"]')).not.toBeNull();
+    expect(document.querySelector('[data-cancel-game]')).not.toBeNull();
+    expect(document.querySelector('[data-edit-game="coinflip"]')).not.toBeNull();
+  });
+});
 
 describe('GamesView', () => {
   it('starts the chosen game with its key', async () => {

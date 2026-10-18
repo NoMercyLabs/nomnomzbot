@@ -26,6 +26,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -36,6 +37,7 @@ const adding = defineModel<boolean>('adding', { required: true });
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const jars = useSavingsJars(channelId);
 const update = useUpdateSavingsJar(channelId);
 const remove = useDeleteSavingsJar(channelId);
@@ -109,6 +111,7 @@ async function confirmDelete(): Promise<void> {
         >
           <Switch
             :model-value="row.isOpen"
+            :disabled="!can('economy:jars:update')"
             :aria-label="$t('dashboard.economy.jars.toggle', { name: row.name })"
             @update:model-value="toggle(row)"
           />
@@ -118,6 +121,7 @@ async function confirmDelete(): Promise<void> {
           </span>
           <StatusBadge v-if="!row.isOpen" tone="off" :label="$t('dashboard.economy.jars.closed')" />
           <Button
+            v-if="can('economy:jars:invite')"
             data-jar-invite
             type="button"
             variant="ghost"
@@ -128,6 +132,7 @@ async function confirmDelete(): Promise<void> {
             <UserAdd aria-hidden="true" class="size-5" />
           </Button>
           <Button
+            v-if="can('economy:jars:delete')"
             data-jar-delete
             type="button"
             variant="ghost"

@@ -172,11 +172,40 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
+const allKeys = [
+  'economy:config:read',
+  'economy:config:write',
+  'economy:earning-rules:read',
+  'economy:earning-rules:write',
+  'economy:earning-rules:delete',
+  'economy:jars:read',
+  'economy:jars:create',
+  'economy:jars:update',
+  'economy:jars:invite',
+  'economy:jars:delete',
+  'economy:catalog:read',
+  'economy:catalog:create',
+  'economy:catalog:update',
+  'economy:catalog:delete',
+  'economy:leaderboards:config:read',
+  'economy:leaderboards:config:write',
+  'economy:leaderboards:config:delete',
+];
+const access = vi.hoisted(() => ({ held: [] as string[] }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => access.held.includes(key),
+  }),
+}));
+
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 let queries: QueryClient;
 
 beforeEach(() => {
+  access.held = allKeys;
   localStorage.clear();
   calls.length = 0;
   config = null;
@@ -248,6 +277,78 @@ async function click(el: HTMLElement): Promise<void> {
   el.click();
   await settle();
 }
+
+const tabLabels = (): string[] =>
+  [...document.body.querySelectorAll<HTMLElement>('[role="tab"]')].map((tab) => tab.textContent?.trim() ?? '');
+const present = (selector: string): boolean => document.body.querySelector(selector) !== null;
+
+describe('Economy page gating', () => {
+  it('lists only the tabs whose read key is held', async () => {
+    access.held = ['economy:jars:read', 'economy:catalog:read'];
+
+    await open('jars');
+
+    const { jars: jarsTab, catalog: catalogTab } = en.dashboard.economy.tabs;
+
+    expect(tabLabels()).toEqual([jarsTab, catalogTab]);
+  });
+
+  it('shows no create button and no row actions for read-only keys', async () => {
+    access.held = ['economy:earning-rules:read', 'economy:jars:read'];
+
+    await open('rules');
+
+    expect(buttonByText(en.dashboard.economy.rules.new)).toBeUndefined();
+    expect(present('[data-rule-edit]')).toBe(false);
+    expect(present('[data-rule-delete]')).toBe(false);
+    expect(document.body.querySelector<HTMLButtonElement>('[role="switch"]')?.disabled).toBe(true);
+  });
+
+  it('hides the jar invite and delete actions without their keys', async () => {
+    access.held = ['economy:jars:read'];
+
+    await open('jars');
+
+    expect(buttonByText(en.dashboard.economy.jars.new)).toBeUndefined();
+    expect(present('[data-jar-invite]')).toBe(false);
+    expect(present('[data-jar-delete]')).toBe(false);
+  });
+
+  it('hides catalog and leaderboard edit and delete without their keys', async () => {
+    access.held = ['economy:catalog:read', 'economy:leaderboards:config:read'];
+
+    catalog = [{
+      id: 'i1',
+      name: 'Hat',
+      cost: 5,
+      isEnabled: true,
+    }];
+
+    await open('catalog');
+
+    expect(present('[data-catalog-row]')).toBe(true);
+    expect(present('[data-catalog-edit]')).toBe(false);
+    expect(present('[data-catalog-delete]')).toBe(false);
+    expect(buttonByText(en.dashboard.economy.catalog.new)).toBeUndefined();
+  });
+
+  it('hides the currency save button without the write key', async () => {
+    access.held = ['economy:config:read'];
+
+    await open('currency');
+
+    expect(present('[data-currency-form]')).toBe(true);
+    expect(buttonByText('Save currency')).toBeUndefined();
+  });
+
+  it('shows the create buttons and row actions when the keys are held', async () => {
+    await open('rules');
+
+    expect(buttonByText(en.dashboard.economy.rules.new)).toBeDefined();
+    expect(present('[data-rule-edit]')).toBe(true);
+    expect(present('[data-rule-delete]')).toBe(true);
+  });
+});
 
 describe('Economy page', () => {
   it('sets up the currency the channel has none of, and saves the typed values', async () => {
