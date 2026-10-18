@@ -18,6 +18,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 import Icons from 'unplugin-icons/vite';
 import { FileSystemIconLoader } from 'unplugin-icons/loaders';
 
+import { hmrPageHost } from './vite-plugins/hmrPageHost';
+
 // The designer's icon pack (Line style), imported as `~icons/nnz/<name>`. The files carry a baked stroke
 // color; it becomes currentColor so an icon takes the text color like any other glyph.
 const designerIcons = FileSystemIconLoader('./src/assets/icons/line', (svg: string): string =>
@@ -75,6 +77,7 @@ const isPage = ({ request }: { request: Request }): boolean => request.mode === 
 export default defineConfig({
   plugins: [
     vue(),
+    hmrPageHost(),
     vueDevTools(),
     tailwindcss(),
     Icons({ compiler: 'vue3', customCollections: { nnz: designerIcons } }),
