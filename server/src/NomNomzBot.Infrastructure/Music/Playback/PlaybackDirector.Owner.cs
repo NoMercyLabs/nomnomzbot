@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Music.Playback;
@@ -18,10 +17,13 @@ public sealed partial class PlaybackDirector
     private async Task OnOwnerIntentAsync(PlaybackInput input, CancellationToken ct)
     {
         EngineKind engine = State.Engine!.Value;
+        string name = input.GetType().Name;
         switch (input)
         {
             case OwnerPause:
-                await _engines[engine].PauseAsync(ct);
+                if (!await CommandAsync(engine, name, e => e.PauseAsync(ct)))
+                    break;
+
                 MarkSent(engine);
                 await MoveAsync(
                     PlaybackState.PausedByOwner(engine, State.Item),
@@ -36,19 +38,24 @@ public sealed partial class PlaybackDirector
                 await OnPreviousAsync(engine, input, ct);
                 break;
             case OwnerSeek seek:
-                await _engines[engine].SeekAsync(seek.PositionMs, ct);
-                await MoveAsync(State, input, "seek");
+                if (await CommandAsync(engine, name, e => e.SeekAsync(seek.PositionMs, ct)))
+                    await MoveAsync(State, input, "seek");
                 break;
             case OwnerVolume volume:
                 _volume = Math.Clamp(volume.Level, 0, 100);
-                if (!_muted)
-                    await _engines[engine].SetVolumeAsync(_volume, ct);
-                await MoveAsync(State, input, "volume");
+                if (_muted || await CommandAsync(engine, name, e => e.SetVolumeAsync(_volume, ct)))
+                    await MoveAsync(State, input, "volume");
                 break;
             case OwnerMute mute:
                 _muted = mute.On;
-                await _engines[engine].SetVolumeAsync(_muted ? 0 : _volume, ct);
-                await MoveAsync(State, input, _muted ? "mute" : "unmute");
+                if (
+                    await CommandAsync(
+                        engine,
+                        name,
+                        e => e.SetVolumeAsync(_muted ? 0 : _volume, ct)
+                    )
+                )
+                    await MoveAsync(State, input, _muted ? "mute" : "unmute");
                 break;
         }
     }
@@ -71,7 +78,9 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        await _engines[engine].StopAsync(ct);
+        if (!await CommandAsync(engine, name, e => e.StopAsync(ct)))
+            return;
+
         MarkSent(engine);
         await EndOfQueueAsync(engine, name, ct);
     }
@@ -107,8 +116,8 @@ public sealed partial class PlaybackDirector
 
     private async Task RestartAsync(EngineKind engine, PlaybackInput input, CancellationToken ct)
     {
-        await _engines[engine].SeekAsync(0, ct);
-        await MoveAsync(State, input, "previous_restart");
+        if (await CommandAsync(engine, input.GetType().Name, e => e.SeekAsync(0, ct)))
+            await MoveAsync(State, input, "previous_restart");
     }
 
     /// <summary>Progress of the track the state engine plays, from its latest report; 0 when unknown.</summary>
@@ -126,7 +135,9 @@ public sealed partial class PlaybackDirector
         _memory = null;
         if (memory is { WasPlaying: true } && memory.Engine != ended)
         {
-            await _engines[memory.Engine].ResumeAsync(ct);
+            if (!await CommandAsync(memory.Engine, inputName, e => e.ResumeAsync(ct)))
+                return;
+
             MarkSent(memory.Engine);
             _ownerReport = null;
             await MoveAsync(
@@ -152,11 +163,13 @@ public sealed partial class PlaybackDirector
         if (
             !report.IsPlaying
             || SentRecently(report.Engine)
-            || !_engines.TryGetValue(report.Engine, out IPlaybackEngine? engine)
+            || !_engines.ContainsKey(report.Engine)
         )
             return;
 
-        await engine.PauseAsync(ct);
+        if (!await CommandAsync(report.Engine, nameof(EngineReport), e => e.PauseAsync(ct)))
+            return;
+
         MarkSent(report.Engine);
         await MoveAsync(State, report, "foreign_engine_silenced");
     }

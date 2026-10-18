@@ -18,8 +18,8 @@ public sealed partial class PlaybackDirector
     {
         switch (input)
         {
-            case RequestAdded when _queue.Head is { } head:
-                await BeginStartAsync(head, nameof(RequestAdded), "start_head", null, ct);
+            case RequestAdded or OutputAttached when _queue.Head is { } head:
+                await BeginStartAsync(head, input.GetType().Name, "start_head", null, ct);
                 break;
             case EngineReport report:
                 await OnReportAsync(report, ct);

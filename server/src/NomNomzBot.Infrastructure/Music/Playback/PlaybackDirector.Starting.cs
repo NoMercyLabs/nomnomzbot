@@ -32,7 +32,9 @@ public sealed partial class PlaybackDirector
         PlaybackState starting = PlaybackState.Starting(item.Engine, item);
         if (stopEngine is { } old)
         {
-            await _engines[old].StopAsync(ct);
+            if (!await CommandAsync(old, inputName, e => e.StopAsync(ct)))
+                return;
+
             MarkSent(old);
             if (_ownerReport is not { IsPlaying: false } quiet || quiet.Engine != old)
             {

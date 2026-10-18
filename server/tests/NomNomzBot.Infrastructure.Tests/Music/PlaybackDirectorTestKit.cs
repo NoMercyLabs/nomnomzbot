@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform;
@@ -56,6 +57,9 @@ public static class PlaybackDirectorTestKit
         /// <summary>When set, <see cref="StartAsync"/> throws what this returns.</summary>
         public Func<Exception>? StartThrows { get; set; }
 
+        /// <summary>When set, Pause, Resume, Stop, Seek and SetVolume throw the typed block, as a real engine does.</summary>
+        public EngineBlockReason? BlockCommands { get; set; }
+
         public IReadOnlyList<EngineCall> Calls => _calls;
 
         public event Func<EngineSignal, Task>? Reports;
@@ -88,6 +92,9 @@ public static class PlaybackDirectorTestKit
         private Task Record(string name, string? argument = null)
         {
             _calls.Add(new(name, argument));
+            if (BlockCommands is { } reason)
+                throw new PlaybackEngineBlockedException(Kind, reason);
+
             return Task.CompletedTask;
         }
     }

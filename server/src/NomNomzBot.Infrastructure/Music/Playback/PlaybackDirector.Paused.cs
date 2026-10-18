@@ -20,7 +20,9 @@ public sealed partial class PlaybackDirector
         switch (input)
         {
             case OwnerResume:
-                await _engines[engine].ResumeAsync(ct);
+                if (!await CommandAsync(engine, nameof(OwnerResume), e => e.ResumeAsync(ct)))
+                    break;
+
                 MarkSent(engine);
                 await MoveAsync(PlaybackState.Playing(engine, State.Item), input, "owner_resume");
                 break;
