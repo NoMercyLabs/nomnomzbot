@@ -1335,7 +1335,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (volume is < 0 or > 100)
             return Result.Failure("Volume must be between 0 and 100.", "VALIDATION_FAILED");
 
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        IMusicProvider? provider = await VolumeProviderAsync(tenantId, cancellationToken);
         if (provider is null)
             return NoProvider();
         if (!HasCapability(provider, MusicProviderCapabilities.Volume))
@@ -1355,8 +1355,39 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             return PremiumRequired(ex);
         }
+        catch (NoActiveDeviceException ex)
+        {
+            return NothingPlaying(ex.Provider);
+        }
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// The provider whose volume a change must reach: the engine playing the channel's requests (the YouTube
+    /// overlay player while a request plays there, even though Spotify is the default provider), else the
+    /// active provider.
+    /// </summary>
+    private async Task<IMusicProvider?> VolumeProviderAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (_queueStore.GetLastEngine(tenantId.ToString()) is { } engine)
+        {
+            MusicConfigDto? config = await GetConfigOrNullAsync(
+                tenantId.ToString(),
+                cancellationToken
+            );
+            IMusicProvider? playing = (
+                await GetAllowedProvidersAsync(tenantId, config, cancellationToken)
+            ).FirstOrDefault(p =>
+                p.Provider == engine && HasCapability(p, MusicProviderCapabilities.Volume)
+            );
+            if (playing is not null)
+                return playing;
+        }
+        return await GetActiveProviderAsync(tenantId, cancellationToken);
     }
 
     public async Task<NowPlaying?> GetNowPlayingAsync(

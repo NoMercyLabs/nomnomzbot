@@ -562,6 +562,13 @@ public sealed class VolumeBuiltin(
                 "The music service needs a Premium account to change the volume.",
                 ct: ct
             ),
+            "NO_ACTIVE_DEVICE" => composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Volume.Key,
+                BuiltinResponseSlots.Volume.CannotRead,
+                "Nothing is playing right now, so there is no volume to change.",
+                ct: ct
+            ),
             _ => composer.ComposeAsync(
                 context,
                 BuiltinResponseSlots.Volume.Key,

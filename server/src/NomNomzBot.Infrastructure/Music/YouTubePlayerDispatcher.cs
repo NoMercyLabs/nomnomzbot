@@ -55,6 +55,14 @@ public interface IYouTubePlayerDispatcher
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>Sends <c>youtube.volume</c> with the percent (0-100) to the given player widgets.</summary>
+    Task VolumeAsync(
+        Guid broadcasterId,
+        IReadOnlyList<Guid> players,
+        int percent,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>
     /// Hands the next queued request to the owning player, as an ended video does. With no player open the
     /// request stays queued for the next page that attaches; with nothing queued nothing is sent and the
@@ -93,6 +101,7 @@ public sealed class YouTubePlayerDispatcher(
     public const string ResumeEventType = "youtube.resume";
     public const string StopEventType = "youtube.stop";
     public const string SeekEventType = "youtube.seek";
+    public const string VolumeEventType = "youtube.volume";
 
     public async Task<IReadOnlyList<Guid>> FindPlayersAsync(
         Guid broadcasterId,
@@ -154,6 +163,24 @@ public sealed class YouTubePlayerDispatcher(
                 broadcasterId,
                 widgetId,
                 SeekEventType,
+                payload,
+                cancellationToken
+            );
+    }
+
+    public async Task VolumeAsync(
+        Guid broadcasterId,
+        IReadOnlyList<Guid> players,
+        int percent,
+        CancellationToken cancellationToken = default
+    )
+    {
+        YouTubeVolumeWidgetPayload payload = new(percent);
+        foreach (Guid widgetId in players)
+            await notifier.SendWidgetEventAsync(
+                broadcasterId,
+                widgetId,
+                VolumeEventType,
                 payload,
                 cancellationToken
             );

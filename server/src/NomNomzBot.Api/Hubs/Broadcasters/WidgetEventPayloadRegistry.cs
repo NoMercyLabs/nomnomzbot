@@ -86,6 +86,7 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new(YouTubePlayerDispatcher.ResumeEventType, typeof(YouTubeTransportWidgetPayload)),
         new(YouTubePlayerDispatcher.StopEventType, typeof(YouTubeTransportWidgetPayload)),
         new(YouTubePlayerDispatcher.SeekEventType, typeof(YouTubeSeekWidgetPayload)),
+        new(YouTubePlayerDispatcher.VolumeEventType, typeof(YouTubeVolumeWidgetPayload)),
         new("track_saved_changed", typeof(TrackSavedWidgetPayload)),
         new("tts_speak", typeof(TtsSpeakWidgetPayload)),
         new("goal", typeof(GoalWidgetEventPayload)),

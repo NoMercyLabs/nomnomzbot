@@ -287,6 +287,7 @@ internal static class WidgetTestSamples
         [YouTubePlayerDispatcher.ResumeEventType] = _ => new YouTubeTransportWidgetPayload(),
         [YouTubePlayerDispatcher.StopEventType] = _ => new YouTubeTransportWidgetPayload(),
         [YouTubePlayerDispatcher.SeekEventType] = _ => new YouTubeSeekWidgetPayload(42_000),
+        [YouTubePlayerDispatcher.VolumeEventType] = _ => new YouTubeVolumeWidgetPayload(70),
         // now_playing.vue's heart pulse reads only isSaved.
         ["track_saved_changed"] = _ => new TrackSavedWidgetPayload(
             "spotify:track:4uLU6hMCjMI75M1A2tKUQC",

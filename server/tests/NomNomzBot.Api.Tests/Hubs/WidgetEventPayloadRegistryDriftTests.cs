@@ -185,6 +185,7 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
     [InlineData("youtube.resume")]
     [InlineData("youtube.stop")]
     [InlineData("youtube.seek")]
+    [InlineData("youtube.volume")]
     public void The_youtube_transport_events_are_registered_sampled_and_typed_in_the_event_map(
         string eventType
     )

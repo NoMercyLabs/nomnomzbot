@@ -123,7 +123,8 @@ public sealed class YouTubeMusicProvider
         | MusicProviderCapabilities.Subscriptions
         | MusicProviderCapabilities.PlaybackControl
         | MusicProviderCapabilities.Skip
-        | MusicProviderCapabilities.Seek;
+        | MusicProviderCapabilities.Seek
+        | MusicProviderCapabilities.Volume;
 
     /// <summary>The daily Data API quota is the deployment's, not the channel's: every channel waits for the same reset.</summary>
     public bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until) =>
@@ -203,14 +204,14 @@ public sealed class YouTubeMusicProvider
         return Task.CompletedTask;
     }
 
-    public Task SetVolumeAsync(
+    public async Task SetVolumeAsync(
         Guid broadcasterId,
         int volumePercent,
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug("YouTubeMusicProvider.SetVolumeAsync has no API-side transport");
-        return Task.CompletedTask;
+        IReadOnlyList<Guid> owner = await OwnerAsync(broadcasterId, cancellationToken);
+        await _players.VolumeAsync(broadcasterId, owner, volumePercent, cancellationToken);
     }
 
     public async Task SeekAsync(

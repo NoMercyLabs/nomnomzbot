@@ -75,6 +75,8 @@ let ytRequestedVideoId: string | null = null
 let ytLoading: boolean = false
 let ytPendingSeekSeconds: number | null = null
 let ytPendingPause: boolean = false
+// The volume (0-100) the streamer asked for with !volume; every video that starts plays at it.
+let ytVolume: number = 100
 
 // IFrame API state codes: 0 ended, 1 playing, 2 paused.
 const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'PAUSED' }
@@ -121,7 +123,7 @@ function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
 function ensureYouTubeAudible(player: YouTubePlayerHandle): void {
   if (!cfg.enableAudio) return
   player.unMute()
-  player.setVolume(100)
+  player.setVolume(ytVolume)
   checkAutoplayAllowed().then((allowed) => {
     if (!allowed || player.isMuted()) spotifyStatus.value = 'muted'
   })
@@ -205,6 +207,12 @@ function onYouTubeSeek(d: NnzWidgetEventMap['youtube.seek'] | null | undefined):
   const seconds: number = d.positionMs / 1000
   if (ytLoading || !ytPlayer) { ytPendingSeekSeconds = seconds; return }
   ytPlayer.seekTo(seconds, true)
+}
+
+function onYouTubeVolume(d: NnzWidgetEventMap['youtube.volume'] | null | undefined): void {
+  if (typeof d?.percent !== 'number') return
+  ytVolume = Math.min(100, Math.max(0, Math.round(d.percent)))
+  ytPlayer?.setVolume(ytVolume)
 }
 
 // stopVideo() emits state 5 (cued), which YT_STATE_NAMES ignores, so the end is reported explicitly.
@@ -415,6 +423,7 @@ onMounted(() => {
   refreshNowPlaying()
   musicPoll = window.setInterval(refreshNowPlaying, 5000)
   NomNomz.on('youtube.seek', onYouTubeSeek)
+  NomNomz.on('youtube.volume', onYouTubeVolume)
   NomNomz.on('youtube.stop', onYouTubeStop)
   NomNomz.on('youtube.resume', onYouTubeResume)
   NomNomz.on('youtube.pause', onYouTubePause)
@@ -425,6 +434,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (typeof NomNomz !== 'undefined') NomNomz.off('tts_speak', onSpeak)
   if (typeof NomNomz !== 'undefined') NomNomz.off('youtube.seek', onYouTubeSeek)
+  if (typeof NomNomz !== 'undefined') NomNomz.off('youtube.volume', onYouTubeVolume)
   if (typeof NomNomz !== 'undefined') NomNomz.off('youtube.stop', onYouTubeStop)
   if (typeof NomNomz !== 'undefined') NomNomz.off('youtube.resume', onYouTubeResume)
   if (typeof NomNomz !== 'undefined') NomNomz.off('youtube.pause', onYouTubePause)

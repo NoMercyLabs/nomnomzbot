@@ -79,6 +79,7 @@ public sealed class AudioYouTubePlayerGuardTests
     [InlineData("youtube.resume", "playVideo()")]
     [InlineData("youtube.stop", "stopVideo()")]
     [InlineData("youtube.seek", "seekTo(")]
+    [InlineData("youtube.volume", "setVolume(ytVolume)")]
     public void The_widget_pauses_and_resumes_the_player_on_the_bots_transport_events(
         string eventType,
         string playerCall

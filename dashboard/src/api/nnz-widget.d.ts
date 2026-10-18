@@ -426,6 +426,11 @@ interface NnzYouTubeSeekWidgetPayload {
   positionMs: number;
 }
 
+/** youtube.volume: the overlay player plays at this volume (0-100) from now on, for this video and the ones after it. */
+interface NnzYouTubeVolumeWidgetPayload {
+  percent: number;
+}
+
 /** track_saved_changed: the current track was liked or unliked. */
 interface NnzTrackSavedWidgetPayload {
   trackUri: string;
@@ -1445,6 +1450,7 @@ interface NnzWidgetEventMap {
   'youtube.resume': NnzYouTubeTransportWidgetPayload;
   'youtube.stop': NnzYouTubeTransportWidgetPayload;
   'youtube.seek': NnzYouTubeSeekWidgetPayload;
+  'youtube.volume': NnzYouTubeVolumeWidgetPayload;
   'track_saved_changed': NnzTrackSavedWidgetPayload;
   'tts_speak': NnzTtsSpeakWidgetPayload;
   'goal': NnzGoalWidgetEventPayload;
@@ -1505,6 +1511,7 @@ type NnzWidgetAnyEvent =
   | [eventType: 'youtube.resume', data: NnzYouTubeTransportWidgetPayload]
   | [eventType: 'youtube.stop', data: NnzYouTubeTransportWidgetPayload]
   | [eventType: 'youtube.seek', data: NnzYouTubeSeekWidgetPayload]
+  | [eventType: 'youtube.volume', data: NnzYouTubeVolumeWidgetPayload]
   | [eventType: 'track_saved_changed', data: NnzTrackSavedWidgetPayload]
   | [eventType: 'tts_speak', data: NnzTtsSpeakWidgetPayload]
   | [eventType: 'goal', data: NnzGoalWidgetEventPayload]

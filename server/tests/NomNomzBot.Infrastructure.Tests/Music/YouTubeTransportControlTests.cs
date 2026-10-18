@@ -503,6 +503,32 @@ public sealed class YouTubeTransportControlTests
     }
 
     [Fact]
+    public async Task Volume_sends_one_youtube_volume_with_the_percent_to_the_owner_only()
+    {
+        Rig rig = await PlayingFirstWithSecondQueuedAsync();
+
+        Result changed = await rig.Music.SetVolumeAsync(Broadcaster.ToString(), 70);
+
+        changed.IsSuccess.Should().BeTrue(changed.ErrorMessage);
+        rig.Notifier.Of("youtube.volume").Should().Equal([(OwnerWidget, "youtube.volume")]);
+        rig.Notifier.Sent.Single(s => s.EventType == "youtube.volume")
+            .Data.Should()
+            .Be(new YouTubeVolumeWidgetPayload(70));
+    }
+
+    [Fact]
+    public async Task Volume_with_no_player_open_says_nothing_is_playing_and_sends_nothing()
+    {
+        Rig rig = await BuildAsync(playerOpen: false);
+
+        Result changed = await rig.Music.SetVolumeAsync(Broadcaster.ToString(), 70);
+
+        changed.IsSuccess.Should().BeFalse();
+        changed.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
+        rig.Notifier.Of("youtube.volume").Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Play_once_names_the_once_video_and_resumes_nothing_while_it_plays()
     {
         Rig rig = await PlayingFirstWithSecondQueuedAsync();
