@@ -19,6 +19,7 @@
     "lint:oxlint": "oxlint .",
     "lint:eslint": "eslint . --cache",
     "lint:spelling": "cspell lint --no-progress --report flagged",
+    "lint:duplicates": "jscpd --config .jscpd.json",
     "fix": "oxlint . --fix && eslint . --fix --cache",
     "format": "eslint --fix src eslint-rules e2e *.ts"
   },
@@ -90,6 +91,7 @@
     "eslint-plugin-vue": "~10.11.0",
     "fast-xml-parser": "^5.11.2",
     "jiti": "^2.7.0",
+    "jscpd": "^5.4.1",
     "jsdom": "^30.0.1",
     "jsonc-eslint-parser": "^3.3.0",
     "npm-run-all2": "^9.0.3",

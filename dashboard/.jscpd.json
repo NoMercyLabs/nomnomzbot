@@ -1,0 +1,15 @@
+{
+  "path": ["src"],
+  "minTokens": 40,
+  "threshold": 2.42,
+  "reporters": ["console"],
+  "silent": true,
+  "ignore": [
+    "**/__tests__/**",
+    "**/*.spec.ts",
+    "**/api/schema.d.ts",
+    "**/api/nnz-widget.d.ts",
+    "**/components/ui/**",
+    "**/i18n/**"
+  ]
+}
