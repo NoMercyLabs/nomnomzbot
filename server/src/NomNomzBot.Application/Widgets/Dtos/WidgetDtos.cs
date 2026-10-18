@@ -51,7 +51,7 @@ public sealed record WidgetDetail(
 /// <see cref="Key"/> is the surface's stable catalogue key (<c>audio</c>, <c>alerts</c>, ...) so the client can
 /// name and describe it in the viewer's language; <see cref="Widget"/> is the provisioned widget.
 /// </summary>
-public sealed record RequiredOverlayDto(string Key, WidgetDetail Widget);
+public sealed record RequiredOverlay(string Key, WidgetDetail Widget);
 
 /// <summary>
 /// Result of rotating one widget's overlay token (audit B5). <see cref="PreviousUrl"/> stays live until

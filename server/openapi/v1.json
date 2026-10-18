@@ -100671,7 +100671,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfListOfRequiredOverlayDto"
+                  "$ref": "#/components/schemas/StatusResponseOfListOfRequiredOverlay"
                 }
               }
             }
@@ -135905,7 +135905,7 @@
           }
         }
       },
-      "StatusResponseOfListOfRequiredOverlayDto": {
+      "StatusResponseOfListOfRequiredOverlay": {
         "type": "object",
         "properties": {
           "status": {
@@ -135917,7 +135917,7 @@
               "array"
             ],
             "items": {
-              "$ref": "#/components/schemas/RequiredOverlayDto"
+              "$ref": "#/components/schemas/RequiredOverlay"
             }
           },
           "message": {
@@ -151755,7 +151755,7 @@
         },
         "description": "Redeems the single-use `login_code` a web sign-in hands to a second trusted dashboard origin (the code\r\narrives in that origin's URL fragment after the provider callback)."
       },
-      "RequiredOverlayDto": {
+      "RequiredOverlay": {
         "required": [
           "key",
           "widget"

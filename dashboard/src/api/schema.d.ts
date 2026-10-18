@@ -85017,7 +85017,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfListOfRequiredOverlayDto"];
+                        "application/json": components["schemas"]["StatusResponseOfListOfRequiredOverlay"];
                     };
                 };
                 /** @description Bad Request */
@@ -98205,9 +98205,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfListOfRequiredOverlayDto: {
+        StatusResponseOfListOfRequiredOverlay: {
             status?: string;
-            data?: null | components["schemas"]["RequiredOverlayDto"][];
+            data?: null | components["schemas"]["RequiredOverlay"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -103364,7 +103364,7 @@ export interface components {
             code: string;
         };
         /** @description One channel-owned system surface for the OBS page's Required overlays panel. Key is the surface's stable catalogue key so the client can name and describe it in the viewer's language; Widget is the provisioned widget. */
-        RequiredOverlayDto: {
+        RequiredOverlay: {
             key: string;
             widget: components["schemas"]["WidgetDetail"];
         };

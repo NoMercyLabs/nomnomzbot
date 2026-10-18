@@ -84,9 +84,9 @@ public sealed class WidgetsControllerRequiredOverlaysTests
             .GetRequiredOverlays(Channel, CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        List<RequiredOverlayDto> data = ok
+        List<RequiredOverlay> data = ok
             .Value.Should()
-            .BeOfType<StatusResponseDto<List<RequiredOverlayDto>>>()
+            .BeOfType<StatusResponseDto<List<RequiredOverlay>>>()
             .Subject.Data!;
         data.Select(d => d.Key).Should().Equal(FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys);
         data.Select(d => d.Widget.Name)

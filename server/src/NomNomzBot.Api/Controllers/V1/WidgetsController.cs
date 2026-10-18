@@ -150,10 +150,10 @@ public class WidgetsController : BaseController
     /// </summary>
     [RequireAction("widget:read")]
     [HttpGet("~/api/v{version:apiVersion}/channels/{channelId}/overlays/required")]
-    [ProducesResponseType<StatusResponseDto<List<RequiredOverlayDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<List<RequiredOverlay>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRequiredOverlays(string channelId, CancellationToken ct)
     {
-        List<RequiredOverlayDto> overlays = [];
+        List<RequiredOverlay> overlays = [];
 
         foreach (string key in FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys)
         {
@@ -168,7 +168,7 @@ public class WidgetsController : BaseController
             overlays.Add(new(key, WithOverlayOrigin(result.Value)));
         }
 
-        return Ok(new StatusResponseDto<List<RequiredOverlayDto>> { Data = overlays });
+        return Ok(new StatusResponseDto<List<RequiredOverlay>> { Data = overlays });
     }
 
     /// <summary>Get a single overlay widget's configuration.</summary>
