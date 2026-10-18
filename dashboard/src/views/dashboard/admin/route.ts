@@ -286,3 +286,15 @@ export const dashboardAdminSystemRoute = {
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
+
+export const dashboardAdminPlatformDefaultsRoute = {
+  path: 'admin/platform-defaults',
+  name: 'dashboard-admin-platform-defaults',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminPlatformDefaultsView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;

@@ -906,6 +906,52 @@
           "impersonate": "Overnemen",
           "ended": "Het toegangsrecht is beëindigd."
         }
+      },
+      "platformDefaults": {
+        "title": "Platformstandaarden",
+        "crumb": "Beheer",
+        "explain": "De waarden die een kanaal volgt tot het zelf iets instelt. Een wijziging hier raakt elk kanaal zonder eigen instelling.",
+        "forbidden": "Je mag de platformstandaarden niet zien.",
+        "loadError": "De platformstandaarden konden niet laden.",
+        "levels": {
+          "0": "Iedereen",
+          "1": "Abonnees",
+          "2": "VIP's",
+          "3": "Artiesten",
+          "4": "Moderators",
+          "5": "Hoofdmoderators",
+          "6": "Editors",
+          "7": "De streamer"
+        },
+        "preview": {
+          "channels": "{n} kanaal | {n} kanalen",
+          "counting": "De kanalen tellen die dit raakt...",
+          "changes": "Dit wijzigt {channels}.",
+          "keeping": "{channels} houden hun eigen instelling en blijven zoals ze zijn.",
+          "examples": "Bijvoorbeeld: {names}",
+          "danger": "Ik begrijp dat dit een beschermde standaard voor alle kanalen hierboven verlaagt.",
+          "failed": "Het aantal kanalen kon niet laden.",
+          "retry": "Opnieuw proberen",
+          "pick": "Kies een waarde om te zien welke kanalen dit raakt.",
+          "apply": "Toepassen op {channels}"
+        },
+        "actions": {
+          "title": "Rollen van acties",
+          "description": "De rol die een actie vraagt in een kanaal dat er zelf geen koos.",
+          "empty": "Er zijn geen acties.",
+          "changed": "Gewijzigd",
+          "shipped": "Standaard {role}",
+          "overrides": "{n} kanaal gebruikt een eigen rol | {n} kanalen gebruiken een eigen rol",
+          "edit": "Bewerken",
+          "saved": "De standaard is opgeslagen.",
+          "saveError": "De standaard is niet opgeslagen: {reason}",
+          "dialog": {
+            "title": "Standaardrol voor {action}",
+            "description": "Kies een rol en bekijk welke kanalen dit raakt voor je het toepast.",
+            "role": "Rol",
+            "shipped": "Meegeleverde standaard ({role})"
+          }
+        }
       }
     },
     "adminFeatureFlags": {

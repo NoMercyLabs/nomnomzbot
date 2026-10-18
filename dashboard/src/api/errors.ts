@@ -85,6 +85,7 @@ export const apiOperations = {
   'admin webhook replay': 'admin',
   'admin jobs': 'admin',
   'admin job retry': 'admin',
+  'platform defaults actions': 'admin',
   'admin usage': 'admin',
   'admin error budget': 'admin',
   'access principals': 'admin',

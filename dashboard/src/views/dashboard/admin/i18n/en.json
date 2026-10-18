@@ -906,6 +906,52 @@
           "impersonate": "Impersonate",
           "ended": "The access grant ended."
         }
+      },
+      "platformDefaults": {
+        "title": "Platform defaults",
+        "crumb": "Admin",
+        "explain": "The values a channel follows until it sets its own. A change here reaches every channel that has no setting of its own.",
+        "forbidden": "You may not see the platform defaults.",
+        "loadError": "The platform defaults could not load.",
+        "levels": {
+          "0": "Everyone",
+          "1": "Subscribers",
+          "2": "VIPs",
+          "3": "Artists",
+          "4": "Moderators",
+          "5": "Lead moderators",
+          "6": "Editors",
+          "7": "The broadcaster"
+        },
+        "preview": {
+          "channels": "{n} channel | {n} channels",
+          "counting": "Counting the channels this reaches...",
+          "changes": "This changes {channels}.",
+          "keeping": "{channels} keep their own setting and stay as they are.",
+          "examples": "For example: {names}",
+          "danger": "I understand this lowers a protected default for every channel above.",
+          "failed": "The channel count could not load.",
+          "retry": "Try again",
+          "pick": "Pick a value to see which channels it reaches.",
+          "apply": "Apply to {channels}"
+        },
+        "actions": {
+          "title": "Action roles",
+          "description": "The role an action asks for in a channel that has not chosen its own.",
+          "empty": "No actions are listed.",
+          "changed": "Changed",
+          "shipped": "Ships as {role}",
+          "overrides": "{n} channel uses its own | {n} channels use their own",
+          "edit": "Edit",
+          "saved": "The default was saved.",
+          "saveError": "The default was not saved: {reason}",
+          "dialog": {
+            "title": "Default role for {action}",
+            "description": "Pick a role, then check which channels this reaches before you apply it.",
+            "role": "Role",
+            "shipped": "Shipped default ({role})"
+          }
+        }
       }
     },
     "adminFeatureFlags": {

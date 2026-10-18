@@ -41,11 +41,14 @@ const props = withDefaults(
     description?: string;
     action: string;
     pending?: boolean;
+    // The owner holds the primary off while the form cannot be sent yet (a preview still loading).
+    disabled?: boolean;
     error?: string;
   }>(),
   {
     description: undefined,
     pending: false,
+    disabled: false,
     error: undefined,
   },
 );
@@ -62,7 +65,7 @@ function setOpen(open: boolean): void {
 }
 
 function submit(): void {
-  if (props.pending || locked.value) return;
+  if (props.pending || props.disabled || locked.value) return;
 
   emit('submit');
 }
@@ -142,7 +145,7 @@ function focusFirstField(event: Event): void {
           >
             {{ $t('common.cancel') }}
           </Button>
-          <Button data-form-action type="submit" :disabled="pending || locked">
+          <Button data-form-action type="submit" :disabled="pending || disabled || locked">
             <Spinner v-if="pending" />
             {{ action }}
           </Button>
