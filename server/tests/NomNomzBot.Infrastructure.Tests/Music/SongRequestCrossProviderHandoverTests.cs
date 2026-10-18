@@ -42,8 +42,15 @@ public sealed class SongRequestCrossProviderHandoverTests
 
     private static IMusicProvider Provider(string key, string ownedUri)
     {
-        IMusicProvider provider = Substitute.For<IMusicProvider>();
+        IMusicProvider provider =
+            key == "spotify"
+                ? Substitute.For<IMusicProvider, IMusicProviderStartTrack>()
+                : Substitute.For<IMusicProvider>();
         provider.Provider.Returns(key);
+        if (provider is IMusicProviderStartTrack starter)
+            starter
+                .StartTrackAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(true);
         provider.Capabilities.Returns(Transport);
         provider.OwnsTrackUri(Arg.Any<string>()).Returns(call => (string)call[0] == ownedUri);
         provider
@@ -179,13 +186,42 @@ public sealed class SongRequestCrossProviderHandoverTests
     }
 
     [Fact]
-    public async Task After_a_youtube_item_ends_the_next_spotify_item_is_queued_and_started()
+    public async Task After_a_failed_youtube_item_the_next_spotify_item_is_the_track_that_starts()
+    {
+        const string stray = "spotify:track:pizza-calzone";
+        Enqueue(SpotifyUri);
+        _store.SetLastEngine(ChannelId.ToString(), "youtube");
+        _spotify
+            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
+            .Returns(Playing("spotify:track:playlist", false));
+        _spotify
+            .GetQueueAsync(ChannelId, Arg.Any<CancellationToken>())
+            .Returns(new List<TrackInfo> { Playing(stray, false) });
+
+        await NewService().HandOverNextAsync(ChannelId.ToString());
+
+        await ((IMusicProviderStartTrack)_spotify)
+            .Received(1)
+            .StartTrackAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>());
+        await _spotify.DidNotReceive().SkipAsync(ChannelId, Arg.Any<CancellationToken>());
+        await _spotify
+            .DidNotReceive()
+            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
+        _store.GetLastEngine(ChannelId.ToString()).Should().Be("spotify");
+        _store.GetInFlight(ChannelId.ToString())!.TrackUri.Should().Be(SpotifyUri);
+    }
+
+    [Fact]
+    public async Task An_engine_switch_falls_back_to_push_and_skip_when_play_now_is_refused()
     {
         Enqueue(SpotifyUri);
         _store.SetLastEngine(ChannelId.ToString(), "youtube");
         _spotify
             .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns(Playing("spotify:track:playlist", false));
+        ((IMusicProviderStartTrack)_spotify)
+            .StartTrackAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(false);
 
         await NewService().HandOverNextAsync(ChannelId.ToString());
 

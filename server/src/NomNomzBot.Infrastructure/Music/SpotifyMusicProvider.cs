@@ -56,7 +56,8 @@ namespace NomNomzBot.Infrastructure.Music;
 public sealed class SpotifyMusicProvider
     : IMusicProvider,
         IMusicRemoteProvider,
-        IMusicProviderManageApi
+        IMusicProviderManageApi,
+        IMusicProviderStartTrack
 {
     private const string SpotifyApiBase = "https://api.spotify.com/v1";
     private const string SpotifyTokenEndpoint = "https://accounts.spotify.com/api/token";
@@ -594,6 +595,43 @@ public sealed class SpotifyMusicProvider
             cancellationToken
         );
 
+        return await ReadPlayerOutcomeAsync(response, cancellationToken);
+    }
+
+    /// <summary>
+    /// Starts exactly this track: <c>PUT /me/player/play</c> with <c>uris</c> plays it now and leaves
+    /// Spotify's own waiting queue alone, so a stray queued track can never start in its place (a queue
+    /// push followed by a skip plays the head of that queue, which is not always the pushed track). Same
+    /// outcome and exceptions as <see cref="AddToQueueAsync"/>.
+    /// </summary>
+    public async Task<bool> StartTrackAsync(
+        Guid broadcasterId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            throw new MusicAuthenticationFailedException(ProviderName);
+
+        object body = new { uris = new[] { NormalizeTrackUri(trackUri) } };
+        HttpResponseMessage? response = await SendPlayerCommandAsync(
+            HttpMethod.Put,
+            $"{SpotifyApiBase}/me/player/play",
+            token,
+            body,
+            broadcasterId,
+            cancellationToken
+        );
+
+        return await ReadPlayerOutcomeAsync(response, cancellationToken);
+    }
+
+    private async Task<bool> ReadPlayerOutcomeAsync(
+        HttpResponseMessage? response,
+        CancellationToken cancellationToken
+    )
+    {
         if (response?.IsSuccessStatusCode == true)
             return true;
 

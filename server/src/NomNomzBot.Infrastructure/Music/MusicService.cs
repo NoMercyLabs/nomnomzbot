@@ -1244,6 +1244,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!await SilenceOtherEnginesAsync(tenantId, broadcasterId, provider, cancellationToken))
             return null;
         bool switchesEngine = IsEngineSwitch(broadcasterId, provider);
+        bool startedDirectly =
+            switchesEngine
+            && await TryStartDirectlyAsync(
+                provider,
+                tenantId,
+                broadcasterId,
+                entry,
+                cancellationToken
+            );
 
         // Same basis as HandOverNextAsync's own push, and needed just as unconditionally here: a chat
         // command (`!sr`, run off an EventSub notification) reaches this exact code with no HTTP request
@@ -1255,11 +1264,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         try
         {
-            bool pushed = await provider.AddToQueueAsync(
-                tenantId,
-                entry.TrackUri,
-                cancellationToken
-            );
+            bool pushed =
+                startedDirectly
+                || await provider.AddToQueueAsync(tenantId, entry.TrackUri, cancellationToken);
             if (!pushed)
                 return await RollBackAsync(
                     broadcasterId,
@@ -1313,7 +1320,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // This request is the one now waiting at the provider — remember it so the next request queues
         // behind it in OUR queue instead of being handed over too.
         _queueStore.SetLastEngine(broadcasterId, provider.Provider);
-        if (switchesEngine)
+        if (switchesEngine && !startedDirectly)
             await StartIfIdleAsync(tenantId, broadcasterId, provider, cancellationToken);
         _queueStore.SetInFlight(broadcasterId, entry);
         // Re-sync so the persisted row set carries the in-flight flag too (S-SR-INFLIGHT-DURABLE) — the
@@ -2648,11 +2655,23 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return;
 
         bool switchesEngine = IsEngineSwitch(broadcasterId, provider);
-        if (!await TryPushAsync(provider, tenantId, broadcasterId, next, cancellationToken))
+        bool startedDirectly =
+            switchesEngine
+            && await TryStartDirectlyAsync(
+                provider,
+                tenantId,
+                broadcasterId,
+                next,
+                cancellationToken
+            );
+        if (
+            !startedDirectly
+            && !await TryPushAsync(provider, tenantId, broadcasterId, next, cancellationToken)
+        )
             return;
 
         _queueStore.SetLastEngine(broadcasterId, provider.Provider);
-        if (switchesEngine)
+        if (switchesEngine && !startedDirectly)
             await StartIfIdleAsync(tenantId, broadcasterId, provider, cancellationToken);
 
         _queueStore.SetInFlight(broadcasterId, next);
@@ -2839,6 +2858,45 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 provider.Provider,
                 broadcasterId
             );
+        }
+    }
+
+    /// <summary>
+    /// After an item on another engine the incoming engine sits idle, so the item is started by its own
+    /// URI. A queue push followed by a skip plays the head of the provider's queue, which is a stray
+    /// track when the provider still holds earlier pushes. False means "not started this way" (the
+    /// provider has no play-now, is already playing, or refused); the caller then pushes as before.
+    /// </summary>
+    private async Task<bool> TryStartDirectlyAsync(
+        IMusicProvider provider,
+        Guid tenantId,
+        string broadcasterId,
+        SongRequestEntry entry,
+        CancellationToken cancellationToken
+    )
+    {
+        if (provider is not IMusicProviderStartTrack starter)
+            return false;
+        if (await ReadPlayingAsync(provider, tenantId, cancellationToken) is { IsPlaying: true })
+            return false;
+
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
+        );
+        try
+        {
+            return await starter.StartTrackAsync(tenantId, entry.TrackUri, cancellationToken);
+        }
+        catch (Exception ex) when (IsPlayerUnavailable(ex))
+        {
+            _logger.LogDebug(
+                ex,
+                "Could not start '{Track}' directly on {Provider} for {BroadcasterId}.",
+                entry.TrackName,
+                provider.Provider,
+                broadcasterId
+            );
+            return false;
         }
     }
 
