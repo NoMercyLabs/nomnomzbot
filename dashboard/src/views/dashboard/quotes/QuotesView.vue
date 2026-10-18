@@ -22,6 +22,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
@@ -38,6 +39,7 @@ const pageSize = 50;
 
 const { t, n, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const search = ref('');
 const typed = refDebounced(search, 300);
@@ -125,7 +127,8 @@ function loadMore(): void {
 <template>
   <PageHeader :title="t('dashboard.quotes.title')">
     <template #actions>
-      <Button type="button"
+      <Button v-if="can('quotes:read')"
+              type="button"
               variant="outline"
               size="sm"
               data-quote-random
@@ -135,7 +138,12 @@ function loadMore(): void {
         <Dices aria-hidden="true" />
         {{ t("dashboard.quotes.random") }}
       </Button>
-      <Button type="button" size="sm" data-quote-new @click="openDialog(null)">
+      <Button v-if="can('quotes:write')"
+              type="button"
+              size="sm"
+              data-quote-new
+              @click="openDialog(null)"
+      >
         <Plus aria-hidden="true" />
         {{ t("dashboard.quotes.new") }}
       </Button>
@@ -177,6 +185,7 @@ function loadMore(): void {
           </div>
           <div class="flex items-center gap-1">
             <Button
+              v-if="can('quotes:write')"
               variant="ghost"
               size="icon"
               data-quote-edit
@@ -187,6 +196,7 @@ function loadMore(): void {
               <Edit class="size-5" />
             </Button>
             <Button
+              v-if="can('quotes:delete')"
               variant="ghost"
               size="icon"
               data-quote-delete

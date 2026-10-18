@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardQuotesRoute = {
   path: 'quotes',
   name: 'dashboard-quotes',
+  meta: { action: 'quotes:read' },
   component: () =>
     loadPage(
       () => import('./QuotesView.vue'),

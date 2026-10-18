@@ -94,10 +94,20 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
+const held = vi.hoisted(() => ({ keys: null as Set<string> | null }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string) => held.keys === null || held.keys.has(key),
+  }),
+}));
+
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   localStorage.clear();
+  held.keys = null;
   calls.length = 0;
   bodies.length = 0;
   searches.length = 0;
@@ -270,5 +280,17 @@ describe('QuotesView', () => {
     await settle();
 
     expect(document.querySelector('[data-random-quote]')?.textContent).toContain('Pick me');
+  });
+
+  it('shows a reader the quotes but no add, edit or delete button', async () => {
+    held.keys = new Set(['quotes:read']);
+    await open();
+
+    expect(document.querySelectorAll('[data-quote-row]').length).toBeGreaterThan(0);
+    expect(document.querySelector('[data-quote-random]')).not.toBeNull();
+
+    for (const selector of ['[data-quote-new]', '[data-quote-edit]', '[data-quote-delete]']) {
+      expect(document.querySelector(selector), selector).toBeNull();
+    }
   });
 });

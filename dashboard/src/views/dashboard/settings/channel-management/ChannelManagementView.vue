@@ -226,7 +226,12 @@ async function restoreChannel(): Promise<void> {
           <p class="min-w-0 flex-1 text-sm text-muted-foreground">
             {{ $t('dashboard.settings.channelManagement.reset.help') }}
           </p>
-          <Button data-reset variant="outline" :disabled="busy" @click="askReset">
+          <Button v-if="can('setup:write')"
+                  data-reset
+                  variant="outline"
+                  :disabled="busy"
+                  @click="askReset"
+          >
             {{ $t('dashboard.settings.channelManagement.reset.action') }}
           </Button>
         </div>

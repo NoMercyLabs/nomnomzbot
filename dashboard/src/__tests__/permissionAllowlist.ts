@@ -47,6 +47,7 @@ export const permissionAllowlist: readonly AllowlistGroup[] = [
       'pipelines/components/StepPicker.vue': 1,
       'scripts/components/FailedRunDialog.vue': 1,
       'settings/ReadabilityView.vue': 1,
+      'quotes/QuotesView.vue': 1,
       'settings/event-journal/components/JournalListPanel.vue': 3,
       'settings/api-devices/components/SecretDialog.vue': 2,
       'settings/custom-event-feeds/components/EventFeedRow.vue': 1,

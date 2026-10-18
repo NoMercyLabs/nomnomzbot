@@ -17,7 +17,7 @@ import { useI18n } from 'vue-i18n';
 import { useCurrentUser } from '@/api/auth';
 import { useSaveQuote, type Quote } from '@/api/quotes';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -85,22 +85,24 @@ async function submit(): Promise<void> {
     @submit="submit"
   >
     <Field>
-      <FieldLabel for="quote-text">{{ $t("dashboard.quotes.dialog.text") }}</FieldLabel>
+      <div class="flex items-center gap-1.5">
+        <FieldLabel for="quote-text">{{ $t("dashboard.quotes.dialog.text") }}</FieldLabel>
+        <FieldInfo>{{ $t("dashboard.quotes.dialog.textHelp", { max: maxQuoteLength }) }}</FieldInfo>
+      </div>
       <Textarea id="quote-text"
                 v-model="form.text"
                 data-quote-text
                 rows="3"
                 :maxlength="maxQuoteLength"
       />
-      <FieldDescription>{{
-        $t("dashboard.quotes.dialog.textHelp", { max: maxQuoteLength })
-      }}</FieldDescription>
     </Field>
     <div class="grid grid-cols-2 gap-3">
       <Field>
-        <FieldLabel for="quote-said-by">{{ $t("dashboard.quotes.dialog.saidBy") }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="quote-said-by">{{ $t("dashboard.quotes.dialog.saidBy") }}</FieldLabel>
+          <FieldInfo>{{ $t("dashboard.quotes.dialog.saidByHelp") }}</FieldInfo>
+        </div>
         <Input id="quote-said-by" v-model="form.quotedDisplayName" data-quote-said-by autocomplete="off" />
-        <FieldDescription>{{ $t("dashboard.quotes.dialog.saidByHelp") }}</FieldDescription>
       </Field>
       <Field>
         <FieldLabel for="quote-game">{{ $t("dashboard.quotes.dialog.game") }}</FieldLabel>
@@ -108,9 +110,11 @@ async function submit(): Promise<void> {
       </Field>
     </div>
     <Field>
-      <FieldLabel for="quote-said-at">{{ $t("dashboard.quotes.dialog.saidAt") }}</FieldLabel>
+      <div class="flex items-center gap-1.5">
+        <FieldLabel for="quote-said-at">{{ $t("dashboard.quotes.dialog.saidAt") }}</FieldLabel>
+        <FieldInfo>{{ $t("dashboard.quotes.dialog.saidAtHelp") }}</FieldInfo>
+      </div>
       <Input id="quote-said-at" v-model="form.quotedAt" data-quote-said-at type="datetime-local" />
-      <FieldDescription>{{ $t("dashboard.quotes.dialog.saidAtHelp") }}</FieldDescription>
     </Field>
   </FormDialog>
 </template>
