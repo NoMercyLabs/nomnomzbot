@@ -139,6 +139,15 @@ export type AdminDataRequestsPayload = {
   erasureRequestId: string;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveEventReplayChanged (AdminEventReplayBroadcastHandler). A replay of journal
+// events into one projection finished for one channel; processedCount is how many events it applied.
+export type AdminEventReplayPayload = {
+  broadcasterId: string;
+  projectionName: string;
+  status: string;
+  processedCount: number;
+};
+
 // Hubs/Clients/IAdminClient.cs: ReceiveBillingChanged (AdminBillingBroadcastHandler). An operator changed a tier, an
 // invite code, a grant, an invoice or a priced unit; area names which, targetBroadcasterId the channel it touched.
 export type AdminBillingPayload = {

@@ -17,6 +17,7 @@ import { channelVariants } from './channelRoutes';
 import {
   dashboardAdminAccessRoute,
   dashboardAdminDataRequestsRoute,
+  dashboardAdminEventReplayRoute,
   dashboardAdminAuditRoute,
   dashboardAdminChannelsRoute,
   dashboardAdminEventSubHealthRoute,
@@ -107,6 +108,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardAdminBillingRoute,
   dashboardAdminAccessRoute,
   dashboardAdminDataRequestsRoute,
+  dashboardAdminEventReplayRoute,
   dashboardAdminTrustSafetyRoute,
   dashboardAdminTenantUsageRoute,
   dashboardAdminErrorBudgetRoute,

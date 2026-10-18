@@ -22,6 +22,7 @@ import { accessPrefix } from '@/api/adminAccess';
 import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { contentPrefix } from '@/api/adminContent';
 import { dataRequestsPrefix } from '@/api/adminDataRequests';
+import { eventReplayPrefix } from '@/api/adminEventReplay';
 import { platformBotPrefix } from '@/api/adminPlatformBot';
 import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
@@ -33,6 +34,7 @@ import type {
   AdminChannelRegistryPayload,
   AdminContentPayload,
   AdminDataRequestsPayload,
+  AdminEventReplayPayload,
   AdminErrorBudgetPayload,
   AdminPlatformBotPayload,
   AdminSystemStatusPayload,
@@ -103,6 +105,7 @@ export const adminHandlers: [
   HubEventHandler<AdminContentPayload>,
   HubEventHandler<AdminAccessPayload>,
   HubEventHandler<AdminDataRequestsPayload>,
+  HubEventHandler<AdminEventReplayPayload>,
   HubEventHandler<AdminBillingPayload>,
   HubEventHandler<AdminPlatformBotPayload>,
   HubEventHandler<AdminAuditPayload>,
@@ -150,6 +153,13 @@ export const adminHandlers: [
     event: 'ReceiveDataRequestsChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: dataRequestsPrefix });
+    },
+  },
+  {
+    // A replay finished: the list of executed replays reloads.
+    event: 'ReceiveEventReplayChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: eventReplayPrefix });
     },
   },
   {

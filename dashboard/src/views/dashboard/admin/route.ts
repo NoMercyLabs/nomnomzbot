@@ -167,6 +167,18 @@ export const dashboardAdminDataRequestsRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
+export const dashboardAdminEventReplayRoute = {
+  path: 'admin/event-replay',
+  name: 'dashboard-admin-event-replay',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminEventReplayView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
 export const dashboardAdminTrustSafetyRoute = {
   path: 'admin/trust-safety',
   name: 'dashboard-admin-trust-safety',

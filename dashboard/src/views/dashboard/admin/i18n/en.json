@@ -772,6 +772,41 @@
           "error": "The count could not load, so the retry is blocked."
         }
       },
+      "eventReplay": {
+        "title": "Event replay",
+        "failed": "The replay failed. Nothing was changed.",
+        "done": "Replayed {count} events into {projection}.",
+        "scope": {
+          "title": "Scope",
+          "description": "Choose the channel, the projection and the events to replay. Count the events first.",
+          "channel": "Channel",
+          "projection": "Projection",
+          "eventType": "Event type",
+          "allTypes": "All event types",
+          "choose": "Choose...",
+          "from": "From",
+          "to": "To"
+        },
+        "preview": {
+          "action": "Count events",
+          "count": "{count} events match this scope.",
+          "failed": "The events could not be counted."
+        },
+        "replay": {
+          "action": "Replay"
+        },
+        "confirm": {
+          "title": "Replay events",
+          "action": "Replay events",
+          "consequence": "This replays {count} events into {projection} for {channel}, from {from} to {to}. The projection rows in this scope are rebuilt."
+        },
+        "history": {
+          "title": "Replay history",
+          "description": "Earlier replays from the audit log. A replay by another operator appears by itself.",
+          "empty": "No replay has run yet.",
+          "error": "The replay history could not load."
+        }
+      },
       "access": {
         "title": "Access",
         "hideInactive": "Hide inactive principals",

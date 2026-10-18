@@ -772,6 +772,41 @@
           "error": "De telling kon niet laden, dus opnieuw proberen is geblokkeerd."
         }
       },
+      "eventReplay": {
+        "title": "Events opnieuw afspelen",
+        "failed": "Het opnieuw afspelen is mislukt. Er is niets gewijzigd.",
+        "done": "{count} events opnieuw afgespeeld in {projection}.",
+        "scope": {
+          "title": "Bereik",
+          "description": "Kies het kanaal, de projectie en de events om opnieuw af te spelen. Tel eerst de events.",
+          "channel": "Kanaal",
+          "projection": "Projectie",
+          "eventType": "Eventtype",
+          "allTypes": "Alle eventtypes",
+          "choose": "Kies...",
+          "from": "Van",
+          "to": "Tot"
+        },
+        "preview": {
+          "action": "Events tellen",
+          "count": "{count} events passen bij dit bereik.",
+          "failed": "De events konden niet geteld worden."
+        },
+        "replay": {
+          "action": "Opnieuw afspelen"
+        },
+        "confirm": {
+          "title": "Events opnieuw afspelen",
+          "action": "Events opnieuw afspelen",
+          "consequence": "Dit speelt {count} events opnieuw af in {projection} voor {channel}, van {from} tot {to}. De projectierijen in dit bereik worden opnieuw opgebouwd."
+        },
+        "history": {
+          "title": "Afspeelgeschiedenis",
+          "description": "Eerdere herhalingen uit het auditlog. Een herhaling door een andere operator verschijnt vanzelf.",
+          "empty": "Er is nog niets opnieuw afgespeeld.",
+          "error": "De afspeelgeschiedenis kon niet laden."
+        }
+      },
       "access": {
         "title": "Toegang",
         "hideInactive": "Verberg inactieve principals",
