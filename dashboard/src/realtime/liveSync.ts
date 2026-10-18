@@ -32,6 +32,7 @@ import { rewardsKey } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
 import { vtsConnectionKey, vtsInventoryKey } from '@/api/vts';
 import { widgetsKey } from '@/api/widgets';
+import { consentsKey, dataRequestsKey } from '@/api/yourData';
 import { merge } from '@/lib/array';
 
 import { channelPrefixes, configDomainKeys } from './configDomains';
@@ -93,6 +94,7 @@ const eventHandlers = [
   refreshing('ObsBridgeStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('CustomDataSourceChanged', [eventFeedsKey]),
+  refreshing('DataRightsChanged', [dataRequestsKey, consentsKey]),
   refreshing('FederationOptInChanged', [federationOptInsKey]),
   refreshing('VtsStatusChanged', [connectionsKey, botStatusKey, vtsConnectionKey, vtsInventoryKey]),
 ] as const;

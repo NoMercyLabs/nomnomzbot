@@ -1,0 +1,87 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "yourData": {
+        "export": {
+          "title": "Download your data",
+          "description": "Get one file with everything the bot holds about you, in a format a computer can read.",
+          "action": "Download my data",
+          "result": "Saved {rows} records, {size} bytes."
+        },
+        "consents": {
+          "title": "Your consents",
+          "description": "What you agreed to. Turn one off to withdraw it. It stays listed, so you can agree again.",
+          "empty": "You have not given any consent yet.",
+          "loadFailed": "Your consents could not be loaded.",
+          "basis": "Legal basis: {basis}",
+          "type": {
+            "tos_privacy": "Terms of service and privacy policy",
+            "age_18_gambling": "I am 18 or older (gambling features)",
+            "pronoun_special_category": "Show my pronouns",
+            "leaderboard_opt_in": "Appear on leaderboards",
+            "marketing": "Product news and marketing"
+          }
+        },
+        "requests": {
+          "title": "Your requests",
+          "description": "Every export, erasure and opt-out you asked for, newest first.",
+          "empty": "You have not made a request yet.",
+          "loadFailed": "Your requests could not be loaded.",
+          "meta": "{date} · {scope}",
+          "type": {
+            "erasure": "Erase my data",
+            "export": "Download my data",
+            "opt_out": "Opt out of processing",
+            "consent_change": "Consent change"
+          },
+          "scope": {
+            "deployment": "Whole deployment",
+            "instance": "This instance",
+            "channel": "One channel"
+          },
+          "status": {
+            "pending": "Waiting",
+            "in_progress": "Running",
+            "completed": "Done",
+            "failed": "Failed"
+          }
+        },
+        "optOut": {
+          "title": "Opt out of extra processing",
+          "description": "Stops marketing, leaderboards and analytics use of your data. Your data stays.",
+          "action": "Opt out",
+          "confirmTitle": "Opt out of extra processing?",
+          "confirmDescription": "The bot stops using your data for marketing, leaderboards and analytics. Nothing is deleted.",
+          "confirmAction": "Opt out",
+          "requested": "Your opt-out is saved."
+        },
+        "erase": {
+          "title": "Erase your data",
+          "description": "Erasing cannot be undone.",
+          "rowTitle": "Erase all my data",
+          "rowDescription": "Destroys your personal data and ends your sign-in. The bot counts what it would destroy before it asks you.",
+          "action": "Erase my data",
+          "confirmTitle": "Erase all your data?",
+          "confirmDescription": "This cannot be undone. The bot destroys the data below and signs you out.",
+          "confirmAction": "Erase my data",
+          "line": "{count} {what}",
+          "nothing": "The bot holds nothing to destroy.",
+          "requested": "Your erasure is requested. It shows under your requests.",
+          "category": {
+            "gdpr_erasure_category_profile": "profile",
+            "gdpr_erasure_category_chat_messages": "chat messages",
+            "gdpr_erasure_category_records": "records",
+            "gdpr_erasure_category_viewer_data": "viewer data rows",
+            "gdpr_erasure_category_services": "service accounts",
+            "gdpr_erasure_category_connections": "connections",
+            "gdpr_erasure_category_refresh_tokens": "sign-in tokens",
+            "gdpr_erasure_category_sessions": "sessions",
+            "gdpr_erasure_category_consents": "consents",
+            "gdpr_erasure_category_keys": "encryption keys"
+          }
+        }
+      }
+    }
+  }
+}

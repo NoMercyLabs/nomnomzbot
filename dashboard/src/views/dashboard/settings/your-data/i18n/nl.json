@@ -1,0 +1,87 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Instellen",
+      "yourData": {
+        "export": {
+          "title": "Download je gegevens",
+          "description": "Krijg een bestand met alles wat de bot over je bewaart, in een formaat dat een computer kan lezen.",
+          "action": "Download mijn gegevens",
+          "result": "{rows} records opgeslagen, {size} bytes."
+        },
+        "consents": {
+          "title": "Je toestemmingen",
+          "description": "Waar je mee akkoord ging. Zet er een uit om hem in te trekken. Hij blijft in de lijst, dus je kunt opnieuw akkoord gaan.",
+          "empty": "Je hebt nog geen toestemming gegeven.",
+          "loadFailed": "Je toestemmingen konden niet worden geladen.",
+          "basis": "Rechtsgrond: {basis}",
+          "type": {
+            "tos_privacy": "Gebruiksvoorwaarden en privacybeleid",
+            "age_18_gambling": "Ik ben 18 of ouder (gokfuncties)",
+            "pronoun_special_category": "Mijn voornaamwoorden tonen",
+            "leaderboard_opt_in": "In ranglijsten verschijnen",
+            "marketing": "Productnieuws en marketing"
+          }
+        },
+        "requests": {
+          "title": "Je verzoeken",
+          "description": "Elke export, verwijdering en afmelding die je vroeg, nieuwste eerst.",
+          "empty": "Je hebt nog geen verzoek gedaan.",
+          "loadFailed": "Je verzoeken konden niet worden geladen.",
+          "meta": "{date} · {scope}",
+          "type": {
+            "erasure": "Mijn gegevens wissen",
+            "export": "Mijn gegevens downloaden",
+            "opt_out": "Afmelden voor verwerking",
+            "consent_change": "Toestemming gewijzigd"
+          },
+          "scope": {
+            "deployment": "Hele installatie",
+            "instance": "Deze instantie",
+            "channel": "Eén kanaal"
+          },
+          "status": {
+            "pending": "Wachtend",
+            "in_progress": "Bezig",
+            "completed": "Klaar",
+            "failed": "Mislukt"
+          }
+        },
+        "optOut": {
+          "title": "Afmelden voor extra verwerking",
+          "description": "Stopt het gebruik van je gegevens voor marketing, ranglijsten en statistieken. Je gegevens blijven bewaard.",
+          "action": "Afmelden",
+          "confirmTitle": "Afmelden voor extra verwerking?",
+          "confirmDescription": "De bot stopt met het gebruik van je gegevens voor marketing, ranglijsten en statistieken. Er wordt niets gewist.",
+          "confirmAction": "Afmelden",
+          "requested": "Je afmelding is opgeslagen."
+        },
+        "erase": {
+          "title": "Wis je gegevens",
+          "description": "Wissen kan niet ongedaan worden gemaakt.",
+          "rowTitle": "Wis al mijn gegevens",
+          "rowDescription": "Vernietigt je persoonsgegevens en beëindigt je aanmelding. De bot telt wat hij zou vernietigen voordat hij het vraagt.",
+          "action": "Wis mijn gegevens",
+          "confirmTitle": "Al je gegevens wissen?",
+          "confirmDescription": "Dit kan niet ongedaan worden gemaakt. De bot vernietigt de gegevens hieronder en meldt je af.",
+          "confirmAction": "Wis mijn gegevens",
+          "line": "{count} {what}",
+          "nothing": "De bot bewaart niets om te vernietigen.",
+          "requested": "Je wisverzoek is gedaan. Het staat onder je verzoeken.",
+          "category": {
+            "gdpr_erasure_category_profile": "profiel",
+            "gdpr_erasure_category_chat_messages": "chatberichten",
+            "gdpr_erasure_category_records": "records",
+            "gdpr_erasure_category_viewer_data": "kijkergegevens",
+            "gdpr_erasure_category_services": "serviceaccounts",
+            "gdpr_erasure_category_connections": "koppelingen",
+            "gdpr_erasure_category_refresh_tokens": "aanmeldtokens",
+            "gdpr_erasure_category_sessions": "sessies",
+            "gdpr_erasure_category_consents": "toestemmingen",
+            "gdpr_erasure_category_keys": "versleutelingssleutels"
+          }
+        }
+      }
+    }
+  }
+}

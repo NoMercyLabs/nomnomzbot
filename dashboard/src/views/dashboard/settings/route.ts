@@ -22,6 +22,7 @@ import { settingsFederationRoute } from './federation/route';
 import { settingsIntegrationsRoute } from './integrations/route';
 import { settingsPermissionsRoute } from './permissions/route';
 import { settingsResourceLimitsRoute } from './resource-limits/route';
+import { settingsYourDataRoute } from './your-data/route';
 import { settingsWhiteLabelBotRoute } from './white-label-bot/route';
 
 const settingsPage = () =>
@@ -92,6 +93,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsResourceLimitsRoute,
   settingsBillingRoute,
   settingsCustomEventFeedsRoute,
+  settingsYourDataRoute,
   settingsFederationRoute,
   settingsPermissionsRoute,
 ];

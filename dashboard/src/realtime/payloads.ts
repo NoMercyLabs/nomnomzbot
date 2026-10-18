@@ -339,6 +339,11 @@ export type FederationOptInChangedPayload = {
   isEnabled: boolean;
 };
 
+// DataRightsBroadcastHandler.cs: DataRightsChangedAlertDto. Change names what happened: requested, completed, failed, exported or consent.
+export type DataRightsChangedPayload = {
+  change: string;
+};
+
 // HubResponseDtos.cs: VtsStatusDto
 export type VtsStatusPayload = {
   broadcasterId: string;
@@ -369,5 +374,6 @@ export type DashboardHubEvents = {
   sr_queue_changed: SrQueueChangedPayload;
   VtsStatusChanged: VtsStatusPayload;
   CustomDataSourceChanged: CustomDataSourceChangedPayload;
+  DataRightsChanged: DataRightsChangedPayload;
   FederationOptInChanged: FederationOptInChangedPayload;
 };
