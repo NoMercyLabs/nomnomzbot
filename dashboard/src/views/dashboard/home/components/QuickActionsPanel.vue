@@ -34,6 +34,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import BarChart from '~icons/nnz/bar-chart';
 import Megaphone from '~icons/nnz/megaphone';
@@ -54,6 +55,7 @@ type Running = {
 const { t } = useI18n();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const adQuery = useAdSchedule(channelId);
 const snooze = useSnoozeAd(channelId);
@@ -186,7 +188,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
 <template>
   <PanelCard :title="t('dashboard.home.quick.title')">
     <RowGroup>
-      <div data-quick-row="ad">
+      <div v-if="can('live-ops:ads:read')" data-quick-row="ad">
         <Skeleton v-if="adQuery.isPending.value" class="h-11 rounded-[8px]" />
         <SummaryRow
           v-else-if="adQuery.isError.value"
@@ -212,8 +214,9 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
               />
             </span>
           </template>
-          <template #trailing>
+          <template v-if="can('live-ops:ads:write')" #trailing>
             <Button
+              data-snooze-ad
               variant="outline"
               size="sm"
               :disabled="snoozesLeft <= 0 || snooze.isPending.value"
@@ -250,7 +253,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
         </SummaryRow>
       </div>
 
-      <div data-quick-row="timers">
+      <div v-if="can('timers:read')" data-quick-row="timers">
         <Skeleton v-if="timersQuery.isPending.value" class="h-11 rounded-[8px]" />
         <SummaryRow
           v-else-if="timersQuery.isError.value"
@@ -285,7 +288,10 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
         </SummaryRow>
       </div>
 
-      <div data-quick-row="poll">
+      <div
+        v-if="can('live-ops:polls:read') || can('live-ops:predictions:read')"
+        data-quick-row="poll"
+      >
         <Skeleton v-if="pollsPending" class="h-11 rounded-[8px]" />
         <SummaryRow
           v-else-if="running !== null"
@@ -327,17 +333,29 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
         >
           <template #leading><BarChart class="size-5 text-muted-foreground" /></template>
           <template v-if="!pollsFailed" #trailing>
-            <Button variant="outline" size="sm" @click="pollOpen = true">
+            <Button
+              v-if="can('live-ops:polls:write')"
+              data-start-poll
+              variant="outline"
+              size="sm"
+              @click="pollOpen = true"
+            >
               {{ t('dashboard.home.quick.pollStart') }}
             </Button>
-            <Button variant="outline" size="sm" @click="predictionOpen = true">
+            <Button
+              v-if="can('live-ops:predictions:write')"
+              data-start-prediction
+              variant="outline"
+              size="sm"
+              @click="predictionOpen = true"
+            >
               {{ t('dashboard.home.quick.predictionStart') }}
             </Button>
           </template>
         </SummaryRow>
       </div>
     </RowGroup>
-    <ShoutoutSuggestions :channel-id="channelId" />
+    <ShoutoutSuggestions v-if="can('moderation:shoutout')" :channel-id="channelId" />
     <TimersDialog v-model:open="timersOpen" :timers="allTimers" />
     <PollDialog v-model:open="pollOpen" :poll="dialogPoll" @new-poll="shownPollId = null" />
     <PredictionDialog v-model:open="predictionOpen" :prediction="runningPrediction" />

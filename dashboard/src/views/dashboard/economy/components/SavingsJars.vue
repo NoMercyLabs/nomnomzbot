@@ -23,6 +23,7 @@ import {
 } from '@/api/economy';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -110,16 +111,17 @@ async function confirmDelete(): Promise<void> {
           class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
         >
           <Switch
+            v-if="can('economy:jars:update')"
             :model-value="row.isOpen"
-            :disabled="!can('economy:jars:update')"
             :aria-label="$t('dashboard.economy.jars.toggle', { name: row.name })"
             @update:model-value="toggle(row)"
           />
+          <EnabledState v-else :enabled="row.isOpen" />
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-medium wrap-break-word">{{ row.name }}</span>
             <span class="block text-xs text-muted-foreground">{{ detailOf(row) }}</span>
           </span>
-          <StatusBadge v-if="!row.isOpen" tone="off" :label="$t('dashboard.economy.jars.closed')" />
+          <StatusBadge v-if="!row.isOpen && can('economy:jars:update')" tone="off" :label="$t('dashboard.economy.jars.closed')" />
           <Button
             v-if="can('economy:jars:invite')"
             data-jar-invite

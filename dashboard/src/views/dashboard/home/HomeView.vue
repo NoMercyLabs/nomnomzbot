@@ -27,6 +27,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useProviderName } from '@/composables/useProviderName';
 import { formatDuration } from '@/views/dashboard/stream/formatDuration';
@@ -40,6 +41,7 @@ import ReviewQueuePanel from './components/ReviewQueuePanel.vue';
 const { t, locale } = useI18n();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const platformName = useProviderName();
 
 const statsQuery = useHomeStats(channelId);
@@ -127,7 +129,16 @@ const primaryRoute = computed<{ name: string; label: string } | null>(() => {
     : null;
 });
 
-const panels = computed(() => [
+// Each panel shows only to a person who holds the key its data is read with.
+const panelKeys = {
+  queue: 'moderation:queue:read',
+  attention: 'dashboard:read',
+  connections: 'integration:read',
+  quick: 'dashboard:read',
+  happening: 'dashboard:read',
+} as const satisfies Record<string, string>;
+
+const allPanels = computed(() => [
   { id: 'queue', label: t('dashboard.home.queue.title') },
   { id: 'attention', label: t('dashboard.home.attention.title') },
   { id: 'connections', label: t('dashboard.home.connections.title') },
@@ -139,6 +150,8 @@ const panels = computed(() => [
       : t('dashboard.home.activity.offline'),
   },
 ] as const satisfies readonly BoardPanel[]);
+
+const panels = computed(() => allPanels.value.filter((panel) => can(panelKeys[panel.id])));
 </script>
 
 <template>
@@ -171,23 +184,23 @@ const panels = computed(() => [
   </PageHeader>
 
   <BoardGrid :panels="panels" :rows="2">
-    <BoardCell panel="queue" :span="5">
+    <BoardCell v-if="can(panelKeys.queue)" panel="queue" :span="5">
       <ReviewQueuePanel :live="live" />
     </BoardCell>
 
-    <BoardCell panel="attention" :span="4">
+    <BoardCell v-if="can(panelKeys.attention)" panel="attention" :span="4">
       <NeedsAttentionPanel />
     </BoardCell>
 
-    <BoardCell panel="connections" :span="3" :rows="2">
+    <BoardCell v-if="can(panelKeys.connections)" panel="connections" :span="3" :rows="2">
       <ConnectionsPanel />
     </BoardCell>
 
-    <BoardCell panel="quick" :span="5">
+    <BoardCell v-if="can(panelKeys.quick)" panel="quick" :span="5">
       <QuickActionsPanel />
     </BoardCell>
 
-    <BoardCell panel="happening" :span="4">
+    <BoardCell v-if="can(panelKeys.happening)" panel="happening" :span="4">
       <HappeningPanel :live="live" />
     </BoardCell>
   </BoardGrid>

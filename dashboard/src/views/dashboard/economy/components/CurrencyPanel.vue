@@ -107,7 +107,7 @@ async function submit(): Promise<void> {
   >
     <form class="flex flex-col gap-4" data-currency-form @submit.prevent="submit">
       <SettingRow
-        :disabled="!can('economy:config:write')"
+        :readonly="!can('economy:config:write')"
         v-model="enabled"
         :title="$t('dashboard.economy.currency.enabled')"
         :description="$t('dashboard.economy.currency.enabledHelp')"

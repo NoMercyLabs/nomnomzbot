@@ -10,19 +10,24 @@
 <script setup lang="ts">
 // A setting: title and help on the left, a Switch on the right. The whole row is one label,
 // so a press anywhere on it toggles the switch. Radius 8 fits a RowGroup (12 - 4).
+// A readonly row (the person may see the setting, not change it) shows the state as a badge.
 import { useId } from 'vue';
 
 import { Switch } from '@/components/ui/switch';
+
+import EnabledState from './EnabledState.vue';
 
 withDefaults(
   defineProps<{
     title: string;
     description?: string;
     disabled?: boolean;
+    readonly?: boolean;
   }>(),
   {
     description: undefined,
     disabled: false,
+    readonly: false,
   },
 );
 
@@ -31,7 +36,19 @@ const titleId = useId();
 </script>
 
 <template>
+  <div
+    v-if="readonly"
+    data-slot="setting-row"
+    class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+  >
+    <span class="min-w-0 flex-1">
+      <span :id="titleId" class="block text-sm font-medium wrap-break-word">{{ title }}</span>
+      <span v-if="description" class="block text-sm text-muted-foreground">{{ description }}</span>
+    </span>
+    <EnabledState :enabled="checked" />
+  </div>
   <label
+    v-else
     data-slot="setting-row"
     class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
     :class="disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-foreground/5'"

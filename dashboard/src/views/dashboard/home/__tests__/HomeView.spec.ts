@@ -182,10 +182,24 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
+// The held action keys; null holds every key but replay (its tooltip needs the app's provider).
+const access = vi.hoisted(() => ({ held: null as string[] | null }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean =>
+      access.held === null
+        ? key !== 'dashboard:replay'
+        : access.held.includes(key),
+  }),
+}));
+
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  access.held = null;
   calls.length = 0;
 
   queue = [
@@ -276,6 +290,33 @@ const buttonIn = (root: HTMLElement, label: string): HTMLButtonElement =>
   ) as HTMLButtonElement;
 const resolves = (): Call[] =>
   calls.filter((call) => call.method === 'POST' && call.path.endsWith('/resolve'));
+
+describe('HomeView gating', () => {
+  it('shows only the panels whose read key is held, and no allow or deny without resolve', async () => {
+    access.held = ['dashboard:read', 'moderation:queue:read'];
+
+    await open();
+
+    expect(text()).toContain('Review queue');
+    expect(text()).not.toContain('Connections');
+    expect(rowOf('sample_viewer').querySelector('[data-queue-actions]')).toBeNull();
+  });
+
+  it('hides the review queue without its read key', async () => {
+    access.held = ['dashboard:read', 'integration:read'];
+
+    await open();
+
+    expect(text()).not.toContain('Review queue');
+    expect(text()).toContain('Connections');
+  });
+
+  it('shows allow and deny with the resolve key', async () => {
+    await open();
+
+    expect(rowOf('sample_viewer').querySelector('[data-queue-actions]')).not.toBeNull();
+  });
+});
 
 describe('HomeView', () => {
   it('shows a live stream: the live badge, the stream line and the held messages to review', async () => {

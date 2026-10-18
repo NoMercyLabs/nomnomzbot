@@ -186,9 +186,12 @@ describe('GamesView gating', () => {
     expect(document.querySelector('[data-cancel-game]')).toBeNull();
     expect(document.querySelector('[data-edit-game]')).toBeNull();
 
-    const toggle = button('[data-game-config="coinflip"] [role="switch"]');
+    const row = button('[data-game-config="coinflip"]');
+    const shown = row.querySelector('[data-slot="enabled-state"]');
 
-    expect(toggle.hasAttribute('disabled') || toggle.getAttribute('data-disabled') !== null).toBe(true);
+    expect(row.querySelector('[role="switch"]')).toBeNull();
+    expect(shown?.getAttribute('data-state')).toBe('off');
+    expect(shown?.textContent?.trim()).toBe('Off');
   });
 
   it('shows start, cancel and edit when their keys are held', async () => {

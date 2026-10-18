@@ -248,11 +248,22 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
+// The held action keys; null holds every key.
+const access = vi.hoisted(() => ({ held: null as string[] | null }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => access.held === null || access.held.includes(key),
+  }),
+}));
+
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 let router: Router;
 
 beforeEach(() => {
+  access.held = null;
   calls.length = 0;
   snoozeCount = 2;
   snoozeFails = false;
@@ -343,6 +354,39 @@ const buttonIn = (root: HTMLElement, label: string): HTMLElement =>
     (b) => b.textContent?.trim() === label,
   ) as HTMLElement;
 const posts = (): Call[] => calls.filter((call) => call.method === 'POST');
+
+describe('QuickActionsPanel gating', () => {
+  it('shows no ad, timer or poll row and no action without their keys', async () => {
+    access.held = [];
+
+    await open();
+
+    expect(document.querySelector('[data-quick-row="ad"]')).toBeNull();
+    expect(document.querySelector('[data-quick-row="timers"]')).toBeNull();
+    expect(document.querySelector('[data-quick-row="poll"]')).toBeNull();
+    expect(document.querySelector('[data-quick-row="music"]')).not.toBeNull();
+  });
+
+  it('shows the rows but no snooze or start buttons with only the read keys', async () => {
+    access.held = ['live-ops:ads:read', 'timers:read', 'live-ops:polls:read'];
+
+    await open();
+
+    expect(document.querySelector('[data-quick-row="ad"]')).not.toBeNull();
+    expect(document.querySelector('[data-snooze-ad]')).toBeNull();
+    expect(document.querySelector('[data-quick-row="poll"]')).not.toBeNull();
+    expect(document.querySelector('[data-start-poll]')).toBeNull();
+    expect(document.querySelector('[data-start-prediction]')).toBeNull();
+  });
+
+  it('shows snooze and the start buttons when the write keys are held', async () => {
+    await open();
+
+    expect(document.querySelector('[data-snooze-ad]')).not.toBeNull();
+    expect(document.querySelector('[data-start-poll]')).not.toBeNull();
+    expect(document.querySelector('[data-start-prediction]')).not.toBeNull();
+  });
+});
 
 describe('QuickActionsPanel', () => {
   it('shows each row with the values the server gave', async () => {

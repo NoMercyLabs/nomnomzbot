@@ -21,6 +21,7 @@ import {
   type CatalogItem,
 } from '@/api/economy';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -96,11 +97,12 @@ async function confirmDelete(): Promise<void> {
           class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
         >
           <Switch
+            v-if="can('economy:catalog:update')"
             :model-value="row.isEnabled"
-            :disabled="!can('economy:catalog:update')"
             :aria-label="$t('dashboard.economy.catalog.toggle', { name: row.name })"
             @update:model-value="toggle(row)"
           />
+          <EnabledState v-else :enabled="row.isEnabled" />
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-medium wrap-break-word">{{ row.name }}</span>
             <span class="block text-xs text-muted-foreground">{{

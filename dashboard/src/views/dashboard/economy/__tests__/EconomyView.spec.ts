@@ -301,7 +301,54 @@ describe('Economy page gating', () => {
     expect(buttonByText(en.dashboard.economy.rules.new)).toBeUndefined();
     expect(present('[data-rule-edit]')).toBe(false);
     expect(present('[data-rule-delete]')).toBe(false);
-    expect(document.body.querySelector<HTMLButtonElement>('[role="switch"]')?.disabled).toBe(true);
+    expect(present('[data-rule-row] [role="switch"]')).toBe(false);
+    expect(present('[data-rule-row] [data-slot="enabled-state"]')).toBe(true);
+  });
+
+  it('shows the jar, catalog and currency state as a badge instead of a switch without write', async () => {
+    access.held = ['economy:jars:read', 'economy:catalog:read', 'economy:config:read'];
+
+    catalog = [{
+      id: 'i1',
+      name: 'Hat',
+      cost: 5,
+      isEnabled: true,
+    }];
+
+    await open('jars');
+
+    expect(present('[data-jar-row] [role="switch"]')).toBe(false);
+    expect(present('[data-jar-row] [data-slot="enabled-state"]')).toBe(true);
+
+    await open('catalog');
+
+    const itemState = document.body.querySelector('[data-catalog-row] [data-slot="enabled-state"]');
+
+    expect(present('[data-catalog-row] [role="switch"]')).toBe(false);
+    expect(itemState?.getAttribute('data-state')).toBe('on');
+
+    await open('currency');
+
+    expect(present('[data-currency-form] [role="switch"]')).toBe(false);
+    expect(present('[data-currency-form] [data-slot="enabled-state"]')).toBe(true);
+  });
+
+  it('shows the switches when the write keys are held', async () => {
+    catalog = [{
+      id: 'i1',
+      name: 'Hat',
+      cost: 5,
+      isEnabled: true,
+    }];
+
+    await open('catalog');
+
+    expect(present('[data-catalog-row] [role="switch"]')).toBe(true);
+    expect(present('[data-slot="enabled-state"]')).toBe(false);
+
+    await open('currency');
+
+    expect(present('[data-currency-form] [role="switch"]')).toBe(true);
   });
 
   it('hides the jar invite and delete actions without their keys', async () => {

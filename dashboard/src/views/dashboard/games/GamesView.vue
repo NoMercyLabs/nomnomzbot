@@ -209,7 +209,8 @@ function toggle(config: GameConfig, enabled: boolean): void {
             :model-value="config.isEnabled"
             :title="nameOf(config.gameType)"
             :description="config.requires18Plus ? t('dashboard.games.configs.age') : undefined"
-            :disabled="setEnabled.isPending.value || !can('economy:games:write')"
+            :disabled="setEnabled.isPending.value"
+            :readonly="!can('economy:games:write')"
             @update:model-value="toggle(config, $event)"
           />
           <Button

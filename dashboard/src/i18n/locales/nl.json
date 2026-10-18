@@ -23,6 +23,10 @@
     "copied": "Gekopieerd",
     "fieldInfo": "Meer over dit veld",
     "readOnly": "Je kunt dit bekijken, maar je rol kan het niet wijzigen.",
+    "state": {
+      "on": "Aan",
+      "off": "Uit"
+    },
     "shortcuts": {
       "title": "Sneltoetsen",
       "description": "De toetsen waar deze pagina op reageert. Druk nogmaals op ? om te sluiten.",

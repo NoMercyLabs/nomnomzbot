@@ -23,6 +23,10 @@
     "copied": "Copied",
     "fieldInfo": "More about this field",
     "readOnly": "You can view this, but your role cannot change it.",
+    "state": {
+      "on": "On",
+      "off": "Off"
+    },
     "shortcuts": {
       "title": "Keyboard shortcuts",
       "description": "The keys this page answers to. Press ? again to close.",

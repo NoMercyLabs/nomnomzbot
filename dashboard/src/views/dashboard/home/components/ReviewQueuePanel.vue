@@ -19,6 +19,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
 import { usePanelState } from '@/composables/usePanelState';
@@ -27,6 +28,7 @@ defineProps<{ live: boolean }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const queueQuery = useReviewQueue(channelId);
 const { data: shieldOn } = useShieldMode(channelId);
@@ -86,7 +88,7 @@ onBeforeUnmount(() => {
     @retry="queueQuery.refetch()"
   >
     <template #actions>
-      <StatusBadge v-if="shieldOn" tone="live" :label="t('dashboard.home.queue.shieldOn')" />
+      <StatusBadge v-if="shieldOn && can('moderation:shieldmode:read')" tone="live" :label="t('dashboard.home.queue.shieldOn')" />
       <span class="text-sm text-muted-foreground">
         {{ t('dashboard.home.queue.waiting', { count: queue.length }) }}
       </span>
@@ -94,8 +96,8 @@ onBeforeUnmount(() => {
     <RowGroup>
       <div v-for="item in queue" :key="item.id" data-queue-item>
         <SummaryRow :title="sender(item)" :detail="item.messageContentSnapshot ?? ''">
-          <template #trailing>
-            <div class="flex items-center gap-2">
+          <template v-if="can('moderation:queue:resolve')" #trailing>
+            <div data-queue-actions class="flex items-center gap-2">
               <Button variant="outline" size="sm" @click.stop="allow(item)">
                 {{ t('dashboard.home.queue.allow') }}
               </Button>

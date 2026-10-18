@@ -22,6 +22,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
@@ -43,6 +44,7 @@ const dotClass = {
 
 const { t } = useI18n();
 const { channelId, current } = useCurrentChannel();
+const { can } = useCan();
 const platformName = useProviderName();
 
 const connectionsQuery = useConnections(channelId);
@@ -148,7 +150,10 @@ function connectionLabel(connection: IntegrationStatus): string {
                 :class="dotClass[platformTone(provider)]"
               />
             </template>
-            <template v-if="!isConnected(provider) && scopeSetOf(provider)" #trailing>
+            <template
+              v-if="can('integration:write') && !isConnected(provider) && scopeSetOf(provider)"
+              #trailing
+            >
               <InlineFlow
                 kind="confirm"
                 right
