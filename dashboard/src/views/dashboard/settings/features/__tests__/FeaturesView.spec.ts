@@ -18,7 +18,7 @@ import { i18n } from '@/i18n';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 import { configDomainKeys } from '@/realtime/configDomains';
 
-import { settingsLaneARoutes } from '../../laneARoutes';
+import { dashboardSettingsRoutes } from '../../route';
 import en from '../i18n/en.json';
 import FeaturesView from '../FeaturesView.vue';
 
@@ -218,7 +218,7 @@ describe('Features page', () => {
 describe('Features route', () => {
   it('resolves the sidebar entry to the Features page and not a scaffold', () => {
     const entry = settingsNav.flatMap((group) => group.entries).find((item) => item.route === 'dashboard-settings-features');
-    const record = settingsLaneARoutes.find((route) => route.name === 'dashboard-settings-features');
+    const record = dashboardSettingsRoutes.find((route) => route.name === 'dashboard-settings-features');
 
     expect(entry).toBeDefined();
     expect(record?.path).toBe('settings/features');

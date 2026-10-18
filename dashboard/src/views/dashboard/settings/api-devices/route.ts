@@ -12,16 +12,13 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage } from '@/i18n';
 
-const apiDevicesRoute = {
+export const settingsApiDevicesRoute = {
   path: 'settings/api-devices',
   name: 'dashboard-settings-api-devices',
   meta: { navMode: 'settings' },
   component: () =>
     loadPage(
-      () => import('./api-devices/ApiDevicesView.vue'),
-      (locale) => import(`./api-devices/i18n/${locale}.json`),
+      () => import('./ApiDevicesView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
-
-// Settings pages of lane B: API and devices, Webhooks, Custom event feeds, Permissions, Event journal.
-export const settingsLaneBRoutes: RouteRecordRaw[] = [apiDevicesRoute];

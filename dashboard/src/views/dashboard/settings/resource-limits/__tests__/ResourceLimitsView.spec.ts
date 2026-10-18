@@ -17,7 +17,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { i18n } from '@/i18n';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
-import { settingsLaneCRoutes } from '../../laneCRoutes';
+import { dashboardSettingsRoutes } from '../../route';
 
 import en from '../i18n/en.json';
 import ResourceLimitsView from '../ResourceLimitsView.vue';
@@ -183,7 +183,7 @@ describe('Resource limits page', () => {
 describe('Resource limits route', () => {
   it('the sidebar entry resolves to the page and is not a coming-soon scaffold', () => {
     const entry = settingsNav.flatMap((group) => group.entries).find((item) => item.route === 'dashboard-settings-resource-limits');
-    const record = settingsLaneCRoutes.find((route) => route.name === 'dashboard-settings-resource-limits');
+    const record = dashboardSettingsRoutes.find((route) => route.name === 'dashboard-settings-resource-limits');
 
     expect(entry).toBeDefined();
     expect(record).toBeDefined();

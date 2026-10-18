@@ -12,16 +12,13 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage } from '@/i18n';
 
-const resourceLimitsRoute = {
+export const settingsResourceLimitsRoute = {
   path: 'settings/resource-limits',
   name: 'dashboard-settings-resource-limits',
   meta: { navMode: 'settings' },
   component: () =>
     loadPage(
-      () => import('./resource-limits/ResourceLimitsView.vue'),
-      (locale) => import(`./resource-limits/i18n/${locale}.json`),
+      () => import('./ResourceLimitsView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
-
-// Settings pages of lane C: Resource limits, Billing, Your data, Channel management.
-export const settingsLaneCRoutes: RouteRecordRaw[] = [resourceLimitsRoute];

@@ -14,9 +14,10 @@ import { loadPage } from '@/i18n';
 import { dashboardDiscordRoute } from '@/views/dashboard/discord/route';
 import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
 
-import { settingsLaneARoutes } from './laneARoutes';
-import { settingsLaneBRoutes } from './laneBRoutes';
-import { settingsLaneCRoutes } from './laneCRoutes';
+import { settingsApiDevicesRoute } from './api-devices/route';
+import { settingsFeaturesRoute } from './features/route';
+import { settingsResourceLimitsRoute } from './resource-limits/route';
+import { settingsWhiteLabelBotRoute } from './white-label-bot/route';
 
 const settingsPage = () =>
   loadPage(
@@ -79,7 +80,8 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   engagementTriggersRoute,
   discordRoute,
   supporterSourcesRoute,
-  ...settingsLaneARoutes,
-  ...settingsLaneBRoutes,
-  ...settingsLaneCRoutes,
+  settingsWhiteLabelBotRoute,
+  settingsFeaturesRoute,
+  settingsApiDevicesRoute,
+  settingsResourceLimitsRoute,
 ];
