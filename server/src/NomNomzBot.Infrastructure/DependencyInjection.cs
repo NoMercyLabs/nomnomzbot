@@ -1090,6 +1090,7 @@ public static class DependencyInjection
         // these are NOT per-request scoped, so the convention scan excludes their interfaces.
         services.AddSingleton<ICooldownManager, CooldownManager>();
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
+        services.AddScoped<ITemplateSampleRenderer, TemplateSampleRenderer>();
         services.AddSingleton<IWebhookBodyTemplateRenderer, WebhookBodyTemplateRenderer>();
         services.AddSingleton<ITemplateHelperValidator, TemplateHelperValidator>();
         // Game outcome RNG (stateless CSPRNG; not an I<X>Service, so registered explicitly).

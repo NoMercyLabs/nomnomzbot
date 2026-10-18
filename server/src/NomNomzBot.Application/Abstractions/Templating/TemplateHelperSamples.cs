@@ -15,14 +15,14 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// in the dashboard's variable picker. These are data values, not prose, so they carry no i18n key.
 /// <c>TemplateHelperSampleTests</c> fails for any registry entry that has no sample here.
 /// </summary>
-internal static class TemplateHelperSamples
+public static class TemplateHelperSamples
 {
     private static readonly Dictionary<string, string> ByKey = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["channel"] = "kani_dev",
-        ["channel.display"] = "Kani_Dev",
+        ["channel"] = "example_channel",
+        ["channel.display"] = "Example_Channel",
         ["channel.id"] = "123456789",
-        ["streamer"] = "Kani_Dev",
+        ["streamer"] = "Example_Channel",
         ["stream.title"] = "Cozy coding night",
         ["stream.game"] = "Just Chatting",
         ["stream.uptime"] = "2h 15m",
@@ -68,7 +68,7 @@ internal static class TemplateHelperSamples
         ["count"] = "12",
         ["anonymous"] = "false",
         ["bits"] = "100",
-        ["gifter"] = "kind_viewer",
+        ["gifter"] = "example_supporter",
         ["gifter.id"] = "987654321",
         ["viewers"] = "25",
         ["reward"] = "Hydrate",
@@ -76,18 +76,18 @@ internal static class TemplateHelperSamples
         ["redemption.id"] = "e5f6a7b8",
         ["cost"] = "500",
         ["input"] = "Hello chat",
-        ["moderator"] = "mod_jane",
+        ["moderator"] = "example_moderator",
         ["reason"] = "Spam",
         ["duration"] = "600",
-        ["broadcaster"] = "Kani_Dev",
+        ["broadcaster"] = "Example_Channel",
         ["title"] = "Cozy coding night",
         ["game"] = "Just Chatting",
-        ["viewer.name"] = "kani_dev",
+        ["viewer.name"] = "example_viewer",
         ["engagement.daysSinceLastSeen"] = "14",
         ["engagement.streak"] = "5",
         ["engagement.months"] = "18",
         ["engagement.years"] = "1",
-        ["supporter.name"] = "kind_viewer",
+        ["supporter.name"] = "example_supporter",
         ["supporter.kind"] = "tip",
         ["supporter.amount"] = "5.00",
         ["supporter.currency"] = "EUR",
@@ -100,7 +100,7 @@ internal static class TemplateHelperSamples
         ["time.utc"] = "18:15",
         ["date"] = "2026-10-06",
         ["botname"] = "NomNomzBot",
-        ["random.user"] = "kani_dev",
+        ["random.user"] = "example_viewer",
         ["random.number.<n>"] = "7",
         ["random.number.<min>.<max>[.<step>]"] = "42",
         ["roll.<name>.<min>.<max>[.<step>]"] = "13",
@@ -113,8 +113,8 @@ internal static class TemplateHelperSamples
         ["transform.<name>:<text>"] = "HELLO",
         ["args"] = "hello world",
         ["args.<n>"] = "hello",
-        ["user"] = "kani_dev",
-        ["user.name"] = "kani_dev",
+        ["user"] = "example_viewer",
+        ["user.name"] = "example_viewer",
         ["user.id"] = "123456789",
         ["user.provider"] = "twitch",
         ["user.accountAge"] = "3 years",
@@ -122,7 +122,7 @@ internal static class TemplateHelperSamples
         ["user.pronouns"] = "they/them",
         ["user.messageCount"] = "250",
         ["user.lastmessage"] = "see you tomorrow",
-        ["user.link"] = "https://twitch.tv/kani_dev",
+        ["user.link"] = "https://twitch.tv/example_viewer",
         ["viewer.messages"] = "250",
         ["viewer.watchtime"] = "12h",
         ["viewer.firstseen"] = "2025-03-01",
@@ -133,16 +133,16 @@ internal static class TemplateHelperSamples
         ["viewer.avgperday"] = "8",
         ["viewer.botpercent"] = "5",
         ["viewer.data.<key>"] = "Blue",
-        ["target"] = "kani_dev",
-        ["target.name"] = "kani_dev",
-        ["target.displayname"] = "Kani_Dev",
+        ["target"] = "example_viewer",
+        ["target.name"] = "example_viewer",
+        ["target.displayname"] = "Example_Viewer",
         ["target.known"] = "true",
         ["target.id"] = "123456789",
         ["target.followAge"] = "1 year",
         ["target.lastmessage"] = "see you tomorrow",
-        ["target.lastmessage.full"] = "kani_dev: see you tomorrow",
+        ["target.lastmessage.full"] = "example_viewer: see you tomorrow",
         ["target.randommessage"] = "nice play",
-        ["target.link"] = "https://twitch.tv/kani_dev",
+        ["target.link"] = "https://twitch.tv/example_viewer",
         ["target.messages"] = "250",
         ["target.watchtime"] = "12h",
         ["target.firstseen"] = "2025-03-01",
@@ -153,8 +153,8 @@ internal static class TemplateHelperSamples
         ["target.avgperday"] = "8",
         ["target.botpercent"] = "5",
         ["target.data.<key>"] = "Blue",
-        ["name"] = "kani_dev",
-        ["link"] = "https://twitch.tv/kani_dev",
+        ["name"] = "example_viewer",
+        ["link"] = "https://twitch.tv/example_viewer",
         ["subject"] = "they",
         ["object"] = "them",
         ["possessive"] = "their",
@@ -175,7 +175,7 @@ internal static class TemplateHelperSamples
         ["verb:<sing|plur>"] = "plays",
         ["user.verb:<sing|plur>"] = "plays",
         ["target.verb:<sing|plur>"] = "plays",
-        ["channel.name"] = "kani_dev",
+        ["channel.name"] = "example_channel",
         ["channel.title"] = "Cozy coding night",
         ["channel.game"] = "Just Chatting",
         ["raw.message"] = "!hello world",
@@ -185,6 +185,43 @@ internal static class TemplateHelperSamples
         ["music.favorite.artist"] = "The Weeknd",
         ["music.favorite.count"] = "12",
         ["music.favorite.outcome"] = "added",
+    };
+
+    /// <summary>
+    /// The helper keys whose example is the REAL value for the signed-in user and the current channel,
+    /// rendered by <see cref="ITemplateSampleRenderer"/> through the template engine itself. Every other
+    /// key has no real source in the picker (arguments, random picks, a raid's viewers, an @mention
+    /// target, a live stat that may be empty), so it keeps the neutral sample above. Only cheap, stored
+    /// data belongs here: never a key that costs a Helix call (<c>user.followAge</c>).
+    /// </summary>
+    public static readonly IReadOnlySet<string> LiveKeys = new HashSet<string>(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "channel",
+        "channel.display",
+        "channel.id",
+        "streamer",
+        "botname",
+        "user",
+        "user.name",
+        "user.id",
+        "user.provider",
+        "user.accountAge",
+        "user.pronouns",
+        "user.link",
+        "user.subject",
+        "user.object",
+        "user.possessive",
+        "user.presentTense",
+        "user.genderedTerm",
+        "name",
+        "link",
+        "subject",
+        "object",
+        "possessive",
+        "presentTense",
+        "genderedTerm",
     };
 
     /// <summary>The sample for <paramref name="key"/>, or an empty string when none is registered.</summary>

@@ -23,8 +23,11 @@ let text: Ref<string>;
 
 // The fetch stand-in answers like the bot: the helper list for a context, wrapped in { data }.
 // It is set before the shared client is created, because the client keeps the fetch it finds then.
-const bot: { seen: string[] } = vi.hoisted(() => {
-  const state: { seen: string[] } = { seen: [] };
+const bot: { seen: string[]; channelHeaders: (string | null)[] } = vi.hoisted(() => {
+  const state: { seen: string[]; channelHeaders: (string | null)[] } = {
+    seen: [],
+    channelHeaders: [],
+  };
   const data = [
     {
       key: 'user',
@@ -48,10 +51,31 @@ const bot: { seen: string[] } = vi.hoisted(() => {
     },
   ];
 
-  globalThis.fetch = (async (request: Request) => {
-    state.seen.push(new URL(request.url).pathname + new URL(request.url).search);
+  const answers: Record<string, unknown> = {
+    '/api/v1/templates/helpers': data,
+    '/api/v1/auth/me': {
+      id: 'user-1',
+      username: 'moss_mod',
+      displayName: 'Moss_Mod',
+    },
+    '/api/v1/channels': [{
+      id: 'channel-1',
+      login: 'sunny',
+      displayName: 'Sunny',
+      role: 'broadcaster',
+    }],
+    '/api/v1/channels/moderated': [],
+  };
 
-    return new Response(JSON.stringify({ data }), { status: 200 });
+  globalThis.fetch = (async (request: Request) => {
+    const url = new URL(request.url);
+
+    if (url.pathname === '/api/v1/templates/helpers') {
+      state.seen.push(url.pathname + url.search);
+      state.channelHeaders.push(request.headers.get('X-Channel-Id'));
+    }
+
+    return new Response(JSON.stringify({ data: answers[url.pathname] ?? [] }), { status: 200 });
   }) as typeof fetch;
 
   return state;
@@ -59,6 +83,7 @@ const bot: { seen: string[] } = vi.hoisted(() => {
 
 beforeEach(() => {
   bot.seen.length = 0;
+  bot.channelHeaders.length = 0;
 });
 
 afterEach(() => {
@@ -141,7 +166,14 @@ describe('the template field', () => {
   it('asks the bot for the helpers of its context', async () => {
     await host();
 
-    expect(bot.seen).toEqual(['/api/v1/templates/helpers?context=command']);
+    expect(new Set(bot.seen)).toEqual(new Set(['/api/v1/templates/helpers?context=command']));
+  });
+
+  it('asks as the current channel, so the examples show that channel and the signed-in user', async () => {
+    await host();
+
+    // The first ask may leave before the channel list arrives; the last one carries the channel.
+    expect(bot.channelHeaders.at(-1)).toBe('channel-1');
   });
 
   it('opens the helper suggestions when a brace is typed', async () => {

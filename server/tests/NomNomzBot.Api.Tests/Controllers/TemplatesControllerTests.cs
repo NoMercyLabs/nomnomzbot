@@ -12,7 +12,9 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Templating;
+using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -22,12 +24,72 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// </summary>
 public sealed class TemplatesControllerTests
 {
-    [Fact]
-    public void Command_context_includes_args_and_user_helpers()
-    {
-        TemplatesController controller = new();
+    private static readonly Guid Channel = Guid.Parse("0192b400-0000-7000-8000-00000000e001");
+    private static readonly Guid SignedInUser = Guid.Parse("0192b400-0000-7000-8000-00000000e002");
 
-        IActionResult result = controller.GetHelpers("command");
+    /// <summary>A controller whose renderer returns its input unchanged (the neutral registry samples).</summary>
+    private static TemplatesController Build()
+    {
+        ITemplateSampleRenderer renderer = Substitute.For<ITemplateSampleRenderer>();
+        renderer
+            .PersonalizeAsync(
+                Arg.Any<IReadOnlyList<TemplateHelperEntry>>(),
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => call.Arg<IReadOnlyList<TemplateHelperEntry>>());
+
+        return Build(renderer);
+    }
+
+    private static TemplatesController Build(ITemplateSampleRenderer renderer)
+    {
+        ICurrentUserService user = Substitute.For<ICurrentUserService>();
+        user.UserId.Returns(SignedInUser.ToString());
+        ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
+        tenant.BroadcasterId.Returns(Channel);
+
+        return new TemplatesController(renderer, user, tenant);
+    }
+
+    /// <summary>
+    /// The picker's examples are rendered for the requester: the controller hands the current channel and
+    /// the signed-in user to the renderer, and ships back what it returns.
+    /// </summary>
+    [Fact]
+    public async Task Examples_are_rendered_for_the_signed_in_user_and_the_current_channel()
+    {
+        ITemplateSampleRenderer renderer = Substitute.For<ITemplateSampleRenderer>();
+        renderer
+            .PersonalizeAsync(
+                Arg.Any<IReadOnlyList<TemplateHelperEntry>>(),
+                Channel,
+                SignedInUser,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                (IReadOnlyList<TemplateHelperEntry>)
+                    [
+                        .. call.Arg<IReadOnlyList<TemplateHelperEntry>>()
+                            .Select(e => e with { Sample = "real:" + e.Key }),
+                    ]
+            );
+
+        IActionResult result = await Build(renderer).GetHelpers("command");
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<IReadOnlyList<TemplateHelperDto>> body =
+            (StatusResponseDto<IReadOnlyList<TemplateHelperDto>>)ok.Value!;
+        body.Data!.Should().OnlyContain(h => h.Sample == "real:" + h.Key);
+    }
+
+    [Fact]
+    public async Task Command_context_includes_args_and_user_helpers()
+    {
+        TemplatesController controller = Build();
+
+        IActionResult result = await controller.GetHelpers("command");
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         StatusResponseDto<IReadOnlyList<TemplateHelperDto>> body = ok
@@ -47,11 +109,11 @@ public sealed class TemplatesControllerTests
     }
 
     [Fact]
-    public void EventResponse_context_excludes_command_only_args_helper()
+    public async Task EventResponse_context_excludes_command_only_args_helper()
     {
-        TemplatesController controller = new();
+        TemplatesController controller = Build();
 
-        IActionResult result = controller.GetHelpers("eventResponse");
+        IActionResult result = await controller.GetHelpers("eventResponse");
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         StatusResponseDto<IReadOnlyList<TemplateHelperDto>> body =
@@ -62,11 +124,11 @@ public sealed class TemplatesControllerTests
     }
 
     [Fact]
-    public void Timer_context_excludes_trigger_user_and_args_helpers()
+    public async Task Timer_context_excludes_trigger_user_and_args_helpers()
     {
-        TemplatesController controller = new();
+        TemplatesController controller = Build();
 
-        IActionResult result = controller.GetHelpers("timer");
+        IActionResult result = await controller.GetHelpers("timer");
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         StatusResponseDto<IReadOnlyList<TemplateHelperDto>> body =
@@ -78,11 +140,11 @@ public sealed class TemplatesControllerTests
     }
 
     [Fact]
-    public void Unknown_context_fails_honestly_instead_of_returning_everything()
+    public async Task Unknown_context_fails_honestly_instead_of_returning_everything()
     {
-        TemplatesController controller = new();
+        TemplatesController controller = Build();
 
-        IActionResult result = controller.GetHelpers("not_a_real_context");
+        IActionResult result = await controller.GetHelpers("not_a_real_context");
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
@@ -93,11 +155,11 @@ public sealed class TemplatesControllerTests
     /// helpers (channel identity, time, the triggering user) stay available regardless of event type.
     /// </summary>
     [Fact]
-    public void EventType_filter_excludes_helpers_seeded_by_unrelated_events()
+    public async Task EventType_filter_excludes_helpers_seeded_by_unrelated_events()
     {
-        TemplatesController controller = new();
+        TemplatesController controller = Build();
 
-        IActionResult result = controller.GetHelpers("eventResponse", "channel.raid");
+        IActionResult result = await controller.GetHelpers("eventResponse", "channel.raid");
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         StatusResponseDto<IReadOnlyList<TemplateHelperDto>> body =
@@ -118,11 +180,11 @@ public sealed class TemplatesControllerTests
     /// but not the raid-only <c>viewers</c> helper.
     /// </summary>
     [Fact]
-    public void EventType_filter_swaps_the_scoped_set_per_event()
+    public async Task EventType_filter_swaps_the_scoped_set_per_event()
     {
-        TemplatesController controller = new();
+        TemplatesController controller = Build();
 
-        IActionResult result = controller.GetHelpers(
+        IActionResult result = await controller.GetHelpers(
             "eventResponse",
             "channel.subscription.message"
         );
@@ -138,11 +200,11 @@ public sealed class TemplatesControllerTests
     }
 
     [Fact]
-    public void Unknown_eventType_fails_honestly_instead_of_returning_everything()
+    public async Task Unknown_eventType_fails_honestly_instead_of_returning_everything()
     {
-        TemplatesController controller = new();
+        TemplatesController controller = Build();
 
-        IActionResult result = controller.GetHelpers("eventResponse", "not_a_real_event");
+        IActionResult result = await controller.GetHelpers("eventResponse", "not_a_real_event");
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }

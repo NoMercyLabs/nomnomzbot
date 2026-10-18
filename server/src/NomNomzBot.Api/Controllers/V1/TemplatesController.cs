@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 
@@ -27,7 +28,11 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/templates")]
 [Authorize]
 [Tags("Templates")]
-public sealed class TemplatesController : BaseController
+public sealed class TemplatesController(
+    ITemplateSampleRenderer sampleRenderer,
+    ICurrentUserService currentUser,
+    ICurrentTenantService currentTenant
+) : BaseController
 {
     /// <summary>
     /// GET /api/v1/templates/helpers?context=command|eventResponse|timer&amp;eventType=channel.raid — the
@@ -47,9 +52,10 @@ public sealed class TemplatesController : BaseController
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<TemplateHelperDto>>>(
         StatusCodes.Status200OK
     )]
-    public IActionResult GetHelpers(
+    public async Task<IActionResult> GetHelpers(
         [FromQuery] string context,
-        [FromQuery] string? eventType = null
+        [FromQuery] string? eventType = null,
+        CancellationToken cancellationToken = default
     )
     {
         if (!Enum.TryParse(context, ignoreCase: true, out TemplateHelperContext parsed))
@@ -66,14 +72,24 @@ public sealed class TemplatesController : BaseController
                     + "."
             );
 
-        IReadOnlyList<TemplateHelperDto> helpers =
-        [
-            .. (
-                eventType is null
-                    ? TemplateHelperRegistry.ForContext(parsed)
-                    : TemplateHelperRegistry.ForContext(parsed, eventType)
-            ).Select(TemplateHelperDto.FromEntry),
-        ];
+        IReadOnlyList<TemplateHelperEntry> entries = eventType is null
+            ? TemplateHelperRegistry.ForContext(parsed)
+            : TemplateHelperRegistry.ForContext(parsed, eventType);
+
+        // The examples show the signed-in user and the current channel, not a made-up pair. Without a
+        // resolved user or tenant the neutral registry samples stand.
+        if (
+            Guid.TryParse(currentUser.UserId, out Guid userId)
+            && currentTenant.BroadcasterId is { } broadcasterId
+        )
+            entries = await sampleRenderer.PersonalizeAsync(
+                entries,
+                broadcasterId,
+                userId,
+                cancellationToken
+            );
+
+        IReadOnlyList<TemplateHelperDto> helpers = [.. entries.Select(TemplateHelperDto.FromEntry)];
 
         return Ok(new StatusResponseDto<IReadOnlyList<TemplateHelperDto>> { Data = helpers });
     }
