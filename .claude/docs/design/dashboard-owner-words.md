@@ -88,4 +88,5 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 2026-10-18: "make a linter that does the work! STOP DOING THINGS BY HAND!"
 2026-10-18: "i don't want any "string" value returned anywhere, i want it to be 100% strict typed"
 2026-10-18: "when mapping i also want you to type the return as const instead of the argument"
+2026-10-18: "callbacks that return a boolean or a single variable should not linewrap, same rule as a direct return (scripts, () => false)"
 2026-10-18: "HOLY MOLY THAT OBS PAGE!!! can you slap more things on in pannels that large?! how is that managible by the streamer while live?"
