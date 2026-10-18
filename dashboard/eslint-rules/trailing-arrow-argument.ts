@@ -47,6 +47,20 @@ function isTrailingArrowArgument(arrow: TSESTree.ArrowFunctionExpression): boole
   );
 }
 
+// Owner 2026-10-18: "callbacks that return a boolean or a single variable should not linewrap".
+// A literal, an identifier, or a plain `a.b.c` access has nothing to break, so it stays.
+function isBareValue(node: TSESTree.Node): boolean {
+  switch (node.type) {
+    case AST_NODE_TYPES.Literal:
+    case AST_NODE_TYPES.Identifier:
+      return true;
+    case AST_NODE_TYPES.MemberExpression:
+      return !node.computed && isBareValue(node.object);
+    default:
+      return false;
+  }
+}
+
 function isLiteralBody(arrow: TSESTree.ArrowFunctionExpression): boolean {
   return (
     arrow.body.type === AST_NODE_TYPES.ObjectExpression ||
@@ -62,6 +76,7 @@ export const trailingArrowArgument = ESLintUtils.RuleCreator.withoutDocs({
     messages: {
       bodyNextLine: 'An arrow after another argument starts its body on the line after `=>`.',
       literalOnArrowLine: 'An object or array body opens on the `=>` line.',
+      bareOnArrowLine: 'A literal or single-variable body stays on the `=>` line.',
     },
   },
   defaultOptions: [],
@@ -88,6 +103,18 @@ export const trailingArrowArgument = ESLintUtils.RuleCreator.withoutDocs({
           context.report({
             node: arrowToken,
             messageId: 'literalOnArrowLine',
+            fix: (fixer) => fixer.replaceTextRange([arrowToken.range[1], first.range[0]], ' '),
+          });
+
+          return;
+        }
+
+        if (isBareValue(arrow.body)) {
+          if (sameLine) return;
+
+          context.report({
+            node: arrowToken,
+            messageId: 'bareOnArrowLine',
             fix: (fixer) => fixer.replaceTextRange([arrowToken.range[1], first.range[0]], ' '),
           });
 

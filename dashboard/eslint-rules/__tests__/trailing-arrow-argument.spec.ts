@@ -37,8 +37,32 @@ tester.run('trailing-arrow-argument', trailingArrowArgument, {
     'vi.mock(\'../client\', () => ({ client: http }))',
     'attach(hub, handlers, () => ({\n  queries,\n  channelId: joined,\n}))',
     'set(key, (feed) => [\n  ...feed,\n  line,\n])',
+    // Owner 2026-10-18: a literal or a single variable body stays on the arrow's line.
+    'usePanelState(scripts, () => false)',
+    'pick(rows, () => value)',
+    'pick(rows, (row) => row.id.value)',
   ],
   invalid: [
+    {
+      code: 'usePanelState(scripts, () =>\n  false)',
+      output: 'usePanelState(scripts, () => false)',
+      errors: [{ messageId: 'bareOnArrowLine' }],
+    },
+    {
+      code: 'pick(rows, () =>\n  value)',
+      output: 'pick(rows, () => value)',
+      errors: [{ messageId: 'bareOnArrowLine' }],
+    },
+    {
+      code: 'pick(rows, (row) =>\n  row.id.value)',
+      output: 'pick(rows, (row) => row.id.value)',
+      errors: [{ messageId: 'bareOnArrowLine' }],
+    },
+    {
+      code: 'pick(rows, () => this.value)',
+      output: 'pick(rows, () =>\n  this.value)',
+      errors: [{ messageId: 'bodyNextLine' }],
+    },
     {
       code: '  set(key, (current) => apply(current, variables))',
       output: '  set(key, (current) =>\n    apply(current, variables))',
