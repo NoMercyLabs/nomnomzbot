@@ -588,19 +588,36 @@ describe('before you go live', () => {
   });
 
   // A reward the streamer switched off is a choice, not a fault: it is named with a gray dot, never red (mockup 10-stream.html:157-158).
-  it('names each reward that is off, with the on count, and never marks it as an error', async () => {
+  it('names every reward that is off or paused in ONE row, says the on count once, and never marks it as an error', async () => {
     await open();
 
-    const offRows: HTMLElement[] = [
-      ...document.body.querySelectorAll<HTMLElement>('[data-check^="reward-"]'),
+    const rows: HTMLElement[] = [
+      ...document.body.querySelectorAll<HTMLElement>('[data-check^="reward"]'),
     ];
 
-    expect(offRows.map((row) => row.textContent?.trim())).toEqual([
-      'Song request is off. 1 of 3 rewards are on.',
-      'Pick a game is off. 1 of 3 rewards are on.',
+    expect(rows.map((row) => row.textContent?.trim())).toEqual([
+      'Off or paused: Song request, Pick a game. 1 of 3 rewards are on.',
     ]);
 
-    expect(offRows.every((row) => row.querySelector('[data-tone="off"]') !== null)).toBe(true);
+    expect(rows[0]?.querySelector('[data-tone="off"]')).not.toBeNull();
+    expect(text().match(/of 3 rewards are on/g)).toHaveLength(1);
+  });
+
+  it('says 1 tag, not 1 tags', async () => {
+    answers['/stream'] = () => ok({ ...streamInfo, tags: ['coding'] });
+    await open();
+
+    expect(text()).toContain('1 tag added');
+    expect(text()).not.toContain('1 tags');
+  });
+
+  // A failed shield read must not turn into the green "Chat is open to everyone".
+  it('says the shield could not be checked when the read fails', async () => {
+    answers['/moderation/shield'] = refused;
+    await open();
+
+    expect(text()).toContain('Could not check shield mode');
+    expect(text()).not.toContain('Chat is open to everyone');
   });
 
   it('says all rewards are on when none is off', async () => {

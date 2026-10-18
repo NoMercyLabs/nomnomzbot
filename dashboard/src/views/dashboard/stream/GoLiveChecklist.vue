@@ -75,7 +75,7 @@ const checks = computed<Check[]>(() => {
       tone: tagCount > 0
         ? 'ok'
         : 'off',
-      label: t('dashboard.stream.checklist.tagsAdded', { count: tagCount }),
+      label: t('dashboard.stream.checklist.tagsAdded', tagCount),
     });
   }
 
@@ -111,22 +111,19 @@ const checks = computed<Check[]>(() => {
       m: number;
     };
 
-    // A reward switched off is the streamer's choice, so it gets the neutral dot with its name.
-    if (off.length === 0) {
-      list.push({
-        key: 'rewards',
-        tone: 'ok',
-        label: t('dashboard.stream.checklist.rewardsAllOn', counts),
-      });
-    }
-
-    off.forEach((reward: Reward) =>
-      list.push({
-        key: `reward-${reward.id}`,
-        tone: 'off',
-        label: t('dashboard.stream.checklist.rewardOff', { ...counts, title: reward.title }),
-      }),
-    );
+    // A reward switched off is the streamer's choice, so it gets the neutral dot. One row names them all.
+    list.push({
+      key: 'rewards',
+      tone: off.length === 0
+        ? 'ok'
+        : 'off',
+      label: off.length === 0
+        ? t('dashboard.stream.checklist.rewardsAllOn', counts)
+        : t('dashboard.stream.checklist.rewardsOff', {
+            ...counts,
+            titles: off.map((reward: Reward) => reward.title).join(', '),
+          }),
+    });
   }
 
   if (shieldQuery.isError.value) {

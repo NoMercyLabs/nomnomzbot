@@ -25,9 +25,15 @@ export const shieldKey = (channelId: string | null): KeyParts => ['channels', ch
 
 // The status reads live from the Twitch moderation API; the document types the answer as an open object.
 async function fetchShield(channelId: string): Promise<boolean> {
-  const { data } = await client.GET('/api/v{version}/channels/{channelId}/moderation/shield', {
-    params: { path: { version: '1', channelId } },
-  });
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/moderation/shield',
+    { params: { path: { version: '1', channelId } } },
+  );
+
+  // A failed read is not "shield off": the caller must see the error, never a guessed answer.
+  if (error !== undefined)
+    throw failed('shield', response.status, error);
+
   const answer = data?.data as { enabled?: boolean } | null | undefined;
 
   return answer?.enabled === true;
