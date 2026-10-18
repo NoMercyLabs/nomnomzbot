@@ -152118,6 +152118,12 @@
               "string"
             ],
             "format": "double"
+          },
+          "picker": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "One editable setting on a widget. string WidgetSettingsField.Type picks the control the dashboard renders:\r\n`bool` (switch), `number` (stepper/slider), `text` (field), `color` (colour control),\r\n`select` (single-choice dropdown over IReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), `multiselect` (chip toggles over\r\nIReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), or `json` (raw-JSON textarea for a structural map/list the schema does not flatten).\r\nobject? WidgetSettingsField.Default is the catalogue default (so a cleared field falls back to the widget's shipped value);\r\ndouble? WidgetSettingsField.Min/double? WidgetSettingsField.Max/double? WidgetSettingsField.Step bound a numeric control; LocalizedText WidgetSettingsField.Group lets the form\r\nsection the fields. LocalizedText WidgetSettingsField.Label, LocalizedText? WidgetSettingsField.Help, and LocalizedText WidgetSettingsField.Group are all\r\nLocalizedText (S-SCHEMA-I18N-redesign) — a translation KEY only; the dashboard resolves each\r\nagainst `strings.xml` for the viewer's locale instead of the backend serving a hardcoded English literal."
@@ -152128,12 +152134,6 @@
           "label"
         ],
         "type": "object",
-          },
-          "picker": {
-            "type": [
-              "null",
-              "string"
-            ]
         "properties": {
           "value": {
             "type": "string"
