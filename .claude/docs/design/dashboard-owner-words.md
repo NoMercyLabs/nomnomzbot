@@ -77,3 +77,6 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 
 2026-10-18: "you can't offer what's not there... and every tab and pannel and button and page needs to have proper permission checks before being shown"
 2026-10-18: "we need one place for the mandatory overlays and not spread them all over, lets keep the user choice overlays at the overlay browser section and have the mandatory one on an easy to reach place that can be shown in an onboarding flow guide"
+2026-10-18: "i like separate role permissions between youtube and spotify, spotify is safe by default, youtube requires us to get it right"
+2026-10-18: "the breakpoints need to be better defined based on the other component's needs"
+2026-10-18: "and i want extra pannels to be always toggle-able"
