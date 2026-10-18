@@ -17,7 +17,7 @@ using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
-namespace NomNomzBot.Infrastructure.Tests.Seeding;
+namespace NomNomzBot.Infrastructure.Tests.BackgroundServices;
 
 /// <summary>
 /// Proves the startup backfill re-fires the onboarding seed pipeline for already-onboarded channels: it

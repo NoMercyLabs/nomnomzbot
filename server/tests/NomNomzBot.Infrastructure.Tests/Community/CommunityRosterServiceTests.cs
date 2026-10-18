@@ -19,7 +19,7 @@ using NomNomzBot.Infrastructure.Community;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
-namespace NomNomzBot.Infrastructure.Tests.Seeding;
+namespace NomNomzBot.Infrastructure.Tests.Community;
 
 /// <summary>
 /// Proves the Community moderator-roster Twitch sync (the empty-Community-page fix): it get-or-creates a

@@ -21,9 +21,10 @@ using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 
 /// <summary>
 /// Proves the Helix bearer resolver reads the canonical token vault — the same store login/refresh write —

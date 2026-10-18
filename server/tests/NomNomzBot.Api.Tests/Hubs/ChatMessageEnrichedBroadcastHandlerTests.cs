@@ -13,10 +13,11 @@ using FluentAssertions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Api.Tests.Controllers;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
-namespace NomNomzBot.Api.Tests.Controllers;
+namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// Proves the enrichment reaches an overlay as the shape the overlay actually reads. Every field on

@@ -24,7 +24,7 @@ using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 
-public class InfraPipelineEngineTests
+public class PipelineEngineTests
 {
     private static readonly Guid TestChannel = Guid.Parse("0192a000-0000-7000-8000-0000000000c1");
 

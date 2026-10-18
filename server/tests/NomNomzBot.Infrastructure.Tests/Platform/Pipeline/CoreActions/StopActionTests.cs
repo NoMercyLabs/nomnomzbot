@@ -14,7 +14,7 @@ using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline.CoreActions;
 
-public class InfraStopActionTests
+public class StopActionTests
 {
     private static PipelineExecutionContext BuildCtx() =>
         new()

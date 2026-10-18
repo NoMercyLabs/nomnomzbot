@@ -27,8 +27,9 @@ using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
 using NomNomzBot.Infrastructure.Tests.Gdpr;
+using NomNomzBot.Infrastructure.Tests.Identity;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Auth;
 
 /// <summary>
 /// What a Twitch token-endpoint answer does to the connection's health, over the REAL vault and crypto: an

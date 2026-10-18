@@ -14,9 +14,10 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Infrastructure.Notifications.Sources;
+using NomNomzBot.Infrastructure.Tests.Moderation.MassBan;
 using NSubstitute;
 
-namespace NomNomzBot.Infrastructure.Tests.Moderation.MassBan;
+namespace NomNomzBot.Infrastructure.Tests.Notifications;
 
 /// <summary>Proves a finished mass-ban run with a refused account lands in the attention inbox, and a clean one does not.</summary>
 public sealed class MassBanFailureSourceTests

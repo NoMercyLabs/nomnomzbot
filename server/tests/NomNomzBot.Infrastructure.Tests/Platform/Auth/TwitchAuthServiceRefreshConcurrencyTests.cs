@@ -25,8 +25,9 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
+using NomNomzBot.Infrastructure.Tests.Identity;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Auth;
 
 /// <summary>
 /// S036 — two callers racing a refresh for the SAME connection must not both post the vaulted refresh

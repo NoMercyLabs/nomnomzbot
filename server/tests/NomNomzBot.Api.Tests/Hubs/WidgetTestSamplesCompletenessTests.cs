@@ -15,7 +15,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
-namespace NomNomzBot.Api.Tests.Controllers;
+namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// BUILD-TODO's "the event clicker doesn't reflect the actual widget" report: a widget's fire-bar button list

@@ -15,7 +15,7 @@ using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Infrastructure.DevPlatform;
 
-namespace NomNomzBot.Api.Tests.Controllers;
+namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// Holds the widget payload registry (the source of the typed <c>NomNomz.on(...)</c> declarations) to what the bot

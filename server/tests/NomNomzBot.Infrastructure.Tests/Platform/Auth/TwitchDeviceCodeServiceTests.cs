@@ -17,8 +17,9 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Infrastructure.Platform.Auth;
+using NomNomzBot.Infrastructure.Tests.Identity;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Auth;
 
 /// <summary>
 /// Proves the no-secret onboarding path on the wire: Device Code Flow sends NomNomzBot's shipped public client

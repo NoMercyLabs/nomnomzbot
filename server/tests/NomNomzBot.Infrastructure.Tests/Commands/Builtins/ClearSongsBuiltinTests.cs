@@ -14,10 +14,10 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.Commands.Builtins;
-using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Music;
 using NSubstitute;
 
-namespace NomNomzBot.Infrastructure.Tests.Music;
+namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 
 /// <summary>
 /// <c>!clearsongs &lt;user&gt;</c>: only a music moderator removes a requester's queued songs, the name is

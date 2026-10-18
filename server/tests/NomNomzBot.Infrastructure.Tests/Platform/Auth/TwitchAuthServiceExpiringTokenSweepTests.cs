@@ -22,8 +22,9 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
+using NomNomzBot.Infrastructure.Tests.Identity;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Auth;
 
 /// <summary>
 /// The proactive sweep (<see cref="TwitchAuthService.RefreshExpiringTokensAsync"/>) runs once per timer

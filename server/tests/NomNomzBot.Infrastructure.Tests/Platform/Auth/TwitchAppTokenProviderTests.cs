@@ -18,7 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NSubstitute;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Auth;
 
 /// <summary>
 /// Proves the app-access-token provider mints the <c>client_credentials</c> token, hands it back, and — because

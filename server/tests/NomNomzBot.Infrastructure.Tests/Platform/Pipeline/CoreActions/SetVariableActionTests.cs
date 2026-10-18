@@ -14,7 +14,7 @@ using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline.CoreActions;
 
-public class InfraSetVariableActionTests
+public class SetVariableActionTests
 {
     private static PipelineExecutionContext BuildCtx() =>
         new()

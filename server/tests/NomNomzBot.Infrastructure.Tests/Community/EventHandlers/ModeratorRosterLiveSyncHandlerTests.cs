@@ -17,7 +17,7 @@ using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Community.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
-namespace NomNomzBot.Infrastructure.Tests.Seeding;
+namespace NomNomzBot.Infrastructure.Tests.Community.EventHandlers;
 
 /// <summary>
 /// Proves the live moderator events keep the <c>ChannelModerators</c> roster (what the People page reads) in

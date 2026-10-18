@@ -16,9 +16,9 @@ using NomNomzBot.Application.Contracts.Gdpr;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Gdpr;
 
-namespace NomNomzBot.Infrastructure.Tests.Gdpr;
+namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
 /// Proves the consent ledger's latest-wins single-row semantics over a real store: grant persists the full

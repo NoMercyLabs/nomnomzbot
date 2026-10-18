@@ -22,9 +22,10 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Twitch.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 
 /// <summary>
 /// Proves a missing scope that is already known for a broadcaster's current grant is reported once, not on every

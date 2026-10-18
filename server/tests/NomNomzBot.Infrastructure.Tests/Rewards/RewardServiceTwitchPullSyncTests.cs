@@ -16,10 +16,9 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
-using NomNomzBot.Infrastructure.Tests.Rewards;
 using NSubstitute;
 
-namespace NomNomzBot.Infrastructure.Tests.Seeding;
+namespace NomNomzBot.Infrastructure.Tests.Rewards;
 
 /// <summary>
 /// Proves <see cref="RewardService.SyncWithTwitchAsync"/> distinguishes the two outcomes the old code
@@ -28,7 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Seeding;
 /// as a failure carrying the real error code, not a silent "no rewards"). It also proves a successful read
 /// actually upserts the returned rewards into the local table the dashboard lists.
 /// </summary>
-public sealed class RewardServiceSyncTests
+public sealed class RewardServiceTwitchPullSyncTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000d001");
 

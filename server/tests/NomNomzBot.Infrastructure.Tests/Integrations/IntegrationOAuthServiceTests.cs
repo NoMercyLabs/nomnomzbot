@@ -32,9 +32,10 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Integrations;
 
 /// <summary>
 /// Proves the generic, descriptor-driven OAuth connect flow (integrations-oauth §3.1, §3.2): the registry

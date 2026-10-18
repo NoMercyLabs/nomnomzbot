@@ -22,8 +22,9 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
+using NomNomzBot.Infrastructure.Tests.Identity;
 
-namespace NomNomzBot.Infrastructure.Tests.Identity;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Auth;
 
 /// <summary>
 /// Proves the onboarding keystone end to end on a real OAuth path: the Twitch app client id + secret a user

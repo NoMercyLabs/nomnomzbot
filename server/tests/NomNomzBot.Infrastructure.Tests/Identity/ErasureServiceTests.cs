@@ -25,9 +25,9 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Gdpr;
 
-namespace NomNomzBot.Infrastructure.Tests.Gdpr;
+namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
 /// Proves the §3.7 erasure pipeline end to end on a real relational store: the subject's vaulted OAuth

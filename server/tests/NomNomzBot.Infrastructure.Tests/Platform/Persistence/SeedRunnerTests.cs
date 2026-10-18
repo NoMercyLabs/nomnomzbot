@@ -20,8 +20,9 @@ using NomNomzBot.Infrastructure.Content.Identity;
 using NomNomzBot.Infrastructure.Content.Platform;
 using NomNomzBot.Infrastructure.Content.Tts;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Tests.Content;
 
-namespace NomNomzBot.Infrastructure.Tests.Content;
+namespace NomNomzBot.Infrastructure.Tests.Platform.Persistence;
 
 /// <summary>
 /// Reliability proof for the §5 content-seed pipeline. Drives the REAL <see cref="SeedRunner"/>
