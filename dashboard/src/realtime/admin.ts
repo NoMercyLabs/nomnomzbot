@@ -18,12 +18,14 @@ import {
 } from '@/api/admin';
 import { billingPrefix } from '@/api/adminBilling';
 import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
+import { contentPrefix } from '@/api/adminContent';
 import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type {
   AdminBillingPayload,
   AdminChannelRegistryPayload,
+  AdminContentPayload,
   AdminErrorBudgetPayload,
   AdminSystemStatusPayload,
   AdminTrustSafetyPayload,
@@ -90,6 +92,7 @@ export const adminHandlers: [
   HubEventHandler<AdminChannelRegistryPayload>,
   HubEventHandler<AdminTrustSafetyPayload>,
   HubEventHandler<AdminErrorBudgetPayload>,
+  HubEventHandler<AdminContentPayload>,
   HubEventHandler<AdminBillingPayload>,
 ] = [
   {
@@ -114,6 +117,13 @@ export const adminHandlers: [
     event: 'ReceiveErrorBudgetChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: adminErrorBudgetPrefix });
+    },
+  },
+  {
+    // Another operator changed the catalog: the list and the open definition reload.
+    event: 'ReceiveContentChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: contentPrefix });
     },
   },
   {

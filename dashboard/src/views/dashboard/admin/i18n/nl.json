@@ -619,6 +619,51 @@
           "on": "Aan",
           "off": "Uit"
         }
+      },
+      "content": {
+        "title": "Inhoud",
+        "kindFilter": "Soort",
+        "kindPlaceholder": "Alle soorten",
+        "error": "De catalogus kon niet laden.",
+        "failed": "De wijziging is mislukt. Er is niets opgeslagen.",
+        "invalidPayload": "De payload moet geldige JSON zijn.",
+        "retired": "Ingetrokken",
+        "published": "Gepubliceerd",
+        "draftState": "Concept",
+        "draft": {
+          "open": "Nieuwe versie opstellen",
+          "title": "Een nieuwe versie opstellen",
+          "action": "Versie opstellen"
+        },
+        "version": "Versie {version}",
+        "list": {
+          "title": "Definities",
+          "description": "Wat kanalen vanaf het platform kunnen installeren.",
+          "empty": "Nog geen definities."
+        },
+        "detail": {
+          "empty": "Kies een definitie.",
+          "installs": "{installed} geinstalleerde kopieen, {behind} achter op de huidige versie, {edited} aangepast door het kanaal."
+        },
+        "fields": {
+          "kind": "Soort",
+          "key": "Sleutel",
+          "name": "Weergavenaam",
+          "description": "Beschrijving",
+          "payload": "Payload (JSON)"
+        },
+        "create": {
+          "open": "Nieuwe definitie",
+          "title": "Nieuwe definitie",
+          "action": "Aanmaken"
+        },
+        "retire": {
+          "open": "Intrekken",
+          "title": "Deze definitie intrekken",
+          "action": "Definitie intrekken",
+          "consequence": "Als je {name} intrekt, wordt het niet meer aangeboden. {installed} geinstalleerde kopieen blijven draaien ({behind} achter, {edited} aangepast). In geen enkel kanaal verandert iets."
+        },
+        "kindKey": "{kind} / {key}"
       }
     },
     "adminFeatureFlags": {

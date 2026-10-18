@@ -24,6 +24,7 @@ import {
   dashboardAdminSpamDefaultsRoute,
   dashboardAdminSupportRoute,
   dashboardAdminBillingRoute,
+  dashboardAdminContentRoute,
   dashboardAdminTenantsRoute,
   dashboardAdminErrorBudgetRoute,
   dashboardAdminTenantUsageRoute,

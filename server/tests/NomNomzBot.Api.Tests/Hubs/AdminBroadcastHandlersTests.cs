@@ -137,6 +137,28 @@ public sealed class AdminBroadcastHandlersTests
     }
 
     [Fact]
+    public async Task Content_change_pushes_action_and_definition_to_every_open_page()
+    {
+        (IHubContext<AdminHub, IAdminClient> hub, IAdminClient all) = HubWithRecorder();
+        object? payload = null;
+        all.ReceiveContentChanged(Arg.Do<object>(p => payload = p)).Returns(Task.CompletedTask);
+
+        await new AdminContentBroadcastHandler(hub).HandleAsync(
+            new()
+            {
+                BroadcasterId = Guid.Empty,
+                Action = "retired",
+                DefinitionId = Channel,
+            }
+        );
+
+        payload.Should().NotBeNull();
+        Type t = payload!.GetType();
+        t.GetProperty("Action")!.GetValue(payload).Should().Be("retired");
+        t.GetProperty("DefinitionId")!.GetValue(payload).Should().Be(Channel);
+    }
+
+    [Fact]
     public async Task Channel_offline_pushes_a_not_live_registry_update()
     {
         (IHubContext<AdminHub, IAdminClient> hub, IAdminClient all) = HubWithRecorder();

@@ -13,6 +13,7 @@ using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.PlatformContent.Events;
 using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -89,4 +90,12 @@ public sealed class AdminTrustSafetyBroadcastHandler(IHubContext<AdminHub, IAdmi
                 @event.SubjectId,
             }
         );
+}
+
+/// <summary>Platform content catalogue changes reach every open operator content page live, so the list reloads.</summary>
+public sealed class AdminContentBroadcastHandler(IHubContext<AdminHub, IAdminClient> hub)
+    : IEventHandler<PlatformContentChangedEvent>
+{
+    public Task HandleAsync(PlatformContentChangedEvent @event, CancellationToken ct = default) =>
+        hub.Clients.All.ReceiveContentChanged(new { @event.Action, @event.DefinitionId });
 }

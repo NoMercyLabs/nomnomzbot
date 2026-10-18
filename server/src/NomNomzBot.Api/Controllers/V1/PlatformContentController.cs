@@ -22,6 +22,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.PlatformContent.Events;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -40,7 +42,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class PlatformContentController(
     IPlatformContentService content,
     ICurrentUserService currentUser,
-    IIamCallerPrincipalResolverService actingPrincipalResolver
+    IIamCallerPrincipalResolverService actingPrincipalResolver,
+    IEventBus eventBus
 ) : BaseController
 {
     [HttpGet("definitions")]
@@ -96,7 +99,14 @@ public class PlatformContentController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<PlatformContentDefinitionDto>(null!));
-        return ResultResponse(await content.CreateDefinitionAsync(acting.Value, request, ct));
+        Result<PlatformContentDefinitionDto> created = await content.CreateDefinitionAsync(
+            acting.Value,
+            request,
+            ct
+        );
+        if (created.IsSuccess)
+            await PublishChangeAsync("created", created.Value.Id, ct);
+        return ResultResponse(created);
     }
 
     [HttpPost("definitions/{id:guid}/versions")]
@@ -111,7 +121,15 @@ public class PlatformContentController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<PlatformContentVersionDto>(null!));
-        return ResultResponse(await content.DraftVersionAsync(acting.Value, id, request, ct));
+        Result<PlatformContentVersionDto> drafted = await content.DraftVersionAsync(
+            acting.Value,
+            id,
+            request,
+            ct
+        );
+        if (drafted.IsSuccess)
+            await PublishChangeAsync("drafted", id, ct);
+        return ResultResponse(drafted);
     }
 
     [HttpGet("definitions/{id:guid}/versions/{versionId:guid}")]
@@ -164,7 +182,16 @@ public class PlatformContentController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<PlatformContentPublishJobDto>(null!));
-        return ResultResponse(await content.PublishAsync(acting.Value, id, versionId, request, ct));
+        Result<PlatformContentPublishJobDto> job = await content.PublishAsync(
+            acting.Value,
+            id,
+            versionId,
+            request,
+            ct
+        );
+        if (job.IsSuccess)
+            await PublishChangeAsync("published", id, ct);
+        return ResultResponse(job);
     }
 
     [HttpGet("publish-jobs/{id:guid}")]
@@ -193,7 +220,10 @@ public class PlatformContentController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting);
-        return ResultResponse(await content.RetireDefinitionAsync(acting.Value, id, ct));
+        Result retired = await content.RetireDefinitionAsync(acting.Value, id, ct);
+        if (retired.IsSuccess)
+            await PublishChangeAsync("retired", id, ct);
+        return ResultResponse(retired);
     }
 
     /// <summary>The channel event catalogue the <c>event_response</c> template form picks its event from.</summary>
@@ -210,6 +240,18 @@ public class PlatformContentController(
             return ResultResponse(acting.WithValue<IReadOnlyList<EventResponsePresetDto>>(null!));
         return ResultResponse(await content.ListEventResponseTypesAsync(acting.Value, ct));
     }
+
+    /// <summary>Tells the open operator content pages a change landed; a failed action changed nothing, so it says nothing.</summary>
+    private Task PublishChangeAsync(string action, Guid definitionId, CancellationToken ct) =>
+        eventBus.PublishAsync(
+            new PlatformContentChangedEvent
+            {
+                BroadcasterId = Guid.Empty,
+                Action = action,
+                DefinitionId = definitionId,
+            },
+            ct
+        );
 
     private Task<Result<Guid>> ActingPrincipalIdAsync(CancellationToken ct) =>
         actingPrincipalResolver.ResolveActingPrincipalIdAsync(currentUser.UserId, ct);

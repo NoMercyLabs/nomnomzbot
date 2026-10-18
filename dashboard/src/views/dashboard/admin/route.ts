@@ -191,6 +191,18 @@ export const dashboardAdminErrorBudgetRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
+export const dashboardAdminContentRoute = {
+  path: 'admin/content',
+  name: 'dashboard-admin-content',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminContentView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
 export const dashboardAdminBillingRoute = {
   path: 'admin/billing',
   name: 'dashboard-admin-billing',

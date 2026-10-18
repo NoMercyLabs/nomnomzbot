@@ -619,6 +619,51 @@
           "on": "On",
           "off": "Off"
         }
+      },
+      "content": {
+        "title": "Content",
+        "kindFilter": "Kind",
+        "kindPlaceholder": "All kinds",
+        "error": "The catalog could not load.",
+        "failed": "The change failed. Nothing was saved.",
+        "invalidPayload": "The payload must be valid JSON.",
+        "retired": "Retired",
+        "published": "Published",
+        "draftState": "Draft",
+        "draft": {
+          "open": "Draft new version",
+          "title": "Draft a new version",
+          "action": "Draft version"
+        },
+        "version": "Version {version}",
+        "list": {
+          "title": "Definitions",
+          "description": "What channels can install from the platform.",
+          "empty": "No definitions yet."
+        },
+        "detail": {
+          "empty": "Pick a definition.",
+          "installs": "{installed} installed copies, {behind} behind the current version, {edited} edited by the channel."
+        },
+        "fields": {
+          "kind": "Kind",
+          "key": "Key",
+          "name": "Display name",
+          "description": "Description",
+          "payload": "Payload (JSON)"
+        },
+        "create": {
+          "open": "New definition",
+          "title": "New definition",
+          "action": "Create"
+        },
+        "retire": {
+          "open": "Retire",
+          "title": "Retire this definition",
+          "action": "Retire definition",
+          "consequence": "Retiring {name} stops it being offered. {installed} installed copies keep running ({behind} behind, {edited} edited). Nothing in any channel changes."
+        },
+        "kindKey": "{kind} / {key}"
       }
     },
     "adminFeatureFlags": {

@@ -101,6 +101,13 @@ export type AdminErrorBudgetPayload = {
   status: string;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveContentChanged (AdminContentBroadcastHandler). An operator created a
+// definition, drafted or published a version, or retired a definition.
+export type AdminContentPayload = {
+  action: string;
+  definitionId: string;
+};
+
 // Hubs/Clients/IAdminClient.cs: ReceiveBillingChanged (AdminBillingBroadcastHandler). An operator changed a tier, an
 // invite code, a grant, an invoice or a priced unit; area names which, targetBroadcasterId the channel it touched.
 export type AdminBillingPayload = {
