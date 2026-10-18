@@ -15,14 +15,18 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
+using NomNomzBot.Domain.Webhooks.Enums;
 
 namespace NomNomzBot.Infrastructure.Webhooks;
 
@@ -40,7 +44,8 @@ public sealed class OutboundWebhookEndpointService(
     TimeProvider clock,
     IEventBus eventBus,
     ITemplateHelperValidator templateHelperValidator,
-    IOutboundWebhookDispatcher dispatcher
+    IOutboundWebhookDispatcher dispatcher,
+    IPipelineStepReferenceScanner stepReferences
 ) : IOutboundWebhookEndpointService
 {
     private const string Provider = "webhook:out";
@@ -321,6 +326,71 @@ public sealed class OutboundWebhookEndpointService(
         return Result.Success();
     }
 
+    /// <summary>
+    /// Counts what deleting the endpoint costs: pipeline <c>endpoint</c> steps that name it (by id or encoded id),
+    /// every stored delivery row, and the deliveries still waiting to be sent or retried.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    )
+    {
+        bool exists = await db.OutboundWebhookEndpoints.AnyAsync(
+            e => e.BroadcasterId == broadcasterId && e.Id == endpointId && e.DeletedAt == null,
+            ct
+        );
+        if (!exists)
+            return Result.Failure<BlastRadiusDto>("Endpoint not found.", "NOT_FOUND");
+
+        Result<PipelineStepReferenceScan> scan = await stepReferences.ScanAsync(
+            broadcasterId,
+            ["endpoint"],
+            [endpointId.ToString(), OwnedIdCodec.Encode(endpointId)],
+            ct: ct
+        );
+        if (scan.IsFailure)
+            return Result.Failure<BlastRadiusDto>(
+                scan.ErrorMessage ?? "The reference scan failed.",
+                scan.ErrorCode ?? "SCAN_FAILED"
+            );
+
+        IQueryable<OutboundWebhookDelivery> deliveries = db.OutboundWebhookDeliveries.Where(d =>
+            d.BroadcasterId == broadcasterId && d.EndpointId == endpointId
+        );
+        int total = await deliveries.CountAsync(ct);
+        int pending = await deliveries.CountAsync(
+            d =>
+                d.Status == WebhookDeliveryStatus.Pending
+                || (d.Status == WebhookDeliveryStatus.Failed && d.NextRetryAt != null),
+            ct
+        );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (scan.Value.MatchCount > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.PipelineSteps,
+                    scan.Value.MatchCount,
+                    scan.Value.PipelineNames
+                )
+            );
+        if (total > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(BlastRadiusCategoryKeys.WebhookDeliveries, total, [])
+            );
+        if (pending > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.PendingWebhookDeliveries,
+                    pending,
+                    []
+                )
+            );
+
+        return Result.Success(new BlastRadiusDto(categories, scan.Value.IsMinimum));
+    }
+
     public Task<Result<WebhookTestResultDto>> SendTestAsync(
         Guid broadcasterId,
         Guid endpointId,
@@ -373,7 +443,7 @@ public sealed class OutboundWebhookEndpointService(
                 replay.ErrorMessage,
                 replay.ErrorCode
             );
-        return Result.Success(ToDeliveryDto(replay.Value!));
+        return Result.Success(ToDeliveryDto(replay.Value));
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>

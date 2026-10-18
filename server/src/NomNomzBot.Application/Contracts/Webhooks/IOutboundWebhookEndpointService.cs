@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
 
@@ -69,6 +70,18 @@ public interface IOutboundWebhookEndpointService
     );
 
     Task<Result> DeleteAsync(Guid broadcasterId, Guid endpointId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Counts what a change to or the delete of this endpoint reaches (S-CONSEQ): the pipeline steps that
+    /// <c>send_webhook</c> to it (commands, event responses and timers all run pipelines), its delivery history,
+    /// and the deliveries still waiting to go out. NOT_FOUND when the endpoint is not in this tenant; a failed
+    /// lookup is never reported as zero.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    );
 
     /// <summary>The endpoint's delivery log (webhooks.md §5.1), newest attempt first, paged. NOT_FOUND when the
     /// endpoint doesn't exist under this tenant (never leaks another channel's deliveries).</summary>

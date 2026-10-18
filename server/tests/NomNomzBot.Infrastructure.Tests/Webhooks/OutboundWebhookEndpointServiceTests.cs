@@ -110,7 +110,8 @@ public sealed class OutboundWebhookEndpointServiceTests
                 new FakeTimeProvider(Now),
                 bus,
                 templateHelperValidator,
-                dispatcher
+                dispatcher,
+                Substitute.For<NomNomzBot.Application.Commands.Services.IPipelineStepReferenceScanner>()
             ),
             db,
             bus,
@@ -343,7 +344,7 @@ public sealed class OutboundWebhookEndpointServiceTests
 
         Result<PagedList<OutboundWebhookEndpointDto>> listed = await sut.ListAsync(
             Channel,
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         listed.IsSuccess.Should().BeTrue();

@@ -74,11 +74,18 @@ vi.mock('@/api/client', () => {
       return { response: { status: 200, ok: true } };
 
     if (path.endsWith('/blast-radius')) {
-      return ok({ categories: [{
-        categoryKey: 'pipelines',
-        count: 2,
-        sample: [],
-      }], isMinimum: false });
+      return ok({ categories: [
+        {
+          categoryKey: 'blast_radius_category_pipeline_steps',
+          count: 2,
+          sample: [],
+        },
+        {
+          categoryKey: 'blast_radius_category_pending_webhook_deliveries',
+          count: 3,
+          sample: [],
+        },
+      ], isMinimum: false });
     }
 
     // cspell:disable-next-line -- the route path carries the British spelling
@@ -187,6 +194,25 @@ describe('Webhooks page', () => {
 
     expect(callTo('DELETE', '/inbound/{endpointId}')?.params).toMatchObject({
       path: { channelId: 'c1', endpointId: 'i1' },
+    });
+  });
+
+  it('counts what an outbound webhook reaches before the confirm, and deletes only after it', async () => {
+    await open();
+    await click(q('[data-outbound-delete]'));
+
+    expect(callTo('GET', '/outbound/{endpointId}/blast-radius')?.params).toMatchObject({
+      path: { channelId: 'c1', endpointId: 'o1' },
+    });
+
+    expect(callTo('DELETE', '/outbound/{endpointId}')).toBeUndefined();
+    expect(document.body.textContent).toContain('Pipeline steps that use it: 2');
+    expect(document.body.textContent).toContain('Deliveries still waiting to be sent: 3');
+
+    await click(q('[data-confirm-action]'));
+
+    expect(callTo('DELETE', '/outbound/{endpointId}')?.params).toMatchObject({
+      path: { channelId: 'c1', endpointId: 'o1' },
     });
   });
 

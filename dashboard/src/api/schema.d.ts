@@ -83397,7 +83397,10 @@ export interface paths {
             };
         };
         post?: never;
-        /** Delete an outbound webhook endpoint, stopping its deliveries. */
+        /**
+         * Delete an outbound webhook endpoint, stopping its deliveries. The confirm step calls
+         *         Task&lt;IActionResult&gt; WebhooksController.GetOutboundBlastRadius(Guid channelId, Guid endpointId, CancellationToken ct) first and shows what the delete reaches.
+         */
         delete: {
             parameters: {
                 query?: never;
@@ -83918,6 +83921,104 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/blast-radius": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Real, counted blast radius for changing or deleting this outbound webhook endpoint (S-CONSEQ): the
+         *     pipeline steps that send to it, its delivery history and the deliveries still waiting. The dashboard
+         *     renders the result before the confirm can proceed.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    endpointId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfBlastRadius"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -87880,7 +87981,7 @@ export interface components {
             login: string;
             thumbnailUrl?: null | string;
         };
-        /** @description Read-model for a channel's Spotify BYOC state — never carries the secret. HasSharedApp is true only when a platform-level Spotify app exists to fall back on. */
+        /** @description Read-model for a channel's Spotify BYOC state — never carries the secret. `HasSharedApp` is true only when a platform-level Spotify app exists to fall back on. */
         ChannelSpotifyCredentials: {
             clientId?: null | string;
             hasClientSecret: boolean;

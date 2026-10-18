@@ -83,6 +83,9 @@ public static class BlastRadiusCategoryKeys
     public const string CodeScripts = "blast_radius_category_code_scripts";
     public const string JarMemberships = "blast_radius_category_jar_memberships";
     public const string JarMovements = "blast_radius_category_jar_movements";
+    public const string WebhookDeliveries = "blast_radius_category_webhook_deliveries";
+    public const string PendingWebhookDeliveries =
+        "blast_radius_category_pending_webhook_deliveries";
 
     // ── Channel delete (S-CONSEQ-DELETE-CHANNEL) ──
     // Deleting a channel destroys 116 tenant-scoped tables. 116 raw table counts is noise, not consent, so the

@@ -255,10 +255,24 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.RetryDeliveryAsync(channelId, endpointId, deliveryId, ct));
 
-    /// <summary>Delete an outbound webhook endpoint, stopping its deliveries.</summary>
-    [NotDestructive(
-        "Deletes one OutboundWebhookEndpoint row; the endpoint REFERENCES an egress allowlist entry but no entity carries an OutboundWebhookEndpointId FK."
-    )]
+    /// <summary>
+    /// Real, counted blast radius for changing or deleting this outbound webhook endpoint (S-CONSEQ): the
+    /// pipeline steps that send to it, its delivery history and the deliveries still waiting. The dashboard
+    /// renders the result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("outbound/{endpointId:guid}/blast-radius")]
+    [RequireAction("webhooks:outbound:read")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOutboundBlastRadius(
+        Guid channelId,
+        Guid endpointId,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.GetBlastRadiusAsync(channelId, endpointId, ct));
+
+    /// <summary>Delete an outbound webhook endpoint, stopping its deliveries. The confirm step calls
+    /// <see cref="GetOutboundBlastRadius"/> first and shows what the delete reaches.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("outbound/{endpointId:guid}")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> DeleteOutbound(

@@ -41,12 +41,16 @@
           "title": "{name} verwijderen?",
           "description": "De webhook wordt verwijderd en kan niet worden hersteld.",
           "action": "Webhook verwijderen",
-          "line": "{count} {what} gebruiken deze webhook",
-          "nothing": "Niets gebruikt deze webhook.",
+          "line": "{what}: {count}",
+          "nothing": "Niets anders gebruikt deze webhook.",
+          "minimum": "Deze aantallen zijn een minimum. Sommige toepassingen zijn pas bekend als een pipeline draait.",
           "outboundStops": "Leveringen naar dit adres stoppen direct.",
           "category": {
-            "pipelines": "pipelines",
-            "event_responses": "event responses"
+            "blast_radius_category_pipeline_steps": "Pipeline-stappen die hem gebruiken",
+            "blast_radius_category_webhook_deliveries": "Leveringen in de geschiedenis",
+            "blast_radius_category_pending_webhook_deliveries": "Leveringen die nog moeten worden verstuurd",
+            "blast_radius_category_custom_data_sources": "Eigen databronnen die hem gebruiken",
+            "blast_radius_category_supporter_connections": "Supporter-koppelingen die hem gebruiken"
           }
         }
       }

@@ -250,6 +250,26 @@ export async function fetchInboundWebhookBlastRadius(
   return data.data;
 }
 
+// The bot counts what an outbound webhook reaches before the confirm: pipeline steps that send to it and its deliveries.
+export async function fetchOutboundWebhookBlastRadius(
+  channelId: string,
+  endpointId: string,
+): Promise<WebhookBlastRadius> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/blast-radius',
+    { params: { path: {
+      version,
+      channelId,
+      endpointId,
+    } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw failed('outbound webhook blast radius', response.status, error);
+
+  return data.data;
+}
+
 export function useDeleteInboundWebhook(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<void, Error, string, undefined> {

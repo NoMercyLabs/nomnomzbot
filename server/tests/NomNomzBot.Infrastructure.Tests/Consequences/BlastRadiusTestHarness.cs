@@ -214,6 +214,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
             b.Ignore(s => s.Condition);
         });
         modelBuilder.Entity<OutboundWebhookEndpoint>(b => b.HasKey(e => e.Id));
+        modelBuilder.Entity<OutboundWebhookDelivery>(b => b.HasKey(e => e.Id));
 
         modelBuilder.Entity<Giveaway>(b => b.HasKey(g => g.Id));
         modelBuilder.Entity<GiveawayCodePool>(b => b.HasKey(p => p.Id));
@@ -251,6 +252,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
         typeof(Channel),
         typeof(EventSubSubscription),
         typeof(OutboundWebhookEndpoint),
+        typeof(OutboundWebhookDelivery),
         typeof(Widget),
         typeof(WidgetVersion),
         typeof(Pipeline),
@@ -567,7 +569,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
         Set<OutboundWebhookEndpoint>();
     public DbSet<OutboundWebhookDelivery> OutboundWebhookDeliveries =>
-        throw new NotSupportedException();
+        Set<OutboundWebhookDelivery>();
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints => Set<InboundWebhookEndpoint>();
     public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>

@@ -41,12 +41,16 @@
           "title": "Delete {name}?",
           "description": "The webhook is removed and cannot be restored.",
           "action": "Delete webhook",
-          "line": "{count} {what} use this webhook",
-          "nothing": "Nothing uses this webhook.",
+          "line": "{what}: {count}",
+          "nothing": "Nothing else uses this webhook.",
+          "minimum": "These counts are a minimum. Some uses are only known when a pipeline runs.",
           "outboundStops": "Deliveries to this address stop at once.",
           "category": {
-            "pipelines": "pipelines",
-            "event_responses": "event responses"
+            "blast_radius_category_pipeline_steps": "Pipeline steps that use it",
+            "blast_radius_category_webhook_deliveries": "Deliveries in its history",
+            "blast_radius_category_pending_webhook_deliveries": "Deliveries still waiting to be sent",
+            "blast_radius_category_custom_data_sources": "Custom data sources that use it",
+            "blast_radius_category_supporter_connections": "Supporter connections that use it"
           }
         }
       }

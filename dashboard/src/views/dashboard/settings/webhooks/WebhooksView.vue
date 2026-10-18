@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import {
   fetchInboundWebhookBlastRadius,
+  fetchOutboundWebhookBlastRadius,
   useDeleteInboundWebhook,
   useDeleteOutboundWebhook,
   useInboundWebhooks,
@@ -27,6 +28,7 @@ import {
   type InboundWebhook,
   type OutboundWebhook,
   type OutboundWebhookDraft,
+  type WebhookBlastRadius,
 } from '@/api/webhooks';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
@@ -36,6 +38,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { merge } from '@/lib/array';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
 import InboundWebhookRow from './components/InboundWebhookRow.vue';
@@ -132,31 +135,46 @@ function categoryLabel(key: string): string {
     : key.replaceAll('_', ' ');
 }
 
+function consequenceLines(blast: WebhookBlastRadius): readonly string[] {
+  const counted = blast.categories.filter((category) => Number(category.count) > 0);
+
+  const lines = counted.map((category) =>
+    t('dashboard.settings.webhooks.delete.line', {
+      count: Number(category.count),
+      what: categoryLabel(category.categoryKey),
+    }));
+
+  if (lines.length === 0)
+    return [t('dashboard.settings.webhooks.delete.nothing')];
+
+  return blast.isMinimum
+    ? merge(lines, [t('dashboard.settings.webhooks.delete.minimum')])
+    : lines;
+}
+
 // The blast radius is counted by the bot before the confirm opens: an endpoint whose reach cannot be read is not offered for delete.
 async function askDeleteInbound(endpoint: InboundWebhook): Promise<void> {
   await run(async () => {
     const blast = await fetchInboundWebhookBlastRadius(channelId.value as string, endpoint.id);
-    const counted = blast.categories.filter((category) => Number(category.count) > 0);
 
-    consequences.value = counted.length > 0
-      ? counted.map((category) =>
-          t('dashboard.settings.webhooks.delete.line', {
-            count: Number(category.count),
-            what: categoryLabel(category.categoryKey),
-          }))
-      : [t('dashboard.settings.webhooks.delete.nothing')];
-
+    consequences.value = [...consequenceLines(blast)];
     deletingOutbound.value = null;
     deletingInbound.value = endpoint;
     confirmOpen.value = true;
   });
 }
 
-function askDeleteOutbound(endpoint: OutboundWebhook): void {
-  consequences.value = [t('dashboard.settings.webhooks.delete.outboundStops')];
-  deletingInbound.value = null;
-  deletingOutbound.value = endpoint;
-  confirmOpen.value = true;
+async function askDeleteOutbound(endpoint: OutboundWebhook): Promise<void> {
+  await run(async () => {
+    const blast = await fetchOutboundWebhookBlastRadius(channelId.value as string, endpoint.id);
+
+    const stops = [t('dashboard.settings.webhooks.delete.outboundStops')];
+
+    consequences.value = [...merge(stops, consequenceLines(blast))];
+    deletingInbound.value = null;
+    deletingOutbound.value = endpoint;
+    confirmOpen.value = true;
+  });
 }
 
 async function confirmDelete(): Promise<void> {

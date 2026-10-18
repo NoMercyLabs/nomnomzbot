@@ -98553,7 +98553,7 @@
         "tags": [
           "Webhooks"
         ],
-        "summary": "Delete an outbound webhook endpoint, stopping its deliveries.",
+        "summary": "Delete an outbound webhook endpoint, stopping its deliveries. The confirm step calls\r\n    Task&lt;IActionResult&gt; WebhooksController.GetOutboundBlastRadius(Guid channelId, Guid endpointId, CancellationToken ct) first and shows what the delete reaches.",
         "parameters": [
           {
             "name": "channelId",
@@ -99219,6 +99219,116 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/blast-radius": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Real, counted blast radius for changing or deleting this outbound webhook endpoint (S-CONSEQ): the\r\npipeline steps that send to it, its delivery history and the deliveries still waiting. The dashboard\r\nrenders the result before the confirm can proceed.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "endpointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfBlastRadius"
                 }
               }
             }
@@ -106357,7 +106467,7 @@
             "type": "boolean"
           }
         },
-        "description": "Read-model for a channel's Spotify BYOC state — never carries the secret. HasSharedApp is true only when a platform-level Spotify app exists to fall back on."
+        "description": "Read-model for a channel's Spotify BYOC state — never carries the secret. `HasSharedApp` is true only when a platform-level Spotify app exists to fall back on."
       },
       "ChannelSummary": {
         "required": [

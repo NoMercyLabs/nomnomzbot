@@ -74,7 +74,8 @@ public sealed class HttpEgressAllowlistServiceTests
             new FakeTimeProvider(Now),
             new RecordingEventBus(),
             new TemplateHelperValidator(),
-            Substitute.For<IOutboundWebhookDispatcher>()
+            Substitute.For<IOutboundWebhookDispatcher>(),
+            Substitute.For<NomNomzBot.Application.Commands.Services.IPipelineStepReferenceScanner>()
         );
     }
 
