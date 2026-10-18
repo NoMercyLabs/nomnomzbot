@@ -12,4 +12,5 @@ Decision:
 - Word search: YouTube's public web search, keyless, with the same filters as today (no 10-hour loops, no reactions).
 - Quota (Stoney: "can we use my api keys for providing basic oauth or is everything cutting deep into my own api quota?"): every Data API call, by key or by any user's OAuth token, counts against the bot owner's one Google Cloud project (10,000 units a day; `search.list` 100 units, `videos.list` 1 unit). So keyless always goes first. The key is only a fallback for the 1-unit `videos.list` lookup when keyless data fails. Search never uses the Data API. OAuth is only for managing the streamer's own playlists.
 - A keyless failure is a clear typed message, never "not connected".
+- Music only (Stoney, verbatim: "make sure that the links are validated music links"): a request must be a music video. Keyless: the player data category is "Music". Key fallback: `categoryId` 10. Anything else is refused with a typed "not a music video" message.
 - Playback is the Audio widget's YouTube player, as today.

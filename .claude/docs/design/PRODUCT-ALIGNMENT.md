@@ -49,6 +49,7 @@ The bot **types** in chat via each platform's API (Twitch = Helix + EventSub; IR
 | **ManagementRole / CommunityStanding** | the two role ladders; users see NAMES, never level numbers | numeric levels in DTOs/tables |
 | **Gate-1 / Gate-2 / Plane-C** | tenant admission / per-action keys / platform IAM — spelled exactly so | "Gate 2", "Plane C", "plane c" |
 | **types / speaks** | chat output / TTS output | — |
+| **reply command** | a command a user sends as a chat reply to a message; it acts on that message (reply `!bump` to the bot's `!sr` answer, `!quote` to a chat line) | "reply message command", "threaded command" |
 
 ## Domain table (dev/prod)
 

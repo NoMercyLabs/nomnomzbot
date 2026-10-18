@@ -192,12 +192,13 @@ public interface IMusicService
     // matching ErrorCode (VALIDATION_FAILED/RATE_LIMITED/FORBIDDEN/SERVICE_UNAVAILABLE).
     // Queue-jump / extra-slot priority placement is NOT applied here by default — both are opt-in channel-point redeem
     // paths (§3.8), off (QueueJumpEnabled/PaidExtraSlotEnabled false) unless the broadcaster enables them.
-    // BAND ASSIGNMENT (§3.8 three-band model): the item is enqueued into PriorityBand=normal by default; when
-    // AutoBumpFirstSong (L.4) is on AND this is the requester's FIRST request this stream (per-stream count 0 —
-    // the same PerStreamLimit tracking, no new counter), it is enqueued into PriorityBand=auto_bump instead. After
-    // enqueue (within the same UoW), calls ISongRequestBumpService.TryConsumeBumpTokenAsync (§3.11): a raffle-winner
-    // bump token (L.9) promotes this request into PriorityBand=bump (BumpSource=raffle). Position is materialized
-    // per-band under the per-tenant lock.
+    // GROUP ASSIGNMENT (§3.8 two-group model): the item is enqueued into the normal group by default. Every admission
+    // rule (blocklist, trust, caps, per-role limits, who may play what) runs FIRST; a bump never bypasses a rule.
+    // When AutoBumpFirstSong (music config) is on AND this is the requester's FIRST admitted request of the current
+    // stream (keyed on viewer identity + stream session), RequestAsync then calls BumpAsync(…, BumpSource.AutoFirst).
+    // After enqueue (within the same UoW), calls ISongRequestBumpService.TryConsumeBumpTokenAsync (§3.11): a
+    // raffle-winner bump token (L.9) bumps this request (BumpSource.Raffle). A bumped song is placed after the last
+    // bumped song and before every normal song; Position is materialized under the per-tenant lock.
 
     Task<Result> SkipAsync(Guid broadcasterId, Guid skippedByUserId, CancellationToken cancellationToken = default);
     // Marks the `playing` item Status=skipped (+PlayedAt), asks the sequencer (§3.5) to advance to the next PLAYABLE
@@ -489,7 +490,7 @@ public sealed record PlaybackStateDto(
 1. **Stop-and-verify on every advance.** Pause/stop the OUTGOING engine and verify it stopped (`is_playing=false` for Spotify) BEFORE starting the incoming engine.
 2. **Conditional pre-load.** Only pre-load Spotify's native "next" when the upcoming item is ALSO Spotify; if the next item is YouTube, leave Spotify's native queue EMPTY.
 3. **Autoplay watchdog.** If Spotify is ever observed playing a track that is NOT our expected current item (autoplay slipped through the ~1–2s end-of-track gap), pause it immediately.
-4. **Empty-queue pause.** Empty queue ⇒ pause Spotify (never let it autoplay recommendations).
+4. **Empty queue: Spotify plays on.** Spotify pauses only while a request on another provider plays. Empty queue ⇒ Spotify keeps playing (its own autoplay, to the streamer's taste), and is resumed if a YouTube request paused it. Stoney, 2026-10-18: "spotify needs to continue playing".
 
 **Playable-head rule (a down provider never blocks the queue).** The sequencer always plays the **highest-fair-ranked item that is PLAYABLE RIGHT NOW**. Items whose provider is in `waiting`/`retrying` are **SKIPPED but RETAIN their fair position** (not removed, not penalized, no rank loss). When the provider recovers they play next at their rank — **after the current song finishes** (never interrupt). If ALL remaining items belong to the down provider, the queue idles in `waiting`.
 
@@ -563,7 +564,7 @@ Queue order is **not FIFO** — it is **Bamo's rank-based fair scheduler** (`Nom
 - **Insert** — compute the new song's rank (`= owner's current queued count + 1`), scan the queue **front-to-back**, insert it **immediately before the first song of higher rank** (the end of its rank tier); append if none higher exists. (Front-to-back is load-bearing — see *Code reconciliation*.)
 - **Dequeue / play** — remove the head (index 0) **only**: do NOT re-sort and do NOT re-promote the dequeued owner's remaining songs. Their physical order already encodes the fair schedule and the head-pop preserves it.
 - **Remove (self / mod) / Clear** — remove the element(s) only; the surviving order stays a valid schedule.
-- **Per band** — run this independently within each band (`bump` → `auto_bump` → `normal`, §three-band) and concatenate in band-stack order.
+- **Per group** — fair rank order holds inside the normal group only. The bumped group keeps bump order (see *Bump group* below).
 
 > **Do NOT "fix" this by globally re-sorting on `(rank, arrival)`.** Re-sorting after a dequeue re-promotes the dequeued requester's next song to the front of its rank tier by arrival time, letting it leapfrog requesters who have not played yet — the exact unfairness the scheduler exists to prevent (e.g. `O1,P1,P2,O2`, play `O1`, then a re-sort yields `P1,O2,P2` instead of the correct `P1,P2,O2`). Order is defined by incremental insertion + head-pop, not a global sort.
 
@@ -588,7 +589,7 @@ public interface IFairQueue<T>   // NomNomzBot.Domain.Music.Interfaces
 }
 ```
 
-The **target** ordering rule below describes `Enqueue` semantics (front-to-back insert); the as-built `Enqueue` does not yet match it (see *Code reconciliation*).
+`Enqueue` scans front-to-back and inserts before the first higher-rank item (fixed in commit `0b17eb39a`; see *Code reconciliation*).
 
 **Persistence (as-built).** `MusicService` admits through `TryEnqueueUnique`/`Enqueue`, then calls `ISongRequestQueuePersistence.SyncAsync` with `GetSnapshot()` (rows keyed `(BroadcasterId, Sequence)`, `Sequence` = snapshot index, plus `IsInFlight` for the entry already handed to the provider). Startup restore replays the rows in `Sequence` order; the target rebuild-by-`Position` rule below is what that replay approximates.
 
@@ -602,15 +603,44 @@ The **target** ordering rule below describes `Enqueue` semantics (front-to-back 
 
 Both link the redemption via `SongRequestItems.CatalogPurchaseId` (`economy.md`). With neither enabled, every request takes fair-rank order under the free cap. Mod `MoveAsync` is a deliberate manual override: it moves the item to the chosen index. Because the schedule is **never globally re-sorted**, the moved item simply stays where it was placed — later inserts splice around it and a head-pop never disturbs it — so the override is durable with no pin flag or extra column.
 
-**Three-band priority model (the bump tier) — target, not built; `PriorityBand` does not exist.** The single ordered queue (top plays first) is partitioned into three bands by `SongRequestItems.PriorityBand` (L.5). The sequencer (§3.5.2) always promotes the highest item across the whole queue; the bands stack **bump → auto_bump → normal**, and `Position` orders items WITHIN a band (the fair-rank materialization from §3.8 is computed per-band, not globally). The restart-safe rebuild (above) runs per-band: on first access each band's queue is rebuilt from its `Status=queued` rows **in `Position` order**, partitioned by `PriorityBand`, so a restart never reshuffles.
+**Bump group (owner definitions, 2026-10-13).** The owner asked for this in these words (SHORTCOMINGS-EXECUTION-PLAN, "OWNER REQUEST 2026-10-13 — fair queueing definitions"): "the fair queueing system needs some definitions, when someone requests their first song of the stream they should be fairly bumped to the top without pushing away other first songs that have been bumped already. when bumping a song it should be directly reflected in spotify's queue by removing the queue and pushing the bumped song. bumping a song sshould be possible by a reward created by the user as a pipeline/single action, it should be a setting for the music system to enable or disable the auto bump for first requests while upholding any rules set on who is allowed to play what so the channel stays safe. removing a song should also directly reflect and be removed, starting it and then removing it defeats the purpose of the faur queueing system, its the same as for chat messages or tts speeches, something removed should ALWAYS take president over permissive actions. so the reply to the !sr command should also allow for !bump. everything should always be available across all features like code scripts, overlays, chat and everywhere a user may want to trigger this." A later message set the term: "and i mean reply with !bump, lets set the terminology in the rules, "a reply command"".
 
-1. **`bump` band — every explicit bump.** Raffle wins (§3.11), `!bump` (§3.11/§6), and the existing channel-point `queue-jump` redeem (§3.8) ALL land here. Ordered **fairly among bumpers** by the same Bamo rule: a bumper's rank within the band = (number of bumps that user already has pending in the band) + 1, FIFO within equal rank. No single bumper monopolizes the band even with multiple bumps. `BumpSource` records which path placed the item (`raffle`\|`command`\|`redeem`).
-2. **`auto_bump` band — each requester's first song of the stream.** When `AutoBumpFirstSong` (L.4, default OFF) is on, a requester's FIRST song this stream is placed here: **above** the regular fair queue, **below** every explicit bump. Fair among the auto-bumped first-songs (same Bamo rule, owner key = `RequestedByUserId`). A user's SUBSEQUENT songs go to the `normal` band. **First-song detection REUSES the per-stream-per-user request tracking the `PerStreamLimit` feature relies on** (§3.1) — first request this stream = that per-stream count is 0; **no second counter is introduced**.
-3. **`normal` band — the regular fair queue.** Unchanged Bamo fair order (§3.8 above).
+The queue has two groups: **bumped**, then **normal**. The in-flight head (the song already handed to the provider) always stays first.
+- **Bumped group.** A bump, manual or automatic, places the song after the last bumped song and before every normal song. A new bump never pushes an earlier bump down. The `SongRequestEntry` records which source put it there: `BumpSource` = `auto_first` \| `reward` \| `command` \| `moderator` \| `script` \| `raffle` (a raffle win is a bump). A song is bumped once; a second bump of an already bumped song changes nothing.
+- **Normal group.** Fair rank order (above) holds inside this group only.
+- **Persistence.** The restart mirror (`SongRequestQueueItem`) stores the group and `BumpSource` per row, so a restart replays the exact order and never reshuffles.
 
-A `!bump`/raffle/redeem on an item already queued sets its `PriorityBand=bump` and re-materializes Position within the bump band under the per-tenant lock, then emits `SongRequestQueueChangedEvent(bumped)`. The `queue-jump` redeem's "priority prefix" (above) is exactly the `bump` band — the two descriptions are the same mechanism.
+**`AutoBumpFirstSong` (music config, default off).** The setting lives in the `music:config` JSON beside `MaxQueueSize` and the other music settings. When on, a viewer's first admitted request of the current stream is bumped with `BumpSource = auto_first`. Every admission rule runs first: blocklist, trust, caps, per-role limits, and who may play what. A bump never bypasses a rule. A rejected request is never bumped. "First of the stream" is keyed on the viewer identity (the `Users` id, not the display name) and the current stream session. The count starts at zero when a new stream session starts.
 
-**Code reconciliation — open as `S-FAIRQUEUE-ENQUEUE`.** The `Enqueue` bug below is **still present** (`FairQueue<T>.EnqueueUnderLock` scans from the end); neither the fix nor the regression test is applied. One impl is in the tree — `NomNomzBot.Infrastructure.Music.FairQueue<T>` (`server/src/NomNomzBot.Infrastructure/Music/FairQueue.cs`) behind `NomNomzBot.Domain.Music.Interfaces.IFairQueue<T>` — and it is **canonical** (no orphan dupe remains). Its `Dequeue` and play order are **correct** (head-pop preserves the schedule; the in-place rank renumber keeps stored rank equal to live positional rank). The bug is in **`Enqueue`: it scans from the END** for the last item with `rank <= newRank` and inserts after it. That equals the front-scan only while the list is rank-monotonic — but a `Dequeue` legitimately leaves it non-monotonic (the dequeued owner's later song is renumbered to a low rank yet stays physically behind higher-rank items), and scanning from the end then **buries a fresh rank-1 request at the back** instead of placing it in the front rank-1 tier. Worked example: `O1,P1,P2,O2` → `Dequeue O1` → `[P1,P2,O2]` (correct), then enqueue newcomer `Q1` → the impl yields `[P1,P2,O2,Q1]` (Q1 buried); correct is `[P1,Q1,P2,O2]`. **Fix on implementation:** scan **front-to-back** and insert before the first higher-rank item (the `insert`/`rank_of` at `https://fair-queueing.netlify.app/`); keep head-pop as-is and do **not** re-sort. **Regression test (prove behavior):** assert the exact order `[P1,Q1,P2,O2]` for insert-after-dequeue — the existing `FairQueueTests` use order-insensitive `BeEquivalentTo` and only a single-owner dequeue, so they miss it; add explicit-order cases for insert-after-dequeue, mid-queue self-remove, and a 3-owner interleave.
+**Removal wins.** A removal or a ban always takes precedence over a bump or any other permissive action, the same as for chat and TTS. Spotify has no remove, reorder or clear-queue call, so the bot keeps every request in its own queue. It hands exactly one song to Spotify, and only in a **hand-over window**: the last 10 seconds of the current song (owner, 2026-10-13: "lets also make the next song be put in the queue when the current song is at 10 seconds to the end so we can bump to the very last moment and respond to removals quicker"), computed from `PlaybackStateChangedEvent` `DurationMs`/`ProgressMs` and `PredictedTrackEnd`.
+- A bump or a removal before the window changes only the bot's queue. A removed song never reaches Spotify, so it never starts.
+- A bump above the in-flight head is the same: it changes only the bot's queue until the window opens, then the new head is handed over.
+- The skip stays as the fallback removal (owner, 2026-10-13: "still handle the skip as a fallback removal"): a removal of the song already handed over skips it at the track boundary (the existing retraction, `RetractRequestAsync`). The ban path (`BanQueuedTrackAsync`) arms the same retraction when the banned song is held by the provider.
+
+**One bump call.** `IMusicService.BumpAsync` is the single service call for every surface. The target is a queue position, a request code, or a requester.
+
+```csharp
+Task<Result<SongRequestItemDto>> BumpAsync(
+    Guid broadcasterId,
+    SongBumpTarget target,      // ByPosition(int) | ByCode(string) | ByRequester(string userId)
+    BumpSource source,          // auto_first | reward | command | moderator | script
+    CancellationToken cancellationToken = default);
+```
+
+It runs under the per-tenant ordering lock, persists through `ISongRequestQueuePersistence.SyncAsync`, and publishes `SongRequestQueueChangedEvent(bumped)`. NOT_FOUND is returned when the target is not queued. It is multi-write (queue, persistence mirror, event), so it runs inside one `IUnitOfWork` operation with a single `CompleteAsync()`. Surfaces that call it:
+- the `song_bump` pipeline action (§6), usable as a reward's single action or inside a pipeline;
+- the `!bump` reply command on the bot's `!sr` answer;
+- the moderator promote route (`POST queue/{position}/promote`), which calls `BumpAsync` with `ByPosition` and `moderator`;
+- the script calls `bot.music.bump` and `bot.music.remove`;
+- the overlay and REST API.
+
+Who may run `!bump` follows the command's role setting like any command (default Moderator). A viewer can bump through a reward the streamer creates.
+
+**Reply link.** The bot stores the chat message id of its `!sr` answer on the queue entry (`SongRequestEntry.ReplyMessageId`). The id comes from `data[0].message_id` in the Helix send-message response; Kick already returns an id. `BuiltinCommandContext` gains `ReplyParentMessageId`, copied from `ChatMessageReceivedEvent.ReplyParentMessageId` at both build sites in `ChatMessageHandler`. The `!bump` reply command finds the queue entry by that id.
+
+**Queue-jump redeem.** The channel-point `queue-jump` redeem (above) is a reward whose single action is `song_bump`; it places the song in the bumped group with `BumpSource = reward`.
+
+**Code reconciliation — `S-FAIRQUEUE-ENQUEUE` (fixed in commit `0b17eb39a`).** `FairQueue<T>.Enqueue` now scans front-to-back, and `FairQueueTests` asserts the exact order (including `[P1,Q1,P2,O2]`). The text below records why front-to-back is load-bearing. One impl is in the tree — `NomNomzBot.Infrastructure.Music.FairQueue<T>` (`server/src/NomNomzBot.Infrastructure/Music/FairQueue.cs`) behind `NomNomzBot.Domain.Music.Interfaces.IFairQueue<T>` — and it is **canonical** (no orphan dupe remains). Its `Dequeue` and play order are **correct** (head-pop preserves the schedule; the in-place rank renumber keeps stored rank equal to live positional rank). The old bug was in **`Enqueue`, which scanned from the END** for the last item with `rank <= newRank` and inserted after it. That equaled the front-scan only while the list is rank-monotonic — but a `Dequeue` legitimately leaves it non-monotonic (the dequeued owner's later song is renumbered to a low rank yet stays physically behind higher-rank items), and scanning from the end then **buries a fresh rank-1 request at the back** instead of placing it in the front rank-1 tier. Worked example: `O1,P1,P2,O2` → `Dequeue O1` → `[P1,P2,O2]` (correct), then enqueue newcomer `Q1` → the old impl yielded `[P1,P2,O2,Q1]` (Q1 buried); correct is `[P1,Q1,P2,O2]`. **The fix:** scan **front-to-back** and insert before the first higher-rank item (the `insert`/`rank_of` at `https://fair-queueing.netlify.app/`); head-pop stays as-is and the queue is never re-sorted.
 
 ### 3.9 Trust scoring — Bamo's exponential-decay algorithm (`TrustScoreCalculator`)
 
@@ -795,27 +825,13 @@ These are management-plane writes against the **broadcaster's own** provider acc
 
 ### 3.11 `ISongRequestBumpService` — NEW, target (`Application/Contracts/Music/ISongRequestBumpService.cs`) — not built
 
-Owns the **bump band** writes (L.5 `PriorityBand=bump`) and the **song-bump raffle** (L.7/L.8/L.9). Single responsibility — bump/raffle orchestration, distinct from the queue lifecycle (`ISongRequestQueueStateService`) and per-track ops (`IMusicService`). **No standalone raffle/giveaway primitive existed in the design corpus** (economy's "raffle" is the colloquial name of a `queue-jump` redeem, and economy games are gambling, not random-winner draws), so this is an SR-owned raffle; it **reuses the economy `CatalogPurchases` debit** (K.11) for paid entry — the exact `CatalogPurchaseId` link the paid lane uses (§3.8) — rather than inventing a parallel spend path. Bump/raffle moderation reuses the existing `music:queue:moderate` action key; viewer raffle entry reuses `music:request:submit`.
+Owns the **song-bump raffle** and the **bump tokens** (L.7/L.8/L.9). Single responsibility — raffle orchestration, distinct from the queue lifecycle (`ISongRequestQueueStateService`) and per-track ops (`IMusicService`). **The bump itself is `IMusicService.BumpAsync` (§3.8)**, the one call every surface uses; this service is the implementation behind the raffle and token paths and calls `BumpAsync` with `BumpSource.Raffle` (a raffle win is a bump). It holds no ordering logic of its own. **No standalone raffle/giveaway primitive existed in the design corpus** (economy's "raffle" is the colloquial name of a `queue-jump` redeem, and economy games are gambling, not random-winner draws), so this is an SR-owned raffle; it **reuses the economy `CatalogPurchases` debit** (K.11) for paid entry — the exact `CatalogPurchaseId` link the paid lane uses (§3.8) — rather than inventing a parallel spend path. Bump/raffle moderation reuses the existing `music:queue:moderate` action key; viewer raffle entry reuses `music:request:submit`.
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.Music;
 
 public interface ISongRequestBumpService
 {
-    // ── Bump command (human override) ──────────────────────────────────────────
-    Task<Result<SongRequestItemDto>> BumpAsync(
-        Guid broadcasterId, Guid songRequestItemId, BumpSource source, CancellationToken cancellationToken = default);
-    // Moves a queued item into the bump band at fair rank (rank = the user's existing bumps in the band + 1),
-    // sets PriorityBand=bump + BumpSource, re-materializes Position within the band under the per-tenant lock,
-    // SaveChanges, emits SongRequestQueueChangedEvent(bumped). Backs !bump <songId> and the raffle/redeem paths.
-    // Failure NOT_FOUND if the item is absent/not queued.
-
-    Task<Result<SongRequestItemDto>> BumpUserAsync(
-        Guid broadcasterId, Guid targetUserId, BumpSource source, CancellationToken cancellationToken = default);
-    // Resolves the target user's earliest queued item (their head) and bumps it (BumpAsync). Backs !bump <user>.
-    // Failure NOT_FOUND if the user has no queued item; if they have a bump token (L.9) instead, the caller
-    // grants/consumes it via the token path (no auto-token here — explicit !bump targets an existing song).
-
     // ── Bump tokens (raffle fallback) ──────────────────────────────────────────
     Task<Result> GrantBumpTokenAsync(
         Guid broadcasterId, Guid userId, CancellationToken cancellationToken = default);
@@ -824,9 +840,10 @@ public interface ISongRequestBumpService
 
     Task<Result<bool>> TryConsumeBumpTokenAsync(
         Guid broadcasterId, Guid userId, Guid newSongRequestItemId, CancellationToken cancellationToken = default);
-    // If the user has a bump token (TokenCount > 0), decrements it and bumps newSongRequestItemId (BumpSource=raffle),
-    // returns true; else returns false (no-op). Called by IMusicService.RequestAsync after enqueue, before SaveChanges,
-    // so a token holder's next request lands in the bump band automatically. Shares the request's UoW transaction.
+    // If the user has a bump token (TokenCount > 0), decrements it and calls IMusicService.BumpAsync on
+    // newSongRequestItemId (BumpSource.Raffle), returns true; else returns false (no-op). Called by
+    // IMusicService.RequestAsync after enqueue, before SaveChanges, so a token holder's next request is bumped
+    // automatically. Shares the request's UoW transaction.
 
     // ── Raffle ─────────────────────────────────────────────────────────────────
     Task<Result<SongRequestRaffleDto>> StartRaffleAsync(
@@ -847,8 +864,8 @@ public interface ISongRequestBumpService
     Task<Result<SongRequestRaffleResultDto>> DrawRaffleAsync(
         Guid broadcasterId, CancellationToken cancellationToken = default);
     // Picks WinnerCountSnapshot random winners (RandomNumberGenerator over the distinct entrants, ticket-weighted),
-    // flags SongRequestRaffleEntries.IsWinner. For each winner: if they have a queued song, BumpAsync it
-    // (BumpSource=raffle); else GrantBumpTokenAsync. Sets the raffle Status=drawn + DrawnAt. All writes wrapped in
+    // flags SongRequestRaffleEntries.IsWinner. For each winner: if they have a queued song, bump it via
+    // IMusicService.BumpAsync (BumpSource.Raffle); else GrantBumpTokenAsync. Sets the raffle Status=drawn + DrawnAt. All writes wrapped in
     // IUnitOfWork (all-or-nothing). SaveChanges, emits SongRequestRaffleEvent(Phase=drawn, Winners=…) +
     // SongRequestQueueChangedEvent(bumped) per bumped winner. Failure VALIDATION_FAILED if no open raffle.
 
@@ -861,11 +878,11 @@ public interface ISongRequestBumpService
     // Reads the channel's open raffle (or null). Read-only — backs the public/dashboard active-raffle view.
 }
 
-public enum BumpSource { Raffle, Command, Redeem }   // mirrors L.5 BumpSource [VC:enum]
+public enum BumpSource { AutoFirst, Reward, Command, Moderator, Script, Raffle }   // stored as strings auto_first|reward|command|moderator|script|raffle [VC:enum]; used by IMusicService.BumpAsync (§3.8)
 public enum RaffleTrigger { Manual, Auto }           // mirrors L.7 Trigger [VC:enum]
 ```
 
-The interval auto-run (`RaffleIntervalMinutes`, L.4) is driven by the existing `SongRequestSequencerLoop` `IHostedService` tick (§7) — when the cadence elapses it calls `StartRaffleAsync(…, RaffleTrigger.Auto)` then `DrawRaffleAsync` after the entry window; no new hosted service. `IMusicService.RequestAsync` (§3.1) calls `ISongRequestBumpService.TryConsumeBumpTokenAsync` after enqueue (within its UoW) so a token holder's next request auto-bumps; the auto-bump-first-song band (§3.8) is applied by `RequestAsync` setting `PriorityBand=auto_bump` when `AutoBumpFirstSong` is on and the requester's per-stream count is 0 (reusing the `PerStreamLimit` tracking — no new counter).
+The interval auto-run (`RaffleIntervalMinutes`, L.4) is driven by the existing `SongRequestSequencerLoop` `IHostedService` tick (§7) — when the cadence elapses it calls `StartRaffleAsync(…, RaffleTrigger.Auto)` then `DrawRaffleAsync` after the entry window; no new hosted service. `IMusicService.RequestAsync` (§3.1) calls `ISongRequestBumpService.TryConsumeBumpTokenAsync` after enqueue (within its UoW) so a token holder's next request is bumped; the first-song auto bump (§3.8) is applied by `RequestAsync` calling `BumpAsync(…, BumpSource.AutoFirst)` when `AutoBumpFirstSong` is on and the request is the viewer's first admitted one of the current stream, after every admission rule has passed.
 
 ## 4. DTOs / contracts (records — `NomNomzBot.Application.Contracts.Music` unless noted)
 
@@ -885,7 +902,7 @@ public sealed record SongRequestItemDto(
     int RetryCount, string? FailureReason, DateTime? NextRetryAt, DateTime RequestedAt, DateTime? PlayedAt);
 // Status ∈ queued|playing|waiting|retrying|played|skipped|rejected (L.5). RetryCount/FailureReason/NextRetryAt
 // back the §3.5.2 failure taxonomy (waiting = provider/environment down; retrying = bounded transient retry).
-// PriorityBand ∈ bump|auto_bump|normal (§3.8 three-band ordering); BumpSource ∈ raffle|command|redeem (null unless bumped).
+// PriorityBand ∈ bumped|normal (§3.8 two-group ordering); BumpSource ∈ auto_first|reward|command|moderator|script|raffle (null unless bumped).
 
 public sealed record MusicQueueDto(NowPlayingDto? NowPlaying, IReadOnlyList<SongRequestItemDto> Queue); // EXISTS — item type widened to SongRequestItemDto
 
@@ -1172,11 +1189,11 @@ The requester label is untrusted display text: `RequestedBy` defaults to `"Anony
 
 There is no `song_seek` action: seek is `music_seek`. Capability and Premium failures (`CAPABILITY_UNSUPPORTED`, `PREMIUM_REQUIRED`) surface as a chat reply.
 
-**Target actions (unbuilt).** `song_bump`, `song_raffle` and `song_raffle_enter` do not exist. They route through `ISongRequestBumpService` (§3.11): `!bump` and `!raffle` are Moderator+ via command role config (floor `music:queue:moderate`), and viewer raffle entry rides `music:request:submit` (gated by `RaffleEnabled`). The viewer-paid bump path stays the channel-point `queue-jump` redeem — there is no free viewer bump command and no paid command alias.
+**Target actions (unbuilt).** `song_bump`, `song_raffle` and `song_raffle_enter` do not exist. `song_bump` calls `IMusicService.BumpAsync` (§3.8). `song_raffle` and `song_raffle_enter` route through `ISongRequestBumpService` (§3.11). `!bump` and `!raffle` follow the command's role setting like any command (default Moderator, floor `music:queue:moderate`), and viewer raffle entry rides `music:request:submit` (gated by `RaffleEnabled`). A viewer can bump through a reward the streamer creates, with `song_bump` as the reward's single action or a step in its pipeline.
 
 | `ActionType` (string) | Config DTO (action params) | Behavior |
 |---|---|---|
-| `song_bump` | `{ "target": string }` (`<user>` or `<songId>`, supports `{var}`) | **Target.** `!bump` — Moderator+. Resolves `target` → `ISongRequestBumpService.BumpUserAsync`/`BumpAsync(…, BumpSource.Command)`; chat-confirms the bumped track. NOT_FOUND is replied in chat. |
+| `song_bump` | `{ "target": string }` (`<user>`, `<songCode>` or `<position>`, supports `{var}`; empty = the reply parent's queue entry, or the triggering viewer's own request when run from a reward) | **Target.** Usable as a reward's single action, a pipeline step, or the `!bump` reply command (default Moderator). Resolves the target and calls `IMusicService.BumpAsync` with `BumpSource.Reward` (reward), `Command` (`!bump`) or `Script`; for a reply command it finds the entry by `BuiltinCommandContext.ReplyParentMessageId`. Chat-confirms the bumped track. NOT_FOUND is replied in chat. Every admission rule already ran when the song was queued; a bump never bypasses one. |
 | `song_raffle` | `{ "action": string = "start" }` (`start`\|`draw`\|`cancel`) | **Target.** `!raffle` — Moderator+. Routes to `StartRaffleAsync`/`DrawRaffleAsync`/`CancelRaffleAsync`; chat-announces start/winners. Fails (chat reply) when `RaffleEnabled` is false. |
 | `song_raffle_enter` | `{}` | **Target.** Viewer raffle entry (`music:request:submit`, gated by `RaffleEnabled`). Calls `EnterRaffleAsync(broadcasterId, ctx.TriggeredByUserId)`; chat-confirms entry or replies the channel-point debit failure / per-user ticket cap. |
 
@@ -1214,7 +1231,8 @@ services.AddScoped<ISongRequestPageTokenService, SongRequestPageTokenService>();
 services.AddScoped<IMusicProviderManageApi, MusicProviderManageApi>();               // NEW (library/playlist/follow/ratings; delegates to the active IMusicProvider)
 services.AddScoped<INowPlayingFeed, NowPlayingFeed>();                               // NEW (wraps IHubContext<OverlayHub,IOverlayClient>)
 services.AddScoped<ISongRequestSequencer, SongRequestSequencer>();                   // NEW (drip-feed/browser-source playback driver §3.5.2; one now-playing pointer, playable-head + autoplay watchdog)
-services.AddScoped<ISongRequestBumpService, SongRequestBumpService>();               // NEW (bump band + song-bump raffle §3.11; reuses economy CatalogPurchases for paid entry)
+services.AddScoped<ISongRequestBumpService, SongRequestBumpService>();               // NEW (song-bump raffle + bump tokens §3.11; calls IMusicService.BumpAsync; reuses economy CatalogPurchases for paid entry)
+services.AddSingleton<IStreamFirstRequestTracker, StreamFirstRequestTracker>();        // NEW (BumpAsync/AutoBumpFirstSong: per (channel, viewer identity, stream session) first-admitted-request marker; Singleton like ISongRequestQueueStore — BumpAsync and the hand-over window use the existing ISongRequestQueueStore, ISongRequestQueuePersistence and IUnitOfWork)
 services.AddHostedService<SongRequestSequencerLoop>();                               // NEW (IHostedService poll tick → ISongRequestSequencer.PollAsync per active channel; also fires RaffleIntervalMinutes auto-raffle via ISongRequestBumpService; resolves the Scoped services per tick)
 
 // Pipeline actions (EXISTING five + two transport + three bump/raffle actions)
@@ -1225,7 +1243,7 @@ services.AddTransient<ICommandAction, SongQueueAction>();
 services.AddTransient<ICommandAction, SongVolumeAction>();
 services.AddTransient<ICommandAction, SongPreviousAction>();   // NEW
 services.AddTransient<ICommandAction, SongSeekAction>();       // NEW
-services.AddTransient<ICommandAction, SongBumpAction>();        // NEW (!bump)
+services.AddTransient<ICommandAction, SongBumpAction>();        // NEW (reward single action, pipeline step, !bump reply command; calls IMusicService.BumpAsync)
 services.AddTransient<ICommandAction, SongRaffleAction>();      // NEW (!raffle start|draw|cancel)
 services.AddTransient<ICommandAction, SongRaffleEnterAction>(); // NEW (viewer raffle entry)
 
@@ -1235,7 +1253,7 @@ services.AddScoped<IEventHandler<SongRequestQueueChangedEvent>, NowPlayingFeedHa
 ```
 > **As-built:** `MusicService` is already Scoped and the in-memory queue lives in the Singleton `ISongRequestQueueStore`; no `Dictionary` singleton remains. **Target:** drop the `_db.Services` provider lookup; `MusicService` resolves providers through `IMusicProviderRegistry` over `IntegrationConnections` (`Provider`/`Status=connected`), routing requests only to providers in `SongRequestQueues.EnabledProviders` whose `Capabilities` include `AcceptsSongRequests` (a now-playing-only provider is never picked), and using `ProviderPriority` solely for ambiguous-request preference + cross-resolve (§3.1). Playback itself is owned by `ISongRequestSequencer` (§3.5.2) — it drip-feeds the head to Spotify (never a queue dump) or drives the YouTube browser-source player, one item at a time, never both at once.
 
-**Per-tenant ordering lock (target; as-built the store's per-channel handover `SemaphoreSlim` and the `FairQueue<T>` lock serialize queue mutation).** `RequestAsync`/`RemoveAsync`/`MoveAsync`/`ClearAsync`/`AdvanceAsync` and the bump/raffle writes (`ISongRequestBumpService.BumpAsync`/`BumpUserAsync`/`TryConsumeBumpTokenAsync`/`DrawRaffleAsync`) assign/renumber `Position` **within the affected `PriorityBand`** under the per-tenant lock defined by schema §1.4 (`TenantSequences` row `(BroadcasterId, "sr_position")` read-incremented in the same transaction; `SELECT … FOR UPDATE` on Postgres, `BEGIN IMMEDIATE` on SQLite). Use the existing `IUnitOfWork` transaction (`BeginTransactionAsync`/`CommitTransactionAsync`) — the raffle entry/draw and cancel-refund are multi-write and wrapped all-or-nothing (rollback on failure), per the UoW transaction-boundary rule.
+**Per-tenant ordering lock (target; as-built the store's per-channel handover `SemaphoreSlim` and the `FairQueue<T>` lock serialize queue mutation).** `RequestAsync`/`RemoveAsync`/`MoveAsync`/`ClearAsync`/`AdvanceAsync` and the bump/raffle writes (`IMusicService.BumpAsync`, `ISongRequestBumpService.TryConsumeBumpTokenAsync`/`DrawRaffleAsync`) assign/renumber `Position` **within the affected group** under the per-tenant lock defined by schema §1.4 (`TenantSequences` row `(BroadcasterId, "sr_position")` read-incremented in the same transaction; `SELECT … FOR UPDATE` on Postgres, `BEGIN IMMEDIATE` on SQLite). Use the existing `IUnitOfWork` transaction (`BeginTransactionAsync`/`CommitTransactionAsync`) — the raffle entry/draw and cancel-refund are multi-write and wrapped all-or-nothing (rollback on failure), per the UoW transaction-boundary rule.
 
 ---
 
@@ -1274,9 +1292,9 @@ These decisions describe the **target** design unless a line cites the as-built 
 13. **YouTube ad-strip — deliberate, ToS-gray, reversible (§3.5).** Our browser-source YouTube player blocks the YouTube ad-network requests (ads arrive as separate requests — strippable, unlike Spotify which streams ads inline). `SongRequestQueues.StripYouTubeAds` defaults **true**, per-channel toggle. This is a **deliberately accepted ToS-gray area**: it is long-standing industry practice (StreamElements has stripped YouTube ads in its SR player for years) and is **reversible** — the toggle can default off / be removed if YouTube objects.
 14. **Tiered allowances + a separate paid lane (§3.1/§3.8, L.4).** The flat `MaxPerUser` is **removed**; the free lane is a per-standing CONCURRENT-PENDING cap (`PendingLimits`: count of unplayed items the requester owns) — defaults Everyone 2, Subscriber T1/T2/T3 4/4/4 (per-tier overridable), VIP 10, Moderator/Broadcaster unlimited (null sentinel). The **paid lane is separate and OFF by default**: channel-point requests count against `PaidPendingLimit` (independent of the free cap) via two opt-in redeems — `extra-slot` (adds a request at normal fair position, bypassing the free cap, `PaidExtraSlotEnabled`) and `queue-jump` (priority placement, `QueueJumpEnabled`); both link the redemption via `CatalogPurchaseId`. A `PerStreamLimit` (lifetime-in-stream per user, off by default) and separate free/paid `MaxDuration*Seconds` (defaults 360s / 600s) round out the allowances; a `MinStandingToRequest` floor and the existing `SubscriberOnly` / `AllowExplicit` / provider `BlockExplicit` are retained. All streamer-overridable.
 15. **Cross-resolve foreign links (§3.1, L.4).** A request whose link is from a provider other than the resolution target (`ProviderPriority` head, redefined as preferred-for-ambiguous + cross-resolve target) and whose source provider is not enabled is resolved by metadata (title/artist) and re-searched on the target provider. `CrossResolveForeignLinks` defaults **true**; no match ⇒ `reject(not_found_on_target)`. `ProviderPriority` is no longer a "first-capable" fallback walk — `EnabledProviders` (one or both) decides which providers accept requests, and the queue interleaves them.
-16. **Unified bump tier — fair-within-tier ordering (§3.8, L.5 `PriorityBand`).** The single ordered queue is a three-band model — `bump` → `auto_bump` → `normal` — with `Position` ordering items WITHIN a band (the Bamo fair rank is computed per-band, not globally). The `bump` band holds **every** explicit bump (raffle win, `!bump`, the existing channel-point `queue-jump` redeem — the redeem's "priority prefix" IS this band) and is **fair among bumpers** (a bumper's rank = their existing pending bumps + 1), so no single bumper monopolizes it. The restart-safe Position rebuild runs per-band. This also reconciles the prior queue-jump "priority prefix" description with the band model — they are one mechanism.
+16. **Bump group — two groups, bumped then normal (§3.8, L.5 `PriorityBand`).** The queue has a bumped group and a normal group; the in-flight head stays first. Every bump (auto first-song, reward, `!bump`, moderator promote, script, raffle win, the channel-point `queue-jump` redeem) is placed after the last bumped song and before every normal song, so a new bump never pushes an earlier bump down. Fair rank order holds inside the normal group only. The restart-safe rebuild replays the stored group and `Position`. The queue-jump "priority prefix" is this same group.
 17. **Song-bump raffle — SR-owned, no existing primitive to reuse (§3.11, L.7/L.8/L.9).** The design corpus had **no** raffle/giveaway/draw primitive (economy's "raffle" is the colloquial name of a `queue-jump` redeem; economy games are gambling, not random-winner draws), so the raffle is **SR-owned** (`ISongRequestBumpService` + L.7 `SongRequestRaffles`/L.8 `SongRequestRaffleEntries`/L.9 `SongRequestBumpTokens`). It does **not** invent a parallel spend path: paid entry **reuses the economy `CatalogPurchases` debit** (K.11) via `CatalogPurchaseId`, exactly like the `queue-jump` redeem. Config (`RaffleEnabled`/`RaffleEntryCost`/`RaffleTicketsPerUser`/`RaffleWinnerCount`/`RaffleIntervalMinutes`, L.4) is **all OFF/default** (raffle off, cost 0, 1 ticket per user — **fairness over pay-to-win**, 1 winner, manual-only). Draw picks `RaffleWinnerCount` random winners (in-box `RandomNumberGenerator`, ticket-weighted); a winner's queued song moves to the `bump` band at fair rank, and a winner with **no** queued song gets a persisted **bump token** (L.9) auto-consumed on their next request. `!raffle` (mod/broadcaster) or the `RaffleIntervalMinutes` cadence triggers it; entry/draw/cancel are multi-write and wrapped in `IUnitOfWork` (all-or-nothing, cancel refunds via the economy refund path).
-18. **Auto-bump first song — each user's first song of the stream, off by default (§3.8, L.4 `AutoBumpFirstSong`).** When enabled, a requester's **first** song this stream lands in the `auto_bump` band — **above** the regular fair queue, **below** every explicit bump — fair among the auto-bumped first-songs; their subsequent songs go to the `normal` band. Default **OFF**. "First song this stream" detection **reuses the per-stream-per-user request tracking the `PerStreamLimit` feature relies on** (per-stream count 0 = first request); **no second counter** is introduced.
-19. **Bump command actor model — Moderator+ default, viewer-paid via redeem only (§3.11/§6).** `!bump <user|songId>` is **Moderator + Broadcaster** (`music:queue:moderate` floor, command role config) — matching StreamElements (its song-control commands default Moderator+) plus the existing queue-moderation floor. It is a human override placing a song in the `bump` band at fair rank. Viewer-paid bumping stays the existing channel-point `queue-jump` redeem — there is **no free viewer bump command and no paid command alias**. Raffle moderation (`!raffle` start/draw/cancel) reuses the same `music:queue:moderate`; viewer raffle entry reuses `music:request:submit` (gated by `RaffleEnabled`). **No new action keys** were introduced.
+18. **Auto-bump first song — each user's first song of the stream, off by default (§3.8, L.4 `AutoBumpFirstSong`).** When enabled, a viewer's **first admitted** request of the current stream is bumped (`BumpSource = auto_first`) into the bumped group, after the last bumped song; their later songs stay in the normal group. Default **OFF**. Every admission rule (blocklist, trust, caps, per-role limits, who may play what) runs first; a bump never bypasses a rule. "First of the stream" is keyed on the viewer identity and the current stream session.
+19. **Bump command actor model — role setting, default Moderator; a reward is the viewer path (§3.8/§6).** Who may run `!bump` follows the command's role setting like any command; the default is **Moderator** (`music:queue:moderate` floor). `!bump` is a reply command on the bot's `!sr` answer (or takes `<user|songCode|position>`) and calls `IMusicService.BumpAsync`. A viewer can bump through a reward the streamer creates, with `song_bump` as its single action or a pipeline step. Raffle moderation (`!raffle` start/draw/cancel) reuses the same `music:queue:moderate`; viewer raffle entry reuses `music:request:submit` (gated by `RaffleEnabled`). **No new action keys** were introduced.
 20. **`SongRequestQueueChangedEvent.ChangeKind += bumped` + a raffle event (§2).** A bump IS a queue-structure reorder, so `ChangeKind` gains `bumped` (this resolves the previously-flagged gap). A new `SongRequestRaffleEvent` (Phase `started`\|`drawn` with winners) lets overlays celebrate the raffle and the feed mirror it over SignalR. `SongRequestItems.BumpSource` (`raffle`\|`command`\|`redeem`) records bump provenance for display/analytics.
 21. **Trust scoring is advanced-configurable per modifier; metric base stays fixed (§3.9, L.4 `TrustScoringConfig`).** The **core metric base** — the four metric scores (`requestScore`/`accountScore`/`contentScore`/`popularityScore`), their weights (0.25/0.25/0.30/0.20) and decay constants (0.599/0.499/0.999/0.0003) — is **intentionally NOT configurable**; it is Bamo's fixed foundation. Each **buff/debuff** on top of it (reputation boost, follow penalty, the YouTube channel-quality penalty group, skip/timeout/ban penalties) is **individually toggleable + tunable** via the per-channel `TrustScoringConfig` (L.4 `[VC:JSON]` column). **Every toggle defaults ON and every magnitude defaults to Bamo's current constant, so behavior is unchanged by default** — only a deliberate advanced edit alters it; a disabled modifier drops its line from the computation entirely (not a zeroed weight); validation keeps multipliers in (0,1], penalties/thresholds ≥ 0, and the final score `clamp(0,100)`. Because the config is sensitive, it rides the existing `config` GET/PUT (`music:config:write`, **Editor/Broadcaster** floor) via `MusicConfigDto`/`UpdateMusicConfigDto` — **no new route, DTO route, or action key**; the simple `MinYouTubeTrustScore` floor stays on the mod-level `queue/settings` route as before.
