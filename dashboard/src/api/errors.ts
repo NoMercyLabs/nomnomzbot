@@ -35,6 +35,7 @@ export type ApiOrigin =
   'modTools' |
   'music' |
   'obs' |
+  'vts' |
   'supporters' |
   'people' |
   'pipelineRuns' |
@@ -335,6 +336,12 @@ export const apiOperations = {
   'obs scene item enabled': 'obs',
   'obs scene item locked': 'obs',
   'obs filter enabled': 'obs',
+  'vts connection': 'vts',
+  'vts inventory': 'vts',
+  'vts save connection': 'vts',
+  'vts rotate bridge token': 'vts',
+  'vts authorize': 'vts',
+  'vts control': 'vts',
   'tts config': 'tts',
   'tts overlay': 'tts',
   'tts voices': 'tts',

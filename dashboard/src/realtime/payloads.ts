@@ -264,6 +264,13 @@ export type ObsStateChangedPayload = {
     'stream' |
     'record' |
     'replayBuffer' |
+// HubResponseDtos.cs: VtsStatusDto
+export type VtsStatusPayload = {
+  broadcasterId: string;
+  status: string;
+  timestamp: string;
+};
+
     'virtualCam' |
     'studioMode' |
     'inputMute' |
@@ -309,3 +316,4 @@ export type DashboardHubEvents = {
   ObsStateChanged: ObsStateChangedPayload;
   sr_queue_changed: SrQueueChangedPayload;
 };
+  VtsStatusChanged: VtsStatusPayload;

@@ -39,6 +39,7 @@ import { redemptionsOptions, rewardsOptions } from './rewards';
 import { streamHistoryOptions, streamInfoOptions } from './stream';
 import { supporterEventsOptions } from './supporters';
 import { ttsConfigOptions, ttsOverlayOptions } from './tts';
+import { vtsConnectionOptions } from './vts';
 import { widgetsOptions } from './widgets';
 
 // A prefetched entry counts as fresh for this long, so the page that opens next does not ask again at once.
@@ -138,6 +139,7 @@ const routeWarmers: Record<string, Warm> = {
   'dashboard-tts': reads(read(ttsConfigOptions), read(ttsOverlayOptions)),
   'dashboard-overlays': reads(read(widgetsOptions)),
   'dashboard-obs': reads(read(obsConnectionOptions), read(obsBridgeOptions), read(widgetsOptions)),
+  'dashboard-vtube-studio': reads(read(vtsConnectionOptions)),
   'dashboard-polls': reads(read(pollHistoryOptions)),
   'dashboard-pipelines': reads(read(pipelinesOptions)),
   'dashboard-scripts': warmScripts,

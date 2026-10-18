@@ -26,6 +26,7 @@ import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { pipelinesKey } from '@/api/pipelines';
 import { redemptionsKey, rewardsKey, type Redemption } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
+import { vtsConnectionKey, vtsInventoryKey } from '@/api/vts';
 
 import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
 
@@ -86,10 +87,10 @@ const everyKey: Keys[] = [
   currencyConfigKey,
   earningRulesKey,
   savingsJarsKey,
-];
   giveawaysKey,
   vtsConnectionKey,
   vtsInventoryKey,
+];
 
 // Each hub event with the keys it must mark stale for the joined channel.
 const eventKeys: [string, unknown, Keys[]][] = [
@@ -134,6 +135,12 @@ const eventKeys: [string, unknown, Keys[]][] = [
     botStatusKey,
   ]],
   ['ObsLiveStateChanged', { broadcasterId: 'x' }, [connectionsKey, botStatusKey]],
+  ['VtsStatusChanged', { broadcasterId: 'x', status: 'connected' }, [
+    connectionsKey,
+    botStatusKey,
+    vtsConnectionKey,
+    vtsInventoryKey,
+  ]],
   // Owner 2026-10-15: "ALL data must be live updates as it happens". The server sends each poll,
   // prediction and chat poll change as a ChannelEvent; the history list follows every one of them.
   ...['poll_begin', 'poll_progress', 'poll_end'].map((type): [string, unknown, Keys[]] => [
@@ -162,17 +169,17 @@ const eventKeys: [string, unknown, Keys[]][] = [
     data: null,
   }, [homeStatsKey, activityKey, pollHistoryKey]],
   ['ChannelEvent', {
+    type: 'GiveawayChanged',
+    broadcasterId: 'x',
+    data: { giveawayId: 'g1', change: 'drawn' },
+  }, [homeStatsKey, activityKey, giveawaysKey]],
+  ['ChannelEvent', {
     type: 'follow',
     broadcasterId: 'x',
     data: null,
   }, [homeStatsKey, activityKey]],
   ['CommandExecuted', {
     broadcasterId: 'x',
-  ['ChannelEvent', {
-    type: 'GiveawayChanged',
-    broadcasterId: 'x',
-    data: { giveawayId: 'g1', change: 'drawn' },
-  }, [homeStatsKey, activityKey, giveawaysKey]],
     commandName: 'hug',
     succeeded: true,
   }, [

@@ -27,6 +27,7 @@ import { obsBridgeKey, obsConnectionKey, obsScenesKey, obsStateKey } from '@/api
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { rewardsKey } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
+import { vtsConnectionKey, vtsInventoryKey } from '@/api/vts';
 import { widgetsKey } from '@/api/widgets';
 import { merge } from '@/lib/array';
 
@@ -88,6 +89,7 @@ const eventHandlers = [
   ),
   refreshing('ObsBridgeStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
+  refreshing('VtsStatusChanged', [connectionsKey, botStatusKey, vtsConnectionKey, vtsInventoryKey]),
 ] as const;
 
 // The server sends every Twitch poll and prediction step, and every bot chat poll change, as a ChannelEvent.
@@ -97,9 +99,9 @@ const pollEventKeys = [
   { prefix: 'poll_', keys: [pollsKey, pollHistoryKey] },
   { prefix: 'prediction_', keys: [predictionsKey, pollHistoryKey] },
   { prefix: 'ChatPollChanged', keys: [pollHistoryKey] },
+  { prefix: 'GiveawayChanged', keys: [giveawaysKey] },
   { prefix: 'media_share_', keys: [mediaShareQueueKey] },
 ] as const;
-  { prefix: 'GiveawayChanged', keys: [giveawaysKey] },
 
 const pollEventsChanged = {
   event: 'ChannelEvent',

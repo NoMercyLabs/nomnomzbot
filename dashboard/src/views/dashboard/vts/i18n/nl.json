@@ -1,0 +1,68 @@
+{
+  "dashboard": {
+    "vts": {
+      "title": "VTube Studio",
+      "crumb": "Stream",
+      "unavailable": "VTube Studio gaf geen antwoord. Controleer de verbinding.",
+      "offline": "Dit verschijnt zodra VTube Studio gekoppeld is.",
+      "tabs": {
+        "connection": "Verbinding",
+        "hotkeys": "Sneltoetsen",
+        "expressions": "Uitdrukkingen"
+      },
+      "status": {
+        "off": "De koppeling met VTube Studio staat uit",
+        "unauthorized": "Wacht op je goedkeuring in VTube Studio",
+        "authorized": "Goedgekeurd, nog niet verbonden",
+        "connected": "Verbonden",
+        "error": "De koppeling met VTube Studio is mislukt"
+      },
+      "connection": {
+        "title": "Verbinding",
+        "loadError": "De VTube Studio-verbinding kon niet laden.",
+        "link": "VTube Studio",
+        "token": "Goedkeuring",
+        "tokenStored": "Goedgekeurd. De bot bewaart de sleutel.",
+        "tokenMissing": "Nog niet goedgekeurd",
+        "enabled": "Koppel met VTube Studio",
+        "mode": "Verbindingstype",
+        "modes": {
+          "direct": "Direct",
+          "bridge": "Brug"
+        },
+        "endpoint": "Adres",
+        "mask": "Gebeurtenismasker",
+        "maskHelp": "Naar welke VTube Studio-gebeurtenissen de bot luistert.",
+        "save": "Opslaan",
+        "authorize": "Goedkeuren",
+        "waiting": "Wacht op goedkeuring",
+        "waitingHelp": "Klik op Allow in VTube Studio. Dit wacht tot een minuut.",
+        "rotate": "Brugsleutel vernieuwen",
+        "rotateConfirm": {
+          "title": "De brugsleutel vernieuwen?",
+          "description": "De brug krijgt een nieuwe sleutel.",
+          "old": "De oude sleutel werkt meteen niet meer.",
+          "action": "Sleutel vernieuwen"
+        }
+      },
+      "hotkeys": {
+        "title": "Modellen en sneltoetsen",
+        "loadError": "De modellen en sneltoetsen konden niet laden.",
+        "model": "Model",
+        "pickModel": "Kies een model",
+        "load": "Model laden",
+        "hotkey": "Sneltoets",
+        "pickHotkey": "Kies een sneltoets",
+        "trigger": "Activeren"
+      },
+      "expressions": {
+        "title": "Uitdrukkingen",
+        "loadError": "De uitdrukkingen konden niet laden.",
+        "expression": "Uitdrukking",
+        "pick": "Kies een uitdrukking",
+        "activate": "Aanzetten",
+        "deactivate": "Uitzetten"
+      }
+    }
+  }
+}

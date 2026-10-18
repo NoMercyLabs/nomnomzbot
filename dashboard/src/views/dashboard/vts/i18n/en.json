@@ -1,0 +1,68 @@
+{
+  "dashboard": {
+    "vts": {
+      "title": "VTube Studio",
+      "crumb": "Stream",
+      "unavailable": "VTube Studio did not answer. Check the connection.",
+      "offline": "This shows once VTube Studio is linked.",
+      "tabs": {
+        "connection": "Connection",
+        "hotkeys": "Hotkeys",
+        "expressions": "Expressions"
+      },
+      "status": {
+        "off": "The link to VTube Studio is switched off",
+        "unauthorized": "Waiting for your approval in VTube Studio",
+        "authorized": "Approved, not connected yet",
+        "connected": "Connected",
+        "error": "The link to VTube Studio failed"
+      },
+      "connection": {
+        "title": "Connection",
+        "loadError": "The VTube Studio connection could not load.",
+        "link": "VTube Studio",
+        "token": "Approval",
+        "tokenStored": "Approved. The bot keeps the key.",
+        "tokenMissing": "Not approved yet",
+        "enabled": "Link to VTube Studio",
+        "mode": "Connection type",
+        "modes": {
+          "direct": "Direct",
+          "bridge": "Bridge"
+        },
+        "endpoint": "Address",
+        "mask": "Event mask",
+        "maskHelp": "Which VTube Studio events the bot listens to.",
+        "save": "Save",
+        "authorize": "Authorize",
+        "waiting": "Waiting for approval",
+        "waitingHelp": "Click Allow in VTube Studio. This waits up to a minute.",
+        "rotate": "Rotate bridge token",
+        "rotateConfirm": {
+          "title": "Rotate the bridge token?",
+          "description": "The bridge gets a new credential.",
+          "old": "The old credential stops working at once.",
+          "action": "Rotate token"
+        }
+      },
+      "hotkeys": {
+        "title": "Models and hotkeys",
+        "loadError": "The models and hotkeys could not load.",
+        "model": "Model",
+        "pickModel": "Pick a model",
+        "load": "Load model",
+        "hotkey": "Hotkey",
+        "pickHotkey": "Pick a hotkey",
+        "trigger": "Trigger"
+      },
+      "expressions": {
+        "title": "Expressions",
+        "loadError": "The expressions could not load.",
+        "expression": "Expression",
+        "pick": "Pick an expression",
+        "activate": "Activate",
+        "deactivate": "Deactivate"
+      }
+    }
+  }
+}
