@@ -8,7 +8,6 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core';
 import { computed, provide, watchEffect } from 'vue';
 
 import { frameActionsKey } from '@/components/layout/frameActions';
@@ -18,6 +17,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { railWanted } from '@/composables/useFrameRail';
 import { useIntentPrefetch } from '@/composables/useIntentPrefetch';
+import { useScreenFrom } from '@/composables/useLayout';
 import { useRouteChannel } from '@/composables/useRouteChannel';
 import { applyAccent, defaultAccent } from '@/lib/accent';
 import { useRealtime } from '@/realtime/useRealtime';
@@ -35,8 +35,8 @@ import { useReadableRedirect } from './dashboard/useReadableRedirect';
 import ViewAsBanner from './dashboard/ViewAsBanner.vue';
 
 // Three frames (spec frontend-vue-components.md section 2): sidebar from 840 px, icon rail from 600 px, bottom bar below.
-const wide = useMediaQuery('(min-width: 840px)');
-const medium = useMediaQuery('(min-width: 600px)');
+const wide = useScreenFrom('sidebar');
+const medium = useScreenFrom('rail');
 
 const { current, channels, channelId } = useCurrentChannel();
 const { name: channelName, denied } = useRouteChannel();

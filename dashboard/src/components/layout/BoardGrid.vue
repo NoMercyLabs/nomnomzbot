@@ -11,10 +11,10 @@
 // The board layout (C1): from laptop width, a fixed 12-column grid whose rows split the height. The page
 // never grows; each BoardCell holds a panel and the panel body scrolls. On a phone a scroll inside a scroll
 // is bad, so the board shows one panel at a time, full height, behind a tab per panel (?panel=).
-import { useElementSize } from '@vueuse/core';
-import { computed, provide, useTemplateRef, watchEffect } from 'vue';
+import { computed, provide, useTemplateRef } from 'vue';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useFits } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
 
 import { boardKey, type BoardPanel } from './board';
@@ -27,21 +27,11 @@ const props = withDefaults(defineProps<{
 const rowTemplate = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr))`);
 // Stoney 2026-10-14: "constrained layouts need to be considered for". The sidebar takes its share of the window,
 // so the board measures itself: below the width three readable panels need, it shows one panel at a time.
-const gridWidth = 1100;
+// A page whose optional column needs more room than the grid itself measures the board on its own, with useFits
+// on this component's ref.
 const board = useTemplateRef('board');
-const { width } = useElementSize(board, { width: window.innerWidth, height: 0 });
-const wide = computed(() =>
-  width.value >= gridWidth);
+const { fits: wide } = useFits(board, 'board');
 const tabbed = computed(() => !wide.value && props.panels.length > 1);
-// A page that keeps an optional panel in a drawer asks the board whether its columns are there.
-const columns = defineModel<boolean>('wide', { default: true });
-// The measured width, for a page whose optional column needs more room than the grid itself.
-const measured = defineModel<number>('width', { default: 0 });
-
-watchEffect(() => {
-  columns.value = wide.value;
-  measured.value = width.value;
-});
 
 const open = usePageView(() => props.panels.map((panel) =>
   panel.id), 'panel');

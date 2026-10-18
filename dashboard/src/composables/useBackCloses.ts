@@ -20,11 +20,12 @@ import {
   tryOnScopeDispose,
   useDebounceFn,
   useEventListener,
-  useMediaQuery,
   useMutationObserver,
 } from '@vueuse/core';
 import { watch, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
+
+import { useNarrowScreen } from '@/composables/useLayout';
 
 const openLayers = '[data-dismissable-layer]:not([data-state="closed"])';
 
@@ -108,7 +109,7 @@ function closeTopLayer(): void {
 }
 
 export function useBackCloses(): void {
-  const phone = useMediaQuery('(width < 48rem)');
+  const phone = useNarrowScreen();
   const router = useRouter();
   let navigating = false;
   let popping = false;

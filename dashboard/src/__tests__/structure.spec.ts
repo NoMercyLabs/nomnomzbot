@@ -535,3 +535,41 @@ describe('time formatting', () => {
     expect(stale).toEqual([]);
   });
 });
+
+// Stoney 2026-10-18: "extract things like these into reusables". "Is there room?" is asked through
+// composables/useLayout.ts (its width table, useScreenFrom, usePhone, useFits), never with a media query or a
+// size measure written in a view. The two files left are a height measure and the generated shadcn sidebar.
+const ownRoomCheck = /useMediaQuery\(\s*['"`(]|useElementSize\(/;
+const ownRoomCheckAllowlist: readonly string[] = [
+  'components/layout/ReplyModeField.vue',
+  'components/ui/sidebar/SidebarProvider.vue',
+];
+
+function ownsRoomCheck(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return ownRoomCheck.test(text);
+}
+
+describe('room checks', () => {
+  it('spots a hand-written media query and a hand-written size measure', () => {
+    expect(ownRoomCheck.test('const phone = useMediaQuery(\'(max-width: 767px)\');')).toBe(true);
+    expect(ownRoomCheck.test('const { width } = useElementSize(board);')).toBe(true);
+    expect(ownRoomCheck.test('const phone = usePhone();')).toBe(false);
+  });
+
+  it('asks nothing outside composables/useLayout.ts, except the files on the allowlist', () => {
+    const offenders = timeSourceFiles()
+      .filter((path) => path !== 'composables/useLayout.ts')
+      .filter((path) => ownsRoomCheck(path))
+      .filter((path) => !ownRoomCheckAllowlist.includes(path));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps no clean file on the allowlist', () => {
+    const stale = ownRoomCheckAllowlist.filter((path) => !ownsRoomCheck(path));
+
+    expect(stale).toEqual([]);
+  });
+});

@@ -21,7 +21,7 @@ let page: VueWrapper | undefined;
 
 function setWidth(width: number): void {
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: !query.includes('width < 48rem') || width < 768,
+    matches: !query.includes('max-width') || width < 768,
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},

@@ -47,6 +47,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useFits } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
 import HistoryPanel from './components/HistoryPanel.vue';
@@ -54,7 +55,6 @@ import NowPlayingCard from './components/NowPlayingCard.vue';
 import ThanksPanel from './components/ThanksPanel.vue';
 import RequesterBulkRemove from './components/RequesterBulkRemove.vue';
 import RulesPanel from './components/RulesPanel.vue';
-import { rulesInlineFrom } from './components/requestRules';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -188,11 +188,11 @@ const rulesOpen = ref(false);
 // Stoney 2026-10-18: the rules sit in the board where it has its columns; only a narrow board keeps them in a drawer.
 // One RulesPanel serves both, so no field is written twice.
 // Stoney 2026-10-18: the third column squeezed the queue titles, so it needs a roomier board than the grid does.
-const boardWide = ref(true);
-const boardWidth = ref(window.innerWidth);
+const board = useTemplateRef('board');
+const { fits: boardRoomy } = useFits(board, 'rulesInline');
 const canSeeRules = computed(() => access.can('music:config:read'));
 const rulesInline = computed(() =>
-  boardWide.value && boardWidth.value >= rulesInlineFrom && canSeeRules.value);
+  boardRoomy.value && canSeeRules.value);
 const span = computed(() =>
   rulesInline.value
     ? 4
@@ -250,7 +250,7 @@ const panels = computed<BoardPanel[]>(() => {
       </Sheet>
     </template>
   </PageHeader>
-  <BoardGrid v-model:wide="boardWide" v-model:width="boardWidth" :panels="panels" :rows="2">
+  <BoardGrid ref="board" :panels="panels" :rows="2">
     <BoardCell panel="now" :span="span">
       <PanelCard
         tier="lead"

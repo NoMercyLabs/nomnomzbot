@@ -11,12 +11,12 @@
 // A panel beside the page content. Where the content keeps its room (laptop width and up) it sits in the row;
 // narrower, it slides over the page as a drawer from its side, so the content never gets squeezed.
 // Stoney 2026-10-14: "Make sure you overlay what no longer fits with a drawer from left or right".
-import { useMediaQuery } from '@vueuse/core';
 import { computed } from 'vue';
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { provideDrawerClose } from '@/composables/useDrawerClose';
 import { useFrameRail } from '@/composables/useFrameRail';
+import { useScreenFrom } from '@/composables/useLayout';
 
 // Data hooks and attributes from the page land on the panel itself, beside the content or in the drawer.
 defineOptions({ inheritAttrs: false });
@@ -37,9 +37,8 @@ const props = withDefaults(defineProps<{
 });
 
 const open = defineModel<boolean>('open', { required: true });
-const wide = useMediaQuery('(min-width: 1280px)');
-// The rail is 200px narrower than the sidebar.
-const fitsBesideRail = useMediaQuery('(min-width: 1080px)');
+const wide = useScreenFrom('wide');
+const fitsBesideRail = useScreenFrom('besideRail');
 const folds = computed(() =>
   props.seeThrough && !wide.value && fitsBesideRail.value);
 const roomy = computed(() =>

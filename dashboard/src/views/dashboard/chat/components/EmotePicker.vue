@@ -12,7 +12,7 @@
 // emotes per source, the emoji per group, a jump rail at the side, and a search over all of them at the bottom.
 // A pick goes into the box at the cursor and the picker stays open for the next one; the name of the item under
 // the pointer shows below the list.
-import { useLocalStorage, useMediaQuery } from '@vueuse/core';
+import { useLocalStorage } from '@vueuse/core';
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ChevronDown from '~icons/nnz/chevron-down';
@@ -30,6 +30,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePhone } from '@/composables/useLayout';
 
 import type { Suggestion } from '../composerSuggest';
 import { loadEmoji, type EmojiEntry } from '../emojiCatalog';
@@ -254,7 +255,7 @@ async function jump(id: string): Promise<void> {
 // On a phone the picker is a full-width tray as in the Twitch app: no search and no focus, so the keyboard stays
 // down, and the jump rail runs along the bottom. Stoney 2026-10-14: "Remove the input from emojis on mobile".
 // Narrow AND touch, the `phone:` variant in main.css: a narrow desktop window (the popout dock) keeps the desktop picker.
-const phone = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
+const phone = usePhone();
 
 // The search sits at the bottom, so the picker opens with the cursor in it instead of on the first rail icon.
 function focusSearch(event: Event): void {

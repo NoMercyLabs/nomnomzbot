@@ -11,7 +11,7 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
-import { refDebounced, useEventListener, useMediaQuery } from '@vueuse/core';
+import { refDebounced, useEventListener } from '@vueuse/core';
 import { computed, ref, watch, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -43,6 +43,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePhone, useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
 import { useChatDisplay } from './chatDisplay';
@@ -101,7 +102,7 @@ function popOut(): void {
 }
 
 // A phone is narrow AND touch (the `phone:` variant); a narrow desktop window keeps the desktop page.
-const phone = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
+const phone = usePhone();
 
 // The popout, the OBS dock and a phone share one slim header, so the feed keeps the height.
 const docked = computed(() => poppedOut.value || phone.value);
@@ -257,7 +258,7 @@ const viewerOpen = computed<boolean>({
 // the panel opened longest ago (owner 2026-10-14: "maybe only allow both if there is enough space?").
 type ChatPanel = 'viewer' | 'display' | 'modTools' | 'identity';
 
-const twoPanelsFit = useMediaQuery('(min-width: 1800px)');
+const twoPanelsFit = useScreenFrom('twoPanels');
 const openOrder = ref<ChatPanel[]>([]);
 const closers = {
   viewer: closeViewer,

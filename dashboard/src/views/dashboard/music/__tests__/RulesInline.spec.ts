@@ -15,9 +15,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { widths } from '@/composables/useLayout';
 import { i18n } from '@/i18n';
 
-import { rulesInlineFrom } from '../components/requestRules';
 import MusicView from '../MusicView.vue';
 import en from '../i18n/en.json';
 
@@ -134,17 +134,17 @@ describe('music request rules placement', () => {
 
   // Stoney 2026-10-18: the third column squeezed the queue title to one letter per line. The rules come inline
   // only where three panels keep their readable width.
-  it('switches from the drawer to the inline column exactly at rulesInlineFrom', async () => {
-    await mountAt(rulesInlineFrom - 1);
+  it('switches from the drawer to the inline column exactly at the rulesInline width', async () => {
+    await mountAt(widths.rulesInline - 1);
     expect(document.body.querySelector('[data-panel="rules"]')).toBeNull();
     expect(trigger()).toBeDefined();
     mounted?.unmount();
     document.body.innerHTML = '';
 
-    await mountAt(rulesInlineFrom);
+    await mountAt(widths.rulesInline);
     expect(document.body.querySelector('[data-panel="rules"]')).not.toBeNull();
     expect(trigger()).toBeUndefined();
-    expect(rulesInlineFrom).toBeGreaterThan(1100);
+    expect(widths.rulesInline).toBeGreaterThan(widths.board);
   });
 
   it('keeps the rules behind a drawer button when the board is narrow', async () => {
