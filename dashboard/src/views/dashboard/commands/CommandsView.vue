@@ -9,7 +9,6 @@
 -->
 <script setup lang="ts">
 import Plus from '~icons/nnz/add';
-import ArrowLeft from '~icons/nnz/arrow-left';
 import { useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -23,6 +22,7 @@ import {
   type BuiltinCommand,
   type CommandListItem,
 } from '@/api/commands';
+import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
@@ -154,18 +154,13 @@ const creating = ref(false);
     </template>
     <template v-if="canWrite" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <Button
+        <BackLink
           data-detail-back
           data-page-inset
-          type="button"
-          variant="ghost"
-          size="sm"
           class="self-start md:hidden"
+          :label="$t('dashboard.commands.back')"
           @click="select(undefined)"
-        >
-          <ArrowLeft aria-hidden="true" />
-          {{ $t('dashboard.commands.back') }}
-        </Button>
+        />
         <CommandEditor :key="row.name" :row="row" @remove="removeCommand" />
       </div>
       <BuiltinEditor

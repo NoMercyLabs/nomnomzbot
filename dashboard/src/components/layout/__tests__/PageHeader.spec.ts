@@ -7,8 +7,9 @@
 //
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
 import PageHeader from '../PageHeader.vue';
 
@@ -29,5 +30,57 @@ describe('PageHeader actions group', () => {
     expect(classes).toContain('w-full');
     expect(classes).toContain('flex-wrap');
     expect(classes).toContain('@2xl:w-auto');
+  });
+});
+
+describe('PageHeader back link', () => {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: { template: '<div />' } },
+      {
+        path: '/list',
+        name: 'list',
+        component: { template: '<div />' },
+      },
+    ],
+  });
+
+  function open(props: Record<string, unknown>) {
+    return mount(PageHeader, {
+      props: {
+        title: 'Pipeline',
+        crumb: 'Pipelines',
+        ...props,
+      },
+      slots: { actions: '<button>Go</button>' },
+      global: { plugins: [router], mocks: { $t: (key: string): string => key } },
+    });
+  }
+
+  it('renders before the crumb and the title, not in the actions', () => {
+    const header = open({ back: { name: 'list' } });
+    const back = header.get('[data-slot="back-link"]').element;
+    const title = header.get('h1').element;
+    const crumb = header.get('[data-slot="page-crumb"]').element;
+    const actions = header.get('[data-slot="page-actions"]').element;
+
+    expect(back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(back.compareDocumentPosition(crumb) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(actions.contains(back)).toBe(false);
+  });
+
+  it('goes to the route location it is given', async () => {
+    await router.push('/');
+    const header = open({ back: { name: 'list' } });
+
+    await header.get('[data-slot="back-link"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.name).toBe('list');
+  });
+
+  it('is absent when the page names no way back', () => {
+    expect(open({}).find('[data-slot="back-link"]').exists()).toBe(false);
   });
 });

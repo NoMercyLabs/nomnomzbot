@@ -10,13 +10,13 @@
 <script setup lang="ts">
 // The Triggers and Timers page: the channel's timers on the left, the open timer on the right.
 import Plus from '~icons/nnz/add';
-import ArrowLeft from '~icons/nnz/arrow-left';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useTimers, type Timer } from '@/api/liveOps';
 import { useDeleteTimer } from '@/api/timers';
+import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
@@ -119,18 +119,13 @@ function create(): void {
     </template>
     <template v-if="can('timers:write')" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <Button
+        <BackLink
           data-detail-back
           data-page-inset
-          type="button"
-          variant="ghost"
-          size="sm"
           class="self-start md:hidden"
+          :label="$t('dashboard.timers.back')"
           @click="select(undefined)"
-        >
-          <ArrowLeft aria-hidden="true" />
-          {{ $t('dashboard.timers.back') }}
-        </Button>
+        />
         <TimerEditor :key="row.id" :row="row" @remove="removeTimer" />
       </div>
       <PanelCard

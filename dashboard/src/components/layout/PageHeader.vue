@@ -12,12 +12,21 @@
 // filters and page-wide controls (the chat page's Display and Viewer), never inside a card header.
 // actions holds the one primary action; meta is quiet text beside it (for example "Updated 2 min ago").
 // The frame's controls follow the page's actions, so the page has one header row.
+// back is the page's way up: a route location, drawn once at the start of the row before the crumb and title
+// (left in LTR, right in RTL), never in actions.
 import { inject, type Component, type VNode } from 'vue';
+import type { RouteLocationRaw } from 'vue-router';
 
+import BackLink from './BackLink.vue';
 import BoardPanelToggles from './BoardPanelToggles.vue';
 import { frameActionsKey } from './frameActions';
 
-defineProps<{ title: string; crumb?: string }>();
+defineProps<{
+  title: string;
+  crumb?: string;
+  back?: RouteLocationRaw;
+  backLabel?: string;
+}>();
 
 // Typed slots: a page that fills a slot name this header does not have fails the type check.
 defineSlots<{
@@ -36,6 +45,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
     <div
       class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-6 py-3 @2xl:flex-nowrap @2xl:py-0"
     >
+      <BackLink v-if="back" :to="back" :label="backLabel" class="-ms-2 flex-none" />
       <span
         v-if="crumb"
         data-slot="page-crumb"

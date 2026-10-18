@@ -741,3 +741,28 @@ describe('side panels', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// Stoney 2026-10-18: "a back button does not belong on the right side on a LTR page". A page's way back is
+// <PageHeader :back>, drawn at the start of the header; a pane's way back is <BackLink>. A view never draws its
+// own back arrow, and never puts a back link in the header's actions.
+const ownBackArrow = /~icons\/nnz\/arrow-left/;
+const backLinkInActions = /<template #actions>(?:(?!<\/template>)[\s\S])*?(?:<BackLink|data-detail-back)/;
+
+describe('back links', () => {
+  it('spots a hand-made back arrow and a back link inside the header actions', () => {
+    expect(ownBackArrow.test('import ArrowLeft from \'~icons/nnz/arrow-left\';')).toBe(true);
+    expect(ownBackArrow.test('import Plus from \'~icons/nnz/plus\';')).toBe(false);
+    expect(backLinkInActions.test('<template #actions><BackLink /></template>')).toBe(true);
+    expect(backLinkInActions.test('<template #actions><Button /></template><BackLink />')).toBe(false);
+  });
+
+  it('draws no back arrow in a view and no back link in a header actions slot', () => {
+    const offenders = viewFiles().filter((path) => {
+      const text: string = readFileSync(join(src, path), 'utf8');
+
+      return ownBackArrow.test(text) || backLinkInActions.test(text);
+    });
+
+    expect(offenders).toEqual([]);
+  });
+});

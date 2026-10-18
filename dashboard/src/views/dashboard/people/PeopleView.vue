@@ -18,7 +18,6 @@ import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import ArrowLeft from '~icons/nnz/arrow-left';
 
 import {
   TwitchUserNotFoundError,
@@ -27,6 +26,7 @@ import {
   type ViewerOption,
 } from '@/api/community';
 import { useCommunityList, type CommunityPage, type CommunityRow } from '@/api/people';
+import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
@@ -378,15 +378,12 @@ function back(): void {
       <!-- On a phone the profile grows with its content and the page scrolls once; beside the list it scrolls inside
            its card. -->
       <div v-if="selectedId" data-person-detail class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <Button data-page-inset
-                variant="ghost"
-                size="sm"
-                class="self-start md:hidden"
-                @click="back"
-        >
-          <ArrowLeft aria-hidden="true" />
-          {{ $t('dashboard.people.back') }}
-        </Button>
+        <BackLink
+          data-page-inset
+          class="self-start md:hidden"
+          :label="$t('dashboard.people.back')"
+          @click="back"
+        />
         <div
           class="flex flex-1 flex-col border-y bg-card md:min-h-0 md:overflow-hidden md:rounded-xl md:border"
         >

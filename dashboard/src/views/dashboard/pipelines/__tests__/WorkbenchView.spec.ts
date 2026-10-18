@@ -504,7 +504,7 @@ describe('the workbench canvas', () => {
 
   it('offers a way back to the pipelines list', async () => {
     await open();
-    const back = document.body.querySelector<HTMLButtonElement>('[data-detail-back]');
+    const back = document.body.querySelector<HTMLButtonElement>('[data-slot="back-link"]');
 
     expect(back?.textContent).toContain('Back to the list');
     back!.click();

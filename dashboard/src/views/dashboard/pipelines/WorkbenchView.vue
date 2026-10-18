@@ -12,7 +12,6 @@
 // the engine walks them with every check split into lanes, and the picked step in detail beside the canvas.
 // Narrower than a laptop the palette and the details slide in as drawers, and the back button closes them.
 import Add from '~icons/nnz/add';
-import ArrowLeft from '~icons/nnz/arrow-left';
 import ClockBackward from '~icons/nnz/clock-backward';
 import Undo from '~icons/nnz/arrow-back-up';
 import Redo from '~icons/nnz/arrow-forward-up';
@@ -385,21 +384,11 @@ const leaveOpen = computed<boolean>({
   <PageHeader
     :title="pipeline.data.value?.name ?? $t('dashboard.pipelines.title')"
     :crumb="$t('dashboard.pipelines.title')"
+    :back="{ name: 'dashboard-pipelines' }"
+    :back-label="$t('dashboard.pipelines.back')"
   >
     <template v-if="pipeline.data.value && !pipeline.data.value.isEnabled" #status>
       <StatusBadge tone="off" :label="$t('dashboard.pipelines.workbench.off')" />
-    </template>
-    <template #actions>
-      <Button
-        data-detail-back
-        type="button"
-        variant="ghost"
-        size="sm"
-        @click="router.push({ name: 'dashboard-pipelines' })"
-      >
-        <ArrowLeft aria-hidden="true" />
-        {{ $t("dashboard.pipelines.back") }}
-      </Button>
     </template>
     <!-- The editing controls act on the steps, so they sit in the bar beside the tabs, not in the title row. -->
     <template #bar>

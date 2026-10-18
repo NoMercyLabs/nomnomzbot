@@ -11,7 +11,6 @@
 // The head of one overlay: name and badges, the On/Off switch, the one primary action (copy the
 // browser source address), Health, what it reacts to, and the module facts.
 // The address holds a secret token. Copy sends the full address to the clipboard; the page only ever shows it cut.
-import ArrowLeft from '~icons/nnz/arrow-left';
 import Check from '~icons/nnz/check';
 import Code from '~icons/nnz/code';
 import Copy from '~icons/nnz/file-copy';
@@ -28,6 +27,7 @@ import {
   type Widget,
   type WidgetTestResult,
 } from '@/api/widgets';
+import BackLink from '@/components/layout/BackLink.vue';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
@@ -210,15 +210,11 @@ const module = computed<KeyValueItem[]>(() => {
   <DetailPane data-overlay-detail>
     <template #header>
       <div data-page-inset class="flex flex-wrap items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
+        <BackLink
           class="md:hidden"
-          :aria-label="$t('dashboard.overlays.back')"
+          :label="$t('dashboard.overlays.back')"
           @click="$emit('back')"
-        >
-          <ArrowLeft />
-        </Button>
+        />
         <span
           class="flex size-12 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
         >

@@ -9,15 +9,14 @@
 -->
 <script setup lang="ts">
 // The Event responses page: the channel's event types on the left, the open event's reply on the right.
-import ArrowLeft from '~icons/nnz/arrow-left';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useEventResponses, type EventResponse } from '@/api/eventResponses';
+import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -58,18 +57,13 @@ function select(eventType: string | undefined): void {
     </template>
     <template v-if="can('eventresponses:write')" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <Button
+        <BackLink
           data-detail-back
           data-page-inset
-          type="button"
-          variant="ghost"
-          size="sm"
           class="self-start md:hidden"
+          :label="$t('dashboard.eventResponses.back')"
           @click="select(undefined)"
-        >
-          <ArrowLeft aria-hidden="true" />
-          {{ $t('dashboard.eventResponses.back') }}
-        </Button>
+        />
         <EventResponseEditor :key="row.eventType" :row="row" />
       </div>
       <PanelCard

@@ -16,7 +16,6 @@
 import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import ArrowLeft from '~icons/nnz/arrow-left';
 import Play from '~icons/nnz/play';
 import Trash from '~icons/nnz/trash';
 
@@ -29,6 +28,7 @@ import {
   type BlastRadius,
   type CodeScriptSummary,
 } from '@/api/codeScripts';
+import BackLink from '@/components/layout/BackLink.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
@@ -192,17 +192,13 @@ function confirmDelete(): void {
     class="max-md:flex-none max-md:**:data-[slot=detail-pane-body]:flex-none max-md:**:data-[slot=detail-pane-body]:overflow-visible"
   >
     <template #header>
-      <Button
+      <BackLink
         data-page-inset
         data-slot="script-back"
-        variant="ghost"
-        size="sm"
         class="mb-2 md:hidden"
+        :label="$t('dashboard.scripts.detail.back')"
         @click="$emit('back')"
-      >
-        <ArrowLeft aria-hidden="true" />
-        {{ $t('dashboard.scripts.detail.back') }}
-      </Button>
+      />
       <div data-page-inset class="flex flex-wrap items-center gap-3">
         <h2 class="min-w-0 truncate text-lg font-semibold">{{ script.name }}</h2>
         <div class="ml-auto flex flex-wrap items-center gap-3">
