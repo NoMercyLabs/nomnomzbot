@@ -64,6 +64,29 @@
         "filtersError": "De filters konden niet laden.",
         "noFilters": "Deze bron heeft geen filters."
       },
+      "connectionForm": {
+        "enabled": "Koppeling met OBS",
+        "host": "Host",
+        "port": "Poort",
+        "password": "OBS-wachtwoord",
+        "passwordKept": "Er is een wachtwoord opgeslagen. Laat dit leeg om het te behouden.",
+        "passwordClear": "Wachtwoord verwijderen",
+        "mask": "Masker voor gebeurtenisabonnementen",
+        "maskHelp": "Een getal. Elke bit zet een groep OBS-gebeurtenissen aan.",
+        "save": "Verbinding opslaan"
+      },
+      "hotkeys": {
+        "title": "Sneltoetsen",
+        "offline": "Sneltoetsen verschijnen zodra de OBS-koppeling aan staat.",
+        "empty": "OBS meldt geen sneltoetsen.",
+        "loadError": "De sneltoetsen konden niet laden."
+      },
+      "screenshot": {
+        "title": "Bronscreenshot",
+        "source": "Naam van de bron",
+        "capture": "Vastleggen",
+        "alt": "Screenshot van {name}"
+      },
       "studio": {
         "title": "Studiomodus",
         "mode": "Studiomodus",

@@ -348,7 +348,7 @@ export function useObsSetTransition(channelId: MaybeRefOrGetter<string | null>) 
   const queries = useQueryClient();
 
   return useMutation({
-    mutationFn: async (transitionName: string): Promise<void> => {
+    mutationFn: async ({ transitionName }: { transitionName: string }): Promise<void> => {
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/obs/scene-transitions/current',
         {
@@ -360,7 +360,7 @@ export function useObsSetTransition(channelId: MaybeRefOrGetter<string | null>) 
       if (error !== undefined)
         throw failed('obs set transition', response.status, error);
     },
-    onMutate: (transitionName: string) =>
+    onMutate: ({ transitionName }: { transitionName: string }) =>
       applyOptimistic<ObsTransition[]>(queries, transitionsKey(channelId), (old) =>
         markCurrent(old, transitionName)),
     onError: (_error, _name, context) => rollBack(queries, context),

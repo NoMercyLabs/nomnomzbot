@@ -70,7 +70,7 @@ function pickPreview(scene: string): void {
 }
 
 function pickTransition(name: string): void {
-  setTransition.mutate(name, { onError: fail });
+  setTransition.mutate({ transitionName: name }, { onError: fail });
 }
 
 function runTransition(): void {

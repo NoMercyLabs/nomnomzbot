@@ -17,6 +17,7 @@ import type { ObsBridgeStatus, ObsConnection, ObsState } from '@/api/obs';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 
+import ObsConnectionForm from './ObsConnectionForm.vue';
 import { bridgeHealth, connectionHealth, type Health } from '../obsHealth';
 
 const props = defineProps<{
@@ -90,5 +91,6 @@ const recordingText = computed<string | undefined>(() =>
         :meta="recordingText"
       />
     </div>
+    <ObsConnectionForm :connection="connection" />
   </PanelCard>
 </template>

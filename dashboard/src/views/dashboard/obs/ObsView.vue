@@ -25,6 +25,8 @@ import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/compon
 import AudioPanel from './components/AudioPanel.vue';
 import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
 import ObsConnectionPanel from './components/ObsConnectionPanel.vue';
+import ObsHotkeysPanel from './components/ObsHotkeysPanel.vue';
+import ObsScreenshotPanel from './components/ObsScreenshotPanel.vue';
 import OutputsPanel from './components/OutputsPanel.vue';
 import ScenesPanel from './components/ScenesPanel.vue';
 import SourcesPanel from './components/SourcesPanel.vue';
@@ -113,6 +115,8 @@ function retry(): void {
       />
       <AudioPanel :offline="!enabled" />
       <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
+      <ObsHotkeysPanel :offline="!enabled" />
+      <ObsScreenshotPanel :offline="!enabled" />
       <SourcesPanel
         class="lg:col-span-2"
         :scene-name="state.data.value?.currentScene ?? null"
