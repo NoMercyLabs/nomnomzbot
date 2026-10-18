@@ -87,4 +87,5 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 2026-10-18: "we probably need a add to youtube playlist and add to spotify playlist action" — decided: one "Add to playlist" step with a Spotify/YouTube service choice; the playlist picker lists that service's playlists.
 2026-10-18: "make a linter that does the work! STOP DOING THINGS BY HAND!"
 2026-10-18: "i don't want any "string" value returned anywhere, i want it to be 100% strict typed"
+2026-10-18: "when mapping i also want you to type the return as const instead of the argument"
 2026-10-18: "HOLY MOLY THAT OBS PAGE!!! can you slap more things on in pannels that large?! how is that managible by the streamer while live?"
