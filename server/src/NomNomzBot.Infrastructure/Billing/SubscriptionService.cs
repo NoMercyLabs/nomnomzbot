@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Billing.Events;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Billing;
@@ -231,6 +232,17 @@ public sealed class SubscriptionService(
 
         sub.CancelAtPeriodEnd = false;
         await db.SaveChangesAsync(ct);
+
+        await eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "billing",
+                EntityId = sub.Id.ToString(),
+                Action = "updated",
+            },
+            ct
+        );
         return Result.Success(await ToDtoAsync(broadcasterId, sub, ct));
     }
 

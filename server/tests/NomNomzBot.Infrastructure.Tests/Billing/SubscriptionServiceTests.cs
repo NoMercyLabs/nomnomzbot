@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Billing.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -129,6 +130,11 @@ public sealed class SubscriptionServiceTests
 
         Result<SubscriptionDto> resumed = await sut.ResumeAsync(Channel);
         resumed.Value.CancelAtPeriodEnd.Should().BeFalse();
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .ContainSingle(e =>
+                e.BroadcasterId == Channel && e.Domain == "billing" && e.Action == "updated"
+            );
     }
 
     [Fact]
