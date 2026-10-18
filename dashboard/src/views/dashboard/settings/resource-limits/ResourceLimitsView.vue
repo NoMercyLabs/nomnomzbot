@@ -20,6 +20,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import LimitMeter from './components/LimitMeter.vue';
@@ -28,6 +29,7 @@ import { groupLimits, metricRowOf, type MetricRow } from './limitRows';
 const { t, te, d } = useI18n();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const limits = useResourceLimits(channelId);
 const usage = useUsageMetrics(channelId);
@@ -175,7 +177,7 @@ function baselineDetail(baseline: number): string {
             <p data-restricted class="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">
               {{ $t('dashboard.settings.resourceLimits.plan.restricted') }}
             </p>
-            <Button v-if="billingLinked" size="sm" as-child>
+            <Button v-if="billingLinked && can('billing:read')" size="sm" as-child>
               <RouterLink :to="{ name: 'dashboard-settings-billing' }">
                 {{ $t('dashboard.settings.resourceLimits.plan.change') }}
               </RouterLink>

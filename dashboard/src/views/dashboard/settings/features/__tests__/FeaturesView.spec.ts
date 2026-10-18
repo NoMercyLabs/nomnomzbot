@@ -193,14 +193,14 @@ describe('Features page', () => {
     expect(http.POST).not.toHaveBeenCalled();
   });
 
-  it('shows every switch but leaves them off-limits without the feature write key', async () => {
+  it('shows the state but no switch without the feature write key', async () => {
     held = ['feature:read'];
     await open();
 
-    expect(switchOf('clips').disabled).toBe(true);
-    expect(switchOf('tts').getAttribute('aria-checked')).toBe('true');
-    await click(switchOf('clips'));
+    expect(document.body.querySelector('button[role="switch"]')).toBeNull();
+    const states = Array.from(document.body.querySelectorAll('[data-slot="enabled-state"]'));
 
+    expect(states.map((state) => state.getAttribute('data-state'))).toEqual(['on', 'off', 'off']);
     expect(http.POST).not.toHaveBeenCalled();
   });
 

@@ -110,10 +110,11 @@ async function add(): Promise<void> {
             @update:model-value="changeRole(member.userId, $event as TeamRole)"
           />
           <Button
+            v-if="canManage"
             variant="ghost"
             size="icon"
             data-member-remove
-            :disabled="!canManage || teamRoleOf(member.role) === 'Broadcaster'"
+            :disabled="teamRoleOf(member.role) === 'Broadcaster'"
             :aria-label="$t('dashboard.settings.permissions.team.remove', { name: member.username ?? member.userId })"
             @click="run(remove.mutateAsync(member.userId))"
           >

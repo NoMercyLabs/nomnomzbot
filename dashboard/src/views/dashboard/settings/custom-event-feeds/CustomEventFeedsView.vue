@@ -205,6 +205,7 @@ async function confirmDelete(): Promise<void> {
   </PageBody>
 
   <EventFeedDialog
+    v-if="can('customdata:write')"
     v-model:open="editorOpen"
     :feed="editing"
     :presets="presets.data.value ?? []"
@@ -212,7 +213,7 @@ async function confirmDelete(): Promise<void> {
     :error="saveError"
     @submit="submit"
   />
-  <TestFeedDialog v-model:open="testOpen" :feed="testing" />
+  <TestFeedDialog v-if="can('customdata:write')" v-model:open="testOpen" :feed="testing" />
   <ConfirmDialog
     v-model:open="confirmOpen"
     :title="$t('dashboard.settings.customEventFeeds.delete.title', { name: deleting?.displayName ?? '' })"

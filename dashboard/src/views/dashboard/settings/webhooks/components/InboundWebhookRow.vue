@@ -15,10 +15,13 @@ import { computed } from 'vue';
 
 import type { InboundWebhook } from '@/api/webhooks';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 
+const { can } = useCan();
 const props = defineProps<{ endpoint: InboundWebhook; busy: boolean }>();
 
 defineEmits<{
@@ -55,6 +58,7 @@ const lastReceived = computed(() =>
     </div>
     <CopyLinkButton :url="endpoint.ingestUrl" :label="$t('dashboard.settings.webhooks.inbound.copyLink')" />
     <Button
+      v-if="can('webhooks:inbound:write')"
       variant="ghost"
       size="icon"
       data-inbound-delete
@@ -64,10 +68,12 @@ const lastReceived = computed(() =>
       <Trash class="size-5" />
     </Button>
     <Switch
+      v-if="can('webhooks:inbound:write')"
       :model-value="endpoint.isEnabled"
       :disabled="busy"
       :aria-labelledby="`inbound-${endpoint.id}`"
       @update:model-value="$emit('toggle')"
     />
+    <EnabledState v-else :enabled="endpoint.isEnabled" />
   </div>
 </template>

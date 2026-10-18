@@ -24,10 +24,12 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 const { t } = useI18n();
+const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const replay = useReplayImportedEvents(channelId);
 const rebuild = useRebuildProjections(channelId);
@@ -71,7 +73,12 @@ async function runRebuild(): Promise<void> {
         <p class="min-w-0 flex-1 text-sm text-muted-foreground">
           {{ $t('dashboard.settings.eventJournal.readModels.replayHelp') }}
         </p>
-        <Button variant="outline" data-replay :disabled="replay.isPending.value" @click="runReplay">
+        <Button v-if="can('eventstore:replay:write')"
+                variant="outline"
+                data-replay
+                :disabled="replay.isPending.value"
+                @click="runReplay"
+        >
           <Replay class="size-5" />
           {{ $t('dashboard.settings.eventJournal.readModels.replay') }}
         </Button>
@@ -80,7 +87,12 @@ async function runRebuild(): Promise<void> {
         <p class="min-w-0 flex-1 text-sm text-muted-foreground">
           {{ $t('dashboard.settings.eventJournal.readModels.rebuildHelp') }}
         </p>
-        <Button variant="outline" data-rebuild :disabled="rebuild.isPending.value" @click="confirmOpen = true">
+        <Button v-if="can('eventstore:projection:rebuild')"
+                variant="outline"
+                data-rebuild
+                :disabled="rebuild.isPending.value"
+                @click="confirmOpen = true"
+        >
           <Database class="size-5" />
           {{ $t('dashboard.settings.eventJournal.readModels.rebuild') }}
         </Button>

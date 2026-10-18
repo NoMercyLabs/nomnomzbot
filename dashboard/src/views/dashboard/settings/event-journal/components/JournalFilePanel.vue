@@ -22,11 +22,13 @@ import {
 } from '@/api/eventJournal';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { downloadText } from '@/lib/download';
 import { errorText } from '@/lib/errors';
 
 const { t } = useI18n();
+const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const exporter = useExportJournal(channelId);
 const importer = useImportJournal(channelId);
@@ -77,6 +79,7 @@ async function load(event: Event): Promise<void> {
   >
     <template #actions>
       <input
+        v-if="can('eventstore:import')"
         ref="picker"
         data-import-file
         type="file"
@@ -85,6 +88,7 @@ async function load(event: Event): Promise<void> {
         @change="load"
       >
       <Button
+        v-if="can('eventstore:import')"
         variant="outline"
         data-import
         :disabled="importer.isPending.value"
@@ -93,7 +97,7 @@ async function load(event: Event): Promise<void> {
         <Upload class="size-5" />
         {{ $t('dashboard.settings.eventJournal.file.import') }}
       </Button>
-      <Button data-export :disabled="exporter.isPending.value" @click="save">
+      <Button v-if="can('eventstore:export')" data-export :disabled="exporter.isPending.value" @click="save">
         <Download class="size-5" />
         {{ $t('dashboard.settings.eventJournal.file.export') }}
       </Button>

@@ -122,7 +122,11 @@ function openBrowserLogin(): void {
             {{ connected ? $t('dashboard.settings.whiteLabelBot.connected') : $t('dashboard.settings.whiteLabelBot.notConnected') }}
           </Badge>
         </div>
-        <BotLoginPanel v-if="loggingIn" @cancel="loggingIn = false" @connected="onConnected" />
+        <BotLoginPanel
+          v-if="loggingIn && canLogIn"
+          @cancel="loggingIn = false"
+          @connected="onConnected"
+        />
         <ReadabilityRow
           v-else-if="connected && canLogIn"
           :title="$t('dashboard.settings.whiteLabelBot.replace.title')"

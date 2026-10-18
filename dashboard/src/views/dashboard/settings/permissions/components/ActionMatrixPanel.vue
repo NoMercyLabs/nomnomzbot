@@ -121,15 +121,16 @@ const changeLevel = (actionKey: string, rung: RungName): Promise<void> =>
               @update:model-value="changeLevel(row.actionKey, $event as RungName)"
             />
             <Button
+              v-if="row.overrideLevel != null && canManage"
               variant="ghost"
               size="icon"
               data-action-reset
-              :class="row.overrideLevel != null && canManage ? '' : 'invisible'"
               :aria-label="$t('dashboard.settings.permissions.matrix.reset', { action: row.actionKey })"
               @click="run(reset.mutateAsync(row.actionKey))"
             >
               <Reset class="size-5" />
             </Button>
+            <span v-else class="size-9 shrink-0" aria-hidden="true" />
           </template>
         </SummaryRow>
       </RowGroup>

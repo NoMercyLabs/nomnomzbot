@@ -60,6 +60,15 @@ const journalPage = {
   headPosition: 42,
 };
 
+const held = vi.hoisted(() => ({ keys: null as Set<string> | null }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string) => held.keys === null || held.keys.has(key),
+  }),
+}));
+
 const answers: Record<string, unknown> = {
   '/export': '{"id":1}\n{"id":2}\n',
   '/import': {
@@ -146,6 +155,7 @@ beforeEach(() => {
   calls.length = 0;
   saved.length = 0;
   refused.path = '';
+  held.keys = null;
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -342,6 +352,26 @@ describe('Event journal list', () => {
     await settle();
 
     expect(journalCalls().length).toBeGreaterThan(before);
+  });
+});
+
+describe('Event journal permissions', () => {
+  it('shows none of the write controls to a person who holds no journal key', async () => {
+    held.keys = new Set();
+    await open();
+
+    const writeControls = [
+      '[data-export]',
+      '[data-import]',
+      '[data-import-file]',
+      '[data-replay]',
+      '[data-rebuild]',
+      '[data-import-legacy]',
+    ];
+
+    for (const selector of writeControls) {
+      expect(document.body.querySelector(selector), selector).toBeNull();
+    }
   });
 });
 

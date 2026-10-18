@@ -36,6 +36,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { merge } from '@/lib/array';
@@ -47,6 +48,7 @@ import OutboundWebhookRow from './components/OutboundWebhookRow.vue';
 
 const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const outbound = useOutboundWebhooks(channelId);
 const inbound = useInboundWebhooks(channelId);
 const catalog = useWebhookEventCatalog(channelId);
@@ -209,7 +211,7 @@ async function confirmDelete(): Promise<void> {
       :error-text="$t('dashboard.settings.webhooks.outbound.loadFailed')"
       @retry="outbound.refetch()"
     >
-      <template #actions>
+      <template v-if="can('webhooks:outbound:write')" #actions>
         <Button data-new-outbound @click="openEditor(null)">
           <Add class="size-5" />
           {{ $t('dashboard.settings.webhooks.outbound.new') }}
@@ -252,6 +254,7 @@ async function confirmDelete(): Promise<void> {
   </PageBody>
 
   <OutboundWebhookDialog
+    v-if="can('webhooks:outbound:write')"
     v-model:open="editorOpen"
     :endpoint="editing"
     :catalog="catalog.data.value ?? []"

@@ -16,10 +16,12 @@ import { useI18n } from 'vue-i18n';
 import { useImportLegacyHistory, type LegacyImportResult } from '@/api/eventJournal';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 const { t } = useI18n();
+const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const importer = useImportLegacyHistory(channelId);
 
@@ -47,7 +49,12 @@ async function run(): Promise<void> {
     :description="$t('dashboard.settings.eventJournal.legacy.description')"
   >
     <template #actions>
-      <Button variant="outline" data-import-legacy :disabled="importer.isPending.value" @click="run">
+      <Button v-if="can('eventstore:import:legacy')"
+              variant="outline"
+              data-import-legacy
+              :disabled="importer.isPending.value"
+              @click="run"
+      >
         <History class="size-5" />
         {{ $t('dashboard.settings.eventJournal.legacy.import') }}
       </Button>

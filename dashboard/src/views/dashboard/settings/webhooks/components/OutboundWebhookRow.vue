@@ -15,10 +15,13 @@ import Trash from '~icons/nnz/trash';
 import { computed } from 'vue';
 
 import type { OutboundWebhook } from '@/api/webhooks';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 
+const { can } = useCan();
 const props = defineProps<{ endpoint: OutboundWebhook; busy: boolean }>();
 
 defineEmits<{
@@ -62,7 +65,7 @@ const lastDelivery = computed(() =>
         {{ $t('dashboard.settings.webhooks.outbound.switchedOff', { reason: endpoint.disabledReason ?? '' }) }}
       </span>
     </div>
-    <Button v-if="switchedOff"
+    <Button v-if="switchedOff && can('webhooks:outbound:write')"
             variant="outline"
             data-outbound-reenable
             :disabled="busy"
@@ -70,7 +73,7 @@ const lastDelivery = computed(() =>
     >
       {{ $t('dashboard.settings.webhooks.outbound.reenable') }}
     </Button>
-    <div class="flex items-center gap-1">
+    <div v-if="can('webhooks:outbound:write')" class="flex items-center gap-1">
       <Button
         variant="ghost"
         size="icon"
@@ -91,10 +94,12 @@ const lastDelivery = computed(() =>
       </Button>
     </div>
     <Switch
+      v-if="can('webhooks:outbound:write')"
       :model-value="endpoint.isEnabled"
       :disabled="busy"
       :aria-labelledby="`outbound-${endpoint.id}`"
       @update:model-value="$emit('toggle')"
     />
+    <EnabledState v-else :enabled="endpoint.isEnabled" />
   </div>
 </template>

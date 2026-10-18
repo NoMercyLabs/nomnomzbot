@@ -17,6 +17,7 @@ import { computed } from 'vue';
 
 import type { EventFeed } from '@/api/customEventFeeds';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -99,10 +100,12 @@ const lastReceived = computed(() =>
       </Button>
     </div>
     <Switch
+      v-if="can('customdata:write')"
       :model-value="feed.isEnabled"
-      :disabled="busy || !can('customdata:write')"
+      :disabled="busy"
       :aria-labelledby="`feed-${feed.name}`"
       @update:model-value="$emit('toggle')"
     />
+    <EnabledState v-else :enabled="feed.isEnabled" />
   </div>
 </template>

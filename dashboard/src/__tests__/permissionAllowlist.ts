@@ -12,8 +12,7 @@
 // can(...) check in their own template or in every parent that mounts them, and the reason each is fine.
 // A file lists how many such controls it may hold. A new control in a listed file raises the count and
 // fails the test, so it must be gated or the entry must be changed on purpose. A stale count fails too.
-// The first two groups are real exceptions. The last two are DEBT: the page is guarded as a whole, and
-// the control still needs its own write key. Move a control out of a debt group by gating it.
+// Every group is a real exception. A write control never belongs here: gate it with its own write key.
 
 export interface AllowlistGroup {
   reason: string;
@@ -48,7 +47,10 @@ export const permissionAllowlist: readonly AllowlistGroup[] = [
       'pipelines/components/StepPicker.vue': 1,
       'scripts/components/FailedRunDialog.vue': 1,
       'settings/ReadabilityView.vue': 1,
+      'settings/event-journal/components/JournalListPanel.vue': 3,
       'settings/api-devices/components/SecretDialog.vue': 2,
+      'settings/custom-event-feeds/components/EventFeedRow.vue': 1,
+      'settings/webhooks/components/InboundWebhookRow.vue': 1,
       'settings/billing/components/InvoicesPanel.vue': 3,
       'voice-triggers/VoiceTriggersView.vue': 1,
     },
@@ -65,28 +67,6 @@ export const permissionAllowlist: readonly AllowlistGroup[] = [
       'pipelines/components/StepField.vue': 1,
       'pipelines/components/StepInspector.vue': 2,
       'settings/custom-event-feeds/components/FieldMapEditor.vue': 2,
-      'settings/webhooks/components/OutboundWebhookDialog.vue': 1,
-    },
-  },
-  {
-    reason: 'DEBT, channel page: the page is guarded by its route meta.action; the write control (send, save, delete, toggle) is not yet gated with its own write key via useCan.',
-    files: {
-      'settings/custom-event-feeds/components/EventFeedDialog.vue': 1,
-      'settings/custom-event-feeds/components/EventFeedRow.vue': 2,
-      'settings/event-journal/components/JournalFilePanel.vue': 2,
-      'settings/event-journal/components/LegacyHistoryPanel.vue': 1,
-      'settings/event-journal/components/ReadModelsPanel.vue': 2,
-      'settings/features/FeaturesView.vue': 1,
-      'settings/permissions/components/ActionMatrixPanel.vue': 1,
-      'settings/permissions/components/PersonGrantsPanel.vue': 1,
-      'settings/permissions/components/TeamRolesPanel.vue': 1,
-      'settings/resource-limits/ResourceLimitsView.vue': 1,
-      'settings/webhooks/WebhooksView.vue': 1,
-      'settings/webhooks/components/InboundWebhookRow.vue': 3,
-      'settings/webhooks/components/OutboundWebhookRow.vue': 4,
-      'settings/white-label-bot/components/BotLoginPanel.vue': 4,
-      'settings/custom-event-feeds/components/TestFeedDialog.vue': 1,
-      'stream/RaidRulesPanel.vue': 2,
     },
   },
   {

@@ -96,10 +96,10 @@ async function add(): Promise<void> {
       >
         <template #end>
           <Button
+            v-if="canManage"
             variant="ghost"
             size="icon"
             data-grant-revoke
-            :disabled="!canManage"
             :aria-label="$t('dashboard.settings.permissions.grants.revoke', { name: row.subjectName ?? row.subjectId })"
             @click="run(revoke.mutateAsync({ userId: row.subjectId, permission: row.resourceId ?? '' }))"
           >

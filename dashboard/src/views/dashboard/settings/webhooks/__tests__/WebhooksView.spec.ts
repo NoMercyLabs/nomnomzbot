@@ -28,6 +28,15 @@ type Call = {
 
 const calls: Call[] = [];
 
+const held = vi.hoisted(() => ({ keys: null as Set<string> | null }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string) => held.keys === null || held.keys.has(key),
+  }),
+}));
+
 const ok = (data: unknown): { data: unknown; response: { status: number; ok: boolean } } => ({
   data: { data, hasMore: false },
   response: { status: 200, ok: true },
@@ -120,6 +129,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
+  held.keys = null;
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -240,6 +250,27 @@ describe('Webhooks page', () => {
       subscribedEventTypes: ['follow'],
       isEnabled: true,
     });
+  });
+});
+
+describe('Webhooks permissions', () => {
+  it('shows the state but none of the write controls to a person who holds no webhook key', async () => {
+    held.keys = new Set();
+    await open();
+
+    expect(q('[data-outbound="Home server"]')).not.toBeNull();
+    expect(q('[data-inbound="Ko-fi"]')).not.toBeNull();
+
+    const writeControls = [
+      '[data-new-outbound]',
+      '[data-outbound-reenable]',
+      '[data-inbound-delete]',
+      'button[role="switch"]',
+    ];
+
+    for (const selector of writeControls) {
+      expect(document.body.querySelector(selector), selector).toBeNull();
+    }
   });
 });
 

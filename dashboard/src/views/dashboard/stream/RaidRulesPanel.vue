@@ -15,6 +15,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useRaidRules, useSaveRaidRules, type RaidRules } from '@/api/schedule';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -159,10 +160,12 @@ function submit(): void {
             @update:model-value="rule.words = words(String($event))"
           />
           <label class="flex items-center gap-1.5 text-sm">
-            <Switch v-model="rule.matchTags" />{{ t('dashboard.stream.raids.matchTags') }}
+            <Switch v-if="canEdit" v-model="rule.matchTags" />
+            <EnabledState v-else :enabled="rule.matchTags" />{{ t('dashboard.stream.raids.matchTags') }}
           </label>
           <label class="flex items-center gap-1.5 text-sm">
-            <Switch v-model="rule.matchTitle" />{{ t('dashboard.stream.raids.matchTitle') }}
+            <Switch v-if="canEdit" v-model="rule.matchTitle" />
+            <EnabledState v-else :enabled="rule.matchTitle" />{{ t('dashboard.stream.raids.matchTitle') }}
           </label>
           <Button v-if="canEdit"
                   variant="ghost"

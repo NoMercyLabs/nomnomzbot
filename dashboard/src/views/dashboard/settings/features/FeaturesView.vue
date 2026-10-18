@@ -19,6 +19,7 @@ import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
@@ -113,11 +114,13 @@ async function flip(feature: ChannelFeature): Promise<void> {
             <span v-if="since(feature)" class="block text-sm text-muted-foreground">{{ since(feature) }}</span>
           </div>
           <Switch
+            v-if="can('feature:write')"
             :model-value="feature.isEnabled"
-            :disabled="!feature.entitled || busyKey !== undefined || !can('feature:write')"
+            :disabled="!feature.entitled || busyKey !== undefined"
             :aria-labelledby="`feature-${feature.featureKey}`"
             @update:model-value="flip(feature)"
           />
+          <EnabledState v-else :enabled="feature.isEnabled" />
         </div>
       </RowGroup>
       <p v-if="error" role="alert" class="px-3 pt-3 text-sm text-destructive">{{ error }}</p>

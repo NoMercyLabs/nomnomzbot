@@ -264,8 +264,8 @@ describe('Permissions', () => {
   it('resets only an action that has an override, with a DELETE of its key', async () => {
     await open();
 
-    expect(q('[data-action="chat.permit-link"] [data-action-reset]').classList.contains('invisible')).toBe(true);
-    expect(q('[data-action="chat.timeout"] [data-action-reset]').classList.contains('invisible')).toBe(false);
+    expect(document.body.querySelector('[data-action="chat.permit-link"] [data-action-reset]')).toBeNull();
+    expect(document.body.querySelector('[data-action="chat.timeout"] [data-action-reset]')).not.toBeNull();
 
     await click(q('[data-action="chat.timeout"] [data-action-reset]'));
 
