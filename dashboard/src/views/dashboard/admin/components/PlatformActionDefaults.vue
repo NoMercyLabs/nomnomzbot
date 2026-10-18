@@ -20,12 +20,12 @@ import {
   useSaveActionDefault,
   type ActionDefault,
 } from '@/api/adminPlatformDefaults';
-import { ApiError } from '@/api/errors';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformDefaultListError } from '@/composables/usePlatformDefaultListError';
 import { usePlatformDefaultPreview } from '@/composables/usePlatformDefaultPreview';
 
 import PlatformDefaultPreview from './PlatformDefaultPreview.vue';
@@ -52,42 +52,44 @@ const chosenLevel = (): number | null =>
     : Number(choice.value);
 
 const preview = usePlatformDefaultPreview(() =>
-  previewActionDefault(editing.value?.actionKey ?? '', chosenLevel()));
+  previewActionDefault(editing.value?.actionKey ?? '', chosenLevel()),
+);
 
 const rungs = computed<number[]>(() => {
   const floor = Number(editing.value?.floorLevel ?? 0);
 
-  return Array.from(Array(LEVEL_COUNT).keys())
-    .filter((rung: number): boolean => rung >= floor);
+  return Array.from(Array(LEVEL_COUNT).keys()).filter((rung: number): boolean => rung >= floor);
 });
 
 const shippedOption = computed<string>(() =>
   t('dashboard.admin.platformDefaults.actions.dialog.shipped', {
     role: levelName(editing.value?.shippedDefaultLevel ?? 0),
-  }));
+  }),
+);
 
 const panelState = usePanelState(actions, (list: ActionDefault[]) =>
   list.length === 0);
 
-const listError = computed<string>(() =>
-  actions.error.value instanceof ApiError && actions.error.value.status === 403
-    ? t('dashboard.admin.platformDefaults.forbidden')
-    : t('dashboard.admin.platformDefaults.loadError'),
-);
+const listError = usePlatformDefaultListError(() => actions.error.value);
 
 const applyLabel = computed<string>(() =>
   t('dashboard.admin.platformDefaults.preview.apply', {
-    channels: t('dashboard.admin.platformDefaults.preview.channels', preview.channelsAffected.value),
-  }));
+    channels: t(
+      'dashboard.admin.platformDefaults.preview.channels',
+      preview.channelsAffected.value,
+    ),
+  }),
+);
 
 function startEdit(row: ActionDefault): void {
   editing.value = row;
   failure.value = undefined;
   preview.reset();
 
-  choice.value = row.platformDefaultLevel === null || row.platformDefaultLevel === undefined
-    ? SHIPPED
-    : String(Number(row.platformDefaultLevel));
+  choice.value =
+    row.platformDefaultLevel === null || row.platformDefaultLevel === undefined
+      ? SHIPPED
+      : String(Number(row.platformDefaultLevel));
 }
 
 function close(): void {
@@ -120,7 +122,10 @@ function apply(): void {
         close();
       },
       onError: (error: Error) => {
-        failure.value = t('dashboard.admin.platformDefaults.actions.saveError', { reason: error.message });
+        failure.value = t('dashboard.admin.platformDefaults.actions.saveError', {
+          reason: error.message,
+        });
+
         void preview.request();
       },
     },
@@ -158,13 +163,22 @@ function apply(): void {
           </p>
           <p v-if="row.description" class="text-sm text-muted-foreground">{{ row.description }}</p>
           <p class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-            <span>{{ $t('dashboard.admin.platformDefaults.actions.shipped', { role: levelName(row.shippedDefaultLevel) }) }}</span>
-            <span>{{ $t('dashboard.admin.platformDefaults.actions.overrides', Number(row.channelOverrideCount)) }}</span>
+            <span>{{
+              $t("dashboard.admin.platformDefaults.actions.shipped", {
+                role: levelName(row.shippedDefaultLevel),
+              })
+            }}</span>
+            <span>{{
+              $t(
+                "dashboard.admin.platformDefaults.actions.overrides",
+                Number(row.channelOverrideCount),
+              )
+            }}</span>
           </p>
         </div>
         <span class="text-sm font-medium">{{ levelName(row.effectiveDefaultLevel) }}</span>
         <Button variant="outline" size="sm" data-edit @click="startEdit(row)">
-          {{ $t('dashboard.admin.platformDefaults.actions.edit') }}
+          {{ $t("dashboard.admin.platformDefaults.actions.edit") }}
         </Button>
       </li>
     </ul>
@@ -172,7 +186,11 @@ function apply(): void {
 
   <FormDialog
     :open="editing !== null"
-    :title="$t('dashboard.admin.platformDefaults.actions.dialog.title', { action: editing?.actionKey ?? '' })"
+    :title="
+      $t('dashboard.admin.platformDefaults.actions.dialog.title', {
+        action: editing?.actionKey ?? '',
+      })
+    "
     :description="$t('dashboard.admin.platformDefaults.actions.dialog.description')"
     :action="applyLabel"
     :pending="save.isPending.value"
@@ -182,7 +200,7 @@ function apply(): void {
     @submit="apply"
   >
     <label class="grid gap-1 text-xs text-muted-foreground">
-      {{ $t('dashboard.admin.platformDefaults.actions.dialog.role') }}
+      {{ $t("dashboard.admin.platformDefaults.actions.dialog.role") }}
       <select
         data-level
         :value="choice"
@@ -206,7 +224,7 @@ function apply(): void {
       @retry="preview.request()"
     />
     <p v-else class="text-sm text-muted-foreground">
-      {{ $t('dashboard.admin.platformDefaults.preview.pick') }}
+      {{ $t("dashboard.admin.platformDefaults.preview.pick") }}
     </p>
   </FormDialog>
 </template>

@@ -95,3 +95,145 @@ export function useSaveActionDefault() {
     onSuccess: () => queries.invalidateQueries({ queryKey: adminPlatformDefaultsKey }),
   });
 }
+
+export type BuiltinReplyDefault = components['schemas']['BuiltinReplyDefault'];
+export type EventResponseDefault = components['schemas']['EventResponseDefault'];
+export type EventResponseDefaultChange = components['schemas']['EventResponseDefaultChange'];
+
+export const adminBuiltinReplyDefaultsKey: KeyParts = [
+  ...adminPlatformDefaultsKey,
+  'builtin-replies',
+];
+
+export const adminEventResponseDefaultsKey: KeyParts = [
+  ...adminPlatformDefaultsKey,
+  'event-responses',
+];
+
+// The wording of every built-in reply slot: the shipped text, the platform's own text and who has their own.
+export function useAdminBuiltinReplyDefaults(): UseQueryReturnType<BuiltinReplyDefault[], Error> {
+  return useQuery({
+    queryKey: adminBuiltinReplyDefaultsKey,
+    queryFn: async (): Promise<BuiltinReplyDefault[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/admin/platform-defaults/builtin-replies',
+        { params: { path: { version } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform defaults replies', response.status, error);
+
+      return [...(data?.data ?? [])];
+    },
+  });
+}
+
+// The counted blast radius of a new wording; a null template previews the shipped wording.
+export async function previewBuiltinReplyDefault(
+  builtinKey: string,
+  slot: string,
+  template: string | null,
+): Promise<PlatformDefaultBlastRadius> {
+  const { data, error, response } = await client.POST(
+    '/api/v{version}/admin/platform-defaults/builtin-replies/{builtinKey}/{slot}/blast-radius',
+    { params: { path: {
+      version,
+      builtinKey,
+      slot,
+    } }, body: { template } },
+  );
+
+  if (error !== undefined)
+    throw problemError('platform defaults replies', response.status, error);
+
+  if (!data?.data)
+    throw problemError('platform defaults replies', response.status, { message: 'empty' });
+
+  return data.data;
+}
+
+export type SaveBuiltinReplyDefault = {
+  builtinKey: string;
+  slot: string;
+  template: string | null;
+  confirmedChannelsAffected: number;
+};
+
+export function useSaveBuiltinReplyDefault() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ builtinKey, slot, ...body }: SaveBuiltinReplyDefault): Promise<void> => {
+      const { error, response } = await client.PUT(
+        '/api/v{version}/admin/platform-defaults/builtin-replies/{builtinKey}/{slot}',
+        { params: { path: {
+          version,
+          builtinKey,
+          slot,
+        } }, body },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform defaults replies', response.status, error);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: adminPlatformDefaultsKey }),
+  });
+}
+
+// The platform's response to every event type, with the variables it may use and who follows it.
+export function useAdminEventResponseDefaults(): UseQueryReturnType<EventResponseDefault[], Error> {
+  return useQuery({
+    queryKey: adminEventResponseDefaultsKey,
+    queryFn: async (): Promise<EventResponseDefault[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/admin/platform-defaults/event-responses',
+        { params: { path: { version } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform defaults events', response.status, error);
+
+      return [...(data?.data ?? [])];
+    },
+  });
+}
+
+export async function previewEventResponseDefault(
+  eventType: string,
+  change: EventResponseDefaultChange,
+): Promise<PlatformDefaultBlastRadius> {
+  const { data, error, response } = await client.POST(
+    '/api/v{version}/admin/platform-defaults/event-responses/{eventType}/blast-radius',
+    { params: { path: { version, eventType } }, body: change },
+  );
+
+  if (error !== undefined)
+    throw problemError('platform defaults events', response.status, error);
+
+  if (!data?.data)
+    throw problemError('platform defaults events', response.status, { message: 'empty' });
+
+  return data.data;
+}
+
+export type SaveEventResponseDefault = {
+  eventType: string;
+  confirmedChannelsAffected: number;
+} & EventResponseDefaultChange;
+
+export function useSaveEventResponseDefault() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ eventType, ...body }: SaveEventResponseDefault): Promise<void> => {
+      const { error, response } = await client.PUT(
+        '/api/v{version}/admin/platform-defaults/event-responses/{eventType}',
+        { params: { path: { version, eventType } }, body },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform defaults events', response.status, error);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: adminPlatformDefaultsKey }),
+  });
+}

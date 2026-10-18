@@ -8,9 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { useDebounceFn } from '@vueuse/core';
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 
 import type { PlatformDefaultBlastRadius } from '@/api/adminPlatformDefaults';
+
+const TYPING_PAUSE_MS = 400;
 
 export type PlatformDefaultPreviewState = {
   preview: Ref<PlatformDefaultBlastRadius | undefined>;
@@ -20,6 +23,7 @@ export type PlatformDefaultPreviewState = {
   channelsAffected: ComputedRef<number>;
   canApply: ComputedRef<boolean>;
   request: () => Promise<void>;
+  schedule: () => void;
   reset: () => void;
 };
 
@@ -38,10 +42,12 @@ export function usePlatformDefaultPreview(
 
   const channelsAffected = computed<number>(() => Number(preview.value?.channelsAffected ?? 0));
 
-  const canApply = computed<boolean>(() =>
-    preview.value !== undefined &&
-    !pending.value &&
-    (!preview.value.requiresDangerConfirmation || dangerConfirmed.value));
+  const canApply = computed<boolean>(
+    () =>
+      preview.value !== undefined &&
+      !pending.value &&
+      (!preview.value.requiresDangerConfirmation || dangerConfirmed.value),
+  );
 
   function reset(): void {
     sequence += 1;
@@ -75,7 +81,21 @@ export function usePlatformDefaultPreview(
     }
   }
 
+  // A close or a newer edit moves the sequence on, so a pause that ends after it asks nothing.
+  const requestIfCurrent = useDebounceFn(async (scheduled: number): Promise<void> => {
+    if (scheduled === sequence) {
+      await request();
+    }
+  }, TYPING_PAUSE_MS);
+
+  // A draft that is still being typed: the shown count is dropped at once, the new one is asked after a pause.
+  function schedule(): void {
+    reset();
+    void requestIfCurrent(sequence);
+  }
+
   return {
+    schedule,
     preview,
     pending,
     failed,

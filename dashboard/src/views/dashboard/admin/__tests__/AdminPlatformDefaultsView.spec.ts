@@ -57,6 +57,48 @@ const actions = [
   }),
 ];
 
+const builtins = [
+  {
+    builtinKey: 'lurk',
+    slot: 'start',
+    shippedTemplate: 'Enjoy the lurk, {user}',
+    platformTemplate: null,
+    channelsWithOwnReply: 2,
+  },
+  {
+    builtinKey: 'hug',
+    slot: 'self',
+    shippedTemplate: 'Hug yourself',
+    platformTemplate: 'Hug yourself, {user}',
+    channelsWithOwnReply: 1,
+  },
+];
+
+const events = [
+  {
+    eventType: 'channel.follow',
+    isEnabled: true,
+    message: 'Welcome {user}',
+    variables: ['user'],
+    channelsFollowing: 9,
+    channelsWithOwnResponse: 4,
+    updatedAt: '2026-10-01T10:00:00Z',
+    speakWithTts: false,
+  },
+  {
+    eventType: 'channel.raid',
+    isEnabled: false,
+    message: null,
+    variables: ['user', 'viewers'],
+    channelsFollowing: 5,
+    channelsWithOwnResponse: 0,
+    updatedAt: '2026-10-01T10:00:00Z',
+    speakWithTts: true,
+  },
+];
+
+const posts: { path: string; body: Record<string, unknown> }[] = [];
+
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/api/client', () => ({
@@ -70,6 +112,9 @@ vi.mock('@/api/client', () => ({
 
       if (refused)
         return { error: { message: 'no' }, response: { status: 403, ok: false } };
+
+      if (path.includes('/templates/helpers'))
+        return { data: { status: 'ok', data: [] }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/blast-radius')) {
         return {
@@ -86,12 +131,32 @@ vi.mock('@/api/client', () => ({
         };
       }
 
-      return { data: { status: 'ok', data: actions }, response: { status: 200, ok: true } };
+      const lists: Record<string, unknown[]> = {
+        'builtin-replies': builtins,
+        'event-responses': events,
+      };
+
+      const list = lists[path.split('/').at(-1) ?? ''] ?? actions;
+
+      return { data: { status: 'ok', data: list }, response: { status: 200, ok: true } };
     },
-    PUT: async (
-      path: string,
-      options: { body: Record<string, unknown> },
-    ): Promise<Answer> => {
+    POST: async (path: string, options: { body: Record<string, unknown> }): Promise<Answer> => {
+      posts.push({ path, body: options.body });
+
+      return {
+        data: {
+          status: 'ok',
+          data: {
+            channelsAffected: affected,
+            channelsKeepingOwnSetting: 3,
+            sampleChannelNames: ['alpha', 'beta'],
+            requiresDangerConfirmation: false,
+          },
+        },
+        response: { status: 200, ok: true },
+      };
+    },
+    PUT: async (path: string, options: { body: Record<string, unknown> }): Promise<Answer> => {
       puts.push({ path, body: options.body });
 
       return { data: { status: 'ok', data: actions[0] }, response: { status: 200, ok: true } };
@@ -105,6 +170,7 @@ let pinia: Pinia;
 beforeEach(() => {
   gets.length = 0;
   puts.length = 0;
+  posts.length = 0;
   refused = false;
   dangerous = false;
   affected = 12;
@@ -163,6 +229,36 @@ async function choose(value: string): Promise<void> {
 
   select.value = value;
   select.dispatchEvent(new Event('change', { bubbles: true }));
+  await settle();
+}
+
+const builtinRow = (key: string): HTMLElement =>
+  document.body.querySelector<HTMLElement>(`[data-builtin="${key}"]`)!;
+const eventRow = (key: string): HTMLElement =>
+  document.body.querySelector<HTMLElement>(`[data-event="${key}"]`)!;
+const field = (name: string): HTMLTextAreaElement =>
+  document.body.querySelector<HTMLTextAreaElement>(`[data-field="${name}"]`)!;
+const switches = (): HTMLElement[] =>
+  Array.from(document.body.querySelectorAll<HTMLElement>('[role="dialog"] [role="switch"]'));
+
+const DEBOUNCE_WAIT_MS = 500;
+
+async function typeQuickly(name: string, text: string): Promise<void> {
+  const area = field(name);
+
+  area.value = text;
+  area.dispatchEvent(new Event('input', { bubbles: true }));
+  await settle();
+}
+
+async function type(name: string, text: string): Promise<void> {
+  await typeQuickly(name, text);
+  await new Promise((done) => setTimeout(done, DEBOUNCE_WAIT_MS));
+  await settle();
+}
+
+async function editRow(target: HTMLElement): Promise<void> {
+  target.querySelector<HTMLElement>('[data-edit]')!.click();
   await settle();
 }
 
@@ -275,6 +371,124 @@ describe('AdminPlatformDefaultsView', () => {
     await open();
 
     expect(document.body.textContent).toContain('You may not see the platform defaults.');
+  });
+
+  describe('built-in replies', () => {
+    it('lists every reply slot with the wording channels follow and how many have their own', async () => {
+      await open();
+
+      expect(document.body.querySelectorAll('[data-builtin]')).toHaveLength(2);
+      expect(builtinRow('lurk.start').textContent).toContain('Enjoy the lurk, {user}');
+      expect(builtinRow('lurk.start').textContent).toContain('2 channels use their own');
+      expect(builtinRow('lurk.start').querySelector('[data-changed]')).toBeNull();
+      expect(builtinRow('hug.self').textContent).toContain('Hug yourself, {user}');
+      expect(builtinRow('hug.self').querySelector('[data-changed]')).not.toBeNull();
+    });
+
+    it('keeps Apply off until the typed wording was counted, drops the count on the next keystroke, then sends it', async () => {
+      await open();
+      await editRow(builtinRow('lurk.start'));
+      expect(applyButton().disabled).toBe(true);
+
+      await type('builtin-template', 'See you later, {user}');
+
+      expect(posts.at(-1)).toMatchObject({
+        path: '/api/v{version}/admin/platform-defaults/builtin-replies/{builtinKey}/{slot}/blast-radius',
+        body: { template: 'See you later, {user}' },
+      });
+
+      expect(preview()?.textContent).toContain('12 channels');
+      expect(applyButton().disabled).toBe(false);
+
+      affected = 30;
+      await typeQuickly('builtin-template', 'See you, {user}');
+
+      expect(preview()).toBeNull();
+      expect(applyButton().disabled).toBe(true);
+
+      await new Promise((done) => setTimeout(done, DEBOUNCE_WAIT_MS));
+      await settle();
+      expect(preview()?.textContent).toContain('30 channels');
+
+      applyButton().click();
+      await settle();
+
+      expect(puts).toHaveLength(1);
+
+      expect(puts[0]).toMatchObject({
+        path: '/api/v{version}/admin/platform-defaults/builtin-replies/{builtinKey}/{slot}',
+        body: { template: 'See you, {user}', confirmedChannelsAffected: 30 },
+      });
+    });
+
+    it('previews and saves a null template when the shipped wording is chosen', async () => {
+      await open();
+      await editRow(builtinRow('hug.self'));
+      document.body.querySelector<HTMLElement>('[data-use-shipped]')!.click();
+      await settle();
+
+      expect(posts.at(-1)?.body).toEqual({ template: null });
+
+      applyButton().click();
+      await settle();
+
+      expect(puts[0]?.body).toMatchObject({ template: null, confirmedChannelsAffected: 12 });
+    });
+  });
+
+  describe('event responses', () => {
+    it('lists every event with its state, its text and who follows or has their own', async () => {
+      await open();
+
+      expect(document.body.querySelectorAll('[data-event]')).toHaveLength(2);
+      expect(eventRow('channel.follow').textContent).toContain('Welcome {user}');
+      expect(eventRow('channel.follow').textContent).toContain('9 channels follow');
+      expect(eventRow('channel.follow').textContent).toContain('4 channels use their own');
+      expect(eventRow('channel.follow').querySelector('[data-enabled]')).not.toBeNull();
+      expect(eventRow('channel.raid').querySelector('[data-enabled]')).toBeNull();
+    });
+
+    it('counts the draft first, then saves the enabled state, text and speech with the counted number', async () => {
+      await open();
+      await editRow(eventRow('channel.raid'));
+      expect(applyButton().disabled).toBe(true);
+
+      await type('event-message', 'Raid from {user}');
+
+      expect(posts.at(-1)).toMatchObject({
+        path: '/api/v{version}/admin/platform-defaults/event-responses/{eventType}/blast-radius',
+        body: {
+          isEnabled: false,
+          message: 'Raid from {user}',
+          speakWithTts: true,
+        },
+      });
+
+      expect(applyButton().disabled).toBe(false);
+
+      affected = 7;
+      switches()[0]!.click();
+      await settle();
+      expect(preview()).toBeNull();
+      expect(applyButton().disabled).toBe(true);
+
+      await new Promise((done) => setTimeout(done, DEBOUNCE_WAIT_MS));
+      await settle();
+      expect(preview()?.textContent).toContain('7 channels');
+
+      applyButton().click();
+      await settle();
+
+      expect(puts[0]).toMatchObject({
+        path: '/api/v{version}/admin/platform-defaults/event-responses/{eventType}',
+        body: {
+          isEnabled: true,
+          message: 'Raid from {user}',
+          speakWithTts: true,
+          confirmedChannelsAffected: 7,
+        },
+      });
+    });
   });
 
   it('is an admin-only route', () => {

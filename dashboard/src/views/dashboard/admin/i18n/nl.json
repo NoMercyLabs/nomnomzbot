@@ -951,6 +951,42 @@
             "role": "Rol",
             "shipped": "Meegeleverde standaard ({role})"
           }
+        },
+        "replies": {
+          "title": "Ingebouwde antwoorden",
+          "description": "De tekst die een ingebouwd commando gebruikt in een kanaal dat geen eigen tekst heeft geschreven.",
+          "empty": "Er zijn geen ingebouwde antwoorden.",
+          "changed": "Aangepast",
+          "overrides": "{n} kanaal gebruikt een eigen tekst | {n} kanalen gebruiken een eigen tekst",
+          "edit": "Bewerken",
+          "saved": "De tekst is opgeslagen.",
+          "saveError": "De tekst is niet opgeslagen: {reason}",
+          "dialog": {
+            "title": "Standaardtekst voor {reply}",
+            "description": "Schrijf de tekst en bekijk welke kanalen dit raakt voor je het toepast.",
+            "wording": "Tekst",
+            "shippedIs": "Meegeleverd: {text}",
+            "useShipped": "Gebruik de meegeleverde tekst"
+          }
+        },
+        "events": {
+          "title": "Reacties op gebeurtenissen",
+          "description": "Wat de bot doet bij een gebeurtenis in een kanaal dat de platformstandaard volgt.",
+          "empty": "Er zijn geen reacties op gebeurtenissen.",
+          "enabled": "Aan",
+          "following": "{n} kanaal volgt dit | {n} kanalen volgen dit",
+          "overrides": "{n} kanaal gebruikt een eigen reactie | {n} kanalen gebruiken een eigen reactie",
+          "edit": "Bewerken",
+          "saved": "De reactie is opgeslagen.",
+          "saveError": "De reactie is niet opgeslagen: {reason}",
+          "dialog": {
+            "title": "Standaardreactie voor {event}",
+            "description": "Stel de reactie in en bekijk welke kanalen dit raakt voor je het toepast.",
+            "enabled": "Reageer op deze gebeurtenis",
+            "message": "Bericht",
+            "variables": "Je kunt gebruiken: {names}",
+            "speak": "Spreek het ook uit met tekst-naar-spraak"
+          }
         }
       }
     },

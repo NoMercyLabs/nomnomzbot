@@ -951,6 +951,42 @@
             "role": "Role",
             "shipped": "Shipped default ({role})"
           }
+        },
+        "replies": {
+          "title": "Built-in replies",
+          "description": "The wording a built-in command uses in a channel that has not written its own.",
+          "empty": "No built-in replies are listed.",
+          "changed": "Changed",
+          "overrides": "{n} channel uses its own | {n} channels use their own",
+          "edit": "Edit",
+          "saved": "The wording was saved.",
+          "saveError": "The wording was not saved: {reason}",
+          "dialog": {
+            "title": "Default wording for {reply}",
+            "description": "Write the wording, then check which channels this reaches before you apply it.",
+            "wording": "Wording",
+            "shippedIs": "Ships as: {text}",
+            "useShipped": "Use the shipped wording"
+          }
+        },
+        "events": {
+          "title": "Event responses",
+          "description": "What the bot does for an event in a channel that follows the platform default.",
+          "empty": "No event responses are listed.",
+          "enabled": "On",
+          "following": "{n} channel follows this | {n} channels follow this",
+          "overrides": "{n} channel uses its own | {n} channels use their own",
+          "edit": "Edit",
+          "saved": "The event response was saved.",
+          "saveError": "The event response was not saved: {reason}",
+          "dialog": {
+            "title": "Default response for {event}",
+            "description": "Set the response, then check which channels this reaches before you apply it.",
+            "enabled": "Respond to this event",
+            "message": "Message",
+            "variables": "You can use: {names}",
+            "speak": "Also speak it with text to speech"
+          }
         }
       }
     },

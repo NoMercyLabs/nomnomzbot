@@ -86,6 +86,8 @@ export const apiOperations = {
   'admin jobs': 'admin',
   'admin job retry': 'admin',
   'platform defaults actions': 'admin',
+  'platform defaults replies': 'admin',
+  'platform defaults events': 'admin',
   'admin usage': 'admin',
   'admin error budget': 'admin',
   'access principals': 'admin',

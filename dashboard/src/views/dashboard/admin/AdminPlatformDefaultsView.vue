@@ -15,6 +15,8 @@ import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 
 import PlatformActionDefaults from './components/PlatformActionDefaults.vue';
+import PlatformBuiltinReplyDefaults from './components/PlatformBuiltinReplyDefaults.vue';
+import PlatformEventResponseDefaults from './components/PlatformEventResponseDefaults.vue';
 </script>
 
 <template>
@@ -23,7 +25,11 @@ import PlatformActionDefaults from './components/PlatformActionDefaults.vue';
     :crumb="$t('dashboard.admin.platformDefaults.crumb')"
   />
   <PageBody>
-    <p class="text-sm text-muted-foreground">{{ $t('dashboard.admin.platformDefaults.explain') }}</p>
+    <p class="text-sm text-muted-foreground">
+      {{ $t("dashboard.admin.platformDefaults.explain") }}
+    </p>
     <PlatformActionDefaults />
+    <PlatformBuiltinReplyDefaults />
+    <PlatformEventResponseDefaults />
   </PageBody>
 </template>
