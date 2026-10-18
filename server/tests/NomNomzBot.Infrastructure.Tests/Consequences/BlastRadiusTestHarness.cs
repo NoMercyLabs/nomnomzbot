@@ -154,6 +154,12 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
             b.Ignore(t => t.Channel);
         });
 
+        modelBuilder.Entity<Configuration>(b =>
+        {
+            b.HasKey(c => c.Id);
+            b.Ignore(c => c.Channel);
+        });
+
         modelBuilder.Entity<CatalogItem>(b => b.HasKey(i => i.Id));
         modelBuilder.Entity<CatalogPurchase>(b => b.HasKey(i => i.Id));
         modelBuilder.Entity<LeaderboardConfig>(b => b.HasKey(c => c.Id));
@@ -250,6 +256,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     private static readonly HashSet<Type> MappedEntities =
     [
         typeof(Channel),
+        typeof(Configuration),
         typeof(EventSubSubscription),
         typeof(OutboundWebhookEndpoint),
         typeof(OutboundWebhookDelivery),
@@ -424,7 +431,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
-    public DbSet<Configuration> Configurations => throw new NotSupportedException();
+    public DbSet<Configuration> Configurations => Set<Configuration>();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         throw new NotSupportedException();

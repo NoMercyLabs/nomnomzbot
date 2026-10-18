@@ -61,6 +61,26 @@ const preview = {
   permanentAfterUtc: '2026-11-17T10:00:00Z',
 };
 
+const resetPreview = {
+  channelName: 'stoney_eagle',
+  blastRadius: {
+    categories: [
+      {
+        categoryKey: 'blast_radius_category_reset_chat',
+        count: 4,
+        sample: ['chat.settings'],
+      },
+      {
+        categoryKey: 'blast_radius_category_reset_music',
+        count: 0,
+        sample: [],
+      },
+    ],
+    isMinimum: false,
+    totalReferences: 4,
+  },
+};
+
 const ok = (data?: unknown): Answer => ({
   data: { data },
   response: { status: 200, ok: true },
@@ -71,6 +91,10 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path });
+
+      if (path.endsWith('/reset-preview')) {
+        return ok(resetPreview);
+      }
 
       if (path.endsWith('/delete-preview')) {
         return bot.previewFails
@@ -247,6 +271,25 @@ describe('Channel management', () => {
     expect(countOf('POST', '/restore')).toBe(1);
     expect(document.body.querySelector('[data-slot="deleted-channel"]')).toBeNull();
     expect(document.body.querySelector('[data-delete]')).not.toBeNull();
+  });
+
+  it('shows the counted settings before a reset and sends nothing until the confirm', async () => {
+    await open();
+
+    await click(q('[data-reset]'));
+
+    expect(countOf('GET', '/reset-preview')).toBe(1);
+    expect(countOf('POST', '/reset')).toBe(0);
+
+    const text = document.body.textContent;
+
+    expect(text).toContain('4 chat settings');
+    expect(text).not.toContain('music settings');
+
+    await type(q<HTMLInputElement>('[data-confirm-typed]'), 'stoney_eagle');
+    await click(q('[data-confirm-action]'));
+
+    expect(countOf('POST', '/reset')).toBe(1);
   });
 
   it('offers no delete when the bot cannot count what it destroys', async () => {

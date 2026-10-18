@@ -44,7 +44,14 @@
             "code_scripts": "codescripts",
             "outbound_webhook_endpoints": "uitgaande webhooks",
             "sound_clips": "geluidsfragmenten",
-            "assets": "geüploade bestanden"
+            "assets": "geüploade bestanden",
+            "reset_chat": "chatinstellingen",
+            "reset_tts": "tekst-naar-spraak-instellingen",
+            "reset_moderation": "moderatie-instellingen",
+            "reset_music": "muziekinstellingen",
+            "reset_raids": "raidinstellingen",
+            "reset_credentials": "opgeslagen sleutels en aanmeldingen",
+            "reset_other": "overige instellingen"
           },
           "external": {
             "twitch_rewards": "kanaalpuntenbeloningen op Twitch werken niet meer",
@@ -54,6 +61,16 @@
             "outbound_webhooks": "uitgaande webhooks versturen niets meer",
             "oauth_connections": "gekoppelde accounts worden losgekoppeld"
           }
+        },
+        "reset": {
+          "title": "De kanaalinstellingen resetten",
+          "description": "Zet de instellingen van dit kanaal terug naar de standaardwaarden.",
+          "help": "Je ziet wat de reset wist voordat je bevestigt. Het kan niet ongedaan worden gemaakt.",
+          "action": "Instellingen resetten",
+          "confirmTitle": "De instellingen van {name} resetten?",
+          "confirmDescription": "Het kanaal houdt zijn commando's, kijkers en geschiedenis. Alleen deze instellingen worden gewist en komen niet terug.",
+          "typeLabel": "Typ de kanaalnaam om te bevestigen",
+          "nothing": "Er zijn geen instellingen opgeslagen. Een reset verandert niets."
         },
         "deleted": {
           "title": "Het kanaal is verwijderd",

@@ -44,7 +44,14 @@
             "code_scripts": "code scripts",
             "outbound_webhook_endpoints": "outbound webhooks",
             "sound_clips": "sound clips",
-            "assets": "uploaded files"
+            "assets": "uploaded files",
+            "reset_chat": "chat settings",
+            "reset_tts": "text-to-speech settings",
+            "reset_moderation": "moderation settings",
+            "reset_music": "music settings",
+            "reset_raids": "raid settings",
+            "reset_credentials": "saved keys and sign-ins",
+            "reset_other": "other settings"
           },
           "external": {
             "twitch_rewards": "channel point rewards on Twitch stop working",
@@ -54,6 +61,16 @@
             "outbound_webhooks": "outbound webhooks stop sending",
             "oauth_connections": "connected accounts are disconnected"
           }
+        },
+        "reset": {
+          "title": "Reset the channel settings",
+          "description": "Puts the settings of this channel back to the defaults.",
+          "help": "You see what the reset clears before you confirm. It cannot be undone.",
+          "action": "Reset settings",
+          "confirmTitle": "Reset the settings of {name}?",
+          "confirmDescription": "The channel keeps its commands, viewers and history. Only these settings are cleared, and they cannot be brought back.",
+          "typeLabel": "Type the channel name to confirm",
+          "nothing": "No settings are stored. A reset changes nothing."
         },
         "deleted": {
           "title": "The channel is deleted",

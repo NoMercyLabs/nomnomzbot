@@ -99,6 +99,17 @@ public static class BlastRadiusCategoryKeys
     public const string ChannelOverlays = "blast_radius_category_channel_overlays";
     public const string ChannelBilling = "blast_radius_category_channel_billing";
     public const string ChannelOther = "blast_radius_category_channel_other";
+
+    // ── Channel reset ──
+    // A reset clears the channel's stored configuration rows, grouped by the settings area they belong to.
+    // The areas are defined once, in ChannelResetScope, which both the preview and the reset itself read.
+    public const string ResetChat = "blast_radius_category_reset_chat";
+    public const string ResetTts = "blast_radius_category_reset_tts";
+    public const string ResetModeration = "blast_radius_category_reset_moderation";
+    public const string ResetMusic = "blast_radius_category_reset_music";
+    public const string ResetRaids = "blast_radius_category_reset_raids";
+    public const string ResetCredentials = "blast_radius_category_reset_credentials";
+    public const string ResetOther = "blast_radius_category_reset_other";
 }
 
 /// <summary>

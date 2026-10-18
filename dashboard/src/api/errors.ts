@@ -453,6 +453,8 @@ export const apiOperations = {
   'leave channel': 'settings',
   'channel delete preview': 'settings',
   'delete channel': 'settings',
+  'channel reset preview': 'settings',
+  'reset channel': 'settings',
   'restore channel': 'settings',
   'management roles': 'settings',
   'set management role': 'settings',

@@ -25,4 +25,10 @@ public interface IChannelDeletePreviewService
         string broadcasterId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>The configuration rows a channel reset clears, grouped by settings area.</summary>
+    Task<Result<ChannelResetPreviewDto>> PreviewResetAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 }

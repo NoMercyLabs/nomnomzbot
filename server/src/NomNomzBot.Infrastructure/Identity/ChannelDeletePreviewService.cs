@@ -105,6 +105,37 @@ public sealed class ChannelDeletePreviewService : IChannelDeletePreviewService
         );
     }
 
+    public async Task<Result<ChannelResetPreviewDto>> PreviewResetAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<ChannelResetPreviewDto>(broadcasterId);
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterGuid,
+            cancellationToken
+        );
+
+        if (channel is null)
+            return Errors.ChannelNotFound<ChannelResetPreviewDto>(broadcasterId);
+
+        IReadOnlyList<BlastRadiusCategoryDto> categories = await ChannelResetScope.CountByAreaAsync(
+            _db,
+            broadcasterGuid,
+            cancellationToken
+        );
+
+        // Exhaustive count of the exact rows the reset deletes, so this is a total and never a minimum.
+        return Result<ChannelResetPreviewDto>.Success(
+            new ChannelResetPreviewDto(
+                channel.Name,
+                new BlastRadiusDto(categories, IsMinimum: false)
+            )
+        );
+    }
+
     // The rendering order of the six named categories plus the remainder. The remainder is always last: it is
     // the honest tail of the total, not a headline.
     private static readonly IReadOnlyList<string> CategoryOrder =

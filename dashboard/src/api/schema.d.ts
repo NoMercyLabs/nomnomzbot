@@ -19151,6 +19151,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/reset-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What resetting this channel to defaults clears, counted from the real database.
+         *     A separate route from delete-preview because a reset has no restore window or external consequences,
+         *     so the response shape differs; the reset confirm MUST render this before it can be armed.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfChannelResetPreview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/reset": {
         parameters: {
             query?: never;
@@ -88079,6 +88176,19 @@ export interface components {
             personality: string;
             available: string[];
         };
+        /**
+         * @description What resetting a channel to defaults clears, counted BEFORE the operator confirms it. A reset is not
+         *     reversible and has no restore window, so unlike ChannelDeletePreviewDto it carries no date.
+         */
+        ChannelResetPreview: {
+            /** @description The channel's real name, shown so the operator sees which channel is reset. */
+            channelName: string;
+            /**
+             * @description The configuration rows the reset removes, grouped by settings area. The groups come from the same scope
+             *     the reset itself deletes through, so the preview cannot list more or less than the reset removes.
+             */
+            blastRadius: components["schemas"]["BlastRadius"];
+        };
         /** @description One channel that matched a broadcaster-name search (for autocomplete — raid / invite / trust targets). */
         ChannelSearch: {
             id: string;
@@ -95754,6 +95864,19 @@ export interface components {
         StatusResponseOfChannelPersonality: {
             status?: string;
             data?: null | components["schemas"]["ChannelPersonality"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfChannelResetPreview: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelResetPreview"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on

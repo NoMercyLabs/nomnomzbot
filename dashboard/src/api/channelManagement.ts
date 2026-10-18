@@ -30,6 +30,9 @@ export type ManagedChannel = components['schemas']['Channel'];
 // What deleting the channel destroys, counted by the bot, and what stops working outside it.
 export type ChannelDeletePreview = components['schemas']['ChannelDeletePreview'];
 
+// What resetting the channel to defaults clears, counted by the bot.
+export type ChannelResetPreview = components['schemas']['ChannelResetPreview'];
+
 const version = '1';
 
 export const channelInfoKey = (channelId: string | null): KeyParts => [
@@ -116,6 +119,41 @@ export async function fetchChannelDeletePreview(channelId: string): Promise<Chan
     throw failed('channel delete preview', response.status, error);
 
   return preview;
+}
+
+// The bot counts the settings a reset clears before the confirm opens, from the same scope the reset deletes through.
+export async function fetchChannelResetPreview(channelId: string): Promise<ChannelResetPreview> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/reset-preview',
+    { params: { path: { version, channelId } } },
+  );
+
+  const preview = data?.data;
+
+  if (error !== undefined || preview === undefined || preview === null)
+    throw failed('channel reset preview', response.status, error);
+
+  return preview;
+}
+
+// A reset clears the channel's stored settings back to the defaults. It cannot be undone.
+export function useResetChannel(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, void, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, void, undefined>({
+    mutationFn: async (): Promise<void> => {
+      const { error, response } = await client.POST('/api/v{version}/channels/{channelId}/reset', {
+        params: { path: { version, channelId: toValue(channelId) as string } },
+      });
+
+      if (error !== undefined)
+        throw refusal('reset channel', error, response.status);
+    },
+    onSuccess: () =>
+      queries.invalidateQueries({ queryKey: ['channels', toValue(channelId)] }),
+  });
 }
 
 // A delete is soft: the bot keeps the channel for the restore window, then removes it for good.

@@ -23,6 +23,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -601,21 +602,34 @@ public class ChannelsController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// What a channel reset clears, counted from the real configuration rows, grouped by settings area.
+    /// A separate route from delete-preview because a reset has no restore window or external consequences,
+    /// so the response shape differs; the reset confirm MUST render this before it can be armed.
+    /// </summary>
+    [HttpGet("{channelId}/reset-preview")]
+    [RequireAction("setup:write")]
+    [ProducesResponseType<StatusResponseDto<ChannelResetPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewResetChannel(string channelId, CancellationToken ct)
+    {
+        Result<ChannelResetPreviewDto> result = await _deletePreview.PreviewResetAsync(
+            channelId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     /// <summary>Reset all channel bot configuration to defaults (clears Configuration entries).</summary>
     [HttpPost("{channelId}/reset")]
     [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ResetChannel(string channelId, CancellationToken ct)
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return ResultResponse(Errors.ChannelNotFound(channelId));
 
-        // Delete all Configuration entries for this channel (settings, TTS, shield, blocked terms, etc.)
-        List<NomNomzBot.Domain.Platform.Entities.Configuration> configs = await _db
-            .Configurations.Where(c => c.BroadcasterId == broadcasterId)
-            .ToListAsync(ct);
-
-        _db.Configurations.RemoveRange(configs);
-        await _db.SaveChangesAsync(ct);
+        // The same scope the reset-preview counts from, so the preview matches what is removed here.
+        await ChannelResetScope.RemoveAsync(_db, broadcasterId, ct);
 
         return Ok(
             new StatusResponseDto<object> { Message = "Channel configuration reset to defaults." }

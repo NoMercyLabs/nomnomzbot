@@ -16,12 +16,15 @@ import { useI18n } from 'vue-i18n';
 
 import {
   fetchChannelDeletePreview,
+  fetchChannelResetPreview,
   useChannelInfo,
   useDeleteChannel,
   useJoinChannel,
   useLeaveChannel,
+  useResetChannel,
   useRestoreChannel,
   type ChannelDeletePreview,
+  type ChannelResetPreview,
 } from '@/api/channelManagement';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
@@ -46,6 +49,7 @@ const join = useJoinChannel(channelId);
 const leave = useLeaveChannel(channelId);
 const remove = useDeleteChannel(channelId);
 const restore = useRestoreChannel(channelId);
+const reset = useResetChannel(channelId);
 
 const infoState = usePanelState(info);
 
@@ -55,6 +59,8 @@ const pageError = ref<string | undefined>(undefined);
 const leaveOpen = ref(false);
 const deleteOpen = ref(false);
 const preview = ref<ChannelDeletePreview | null>(null);
+const resetOpen = ref(false);
+const resetPreview = ref<ChannelResetPreview | null>(null);
 // Set once the channel is deleted: the page then offers the way back until the bot removes it for good.
 const deleted = ref<ChannelDeletePreview | null>(null);
 
@@ -130,6 +136,34 @@ async function confirmDelete(): Promise<void> {
   deleteOpen.value = false;
 }
 
+const resetLines = computed<readonly string[]>(() => {
+  const counted = (resetPreview.value?.blastRadius.categories ?? []).filter(
+    (category) => Number(category.count) > 0,
+  );
+
+  return counted.length > 0
+    ? counted.map((category) =>
+        t('dashboard.settings.channelManagement.delete.line', {
+          count: Number(category.count),
+          what: label('category', category.categoryKey),
+        }))
+    : [t('dashboard.settings.channelManagement.reset.nothing')];
+});
+
+async function askReset(): Promise<void> {
+  await run(async () => {
+    resetPreview.value = await fetchChannelResetPreview(channelId.value as string);
+    resetOpen.value = true;
+  });
+}
+
+async function confirmReset(): Promise<void> {
+  await run(() =>
+    reset.mutateAsync());
+
+  resetOpen.value = false;
+}
+
 async function confirmLeave(): Promise<void> {
   await run(() =>
     leave.mutateAsync());
@@ -165,6 +199,23 @@ async function restoreChannel(): Promise<void> {
           @join="run(() => join.mutateAsync())"
           @leave="leaveOpen = true"
         />
+      </RowGroup>
+    </PanelCard>
+    <PanelCard
+      data-view="channel-reset"
+      tier="quiet"
+      :title="$t('dashboard.settings.channelManagement.reset.title')"
+      :description="$t('dashboard.settings.channelManagement.reset.description')"
+    >
+      <RowGroup>
+        <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+          <p class="min-w-0 flex-1 text-sm text-muted-foreground">
+            {{ $t('dashboard.settings.channelManagement.reset.help') }}
+          </p>
+          <Button data-reset variant="outline" :disabled="busy" @click="askReset">
+            {{ $t('dashboard.settings.channelManagement.reset.action') }}
+          </Button>
+        </div>
       </RowGroup>
     </PanelCard>
     <PanelCard
@@ -209,6 +260,17 @@ async function restoreChannel(): Promise<void> {
     :action="$t('dashboard.settings.channelManagement.presence.leave')"
     :pending="busy"
     @confirm="confirmLeave"
+  />
+  <ConfirmDialog
+    v-model:open="resetOpen"
+    :title="$t('dashboard.settings.channelManagement.reset.confirmTitle', { name: resetPreview?.channelName ?? '' })"
+    :description="$t('dashboard.settings.channelManagement.reset.confirmDescription')"
+    :consequences="resetLines"
+    :action="$t('dashboard.settings.channelManagement.reset.action')"
+    :type-to-confirm="resetPreview?.channelName"
+    :type-label="$t('dashboard.settings.channelManagement.reset.typeLabel')"
+    :pending="busy"
+    @confirm="confirmReset"
   />
   <ConfirmDialog
     v-model:open="deleteOpen"
