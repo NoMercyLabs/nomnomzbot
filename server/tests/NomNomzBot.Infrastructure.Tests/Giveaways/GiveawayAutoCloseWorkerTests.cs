@@ -15,9 +15,12 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Giveaways.Entities;
+using NomNomzBot.Domain.Giveaways.Events;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Giveaways;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 
 namespace NomNomzBot.Infrastructure.Tests.Giveaways;
 
@@ -33,7 +36,7 @@ public sealed class GiveawayAutoCloseWorkerTests
     private static readonly Guid Owner = Guid.Parse("0193b000-0000-7000-8000-0000000000b9");
     private static readonly DateTimeOffset Now = new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
 
-    private static (GiveawayAutoCloseWorker Worker, AuthDbContext Db) Build()
+    private static (GiveawayAutoCloseWorker Worker, AuthDbContext Db, CapturingEventBus Bus) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -54,9 +57,11 @@ public sealed class GiveawayAutoCloseWorkerTests
         db.SaveChanges();
 
         FakeTimeProvider clock = new(Now);
+        CapturingEventBus bus = new();
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton<IRunOnceGuard>(new SharedFakeRunOnceGuard())
+            .AddSingleton<IEventBus>(bus)
             .BuildServiceProvider();
 
         GiveawayAutoCloseWorker worker = new(
@@ -64,7 +69,7 @@ public sealed class GiveawayAutoCloseWorkerTests
             clock,
             NullLogger<GiveawayAutoCloseWorker>.Instance
         );
-        return (worker, db);
+        return (worker, db, bus);
     }
 
     private static Giveaway SeedOpenGiveaway(AuthDbContext db, DateTime? scheduledCloseAt)
@@ -88,7 +93,7 @@ public sealed class GiveawayAutoCloseWorkerTests
     [Fact]
     public async Task An_open_giveaway_past_its_scheduled_close_time_closes_like_a_manual_close()
     {
-        (GiveawayAutoCloseWorker worker, AuthDbContext db) = Build();
+        (GiveawayAutoCloseWorker worker, AuthDbContext db, CapturingEventBus bus) = Build();
         Giveaway giveaway = SeedOpenGiveaway(db, Now.UtcDateTime.AddMinutes(-1));
 
         await worker.SweepAsync(CancellationToken.None);
@@ -98,23 +103,31 @@ public sealed class GiveawayAutoCloseWorkerTests
         reloaded
             .ClosesAt.Should()
             .Be(Now.UtcDateTime, "ClosesAt records the REAL close moment, not the target");
+        GiveawayChangedEvent changed = bus.EventsOf<GiveawayChangedEvent>()
+            .Should()
+            .ContainSingle("the dashboard learns about the auto-close live")
+            .Subject;
+        changed.GiveawayId.Should().Be(giveaway.Id);
+        changed.BroadcasterId.Should().Be(Tenant);
+        changed.Change.Should().Be("closed");
     }
 
     [Fact]
     public async Task A_giveaway_not_yet_at_its_scheduled_close_time_stays_open()
     {
-        (GiveawayAutoCloseWorker worker, AuthDbContext db) = Build();
+        (GiveawayAutoCloseWorker worker, AuthDbContext db, CapturingEventBus bus) = Build();
         Giveaway giveaway = SeedOpenGiveaway(db, Now.UtcDateTime.AddMinutes(1));
 
         await worker.SweepAsync(CancellationToken.None);
 
         db.Giveaways.Single(g => g.Id == giveaway.Id).Status.Should().Be(GiveawayStatus.Open);
+        bus.Published.Should().BeEmpty();
     }
 
     [Fact]
     public async Task A_giveaway_with_no_schedule_is_never_touched()
     {
-        (GiveawayAutoCloseWorker worker, AuthDbContext db) = Build();
+        (GiveawayAutoCloseWorker worker, AuthDbContext db, CapturingEventBus _) = Build();
         Giveaway giveaway = SeedOpenGiveaway(db, scheduledCloseAt: null);
 
         await worker.SweepAsync(CancellationToken.None);
