@@ -5136,6 +5136,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<DateTime?>("BotModeratorRemovedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("BotModeratorStatusBotUserId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");

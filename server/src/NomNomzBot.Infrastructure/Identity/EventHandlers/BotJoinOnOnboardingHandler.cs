@@ -29,8 +29,8 @@ namespace NomNomzBot.Infrastructure.Identity.EventHandlers;
 /// registered yet — the self-host default, where the streamer's own account IS the bot identity until a
 /// dedicated bot is connected. Requires <c>channel:manage:moderators</c>, scope-gated inside
 /// <see cref="ITwitchModeratorsApi.AddModeratorAsync"/>; a missing scope or an already-moderator bot both
-/// surface as an ordinary failure here, logged as a warning — idempotent and safe to re-run, since this
-/// handler writes nothing locally (the Helix call is its only side effect). Independently resilient — caught +
+/// surface as an ordinary failure here, logged as a warning — idempotent and safe to re-run, since the
+/// Helix call is its only outward side effect (locally it only clears the "bot removed by the streamer" marker). Independently resilient — caught +
 /// logged, never propagated, so it cannot affect the other onboarding seed jobs.
 ///
 /// <para>
@@ -58,22 +58,8 @@ public sealed class BotJoinOnOnboardingHandler(
     /// consented to hand anyone moderator, and defaulting to "grant whatever is registered" is the behaviour
     /// that caused the incident.
     /// </summary>
-    private bool IsConfiguredSaasBot(BotAccount bot)
-    {
-        string? expectedUserId = configuration["Twitch:BotUserId"];
-        if (!string.IsNullOrWhiteSpace(expectedUserId))
-            return string.Equals(bot.BotUserId, expectedUserId.Trim(), StringComparison.Ordinal);
-
-        string? expectedUsername = configuration["Twitch:BotUsername"];
-        if (!string.IsNullOrWhiteSpace(expectedUsername))
-            return string.Equals(
-                bot.BotUsername,
-                expectedUsername.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            );
-
-        return false;
-    }
+    private bool IsConfiguredSaasBot(BotAccount bot) =>
+        SaasBotPin.IsConfigured(configuration, bot.BotUserId, bot.BotUsername);
 
     /// <summary>
     /// An id-pin mismatch is a different account and stays an Error. A username-pin mismatch is usually a Twitch
@@ -123,6 +109,20 @@ public sealed class BotJoinOnOnboardingHandler(
         );
     }
 
+    /// <summary>
+    /// Running onboarding again is the streamer asking for the bot, so an earlier "removed on purpose" marker no
+    /// longer holds the moderator self-heal back.
+    /// </summary>
+    private async Task ClearRemovalMarkerAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        Channel? channel = await db.Channels.FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
+        if (channel?.BotModeratorRemovedAt is null)
+            return;
+
+        channel.BotModeratorRemovedAt = null;
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task HandleAsync(ChannelOnboardedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
@@ -130,6 +130,8 @@ public sealed class BotJoinOnOnboardingHandler(
 
         try
         {
+            await ClearRemovalMarkerAsync(@event.BroadcasterId, ct);
+
             BotAccount? sharedBot = await db
                 .BotAccounts.AsNoTracking()
                 .FirstOrDefaultAsync(

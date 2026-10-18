@@ -127,6 +127,12 @@ public class Channel : SoftDeletableEntity
     public DateTime? BotModeratorStatusChangedAt { get; set; }
 
     /// <summary>
+    /// When a <c>channel.moderator.remove</c> event named the channel's bot: the streamer took the role away, and
+    /// the self-heal grant must respect that. Cleared when the bot is added back or onboarding runs again.
+    /// </summary>
+    public DateTime? BotModeratorRemovedAt { get; set; }
+
+    /// <summary>
     /// When <see cref="Rewards.Services.IRewardService.ListAsync"/> last ran its throttled background
     /// <see cref="Rewards.Services.IRewardService.ImportFromTwitchAsync"/> for this channel (rewards.md) — null
     /// until the first Rewards page load. Lets a streamer's pre-existing Twitch-dashboard-created rewards

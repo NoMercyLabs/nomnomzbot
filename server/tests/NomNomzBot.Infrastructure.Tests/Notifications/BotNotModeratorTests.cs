@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -259,7 +261,14 @@ public sealed class BotNotModeratorTests
         private Fixture(ActionRequiredInboxServiceTestDbContext db)
         {
             Db = db;
-            Status = new(db, new ChannelTwitchBotResolver(db), Moderators, Notifier, Clock);
+            Status = new(
+                db,
+                new ChannelTwitchBotResolver(db),
+                Moderators,
+                NoGrants(),
+                Notifier,
+                Clock
+            );
             Handler = new(Status, NullLogger<BotModeratorRoleChangeHandler>.Instance);
             Inbox = ActionRequiredInboxHarness.Create(db, Clock, new RecordingChangeNotifier());
         }
@@ -300,6 +309,19 @@ public sealed class BotNotModeratorTests
             );
             await db.SaveChangesAsync();
             return new(db);
+        }
+
+        private static IBotModeratorGrantService NoGrants()
+        {
+            IBotModeratorGrantService grants = Substitute.For<IBotModeratorGrantService>();
+            grants
+                .TryGrantAsync(
+                    Arg.Any<Guid>(),
+                    Arg.Any<ChannelTwitchBot>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(Result.Success(false));
+            return grants;
         }
 
         public void ModeratorsSays(params string[] moderatorTwitchIds) =>

@@ -1146,6 +1146,8 @@ public static class DependencyInjection
             Application.Identity.Services.IChannelTwitchBotResolver,
             Identity.ChannelTwitchBotResolver
         >();
+        // The retry window of the moderator self-heal grant is process-wide state, so it is a singleton.
+        services.AddSingleton<Identity.BotModeratorGrantBackoff>();
         // The one read of the stored bot-moderator status, shared by the inbox item and the protection status.
         services.AddScoped<
             Application.Identity.Services.IBotModeratorStatusReader,

@@ -29,6 +29,7 @@ public sealed class BotModeratorStatusService(
     IApplicationDbContext db,
     IChannelTwitchBotResolver bots,
     ITwitchModeratorsApi moderators,
+    IBotModeratorGrantService grants,
     IActionRequiredChangeNotifier inbox,
     TimeProvider clock
 ) : IBotModeratorStatusService
@@ -44,7 +45,13 @@ public sealed class BotModeratorStatusService(
         if (bot is null || !string.Equals(bot.TwitchUserId, twitchUserId, StringComparison.Ordinal))
             return Result.Success();
 
-        return await RecordAsync(broadcasterId, bot.TwitchUserId, isModerator, cancellationToken);
+        return await RecordAsync(
+            broadcasterId,
+            bot.TwitchUserId,
+            isModerator,
+            cancellationToken,
+            removedByStreamer: !isModerator
+        );
     }
 
     public async Task<Result> ReconcileAsync(
@@ -78,6 +85,18 @@ public sealed class BotModeratorStatusService(
         bool isModerator = read.Value.Items.Any(m =>
             string.Equals(m.UserId, bot.TwitchUserId, StringComparison.Ordinal)
         );
+        // A streamer who removed the bot on purpose is respected: no grant until the bot is added back or
+        // onboarding runs again.
+        if (!isModerator && channel.BotModeratorRemovedAt is null)
+        {
+            Result<bool> regranted = await grants.TryGrantAsync(
+                broadcasterId,
+                bot,
+                cancellationToken
+            );
+            isModerator = regranted.IsSuccess && regranted.Value;
+        }
+
         return await RecordAsync(channel, bot.TwitchUserId, isModerator, cancellationToken);
     }
 
@@ -85,7 +104,8 @@ public sealed class BotModeratorStatusService(
         Guid broadcasterId,
         string botUserId,
         bool isModerator,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool removedByStreamer = false
     )
     {
         Channel? channel = await db.Channels.FirstOrDefaultAsync(
@@ -95,18 +115,36 @@ public sealed class BotModeratorStatusService(
         if (channel is null)
             return Errors.ChannelNotFound(broadcasterId.ToString());
 
-        return await RecordAsync(channel, botUserId, isModerator, cancellationToken);
+        return await RecordAsync(
+            channel,
+            botUserId,
+            isModerator,
+            cancellationToken,
+            removedByStreamer
+        );
     }
 
     private async Task<Result> RecordAsync(
         Channel channel,
         string? botUserId,
         bool? isModerator,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool removedByStreamer = false
     )
     {
+        // Only a role-change event can say the streamer removed the bot; a reconcile read cannot.
+        // Becoming a moderator clears the marker.
+        bool markerChanges =
+            removedByStreamer && channel.BotModeratorRemovedAt is null
+            || isModerator == true && channel.BotModeratorRemovedAt is not null;
+        if (markerChanges)
+            channel.BotModeratorRemovedAt = removedByStreamer
+                ? clock.GetUtcNow().UtcDateTime
+                : null;
+
         if (
-            channel.BotIsModerator == isModerator
+            !markerChanges
+            && channel.BotIsModerator == isModerator
             && string.Equals(
                 channel.BotModeratorStatusBotUserId,
                 botUserId,

@@ -5395,6 +5395,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("BotModeratorRemovedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("BotModeratorStatusBotUserId")
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
