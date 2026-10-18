@@ -8,7 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { chatKey, chatLineLimit, viewerChatKey, type ChatLine, type ChatLineMark } from '@/api/chat';
+import {
+  chatEmotesOptions,
+  chatKey,
+  chatLineLimit,
+  viewerChatKey,
+  type ChatEmoteEntry,
+  type ChatLine,
+  type ChatLineMark,
+} from '@/api/chat';
 import type { KeyParts } from '@/lib/array';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
@@ -21,6 +29,7 @@ import type {
   RewardRedeemedPayload,
   UserMessagesClearedPayload,
 } from './payloads';
+import { adoptChatFragments, redemptionFragments } from './redemptionEmotes';
 import { activityLine, rewardLine } from './redemptionLines';
 
 // A removed line stays in the feed, marked, so the page decides whether to hide or strike it.
@@ -70,13 +79,28 @@ function modActionMark(action: ModActionPayload): ChatLineMark | null {
   return null;
 }
 
+// A redemption's input shows the emotes of its chat line; a chat line that comes second fills them in.
+function withEmotes(
+  queries: HubEventContext['queries'],
+  feed: readonly ChatLine[],
+  line: ChatLine,
+): ChatLine[] {
+  const { queryKey } = chatEmotesOptions(line.channelId);
+  const catalog = queries.getQueryData<ChatEmoteEntry[]>(queryKey) ?? [];
+  const shown = line.messageType === 'redemption'
+    ? { ...line, fragments: redemptionFragments(line, feed, catalog) }
+    : line;
+
+  return inOrder(adoptChatFragments(feed, shown), shown);
+}
+
 // A new line joins its channel's feed once, by its place in time; a feed never loaded has no cache to join.
 function appendLine(queries: HubEventContext['queries'], line: ChatLine): void {
   for (const key of feedKeys(line.channelId)) {
     queries.setQueryData<ChatLine[]>(key, (feed) =>
       feed && !feed.some((existing) =>
         existing.id === line.id)
-        ? inOrder(feed, line).slice(-chatLineLimit)
+        ? withEmotes(queries, feed, line).slice(-chatLineLimit)
         : feed);
   }
 }

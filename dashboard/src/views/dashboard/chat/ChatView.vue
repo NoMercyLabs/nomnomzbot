@@ -472,6 +472,7 @@ async function confirmBan(): Promise<void> {
                 v-if="item.redemption"
                 :line="item"
                 :display="display"
+                :me="me"
                 :compact="poppedOut"
               />
               <ChatLine

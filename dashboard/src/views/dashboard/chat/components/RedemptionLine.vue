@@ -17,11 +17,13 @@ import type { ChatLine } from '@/api/chat';
 import UserName from '@/components/layout/UserName.vue';
 import { useTime } from '@/composables/useTime';
 
-import { spacingPadding, type ChatDisplay } from '../chatDisplay';
+import { emoteVars, spacingPadding, type ChatDisplay } from '../chatDisplay';
+import ChatFragments from './ChatFragments.vue';
 
 const props = defineProps<{
   line: ChatLine;
   display: ChatDisplay;
+  me?: string | null;
   compact?: boolean;
 }>();
 
@@ -45,6 +47,9 @@ const cost = computed<string>(() => {
 
   return t(`dashboard.chat.redemption.cost.${unit}`, { amount });
 });
+
+const inputStyle = computed(() =>
+  emoteVars(props.line, props.display));
 
 const clock = useTime();
 
@@ -72,7 +77,20 @@ const stamp = computed<string>(() =>
       {{ $t('dashboard.chat.redemption.redeemed') }}
       <strong data-redemption-title class="font-medium text-foreground">{{ title }}</strong>
       <span data-redemption-cost class="ms-1 tabular-nums">{{ cost }}</span>
-      <span v-if="line.message" data-redemption-input class="block text-foreground">{{ line.message }}</span>
+      <span
+        v-if="line.message"
+        data-redemption-input
+        class="block text-foreground"
+        :style="inputStyle"
+      >
+        <ChatFragments
+          v-if="line.fragments.length"
+          :fragments="line.fragments"
+          :display="display"
+          :me="me ?? null"
+        />
+        <template v-else>{{ line.message }}</template>
+      </span>
     </p>
   </div>
 </template>

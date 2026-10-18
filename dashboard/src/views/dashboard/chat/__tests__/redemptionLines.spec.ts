@@ -85,6 +85,53 @@ describe('a redemption in the chat feed', () => {
     expect(wrapper.find('[data-redemption-input]').text()).toBe('drink water');
   });
 
+  it('draws an emote in the viewer words as the image the chat line draws, and other words as text', () => {
+    const line = rewardLine({
+      broadcasterId: 'c1',
+      redemptionId: 'r0',
+      rewardId: 'rw',
+      rewardTitle: 'Hydrate',
+      userId: 'u1',
+      userDisplayName: 'Viewer',
+      userInput: 'drink Kappa',
+      cost: 500,
+      timestamp: '2026-10-15T20:00:00Z',
+    } as Parameters<typeof rewardLine>[0]);
+    const fragments: Line['fragments'] = [
+      {
+        type: 'text',
+        text: 'drink ',
+        emote: null,
+        cheermote: null,
+        mention: null,
+        linkPreview: null,
+      },
+      {
+        type: 'emote',
+        text: 'Kappa',
+        emote: {
+          id: '25',
+          format: 'static',
+          provider: 'Twitch',
+          urls: { 1: 'https://cdn.test/kappa-1.png' },
+          animated: false,
+          zeroWidth: false,
+          code: 'Kappa',
+        },
+        cheermote: null,
+        mention: null,
+        linkPreview: null,
+      },
+    ];
+    const wrapper = inTooltips(RedemptionLine, { line: { ...line, fragments }, display });
+    const input = wrapper.find('[data-redemption-input]');
+    const image = input.find('img[data-emote]');
+
+    expect(image.attributes('src')).toBe('https://cdn.test/kappa-1.png');
+    expect(image.attributes('alt')).toBe('Kappa');
+    expect(input.text()).toBe('drink');
+  });
+
   it('gives an On-Screen Celebration Power-up its Twitch name and its cost in Bits', () => {
     const line = activityLine({
       ...powerUp,

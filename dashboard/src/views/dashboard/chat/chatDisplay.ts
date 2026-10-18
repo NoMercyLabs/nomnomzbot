@@ -13,6 +13,9 @@
 import { useLocalStorage } from '@vueuse/core';
 import type { RemovableRef } from '@vueuse/core';
 
+import type { ChatLine } from '@/api/chat';
+import { readableNameColor } from '@/lib/accent';
+
 export type TimestampStyle = 'off' | '24' | '12';
 export type NameColors = 'sent' | 'readable' | 'off';
 export type Spacing = 'tight' | 'normal' | 'roomy';
@@ -60,6 +63,44 @@ export const emoteHeights = {
 
 // The emote of a Gigantified Emote Power-up.
 export const gigantifiedEmoteHeight = '5rem';
+
+// Every part of a line centers on one line height: the emote height on a line with emotes, else 1.5rem.
+export function emoteVars(
+  line: Pick<ChatLine, 'fragments' | 'messageType'>,
+  display: Pick<ChatDisplay, 'emoteSize'>,
+): { '--emote-h': string; '--line-h': string } {
+  // A Gigantified Emote Power-up shows its emote large, like Twitch does.
+  const emoteHeight = line.messageType === 'power_ups_gigantified_emote'
+    ? gigantifiedEmoteHeight
+    : emoteHeights[display.emoteSize];
+  const hasEmote = line.fragments.some((fragment) =>
+    fragment.emote || fragment.type === 'html');
+
+  return {
+    '--emote-h': emoteHeight,
+    '--line-h': hasEmote
+      ? `max(1.5rem, ${emoteHeight})`
+      : '1.5rem',
+  };
+}
+
+// A chatter color as the Display option asks: off, as sent, or lifted to a readable contrast.
+export function shownNameColor(
+  color: string | null | undefined,
+  nameColors: NameColors,
+): string | undefined {
+  if (!color || nameColors === 'off')
+    return undefined;
+
+  if (nameColors === 'sent')
+    return color;
+
+  const theme = document.documentElement.classList.contains('light')
+    ? 'light'
+    : 'dark';
+
+  return readableNameColor(color, theme, 4.5) ?? undefined;
+}
 
 export const spacingPadding = {
   tight: 'py-0.5',

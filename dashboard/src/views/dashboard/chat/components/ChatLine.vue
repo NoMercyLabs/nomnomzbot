@@ -36,8 +36,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { canSanction, type RoleKey } from '@/components/layout/profile/profileRoles';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { readableNameColor } from '@/lib/accent';
-import { purifyChatHtml } from '@/lib/html';
 import { useTime } from '@/composables/useTime';
 import { formatLength, TIMEOUT_LENGTHS } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
@@ -45,13 +43,10 @@ import { useProfileDialogStore } from '@/stores/profileDialog';
 import AssetCardPopover from '@/components/layout/AssetCard.vue';
 import {
   badgeCard as cardOfBadge,
-  emoteCard,
-  emoteFrames,
   smallestUrl,
-  type AssetCard,
-  type EmoteImages,
 } from '@/lib/assetCards';
-import { emoteHeights, gigantifiedEmoteHeight, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
+import { emoteVars, shownNameColor, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
+import ChatFragments from './ChatFragments.vue';
 
 const props = defineProps<{
   line: ChatLine;
@@ -87,22 +82,8 @@ const time = computed<string>(() =>
     ? clock.time12(props.line.timestamp)
     : clock.time24(props.line.timestamp));
 
-// A chatter color as the Display option asks: off, as sent, or lifted to a readable contrast.
-function shownColor(color: string | null | undefined): string | undefined {
-  if (!color || props.display.nameColors === 'off')
-    return undefined;
-
-  if (props.display.nameColors === 'sent')
-    return color;
-
-  const theme = document.documentElement.classList.contains('light')
-    ? 'light'
-    : 'dark';
-
-  return readableNameColor(color, theme, 4.5) ?? undefined;
-}
-
-const nameColor = computed<string | undefined>(() => shownColor(props.line.color));
+const nameColor = computed<string | undefined>(() =>
+  shownNameColor(props.line.color, props.display.nameColors));
 
 // A deleted message set to "show" stays readable; a timeout or ban still strikes the line.
 const shownDeleted = computed<boolean>(() =>
@@ -149,14 +130,6 @@ const rowClass = computed<string[]>(() => {
 
   return classes;
 });
-
-function parts(text: string): ReturnType<typeof splitMentions> {
-  const me = props.display.mentions
-    ? props.me
-    : null;
-
-  return splitMentions(text, me);
-}
 
 const moderatorBadges = ['moderator', 'lead_moderator'];
 
@@ -209,26 +182,8 @@ const badges = computed(() =>
       : [];
   }));
 
-// One card per emote fragment, by its place in the line; a fragment with no emote image has none.
-const emoteCards = computed<(AssetCard | null)[]>(() =>
-  props.line.fragments.map((fragment) =>
-    emoteCard(fragment, t)));
-
-// Every part of a line centers on one line height: the emote height on a line with emotes, else 1.5rem.
-const lineStyle = computed(() => {
-  // A Gigantified Emote Power-up shows its emote large, like Twitch does.
-  const emoteHeight = props.line.messageType === 'power_ups_gigantified_emote'
-    ? gigantifiedEmoteHeight
-    : emoteHeights[props.display.emoteSize];
-  const hasEmote = props.line.fragments.some((fragment) => fragment.emote || fragment.type === 'html');
-
-  return {
-    '--emote-h': emoteHeight,
-    '--line-h': hasEmote
-      ? `max(1.5rem, ${emoteHeight})`
-      : '1.5rem',
-  };
-});
+const lineStyle = computed(() =>
+  emoteVars(props.line, props.display));
 
 // What a reply answers: the parent Twitch named on the message, else the parent line still loaded here.
 const replyParent = computed<string | null>(() => {
@@ -296,10 +251,6 @@ function openProfile(event: MouseEvent): void {
       ? event.currentTarget
       : null,
   );
-}
-
-function emoteUrl(emote: EmoteImages): string | undefined {
-  return smallestUrl(emoteFrames(emote));
 }
 
 // A posted image (not an emote) in a chat html fragment opens large. The address and caption come from the
@@ -426,45 +377,7 @@ function pick(event: MouseEvent): void {
             :datetime="line.timestamp"
           >{{ time }}</time>
         </span>
-        <template v-for="(fragment, at) in line.fragments" :key="at">
-          <AssetCardPopover
-            v-if="fragment.emote && emoteUrl(fragment.emote) && emoteCards[at]"
-            :label="$t('asset.emoteLabel', { name: fragment.text })"
-            :title="emoteCards[at]!.title"
-            :image="emoteCards[at]!.image"
-            :facts="emoteCards[at]!.facts"
-            :people="emoteCards[at]!.people"
-            :link="emoteCards[at]!.link"
-            class="mx-0.5 my-[calc((var(--line-h)-var(--emote-h))/2)]"
-          >
-            <img
-              data-emote
-              :src="emoteUrl(fragment.emote)"
-              :alt="fragment.text"
-              class="inline-block h-(--emote-h)"
-            />
-          </AssetCardPopover>
-          <span
-            v-else-if="fragment.type === 'html'"
-            data-html
-            class="[&_.emote]:mx-0.5 [&_.emote]:my-[calc((var(--line-h)-var(--emote-h))/2)] [&_.emote]:inline-block [&_.emote]:h-(--emote-h) [&_.emote]:align-top [&_img]:max-h-32 [&_img:not(.emote)]:cursor-zoom-in"
-            @click="openImage"
-            v-html="purifyChatHtml(fragment.text)"
-          />
-          <span
-            v-else-if="fragment.type === 'mention' && fragment.mention"
-            data-mention-tag
-            class="font-bold"
-            :style="{ color: shownColor(fragment.mention.color) }"
-          >{{ fragment.text }}</span>
-          <template v-else>
-            <template v-for="(part, slot) in parts(fragment.text)" :key="slot">
-              <mark v-if="part.mention" data-mention class="bg-transparent font-bold text-foreground">{{ part.text }}</mark>
-              <span v-else-if="part.at" data-mention-tag class="font-bold">{{ part.text }}</span>
-              <template v-else>{{ part.text }}</template>
-            </template>
-          </template>
-        </template>
+        <ChatFragments :fragments="line.fragments" :display="display" :me="me" @image="openImage" />
         <span v-if="shownDeleted" data-deleted-tag class="ml-1 text-muted-foreground">{{
           $t('dashboard.chat.display.deletedTag')
         }}</span>
