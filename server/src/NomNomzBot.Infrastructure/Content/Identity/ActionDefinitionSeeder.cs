@@ -505,6 +505,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
             s.Add(new(key, Everyone, Everyone, DangerTier.Low, true, AuthPlane.Community));
 
         C("music:request:submit");
+        // Reading the queue and the now-playing track: the public song-request page, the music widget and
+        // every signed-in viewer read it (music-sr.md §5.1 community / Everyone). A broadcaster may raise it.
+        C("music:queue:read");
         C("moderation:report:file");
         C("economy:catalog:read");
         C("economy:catalog:purchase");

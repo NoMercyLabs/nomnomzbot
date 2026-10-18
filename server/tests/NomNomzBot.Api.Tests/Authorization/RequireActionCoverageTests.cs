@@ -126,6 +126,8 @@ public sealed class RequireActionCoverageTests
 
     [Theory]
     [InlineData(nameof(MusicController.GetConfig), "music:config:read")]
+    [InlineData(nameof(MusicController.GetQueue), "music:queue:read")]
+    [InlineData(nameof(MusicController.GetNowPlaying), "music:queue:read")]
     [InlineData(nameof(MusicController.AddToQueue), "music:request:submit")]
     [InlineData(nameof(MusicController.Seek), "music:remote:control")]
     [InlineData(nameof(MusicController.SetShuffle), "music:remote:control")]

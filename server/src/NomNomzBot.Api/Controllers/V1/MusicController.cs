@@ -114,6 +114,7 @@ public class MusicController : BaseController
     // ─── Queue ───────────────────────────────────────────────────────────────
 
     /// <summary>Get the currently playing track and the upcoming song queue for the channel.</summary>
+    [RequireAction("music:queue:read")]
     [HttpGet("queue")]
     [ProducesResponseType<StatusResponseDto<MusicQueueDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQueue(string channelId, CancellationToken ct)
@@ -636,6 +637,7 @@ public class MusicController : BaseController
     // ─── Now playing ──────────────────────────────────────────────────────────
 
     /// <summary>Get the track currently playing on the channel's active music provider, if any.</summary>
+    [RequireAction("music:queue:read")]
     [HttpGet("now-playing")]
     [ProducesResponseType<StatusResponseDto<NowPlayingDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNowPlaying(string channelId, CancellationToken ct)
