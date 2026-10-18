@@ -15,7 +15,8 @@ using NomNomzBot.Application.Dashboard.Stats;
 
 namespace NomNomzBot.Infrastructure.Dashboard.Stats;
 
-public sealed class CommandsRunMetric(IApplicationDbContext db) : StreamMetric<StreamStatsRankedDto>
+public sealed class CommandsRunMetric(IApplicationDbContext db, StreamBanFilter bans)
+    : StreamMetric<StreamStatsRankedDto>
 {
     public override string Key => "commandsRun";
 
@@ -26,8 +27,10 @@ public sealed class CommandsRunMetric(IApplicationDbContext db) : StreamMetric<S
     {
         DateTime from = window.From;
         DateTime to = window.To;
+        BannedPeople banned = await bans.ForChannelAsync(window.ChannelId, ct);
         List<string> names = await db
             .CommandUsages.AsNoTracking()
+            .WithoutBanned(banned)
             .Where(u =>
                 u.BroadcasterId == window.ChannelId && u.CreatedAt >= from && u.CreatedAt <= to
             )

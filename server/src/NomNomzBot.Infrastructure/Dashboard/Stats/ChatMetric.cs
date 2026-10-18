@@ -15,7 +15,8 @@ using NomNomzBot.Application.Dashboard.Stats;
 
 namespace NomNomzBot.Infrastructure.Dashboard.Stats;
 
-public sealed class ChatMetric(IApplicationDbContext db) : StreamMetric<StreamStatsChatDto>
+public sealed class ChatMetric(IApplicationDbContext db, StreamBanFilter bans)
+    : StreamMetric<StreamStatsChatDto>
 {
     public override string Key => "chat";
 
@@ -24,9 +25,11 @@ public sealed class ChatMetric(IApplicationDbContext db) : StreamMetric<StreamSt
         CancellationToken ct
     )
     {
+        BannedPeople banned = await bans.ForChannelAsync(window.ChannelId, ct);
         List<string> userIds = await db
             .ChatMessages.AsNoTracking()
             .InWindow(window)
+            .WithoutBanned(banned)
             .Select(m => m.UserId)
             .ToListAsync(ct);
         return new() { Messages = userIds.Count, UniqueChatters = userIds.Distinct().Count() };

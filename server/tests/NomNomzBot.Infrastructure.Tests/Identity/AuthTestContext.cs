@@ -316,7 +316,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserTrustScore>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>
@@ -448,6 +448,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // tests can seed wizard-vaulted rows and prove the DB-first resolution + AAD binding.
         b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().Ignore(e => e.Channel);
+
+        // Moderation ledger (scalar-only) — mapped so the recap ban filter tests can seed bans, timeouts and unbans.
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry>().HasKey(e => e.Id);
 
         // Global pronoun catalog (scalar-only) — mapped so SetPronounAction tests can seed a catalog entry.
         b.Entity<Pronoun>().HasKey(e => e.Id);

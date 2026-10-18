@@ -17,7 +17,7 @@ using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Dashboard.Stats;
 
-public sealed class SongRequestersMetric(IApplicationDbContext db)
+public sealed class SongRequestersMetric(IApplicationDbContext db, StreamBanFilter bans)
     : StreamMetric<StreamStatsRankedDto>
 {
     private static readonly JsonSerializerOptions CamelCase = new()
@@ -34,8 +34,10 @@ public sealed class SongRequestersMetric(IApplicationDbContext db)
     {
         DateTime from = window.From;
         DateTime to = window.To;
+        BannedPeople banned = await bans.ForChannelAsync(window.ChannelId, ct);
         var rows = await db
             .Records.AsNoTracking()
+            .WithoutBanned(banned)
             .Where(r =>
                 r.BroadcasterId == window.ChannelId
                 && r.RecordType == SongRequestHistory.RecordType

@@ -35,6 +35,9 @@ public sealed record StreamFact(string Type, JsonObject Data)
         return Flag("isAnonymous") || string.IsNullOrEmpty(name) ? Anonymous : name;
     }
 
+    /// <summary>The platform id of the person the fact is about: viewer, gifter or raider.</summary>
+    public string? PersonId() => Text("userId") ?? Text("gifterUserId") ?? Text("fromUserId");
+
     public DateTime OccurredAt() => TryOccurredAt(Data, out DateTime at) ? at : DateTime.MaxValue;
 
     public static bool TryOccurredAt(JsonObject data, out DateTime at) =>
@@ -51,7 +54,7 @@ public sealed record StreamFact(string Type, JsonObject Data)
 /// them. The window is cut by the fact's own <c>occurredAt</c>, because an imported row's <c>CreatedAt</c> is the
 /// import time.
 /// </summary>
-public sealed class StreamFactReader(IApplicationDbContext db)
+public sealed class StreamFactReader(IApplicationDbContext db, StreamBanFilter bans)
 {
     private static readonly string[] FactTypes =
     [
@@ -61,6 +64,7 @@ public sealed class StreamFactReader(IApplicationDbContext db)
         "channel.subscription.gift",
         "channel.cheer",
         "channel.raid",
+        "channel.hype_train.end",
     ];
 
     private StreamWindow? _window;
@@ -90,6 +94,7 @@ public sealed class StreamFactReader(IApplicationDbContext db)
         DateTime to = window.To;
 
         // CreatedAt is the write time and never earlier than the fact, so it is a safe lower bound.
+        BannedPeople banned = await bans.ForChannelAsync(window.ChannelId, cancellationToken);
         var rows = await db
             .ChannelEvents.AsNoTracking()
             .Where(e =>
@@ -105,7 +110,9 @@ public sealed class StreamFactReader(IApplicationDbContext db)
                 continue;
             if (!StreamFact.TryOccurredAt(data, out DateTime at) || at < from || at > to)
                 continue;
-            facts.Add(new StreamFact(row.Type, data));
+            StreamFact fact = new(row.Type, data);
+            if (!banned.HasPlatformId(fact.PersonId()))
+                facts.Add(fact);
         }
 
         return facts;

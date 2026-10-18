@@ -17,6 +17,7 @@ using NomNomzBot.Application.Dashboard.Stats;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Dashboard.Stats;
@@ -73,7 +74,8 @@ public sealed class StreamStatsServiceTests
     {
         TimeProvider clock = Substitute.For<TimeProvider>();
         clock.GetUtcNow().Returns(now);
-        StreamFactReader facts = new(db);
+        StreamBanFilter bans = new(db);
+        StreamFactReader facts = new(db, bans);
         IStreamMetric[] metrics =
         [
             new DurationMetric(),
@@ -84,11 +86,11 @@ public sealed class StreamStatsServiceTests
             new SelfSubsMetric(facts),
             new BitsMetric(facts),
             new RaidsInMetric(facts),
-            new RedemptionsMetric(db),
-            new SongRequestersMetric(db),
-            new ChatMetric(db),
-            new TopChattersMetric(db),
-            new CommandsRunMetric(db),
+            new RedemptionsMetric(db, bans),
+            new SongRequestersMetric(db, bans),
+            new ChatMetric(db, bans),
+            new TopChattersMetric(db, bans),
+            new CommandsRunMetric(db, bans),
         ];
         return new StreamStatsService(db, clock, metrics);
     }
@@ -547,6 +549,85 @@ public sealed class StreamStatsServiceTests
         result
             .Value.Followers.Should()
             .Be(2, "only 'first' and 'last' lie between start and the raid command");
+    }
+
+    private static ModerationHistoryEntry Ledger(string twitchId, string kind, DateTimeOffset at) =>
+        new()
+        {
+            BroadcasterId = Broadcaster,
+            SubjectUserId = Guid.NewGuid(),
+            SubjectTwitchUserId = twitchId,
+            ActionType = kind,
+            OccurredAt = at.UtcDateTime,
+        };
+
+    private static async Task<StreamStatsDto> BanRecapAsync()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        DateTimeOffset inside = Started.AddHours(1);
+        db.Streams.Add(NewStream("s-1", Started, Ended));
+        db.ModerationHistoryEntries.AddRange(
+            Ledger("banned", ModerationHistoryEntryKinds.Ban, Started.AddHours(-2)),
+            Ledger("timedout", ModerationHistoryEntryKinds.Timeout, Started.AddHours(-2)),
+            Ledger("unbanned", ModerationHistoryEntryKinds.Ban, Started.AddHours(-3)),
+            Ledger("unbanned", ModerationHistoryEntryKinds.Unban, Started.AddHours(-2))
+        );
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                Key = "ban:listed",
+                Value = "{}",
+            }
+        );
+        db.ChatMessages.AddRange(
+            Chat("c1", "good", inside),
+            Chat("c2", "banned", inside.AddMinutes(1)),
+            Chat("c3", "banned", inside.AddMinutes(2)),
+            Chat("c4", "timedout", inside.AddMinutes(3)),
+            Chat("c5", "unbanned", inside.AddMinutes(4)),
+            Chat("c6", "listed", inside.AddMinutes(5))
+        );
+        db.Records.AddRange(
+            Song("Song A", "Artist A", "good", inside),
+            Song("Song B", "Artist B", "banned", inside.AddMinutes(1))
+        );
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-1", null);
+        result.IsSuccess.Should().BeTrue();
+        return result.Value;
+    }
+
+    [Fact]
+    public async Task Banned_people_are_out_of_messages_unique_chatters_and_top_chatters()
+    {
+        StreamStatsDto stats = await BanRecapAsync();
+
+        stats.Chat!.Messages.Should().Be(3);
+        stats.Chat.UniqueChatters.Should().Be(3);
+        stats
+            .TopChatters!.Select(c => c.Name)
+            .Should()
+            .BeEquivalentTo("good", "timedout", "unbanned");
+    }
+
+    [Fact]
+    public async Task A_timed_out_chatter_and_an_unbanned_chatter_still_count()
+    {
+        StreamStatsDto stats = await BanRecapAsync();
+
+        stats.TopChatters!.Select(c => c.Name).Should().Contain(["timedout", "unbanned"]);
+        stats.TopChatters!.Select(c => c.Name).Should().NotContain(["banned", "listed"]);
+    }
+
+    [Fact]
+    public async Task A_banned_requester_is_out_of_song_requesters()
+    {
+        StreamStatsDto stats = await BanRecapAsync();
+
+        stats.SongRequesters!.Total.Should().Be(1);
     }
 
     [Fact]

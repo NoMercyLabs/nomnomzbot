@@ -15,7 +15,7 @@ using NomNomzBot.Application.Dashboard.Stats;
 
 namespace NomNomzBot.Infrastructure.Dashboard.Stats;
 
-public sealed class TopChattersMetric(IApplicationDbContext db)
+public sealed class TopChattersMetric(IApplicationDbContext db, StreamBanFilter bans)
     : StreamMetric<List<StreamStatsNamedCountDto>>
 {
     public override string Key => "topChatters";
@@ -25,9 +25,11 @@ public sealed class TopChattersMetric(IApplicationDbContext db)
         CancellationToken ct
     )
     {
+        BannedPeople banned = await bans.ForChannelAsync(window.ChannelId, ct);
         var rows = await db
             .ChatMessages.AsNoTracking()
             .InWindow(window)
+            .WithoutBanned(banned)
             .Select(m => new { m.UserId, m.DisplayName })
             .ToListAsync(ct);
         return StreamRanking.Top(

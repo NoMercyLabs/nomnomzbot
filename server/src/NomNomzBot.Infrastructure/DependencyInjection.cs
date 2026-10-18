@@ -1127,6 +1127,7 @@ public static class DependencyInjection
         services.AddScoped<ITriggerSampleCatalog, TriggerSampleCatalog>();
         // Every stream metric (stream-stats?metrics=...) is one registered class; the fact reader is shared per request.
         services.AddImplementationsOf<IStreamMetric>(infrastructure, ServiceLifetime.Scoped);
+        services.AddScoped<Dashboard.Stats.StreamBanFilter>();
         services.AddScoped<Dashboard.Stats.StreamFactReader>();
         services.AddScoped<EventStore.JournaledDomainEventReader>();
         services.AddScoped<Dashboard.Replay.GiftBombChainResolver>();
