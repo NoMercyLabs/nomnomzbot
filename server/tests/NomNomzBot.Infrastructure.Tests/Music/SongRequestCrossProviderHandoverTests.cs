@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -62,7 +63,7 @@ public sealed class SongRequestCrossProviderHandoverTests
         return provider;
     }
 
-    private static TrackInfo Playing(string uri, bool isPlaying) =>
+    private static TrackInfo Playing(string uri, bool isPlaying, int progressMs = 196_000) =>
         new()
         {
             TrackName = "t",
@@ -72,7 +73,7 @@ public sealed class SongRequestCrossProviderHandoverTests
             Provider = "x",
             IsPlaying = isPlaying,
             DurationMs = 200_000,
-            ProgressMs = 196_000,
+            ProgressMs = progressMs,
         };
 
     private static SongRequestEntry Entry(string uri) =>
@@ -166,6 +167,34 @@ public sealed class SongRequestCrossProviderHandoverTests
             .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
         _store.GetInFlight(ChannelId.ToString()).Should().BeNull();
         _store.GetOrCreate(ChannelId.ToString()).Peek()!.TrackUri.Should().Be(YouTubeUri);
+    }
+
+    [Fact]
+    public async Task A_new_spotify_request_never_jumps_a_youtube_request_that_waits_its_turn()
+    {
+        // Live 2026-10-18: the YouTube head waited for Spotify's song to end; the next Spotify request
+        // went straight into Spotify's queue, played first, and the reconciler then dropped the head.
+        Enqueue(YouTubeUri);
+        _spotify
+            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
+            .Returns(Playing("spotify:track:playlist", true, progressMs: 50_000));
+        _spotify
+            .ResolveTrackAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>())
+            .Returns((Playing(SpotifyUri, false), MusicProviderFailureReason.None));
+
+        Result admitted = await NewService()
+            .AddToQueueAsync(ChannelId.ToString(), SpotifyUri, "second-viewer");
+
+        admitted.IsSuccess.Should().BeTrue();
+        await _spotify
+            .DidNotReceive()
+            .AddToQueueAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>());
+        _store.GetInFlight(ChannelId.ToString()).Should().BeNull();
+        List<string> pending =
+        [
+            .. _store.GetOrCreate(ChannelId.ToString()).GetSnapshot().Select(e => e.Item.TrackUri),
+        ];
+        pending.Should().Equal(YouTubeUri, SpotifyUri);
     }
 
     [Fact]

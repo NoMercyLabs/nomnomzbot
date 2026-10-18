@@ -1230,6 +1230,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     {
         if (_queueStore.GetInFlight(broadcasterId) is not null)
             return null;
+        // An earlier request still waits for its engine (a YouTube head waits for Spotify's song to end):
+        // this one queues behind it. Pushed now, it would play first and the reconciler would then drop
+        // the waiting head as played (live 2026-10-18).
+        if (!ReferenceEquals(queue.Peek(), entry))
+            return null;
         // No overlay player attached: nothing could play, so the request is refused with a reason and
         // no other engine is silenced for it.
         if (!await HasPlayerIfGatedAsync(provider, tenantId, cancellationToken))
