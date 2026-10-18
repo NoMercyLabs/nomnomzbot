@@ -68688,7 +68688,7 @@
         "tags": [
           "OBS"
         ],
-        "summary": "The channel's OBS connection configuration (defaults when none is stored yet).",
+        "summary": "The channel's OBS connection. view=full (default) is the configuration and needs obs:config:read; view=status is only the connection state and needs obs:control, so a moderator's panels can tell whether OBS is on.",
         "parameters": [
           {
             "name": "channelId",
@@ -68706,6 +68706,13 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ObsConnectionView"
             }
           }
         ],
@@ -68775,7 +68782,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObsConnection"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/StatusResponseOfObsConnection"
+                    },
+                    {
+                      "$ref": "#/components/schemas/StatusResponseOfObsConnectionStatus"
+                    }
+                  ]
                 }
               }
             }
@@ -117579,6 +117593,32 @@
         },
         "description": "A channel's OBS connection as the dashboard sees it (obs-control.md §3). The OBS-WS password never\r\nappears — only bool ObsConnectionDto.HasPassword — and the bridge token is surfaced solely through the\r\nbridge-setup URL, never as a bare listing field."
       },
+      "ObsConnectionStatus": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "lastConnectedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "The connection state a moderator panel needs to know whether OBS is switched on, and nothing of the\r\nconfiguration: no host, port, password flags, event mask or error text (an error can carry the host)."
+      },
+      "ObsConnectionView": {
+        "enum": [
+          "Full",
+          "Status"
+        ],
+        "description": "Which shape of the OBS connection a read returns (query option view)."
+      },
       "ObsCurrentProfileRequest": {
         "required": [
           "name"
@@ -137317,6 +137357,43 @@
               },
               {
                 "$ref": "#/components/schemas/ObsConnection"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseOfObsConnectionStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ObsConnectionStatus"
               }
             ]
           },

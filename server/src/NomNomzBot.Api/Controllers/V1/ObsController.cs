@@ -528,12 +528,44 @@ public class ObsController(
             )
         );
 
-    /// <summary>The channel's OBS connection configuration (defaults when none is stored yet).</summary>
+    /// <summary>
+    /// The channel's OBS connection. <c>view=full</c> (default) is the configuration (defaults when none is
+    /// stored yet) and needs <c>obs:config:read</c>; <c>view=status</c> is only the connection state and
+    /// needs <c>obs:control</c>, so a moderator's panels can tell whether OBS is on.
+    /// </summary>
     [HttpGet("connection")]
-    [RequireAction("obs:config:read")]
+    [RequireAction("obs:control")]
     [ProducesResponseType<StatusResponseDto<ObsConnectionDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetConnection(Guid channelId, CancellationToken ct) =>
-        ResultResponse(await connections.GetAsync(channelId, ct));
+    [ProducesResponseType<StatusResponseDto<ObsConnectionStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetConnection(
+        Guid channelId,
+        [FromServices] IAuthorizationService authorization,
+        CancellationToken ct,
+        [FromQuery] ObsConnectionView view = ObsConnectionView.Full
+    )
+    {
+        if (view == ObsConnectionView.Full)
+        {
+            AuthorizationResult verdict = await authorization.AuthorizeAsync(
+                User,
+                ActionAuthorizationPolicy.For("obs:config:read")
+            );
+            if (!verdict.Succeeded)
+                return Forbid();
+        }
+
+        Result<ObsConnectionDto> connection = await connections.GetAsync(channelId, ct);
+        if (view == ObsConnectionView.Full || connection.IsFailure)
+            return ResultResponse(connection);
+
+        ObsConnectionDto stored = connection.Value;
+        return Ok(
+            new StatusResponseDto<ObsConnectionStatusDto>
+            {
+                Data = new(stored.Mode, stored.IsEnabled, stored.LastConnectedAt),
+            }
+        );
+    }
 
     /// <summary>Create-or-update the OBS connection; the password field is write-only.</summary>
     [HttpPut("connection")]

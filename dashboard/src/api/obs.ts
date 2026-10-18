@@ -24,6 +24,7 @@ import { client } from './client';
 import type { components } from './schema';
 
 export type ObsConnection = components['schemas']['ObsConnection'];
+export type ObsConnectionStatus = components['schemas']['ObsConnectionStatus'];
 export type ObsBridgeStatus = components['schemas']['ObsBridgeStatus'];
 export type ObsState = components['schemas']['ObsState'];
 export type ObsScene = components['schemas']['ObsScene'];
@@ -35,6 +36,13 @@ export const obsConnectionKey = (channelId: string | null): KeyParts => [
   channelId,
   'obs',
   'connection',
+];
+export const obsConnectionStatusKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'obs',
+  'connection',
+  'status',
 ];
 export const obsBridgeKey = (channelId: string | null): KeyParts => [
   'channels',
@@ -65,11 +73,30 @@ export function useObsConnection(
 async function readObsConnection(id: string): Promise<ObsConnection | null> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/obs/connection',
-    { params: { path: { version, channelId: id } } },
+    { params: { path: { version, channelId: id }, query: { view: 'Full' } } },
   );
 
   if (error !== undefined)
     throw failed('obs connection', response.status, error);
+
+  return (data?.data as ObsConnection | null | undefined) ?? null;
+}
+
+// Whether OBS is switched on, and nothing of its configuration; the moderator panels run on this (obs:control).
+export function useObsConnectionStatus(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<ObsConnectionStatus | null, Error> {
+  return channelQuery(channelId, obsConnectionStatusKey, readObsConnectionStatus);
+}
+
+async function readObsConnectionStatus(id: string): Promise<ObsConnectionStatus | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/obs/connection',
+    { params: { path: { version, channelId: id }, query: { view: 'Status' } } },
+  );
+
+  if (error !== undefined)
+    throw failed('obs connection status', response.status, error);
 
   return data?.data ?? null;
 }

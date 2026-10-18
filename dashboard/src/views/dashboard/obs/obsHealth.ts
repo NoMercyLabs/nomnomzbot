@@ -8,8 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { ObsBridgeStatus, ObsConnection } from '@/api/obs';
+import type { ObsBridgeStatus, ObsConnectionStatus } from '@/api/obs';
 import type { HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
+
+// The connection as far as the viewer may see it: the status always, the last error only with the configuration.
+export type ObsConnectionSummary = ObsConnectionStatus & { lastError?: string | null };
 
 // A state of the OBS page: the dot color and the i18n key (under dashboard.obs) of the words beside it.
 export type Health = {
@@ -37,7 +40,7 @@ export function worstDot(dots: readonly HealthDot[]): HealthDot {
 
 // The saved connection, plus whether OBS answered a live read: switched off is gray, an error red, silent orange.
 export function connectionHealth(
-  connection: ObsConnection | null | undefined,
+  connection: ObsConnectionSummary | null | undefined,
   unreachable: boolean,
 ): Health {
   if (!connection?.isEnabled)
@@ -53,7 +56,7 @@ export function connectionHealth(
 
 // The browser-source bridge: orange while no bridge page is open in OBS, or none leads.
 export function bridgeHealth(
-  connection: ObsConnection | null | undefined,
+  connection: ObsConnectionSummary | null | undefined,
   bridge: ObsBridgeStatus | null | undefined,
 ): Health {
   if (!connection?.isEnabled)

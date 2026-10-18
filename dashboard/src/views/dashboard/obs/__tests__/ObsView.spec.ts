@@ -49,8 +49,22 @@ const widget = (
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string): Promise<Answer> => {
-      calls.push(path);
+    GET: async (
+      path: string,
+      options?: { params?: { query?: { view?: string } } },
+    ): Promise<Answer> => {
+      const view = options?.params?.query?.view;
+
+      calls.push(view
+        ? `${path}?view=${view}`
+        : path);
+
+      // The server's rule: the full connection and the bridge need the configuration key.
+      const refusedWithoutConfig = path.endsWith('/obs/bridge/status') ||
+        (path.endsWith('/obs/connection') && view !== 'Status');
+
+      if (refusedWithoutConfig && !held.includes('obs:config:read'))
+        return { error: { status: 'error' }, response: { status: 403, ok: false } };
 
       if (path.endsWith('/widgets'))
         return { data: {
@@ -58,6 +72,12 @@ vi.mock('@/api/client', () => ({
           hasMore: false,
           nextPage: null,
         }, response: { status: 200, ok: true } };
+
+      if (path.endsWith('/obs/connection') && view === 'Status')
+        return {
+          data: { data: { mode: connection.mode, isEnabled: connection.isEnabled } },
+          response: { status: 200, ok: true },
+        };
 
       if (path.endsWith('/obs/connection'))
         return { data: { data: connection }, response: { status: 200, ok: true } };
@@ -257,6 +277,20 @@ describe('ObsView', () => {
     await open();
 
     expect(document.querySelector('[data-obs-connection]')).toBeNull();
+    expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(2);
+  });
+
+  it('runs the moderator panels on the status read, and never asks for the configuration or the bridge', async () => {
+    held = ['obs:control'];
+    await open();
+
+    const paths = calls.filter((path) => path.includes('/obs/'));
+
+    expect(paths).toContainEqual(expect.stringContaining('/obs/connection?view=Status'));
+    expect(paths.filter((path) => path.endsWith('/obs/connection'))).toEqual([]);
+    expect(paths.filter((path) => path.endsWith('/obs/bridge/status'))).toEqual([]);
+    expect(document.body.textContent).not.toContain(en.dashboard.obs.scenes.offline);
+    expect(paths).toContainEqual(expect.stringContaining('/obs/state'));
     expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(2);
   });
 

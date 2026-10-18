@@ -358,6 +358,7 @@ export const apiOperations = {
   'stream info': 'stream',
   connect: 'stream',
   'obs connection': 'obs',
+  'obs connection status': 'obs',
   'obs bridge': 'obs',
   'obs state': 'obs',
   'obs scenes': 'obs',

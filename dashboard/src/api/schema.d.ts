@@ -58327,10 +58327,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The channel's OBS connection configuration (defaults when none is stored yet). */
+        /** The channel's OBS connection. view=full (default) is the configuration and needs obs:config:read; view=status is only the connection state and needs obs:control, so a moderator's panels can tell whether OBS is on. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    view?: components["schemas"]["ObsConnectionView"];
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -58346,7 +58348,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfObsConnection"];
+                        "application/json": components["schemas"]["StatusResponseOfObsConnection"] | components["schemas"]["StatusResponseOfObsConnectionStatus"];
                     };
                 };
                 /** @description Bad Request */
@@ -87878,11 +87880,7 @@ export interface components {
             login: string;
             thumbnailUrl?: null | string;
         };
-        /**
-         * @description Read-model for a channel's Spotify BYOC state — never carries the secret. HasSharedApp is
-         *     true only when a platform-level Spotify app exists for the channel to fall back on, so the dashboard offers
-         *     "use the shared app" only when there is one.
-         */
+        /** @description Read-model for a channel's Spotify BYOC state — never carries the secret. HasSharedApp is true only when a platform-level Spotify app exists to fall back on. */
         ChannelSpotifyCredentials: {
             clientId?: null | string;
             hasClientSecret: boolean;
@@ -91820,6 +91818,21 @@ export interface components {
             lastConnectedAt?: null | string;
             lastError?: null | string;
         };
+        /**
+         * @description The connection state a moderator panel needs to know whether OBS is switched on, and nothing of the
+         *     configuration: no host, port, password flags, event mask or error text (an error can carry the host).
+         */
+        ObsConnectionStatus: {
+            mode?: string;
+            isEnabled?: boolean;
+            /** Format: date-time */
+            lastConnectedAt?: null | string;
+        };
+        /**
+         * @description Which shape of the OBS connection a read returns (query option view).
+         * @enum {unknown}
+         */
+        ObsConnectionView: "Full" | "Status";
         /** @description REST body for the profile-select route: make one OBS profile the active one. */
         ObsCurrentProfileRequest: {
             name: string;
@@ -98484,6 +98497,19 @@ export interface components {
         StatusResponseOfObsConnection: {
             status?: string;
             data?: null | components["schemas"]["ObsConnection"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfObsConnectionStatus: {
+            status?: string;
+            data?: null | components["schemas"]["ObsConnectionStatus"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on

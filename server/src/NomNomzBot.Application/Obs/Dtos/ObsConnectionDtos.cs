@@ -29,6 +29,22 @@ public sealed record ObsConnectionDto(
     string? LastError
 );
 
+/// <summary>Which shape of the OBS connection a read returns (query option <c>view</c>).</summary>
+public enum ObsConnectionView
+{
+    /// <summary>The whole configuration (needs <c>obs:config:read</c>).</summary>
+    Full,
+
+    /// <summary>Only the connection state: no host, port, password or bridge flags (needs <c>obs:control</c>).</summary>
+    Status,
+}
+
+/// <summary>
+/// The connection state a moderator panel needs to know whether OBS is switched on, and nothing of the
+/// configuration: no host, port, password flags, event mask or error text (an error can carry the host).
+/// </summary>
+public sealed record ObsConnectionStatusDto(string Mode, bool IsEnabled, DateTime? LastConnectedAt);
+
 /// <summary>Upsert request; <see cref="Password"/> is WRITE-ONLY (null = keep, empty string = clear).</summary>
 public sealed record UpsertObsConnectionRequest
 {

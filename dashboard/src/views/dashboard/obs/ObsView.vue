@@ -14,7 +14,13 @@ import { useDocumentVisibility } from '@vueuse/core';
 import { computed } from 'vue';
 
 import { useChannelAccess } from '@/api/access';
-import { useObsBridge, useObsConnection, useObsScenes, useObsState } from '@/api/obs';
+import {
+  useObsBridge,
+  useObsConnection,
+  useObsConnectionStatus,
+  useObsScenes,
+  useObsState,
+} from '@/api/obs';
 import { useObsStats, useObsVirtualCam } from '@/api/obsOutputs';
 import { useWidgets, type Widget } from '@/api/widgets';
 import PageBody from '@/components/layout/PageBody.vue';
@@ -39,9 +45,17 @@ const { channelId } = useCurrentChannel();
 
 const access = useChannelAccess(channelId);
 const canSeeConnection = computed<boolean>(() => access.can('obs:config:read'));
-const connection = useObsConnection(channelId);
-const bridge = useObsBridge(channelId);
-const enabled = computed<boolean>(() => connection.data.value?.isEnabled === true);
+
+// The configuration and the bridge need the configuration key; the status needs only the control key.
+const configChannelId = computed<string | null>(() =>
+  canSeeConnection.value
+    ? channelId.value
+    : null);
+const connection = useObsConnection(configChannelId);
+const bridge = useObsBridge(configChannelId);
+const status = useObsConnectionStatus(channelId);
+const summary = computed(() => connection.data.value ?? status.data.value);
+const enabled = computed<boolean>(() => summary.value?.isEnabled === true);
 const state = useObsState(channelId, enabled);
 const scenes = useObsScenes(channelId, enabled);
 const widgets = useWidgets(channelId);
@@ -65,8 +79,8 @@ const overall = computed<HealthDot>(() => {
   const sources: readonly Widget[] = widgets.data.value ?? [];
 
   return worstDot([
-    connectionHealth(connection.data.value, unreachable.value).dot,
-    bridgeHealth(connection.data.value, bridge.data.value).dot,
+    connectionHealth(summary.value, unreachable.value).dot,
+    bridgeHealth(summary.value, bridge.data.value).dot,
     ...sources.map((widget: Widget) => overlayHealth(widget)),
   ]);
 });
@@ -74,6 +88,7 @@ const overall = computed<HealthDot>(() => {
 const overallReason = computed<string>(() => `dashboard.obs.overall.${overall.value || 'off'}`);
 
 function retry(): void {
+  void status.refetch();
   void connection.refetch();
   void bridge.refetch();
   void state.refetch();
