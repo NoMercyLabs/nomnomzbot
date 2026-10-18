@@ -26,6 +26,13 @@ public sealed partial class PlaybackDirector : IDisposable
     private const int NearEndMs = 6_000;
 
     private static readonly TimeSpan StartDeadline = TimeSpan.FromSeconds(10);
+
+    /// <summary>Progress at or under which Previous goes to the last played item instead of the start.</summary>
+    private const int RestartThresholdMs = 3_000;
+
+    /// <summary>A report this soon after a command of ours is the echo of that command, not the owner.</summary>
+    private static readonly TimeSpan OwnerEcho = TimeSpan.FromSeconds(5);
+
     private static readonly TimeSpan StopWait = TimeSpan.FromSeconds(2);
 
     private readonly Guid _broadcasterId;
@@ -36,6 +43,11 @@ public sealed partial class PlaybackDirector : IDisposable
     private readonly PlayedHistory _history = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Func<EngineSignal, Task> _onSignal;
+
+    private readonly Dictionary<EngineKind, EngineReport> _reports = [];
+    private readonly Dictionary<EngineKind, DateTimeOffset> _lastSent = [];
+    private int _volume = 100;
+    private bool _muted;
 
     private EngineReport? _ownerReport;
     private OwnerMusicMemory? _memory;
@@ -113,9 +125,18 @@ public sealed partial class PlaybackDirector : IDisposable
         _gate.Dispose();
     }
 
-    private Task ApplyAsync(PlaybackInput input, CancellationToken ct) =>
+    private Task ApplyAsync(PlaybackInput input, CancellationToken ct)
+    {
+        if (input is EngineReport report)
+            _reports[report.Engine] = report;
+
+        return Dispatch(input, ct);
+    }
+
+    private Task Dispatch(PlaybackInput input, CancellationToken ct) =>
         State.Kind switch
         {
+            PlaybackStateKind.PausedByOwner => OnPausedAsync(input, ct),
             PlaybackStateKind.Idle => OnIdleAsync(input, ct),
             PlaybackStateKind.Starting => OnStartingAsync(input, ct),
             PlaybackStateKind.Playing => OnPlayingAsync(input, ct),

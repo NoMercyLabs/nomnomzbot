@@ -17,7 +17,7 @@ using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
-public sealed class PlaybackDirectorTests
+public sealed partial class PlaybackDirectorTests
 {
     private sealed class Rig
     {
@@ -52,6 +52,26 @@ public sealed class PlaybackDirectorTests
 
         public Task Plays(FakeEngine engine, PlaybackItem item) =>
             engine.EmitAsync(new EngineReport(engine.Kind, item.Uri, true, 1_000, item.DurationMs));
+
+        public FakeEngine Engine(EngineKind kind) => kind == EngineKind.Spotify ? Spotify : YouTube;
+
+        public FakeEngine Other(EngineKind kind) => kind == EngineKind.Spotify ? YouTube : Spotify;
+
+        public Task Paused(
+            FakeEngine engine,
+            string uri,
+            int progressMs,
+            int durationMs = 200_000
+        ) => engine.EmitAsync(new EngineReport(engine.Kind, uri, false, progressMs, durationMs));
+
+        /// <summary>Requests an item on the engine and lets that engine report it as playing.</summary>
+        public async Task<PlaybackItem> StartPlaying(EngineKind kind, string id = "a")
+        {
+            PlaybackItem item = Item(id, kind, owner: $"owner-{id}");
+            await Request(item);
+            await Plays(Engine(kind), item);
+            return item;
+        }
 
         public Task Ends(FakeEngine engine, PlaybackItem item) =>
             engine.EmitAsync(new TrackEnded(engine.Kind, item.Uri));
@@ -93,7 +113,7 @@ public sealed class PlaybackDirectorTests
     public async Task Row2_IdleWithHead_StartsTheHeadOnItsEngineExactlyOnce()
     {
         Rig rig = new();
-        PlaybackItem head = Item("a", EngineKind.Spotify);
+        PlaybackItem head = Item("a");
 
         await rig.Request(head);
 
@@ -205,7 +225,7 @@ public sealed class PlaybackDirectorTests
     {
         Rig rig = new();
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 100_000);
-        PlaybackItem head = Item("a", EngineKind.Spotify);
+        PlaybackItem head = Item("a");
 
         await rig.Request(head);
 
@@ -405,20 +425,19 @@ public sealed class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task OwnerIntentInputs_AreIgnoredAndJournaledForNow_WithNoEngineCall()
+    public async Task Starting_OwnerIntentInputs_AreIgnoredAndJournaled_WithNoEngineCall()
     {
         Rig rig = new();
         PlaybackItem a = Item("a");
         await rig.Request(a);
-        await rig.Plays(rig.Spotify, a);
 
         await rig.Director.HandleAsync(new OwnerSkip());
         await rig.Director.HandleAsync(new OwnerPause());
         await rig.Director.HandleAsync(new OwnerVolume(30));
 
-        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, a));
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, a));
         rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
-        rig.Journal.Skip(2)
+        rig.Journal.Skip(1)
             .Select(e => (e.Input, e.Reason))
             .Should()
             .Equal(("OwnerSkip", "ignored"), ("OwnerPause", "ignored"), ("OwnerVolume", "ignored"));

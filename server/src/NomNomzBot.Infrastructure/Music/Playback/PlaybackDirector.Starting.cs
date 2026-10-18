@@ -33,6 +33,7 @@ public sealed partial class PlaybackDirector
         if (stopEngine is { } old)
         {
             await _engines[old].StopAsync(ct);
+            MarkSent(old);
             if (_ownerReport is not { IsPlaying: false } quiet || quiet.Engine != old)
             {
                 await MoveAsync(starting, inputName, reason);
@@ -106,6 +107,10 @@ public sealed partial class PlaybackDirector
                 break;
             case EngineReport { IsPlaying: true } r when FindRow(r) is { } row:
                 await PlayRowAsync(row, r, "played_out_of_order");
+                break;
+            case EngineReport { IsPlaying: true } r
+                when r.Engine != item.Engine && FindRow(r) is null:
+                await SilenceForeignAsync(r, ct);
                 break;
             case StartTimeout:
                 await MoveAsync(

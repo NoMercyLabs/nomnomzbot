@@ -40,6 +40,9 @@ public sealed partial class PlaybackDirector
             case TrackEnded ended when IsCurrentTrack(ended):
                 await OnTrackEndedAsync(ended, ct);
                 break;
+            case OwnerPause or OwnerSkip or OwnerPrevious or OwnerSeek or OwnerVolume or OwnerMute:
+                await OnOwnerIntentAsync(input, ct);
+                break;
             case RequestAdded when State.Item is null:
                 if (!await HandOverIfNearEndAsync(nameof(RequestAdded), ct))
                     await MoveAsync(State, input, "waiting_near_end");
@@ -68,14 +71,15 @@ public sealed partial class PlaybackDirector
 
     private async Task OnReportAsync(EngineReport report, CancellationToken ct)
     {
-        // A report from an engine other than the playing one is the foreign-engine rule (next slice).
         if (State.Kind == PlaybackStateKind.Playing && report.Engine != State.Engine)
+        {
+            await SilenceForeignAsync(report, ct);
             return;
+        }
 
         if (!report.IsPlaying)
         {
-            if (State.Kind == PlaybackStateKind.Playing && State.Item is null)
-                _ownerReport = report;
+            await OnNotPlayingReportAsync(report);
             return;
         }
 
@@ -89,7 +93,7 @@ public sealed partial class PlaybackDirector
         if (State.Kind == PlaybackStateKind.Playing && State.Item?.Uri == report.Uri)
             return;
 
-        bool ownerAlready = State.Kind == PlaybackStateKind.Playing && State.Item is null;
+        bool ownerAlready = State is { Kind: PlaybackStateKind.Playing, Item: null };
         _ownerReport = report;
         if (!ownerAlready)
         {
@@ -126,20 +130,6 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        OwnerMusicMemory? memory = _memory;
-        _memory = null;
-        if (memory is { WasPlaying: true } && memory.Engine != ended.Engine)
-        {
-            await _engines[memory.Engine].ResumeAsync(ct);
-            _ownerReport = null;
-            await MoveAsync(
-                PlaybackState.Playing(memory.Engine, null),
-                ended,
-                "owner_music_resumed"
-            );
-            return;
-        }
-
-        await MoveAsync(PlaybackState.Idle, ended, "queue_empty");
+        await EndOfQueueAsync(ended.Engine, nameof(TrackEnded), ct);
     }
 }
