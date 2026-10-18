@@ -15,9 +15,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { widths } from '@/composables/useLayout';
+import { boardWidthFor } from '@/components/layout/board';
 import { i18n } from '@/i18n';
 
+import { musicMinimums } from '../components/boardPanels';
 import MusicView from '../MusicView.vue';
 import en from '../i18n/en.json';
 
@@ -60,6 +61,7 @@ let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  localStorage.clear();
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -120,6 +122,60 @@ function trigger(): HTMLButtonElement | undefined {
   );
 }
 
+function spanOf(panel: string): string | undefined {
+  const cell = document.body.querySelector<HTMLElement>(`[data-panel="${panel}"]`);
+
+  return cell?.style.getPropertyValue('--cell-span');
+}
+
+function toggle(): HTMLButtonElement | null {
+  return document.body.querySelector<HTMLButtonElement>('[data-board-toggle="rules"] button[role="switch"]');
+}
+
+// Stoney 2026-10-18: "i want extra pannels to be always toggle-able". The header holds one switch per optional
+// panel, also where the panel fits inline; the choice is remembered per page.
+describe('the request rules switch in the page header', () => {
+  it('hides the inline column, gives the room back to the other panels and remembers it across a remount', async () => {
+    await mountAt(1800);
+
+    expect(toggle()?.getAttribute('aria-checked')).toBe('true');
+    expect(spanOf('queue')).toBe('span 4');
+
+    toggle()?.click();
+    await flushPromises();
+
+    expect(document.body.querySelector('[data-panel="rules"]')).toBeNull();
+    expect(spanOf('queue')).toBe('span 6');
+    expect(localStorage.getItem('nnz.music.panel.rules')).toBe('false');
+
+    mounted?.unmount();
+    document.body.innerHTML = '';
+    await mountAt(1800);
+
+    expect(toggle()?.getAttribute('aria-checked')).toBe('false');
+    expect(document.body.querySelector('[data-panel="rules"]')).toBeNull();
+
+    toggle()?.click();
+    await flushPromises();
+
+    expect(document.body.querySelector('[data-panel="rules"]')).not.toBeNull();
+    expect(localStorage.getItem('nnz.music.panel.rules')).toBe('true');
+  });
+
+  it('keeps the switch where the rules sit in the drawer, and a hidden panel takes the drawer button away', async () => {
+    await mountAt(1000);
+
+    expect(toggle()?.getAttribute('aria-checked')).toBe('true');
+    expect(trigger()).toBeDefined();
+
+    toggle()?.click();
+    await flushPromises();
+
+    expect(trigger()).toBeUndefined();
+    expect(toggle()?.getAttribute('aria-checked')).toBe('false');
+  });
+});
+
 describe('music request rules placement', () => {
   it('puts the rules in the board and shows no drawer button when the board is wide', async () => {
     await mountAt(1800);
@@ -132,19 +188,23 @@ describe('music request rules placement', () => {
     expect(document.body.querySelector('[data-slot="sheet-content"]')).toBeNull();
   });
 
-  // Stoney 2026-10-18: the third column squeezed the queue title to one letter per line. The rules come inline
-  // only where three panels keep their readable width.
-  it('switches from the drawer to the inline column exactly at the rulesInline width', async () => {
-    await mountAt(widths.rulesInline - 1);
+  // Stoney 2026-10-18: "the breakpoints need to be better defined based on the other component's needs". The board
+  // counts columns from the widest minimum its panels declare: three columns only where all three keep it.
+  it('shows three columns exactly when the widest minimum fits three times, two when it does not', async () => {
+    const widest = Math.max(...Object.values(musicMinimums));
+    const three = boardWidthFor(3, widest);
+
+    await mountAt(three - 1);
     expect(document.body.querySelector('[data-panel="rules"]')).toBeNull();
+    expect(spanOf('queue')).toBe('span 6');
     expect(trigger()).toBeDefined();
     mounted?.unmount();
     document.body.innerHTML = '';
 
-    await mountAt(widths.rulesInline);
+    await mountAt(three);
     expect(document.body.querySelector('[data-panel="rules"]')).not.toBeNull();
+    expect(spanOf('queue')).toBe('span 4');
     expect(trigger()).toBeUndefined();
-    expect(widths.rulesInline).toBeGreaterThan(widths.board);
   });
 
   it('keeps the rules behind a drawer button when the board is narrow', async () => {

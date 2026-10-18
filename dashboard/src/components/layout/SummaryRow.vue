@@ -29,6 +29,9 @@ const props = withDefaults(
     // A row in a crowded panel: the text keeps a minimum width and cuts with an ellipsis instead of wrapping
     // one letter per line when the buttons beside it take the room.
     truncate?: boolean;
+    // The trailing buttons drop to a second line, at the end, before the body is squeezed below 20rem (the title
+    // would cut): a row in a panel whose width varies with the board's columns.
+    wrap?: boolean;
   }>(),
   {
     detail: undefined,
@@ -36,8 +39,22 @@ const props = withDefaults(
     pick: false,
     selected: false,
     truncate: false,
+    wrap: false,
   },
 );
+
+const rowClass = computed<string>(() =>
+  props.wrap
+    ? 'flex-wrap'
+    : '');
+const sizeClass = computed<string>(() =>
+  props.wrap
+    ? 'flex-[1_1_20rem]'
+    : 'flex-1');
+const trailingClass = computed<string>(() =>
+  props.wrap
+    ? 'ml-auto'
+    : '');
 
 const textClass = computed<string>(() =>
   props.truncate
@@ -59,13 +76,13 @@ const bodyClass = computed<string>(() => {
 </script>
 
 <template>
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3" :class="rowClass">
     <component
       :is="pick ? 'button' : 'div'"
       :type="pick ? 'button' : undefined"
       data-slot="summary-row-body"
-      class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[8px] px-3 py-2 text-left [&>[data-variant=ghost]:first-child]:-ml-2.5 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:first-child]:-ml-2 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
-      :class="bodyClass"
+      class="flex min-h-11 min-w-0 items-center gap-3 rounded-[8px] px-3 py-2 text-left [&>[data-variant=ghost]:first-child]:-ml-2.5 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:first-child]:-ml-2 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
+      :class="[sizeClass, bodyClass]"
       v-bind="$attrs"
     >
       <slot name="leading" />
@@ -84,6 +101,7 @@ const bodyClass = computed<string>(() => {
     <div
       v-if="$slots.trailing"
       data-slot="summary-row-trailing"
+      :class="trailingClass"
       class="flex shrink-0 items-center gap-2 pr-3 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
     >
       <slot name="trailing" />

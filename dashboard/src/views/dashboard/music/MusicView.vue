@@ -47,9 +47,10 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { useFits } from '@/composables/useLayout';
+import { useBoard } from '@/composables/useBoard';
 import { usePanelState } from '@/composables/usePanelState';
 
+import { musicMinimums } from './components/boardPanels';
 import HistoryPanel from './components/HistoryPanel.vue';
 import NowPlayingCard from './components/NowPlayingCard.vue';
 import ThanksPanel from './components/ThanksPanel.vue';
@@ -185,34 +186,58 @@ function confirmRemove(): void {
 
 const rulesOpen = ref(false);
 
-// Stoney 2026-10-18: the rules sit in the board where it has its columns; only a narrow board keeps them in a drawer.
+// Stoney 2026-10-18: "the breakpoints need to be better defined based on the other component's needs". Each panel
+// declares the narrowest column it renders properly in; the rules join the board as a third column only where all
+// panels keep theirs, otherwise they sit in a drawer. The rules switch in the header hides them in both places.
 // One RulesPanel serves both, so no field is written twice.
-// Stoney 2026-10-18: the third column squeezed the queue titles, so it needs a roomier board than the grid does.
 const board = useTemplateRef('board');
-const { fits: boardRoomy } = useFits(board, 'rulesInline');
 const canSeeRules = computed(() => access.can('music:config:read'));
-const rulesInline = computed(() =>
-  boardRoomy.value && canSeeRules.value);
-const span = computed(() =>
-  rulesInline.value
-    ? 4
-    : 6);
 
 const panels = computed<BoardPanel[]>(() => {
   const shown: BoardPanel[] = [
-    { id: 'now', label: t('dashboard.music.now.title') },
-    { id: 'queue', label: t('dashboard.music.queue.title') },
+    {
+      id: 'now',
+      label: t('dashboard.music.now.title'),
+      minWidth: musicMinimums.now,
+    },
+    {
+      id: 'queue',
+      label: t('dashboard.music.queue.title'),
+      minWidth: musicMinimums.queue,
+    },
   ];
 
   if (canSeeRules.value) {
     shown.push(
-      { id: 'history', label: t('dashboard.music.history.title') },
-      { id: 'thanks', label: t('dashboard.music.thanks.title') },
+      {
+        id: 'history',
+        label: t('dashboard.music.history.title'),
+        minWidth: musicMinimums.history,
+      },
+      {
+        id: 'thanks',
+        label: t('dashboard.music.thanks.title'),
+        minWidth: musicMinimums.thanks,
+      },
+      {
+        id: 'rules',
+        label: t('dashboard.music.rules.title'),
+        minWidth: musicMinimums.rules,
+        optional: true,
+      },
     );
   }
 
   return shown;
 });
+
+const layout = useBoard('music', board, () =>
+  panels.value);
+const span = layout.span;
+const rulesInline = computed(() =>
+  layout.isInline('rules'));
+const rulesInDrawer = computed(() =>
+  layout.isShown('rules') && !rulesInline.value);
 </script>
 
 <template>
@@ -221,7 +246,7 @@ const panels = computed<BoardPanel[]>(() => {
       <StatusBadge :tone="spotify.tone" :label="$t(`dashboard.music.spotify.${spotify.key}`)" />
     </template>
     <template #actions>
-      <Sheet v-if="canSeeRules && !rulesInline" v-model:open="rulesOpen">
+      <Sheet v-if="canSeeRules && rulesInDrawer" v-model:open="rulesOpen">
         <SheetTrigger as-child>
           <Button variant="outline">
             <IconRules aria-hidden="true" />
@@ -250,7 +275,7 @@ const panels = computed<BoardPanel[]>(() => {
       </Sheet>
     </template>
   </PageHeader>
-  <BoardGrid ref="board" :panels="panels" :rows="2">
+  <BoardGrid ref="board" :panels="panels" :board="layout" :rows="2">
     <BoardCell panel="now" :span="span">
       <PanelCard
         tier="lead"
@@ -314,6 +339,7 @@ const panels = computed<BoardPanel[]>(() => {
             :title="item.trackName"
             :detail="item.artist"
             truncate
+            wrap
             data-queue-item
           >
             <template v-if="item.requestedBy" #meta>
@@ -388,7 +414,7 @@ const panels = computed<BoardPanel[]>(() => {
         </div>
       </PanelCard>
     </BoardCell>
-    <BoardCell v-if="rulesInline" panel="rules" :span="4" :rows="2">
+    <BoardCell v-if="rulesInline" panel="rules" :span="span" :rows="2">
       <RulesPanel />
     </BoardCell>
     <BoardCell v-if="canSeeRules" panel="history" :span="span">

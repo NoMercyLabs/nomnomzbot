@@ -14,7 +14,7 @@
 import { computed, provide, useTemplateRef } from 'vue';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useFits } from '@/composables/useLayout';
+import { type Board, useBoard } from '@/composables/useBoard';
 import { usePageView } from '@/composables/usePageView';
 
 import { boardKey, type BoardPanel } from './board';
@@ -22,18 +22,27 @@ import { boardKey, type BoardPanel } from './board';
 const props = withDefaults(defineProps<{
   panels: readonly BoardPanel[];
   rows?: number;
-}>(), { rows: 2 });
+  // A page with an optional panel builds its own board (useBoard on this component's ref) to know the span and
+  // to draw the drawer; every other page lets the grid count its columns itself.
+  board?: Board;
+}>(), {
+  rows: 2,
+  board: undefined,
+});
 
 const rowTemplate = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr))`);
 // Stoney 2026-10-14: "constrained layouts need to be considered for". The sidebar takes its share of the window,
-// so the board measures itself: below the width three readable panels need, it shows one panel at a time.
-// A page whose optional column needs more room than the grid itself measures the board on its own, with useFits
-// on this component's ref.
-const board = useTemplateRef('board');
-const { fits: wide } = useFits(board, 'board');
-const tabbed = computed(() => !wide.value && props.panels.length > 1);
+// so the board measures itself and counts columns from what its panels declare they need (minWidth).
+const root = useTemplateRef('root');
+const state = props.board ?? useBoard('board', root, () =>
+  props.panels);
+const wide = state.wide;
+const tabbed = state.tabbed;
+const tabPanels = computed(() =>
+  props.panels.filter((panel) =>
+    !panel.optional));
 
-const open = usePageView(() => props.panels.map((panel) =>
+const open = usePageView(() => tabPanels.value.map((panel) =>
   panel.id), 'panel');
 
 provide(boardKey, (panel: string) =>
@@ -41,7 +50,7 @@ provide(boardKey, (panel: string) =>
 </script>
 
 <template>
-  <div ref="board" class="flex min-h-0 min-w-0 flex-1 flex-col">
+  <div ref="root" class="flex min-h-0 min-w-0 flex-1 flex-col">
     <section
       v-if="tabbed"
       data-slot="board-grid"
@@ -50,7 +59,7 @@ provide(boardKey, (panel: string) =>
     >
       <Tabs v-model="open" class="min-w-0 flex-none overflow-x-auto px-4 scrollbar-none">
         <TabsList>
-          <TabsTrigger v-for="panel in panels" :key="panel.id" :value="panel.id">
+          <TabsTrigger v-for="panel in tabPanels" :key="panel.id" :value="panel.id">
             {{ panel.label }}
           </TabsTrigger>
         </TabsList>

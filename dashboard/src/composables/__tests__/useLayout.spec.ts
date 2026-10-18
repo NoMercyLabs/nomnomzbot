@@ -30,9 +30,7 @@ describe('the width table', () => {
       tablet: 768,
       sidebar: 840,
       besideRail: 1080,
-      board: 1100,
       wide: 1280,
-      rulesInline: 1440,
       twoPanels: 1800,
     });
   });
@@ -124,7 +122,7 @@ describe('useFits', () => {
       setup() {
         const box = useTemplateRef<HTMLElement>('box');
 
-        state = useFits(box, 'board');
+        state = useFits(box, 'wide');
 
         return () => h('div', { ref: 'box' });
       },
@@ -151,12 +149,12 @@ describe('useFits', () => {
 
     const measured = await mountMeasured();
 
-    resize(widths.board - 1);
+    resize(widths.wide - 1);
     await nextTick();
-    expect(measured.width()).toBe(widths.board - 1);
+    expect(measured.width()).toBe(widths.wide - 1);
     expect(measured.fits()).toBe(false);
 
-    resize(widths.board);
+    resize(widths.wide);
     await nextTick();
     expect(measured.fits()).toBe(true);
   });

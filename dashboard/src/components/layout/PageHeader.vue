@@ -14,6 +14,7 @@
 // The frame's controls follow the page's actions, so the page has one header row.
 import { inject, type Component, type VNode } from 'vue';
 
+import BoardPanelToggles from './BoardPanelToggles.vue';
 import { frameActionsKey } from './frameActions';
 
 defineProps<{ title: string; crumb?: string }>();
@@ -52,6 +53,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
               class="hidden text-muted-foreground @4xl:inline"
         ><slot name="meta" /></span>
         <slot name="actions" />
+        <BoardPanelToggles />
         <component :is="frameActions" v-if="frameActions" />
       </div>
     </div>

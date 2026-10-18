@@ -373,9 +373,9 @@ describe('OverlaysView', () => {
   it('names an event once when its key is already a plain word', async () => {
     await open('/app/overlays?id=w1');
 
-    // The row's name text only; the Test button beside it is not part of the name.
+    // The row's text block only (title and detail); the Test button beside it is not part of the name.
     const rows: string[] = [...detail().querySelectorAll('[data-event]')].map((row: Element) =>
-      (row.querySelector(':scope > span:not([data-slot])')?.textContent ?? '')
+      (row.querySelector('[data-slot="summary-row-text"]')?.textContent ?? '')
         .replace(/\s+/g, ' ')
         .trim(),
     );

@@ -47,7 +47,7 @@
           },
           "alerts": {
             "name": "Alerts",
-            "detail": "Shows follows, subs, raids and other alerts, one at a time."
+            "detail": "Shows follows, Twitch subs, YouTube members, raids and other alerts, one at a time."
           },
           "tts_caption": {
             "name": "TTS caption",

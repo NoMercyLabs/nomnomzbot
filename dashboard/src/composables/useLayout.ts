@@ -23,12 +23,8 @@ export const widths = {
   sidebar: 840,
   // A side panel folds in beside the 200px-narrower rail from here.
   besideRail: 1080,
-  // The board holds three readable panels from this width; below it, one panel at a time behind tabs.
-  board: 1100,
   // A side panel sits beside the content from here.
   wide: 1280,
-  // The music rules sit as a third column from this board width.
-  rulesInline: 1440,
   // Chat keeps two side panels open together from this window width.
   twoPanels: 1800,
 } as const satisfies Record<string, number>;
@@ -54,13 +50,21 @@ export function usePhone(): ComputedRef<boolean> {
     narrow.value && touch.value);
 }
 
-// Whether an element (not the window) is at least the named width, for a box that shares the window with a
-// sidebar or a drawer. Before the first measure it assumes the window width.
+// The width of an element (not the window), for a box that shares the window with a sidebar or a drawer.
+// Before the first measure it assumes the window width. A board counts its columns from this width and the
+// minimums its panels declare (composables/useBoard.ts), not from a width in the table.
+export function useWidth(target: MaybeComputedElementRef): Ref<number> {
+  const { width } = useElementSize(target, { width: window.innerWidth, height: 0 });
+
+  return width;
+}
+
+// Whether an element is at least the named width.
 export function useFits(
   target: MaybeComputedElementRef,
   name: LayoutWidth,
 ): { width: Ref<number>; fits: ComputedRef<boolean> } {
-  const { width } = useElementSize(target, { width: window.innerWidth, height: 0 });
+  const width = useWidth(target);
   const fits = computed(() =>
     width.value >= widths[name]);
 
