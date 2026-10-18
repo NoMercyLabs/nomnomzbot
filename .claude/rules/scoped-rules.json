@@ -2,6 +2,12 @@
  "_about": "Rules that rules-gate.mjs (referenced by path from C:/Projects/NoMercy/.claude/scripts/, pointed at THIS file via RULES_REGISTRY) puts in front of a session at the moment of action. paths: globs of files the rule governs (first edit per session is refused with the rule, the retry passes). brief: regexes that pull the rule into an Agent brief. always_brief: rules added to every Agent brief. check: a command run after an edit of a matching file; a non-zero exit blocks with its output. dispatch: checks on every Agent call. session_only: rules for the main session that no file or brief scopes; they live in CLAUDE.md/memory, listed here so rules-coverage.mjs can prove every source has a line. covers: the memory files and verbatim CLAUDE.md fragments a line accounts for. output: a regex on Bash/PowerShell output; a match blocks with the rule.",
  "always_brief": [
   {
+   "id": "brief-repeatables-get-one-helper-first",
+   "text": "Before writing the same logic in a second file, search for an existing helper (dashboard/src/lib, composables, components/layout; server shared services). If none exists and the pattern will repeat (date/number formatting, a gated switch-or-badge, an API call shape), build ONE helper or component first, use it at every site, and add a guard test that blocks the hand-written form (pattern: dashboard/src/__tests__/structure.spec.ts ownFormatter). Never copy the same snippet into many files and plan to unify it later.",
+   "source": "Stoney 2026-10-18: \"so for next time... i expect you to make tools like this for repeatables, you see how many files you changed to replace with 1 single helper instead of writing it in every file by hand? bad practices don't fly in this project bud, i love you but i do expect better\"",
+   "covers": ["feedback-repeatables-one-helper-first.md"]
+  },
+  {
    "id": "brief-live-tests-never-overwrite-channel-data",
    "text": "A live test on the box never writes into a real channel row (templates, commands, overrides, settings). Create a throwaway row and delete it in the same run, or back up the exact value first and restore it in the same run, then prove the restore by a read.",
    "source": "Stoney 2026-10-06: \"WTF!!! he has a custom shoutout in my old bot!!!!\" (the S-UX-4 live check of 2026-09-12 replaced geennoob's real shoutout line with test text and left it there)",
