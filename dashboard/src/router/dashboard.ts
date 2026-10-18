@@ -46,7 +46,7 @@ import { dashboardMediaShareRoute } from '@/views/dashboard/media-share/route';
 import { dashboardGiveawaysRoute } from '@/views/dashboard/giveaways/route';
 import { dashboardPollsRoute } from '@/views/dashboard/polls/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
-import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
+import { dashboardSettingsRoutes } from '@/views/dashboard/settings/route';
 import { dashboardEconomyRoute } from '@/views/dashboard/economy/route';
 import { scaffoldRoutes } from '@/views/dashboard/scaffold/route';
 import { dashboardStreamRoute } from '@/views/dashboard/stream/route';
@@ -81,7 +81,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardScriptsRoute,
   dashboardStreamRoute,
   dashboardAnalyticsRoute,
-  dashboardSettingsRoute,
+  ...dashboardSettingsRoutes,
   dashboardAdminChannelsRoute,
   dashboardAdminEventSubHealthRoute,
   dashboardAdminWebhookDeliveriesRoute,

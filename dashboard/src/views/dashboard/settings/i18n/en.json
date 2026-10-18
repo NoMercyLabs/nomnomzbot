@@ -3,24 +3,6 @@
     "settings": {
       "title": "Settings",
       "crumb": "Setup",
-      "tabs": {
-        "channel": "Channel",
-        "device": "This device"
-      },
-      "back": "Back to settings",
-      "nav": {
-        "channel": "Your channel",
-        "basics": "Basics",
-        "personality": "Personality",
-        "engagement": "Greetings and streaks",
-        "you": "You",
-        "readability": "Readability"
-      },
-      "device": {
-        "title": "This device",
-        "description": "These settings stay in this browser. They do not change your channel.",
-        "openReadability": "Open readability"
-      },
       "personality": {
         "title": "Personality",
         "description": "The voice your built-in commands answer in. Pick the one that fits your channel.",

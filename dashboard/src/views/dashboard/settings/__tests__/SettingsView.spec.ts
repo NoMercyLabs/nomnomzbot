@@ -56,7 +56,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-async function open(query: string = ''): Promise<void> {
+async function open(): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
@@ -70,8 +70,14 @@ async function open(query: string = ''): Promise<void> {
     ],
   });
 
-  await router.push(`/app/settings${query}`);
-  mounted = mount(SettingsView, { attachTo: document.body, global: { plugins: [i18n, router] } });
+  await router.push('/app/settings');
+
+  mounted = mount(SettingsView, {
+    attachTo: document.body,
+    props: { view: 'readability' },
+    global: { plugins: [i18n, router] },
+  });
+
   await flushPromises();
 }
 
@@ -203,47 +209,5 @@ describe('Readability options', () => {
     await open();
     expect(document.body.textContent).toContain('saved on this device');
     expect(document.body.textContent?.toLowerCase()).not.toContain('account');
-  });
-});
-
-describe('Phone layout', () => {
-  const pane = (name: string): HTMLElement =>
-    document.body.querySelector<HTMLElement>(`[data-slot="${name}"]`)!;
-  const hiddenOnPhone = (name: string): boolean => pane(name).classList.contains('max-md:hidden');
-
-  it('starts on the section list, opens a section over it and goes back', async () => {
-    await open();
-    expect(hiddenOnPhone('list-detail-list')).toBe(false);
-    expect(hiddenOnPhone('list-detail-detail')).toBe(true);
-
-    button('Readability').click();
-    await flushPromises();
-    expect(hiddenOnPhone('list-detail-list')).toBe(true);
-    expect(hiddenOnPhone('list-detail-detail')).toBe(false);
-
-    button('Back to settings').click();
-    await flushPromises();
-    expect(hiddenOnPhone('list-detail-list')).toBe(false);
-    expect(hiddenOnPhone('list-detail-detail')).toBe(true);
-  });
-
-  it('the device link opens the Readability section directly', async () => {
-    await open('?view=device');
-    button('Open readability').click();
-    await flushPromises();
-    expect(hiddenOnPhone('list-detail-detail')).toBe(false);
-  });
-});
-
-describe('This device tab', () => {
-  it('opens the Readability view from its one link', async () => {
-    await open('?view=device');
-    expect(document.body.querySelector('[data-view="readability"]')).toBeNull();
-
-    button('Open readability').click();
-    await flushPromises();
-
-    expect(router.currentRoute.value.query.view).toBe('channel');
-    expect(document.body.querySelector('[data-view="readability"]')).not.toBeNull();
   });
 });

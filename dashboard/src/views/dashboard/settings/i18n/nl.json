@@ -3,24 +3,6 @@
     "settings": {
       "title": "Instellingen",
       "crumb": "Inrichting",
-      "tabs": {
-        "channel": "Kanaal",
-        "device": "Dit apparaat"
-      },
-      "back": "Terug naar instellingen",
-      "nav": {
-        "channel": "Jouw kanaal",
-        "basics": "Basis",
-        "personality": "Persoonlijkheid",
-        "engagement": "Begroetingen en reeksen",
-        "you": "Jij",
-        "readability": "Leesbaarheid"
-      },
-      "device": {
-        "title": "Dit apparaat",
-        "description": "Deze instellingen blijven in deze browser. Ze veranderen je kanaal niet.",
-        "openReadability": "Leesbaarheid openen"
-      },
       "personality": {
         "title": "Persoonlijkheid",
         "description": "De stem waarin je ingebouwde commando's antwoorden. Kies wat bij je kanaal past.",
