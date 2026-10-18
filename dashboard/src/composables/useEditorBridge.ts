@@ -228,7 +228,10 @@ function reason(error: unknown): string {
 
 export function createEditorBridge(options: EditorBridgeOptions) {
   function post(type: string, body: JsonObject = {}): void {
-    options.target()?.postMessage({ type: PREFIX + type, ...body }, options.origin);
+    // postMessage structured-clones its data and throws on a Vue reactive proxy: send a plain JSON copy.
+    const plain = JSON.stringify({ type: PREFIX + type, ...body });
+
+    options.target()?.postMessage(JSON.parse(plain), options.origin);
   }
 
   function open(): void {

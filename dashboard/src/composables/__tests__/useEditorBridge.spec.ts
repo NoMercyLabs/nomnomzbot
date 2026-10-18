@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { describe, expect, it, vi, type Mock } from 'vitest';
+import { reactive } from 'vue';
 
 import {
   createEditorBridge,
@@ -81,6 +82,44 @@ function fromPage(
 }
 
 describe('createEditorBridge', () => {
+  it('posts data from reactive state that structuredClone accepts, with the same content', async () => {
+    const clones: unknown[] = [];
+    const target = {
+      postMessage: ((message: unknown) => {
+        clones.push(structuredClone(message));
+      }) as Window['postMessage'],
+    } as const satisfies Pick<Window, 'postMessage'>;
+    const state = reactive({
+      ...payload,
+      files: { 'src/main.ts': 'nnz.log("hi")' },
+      labels: { close: 'Close' },
+    });
+
+    frameWindow = target;
+
+    const bridge: EditorBridge = createEditorBridge({
+      origin: ORIGIN,
+      target: () => target,
+      payload: () => state,
+      onSave: async () => ({ ok: true, message: 'Saved' }),
+      onClose: vi.fn<() => void>(),
+    });
+
+    await bridge.handle(fromPage({ type: 'nnz:editor:ready' }));
+    expect(clones).toHaveLength(1);
+
+    expect(clones[0]).toEqual({
+      type: 'nnz:editor:open',
+      payload: {
+        ...payload,
+        fireSamples: {},
+        eventSubscriptions: [],
+        testRunEnabled: false,
+        testTriggers: [],
+      },
+    });
+  });
+
   it('answers ready with exactly one open that carries the payload, to the same origin', async () => {
     const { bridge, posted } = setup();
 
