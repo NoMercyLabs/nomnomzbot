@@ -62,14 +62,14 @@ const draft = reactive<Draft>({
   autoJoin: false,
 });
 
-function fromStored(stored: ChannelBasics): Draft {
+function fromStored(stored: ChannelBasics) {
   return {
     prefix: stored.prefix,
     botLinePrefix: stored.botLinePrefix ?? '',
     locale: stored.locale ?? '',
     timezone: stored.timezone ?? '',
     autoJoin: stored.autoJoin,
-  };
+  } as const satisfies Draft;
 }
 
 watch(

@@ -143,7 +143,7 @@ function setRollout(value: string | number): void {
     : Number(value);
 }
 
-function body(): SetFeatureFlagRequest {
+function body() {
   return {
     key: draft.value.key.trim(),
     description: blank(draft.value.description),
@@ -152,7 +152,7 @@ function body(): SetFeatureFlagRequest {
     minTierKey: blank(draft.value.minTierKey),
     requiresConsent: blank(draft.value.requiresConsent),
     deploymentMode: blank(draft.value.deploymentMode),
-  };
+  } as const satisfies SetFeatureFlagRequest;
 }
 
 function commit(): void {

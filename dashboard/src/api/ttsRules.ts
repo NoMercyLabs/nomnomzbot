@@ -62,7 +62,7 @@ export const namePronunciationKey = (channelId: string | null): KeyParts => [
 ];
 
 // The config as it looks once the change is accepted. The bot names the follow flag differently on read.
-function applyRules(current: TtsConfig, change: TtsRulesChange): TtsConfig {
+function applyRules(current: TtsConfig, change: TtsRulesChange) {
   const { followPlatformDefaultVoice, minBitsToTts, ...flags } = change;
 
   return {
@@ -72,7 +72,7 @@ function applyRules(current: TtsConfig, change: TtsRulesChange): TtsConfig {
     minBitsToTts: minBitsToTts === undefined
       ? current.minBitsToTts
       : (minBitsToTts || null),
-  };
+  } as const satisfies TtsConfig;
 }
 
 export function useSetTtsRules(

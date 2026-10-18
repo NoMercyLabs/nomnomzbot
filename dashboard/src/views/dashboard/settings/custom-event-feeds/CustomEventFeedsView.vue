@@ -89,7 +89,7 @@ async function submit(draft: EventFeedDraft): Promise<void> {
 }
 
 // The switch saves the feed as it is with the other state. A saved secret stays: an empty secret keeps it.
-function draftOf(feed: EventFeed, isEnabled: boolean): EventFeedDraft {
+function draftOf(feed: EventFeed, isEnabled: boolean) {
   return {
     name: feed.name,
     displayName: feed.displayName,
@@ -100,7 +100,7 @@ function draftOf(feed: EventFeed, isEnabled: boolean): EventFeedDraft {
     fieldMap: feed.fieldMap,
     pollIntervalSeconds: feed.pollIntervalSeconds ?? null,
     isEnabled,
-  };
+  } as const satisfies EventFeedDraft;
 }
 
 async function flip(feed: EventFeed): Promise<void> {

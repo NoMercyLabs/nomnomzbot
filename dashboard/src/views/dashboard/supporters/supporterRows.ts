@@ -80,7 +80,7 @@ function personOf(event: ActivityEvent, data: ActivityData): Person {
       };
 }
 
-function subscriptionRow(event: ActivityEvent, kind: SubscriptionRow['kind']): SubscriptionRow {
+function subscriptionRow(event: ActivityEvent, kind: SubscriptionRow['kind']) {
   const data = parseActivityData(event.data);
 
   return {
@@ -92,7 +92,7 @@ function subscriptionRow(event: ActivityEvent, kind: SubscriptionRow['kind']): S
     giftCount: pickCount(data, 'giftCount', 'count'),
     receivedAsGift: data.isGift === true,
     timestamp: event.timestamp,
-  };
+  } as const satisfies SubscriptionRow;
 }
 
 export function subscriptionRows(events: readonly ActivityEvent[]): SubscriptionRow[] {

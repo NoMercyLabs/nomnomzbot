@@ -74,7 +74,7 @@ const { t } = useI18n();
 const frame = useTemplateRef<HTMLIFrameElement>('frame');
 const labels = useEditorLabels(() => props.testRun !== undefined);
 
-const payload = computed<EditorOpenPayload>(() => ({
+const payload = computed(() => ({
   title: props.title,
   files: props.files,
   entry: props.entry,
@@ -97,7 +97,7 @@ const payload = computed<EditorOpenPayload>(() => ({
   ...(props.eventSubscriptions
     ? { eventSubscriptions: props.eventSubscriptions }
     : {}),
-}));
+}) as const satisfies EditorOpenPayload);
 
 const bridge = useEditorBridge({
   origin: window.location.origin,

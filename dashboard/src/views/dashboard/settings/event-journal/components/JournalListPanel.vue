@@ -55,14 +55,14 @@ watch([typedType, typedSource, from, to], () => {
   page.value = 1;
 });
 
-const filters = computed<JournalFilters>(() => ({
+const filters = computed(() => ({
   eventType: typedType.value.trim(),
   source: typedSource.value.trim(),
   from: from.value,
   to: to.value,
   page: page.value,
   take: PAGE_SIZE,
-}));
+}) as const satisfies JournalFilters);
 
 const journal = useJournalPage(channelId, filters);
 const panelState = usePanelState(journal, (data) =>

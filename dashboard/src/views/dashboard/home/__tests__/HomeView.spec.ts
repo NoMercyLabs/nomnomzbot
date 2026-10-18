@@ -57,7 +57,7 @@ const liveStats = {
 
 let queue: Record<string, unknown>[] = [];
 
-const heldMessage = (id: string, name: string, message: string): Record<string, unknown> => ({
+const heldMessage = (id: string, name: string, message: string) => ({
   id,
   source: 'automod',
   status: 'pending',
@@ -69,9 +69,9 @@ const heldMessage = (id: string, name: string, message: string): Record<string, 
   resolvedAt: null,
   resolvedByName: null,
   resolutionAction: null,
-});
+}) as const satisfies Record<string, unknown>;
 
-function freshAnswers(): Record<string, () => Answer | Promise<Answer>> {
+function freshAnswers() {
   return {
     '/stats': () => ok(liveStats),
     '/automod/queue': () => ok(queue.map((item) => ({ ...item }))),
@@ -134,7 +134,7 @@ function freshAnswers(): Record<string, () => Answer | Promise<Answer>> {
         },
       ]),
     '/moderation/shield': () => ok({ enabled: false }),
-  };
+  } as const satisfies Record<string, () => Answer | Promise<Answer>>;
 }
 
 function answer(
@@ -446,14 +446,14 @@ describe('HomeView', () => {
   });
 
   it('shows each happening row with its icon, readable detail and weekday plus 24h time', async () => {
-    const at = (type: string, username: string | null, data: unknown): Record<string, unknown> => ({
+    const at = (type: string, username: string | null, data: unknown) => ({
       id: `${type}-${username}`,
       type,
       userId: 'u1',
       username,
       data: JSON.stringify(data),
       timestamp: '2026-10-10T21:15:00',
-    });
+    }) as const satisfies Record<string, unknown>;
 
     answers['/activity'] = () =>
       ok([

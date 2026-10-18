@@ -87,10 +87,10 @@ const pickerKind = computed<PickerKind | null>(() =>
   props.field.picker && isPickerKind(props.field.picker)
     ? props.field.picker
     : null);
-const group = computed<JsonObject>(() =>
+const group = computed(() =>
   props.value !== null && typeof props.value === 'object' && !Array.isArray(props.value)
     ? props.value
-    : {},
+    : {} as const satisfies JsonObject,
 );
 const known = computed<boolean>(() =>
   ['bool', 'number', 'text', 'color', 'select', 'multiselect', 'list', 'group'].includes(

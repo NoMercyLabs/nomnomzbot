@@ -119,7 +119,7 @@ interface HealthLine {
   title: string;
   note: string;
 }
-const attachLine = computed<HealthLine>(() => {
+const attachLine = computed(() => {
   const base: string = 'dashboard.overlays.detail.health';
 
   if (!props.widget.isEnabled)
@@ -127,20 +127,20 @@ const attachLine = computed<HealthLine>(() => {
       tone: 'off',
       title: t(`${base}.switchedOff`),
       note: t(`${base}.switchedOffNote`),
-    };
+    } as const satisfies HealthLine;
 
   if (props.widget.isAttached)
     return {
       tone: 'ok',
       title: t(`${base}.attached`),
       note: t(`${base}.attachedNote`),
-    };
+    } as const satisfies HealthLine;
 
   return {
     tone: 'off',
     title: t(`${base}.detached`),
     note: t(`${base}.detachedNote`),
-  };
+  } as const satisfies HealthLine;
 });
 
 const events = computed<string[]>(() => props.widget.eventSubscriptions);

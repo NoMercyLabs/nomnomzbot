@@ -54,7 +54,7 @@ const job = {
   firedAt: null,
   triggeredByDisplayName: 'viewer_one',
   canRetry: true,
-} satisfies AdminScheduledJob;
+} as const satisfies AdminScheduledJob;
 
 const delivery = {
   id: 7,
@@ -69,7 +69,7 @@ const delivery = {
   createdAt: '2026-10-01T10:00:00Z',
   error: 'boom',
   endpointCanReplay: true,
-} satisfies AdminWebhookDelivery;
+} as const satisfies AdminWebhookDelivery;
 
 const credential = {
   provider: 'twitch',

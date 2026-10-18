@@ -163,7 +163,7 @@ function emotePerson(
   };
 }
 
-function emoteAssetCard(emote: EmoteFacts, title: string, image: string, t: Translate): AssetCard {
+function emoteAssetCard(emote: EmoteFacts, title: string, image: string, t: Translate) {
   const facts: KeyValueItem[] = [
     { label: t('asset.provider'), value: t(`asset.providers.${emote.provider}`) },
     { label: t('asset.kind'), value: t(emote.animated
@@ -193,7 +193,7 @@ function emoteAssetCard(emote: EmoteFacts, title: string, image: string, t: Tran
     link: page
       ? { href: page, label: t(`asset.open.${emote.provider}`) }
       : null,
-  };
+  } as const satisfies AssetCard;
 }
 
 // The server sends a badge's set and version; badge info is the number Twitch adds, such as subscribed months.

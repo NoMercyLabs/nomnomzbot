@@ -63,10 +63,10 @@ export function useWidth(target: MaybeComputedElementRef): Ref<number> {
 export function useFits(
   target: MaybeComputedElementRef,
   name: LayoutWidth,
-): { width: Ref<number>; fits: ComputedRef<boolean> } {
+) {
   const width = useWidth(target);
   const fits = computed(() =>
     width.value >= widths[name]);
 
-  return { width, fits };
+  return { width, fits } as const satisfies { width: Ref<number>; fits: ComputedRef<boolean> };
 }

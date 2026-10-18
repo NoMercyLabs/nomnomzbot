@@ -78,7 +78,7 @@ function firstOpenPage(
   router: Router,
   to: RouteLocationNormalized,
   held: ReadonlySet<string>,
-): RouteLocationRaw | true {
+) {
   const named = to.params[channelParam];
   const viewing = to.params[viewerChannelParam];
 
@@ -87,7 +87,7 @@ function firstOpenPage(
       name: viewerPage,
       params: { [viewerChannelParam]: viewing },
       replace: true,
-    };
+    } as const satisfies RouteLocationRaw | true;
   }
 
   for (const entry of fallbackPages()) {

@@ -73,7 +73,7 @@ const save = useSaveDiscordRule(channelId, () => props.connectionId);
 const create = useCreateDiscordRule(channelId, () => props.connectionId);
 const preview = useDiscordPreview(channelId);
 
-function draftOf(rule: DiscordRule | null): Draft {
+function draftOf(rule: DiscordRule | null) {
   return {
     enabled: rule?.enabled ?? true,
     targetChannelId: rule?.targetChannelId ?? '',
@@ -86,7 +86,7 @@ function draftOf(rule: DiscordRule | null): Draft {
     imageUrl: rule?.embedConfig?.imageUrl ?? '',
     footerText: rule?.embedConfig?.footerText ?? '',
     fields: (rule?.embedConfig?.fields ?? []).map((field) => ({ ...field })),
-  };
+  } as const satisfies Draft;
 }
 
 const draft = ref<Draft>(draftOf(props.rule));

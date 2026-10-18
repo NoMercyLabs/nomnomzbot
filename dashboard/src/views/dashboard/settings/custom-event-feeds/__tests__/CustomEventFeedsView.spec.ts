@@ -40,7 +40,7 @@ const held: string[] = ['customdata:read', 'customdata:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const feed = (id: string, name: string, extra: Body = {}): Body => ({
+const feed = (id: string, name: string, extra: Body = {}) => ({
   id,
   name,
   displayName: `Feed ${name}`,
@@ -55,7 +55,7 @@ const feed = (id: string, name: string, extra: Body = {}): Body => ({
   fieldErrors: {},
   inboundUrl: null,
   ...extra,
-});
+}) as const satisfies Body;
 
 vi.mock('@/api/client', () => ({
   client: {

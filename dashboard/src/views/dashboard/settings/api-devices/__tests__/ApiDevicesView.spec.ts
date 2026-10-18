@@ -39,7 +39,7 @@ let tokens: Body[] = [];
 const held: string[] = ['automation:tokens:read', 'automation:tokens:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
-const token = (id: string, name: string, extra: Body = {}): Body => ({
+const token = (id: string, name: string, extra: Body = {}) => ({
   id,
   name,
   tokenPrefix: `nnz_${id}`,
@@ -50,7 +50,7 @@ const token = (id: string, name: string, extra: Body = {}): Body => ({
   revokedAt: null,
   createdAt: '2026-10-01T10:00:00Z',
   ...extra,
-});
+}) as const satisfies Body;
 
 vi.mock('@/api/client', () => ({
   client: {

@@ -57,7 +57,7 @@ const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
 const channel = 'c1';
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 
-const person = (id: string): Record<string, unknown> => ({
+const person = (id: string) => ({
   id,
   internalUserId: null,
   username: id,
@@ -70,7 +70,7 @@ const person = (id: string): Record<string, unknown> => ({
   isBanned: false,
   firstSeen: '2026-01-01T00:00:00Z',
   lastSeen: '2026-01-02T00:00:00Z',
-});
+}) as const satisfies Record<string, unknown>;
 
 function mount<T>(use: () => T): {
   queries: QueryClient;

@@ -45,7 +45,7 @@ let held: string[] = ['timers:read', 'timers:write', 'chattriggers:read', 'chatt
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const timer = (id: string, overrides: Row = {}): Row => ({
+const timer = (id: string, overrides: Row = {}) => ({
   id,
   name: `Timer ${id}`,
   messages: ['Follow the channel'],
@@ -61,7 +61,7 @@ const timer = (id: string, overrides: Row = {}): Row => ({
   createdAt: '2026-10-01T10:00:00Z',
   updatedAt: '2026-10-01T10:00:00Z',
   ...overrides,
-});
+}) as const satisfies Row;
 
 function read(path: string, options?: Options): Answer {
   const id = options?.params?.path?.id;

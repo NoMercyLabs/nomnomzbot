@@ -45,7 +45,7 @@ function read(path: string): unknown {
     : [];
 }
 
-const trigger = (id: string, overrides: Row = {}): Row => ({
+const trigger = (id: string, overrides: Row = {}) => ({
   id,
   pattern: `words ${id}`,
   matchType: 'contains',
@@ -58,7 +58,7 @@ const trigger = (id: string, overrides: Row = {}): Row => ({
   createdAt: '2026-10-01T10:00:00Z',
   updatedAt: '2026-10-01T10:00:00Z',
   ...overrides,
-});
+}) as const satisfies Row;
 
 type Answer = { response: { status: number; ok: boolean }; error?: unknown };
 

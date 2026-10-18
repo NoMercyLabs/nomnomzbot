@@ -36,7 +36,7 @@ describe('the width table', () => {
   });
 });
 
-function probe<T>(read: () => T): { value: () => T } {
+function probe<T>(read: () => T) {
   let result: T | undefined;
 
   mounted = mount(defineComponent({
@@ -47,7 +47,7 @@ function probe<T>(read: () => T): { value: () => T } {
     },
   }));
 
-  return { value: () => result as T };
+  return { value: () => result as T } as const satisfies { value: () => T };
 }
 
 describe('a window width check', () => {

@@ -44,7 +44,7 @@ const refused = (): Answer => ({
   response: { status: 500, ok: false },
 });
 
-const runningPrediction = (id: string, status: string): Row => ({
+const runningPrediction = (id: string, status: string) => ({
   id,
   title: 'Will it build?',
   status,
@@ -73,9 +73,9 @@ const runningPrediction = (id: string, status: string): Row => ({
       color: 'PINK',
     },
   ],
-});
+}) as const satisfies Row;
 
-const startedPrediction = (body: Row): Row => ({
+const startedPrediction = (body: Row) => ({
   ...runningPrediction('server-1', 'ACTIVE'),
   title: body.title,
   predictionWindow: body.predictionWindowSeconds,
@@ -87,7 +87,7 @@ const startedPrediction = (body: Row): Row => ({
     topPredictors: [],
     color: 'BLUE',
   })),
-});
+}) as const satisfies Row;
 
 function answer(method: string, path: string): Answer {
   calls.push({ method, path });

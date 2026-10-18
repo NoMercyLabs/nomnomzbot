@@ -15,9 +15,9 @@ import type { JsonObject, JsonValue } from '@/lib/json';
 
 export type ActivityData = JsonObject;
 
-export function parseActivityData(raw: string | null | undefined): ActivityData {
+export function parseActivityData(raw: string | null | undefined) {
   if (raw === null || raw === undefined)
-    return {};
+    return {} as const satisfies ActivityData;
 
   try {
     const parsed: JsonValue = JSON.parse(raw);
@@ -26,7 +26,7 @@ export function parseActivityData(raw: string | null | undefined): ActivityData 
       ? (parsed as ActivityData)
       : {};
   } catch {
-    return {};
+    return {} as const satisfies ActivityData;
   }
 }
 

@@ -48,7 +48,7 @@ vi.mock('../client', () => ({ client: http }));
 const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 
-const tenant = (id: string, status: string): Record<string, unknown> => ({
+const tenant = (id: string, status: string) => ({
   id,
   name: id,
   twitchChannelId: `t-${id}`,
@@ -57,7 +57,7 @@ const tenant = (id: string, status: string): Record<string, unknown> => ({
   isLive: false,
   createdAt: '2026-01-01T00:00:00Z',
   suspendedAt: null,
-});
+}) as const satisfies Record<string, unknown>;
 
 function mount<T>(
   use: () => T,

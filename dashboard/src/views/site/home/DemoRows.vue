@@ -27,28 +27,28 @@ type Row = {
 const props = defineProps<{ kind: Kind }>();
 const { t } = useI18n();
 
-function line(user: string, text: string): Row {
-  return { title: t(`site.home.chatLines.${user}`), detail: t(`site.home.chatLines.${text}`) };
+function line(user: string, text: string) {
+  return { title: t(`site.home.chatLines.${user}`), detail: t(`site.home.chatLines.${text}`) } as const satisfies Row;
 }
 
-function bot(reply: string): Row {
-  return { title: t('site.home.chatLines.botName'), detail: t(`site.home.chatLines.${reply}`) };
+function bot(reply: string) {
+  return { title: t('site.home.chatLines.botName'), detail: t(`site.home.chatLines.${reply}`) } as const satisfies Row;
 }
 
-function queued(n: 1 | 2 | 3): Row {
+function queued(n: 1 | 2 | 3) {
   return {
     title: t(`site.home.queue.who${n}`),
     detail: t(`site.home.queue.reason${n}`),
     action: t(`site.home.queue.action${n}`),
     harm: n === 1,
-  };
+  } as const satisfies Row;
 }
 
-function alert(which: 'raid' | 'sub'): Row {
+function alert(which: 'raid' | 'sub') {
   return {
     title: t(`site.home.alerts.${which}Title`),
     detail: t(`site.home.alerts.${which}Detail`),
-  };
+  } as const satisfies Row;
 }
 
 const rows = computed<Row[]>(() => {

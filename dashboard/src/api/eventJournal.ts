@@ -52,9 +52,9 @@ const version = '1';
 
 type ChannelId = MaybeRefOrGetter<string | null>;
 
-const pathFor = (channelId: ChannelId): { path: { version: string; channelId: string } } => ({
+const pathFor = (channelId: ChannelId) => ({
   path: { version, channelId: toValue(channelId) as string },
-});
+}) as const satisfies { path: { version: string; channelId: string } };
 
 // Replaying or rebuilding changes what the read models hold, so every query of this channel is read again.
 function useRefreshChannel(channelId: ChannelId): () => Promise<void> {

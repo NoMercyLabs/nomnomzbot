@@ -37,11 +37,7 @@ type Posted = { message: Record<string, unknown>; origin: string };
 // The editor frame's window of the latest setup: a page message comes from it unless a test says otherwise.
 let frameWindow: Pick<Window, 'postMessage'> | null = null;
 
-function setup(overrides: Partial<EditorBridgeOptions> = {}): {
-  bridge: EditorBridge;
-  posted: Posted[];
-  closed: Mock<() => void>;
-} {
+function setup(overrides: Partial<EditorBridgeOptions> = {}) {
   const posted: Posted[] = [];
   const closed = vi.fn<() => void>();
   const target = {
@@ -64,6 +60,10 @@ function setup(overrides: Partial<EditorBridgeOptions> = {}): {
     bridge,
     posted,
     closed,
+  } as const satisfies {
+    bridge: EditorBridge;
+    posted: Posted[];
+    closed: Mock<() => void>;
   };
 }
 

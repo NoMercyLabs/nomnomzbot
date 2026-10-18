@@ -37,11 +37,11 @@ const version = '1';
 const streamPageSize = 50;
 
 // Calendar dates in the viewer's own time zone; the server reads them as whole days.
-export function rangeDates(range: AnalyticsRange): RangeDates {
+export function rangeDates(range: AnalyticsRange) {
   const end = today(getLocalTimeZone());
   const start = end.subtract({ days: ANALYTICS_RANGES[range] - 1 });
 
-  return { from: start.toString(), to: end.toString() };
+  return { from: start.toString(), to: end.toString() } as const satisfies RangeDates;
 }
 
 const analyticsKey = (channelId: string | null, what: string, range: AnalyticsRange) => [

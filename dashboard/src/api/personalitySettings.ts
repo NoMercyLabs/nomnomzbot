@@ -76,9 +76,9 @@ export function useSetPersonality(
 
       return stored;
     },
-    apply: (current: Personality | undefined, tone: string): Personality => ({
+    apply: (current: Personality | undefined, tone: string) => ({
       available: current?.available ?? [],
       personality: tone,
-    }),
+    }) as const satisfies Personality,
   });
 }

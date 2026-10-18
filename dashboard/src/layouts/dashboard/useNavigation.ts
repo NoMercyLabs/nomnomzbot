@@ -45,7 +45,7 @@ const folds = useStorage<Record<string, boolean>>(
   {},
 );
 
-export function useNavigation(): Navigation {
+export function useNavigation() {
   const router = useRouter();
   const route = useRoute();
   const { channelId, current } = useCurrentChannel();
@@ -87,9 +87,9 @@ export function useNavigation(): Navigation {
   }
 
   // The channel in the address while the person is on a channel route, else the one being managed.
-  function linkTo(entry: NavEntry): RouteLocationRaw {
+  function linkTo(entry: NavEntry) {
     if (!isChannelPage(router.resolve({ name: entry.route }).meta))
-      return { name: entry.route };
+      return { name: entry.route } as const satisfies RouteLocationRaw;
 
     return pageLocation(entry.route, routeChannel(route) ?? current.value?.login ?? null);
   }
@@ -139,5 +139,5 @@ export function useNavigation(): Navigation {
     isCurrent,
     linkTo,
     toggle,
-  };
+  } as const satisfies Navigation;
 }

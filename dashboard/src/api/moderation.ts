@@ -198,7 +198,7 @@ export function useSetStanding(
     apply: (
       _current: ModerationStanding | null | undefined,
       { userId, level, reason }: StandingChange,
-    ): ModerationStanding | null => {
+    ) => {
       if (level === null)
         return null;
 
@@ -208,7 +208,7 @@ export function useSetStanding(
         standing: level,
         reason,
         updatedAt: new Date().toISOString(),
-      };
+      } as const satisfies ModerationStanding;
     },
   });
 }

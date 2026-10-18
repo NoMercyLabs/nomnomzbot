@@ -16,13 +16,13 @@ import type { NavEntry } from '../navigation';
 
 const icon = defineComponent({ render: () => null });
 
-function entry(route: string, bottom = false): NavEntry {
+function entry(route: string, bottom = false) {
   return {
     route,
     label: route,
     icon,
     bottom,
-  };
+  } as const satisfies NavEntry;
 }
 
 const routes = (list: NavEntry[]): string[] => list.map((item) => item.route);

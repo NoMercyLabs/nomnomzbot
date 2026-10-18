@@ -21,11 +21,11 @@ export function holdsPlatformKey(user: CurrentUser | null | undefined, key: stri
 // The way to gate a platform admin element (a tab, panel or button): `const { can } = usePlatformCan()`,
 // then `v-if="can('billing:write')"`. The keys come from the bot with the signed-in person (auth/me),
 // the same keys its admin endpoints check. Until the bot has answered, `can` is false for every key.
-export function usePlatformCan(): ChannelAccess {
+export function usePlatformCan() {
   const user = useCurrentUser();
 
   return {
     known: computed(() => user.data.value !== undefined),
     can: (key) => holdsPlatformKey(user.data.value, key),
-  };
+  } as const satisfies ChannelAccess;
 }

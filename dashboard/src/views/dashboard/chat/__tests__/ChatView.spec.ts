@@ -91,7 +91,7 @@ const searchAnswer = (options?: Options): Answer => {
 };
 
 // The community record of the chatter the Viewer panel asks for.
-const memberOf = (options?: Options): Record<string, unknown> => {
+const memberOf = (options?: Options) => {
   const id = String(options?.params?.path?.userId ?? '');
 
   return {
@@ -107,7 +107,7 @@ const memberOf = (options?: Options): Record<string, unknown> => {
     isBanned: false,
     firstSeen: null,
     lastSeen: null,
-  };
+  } as const satisfies Record<string, unknown>;
 };
 
 const line = (

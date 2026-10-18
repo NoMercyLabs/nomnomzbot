@@ -21,12 +21,12 @@ export interface VoiceTriggerDraft {
   stickerAssetId: string;
 }
 
-export function draftOf(trigger: VoiceTrigger): VoiceTriggerDraft {
+export function draftOf(trigger: VoiceTrigger) {
   return {
     word: trigger.word,
     cooldownSeconds: Number(trigger.cooldownSeconds),
     stickerAssetId: trigger.stickerAssetId ?? noSticker,
-  };
+  } as const satisfies VoiceTriggerDraft;
 }
 
 // Only the fields that differ from the saved trigger travel to the bot. The Enabled switch saves on its own.

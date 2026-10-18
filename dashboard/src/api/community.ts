@@ -63,11 +63,11 @@ async function fetchMember(channelId: string, userId: string): Promise<Community
 export function communityMemberOptions(
   channelId: string,
   userId: string,
-): { queryKey: KeyParts; queryFn: () => Promise<CommunityMember | null> } {
+) {
   return {
     queryKey: memberKey(channelId, userId),
     queryFn: () => fetchMember(channelId, userId),
-  };
+  } as const satisfies { queryKey: KeyParts; queryFn: () => Promise<CommunityMember | null> };
 }
 
 export function useCommunityMember(
@@ -187,9 +187,9 @@ export function useVipChange(
     apply: (
       current: CommunityMember | null | undefined,
       { vip }: VipChange,
-    ): CommunityMember | null =>
+    ) =>
       current
-        ? { ...current, isVip: vip }
+        ? { ...current, isVip: vip } as const satisfies CommunityMember
         : null,
   });
 }

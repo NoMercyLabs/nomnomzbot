@@ -105,12 +105,12 @@ export const builtinsOptions = (id: string) => channelOptions(builtinsKey, readB
 type RowsMutation<TVariables> = UseMutationReturnType<CommandListItem[], Error, TVariables, number>;
 
 // Null and missing fields mean "unchanged" on the wire, so the cached row takes only the fields that are set.
-function applyChange(row: CommandListItem, change: CommandChange): CommandListItem {
+function applyChange(row: CommandListItem, change: CommandChange) {
   const set = Object.fromEntries(
     Object.entries(change).filter(([, value]) => value !== undefined && value !== null),
   ) as Partial<CommandListItem>;
 
-  return { ...row, ...set };
+  return { ...row, ...set } as const satisfies CommandListItem;
 }
 
 async function putCommand(

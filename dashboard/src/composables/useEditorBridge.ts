@@ -148,9 +148,9 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function stringMap(value: JsonValue | undefined): Record<string, string> {
+function stringMap(value: JsonValue | undefined) {
   if (!isObject(value))
-    return {};
+    return {} as const satisfies Record<string, string>;
 
   const out: Record<string, string> = {};
 
@@ -176,23 +176,23 @@ function optionalText(value: JsonValue | undefined): string | null {
 }
 
 // One page message, or null for anything else: malformed data, a host-to-page type echoed back, other traffic.
-export function decodePageMessage(data: JsonValue): PageMessage | null {
+export function decodePageMessage(data: JsonValue) {
   if (!isObject(data) || typeof data.type !== 'string' || !data.type.startsWith(PREFIX))
     return null;
 
   switch (data.type.slice(PREFIX.length)) {
     case 'ready':
-      return { type: 'ready' };
+      return { type: 'ready' } as const satisfies PageMessage;
     case 'save':
-      return { type: 'save', files: stringMap(data.files) };
+      return { type: 'save', files: stringMap(data.files) } as const satisfies PageMessage;
     case 'close':
-      return { type: 'close' };
+      return { type: 'close' } as const satisfies PageMessage;
     case 'historyLoadMore':
-      return { type: 'historyLoadMore' };
+      return { type: 'historyLoadMore' } as const satisfies PageMessage;
     case 'historyRollback':
-      return { type: 'historyRollback', versionId: text(data.versionId) };
+      return { type: 'historyRollback', versionId: text(data.versionId) } as const satisfies PageMessage;
     case 'historyDelete':
-      return { type: 'historyDelete', versionId: text(data.versionId) };
+      return { type: 'historyDelete', versionId: text(data.versionId) } as const satisfies PageMessage;
     case 'testRun':
       return {
         type: 'testRun',
@@ -203,7 +203,7 @@ export function decodePageMessage(data: JsonValue): PageMessage | null {
           : [],
         trigger: optionalText(data.trigger),
         role: optionalText(data.role),
-      };
+      } as const satisfies PageMessage;
     case 'previewAction':
       return {
         type: 'previewAction',
@@ -213,7 +213,7 @@ export function decodePageMessage(data: JsonValue): PageMessage | null {
           ? data.params
           : null,
         variables: stringMap(data.variables),
-      };
+      } as const satisfies PageMessage;
     default:
       return null;
   }
@@ -226,7 +226,7 @@ function reason(error: unknown): string {
     : 'The action failed.';
 }
 
-export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
+export function createEditorBridge(options: EditorBridgeOptions) {
   function post(type: string, body: JsonObject = {}): void {
     options.target()?.postMessage({ type: PREFIX + type, ...body }, options.origin);
   }
@@ -359,7 +359,7 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
     }
   }
 
-  return { handle, requestClose: () => post('requestClose') };
+  return { handle, requestClose: () => post('requestClose') } as const satisfies EditorBridge;
 }
 
 // Listens on the window for as long as the calling component lives.

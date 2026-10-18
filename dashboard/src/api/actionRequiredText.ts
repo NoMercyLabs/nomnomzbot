@@ -93,7 +93,7 @@ function titleNamed(
   item: ActionRequiredItem,
   i18n: AttentionTranslator,
   now: Date,
-): Record<string, string | number> {
+) {
   const { provider = '', source = '', until } = item.parameters;
   const sourceKey = lookup(SOURCE_NAMES, source) ?? 'attention_source_name_unknown';
 
@@ -103,13 +103,13 @@ function titleNamed(
     provider: providerName(provider),
     until: clockTime(until, now, i18n.locale.value),
     source: i18n.t(WORDS + sourceKey),
-  };
+  } as const satisfies Record<string, string | number>;
 }
 
 function messageNamed(
   item: ActionRequiredItem,
   i18n: AttentionTranslator,
-): Record<string, string | number> {
+) {
   const category = item.parameters.category?.trim();
   // The words close the sentence themselves, so a period the server error ends with would double.
   const error = item.parameters.error?.trim().replace(/\.+$/, '');
@@ -118,7 +118,7 @@ function messageNamed(
     ...item.parameters,
     category: category || i18n.t(`${WORDS}attention_held_category_unknown`),
     error: error ?? '',
-  };
+  } as const satisfies Record<string, string | number>;
 }
 
 // The in-app path for a server route such as "people/overview", or null when the Vue
@@ -137,7 +137,7 @@ export function attentionWords(
   item: ActionRequiredItem,
   i18n: AttentionTranslator,
   now: Date = new Date(),
-): AttentionWords {
+) {
   const titlePath = WORDS + titleKeyOf(item);
   const messagePath = WORDS + messageKeyOf(item);
   const title = i18n.te(titlePath)
@@ -151,5 +151,5 @@ export function attentionWords(
     title,
     message,
     route: routeOf(item.deepLinkRoute),
-  };
+  } as const satisfies AttentionWords;
 }

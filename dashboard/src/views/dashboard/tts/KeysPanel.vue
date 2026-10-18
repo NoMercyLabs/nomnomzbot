@@ -56,10 +56,10 @@ watch(
   { immediate: true },
 );
 
-const stored = computed<Record<ByokProvider, boolean>>(() => ({
+const stored = computed(() => ({
   azure: config.data.value?.hasAzureByokKey ?? false,
   elevenlabs: config.data.value?.hasElevenLabsByokKey ?? false,
-}));
+}) as const satisfies Record<ByokProvider, boolean>);
 
 function submitKey(provider: ByokProvider): void {
   saveKey.mutate(

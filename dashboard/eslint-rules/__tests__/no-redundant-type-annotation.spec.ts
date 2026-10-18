@@ -56,12 +56,112 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     'declare const rows: number[]; rows.map((row: number | string) => String(row))',
     // A reduce accumulator feeds the inference of the result type.
     'declare const rows: number[]; rows.reduce((total: number[], row) => total, [])',
-    // A callback outside an array method is left alone.
-    'declare function run(cb: (n: number) => { a: number }): void; run((n): { a: number } => ({ a: n }))',
+    // A recursive function needs its return type: TS cannot infer it.
+    'type Node = { next: Node | null }; function walk(depth: number): Node { return depth > 0 ? walk(depth - 1) : { next: null } }',
+    'type Tree = { kids: Tree[] }; const grow = (depth: number): Tree => { if (depth > 0) return grow(depth - 1); return { kids: [] } }',
+    // An overload keeps its annotation.
+    'type Box = { a: number }; function make(a: number): Box; function make(a: string): Box; function make(a: number | string): Box { return { a: Number(a) } }',
+    // A returned value that is no literal already has its type.
+    'type Box = { a: number }; declare const box: Box; function pick(): Box { return box }',
+    // An async function returns a promise, not the literal.
+    'type Box = { a: number }; async function load(): Promise<Box> { return { a: 1 } }',
+    // A nullable union stays: the `person is Box` filter that reads the list needs the exact union.
+    'type Box = { a: number }; function maybe(on: boolean): Box | null { if (!on) return null; return { a: 1 } }',
+    // A type predicate and a loose return type stay.
+    'declare function make(): unknown; function made(): unknown { return { a: 1 } }',
     // An async callback returns a promise, not the literal.
     'declare const rows: number[]; rows.map(async (row): Promise<{ a: number }> => ({ a: row }))',
+    // A mutable list inside would freeze under `as const`: the annotation stays, never a bare satisfies.
+    'type Box = { ids: number[] }; function make(): Box { return { ids: [1] } }',
+    // A literal with no target type (no generic, no annotation) stays as it is.
+    'declare function computed<T>(getter: () => T): { value: T }; const context = computed(() => ({ a: 1 }))',
+    // A generic that is not the callback result stays: ref<T> takes a value, not a getter.
+    'declare function lazy<T>(value: T, getter: () => number): { value: T }; const x = lazy<{ a: number }>({ a: 1 }, () => 1)',
+    // A string field `as const` would narrow keeps its generic.
+    'type Form = { name: string }; declare function computed<T>(getter: () => T): { value: T }; const form = computed<Form>(() => ({ name: \'\' }))',
+    // One getter return that is no literal keeps the generic whole (useBoard inline).
+    'declare const flag: boolean; declare const rest: string[]; declare function computed<T>(getter: () => T): { value: T }; const inline = computed<readonly string[]>(() => { if (flag) return []; return rest })',
+    // A string-keyed record return (accentTokens) keeps its annotation: two returns infer two shapes.
+    'function tokens(on: boolean): Record<string, string> { if (!on) return {}; return { a: \'x\' } }',
+    // A form blank state: `as const` would narrow the boolean to false and reject every later write.
+    'type Form = { open: boolean }; function blank(): Form { return { open: false } }',
+    // A form blank state: `as const` would narrow the string to \'\'.
+    'type Form = { name: string }; function blank(): Form { return { name: \'\' } }',
   ],
   invalid: [
+    {
+      // emotePicker: a function declaration states its type on the returned literal.
+      code: 'type Section = { id: string; items: readonly string[] }; function section(id: string): Section { return { id, items: [\'a\'] } }',
+      output:
+        'type Section = { id: string; items: readonly string[] }; function section(id: string) { return { id, items: [\'a\'] } as const satisfies Section }',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // An arrow that is no array callback does the same.
+      code: 'type Box = { a: number }; const box = (a: number): Box => ({ a })',
+      output: 'type Box = { a: number }; const box = (a: number) => ({ a }) as const satisfies Box',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // Every returned literal moves; a returned variable stays as it is.
+      code: 'type Box = { a: number }; declare const none: Box | null; function pick(a: number): Box | null { if (a > 1) return { a }; return none }',
+      output:
+        'type Box = { a: number }; declare const none: Box | null; function pick(a: number) { if (a > 1) return { a } as const satisfies Box; return none }',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A class method counts too.
+      code: 'type Box = { a: number }; class Maker { make(a: number): Box { return { a } } }',
+      output: 'type Box = { a: number }; class Maker { make(a: number) { return { a } as const satisfies Box } }',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // EmotePicker: the generic moves to the returned literal.
+      code: 'type Ctx = { a: number; b: readonly string[] }; declare const n: number; declare const list: string[]; declare function computed<T>(getter: () => T): { value: T }; const context = computed<Ctx>(() => ({ a: n, b: list }))',
+      output:
+        'type Ctx = { a: number; b: readonly string[] }; declare const n: number; declare const list: string[]; declare function computed<T>(getter: () => T): { value: T }; const context = computed(() => ({ a: n, b: list }) as const satisfies Ctx)',
+      errors: [{ messageId: 'callbackTarget' }],
+    },
+    {
+      // The same through the variable annotation.
+      code: 'type Ctx = { a: number }; declare const n: number; type Box<T> = { value: T }; declare function computed<T>(getter: () => T): Box<T>; const context: Box<Ctx> = computed(() => ({ a: n }))',
+      output:
+        'type Ctx = { a: number }; declare const n: number; type Box<T> = { value: T }; declare function computed<T>(getter: () => T): Box<T>; const context = computed(() => ({ a: n }) as const satisfies Ctx)',
+      errors: [{ messageId: 'callbackTarget' }],
+    },
+    {
+      // A block body states it on each returned literal.
+      code: 'type Ctx = { a: number }; declare const n: number; declare function computed<T>(getter: () => T): { value: T }; const context = computed<Ctx>(() => { return { a: n } })',
+      output:
+        'type Ctx = { a: number }; declare const n: number; declare function computed<T>(getter: () => T): { value: T }; const context = computed(() => { return { a: n } as const satisfies Ctx })',
+      errors: [{ messageId: 'callbackTarget' }],
+    },
+    {
+      // OverlayDetail: every return of the getter, early ifs included, states the type.
+      code: 'type Line = { tone: \'ok\' | \'off\' }; declare const flag: boolean; declare function computed<T>(getter: () => T): { value: T }; const line = computed<Line>(() => { if (flag) return { tone: \'off\' }; return { tone: \'ok\' } })',
+      output:
+        'type Line = { tone: \'ok\' | \'off\' }; declare const flag: boolean; declare function computed<T>(getter: () => T): { value: T }; const line = computed(() => { if (flag) return { tone: \'off\' } as const satisfies Line; return { tone: \'ok\' } as const satisfies Line })',
+      errors: [{ messageId: 'callbackTarget' }],
+    },
+    {
+      // EmotePicker starrable: a literal is never null, so the empty member leaves the satisfies type.
+      code: 'type Star = { id: string }; declare const id: string; declare const flag: boolean; function starrable(): Star | null { if (flag) return { id }; return flag ? { id } : null }',
+      output:
+        'type Star = { id: string }; declare const id: string; declare const flag: boolean; function starrable() { if (flag) return { id } as const satisfies Star; return flag ? { id } as const satisfies Star : null }',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A `satisfies` already written with the empty member loses it.
+      code: 'type Star = { id: string }; declare const id: string; const star = { id } as const satisfies Star | null',
+      output: 'type Star = { id: string }; declare const id: string; const star = { id } as const satisfies Star',
+      errors: [{ messageId: 'literalNeverNull' }],
+    },
+    {
+      // A bare `satisfies` on a literal gains `as const`: the query key stays a read-only tuple.
+      code: 'type KeyParts = readonly unknown[]; export const key = (id: string | null) => [\'channels\', id, \'access\'] satisfies KeyParts',
+      output: 'type KeyParts = readonly unknown[]; export const key = (id: string | null) => [\'channels\', id, \'access\'] as const satisfies KeyParts',
+      errors: [{ messageId: 'bareSatisfies' }],
+    },
     {
       // A string-keyed table read by a computed key still moves to `as const satisfies`; the read narrows the key.
       code: 'declare const name: string; const scores: Record<string, number> = { a: 1 }; scores[name]',

@@ -42,14 +42,14 @@ watch([typed, role], () => {
   page.value = 1;
 });
 
-const params = computed<AdminUsersParams>(() => ({
+const params = computed(() => ({
   search: typed.value.trim(),
   role: role.value === 'all'
     ? undefined
     : role.value,
   page: page.value,
   take: PAGE_SIZE,
-}));
+}) as const satisfies AdminUsersParams);
 
 const users = useAdminUsers(params);
 

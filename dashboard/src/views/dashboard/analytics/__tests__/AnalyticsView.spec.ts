@@ -49,7 +49,7 @@ const summary = {
   },
 };
 
-const day = (date: string, followers: number, chatters: number): Record<string, unknown> => ({
+const day = (date: string, followers: number, chatters: number) => ({
   activityDate: date,
   uniqueChatters: chatters,
   totalMessages: chatters * 10,
@@ -64,14 +64,14 @@ const day = (date: string, followers: number, chatters: number): Record<string, 
   currencySpentTotal: 0,
   gamesPlayed: 0,
   peakViewers: null,
-});
+}) as const satisfies Record<string, unknown>;
 
 const stream = (
   id: string,
   startedAt: string,
   seconds: number,
   game: string,
-): Record<string, unknown> => ({
+) => ({
   streamId: id,
   title: `Stream ${id}`,
   gameName: game,
@@ -84,7 +84,7 @@ const stream = (
   totalMessages: seconds / 10,
   uniqueChatters: seconds / 300,
   newFollowers: seconds / 1800,
-});
+}) as const satisfies Record<string, unknown>;
 
 // Sunday is 0. Tuesday 16:00 is the busiest hour; Thursday only chats at 16:00.
 const chatHours = {

@@ -39,14 +39,14 @@ const shieldQuery = useShieldMode(channelId);
 const state = usePanelState(infoQuery, (info: StreamInfo | null) =>
   info === null);
 
-function unchecked(key: string, what: string): Check {
+function unchecked(key: string, what: string) {
   return {
     key,
     tone: 'off',
     label: t('dashboard.stream.checklist.couldNotCheck', {
       what: t(`dashboard.stream.checklist.what.${what}`),
     }),
-  };
+  } as const satisfies Check;
 }
 
 const checks = computed<Check[]>(() => {

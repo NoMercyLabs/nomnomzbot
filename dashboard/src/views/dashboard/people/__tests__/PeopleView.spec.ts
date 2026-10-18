@@ -57,7 +57,7 @@ const page = (rows: Record<string, unknown>[], total: number = rows.length): Ans
   response: { status: 200, ok: true },
 });
 
-const person = (login: string, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+const person = (login: string, over: Record<string, unknown> = {}) => ({
   id: `t-${login}`,
   internalUserId: `u-${login}`,
   username: login,
@@ -71,7 +71,7 @@ const person = (login: string, over: Record<string, unknown> = {}): Record<strin
   firstSeen: '2026-01-02T10:00:00Z',
   lastSeen: '2026-10-12T10:00:00Z',
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 const everyone: Record<string, unknown>[] = [
   person('alice'),
@@ -371,13 +371,13 @@ const lookupButton = (): HTMLButtonElement | undefined =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
     b.textContent?.includes('Look up on Twitch'),
   );
-const option = (id: string, label: string, inChannel: boolean): Record<string, unknown> => ({
+const option = (id: string, label: string, inChannel: boolean) => ({
   id,
   label,
   subLabel: `@${label.toLowerCase()}`,
   imageUrl: null,
   inChannel,
-});
+}) as const satisfies Record<string, unknown>;
 
 describe('PeopleView', () => {
   it('lists the people from the bot with the last seen time and a role icon', async () => {

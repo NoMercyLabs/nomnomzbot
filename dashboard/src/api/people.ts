@@ -177,11 +177,11 @@ async function readProfile(channelId: string, userId: string): Promise<PersonPro
 export function viewerProfileOptions(
   channelId: string,
   internalUserId: string,
-): { queryKey: KeyParts; queryFn: () => Promise<PersonProfile | null> } {
+) {
   return {
     queryKey: viewerProfileKey(channelId, internalUserId),
     queryFn: () => readProfile(channelId, internalUserId),
-  };
+  } as const satisfies { queryKey: KeyParts; queryFn: () => Promise<PersonProfile | null> };
 }
 
 // The id is the internal Guid (CommunityRow.internalUserId). A person without one has no profile to read.
@@ -219,11 +219,11 @@ async function readNotes(channelId: string, userId: string): Promise<UserNote[]>
 export function userNotesOptions(
   channelId: string,
   userId: string,
-): { queryKey: KeyParts; queryFn: () => Promise<UserNote[]> } {
+) {
   return {
     queryKey: userNotesKey(channelId, userId),
     queryFn: () => readNotes(channelId, userId),
-  };
+  } as const satisfies { queryKey: KeyParts; queryFn: () => Promise<UserNote[]> };
 }
 
 // The id is the Twitch user id.

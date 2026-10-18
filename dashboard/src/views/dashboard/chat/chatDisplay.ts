@@ -68,7 +68,7 @@ export const gigantifiedEmoteHeight = '5rem';
 export function emoteVars(
   line: Pick<ChatLine, 'fragments' | 'messageType'>,
   display: Pick<ChatDisplay, 'emoteSize'>,
-): { '--emote-h': string; '--line-h': string } {
+) {
   // A Gigantified Emote Power-up shows its emote large, like Twitch does.
   const emoteHeight = line.messageType === 'power_ups_gigantified_emote'
     ? gigantifiedEmoteHeight
@@ -81,7 +81,7 @@ export function emoteVars(
     '--line-h': hasEmote
       ? `max(1.5rem, ${emoteHeight})`
       : '1.5rem',
-  };
+  } as const satisfies { '--emote-h': string; '--line-h': string };
 }
 
 // A chatter color as the Display option asks: off, as sent, or lifted to a readable contrast.

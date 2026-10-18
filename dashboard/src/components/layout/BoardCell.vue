@@ -25,10 +25,10 @@ const props = withDefaults(defineProps<{
 const shows = inject(boardKey, () => true);
 
 // The span applies on a board wide enough for its columns; narrower, the board shows one panel at a time.
-const placement = computed<Record<string, string>>(() => ({
+const placement = computed(() => ({
   '--cell-span': `span ${props.span}`,
   '--cell-rows': `span ${props.rows}`,
-}));
+}) as const satisfies Record<string, string>);
 </script>
 
 <template>

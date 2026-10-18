@@ -118,9 +118,9 @@ export function useSetScriptEnabled(): UseMutationReturnType<
       current: CodeScriptSummary[] | undefined,
       { id, isEnabled }: EnabledChange,
     ): CodeScriptSummary[] =>
-      (current ?? []).map((script): CodeScriptSummary =>
+      (current ?? []).map((script) =>
         script.id === id
-          ? { ...script, isEnabled }
+          ? { ...script, isEnabled } as const satisfies CodeScriptSummary
           : script,
       ),
   });
@@ -203,7 +203,7 @@ function retryWindow(response: Response): number | null {
 }
 
 // The dry-run result in the shape the editor and the runs panel read.
-export function toTestRunResult(dto: components['schemas']['TestRunResult']): TestRunResult {
+export function toTestRunResult(dto: components['schemas']['TestRunResult']) {
   const position = dto.errorPosition;
   const message = dto.error ?? '';
 
@@ -237,7 +237,7 @@ export function toTestRunResult(dto: components['schemas']['TestRunResult']): Te
           ],
         }
       : {}),
-  };
+  } as const satisfies TestRunResult;
 }
 
 // A dry run: nothing it does reaches chat or the channel. Too many runs in a short time is an outcome, not an error.
@@ -269,10 +269,10 @@ export async function runScriptTest(
   return { kind: 'ok', result: toTestRunResult(data.data) };
 }
 
-export function toEditorOutcome(outcome: TestRunOutcome): EditorOutcome<TestRunResult> {
+export function toEditorOutcome(outcome: TestRunOutcome) {
   return outcome.kind === 'ok'
-    ? { ok: true, value: outcome.result }
-    : { ok: false, message: outcome.message };
+    ? { ok: true, value: outcome.result } as const satisfies EditorOutcome<TestRunResult>
+    : { ok: false, message: outcome.message } as const satisfies EditorOutcome<TestRunResult>;
 }
 
 export async function fetchTestTriggers(): Promise<TestTrigger[]> {

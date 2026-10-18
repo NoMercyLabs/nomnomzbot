@@ -67,7 +67,7 @@ const eventTypes = computed(() => {
   return chosen?.subscribedEventTypes ?? [];
 });
 
-const scope = computed<ReplayScope | null>(() => {
+const scope = computed(() => {
   if (
     broadcasterId.value === '' ||
     projectionName.value === '' ||
@@ -84,7 +84,7 @@ const scope = computed<ReplayScope | null>(() => {
     eventType: eventType.value === allTypes
       ? null
       : eventType.value,
-  };
+  } as const satisfies ReplayScope;
 });
 
 // A count belongs to the exact scope it was taken for; any change to the scope drops it.

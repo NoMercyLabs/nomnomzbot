@@ -28,6 +28,10 @@ function isLoose(type: ts.Type): boolean {
   return type.isUnion() && type.types.some(isLoose);
 }
 
+function isNullish(type: ts.Type): boolean {
+  return (type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)) !== 0;
+}
+
 function isLiteralNode(node: ts.Node): boolean {
   return (
     ts.isObjectLiteralExpression(node) ||
@@ -310,7 +314,61 @@ const arrayMethods = new Set([
 
 type Callback = TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression;
 
+type Fn = Callback | TSESTree.FunctionDeclaration;
+
 type Services = ReturnType<typeof ESLintUtils.getParserServices>;
+
+type CallbackTarget = {
+  callback: Callback;
+  literals: TSESTree.Expression[];
+  typeNode: TSESTree.TypeNode;
+  removal: TSESTree.Node;
+};
+
+// The name a function goes by: `function a`, `const a = () => ...`, `a() {}` in a class or object.
+function nameOf(node: Fn): string | null {
+  if (node.id?.name !== undefined)
+    return node.id.name;
+
+  const parent = node.parent;
+
+  if (parent?.type === 'VariableDeclarator' && parent.id.type === 'Identifier')
+    return parent.id.name;
+
+  const keyed = parent?.type === 'MethodDefinition' || parent?.type === 'Property';
+
+  return keyed && !parent.computed && parent.key.type === 'Identifier'
+    ? parent.key.name
+    : null;
+}
+
+// TS cannot infer the return type of a function that calls itself, so that annotation stays.
+function callsItself(node: Fn, sourceCode: Readonly<TSESLint.SourceCode>): boolean {
+  const name = nameOf(node);
+
+  if (name === null)
+    return false;
+
+  const escaped = name.replaceAll('$', '\\$');
+
+  return new RegExp(`\\b${escaped}\\b`).test(sourceCode.getText(node.body));
+}
+
+// An overload list states the signatures; the implementation return type stays with them.
+function isOverloaded(node: Fn, services: Services, checker: ts.TypeChecker): boolean {
+  const tsNode = services.esTreeNodeToTSNodeMap.get(node);
+  const named = ts.isFunctionDeclaration(tsNode) || ts.isMethodDeclaration(tsNode);
+
+  if (!named || tsNode.name === undefined)
+    return false;
+
+  const declarations = checker.getSymbolAtLocation(tsNode.name)?.declarations ?? [];
+
+  return (
+    declarations.filter((item) => ts.isFunctionDeclaration(item) || ts.isMethodDeclaration(item))
+      .length > 1
+  );
+}
 
 // The array method a callback is passed to, or null when it is anything else.
 function arrayMethodOf(node: Callback, checker: ts.TypeChecker, services: Services): string | null {
@@ -321,7 +379,11 @@ function arrayMethodOf(node: Callback, checker: ts.TypeChecker, services: Servic
 
   const callee = call.callee;
 
-  if (callee.type !== 'MemberExpression' || callee.computed || callee.property.type !== 'Identifier')
+  if (
+    callee.type !== 'MemberExpression' ||
+    callee.computed ||
+    callee.property.type !== 'Identifier'
+  )
     return null;
 
   if (!arrayMethods.has(callee.property.name))
@@ -362,7 +424,8 @@ function loosensLiteral(
 
   if (declared.isUnion())
     return declared.types.some((member) =>
-      loosensLiteral(literal, member, checker, services, depth));
+      loosensLiteral(literal, member, checker, services, depth),
+    );
 
   if (literal.type === 'ArrayExpression')
     return loosensList(literal, declared, checker, services, depth);
@@ -376,6 +439,65 @@ function loosensLiteral(
     return (
       stated?.type === 'Property' &&
       loosensLiteral(stated.value, checker.getTypeOfSymbol(field), checker, services, depth - 1)
+    );
+  });
+}
+
+function isWidePrimitive(type: ts.Type): boolean {
+  if (type.isUnion())
+    return type.types.some(isWidePrimitive);
+
+  return (
+    (type.flags & primitiveFlags) !== 0 &&
+    !type.isLiteral() &&
+    (type.flags & ts.TypeFlags.BooleanLiteral) === 0
+  );
+}
+
+function isTokenLiteral(node: TSESTree.Node): boolean {
+  return (
+    (node.type === 'Literal' && node.value !== null && typeof node.value !== 'object') ||
+    (node.type === 'TemplateLiteral' && node.expressions.length === 0)
+  );
+}
+
+// `as const` turns `'x'` into the type `'x'`: a field declared `string` (a form's blank state)
+// would then reject every later write, so such a literal keeps its annotation.
+function narrowsLiteral(
+  literal: TSESTree.Node,
+  declared: ts.Type,
+  checker: ts.TypeChecker,
+): boolean {
+  if (isTokenLiteral(literal))
+    return isWidePrimitive(declared) || (declared.flags & ts.TypeFlags.Boolean) !== 0;
+
+  if (declared.isUnion())
+    return declared.types.some((member) => narrowsLiteral(literal, member, checker));
+
+  if (literal.type === 'ArrayExpression') {
+    const row = checker.getIndexTypeOfType(declared, ts.IndexKind.Number);
+
+    return (
+      row !== undefined &&
+      literal.elements.some(
+        (element) =>
+          element !== null &&
+          element.type !== 'SpreadElement' &&
+          !isTokenLiteral(element) &&
+          narrowsLiteral(element, row, checker),
+      )
+    );
+  }
+
+  if (literal.type !== 'ObjectExpression')
+    return false;
+
+  return declared.getProperties().some((field) => {
+    const stated = literal.properties.find((property) => propertyName(property) === field.name);
+
+    return (
+      stated?.type === 'Property' &&
+      narrowsLiteral(stated.value, checker.getTypeOfSymbol(field), checker)
     );
   });
 }
@@ -417,6 +539,23 @@ function isTuple(type: ts.Type, checker: ts.TypeChecker): type is ts.TupleTypeRe
   return checker.isTupleType(type);
 }
 
+// An object or array literal is never null or undefined: it satisfies only the other members.
+function withoutEmptyMembers(
+  typeNode: TSESTree.TypeNode,
+  sourceCode: Readonly<TSESLint.SourceCode>,
+): string {
+  if (typeNode.type !== 'TSUnionType')
+    return sourceCode.getText(typeNode);
+
+  const kept = typeNode.types.filter(
+    (member) => member.type !== 'TSNullKeyword' && member.type !== 'TSUndefinedKeyword',
+  );
+
+  return kept.length === 0 || kept.length === typeNode.types.length
+    ? sourceCode.getText(typeNode)
+    : kept.map((member) => sourceCode.getText(member)).join(' | ');
+}
+
 function frozenTypeText(
   declared: ts.Type,
   text: string,
@@ -434,6 +573,16 @@ function isLiteral(node: TSESTree.Node | null): node is TSESTree.Expression {
   return node?.type === 'ObjectExpression' || node?.type === 'ArrayExpression';
 }
 
+// A returned `cond ? { ... } : null` has a literal in each branch that is one.
+function branchLiterals(node: TSESTree.Node | null): TSESTree.Expression[] {
+  if (node?.type === 'ConditionalExpression')
+    return [...branchLiterals(node.consequent), ...branchLiterals(node.alternate)];
+
+  return isLiteral(node)
+    ? [node]
+    : [];
+}
+
 export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
   meta: {
     type: 'suggestion',
@@ -445,6 +594,12 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
       table: 'A constant object states its type as `{ ... } as const satisfies T`.',
       list: 'A constant list states its type as `[ ... ] as const satisfies readonly T[]`.',
       callbackParam: 'The list already types this callback parameter. Drop the annotation.',
+      bareSatisfies:
+        'A literal states its type as `as const satisfies T`, never a bare `satisfies T`.',
+      callbackTarget:
+        'The generic or annotation names what the callback returns. State it on the literal: `computed(() => ({ ... }) as const satisfies T)`.',
+      literalNeverNull:
+        'A literal is never null or undefined: `as const satisfies T`, without the empty members of the union.',
       callbackReturn:
         'Type the returned literal, not the callback: `(x) => ({ ... }) as const satisfies T`.',
     },
@@ -461,7 +616,7 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
     // The literal's closing parenthesis comes first when the arrow body is `({ ... })`.
     const literalEnd = (
       literal: TSESTree.Expression,
-      callback: Callback,
+      callback: Fn,
     ): TSESTree.Node | TSESTree.Token => {
       const before = context.sourceCode.getTokenBefore(literal);
       const arrow = before === null
@@ -509,9 +664,9 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
     };
 
     const checkReturn = (
-      node: Callback,
+      node: Fn,
       returns: TSESTree.ReturnStatement[],
-      method: string,
+      method: string | null,
     ): void => {
       const annotation = node.returnType;
 
@@ -523,7 +678,7 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
         node.body.type === 'BlockStatement'
           ? returns.map((item) => item.argument)
           : [node.body];
-      const literals = returned.filter(isLiteral);
+      const literals = returned.flatMap(branchLiterals);
       const declared = toType(annotation.typeAnnotation);
 
       // A named type that resolves to `any` (an import from a .vue file) cannot be judged: report only.
@@ -531,9 +686,27 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
 
       if (literals.length === 0 || (isLoose(declared) && !unresolved)) return;
 
+      // Outside an array callback, a function that calls itself or has overloads keeps its
+      // annotation, and an unresolved type is no reason to fail the run.
+      const general = method === null;
+      const keeps =
+        unresolved ||
+        callsItself(node, context.sourceCode) ||
+        isOverloaded(node, services, checker);
+
+      // A declared union (`T | null`) is what a type predicate or a narrowing consumer reads: the
+      // inferred literal type would no longer match it, so the annotation stays.
+      // A string-keyed record keeps it too: the literals of two returns infer two different shapes.
+      const keyed = checker.getIndexTypeOfType(declared, ts.IndexKind.String) !== undefined;
+
+      const nullable = declared.isUnion() && declared.types.some(isNullish);
+
+      if (general && (keeps || keyed || nullable)) return;
+
       // `as const` must not freeze a list the code mutates; a return that is no literal
       // (`return reward`) already has its type and stays as it is.
-      const flat = isMutableFlatList(declared, method, checker);
+      const kind = method ?? '';
+      const flat = isMutableFlatList(declared, kind, checker);
       const loosens = (literal: TSESTree.Expression): boolean =>
         flat && literal.type === 'ArrayExpression'
           ? loosensList(literal, declared, checker, services, shapeDepth, true)
@@ -541,10 +714,17 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
       const safe = !unresolved && !literals.some(loosens);
       const typeText = frozenTypeText(
         declared,
-        context.sourceCode.getText(annotation.typeAnnotation),
-        method,
+        withoutEmptyMembers(annotation.typeAnnotation, context.sourceCode),
+        kind,
         checker,
       );
+
+      // A literal that `as const` would loosen or narrow (a mutable list, `''` for `string`) keeps
+      // the annotation its consumers need; the owner never accepts a bare `satisfies`.
+      if (
+        general &&
+        (!safe || literals.some((literal) => narrowsLiteral(literal, declared, checker)))
+      ) return;
 
       context.report({
         node: annotation,
@@ -553,19 +733,135 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
           ? (fixer) => [
               fixer.remove(annotation),
               ...literals.map((literal) =>
-                fixer.insertTextAfter(literalEnd(literal, node), ` as const satisfies ${typeText}`)),
+                fixer.insertTextAfter(literalEnd(literal, node), ` as const satisfies ${typeText}`),
+              ),
             ]
           : null,
       });
     };
 
-    const leave = (node: Callback): void => {
+    const returnedLiterals = (callback: Callback): TSESTree.Expression[] => {
+      if (callback.body.type !== 'BlockStatement')
+        return branchLiterals(callback.body);
+
+      // One return that is no literal (`return accepted`) makes the getter's type a union the
+      // generic keeps whole: all or none.
+      const returns = returnsWithin(callback.body);
+
+      return returns.every((item) => branchLiterals(item.argument).length > 0)
+        ? returns.flatMap((item) => branchLiterals(item.argument))
+        : [];
+    };
+
+    // Every `return` of this function, nested ifs and loops included, nested functions excluded.
+    const returnsWithin = (node: TSESTree.Node): TSESTree.ReturnStatement[] => {
+      if (node.type === 'ReturnStatement')
+        return [node];
+
+      if (
+        node.type === 'ArrowFunctionExpression' ||
+        node.type === 'FunctionExpression' ||
+        node.type === 'FunctionDeclaration'
+      )
+        return [];
+
+      const keys = context.sourceCode.visitorKeys[node.type] ?? [];
+
+      return keys.flatMap((key) => {
+        const child = (node as unknown as Record<string, unknown>)[key];
+        const children = Array.isArray(child)
+          ? child
+          : [child];
+
+        return children
+          .filter(
+            (entry): entry is TSESTree.Node =>
+              typeof entry === 'object' && entry !== null && 'type' in entry,
+          )
+          .flatMap(returnsWithin);
+      });
+    };
+
+    // `computed<T>(() => ({ ... }))` and `const x: Ref<T> = computed(() => ({ ... }))` name the
+    // callback's result type on the call; the owner wants it on the literal, as `as const satisfies T`.
+    const callbackTargetOf = (call: TSESTree.CallExpression): CallbackTarget | null => {
+      const parent = call.parent;
+      const generic = call.typeArguments?.params.length === 1
+        ? call.typeArguments
+        : undefined;
+      const declarator =
+        parent.type === 'VariableDeclarator' &&
+        parent.init === call &&
+        parent.id.type === 'Identifier'
+          ? parent.id.typeAnnotation
+          : undefined;
+      const reference = declarator?.typeAnnotation;
+      const typeNode =
+        generic?.params[0] ??
+        (reference?.type === 'TSTypeReference' && reference.typeArguments?.params.length === 1
+          ? reference.typeArguments.params[0]
+          : undefined);
+      const callback = call.arguments.find(
+        (argument) =>
+          argument.type === 'ArrowFunctionExpression' || argument.type === 'FunctionExpression',
+      );
+
+      if (typeNode === undefined || callback === undefined)
+        return null;
+
+      if (callback.type !== 'ArrowFunctionExpression' && callback.type !== 'FunctionExpression')
+        return null;
+
+      if (callback.async || callback.generator || callback.returnType !== undefined)
+        return null;
+
+      const literals = returnedLiterals(callback);
+      const declared = toType(typeNode);
+      const tsCallback = services.esTreeNodeToTSNodeMap.get(callback) as ts.Expression;
+      const signature = checker.getContextualType(tsCallback)?.getCallSignatures()[0];
+      const result =
+        signature === undefined
+          ? undefined
+          : checker.getReturnTypeOfSignature(signature);
+
+      if (literals.length === 0 || result === undefined || isLoose(declared) || isLoose(result))
+        return null;
+
+      if (
+        !checker.isTypeAssignableTo(declared, result) ||
+        !checker.isTypeAssignableTo(result, declared)
+      )
+        return null;
+
+      if (literals.some((literal) => loosensLiteral(literal, declared, checker, services)))
+        return null;
+
+      if (literals.some((literal) => narrowsLiteral(literal, declared, checker)))
+        return null;
+
+      const removal = generic ?? declarator;
+
+      return removal === undefined
+        ? null
+        : {
+            callback,
+            literals,
+            typeNode,
+            removal,
+          };
+    };
+
+    const leave = (node: Fn): void => {
       const returns = functions.pop() ?? [];
-      const method = arrayMethodOf(node, checker, services);
+      const method =
+        node.type === 'FunctionDeclaration'
+          ? null
+          : arrayMethodOf(node, checker, services);
 
-      if (method === null) return;
+      if (method !== null && node.type !== 'FunctionDeclaration') {
+        checkParameters(node, method);
+      }
 
-      checkParameters(node, method);
       checkReturn(node, returns, method);
     };
 
@@ -581,8 +877,62 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
       FunctionDeclaration: (): void => {
         functions.push([]);
       },
-      'FunctionDeclaration:exit': (): void => {
-        functions.pop();
+      'FunctionDeclaration:exit': leave,
+      TSSatisfiesExpression(node): void {
+        const inner =
+          node.expression.type === 'TSAsExpression'
+            ? node.expression.expression
+            : node.expression;
+
+        if (!isLiteral(inner)) return;
+
+        const keyword = context.sourceCode.getTokenBefore(node.typeAnnotation);
+        const last = keyword === null
+          ? null
+          : context.sourceCode.getTokenBefore(keyword);
+        const stated = context.sourceCode.getText(node.typeAnnotation);
+        const literalOnly = withoutEmptyMembers(node.typeAnnotation, context.sourceCode);
+
+        if (last === null) return;
+
+        if (last.value === 'const' && literalOnly !== stated) {
+          context.report({
+            node,
+            messageId: 'literalNeverNull',
+            fix: (fixer) => fixer.replaceText(node.typeAnnotation, literalOnly),
+          });
+
+          return;
+        }
+
+        if (node.expression.type === 'TSAsExpression') return;
+
+        context.report({
+          node,
+          messageId: 'bareSatisfies',
+          fix: (fixer) => fixer.insertTextAfter(last, ' as const'),
+        });
+      },
+      CallExpression(node): void {
+        const target = callbackTargetOf(node);
+
+        if (target === null) return;
+
+        const typeText = context.sourceCode.getText(target.typeNode);
+
+        context.report({
+          node: target.removal,
+          messageId: 'callbackTarget',
+          fix: (fixer) => [
+            fixer.remove(target.removal),
+            ...target.literals.map((literal) =>
+              fixer.insertTextAfter(
+                literalEnd(literal, target.callback),
+                ` as const satisfies ${typeText}`,
+              ),
+            ),
+          ],
+        });
       },
       ReturnStatement(node): void {
         functions.at(-1)?.push(node);
@@ -592,6 +942,8 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
         const init = node.init;
 
         if (annotation === undefined || init === null) return;
+
+        if (init.type === 'CallExpression' && callbackTargetOf(init) !== null) return;
 
         if (node.id.type !== 'Identifier' || node.parent.kind !== 'const') return;
 

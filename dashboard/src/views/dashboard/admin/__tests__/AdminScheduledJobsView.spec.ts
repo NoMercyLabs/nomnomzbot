@@ -33,7 +33,7 @@ const calls: Call[] = [];
 let jobs: Record<string, unknown>[] = [];
 let refused: boolean = false;
 
-const job = (id: string, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+const job = (id: string, over: Record<string, unknown> = {}) => ({
   id,
   broadcasterId: 'b1',
   channelDisplayName: 'Stoney_Eagle',
@@ -48,7 +48,7 @@ const job = (id: string, over: Record<string, unknown> = {}): Record<string, unk
   triggeredByDisplayName: 'viewer_one',
   canRetry: false,
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 async function answer(method: string, path: string, options?: Options) {
   calls.push({

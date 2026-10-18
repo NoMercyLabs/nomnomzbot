@@ -278,9 +278,9 @@ export function useSetPersonVoice(
     apply: (
       _current: PersonVoice | null | undefined,
       { voice }: PersonVoiceChange,
-    ): PersonVoice | null =>
+    ) =>
       voice
-        ? { voiceId: voice.id, voice }
+        ? { voiceId: voice.id, voice } as const satisfies PersonVoice
         : null,
   });
 }

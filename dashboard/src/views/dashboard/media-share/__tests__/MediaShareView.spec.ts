@@ -44,7 +44,7 @@ const config = {
   perUserCooldownSeconds: 30,
 };
 
-const item = (id: string, status: string): Row => ({
+const item = (id: string, status: string) => ({
   id,
   requesterDisplayName: `viewer-${id}`,
   sourceType: 'twitch_clip',
@@ -52,7 +52,7 @@ const item = (id: string, status: string): Row => ({
   title: `Clip ${id}`,
   status,
   requestedAt: '2026-10-01T10:00:00Z',
-});
+}) as const satisfies Row;
 
 const answer = (data: unknown): { data: { data: unknown }; response: { status: number } } => ({
   data: { data },

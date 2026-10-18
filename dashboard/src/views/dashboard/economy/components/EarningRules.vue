@@ -68,7 +68,7 @@ const confirmOpen = computed<boolean>({
   },
 });
 
-function changeOf(row: EarningRule): EarningRuleChange {
+function changeOf(row: EarningRule) {
   return {
     source: row.source,
     isEnabled: row.isEnabled,
@@ -78,7 +78,7 @@ function changeOf(row: EarningRule): EarningRuleChange {
     perStreamCap: row.perStreamCap,
     minRoleLevel: row.minRoleLevel,
     bonusConfig: row.bonusConfig,
-  };
+  } as const satisfies EarningRuleChange;
 }
 
 function toggle(row: EarningRule): void {

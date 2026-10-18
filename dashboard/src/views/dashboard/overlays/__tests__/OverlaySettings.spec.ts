@@ -134,7 +134,7 @@ const widget = (
   id: string,
   name: string,
   over: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+) => ({
   id,
   name,
   description: null,
@@ -154,7 +154,7 @@ const widget = (
   isAttached: false,
   isCustomized: false,
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/client', () => ({
   client: {

@@ -52,12 +52,12 @@ export function channelAccessOptions(
 // What the signed-in person may do in a channel: the action keys the bot's own gate checks
 // ([RequireAction] on every endpoint), the broadcaster's overrides included. Until the bot has
 // answered, nothing is allowed, so no control offers a change that cannot save.
-export function useChannelAccess(channelId: MaybeRefOrGetter<string | null>): ChannelAccess {
+export function useChannelAccess(channelId: MaybeRefOrGetter<string | null>) {
   const query = channelQuery(channelId, channelAccessKey, readAccess);
   const keys = computed(() => new Set<string>(query.data.value?.heldActionKeys ?? []));
 
   return {
     known: computed(() => query.data.value !== undefined),
     can: (actionKey) => keys.value.has(actionKey),
-  };
+  } as const satisfies ChannelAccess;
 }

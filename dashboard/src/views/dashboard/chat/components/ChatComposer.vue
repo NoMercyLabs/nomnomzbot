@@ -282,7 +282,7 @@ const boxClass = [
   'leading-7 break-words whitespace-pre-wrap shadow-xs transition-[color,box-shadow] outline-none md:text-sm',
 ].join(' ');
 
-const boxAttributes = computed<Record<string, string>>(() => {
+const boxAttributes = computed(() => {
   const always = {
     'data-composer': '',
     role: 'combobox',
@@ -296,10 +296,10 @@ const boxAttributes = computed<Record<string, string>>(() => {
 
   return listOpen.value
     ? {
-        ...always,
-        'aria-controls': listId,
-        'aria-activedescendant': `${listId}-${list.active.value}`,
-      }
+      ...always,
+      'aria-controls': listId,
+      'aria-activedescendant': `${listId}-${list.active.value}`,
+    } as const satisfies Record<string, string>
     : always;
 });
 

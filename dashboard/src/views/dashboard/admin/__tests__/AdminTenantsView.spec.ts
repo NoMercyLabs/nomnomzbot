@@ -60,9 +60,9 @@ vi.mock('@/composables/usePlatformCan', () => ({
 }));
 
 vi.mock('@/api/client', () => {
-  const answer = (method: string, path: string): Record<string, unknown> => {
+  const answer = (method: string, path: string) => {
     if (path.endsWith('/admin/tenants'))
-      return { data: { data: [tenantRow], total: 1 } };
+      return { data: { data: [tenantRow], total: 1 } } as const satisfies Record<string, unknown>;
 
     if (path.endsWith('/members'))
       return {
@@ -79,7 +79,7 @@ vi.mock('@/api/client', () => {
           ],
           total: 1,
         },
-      };
+      } as const satisfies Record<string, unknown>;
 
     if (path.endsWith('/limits') && method === 'GET')
       return {
@@ -97,7 +97,7 @@ vi.mock('@/api/client', () => {
             },
           ],
         },
-      };
+      } as const satisfies Record<string, unknown>;
 
     if (path.endsWith('/erase/preview'))
       return {
@@ -110,20 +110,20 @@ vi.mock('@/api/client', () => {
             permanentAfterUtc: '2026-11-18T10:00:00Z',
           },
         },
-      };
+      } as const satisfies Record<string, unknown>;
 
     if (path.endsWith('/export'))
-      return { data: { data: '{"channel":"stoney_eagle"}' } };
+      return { data: { data: '{"channel":"stoney_eagle"}' } } as const satisfies Record<string, unknown>;
 
     if (path.endsWith('/remigrate'))
       return {
         data: { data: { migrationsAppliedThisCall: ['M1'], stillPending: [] } },
-      };
+      } as const satisfies Record<string, unknown>;
 
     if (path.endsWith('/admin/tenants/{broadcasterId}'))
-      return { data: { data: detail } };
+      return { data: { data: detail } } as const satisfies Record<string, unknown>;
 
-    return { data: { data: {} } };
+    return { data: { data: {} } } as const satisfies Record<string, unknown>;
   };
 
   const handle = async (method: string, path: string, options?: Options) => {

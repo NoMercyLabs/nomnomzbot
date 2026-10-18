@@ -77,12 +77,12 @@ function rowsOf(reward: Reward): Redemption[] {
 }
 
 const filters = computed<Filter[]>(() => {
-  const perReward = (reward: Reward): Filter => ({
+  const perReward = (reward: Reward) => ({
     id: reward.id,
     title: reward.title,
     count: rowsOf(reward).length,
     reward,
-  });
+  }) as const satisfies Filter;
   const everything: Filter = {
     id: allRewards,
     title: t('dashboard.channelPoints.redemptions.all'),

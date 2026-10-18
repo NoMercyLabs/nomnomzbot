@@ -60,14 +60,14 @@ export function pageName(name: string): string {
 
 // Where a link to a page goes: the twin under the channel prefix, so no click bounces through a redirect.
 // Without a channel (a viewer, or the list not loaded yet) the link keeps the short page.
-export function pageLocation(name: string, login: string | null): RouteLocationRaw {
+export function pageLocation(name: string, login: string | null) {
   if (login === null)
-    return { name };
+    return { name } as const satisfies RouteLocationRaw;
 
   return {
     name: `${variantMark}${name}`,
     params: { [channelParam]: login },
-  };
+  } as const satisfies RouteLocationRaw;
 }
 
 function baseName(route: RouteLocationNormalizedLoaded): string {
@@ -79,7 +79,7 @@ function baseName(route: RouteLocationNormalizedLoaded): string {
 export function switchLocation(
   route: RouteLocationNormalizedLoaded,
   login: string,
-): RouteLocationRaw {
+) {
   const itemParams = Object.keys(route.params).filter((key) => key !== channelParam);
   const name = itemParams.length > 0
     ? 'dashboard-home'
@@ -92,7 +92,7 @@ export function switchLocation(
     name: `${variantMark}${name}`,
     params: { [channelParam]: login },
     ...keep,
-  };
+  } as const satisfies RouteLocationRaw;
 }
 
 // A page of the unprefixed dashboard: /app or /app/<page>.
@@ -108,7 +108,7 @@ function isShortChannelPage(to: RouteLocationNormalized): boolean {
 }
 
 // The same address under a channel prefix, keeping query and hash. It replaces the entry: no extra history.
-function prefixed(to: RouteLocationNormalized, login: string): RouteLocationRaw {
+function prefixed(to: RouteLocationNormalized, login: string) {
   const rest = to.path.slice('/app'.length);
 
   return {
@@ -116,7 +116,7 @@ function prefixed(to: RouteLocationNormalized, login: string): RouteLocationRaw 
     query: to.query,
     hash: to.hash,
     replace: true,
-  };
+  } as const satisfies RouteLocationRaw;
 }
 
 // Moving inside a channel route keeps the prefix, whether the link is a name or a path.
@@ -133,7 +133,7 @@ export function channelPrefixGuard(
 }
 
 // An old /app/u/<name>/admin/... (or /settings) address has no twin; it opens the platform page at /app/....
-export function platformPathGuard(to: RouteLocationNormalized): true | RouteLocationRaw {
+export function platformPathGuard(to: RouteLocationNormalized) {
   if (!to.path.startsWith(channelPrefix))
     return true;
 
@@ -148,7 +148,7 @@ export function platformPathGuard(to: RouteLocationNormalized): true | RouteLoca
     query: to.query,
     hash: to.hash,
     replace: true,
-  };
+  } as const satisfies true | RouteLocationRaw;
 }
 
 // Opening /app/<page> from outside a channel route lands on /app/u/<current channel>/<page>.

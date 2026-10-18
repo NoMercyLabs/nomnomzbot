@@ -121,7 +121,7 @@ export interface UseReadability {
   applyPreset: (preset: ReadabilityPreset) => void;
 }
 
-export function useReadability(): UseReadability {
+export function useReadability() {
   const settings: Ref<Readability> = useStorage<Readability>(
     readabilityStorageKey,
     { ...readabilityDefaults },
@@ -158,5 +158,5 @@ export function useReadability(): UseReadability {
     settings,
     activePreset,
     applyPreset,
-  };
+  } as const satisfies UseReadability;
 }

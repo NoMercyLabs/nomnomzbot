@@ -41,7 +41,7 @@ const ok = (data: unknown): Answer => ({
   response: { status: 200, ok: true },
 });
 
-const builtin = (overrides: Row = {}): Row => ({
+const builtin = (overrides: Row = {}) => ({
   builtinKey: 'uptime',
   name: '!uptime',
   isEnabled: true,
@@ -56,7 +56,7 @@ const builtin = (overrides: Row = {}): Row => ({
   userCooldownSecondsOverride: null,
   minPermissionLevelOverride: null,
   ...overrides,
-});
+}) as const satisfies Row;
 
 const slot = (overrides: Row = {}): Row => ({
   builtinKey: 'uptime',
@@ -79,11 +79,11 @@ const slot = (overrides: Row = {}): Row => ({
   ...overrides,
 });
 
-const group = (slots: Row[]): Row => ({
+const group = (slots: Row[]) => ({
   builtinKey: 'uptime',
   commandKeys: ['uptime'],
   replies: slots,
-});
+}) as const satisfies Row;
 
 vi.mock('@/api/client', () => ({
   client: {

@@ -34,7 +34,7 @@ let deliveries: Record<string, unknown>[] = [];
 let total: number = 0;
 let refused: boolean = false;
 
-const delivery = (id: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+const delivery = (id: number, over: Record<string, unknown> = {}) => ({
   id,
   broadcasterId: 'b1',
   endpointId: 'e1',
@@ -48,7 +48,7 @@ const delivery = (id: number, over: Record<string, unknown> = {}): Record<string
   error: null,
   createdAt: '2026-10-01T10:00:00Z',
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 async function answer(method: string, path: string, options?: Options) {
   calls.push({

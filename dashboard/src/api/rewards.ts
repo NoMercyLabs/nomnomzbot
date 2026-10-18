@@ -202,9 +202,9 @@ export function withDecision(
   rows: Redemption[] | undefined,
   { ids, action }: RedemptionDecision,
 ): Redemption[] {
-  return (rows ?? []).map((row): Redemption =>
+  return (rows ?? []).map((row) =>
     ids.includes(row.redemptionId)
-      ? { ...row, status: decidedStatus[action] }
+      ? { ...row, status: decidedStatus[action] } as const satisfies Redemption
       : row);
 }
 

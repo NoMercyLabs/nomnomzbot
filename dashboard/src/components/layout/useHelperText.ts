@@ -13,10 +13,7 @@ import { useI18n } from 'vue-i18n';
 import type { TemplateHelper } from '@/api/templates';
 
 // The bot sends a translation key for each helper, never the sentence. A key this dashboard has no words for shows nothing.
-export function useHelperText(): {
-  describe: (helper: TemplateHelper) => string;
-  groupLabel: (group: string) => string;
-} {
+export function useHelperText() {
   const { t, te } = useI18n();
 
   return {
@@ -28,5 +25,8 @@ export function useHelperText(): {
       te(`template.group.${group}`)
         ? t(`template.group.${group}`)
         : group,
+  } as const satisfies {
+    describe: (helper: TemplateHelper) => string;
+    groupLabel: (group: string) => string;
   };
 }

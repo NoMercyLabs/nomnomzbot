@@ -110,15 +110,15 @@ async function readChatHistory(queries: QueryClient, id: string): Promise<ChatLi
 export function chatHistoryOptions(
   queries: QueryClient,
   id: string,
-): {
-  queryKey: KeyParts;
-  queryFn: () => Promise<ChatLine[]>;
-  staleTime: number;
-} {
+) {
   return {
     queryKey: chatKey(id),
     queryFn: () => readChatHistory(queries, id),
     staleTime: Infinity,
+  } as const satisfies {
+    queryKey: KeyParts;
+    queryFn: () => Promise<ChatLine[]>;
+    staleTime: number;
   };
 }
 
@@ -160,15 +160,15 @@ const chatEmotesKey = (channelId: string | null): KeyParts => [...chatKey(channe
 
 export function chatEmotesOptions(
   id: string,
-): {
-  queryKey: KeyParts;
-  queryFn: () => Promise<ChatEmoteEntry[]>;
-  staleTime: number;
-} {
+) {
   return {
     queryKey: chatEmotesKey(id),
     queryFn: () => readChatEmotes(id),
     staleTime: 5 * 60_000,
+  } as const satisfies {
+    queryKey: KeyParts;
+    queryFn: () => Promise<ChatEmoteEntry[]>;
+    staleTime: number;
   };
 }
 

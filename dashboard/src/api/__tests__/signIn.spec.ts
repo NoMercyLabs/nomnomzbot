@@ -69,13 +69,16 @@ async function load(): Promise<[SignIn, Auth]> {
 type Watch = { status: () => string | undefined; leave: () => void };
 
 // Runs the query the way the code panel does; leaving the scope is the panel unmounting.
-function watchApproval(signIn: SignIn): Watch {
+function watchApproval(signIn: SignIn) {
   const scope = effectScope();
   const approval = scope.run(() =>
     useQuery(signIn.deviceApprovalQuery('twitch', start), new QueryClient()),
   )!;
 
-  return { status: () => approval.data.value?.status, leave: () => scope.stop() };
+  return {
+    status: () => approval.data.value?.status,
+    leave: () => scope.stop(),
+  } as const satisfies Watch;
 }
 
 beforeEach(() => {

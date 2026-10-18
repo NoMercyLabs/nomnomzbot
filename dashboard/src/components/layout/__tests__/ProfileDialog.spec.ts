@@ -36,7 +36,7 @@ let vipWriteFails = false;
 // Fresh per test: a VIP save changes the stored person, as the server's record would.
 let people: Record<string, Record<string, unknown>> = {};
 
-const freshPeople = (): Record<string, Record<string, unknown>> => ({
+const freshPeople = () => ({
   u1: {
     id: 'u1',
     internalUserId: 'g1',
@@ -99,12 +99,12 @@ const freshPeople = (): Record<string, Record<string, unknown>> => ({
       },
     ],
   },
-});
+}) as const satisfies Record<string, Record<string, unknown>>;
 
 // The moderator notes by Twitch id (what GET moderation/users/{userId}/notes answers); fresh per test.
 let notes: Record<string, Record<string, unknown>[]> = {};
 
-const freshNotes = (): Record<string, Record<string, unknown>[]> => ({
+const freshNotes = () => ({
   u1: [
     {
       id: 7,
@@ -116,7 +116,7 @@ const freshNotes = (): Record<string, Record<string, unknown>[]> => ({
       updatedAt: '2026-09-20T10:00:00Z',
     },
   ],
-});
+}) as const satisfies Record<string, Record<string, unknown>[]>;
 
 // The moderation history pages by internal id (what GET moderation/history/{userId} answers), newest first.
 const history: Record<string, Record<string, unknown>[][]> = {
@@ -159,12 +159,12 @@ const history: Record<string, Record<string, unknown>[][]> = {
 // A person's whole chat by internal id, newest page first. The cursor is the index of the next page.
 let chatPages: Record<string, Record<string, unknown>[][]> = {};
 
-function chatLine(id: string, message: string, timestamp: string): Record<string, unknown> {
+function chatLine(id: string, message: string, timestamp: string) {
   return {
     id,
     message,
     timestamp,
-  };
+  } as const satisfies Record<string, unknown>;
 }
 
 function chatPage(options: Options | undefined): unknown {
@@ -244,7 +244,7 @@ const emotes: Record<string, Record<string, unknown>[]> = {
 let profiles: Record<string, Record<string, unknown> | null> = {};
 
 // The sections the live API always sends, here for a person the bot stored nothing extra about.
-const storedNothing = (): Record<string, unknown> => ({
+const storedNothing = () => ({
   economy: {
     wallet: null,
     giveawayEntryCount: 0,
@@ -262,9 +262,9 @@ const storedNothing = (): Record<string, unknown> => ({
   freeFormData: [],
   recentQuotes: [],
   totalQuoteCount: 0,
-});
+}) as const satisfies Record<string, unknown>;
 
-const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
+const freshProfiles = () => ({
   g1: {
     ...storedNothing(),
     identity: {
@@ -348,7 +348,7 @@ const freshProfiles = (): Record<string, Record<string, unknown> | null> => ({
     activity: null,
     streak: null,
   },
-});
+}) as const satisfies Record<string, Record<string, unknown> | null>;
 
 // The action keys a full moderator holds; a test drops one to see its control lock.
 const MODERATOR_KEYS = [
@@ -386,7 +386,7 @@ function noteStanding(userId: string, text: string): void {
 // A person's own TTS voice id by Twitch id; a person without one gets the 404 the bot sends.
 let personVoices: Record<string, string | undefined> = {};
 
-const voiceOf = (id: string, displayName: string): Record<string, unknown> => ({
+const voiceOf = (id: string, displayName: string) => ({
   id,
   name: id,
   displayName,
@@ -396,7 +396,7 @@ const voiceOf = (id: string, displayName: string): Record<string, unknown> => ({
   isDefault: false,
   styles: [],
   tags: [],
-});
+}) as const satisfies Record<string, unknown>;
 
 const catalog = [voiceOf('en-US-AvaNeural', 'Ava'), voiceOf('en-US-EmmaNeural', 'Emma')];
 

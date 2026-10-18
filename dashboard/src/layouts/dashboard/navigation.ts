@@ -286,11 +286,11 @@ export const dashboardNav: readonly NavGroup[] = [
 ];
 
 // A short way to write an entry for the sidebars that are not the streamer dashboard.
-export function navEntry(route: string, label: string, icon: Component, exact = false): NavEntry {
+export function navEntry(route: string, label: string, icon: Component, exact = false) {
   return {
     route,
     label,
     icon,
     exact,
-  };
+  } as const satisfies NavEntry;
 }

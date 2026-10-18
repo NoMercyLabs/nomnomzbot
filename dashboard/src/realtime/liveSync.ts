@@ -61,13 +61,13 @@ function invalidateKeys(
 function refreshing<TEvent extends keyof DashboardHubEvents>(
   event: TEvent,
   keys: readonly QueryKeyBuilder[],
-): HubEventHandler<DashboardHubEvents[TEvent]> {
+) {
   return {
     event,
     handle: ({ queries, channelId }) => {
       invalidateKeys(queries, keys, channelId);
     },
-  };
+  } as const satisfies HubEventHandler<DashboardHubEvents[TEvent]>;
 }
 
 const myChannelsKey: QueryKeyBuilder = () => myChannelsQuery.queryKey;

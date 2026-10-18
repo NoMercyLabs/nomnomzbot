@@ -52,13 +52,13 @@ const info = computed<StreamInfo | null>(() => infoQuery.data.value ?? null);
 const state = usePanelState(infoQuery, (data: StreamInfo | null) =>
   data === null);
 
-const form = computed<StreamInfoDraft>(() => ({
+const form = computed(() => ({
   title: draft.value.title ?? info.value?.title ?? '',
   gameName: draft.value.gameName ?? info.value?.gameName ?? '',
   tags: draft.value.tags ?? [...(info.value?.tags ?? [])],
   contentLabels: draft.value.contentLabels ?? [...(info.value?.contentLabels ?? [])],
   isBrandedContent: draft.value.isBrandedContent ?? info.value?.isBrandedContent ?? false,
-}));
+}) as const satisfies StreamInfoDraft);
 
 const sameList = (a: string[], b: string[]): boolean =>
   JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());

@@ -36,7 +36,7 @@ let rows: Row[] = [];
 let refusePatch: string | null = null;
 let held: string[] = ['voicetriggers:read', 'voicetriggers:write'];
 
-const voice = (id: string, overrides: Row = {}): Row => ({
+const voice = (id: string, overrides: Row = {}) => ({
   id,
   word: `word ${id}`,
   isEnabled: true,
@@ -49,7 +49,7 @@ const voice = (id: string, overrides: Row = {}): Row => ({
   createdAt: '2026-10-01T10:00:00Z',
   updatedAt: '2026-10-01T10:00:00Z',
   ...overrides,
-});
+}) as const satisfies Row;
 
 type Answer = { response: { status: number; ok: boolean }; error?: unknown };
 

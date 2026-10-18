@@ -91,10 +91,10 @@ const caret = ref<{ start: number; end: number }>({
 const open = ref<OpenPlaceholder | null>(null);
 const active = ref(0);
 
-const matches = computed<readonly TemplateHelper[]>(() =>
+const matches = computed(() =>
   open.value
     ? filterHelpers(known.value, open.value.query)
-    : [],
+    : [] as const satisfies readonly TemplateHelper[],
 );
 const showing = computed<boolean>(() => matches.value.length > 0);
 // A field can add names only it knows, such as the variables of one built-in reply.

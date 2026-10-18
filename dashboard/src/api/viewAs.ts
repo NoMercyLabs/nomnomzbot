@@ -27,7 +27,7 @@ export type ViewAsControl = {
 };
 
 // Every answer on screen depends on the role, so a change drops them all and the open pages ask again.
-export function useViewAs(): ViewAsControl {
+export function useViewAs() {
   async function change(role: ViewAsRole | ''): Promise<void> {
     viewAs.value = role;
     await queryClient.invalidateQueries();
@@ -37,5 +37,5 @@ export function useViewAs(): ViewAsControl {
     role: viewAs,
     start: (role) => change(role),
     exit: () => change(''),
-  };
+  } as const satisfies ViewAsControl;
 }

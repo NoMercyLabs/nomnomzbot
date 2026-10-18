@@ -60,7 +60,7 @@ export function useBoard(
   page: string,
   target: MaybeComputedElementRef,
   panels: () => readonly BoardPanel[],
-): Board {
+) {
   const width = useWidth(target);
   const scope = getCurrentScope() ?? effectScope();
   const switches = new Map<string, Ref<boolean>>();
@@ -141,5 +141,5 @@ export function useBoard(
       switchOf(id).value,
     isInline: (id: string): boolean =>
       inline.value.includes(toValue(id)),
-  };
+  } as const satisfies Board;
 }

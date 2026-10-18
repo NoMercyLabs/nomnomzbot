@@ -139,13 +139,13 @@ function patchInputs(
 ): void {
   if (change.kind !== 'inputMute' && change.kind !== 'inputVolume') return;
 
-  const apply = (input: ObsInput): ObsInput => {
+  const apply = (input: ObsInput) => {
     if (input.name !== change.inputName)
       return input;
 
     return change.kind === 'inputMute'
-      ? { ...input, muted: change.muted === true }
-      : { ...input, volumeDb: change.volumeDb ?? input.volumeDb };
+      ? { ...input, muted: change.muted === true } as const satisfies ObsInput
+      : { ...input, volumeDb: change.volumeDb ?? input.volumeDb } as const satisfies ObsInput;
   };
 
   queries.setQueryData<ObsInput[]>(obsInputsKey(channelId), (inputs) =>

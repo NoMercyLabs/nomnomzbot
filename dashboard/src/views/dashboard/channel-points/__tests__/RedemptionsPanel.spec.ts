@@ -59,7 +59,7 @@ const redemption = (
   rewardId: string,
   status: string,
   userInput?: string,
-): Record<string, unknown> => ({
+) => ({
   redemptionId: id,
   rewardId,
   rewardTitle: rewardId === 'r1'
@@ -71,7 +71,7 @@ const redemption = (
   userInput,
   status,
   redeemedAt: '2026-10-15T12:00:00Z',
-});
+}) as const satisfies Record<string, unknown>;
 
 const freshQueue = (): Record<string, unknown>[] => [
   redemption('d1', 'r1', 'unfulfilled', 'drink a whole glass'),

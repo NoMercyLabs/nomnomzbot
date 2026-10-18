@@ -32,10 +32,7 @@ vi.mock('../client', () => ({ client: http }));
 
 const body = { personality: 'friendly', available: ['informative', 'friendly'] };
 
-function mountQuery(channelId: string | null): {
-  queries: QueryClient;
-  hook: ReturnType<typeof usePersonality>;
-} {
+function mountQuery(channelId: string | null) {
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   let hook!: ReturnType<typeof usePersonality>;
   const app: App = createApp({
@@ -50,7 +47,10 @@ function mountQuery(channelId: string | null): {
   app.use(VueQueryPlugin, { queryClient: queries });
   app.mount(document.createElement('div'));
 
-  return { queries, hook };
+  return { queries, hook } as const satisfies {
+    queries: QueryClient;
+    hook: ReturnType<typeof usePersonality>;
+  };
 }
 
 beforeEach(() => {

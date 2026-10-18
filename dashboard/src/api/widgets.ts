@@ -197,9 +197,9 @@ function changed(
   widgetId: string,
   change: Partial<Widget>,
 ): Widget[] {
-  return (current ?? []).map((row): Widget =>
+  return (current ?? []).map((row) =>
     row.id === widgetId
-      ? { ...row, ...change }
+      ? { ...row, ...change } as const satisfies Widget
       : row,
   );
 }

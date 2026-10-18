@@ -64,7 +64,7 @@ function percentOf(used: number, limit: number): number {
   return Math.min(100, Math.round((used / limit) * 100));
 }
 
-function limitRowOf(item: ResourceUsage): LimitRow {
+function limitRowOf(item: ResourceUsage) {
   const used = toNumber(item.currentCount);
   const limit = toNumber(item.limit);
 
@@ -76,10 +76,10 @@ function limitRowOf(item: ResourceUsage): LimitRow {
     percent: percentOf(used, limit),
     level: levelOf(used, limit),
     baseline: toNumber(item.safetyBaseline),
-  };
+  } as const satisfies LimitRow;
 }
 
-export function groupLimits(items: readonly ResourceUsage[]): LimitGroups {
+export function groupLimits(items: readonly ResourceUsage[]) {
   const costDriving = items
     .filter((item) => item.class === costDrivingClass)
     .map(limitRowOf);
@@ -87,10 +87,10 @@ export function groupLimits(items: readonly ResourceUsage[]): LimitGroups {
     .filter((item) => item.class !== costDrivingClass)
     .map(limitRowOf);
 
-  return { costDriving, nearFree };
+  return { costDriving, nearFree } as const satisfies LimitGroups;
 }
 
-export function metricRowOf(item: UsageMetric): MetricRow {
+export function metricRowOf(item: UsageMetric) {
   const used = toNumber(item.used);
   const limit = toNumber(item.limit);
 
@@ -101,5 +101,5 @@ export function metricRowOf(item: UsageMetric): MetricRow {
     remaining: toNumber(item.remaining),
     percent: percentOf(used, limit),
     level: levelOf(used, limit),
-  };
+  } as const satisfies MetricRow;
 }

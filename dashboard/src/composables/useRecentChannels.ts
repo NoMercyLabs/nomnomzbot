@@ -33,7 +33,7 @@ export type RecentChannels = {
   remember: (entry: RecentChannel) => void;
 };
 
-export function useRecentChannels(): RecentChannels {
+export function useRecentChannels() {
   function remember(entry: RecentChannel): void {
     recentChannels.value = withRecent(recentChannels.value, {
       login: entry.login,
@@ -47,5 +47,5 @@ export function useRecentChannels(): RecentChannels {
   return {
     recent: recentChannels,
     remember,
-  };
+  } as const satisfies RecentChannels;
 }

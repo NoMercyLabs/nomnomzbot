@@ -39,7 +39,7 @@ const ok = (data: unknown, extra: Record<string, unknown> = {}): Answer => ({
   response: { status: 200, ok: true },
 });
 
-const voice = (id: string, locale: string, gender: string = 'female'): Record<string, unknown> => ({
+const voice = (id: string, locale: string, gender: string = 'female') => ({
   id,
   name: id,
   displayName: id,
@@ -53,7 +53,7 @@ const voice = (id: string, locale: string, gender: string = 'female'): Record<st
   tags: [],
   description: null,
   previewUrl: null,
-});
+}) as const satisfies Record<string, unknown>;
 
 const config = {
   isEnabled: true,

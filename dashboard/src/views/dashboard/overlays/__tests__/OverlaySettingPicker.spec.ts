@@ -115,7 +115,7 @@ describe('a text setting that names a picker', () => {
         state: 0,
       }],
       totalCount: 1,
-    } satisfies PipelineOptionList;
+    } as const satisfies PipelineOptionList;
 
     mountField({ key: 'muteInputName', picker: 'obs_audio_input' });
 

@@ -57,7 +57,7 @@ function localInput(iso: string | null | undefined): string {
   return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
-export function formFromGiveaway(giveaway: Giveaway | null): GiveawayForm {
+export function formFromGiveaway(giveaway: Giveaway | null) {
   const rules = readEligibility(giveaway?.eligibilityJson);
   const tickets = readWeighting(giveaway?.weightingJson);
 
@@ -87,7 +87,7 @@ export function formFromGiveaway(giveaway: Giveaway | null): GiveawayForm {
     prizeCodePoolId: text(giveaway?.prizeCodePoolId),
     requires18Plus: giveaway?.requires18Plus ?? false,
     scheduledCloseAt: localInput(giveaway?.scheduledCloseAt),
-  };
+  } as const satisfies GiveawayForm;
 }
 
 // A blank box means "not set". A number input hands its value on as a number once it is filled, so the
@@ -99,7 +99,7 @@ const optional = (value: string): number | null =>
     ? null
     : Number(value);
 
-export function draftFromForm(form: GiveawayForm): GiveawayDraft {
+export function draftFromForm(form: GiveawayForm) {
   return {
     title: form.title.trim(),
     entryMode: form.entryMode,
@@ -135,7 +135,7 @@ export function draftFromForm(form: GiveawayForm): GiveawayDraft {
       form.scheduledCloseAt === ''
         ? null
         : new Date(form.scheduledCloseAt).toISOString(),
-  };
+  } as const satisfies GiveawayDraft;
 }
 
 const wholeFrom = (value: number, least: number): boolean =>

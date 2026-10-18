@@ -153,7 +153,7 @@ const runningPrediction = computed<Prediction | null>(
   () => (predictionsQuery.data.value ?? []).find(isPredictionRunning) ?? null,
 );
 
-const running = computed<Running | null>(() => {
+const running = computed(() => {
   const poll = runningPoll.value;
 
   if (poll !== null) {
@@ -177,7 +177,7 @@ const running = computed<Running | null>(() => {
     target: open
       ? new Date(prediction.createdAt).getTime() + Number(prediction.predictionWindow) * MS
       : null,
-  };
+  } as const satisfies Running;
 });
 const pollsPending = computed(() => pollsQuery.isPending.value || predictionsQuery.isPending.value);
 const pollsFailed = computed(() => pollsQuery.isError.value || predictionsQuery.isError.value);

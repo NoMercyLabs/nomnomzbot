@@ -146,13 +146,13 @@ export function useSnoozeAd(
 
       return readAdSchedule(id);
     },
-    apply: (current: AdSchedule | null | undefined): AdSchedule | null =>
+    apply: (current: AdSchedule | null | undefined) =>
       current
         ? {
-            ...current,
-            nextAdAt: Number(current.nextAdAt) + SNOOZE_SECONDS,
-            snoozeCount: Math.max(0, Number(current.snoozeCount) - 1),
-          }
+          ...current,
+          nextAdAt: Number(current.nextAdAt) + SNOOZE_SECONDS,
+          snoozeCount: Math.max(0, Number(current.snoozeCount) - 1),
+        } as const satisfies AdSchedule
         : null,
   });
 }
@@ -232,9 +232,9 @@ export function useSaveStreamInfo(
 
       return data?.data ?? queries.getQueryData<StreamInfo | null>(streamInfoKey(id)) ?? null;
     },
-    apply: (current: StreamInfo | null | undefined, draft: StreamInfoDraft): StreamInfo | null =>
+    apply: (current: StreamInfo | null | undefined, draft: StreamInfoDraft) =>
       current
-        ? { ...current, ...draft }
+        ? { ...current, ...draft } as const satisfies StreamInfo
         : null,
   });
 }

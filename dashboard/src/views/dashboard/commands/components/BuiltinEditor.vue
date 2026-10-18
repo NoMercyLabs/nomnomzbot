@@ -78,13 +78,13 @@ const defaults = computed(() => ({
 }));
 
 // What the channel has saved right now, resolved against the defaults.
-const saved = computed<Draft>(() => ({
+const saved = computed(() => ({
   cooldown: Number(props.builtin.cooldownSecondsOverride ?? defaults.value.cooldown),
   userCooldown: Number(props.builtin.userCooldownSecondsOverride ?? defaults.value.userCooldown),
   level: props.builtin.minPermissionLevelOverride ?? defaults.value.level,
   tts: props.builtin.speakWithTts,
   texts: Object.fromEntries(slots.value.map((slot) => [slot.slot, slot.effectiveTemplate])),
-}));
+}) as const satisfies Draft);
 
 const hasOverrides = computed<boolean>(
   () =>

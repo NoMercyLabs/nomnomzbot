@@ -79,7 +79,7 @@ function cleaned(raw: string): string {
 }
 
 // Only the trigger options that differ from the bot's defaults travel with the new command.
-function triggerOf(): Partial<NewCommand> {
+function triggerOf() {
   return {
     ...(prefixMode.value === 'Default'
       ? {}
@@ -93,7 +93,7 @@ function triggerOf(): Partial<NewCommand> {
     ...(matchMode.value === 'Regex'
       ? { matchPattern: matchPattern.value }
       : {}),
-  };
+  } as const satisfies Partial<NewCommand>;
 }
 
 function replyOf(): Partial<NewCommand> {
@@ -106,12 +106,12 @@ function replyOf(): Partial<NewCommand> {
   return { tier: 'template', templateResponse: reply.value };
 }
 
-function bodyOf(clean: string): NewCommand {
+function bodyOf(clean: string) {
   return {
     name: clean,
     ...replyOf(),
     ...triggerOf(),
-  };
+  } as const satisfies NewCommand;
 }
 
 async function submit(): Promise<void> {

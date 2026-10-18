@@ -34,7 +34,7 @@ const descriptor = (
   key: string,
   group: string,
   over: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+) => ({
   key,
   group,
   labelKey: `spam_setting_${key}_label`,
@@ -42,7 +42,7 @@ const descriptor = (
   costKey: `spam_setting_${key}_cost`,
   isToggle: false,
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 const policy = {
   settings: {

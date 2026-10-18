@@ -34,7 +34,7 @@ let refused: boolean = false;
 let dangerous: boolean = false;
 let affected: number = 12;
 
-const action = (key: string, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+const action = (key: string, over: Record<string, unknown> = {}) => ({
   actionKey: key,
   plane: 0,
   description: `${key} description`,
@@ -45,7 +45,7 @@ const action = (key: string, over: Record<string, unknown> = {}): Record<string,
   floorTier: 2,
   channelOverrideCount: 3,
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 const actions = [
   action('moderation.ban'),
@@ -106,13 +106,13 @@ const voiceDefault = {
   channelsWithOwnVoice: 2,
 };
 
-const candidate = (voiceId: string, locale: string): Record<string, unknown> => ({
+const candidate = (voiceId: string, locale: string) => ({
   voiceId,
   displayName: voiceId.split('-').at(-1),
   locale,
   gender: 'Female',
   isDefault: voiceId === voiceDefault.voiceId,
-});
+}) as const satisfies Record<string, unknown>;
 
 const candidates = [
   candidate('nl-NL-Colette', 'nl-NL'),

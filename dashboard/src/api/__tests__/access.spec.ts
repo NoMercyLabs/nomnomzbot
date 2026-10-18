@@ -31,7 +31,7 @@ vi.mock('../client', () => ({ client: http }));
 const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 
-function held(keys: string[]): Answer {
+function held(keys: string[]) {
   return {
     data: { data: {
       userId: 'u1',
@@ -47,7 +47,7 @@ function held(keys: string[]): Answer {
       heldActionKeys: keys,
     } },
     response: ok,
-  };
+  } as const satisfies Answer;
 }
 
 function mount(channelId: () => string | null): ChannelAccess {

@@ -41,11 +41,11 @@ watch(filters, () => {
   page.value = 1;
 });
 
-const params = computed<AdminAuditParams>(() => ({
+const params = computed(() => ({
   ...filters.value,
   page: page.value,
   take: PAGE_SIZE,
-}));
+}) as const satisfies AdminAuditParams);
 
 const log = useAdminAudit(params);
 

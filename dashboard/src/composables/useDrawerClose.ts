@@ -29,7 +29,7 @@ export function provideDrawerClose(close: () => void, drawer: Ref<boolean>): voi
   });
 }
 
-export function useDrawerClose(): { shown: ComputedRef<boolean>; close: () => void } {
+export function useDrawerClose() {
   const parent = inject(key, undefined);
   const owns = !!parent && !parent.claimed;
 
@@ -45,5 +45,5 @@ export function useDrawerClose(): { shown: ComputedRef<boolean>; close: () => vo
     shown: computed(() =>
       owns && !!parent?.drawer.value),
     close: () => parent?.close(),
-  };
+  } as const satisfies { shown: ComputedRef<boolean>; close: () => void };
 }

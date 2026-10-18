@@ -27,7 +27,7 @@ type Posted = {
 const posted: Posted[] = [];
 let held: Record<string, unknown>[] = [];
 
-const item = (id: string, username: string): Record<string, unknown> => ({
+const item = (id: string, username: string) => ({
   id,
   kind: 'report',
   severity: 'warning',
@@ -40,7 +40,7 @@ const item = (id: string, username: string): Record<string, unknown> => ({
   sourceUserName: username,
   count: 1,
   queueItemIds: [],
-});
+}) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/client', () => ({
   client: {

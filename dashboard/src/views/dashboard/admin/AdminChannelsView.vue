@@ -46,7 +46,7 @@ watch([typed, status, live], () => {
   page.value = 1;
 });
 
-const params = computed<AdminTenantsParams>(() => ({
+const params = computed(() => ({
   search: typed.value.trim(),
   status: status.value === 'all'
     ? undefined
@@ -56,7 +56,7 @@ const params = computed<AdminTenantsParams>(() => ({
     : live.value === 'live',
   page: page.value,
   take: PAGE_SIZE,
-}));
+}) as const satisfies AdminTenantsParams);
 
 const tenants = useAdminTenants(params);
 

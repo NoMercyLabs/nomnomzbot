@@ -18,12 +18,12 @@ import {
   type RecentChannel,
 } from '../useRecentChannels';
 
-function channel(login: string): RecentChannel {
+function channel(login: string) {
   return {
     login,
     displayName: login.toUpperCase(),
     profileImageUrl: null,
-  };
+  } as const satisfies RecentChannel;
 }
 
 describe('recent channels', () => {

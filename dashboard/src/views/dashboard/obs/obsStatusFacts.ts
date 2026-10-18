@@ -39,11 +39,11 @@ export type ObsStatusFacts = {
 // The stream byte counter at one moment, kept by the page to turn two reads into a bitrate.
 export type ByteSample = { at: number; bytes: number };
 
-export function byteSample(stats: ObsStats, at: number): ByteSample {
-  return { at, bytes: Number(stats.streamBytes) };
+export function byteSample(stats: ObsStats, at: number) {
+  return { at, bytes: Number(stats.streamBytes) } as const satisfies ByteSample;
 }
 
-function share(skipped: number | string, total: number | string): FrameShare {
+function share(skipped: number | string, total: number | string) {
   const all = Number(total);
 
   return {
@@ -52,7 +52,7 @@ function share(skipped: number | string, total: number | string): FrameShare {
     fraction: all > 0
       ? Number(skipped) / all
       : 0,
-  };
+  } as const satisfies FrameShare;
 }
 
 function streamState(stats: ObsStats): StreamState {
@@ -94,7 +94,7 @@ export function obsStatusFacts(
   stats: ObsStats,
   previous: ByteSample | null,
   at: number = Date.now(),
-): ObsStatusFacts {
+) {
   return {
     stream: {
       state: streamState(stats),
@@ -116,7 +116,7 @@ export function obsStatusFacts(
     targetFps: Number(stats.targetFps),
     memory: Number(stats.memoryUsage),
     congestion: Number(stats.streamCongestion),
-  };
+  } as const satisfies ObsStatusFacts;
 }
 
 // The stream and recording facts as the page knows them right now. The OBS stats read is polled; a pushed
@@ -137,7 +137,7 @@ export type LiveSources = {
   stateAt: number;
 };
 
-function fromState(state: ObsState, reconnecting: boolean): LiveOutputs {
+function fromState(state: ObsState, reconnecting: boolean) {
   return {
     streaming: state.streaming,
     reconnecting: state.streaming && reconnecting,
@@ -145,10 +145,10 @@ function fromState(state: ObsState, reconnecting: boolean): LiveOutputs {
     recording: state.recording,
     paused: state.recording && state.recordPaused,
     recordTimecode: state.recordTimecode ?? null,
-  };
+  } as const satisfies LiveOutputs;
 }
 
-function fromStats(stats: ObsStats): LiveOutputs {
+function fromStats(stats: ObsStats) {
   return {
     streaming: stats.streamActive,
     reconnecting: stats.streamActive && stats.streamReconnecting,
@@ -156,7 +156,7 @@ function fromStats(stats: ObsStats): LiveOutputs {
     recording: stats.recordActive,
     paused: stats.recordActive && stats.recordPaused,
     recordTimecode: stats.recordTimecode ?? null,
-  };
+  } as const satisfies LiveOutputs;
 }
 
 export function liveOutputs(sources: LiveSources): LiveOutputs | null {
@@ -189,7 +189,7 @@ function liveRecordState(live: LiveOutputs): RecordState {
 }
 
 // The strip's stream and recording cells follow the newest read, so a push shows before the next poll.
-export function withLiveOutputs(facts: ObsStatusFacts, live: LiveOutputs | null): ObsStatusFacts {
+export function withLiveOutputs(facts: ObsStatusFacts, live: LiveOutputs | null) {
   if (!live)
     return facts;
 
@@ -207,5 +207,5 @@ export function withLiveOutputs(facts: ObsStatusFacts, live: LiveOutputs | null)
         ? wholeSeconds(live.recordTimecode)
         : '',
     },
-  };
+  } as const satisfies ObsStatusFacts;
 }

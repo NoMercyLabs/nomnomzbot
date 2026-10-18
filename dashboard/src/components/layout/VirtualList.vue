@@ -52,7 +52,7 @@ type Options = PartialKeys<
   'observeElementRect' | 'observeElementOffset' | 'scrollToFn'
 >;
 
-const options = computed<Options>(() => ({
+const options = computed(() => ({
   count: props.items.length,
   getScrollElement: () => scrollArea.value,
   estimateSize: () => props.estimateSize,
@@ -62,7 +62,7 @@ const options = computed<Options>(() => ({
     ? 'end'
     : 'start',
   scrollEndThreshold: AT_BOTTOM_SLACK,
-}));
+}) as const satisfies Options);
 const virtualizer = useVirtualizer(options);
 
 const lastShown = computed(() =>

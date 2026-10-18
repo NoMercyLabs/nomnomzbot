@@ -176,15 +176,15 @@ function tooltip(row: ChartRow): string {
   );
 }
 
-const barTriggers = computed<Record<string, (row: ChartRow) => string>>(() => ({
+const barTriggers = computed(() => ({
   [props.kind === 'bar'
     ? StackedBar.selectors.bar
     : GroupedBar.selectors.bar]: tooltip,
-}));
-const yDomain = computed<[number | undefined, number | undefined]>(() =>
+}) as const satisfies Record<string, (row: ChartRow) => string>);
+const yDomain = computed(() =>
   props.kind === 'line'
-    ? [undefined, undefined]
-    : [0, undefined],
+    ? [undefined, undefined] as const satisfies [number | undefined, number | undefined]
+    : [0, undefined] as const satisfies [number | undefined, number | undefined],
 );
 </script>
 

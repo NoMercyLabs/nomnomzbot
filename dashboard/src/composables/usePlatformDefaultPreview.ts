@@ -32,7 +32,7 @@ export type PlatformDefaultPreviewState = {
 // the count of the draft on screen. The server refuses a count that moved, and the page shows that refusal.
 export function usePlatformDefaultPreview(
   fetchPreview: () => Promise<PlatformDefaultBlastRadius>,
-): PlatformDefaultPreviewState {
+) {
   const preview = ref<PlatformDefaultBlastRadius>();
   const pending = ref(false);
   const failed = ref(false);
@@ -104,5 +104,5 @@ export function usePlatformDefaultPreview(
     canApply,
     request,
     reset,
-  };
+  } as const satisfies PlatformDefaultPreviewState;
 }

@@ -32,7 +32,7 @@ function press(
   }));
 }
 
-function withShortcut(mod: boolean): { runs: string[]; wrapper: VueWrapper } {
+function withShortcut(mod: boolean) {
   const runs: string[] = [];
   const wrapper = mount(defineComponent({
     setup() {
@@ -51,7 +51,7 @@ function withShortcut(mod: boolean): { runs: string[]; wrapper: VueWrapper } {
 
   mounted.push(wrapper);
 
-  return { runs, wrapper };
+  return { runs, wrapper } as const satisfies { runs: string[]; wrapper: VueWrapper };
 }
 
 afterEach(() => {

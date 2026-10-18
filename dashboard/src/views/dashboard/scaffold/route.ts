@@ -26,10 +26,10 @@ function pathOf(name: string): string {
 }
 
 // A planned page asks for the action key of its sidebar entry; an entry without one is open to every signed-in person.
-function access(entry: NavEntry): Pick<RouteMeta, 'action' | 'open'> {
+function access(entry: NavEntry) {
   return entry.action === undefined
-    ? { open: true }
-    : { action: entry.action };
+    ? { open: true } as const satisfies Pick<RouteMeta, 'action' | 'open'>
+    : { action: entry.action } as const satisfies Pick<RouteMeta, 'action' | 'open'>;
 }
 
 // A route for every page of every sidebar that has no built route yet; each opens the empty "coming soon" page.

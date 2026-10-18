@@ -49,14 +49,14 @@ const summary = {
   isLive: true,
 };
 
-const song = (position: number, trackName: string): Record<string, unknown> => ({
+const song = (position: number, trackName: string) => ({
   position,
   trackName,
   artist: 'M83',
   imageUrl: null,
   durationMs: 200000,
   code: `c${position}`,
-});
+}) as const satisfies Record<string, unknown>;
 
 const watched: (string | null)[] = [];
 
@@ -79,7 +79,7 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
-function freshAnswers(): Record<string, () => Answer> {
+function freshAnswers() {
   return {
     '/public/sr/by-channel/{channelName}': () =>
       ok({
@@ -94,7 +94,7 @@ function freshAnswers(): Record<string, () => Answer> {
         queueLength: 6,
         songs: [song(1, 'Midnight City'), song(4, 'Strobe')],
       }),
-  };
+  } as const satisfies Record<string, () => Answer>;
 }
 
 async function mountPage(): Promise<VueWrapper> {

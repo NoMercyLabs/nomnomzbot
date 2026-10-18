@@ -47,7 +47,7 @@ let boards: Row[] = [];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const rule = (id: string, source: string, overrides: Row = {}): Row => ({
+const rule = (id: string, source: string, overrides: Row = {}) => ({
   id,
   source,
   isEnabled: true,
@@ -59,9 +59,9 @@ const rule = (id: string, source: string, overrides: Row = {}): Row => ({
   configSchemaVersion: 1,
   bonusConfig: null,
   ...overrides,
-});
+}) as const satisfies Row;
 
-const jar = (id: string, name: string, overrides: Row = {}): Row => ({
+const jar = (id: string, name: string, overrides: Row = {}) => ({
   id,
   ownerBroadcasterId: 'c1',
   name,
@@ -73,7 +73,7 @@ const jar = (id: string, name: string, overrides: Row = {}): Row => ({
   maxWithdrawalPerChannel: null,
   createdAt: '2026-10-01T10:00:00Z',
   ...overrides,
-});
+}) as const satisfies Row;
 
 function read(path: string): Answer {
   if (path.endsWith('/economy/config'))

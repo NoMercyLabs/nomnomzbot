@@ -29,7 +29,7 @@ export type ExternalChat = {
 
 // One Twitch channel the bot does not serve, read and written on the viewer's own token. It joins when the
 // page opens and leaves when the page closes (chat-client.md 9a "Any Twitch channel"). No history exists.
-export function useExternalChat(twitchBroadcasterId: string): ExternalChat {
+export function useExternalChat(twitchBroadcasterId: string) {
   const lines = ref<ChatLine[]>([]);
   const missingScope = ref<string | null>(null);
   const failure = ref<string | null>(null);
@@ -96,5 +96,5 @@ export function useExternalChat(twitchBroadcasterId: string): ExternalChat {
     missingScope,
     failure,
     send,
-  };
+  } as const satisfies ExternalChat;
 }

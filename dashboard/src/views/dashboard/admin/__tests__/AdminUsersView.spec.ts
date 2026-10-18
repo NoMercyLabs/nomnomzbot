@@ -33,7 +33,7 @@ const person = (
   id: string,
   displayName: string,
   over: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+) => ({
   id,
   displayName,
   login: displayName.toLowerCase(),
@@ -43,7 +43,7 @@ const person = (
   createdAt: '2026-06-29T10:00:00Z',
   lastActive: '2026-10-01T10:00:00Z',
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/client', () => ({
   client: {

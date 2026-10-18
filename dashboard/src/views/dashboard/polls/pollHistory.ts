@@ -45,11 +45,11 @@ export type VoteSplit = {
 };
 
 // Polls nobody voted on fold into one line; the rest stay as cards.
-export function splitByVotes(items: readonly PollHistoryItem[]): VoteSplit {
+export function splitByVotes(items: readonly PollHistoryItem[]) {
   return {
     voted: items.filter((item) => Number(item.totalVotes) > 0),
     empty: items.filter((item) => Number(item.totalVotes) <= 0),
-  };
+  } as const satisfies VoteSplit;
 }
 
 // Only a status that changes the reading of the result earns a label: refunded, canceled or ended early.

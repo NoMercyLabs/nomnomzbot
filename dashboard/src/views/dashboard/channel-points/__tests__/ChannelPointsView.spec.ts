@@ -51,7 +51,7 @@ const baseReward = {
 let reward: Record<string, unknown> = { ...baseReward };
 let channelPointsAvailable = true;
 
-const redemption = (id: string, status: string): Record<string, unknown> => ({
+const redemption = (id: string, status: string) => ({
   redemptionId: id,
   rewardId: 'r1',
   rewardTitle: 'Hydrate',
@@ -60,7 +60,7 @@ const redemption = (id: string, status: string): Record<string, unknown> => ({
   cost: 500,
   status,
   redeemedAt: '2026-10-15T12:00:00Z',
-});
+}) as const satisfies Record<string, unknown>;
 
 function read(path: string): unknown {
   if (path.endsWith('/roles/effective/me'))

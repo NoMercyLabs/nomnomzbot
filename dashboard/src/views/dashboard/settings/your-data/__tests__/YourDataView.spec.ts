@@ -53,7 +53,7 @@ const consent = (type: string, status: string, extra: Body = {}): Body => ({
   ...extra,
 });
 
-const request = (id: string, extra: Body = {}): Body => ({
+const request = (id: string, extra: Body = {}) => ({
   id,
   subjectUserId: 'u1',
   subjectIdHash: 'h',
@@ -69,7 +69,7 @@ const request = (id: string, extra: Body = {}): Body => ({
   requestedAt: '2026-10-10T10:00:00Z',
   completedAt: '2026-10-10T10:00:05Z',
   ...extra,
-});
+}) as const satisfies Body;
 
 vi.mock('@/api/client', () => ({
   client: {

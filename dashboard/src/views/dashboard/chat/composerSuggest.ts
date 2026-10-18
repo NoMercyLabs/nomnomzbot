@@ -37,7 +37,7 @@ export const suggestionLimit = 12;
 const tokenPattern = /(?:^|\s)([:@])([\p{L}\p{N}_]*)$/u;
 const minimumQuery = { ':': 2, '@': 1 } as const satisfies Record<SuggestToken['trigger'], number>;
 
-export function tokenAt(text: string, caret: number): SuggestToken | null {
+export function tokenAt(text: string, caret: number) {
   const match = tokenPattern.exec(text.slice(0, caret));
   const trigger = match?.[1] as SuggestToken['trigger'] | undefined;
   const query = match?.[2] ?? '';
@@ -49,7 +49,7 @@ export function tokenAt(text: string, caret: number): SuggestToken | null {
     trigger,
     query,
     start: caret - query.length - 1,
-  };
+  } as const satisfies SuggestToken;
 }
 
 // As the Twitch and 7TV composers rank: a match at the start first, then the shorter word, then A to Z.
@@ -66,7 +66,7 @@ function holds(word: string, query: string): boolean {
   return word.toLowerCase().includes(query.toLowerCase());
 }
 
-export function emoteSuggestion(emote: ChatEmoteEntry): Suggestion {
+export function emoteSuggestion(emote: ChatEmoteEntry) {
   const frames = emoteFrames(emote);
 
   return {
@@ -76,10 +76,10 @@ export function emoteSuggestion(emote: ChatEmoteEntry): Suggestion {
     image: frames['2'] ?? smallestUrl(frames) ?? null,
     provider: emote.provider,
     skins: [],
-  };
+  } as const satisfies Suggestion;
 }
 
-export function emojiSuggestion(entry: EmojiEntry, code = entry.shortcodes[0]): Suggestion {
+export function emojiSuggestion(entry: EmojiEntry, code = entry.shortcodes[0]) {
   return {
     kind: 'emoji',
     label: `:${code}:`,
@@ -87,7 +87,7 @@ export function emojiSuggestion(entry: EmojiEntry, code = entry.shortcodes[0]): 
     image: null,
     provider: null,
     skins: entry.skins,
-  };
+  } as const satisfies Suggestion;
 }
 
 export function emoteSuggestions(

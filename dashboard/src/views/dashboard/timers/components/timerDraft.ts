@@ -28,7 +28,7 @@ export function messagesOf(lines: string): string[] {
     .filter((line): boolean => line !== '');
 }
 
-export function draftOf(timer: Timer): TimerDraft {
+export function draftOf(timer: Timer) {
   return {
     name: timer.name,
     messages: timer.messages.join('\n'),
@@ -36,7 +36,7 @@ export function draftOf(timer: Timer): TimerDraft {
     minChatActivity: Number(timer.minChatActivity),
     fireOnce: timer.fireOnce,
     speakWithTts: timer.speakWithTts ?? false,
-  };
+  } as const satisfies TimerDraft;
 }
 
 export function sameDraft(left: TimerDraft, right: TimerDraft): boolean {

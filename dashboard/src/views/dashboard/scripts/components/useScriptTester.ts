@@ -30,7 +30,7 @@ export interface ScriptTester {
 }
 
 // A dry run of one script: nothing it does reaches chat. A refusal shows its reason; a 429 starts a wait.
-export function useScriptTester(scriptId: () => string): ScriptTester {
+export function useScriptTester(scriptId: () => string) {
   const { t } = useI18n();
   const running = ref(false);
   const limited = ref(false);
@@ -84,5 +84,5 @@ export function useScriptTester(scriptId: () => string): ScriptTester {
     last,
     failure,
     run,
-  };
+  } as const satisfies ScriptTester;
 }

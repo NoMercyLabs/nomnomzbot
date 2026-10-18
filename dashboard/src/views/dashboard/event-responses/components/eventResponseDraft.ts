@@ -30,7 +30,7 @@ export interface EventDraft {
   speakWithTts: boolean;
 }
 
-export function draftOf(saved: EventResponseDetail): EventDraft {
+export function draftOf(saved: EventResponseDetail) {
   return {
     mode: saved.responseType === 'pipeline'
       ? 'full'
@@ -38,7 +38,7 @@ export function draftOf(saved: EventResponseDetail): EventDraft {
     message: saved.message ?? '',
     pipelineId: saved.pipelineId ?? '',
     speakWithTts: saved.speakWithTts,
-  };
+  } as const satisfies EventDraft;
 }
 
 export function sameDraft(left: EventDraft, right: EventDraft): boolean {

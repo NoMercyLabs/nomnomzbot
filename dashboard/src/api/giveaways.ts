@@ -86,14 +86,14 @@ export const noWeighting = {
 type JsonValue = string | number | boolean | null | undefined;
 type JsonFields = Record<string, JsonValue>;
 
-function parseJson(text: string | null | undefined): JsonFields {
+function parseJson(text: string | null | undefined) {
   if (!text)
-    return {};
+    return {} as const satisfies JsonFields;
 
   try {
     return JSON.parse(text) as JsonFields;
   } catch {
-    return {};
+    return {} as const satisfies JsonFields;
   }
 }
 
@@ -107,7 +107,7 @@ const numberOrNull = (value: JsonValue): number | null =>
     ? value
     : null;
 
-export function readEligibility(text: string | null | undefined): Eligibility {
+export function readEligibility(text: string | null | undefined) {
   const json = parseJson(text);
 
   return {
@@ -115,10 +115,10 @@ export function readEligibility(text: string | null | undefined): Eligibility {
     minStandingLevel: numberOrNull(json.min_standing_level),
     minWatchMinutes: numberOrNull(json.min_watch_minutes),
     minAccountAgeDays: numberOrNull(json.min_account_age_days),
-  };
+  } as const satisfies Eligibility;
 }
 
-export function readWeighting(text: string | null | undefined): Weighting {
+export function readWeighting(text: string | null | undefined) {
   const json = parseJson(text);
 
   return {
@@ -126,7 +126,7 @@ export function readWeighting(text: string | null | undefined): Weighting {
     subT2: numberOr(json.sub_t2, 1),
     subT3: numberOr(json.sub_t3, 1),
     vip: numberOr(json.vip, 1),
-  };
+  } as const satisfies Weighting;
 }
 
 // No rule set means no text at all, so a giveaway without limits stays as the server defaults it.
@@ -258,7 +258,7 @@ export function useCodePools(
 type UpsertGiveaway = components['schemas']['UpsertGiveawayRequest'];
 
 // An edit keeps every setting the dialog does not show; a new giveaway starts from the server defaults.
-export function upsertBody({ existing, draft }: SaveGiveaway): UpsertGiveaway {
+export function upsertBody({ existing, draft }: SaveGiveaway) {
   const base: UpsertGiveaway = existing
     ? { ...existing }
     : {
@@ -299,7 +299,7 @@ export function upsertBody({ existing, draft }: SaveGiveaway): UpsertGiveaway {
       : null,
     requires18Plus: draft.requires18Plus,
     scheduledCloseAt: draft.scheduledCloseAt,
-  };
+  } as const satisfies UpsertGiveaway;
 }
 
 async function writeGiveaway(save: SaveGiveaway): Promise<void> {
@@ -382,9 +382,9 @@ export function withGiveawayChange(
   rows: Giveaway[] | undefined,
   { id, action }: GiveawayChange,
 ): Giveaway[] {
-  return (rows ?? []).map((row): Giveaway =>
+  return (rows ?? []).map((row) =>
     row.id === id
-      ? { ...row, status: nextStatus[action] }
+      ? { ...row, status: nextStatus[action] } as const satisfies Giveaway
       : row,
   );
 }

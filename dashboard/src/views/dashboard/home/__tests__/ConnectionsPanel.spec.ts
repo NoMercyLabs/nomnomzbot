@@ -39,7 +39,7 @@ const integration = (
   provider: string,
   connected: boolean,
   accountName: string | null,
-): Record<string, unknown> => ({
+) => ({
   provider,
   connected,
   accountName,
@@ -48,9 +48,9 @@ const integration = (
   needsReauth: false,
   loginOnly: false,
   decryptFailed: false,
-});
+}) as const satisfies Record<string, unknown>;
 
-function freshAnswers(): Record<string, () => Answer> {
+function freshAnswers() {
   return {
     '/integrations/status': () =>
       ok([
@@ -62,7 +62,7 @@ function freshAnswers(): Record<string, () => Answer> {
       ]),
     '/bot/status': () => ok({ connected: true, displayName: 'NoMercyBot_' }),
     '/stats': () => ok({ isLive: true, platformsLive: ['twitch'] }),
-  };
+  } as const satisfies Record<string, () => Answer>;
 }
 
 vi.mock('@/api/client', () => ({

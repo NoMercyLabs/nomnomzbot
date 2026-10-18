@@ -86,11 +86,11 @@ function dateRow(id: string, label: string, value: string | null | undefined): D
   }];
 }
 
-const dates = computed<readonly DateRow[]>(() => {
+const dates = computed(() => {
   const current = plan.value;
 
   if (current === undefined)
-    return [];
+    return [] as const satisfies readonly DateRow[];
 
   const periodLabel = current.cancelAtPeriodEnd
     ? 'dashboard.settings.billing.plan.endsOn'

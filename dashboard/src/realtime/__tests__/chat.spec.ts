@@ -114,7 +114,7 @@ describe('ChatMessage', () => {
   // restart landed under today's chat.
   it('puts a line by its time, so an old line sent again lands in its own place', async () => {
     const [, queries, connection] = await started();
-    const at = (id: string, timestamp: string): ChatMessagePayload => ({ ...line(id, 'A'), timestamp });
+    const at = (id: string, timestamp: string) => ({ ...line(id, 'A'), timestamp }) as const satisfies ChatMessagePayload;
 
     queries.setQueryData<ChatLine[]>(chatKey('A'), [
       at('morning', '2026-10-14T08:00:00Z'),

@@ -84,7 +84,7 @@ const free = {
   limits: [],
 };
 
-const subscriptionOf = (tierKey: string, name: string, extra: object = {}): object => ({
+const subscriptionOf = (tierKey: string, name: string, extra: object = {}) => ({
   id: 's1',
   broadcasterId: 'c1',
   tierKey,
@@ -96,9 +96,9 @@ const subscriptionOf = (tierKey: string, name: string, extra: object = {}): obje
   allowsCustomBotName: true,
   prioritySupport: false,
   ...extra,
-});
+}) as const satisfies object;
 
-function invoice(id: string, number: string): object {
+function invoice(id: string, number: string) {
   return {
     id,
     number,
@@ -111,21 +111,21 @@ function invoice(id: string, number: string): object {
     hostedInvoiceUrl: 'https://pay.example/i/1',
     dunningStatus: 'none',
     amountRefundedCents: 0,
-  };
+  } as const satisfies object;
 }
 
 let subscription: object = subscriptionOf('free', 'Free');
 let badge: object | null = null;
 
-function answerGet(path: string, init: unknown): Answer {
+function answerGet(path: string, init: unknown) {
   if (path === `${base}/subscription`)
-    return { data: { data: subscription }, response: ok };
+    return { data: { data: subscription }, response: ok } as const satisfies Answer;
 
   if (path === `${base}/tiers`)
-    return { data: { data: [pro, free, plus] }, response: ok };
+    return { data: { data: [pro, free, plus] }, response: ok } as const satisfies Answer;
 
   if (path === `${base}/founders-badge`)
-    return { data: { data: badge }, response: ok };
+    return { data: { data: badge }, response: ok } as const satisfies Answer;
 
   const page = (init as { params: { query: { Page: number } } }).params.query.Page;
 
@@ -136,15 +136,15 @@ function answerGet(path: string, init: unknown): Answer {
       total: 2,
     },
     response: ok,
-  };
+  } as const satisfies Answer;
 }
 
-function answerPost(path: string): Answer {
+function answerPost(path: string) {
   if (path === `${base}/checkout`)
-    return { data: { data: { checkoutUrl: 'https://pay.example/checkout' } }, response: ok };
+    return { data: { data: { checkoutUrl: 'https://pay.example/checkout' } }, response: ok } as const satisfies Answer;
 
   if (path === `${base}/portal`)
-    return { data: { data: { portalUrl: 'https://pay.example/portal' } }, response: ok };
+    return { data: { data: { portalUrl: 'https://pay.example/portal' } }, response: ok } as const satisfies Answer;
 
   if (path === `${base}/invite/validate`) {
     return {
@@ -158,7 +158,7 @@ function answerPost(path: string): Answer {
         },
       },
       response: ok,
-    };
+    } as const satisfies Answer;
   }
 
   if (path === `${base}/invite/redeem`) {
@@ -171,10 +171,10 @@ function answerPost(path: string): Answer {
         },
       },
       response: ok,
-    };
+    } as const satisfies Answer;
   }
 
-  return { data: {}, response: ok };
+  return { data: {}, response: ok } as const satisfies Answer;
 }
 
 let mounted: VueWrapper | null = null;

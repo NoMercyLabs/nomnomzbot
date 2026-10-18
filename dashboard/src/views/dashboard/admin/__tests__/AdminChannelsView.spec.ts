@@ -39,7 +39,7 @@ const tenant = (
   id: string,
   name: string,
   over: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+) => ({
   id,
   name,
   twitchChannelId: `tw-${id}`,
@@ -49,7 +49,7 @@ const tenant = (
   createdAt: '2026-06-29T10:00:00Z',
   suspendedAt: null,
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/client', () => ({
   client: {

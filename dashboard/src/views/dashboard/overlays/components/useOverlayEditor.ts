@@ -59,7 +59,7 @@ export type OverlayEditor = {
 
 // Everything the code editor asks of one overlay: its files, save and compile, the typed `nnz` declarations,
 // the sample events and preview actions of its fire bar, and its saved versions (read, load more, roll back).
-export function useOverlayEditor(widget: () => Widget): OverlayEditor {
+export function useOverlayEditor(widget: () => Widget) {
   const { t } = useI18n();
   const { channelId } = useCurrentChannel();
   const queries = useQueryClient();
@@ -77,8 +77,8 @@ export function useOverlayEditor(widget: () => Widget): OverlayEditor {
     return channelId.value as string;
   }
 
-  function shown(): VersionsPage {
-    return { versions: loaded, hasMore };
+  function shown() {
+    return { versions: loaded, hasMore } as const satisfies VersionsPage;
   }
 
   async function open(): Promise<void> {
@@ -191,5 +191,5 @@ export function useOverlayEditor(widget: () => Widget): OverlayEditor {
     save,
     previewAction,
     history,
-  };
+  } as const satisfies OverlayEditor;
 }

@@ -58,7 +58,7 @@ const suggestion = (
   displayName: string,
   streamsLast30Days: number,
   lastCategory: string | null,
-): Record<string, unknown> => ({
+) => ({
   twitchUserId,
   login: displayName.toLowerCase(),
   displayName,
@@ -66,9 +66,9 @@ const suggestion = (
   lastCategory,
   streamsLast30Days,
   lastShoutoutAt: null,
-});
+}) as const satisfies Record<string, unknown>;
 
-const runningPoll = (id: string, votes: number[]): Record<string, unknown> => ({
+const runningPoll = (id: string, votes: number[]) => ({
   id,
   title: 'Which game next?',
   status: 'ACTIVE',
@@ -84,9 +84,9 @@ const runningPoll = (id: string, votes: number[]): Record<string, unknown> => ({
     channelPointsVotes: 0,
     bitsVotes: 0,
   })),
-});
+}) as const satisfies Record<string, unknown>;
 
-const startedPoll = (body: Record<string, unknown>): Record<string, unknown> => ({
+const startedPoll = (body: Record<string, unknown>) => ({
   ...runningPoll('server-1', []),
   title: body.title,
   duration: body.durationSeconds,
@@ -97,23 +97,23 @@ const startedPoll = (body: Record<string, unknown>): Record<string, unknown> => 
     channelPointsVotes: 0,
     bitsVotes: 0,
   })),
-});
+}) as const satisfies Record<string, unknown>;
 
-const schedule = (): Record<string, number> => ({
+const schedule = () => ({
   snoozeCount,
   snoozeRefreshAt: nowSeconds() + 1172,
   nextAdAt: nowSeconds() + 754,
   duration: 180,
   lastAdAt: 0,
   prerollFreeTime: 0,
-});
+}) as const satisfies Record<string, number>;
 
 const timer = (
   name: string,
   intervalMinutes: number,
   isEnabled: boolean,
   firedMinutesAgo: number,
-): Record<string, unknown> => ({
+) => ({
   id: name,
   name,
   intervalMinutes,
@@ -122,9 +122,9 @@ const timer = (
   lastFiredAt: new Date(Date.now() - firedMinutesAgo * 60_000).toISOString(),
   messageCount: 1,
   createdAt: '2026-01-01T00:00:00Z',
-});
+}) as const satisfies Record<string, unknown>;
 
-const queueItem = (position: number, requestedBy: string | null): Record<string, unknown> => ({
+const queueItem = (position: number, requestedBy: string | null) => ({
   position,
   trackName: `Track ${position}`,
   artist: 'Artist',
@@ -132,9 +132,9 @@ const queueItem = (position: number, requestedBy: string | null): Record<string,
   durationMs: 1000,
   requestedBy,
   cost: 0,
-});
+}) as const satisfies Record<string, unknown>;
 
-function freshAnswers(): Record<string, () => Answer> {
+function freshAnswers() {
   return {
     '/ads/schedule': () => ok(schedule()),
     '/music/queue': () =>
@@ -146,7 +146,7 @@ function freshAnswers(): Record<string, () => Answer> {
     '/live-ops/polls': () => ok(pollList),
     '/live-ops/predictions': () => ok([]),
     '/moderation/shoutout-suggestions': () => ok(onTheWire(suggestions)),
-  };
+  } as const satisfies Record<string, () => Answer>;
 }
 
 function answer(method: string, path: string): Answer {

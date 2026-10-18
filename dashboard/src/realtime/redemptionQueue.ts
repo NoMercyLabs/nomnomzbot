@@ -45,9 +45,9 @@ export const redemptionStatusChanged = {
   event: 'RedemptionStatusChanged',
   handle: ({ queries, channelId }, payload) => {
     queries.setQueryData<Redemption[]>(redemptionsKey(channelId), (rows) =>
-      rows?.map((row: Redemption): Redemption =>
+      rows?.map((row: Redemption) =>
         row.redemptionId === payload.redemptionId
-          ? { ...row, status: payload.status.toLowerCase() }
+          ? { ...row, status: payload.status.toLowerCase() } as const satisfies Redemption
           : row));
   },
 } as const satisfies HubEventHandler<RedemptionStatusChangedPayload>;

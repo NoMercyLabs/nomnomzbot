@@ -23,11 +23,11 @@ export interface OpenPlaceholder {
 }
 
 // The brace the caret is inside, if the person is still writing its name.
-export function openPlaceholder(text: string, caret: number): OpenPlaceholder | null {
+export function openPlaceholder(text: string, caret: number) {
   const match: RegExpExecArray | null = /\{([\w.<>:|-]*)$/.exec(text.slice(0, caret));
 
   return match
-    ? { from: match.index, query: match[1] ?? '' }
+    ? { from: match.index, query: match[1] ?? '' } as const satisfies OpenPlaceholder
     : null;
 }
 

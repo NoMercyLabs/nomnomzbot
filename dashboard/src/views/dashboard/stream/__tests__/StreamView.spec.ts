@@ -61,7 +61,7 @@ const streamInfo = {
   isBrandedContent: false,
 };
 
-const pastStream = (id: string, title: string, game: string): Record<string, unknown> => ({
+const pastStream = (id: string, title: string, game: string) => ({
   streamId: id,
   title,
   gameName: game,
@@ -69,9 +69,9 @@ const pastStream = (id: string, title: string, game: string): Record<string, unk
   endedAt: '2026-10-10T20:30:00Z',
   durationSeconds: 9000,
   peakViewers: 31,
-});
+}) as const satisfies Record<string, unknown>;
 
-function freshAnswers(): Record<string, () => Answer> {
+function freshAnswers() {
   return {
     '/stream': () => ok({ ...streamInfo }),
     '/analytics/streams': () =>
@@ -149,7 +149,7 @@ function freshAnswers(): Record<string, () => Answer> {
     '/moderation/shield': () => ok({ enabled: false }),
     '/integrations/{provider}/connect': () =>
       ok({ authorizeUrl: 'https://id.kick.com/oauth?x=1', state: 's' }),
-  };
+  } as const satisfies Record<string, () => Answer>;
 }
 
 function answer(method: string, path: string, options: Options | undefined): Answer {

@@ -41,7 +41,7 @@ let held: string[] = [];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const optIn = (id: string, optInType: string, extra: Body = {}): Body => ({
+const optIn = (id: string, optInType: string, extra: Body = {}) => ({
   id,
   broadcasterId: 'c1',
   peerId: null,
@@ -49,7 +49,7 @@ const optIn = (id: string, optInType: string, extra: Body = {}): Body => ({
   direction: 'both',
   isEnabled: true,
   ...extra,
-});
+}) as const satisfies Body;
 
 vi.mock('@/api/client', () => ({
   client: {

@@ -37,7 +37,7 @@ export interface InlineFlow {
 
 export const DEFAULT_UNDO_MS = 6000;
 
-export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
+export function useInlineFlow(options: InlineFlowOptions) {
   const step = ref<InlineFlowStep>('idle');
   const canUndo = computed(() => step.value === 'done' && toValue(options.revert) !== undefined);
 
@@ -123,5 +123,5 @@ export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
     confirm,
     undo,
     back,
-  };
+  } as const satisfies InlineFlow;
 }

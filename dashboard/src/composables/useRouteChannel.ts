@@ -22,7 +22,7 @@ export type RouteChannel = {
 };
 
 // A /app/u/<name>/... address makes that channel the current one, once, when the person has access.
-export function useRouteChannel(): RouteChannel {
+export function useRouteChannel() {
   const route = useRoute();
   const { channels, current, isLoaded, choose } = useCurrentChannel();
 
@@ -49,5 +49,5 @@ export function useRouteChannel(): RouteChannel {
     { immediate: true },
   );
 
-  return { name, denied };
+  return { name, denied } as const satisfies RouteChannel;
 }

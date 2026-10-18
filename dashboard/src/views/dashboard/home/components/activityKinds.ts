@@ -62,10 +62,10 @@ type ActivityKind = {
 
 const TYPE: string = 'dashboard.home.activity.type.';
 const DETAIL: string = 'dashboard.home.activity.detail.';
-const detail = (name: string, params?: Record<string, string | number>): ActivityRowText => ({
+const detail = (name: string, params?: Record<string, string | number>) => ({
   key: DETAIL + name,
   params,
-});
+}) as const satisfies ActivityRowText;
 
 // The server writes the person's name under a different key per event; first one that holds a name wins.
 const ACTOR_KEYS = [
@@ -253,7 +253,7 @@ const KINDS: Record<string, ActivityKind> = {
 
 const OTHER: ActivityKind = { icon: Megaphone, label: 'other' };
 
-export function describeActivity(event: ActivityEvent): ActivityRowView {
+export function describeActivity(event: ActivityEvent) {
   const kind = KINDS[event.type] ?? OTHER;
   const data = parseActivityData(event.data);
   const described: ReturnType<Describe> = kind.describe?.(data) ?? null;
@@ -263,5 +263,5 @@ export function describeActivity(event: ActivityEvent): ActivityRowView {
     actor: pickText(data, ...ACTOR_KEYS),
     title: described?.title ?? null,
     detail: described?.detail ?? { key: TYPE + kind.label },
-  };
+  } as const satisfies ActivityRowView;
 }

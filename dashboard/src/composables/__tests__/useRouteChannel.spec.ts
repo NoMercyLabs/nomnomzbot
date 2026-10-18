@@ -18,7 +18,7 @@ import { channelVariants } from '@/router/channelRoutes';
 
 import type { ChannelChoice } from '../useCurrentChannel';
 
-function choice(login: string, kind: ChannelChoice['kind']): ChannelChoice {
+function choice(login: string, kind: ChannelChoice['kind']) {
   return {
     login,
     displayName: login,
@@ -29,7 +29,7 @@ function choice(login: string, kind: ChannelChoice['kind']): ChannelChoice {
     twitchId: null,
     chatColor: null,
     suspension: null,
-  };
+  } as const satisfies ChannelChoice;
 }
 
 const channels = ref<ChannelChoice[]>([choice('streamer', 'own'), choice('friend', 'moderated')]);

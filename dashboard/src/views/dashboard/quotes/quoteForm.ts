@@ -24,13 +24,13 @@ export type QuoteForm = {
 
 export type QuoteProblem = 'textRequired' | 'textTooLong';
 
-export function formFromQuote(quote: Quote | null): QuoteForm {
+export function formFromQuote(quote: Quote | null) {
   return {
     text: quote?.text ?? '',
     quotedDisplayName: quote?.quotedDisplayName ?? '',
     contextGame: quote?.contextGame ?? '',
     quotedAt: toLocalInput(quote?.quotedAt),
-  };
+  } as const satisfies QuoteForm;
 }
 
 export function formProblem(form: QuoteForm): QuoteProblem | undefined {
@@ -54,7 +54,7 @@ const blankAsNull = (value: string): string | null => {
 };
 
 // A new quote carries the signed-in user as its author; an empty date lets the server use the time of saving.
-export function draftFromForm(form: QuoteForm, authorId: string | null): QuoteDraft {
+export function draftFromForm(form: QuoteForm, authorId: string | null) {
   return {
     text: form.text.trim(),
     quotedDisplayName: blankAsNull(form.quotedDisplayName),
@@ -63,5 +63,5 @@ export function draftFromForm(form: QuoteForm, authorId: string | null): QuoteDr
       ? null
       : fromLocalInput(form.quotedAt),
     createdByUserId: authorId,
-  };
+  } as const satisfies QuoteDraft;
 }

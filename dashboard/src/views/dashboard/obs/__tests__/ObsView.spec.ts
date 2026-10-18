@@ -37,7 +37,7 @@ const widget = (
   id: string,
   name: string,
   over: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+) => ({
   id,
   name,
   isEnabled: true,
@@ -45,7 +45,7 @@ const widget = (
   lastRuntimeError: null,
   eventSubscriptions: [],
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/client', () => ({
   client: {

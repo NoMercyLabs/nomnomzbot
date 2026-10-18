@@ -25,7 +25,7 @@ export interface ChatTriggerDraft {
   minPermissionLevel: string;
 }
 
-export function draftOf(trigger: ChatTrigger): ChatTriggerDraft {
+export function draftOf(trigger: ChatTrigger) {
   return {
     pattern: trigger.pattern,
     matchType: trigger.matchType,
@@ -37,7 +37,7 @@ export function draftOf(trigger: ChatTrigger): ChatTriggerDraft {
     pipelineId: trigger.pipelineId ?? '',
     cooldownSeconds: Number(trigger.cooldownSeconds),
     minPermissionLevel: trigger.minPermissionLevel,
-  };
+  } as const satisfies ChatTriggerDraft;
 }
 
 // Only the fields that differ from the saved trigger travel to the bot.

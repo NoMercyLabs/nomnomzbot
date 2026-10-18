@@ -137,7 +137,7 @@ function categoryLabel(key: string): string {
     : key.replaceAll('_', ' ');
 }
 
-function consequenceLines(blast: WebhookBlastRadius): readonly string[] {
+function consequenceLines(blast: WebhookBlastRadius) {
   const counted = blast.categories.filter((category) => Number(category.count) > 0);
 
   const lines = counted.map((category) =>
@@ -147,7 +147,7 @@ function consequenceLines(blast: WebhookBlastRadius): readonly string[] {
     }));
 
   if (lines.length === 0)
-    return [t('dashboard.settings.webhooks.delete.nothing')];
+    return [t('dashboard.settings.webhooks.delete.nothing')] as const satisfies readonly string[];
 
   return blast.isMinimum
     ? merge(lines, [t('dashboard.settings.webhooks.delete.minimum')])

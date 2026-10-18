@@ -67,13 +67,13 @@ function inOrder(feed: readonly ChatLine[], line: ChatLine): ChatLine[] {
 }
 
 // A timeout and a ban say what happened; Twitch also sends a purge for them, which must not wipe that.
-function modActionMark(action: ModActionPayload): ChatLineMark | null {
+function modActionMark(action: ModActionPayload) {
   if (action.action === 'timeout') {
-    return { removed: 'timeout', timeoutSeconds: action.durationSeconds ?? undefined };
+    return { removed: 'timeout', timeoutSeconds: action.durationSeconds ?? undefined } as const satisfies ChatLineMark;
   }
 
   if (action.action === 'ban') {
-    return { removed: 'banned' };
+    return { removed: 'banned' } as const satisfies ChatLineMark;
   }
 
   return null;

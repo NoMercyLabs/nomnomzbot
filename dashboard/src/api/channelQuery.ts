@@ -27,11 +27,11 @@ export function channelOptions<T>(
   key: (channelId: string | null) => KeyParts,
   fetch: (channelId: string) => Promise<T>,
   channelId: string,
-): { queryKey: KeyParts; queryFn: () => Promise<T> } {
+) {
   return {
     queryKey: key(channelId),
     queryFn: () => fetch(channelId),
-  };
+  } as const satisfies { queryKey: KeyParts; queryFn: () => Promise<T> };
 }
 
 // A query that waits for a channel id and keeps one cache entry per channel.

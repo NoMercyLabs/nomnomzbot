@@ -48,7 +48,7 @@ const refused = (message: string, status: number = 400): Answer => ({
   response: { status, ok: false },
 });
 
-const command = (name: string, overrides: Row = {}): Row => ({
+const command = (name: string, overrides: Row = {}) => ({
   id: `id-${name}`,
   name,
   tier: 'template',
@@ -70,9 +70,9 @@ const command = (name: string, overrides: Row = {}): Row => ({
   presetKey: null,
   speakWithTts: false,
   ...overrides,
-});
+}) as const satisfies Row;
 
-function freshAnswers(): Record<string, () => Answer> {
+function freshAnswers() {
   return {
     '/roles/effective/me': () => ok({ heldActionKeys: held }),
     '/commands': () => ok(rows.map((row) => ({ ...row }))),
@@ -97,7 +97,7 @@ function freshAnswers(): Record<string, () => Answer> {
           replyOverrideCount: 0,
         },
       ]),
-  };
+  } as const satisfies Record<string, () => Answer>;
 }
 
 function read(path: string): Answer {

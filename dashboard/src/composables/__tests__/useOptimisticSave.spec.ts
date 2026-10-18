@@ -27,7 +27,7 @@ type Deferred = {
 const key: string[] = ['channels', 'c1', 'settings'];
 const before = { greeting: 'before' } as const satisfies Settings;
 
-function deferred(): Deferred {
+function deferred() {
   let resolve: (value: Settings) => void = () => {};
   let reject: (error: Error) => void = () => {};
   const promise = new Promise<Settings>((done, fail) => {
@@ -39,7 +39,7 @@ function deferred(): Deferred {
     promise,
     resolve,
     reject,
-  };
+  } as const satisfies Deferred;
 }
 
 function setup(

@@ -18,12 +18,12 @@ import type { AdminChannelRegistryPayload } from '../payloads';
 
 type Page = { data: Record<string, unknown>[]; total: number };
 
-const row = (id: string, status: string, isLive: boolean): Record<string, unknown> => ({
+const row = (id: string, status: string, isLive: boolean) => ({
   id,
   name: id,
   status,
   isLive,
-});
+}) as const satisfies Record<string, unknown>;
 const first: AdminTenantsParams = { page: 1, take: 25 };
 const second: AdminTenantsParams = { page: 2, take: 25 };
 

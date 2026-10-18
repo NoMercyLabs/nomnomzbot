@@ -174,7 +174,7 @@ function replyChange(): Pick<RewardChange, 'response' | 'pipelineId'> {
     : { response: '', pipelineId: pipelineId.value || undefined };
 }
 
-function changeOf(): RewardChange {
+function changeOf() {
   const { response: _reply, ...fields } = text.value;
 
   return {
@@ -188,7 +188,7 @@ function changeOf(): RewardChange {
     maxPerUserPerStream: numberOf('maxPerUserPerStream'),
     globalCooldownSeconds: numberOf('globalCooldownSeconds'),
     timerDurationSeconds: numberOf('timerDurationSeconds'),
-  };
+  } as const satisfies RewardChange;
 }
 
 async function submit(): Promise<void> {

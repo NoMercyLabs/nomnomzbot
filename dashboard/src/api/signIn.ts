@@ -146,10 +146,10 @@ export function deviceApprovalQuery(provider: string, code: DeviceCode | null) {
         return { status: toApprovalStatus(status), intervalMs };
       }
       : skipToken,
-    initialData: (): DeviceApproval => ({
+    initialData: () => ({
       status: 'pending',
       intervalMs: Number(code?.interval ?? 0) * 1000,
-    }),
+    }) as const satisfies DeviceApproval,
     staleTime: Infinity,
     retry: false,
     refetchOnWindowFocus: false,

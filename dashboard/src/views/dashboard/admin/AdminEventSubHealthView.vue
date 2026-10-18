@@ -32,7 +32,8 @@ const { t } = useI18n();
 
 const page = ref(1);
 
-const params = computed<AdminPageParams>(() => ({ page: page.value, take: PAGE_SIZE }));
+const params = computed(() =>
+  ({ page: page.value, take: PAGE_SIZE }) as const satisfies AdminPageParams);
 
 const health = useAdminEventSubHealth(params);
 

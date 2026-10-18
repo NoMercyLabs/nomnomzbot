@@ -76,13 +76,13 @@ const favoriteKeys = computed(() =>
     favoriteKey(favorite.provider, favorite.emoteId)));
 
 const me = useCurrentUser();
-const context = computed<PickerContext>(() => ({
+const context = computed(() => ({
   channelName: channel.value?.displayName ?? null,
   channelAvatar: channel.value?.profileImageUrl ?? null,
   ownAvatar: me.data.value?.profileImageUrl ?? null,
   ownName: me.data.value?.displayName ?? null,
   favorites: favoriteKeys.value,
-}));
+} as const satisfies PickerContext));
 
 // Every section as it is without a search: the rail keeps all of them, so it never jumps while you type.
 const browse = computed(() =>
@@ -131,22 +131,22 @@ type StarTarget = {
 
 // What the server stars for a picker item: an emote by its source and id (its code when it came without one), an
 // emoji by its glyph.
-function starrable(item: Suggestion): StarTarget | null {
+function starrable(item: Suggestion) {
   if (item.kind === 'emoji')
     return {
       provider: emojiProvider,
       emoteId: item.insert,
       code: item.label,
-    };
+    } as const satisfies StarTarget;
 
   const emote = emoteByCode.value.get(item.insert);
 
   return emote
     ? {
-        provider: emote.provider,
-        emoteId: starId(emote),
-        code: emote.code,
-      }
+      provider: emote.provider,
+      emoteId: starId(emote),
+      code: emote.code,
+    } as const satisfies StarTarget
     : null;
 }
 

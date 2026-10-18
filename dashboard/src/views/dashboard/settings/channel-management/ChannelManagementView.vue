@@ -91,9 +91,9 @@ function label(base: string, key: string): string {
     : short.replaceAll('_', ' ');
 }
 
-const consequences = computed<readonly string[]>(() => {
+const consequences = computed(() => {
   if (preview.value === null)
-    return [];
+    return [] as const satisfies readonly string[];
 
   const radius = preview.value.blastRadius;
   const counted = radius.categories.filter((category) => Number(category.count) > 0);
@@ -137,7 +137,7 @@ async function confirmDelete(): Promise<void> {
   deleteOpen.value = false;
 }
 
-const resetLines = computed<readonly string[]>(() => {
+const resetLines = computed(() => {
   const counted = (resetPreview.value?.blastRadius.categories ?? []).filter(
     (category) => Number(category.count) > 0,
   );
@@ -148,7 +148,7 @@ const resetLines = computed<readonly string[]>(() => {
           count: Number(category.count),
           what: label('category', category.categoryKey),
         }))
-    : [t('dashboard.settings.channelManagement.reset.nothing')];
+    : [t('dashboard.settings.channelManagement.reset.nothing')] as const satisfies readonly string[];
 });
 
 async function askReset(): Promise<void> {

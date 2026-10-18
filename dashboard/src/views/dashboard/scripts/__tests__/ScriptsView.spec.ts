@@ -103,7 +103,7 @@ const script = (
   id: string,
   name: string,
   over: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+) => ({
   id,
   name,
   description: `${name} description`,
@@ -115,7 +115,7 @@ const script = (
   createdAt: '2026-01-01T10:00:00Z',
   updatedAt: '2026-01-01T10:00:00Z',
   ...over,
-});
+}) as const satisfies Record<string, unknown>;
 
 const fixtures = (): Record<string, unknown>[] => [
   script('s1', 'Hype Train Banner'),
@@ -616,14 +616,14 @@ describe('ScriptsView', () => {
   });
 
   it('keeps the run filter after the runs panel is opened again', async () => {
-    const run = (id: number, name: string, success: boolean): SessionRun => ({
+    const run = (id: number, name: string, success: boolean) => ({
       id,
       scriptId: `s${id}`,
       scriptName: name,
       at: new Date(2026, 9, 13, 12, id),
       trigger: null,
       result: { ...(WORKED as object), success } as SessionRun['result'],
-    });
+    }) as const satisfies SessionRun;
     const runs: SessionRun[] = [run(1, 'Raid Welcome', true), run(2, 'Hype Train Banner', false)];
     const names = (): string[] =>
       [...document.body.querySelectorAll<HTMLElement>('[data-run-row] [data-run-name]')].map(

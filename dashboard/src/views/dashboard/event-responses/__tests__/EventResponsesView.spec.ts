@@ -45,7 +45,7 @@ let held: string[] = ['eventresponses:read', 'eventresponses:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const response = (eventType: string, overrides: Row = {}): Row => ({
+const response = (eventType: string, overrides: Row = {}) => ({
   id: `id-${eventType}`,
   eventType,
   isEnabled: true,
@@ -60,7 +60,7 @@ const response = (eventType: string, overrides: Row = {}): Row => ({
   updatedAt: '2026-10-01T10:00:00Z',
   createdAt: '2026-10-01T10:00:00Z',
   ...overrides,
-});
+}) as const satisfies Row;
 
 function read(path: string, options?: Options): Answer {
   const eventType = options?.params?.path?.eventType;

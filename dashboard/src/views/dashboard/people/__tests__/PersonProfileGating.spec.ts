@@ -22,7 +22,7 @@ import en from '../i18n/en.json';
 
 const held = vi.hoisted(() => ({ keys: [] as string[], banned: false }));
 
-const member = (): Record<string, unknown> => ({
+const member = () => ({
   id: 't-dave',
   internalUserId: 'u-dave',
   username: 'dave',
@@ -38,7 +38,7 @@ const member = (): Record<string, unknown> => ({
   banHistory: [],
   recentActivity: [],
   isVip: false,
-});
+}) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({

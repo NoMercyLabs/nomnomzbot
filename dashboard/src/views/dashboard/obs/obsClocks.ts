@@ -21,7 +21,7 @@ export type ObsClocks = {
 };
 
 // The stream and recording timers count every second on their own from the newest timecode, a poll or a push.
-export function useObsClocks(sources: MaybeRefOrGetter<LiveSources>): ObsClocks {
+export function useObsClocks(sources: MaybeRefOrGetter<LiveSources>) {
   const live = computed<LiveOutputs | null>(() => liveOutputs(toValue(sources)));
 
   return {
@@ -35,5 +35,5 @@ export function useObsClocks(sources: MaybeRefOrGetter<LiveSources>): ObsClocks 
       () => live.value?.recording === true,
       () => live.value?.paused !== true,
     ),
-  };
+  } as const satisfies ObsClocks;
 }
