@@ -27,7 +27,7 @@ describe('purifyChatHtml', () => {
     const host = parse(
       '<marquee direction="right" scrollamount="12" bgcolor="#ff0"><img src="https://cdn.test/dino.gif" alt="DinoDance" class="emote"></marquee><table><tr><td colspan="2">hi</td></tr></table>',
     );
-    const marquee: Element = host.querySelector('marquee')!;
+    const marquee = host.querySelector<Element>('marquee')!;
 
     expect(marquee.getAttribute('direction')).toBe('right');
     expect(marquee.getAttribute('scrollamount')).toBe('12');

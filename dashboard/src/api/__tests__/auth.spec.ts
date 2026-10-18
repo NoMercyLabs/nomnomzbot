@@ -125,7 +125,7 @@ describe('expired access token', () => {
     const seen = stubServer(200);
     const [auth, { queryClient }] = await signedInWithExpiredToken();
 
-    const result = await queryClient.fetchQuery(auth.currentUserQuery);
+    const result = await queryClient.query(auth.currentUserQuery);
 
     expect(result).toEqual(user);
 
@@ -142,7 +142,7 @@ describe('expired access token', () => {
     const seen = stubServer(401);
     const [auth, { queryClient }] = await signedInWithExpiredToken();
 
-    const result = await queryClient.fetchQuery(auth.currentUserQuery);
+    const result = await queryClient.query(auth.currentUserQuery);
 
     expect(result).toBeNull();
     expect(seen).toHaveLength(2);
@@ -263,7 +263,7 @@ describe('rate limited by the server', () => {
     const seen: string[] = stubServer(200, { '/api/v1/auth/refresh': '0' });
     const [auth, { queryClient }] = await signedInWithExpiredToken();
 
-    const result = await queryClient.fetchQuery(auth.currentUserQuery);
+    const result = await queryClient.query(auth.currentUserQuery);
 
     expect(result).toEqual(user);
 
@@ -287,7 +287,7 @@ describe('rate limited by the server', () => {
 
     await auth.restoreSession();
 
-    const result = await queryClient.fetchQuery(auth.currentUserQuery);
+    const result = await queryClient.query(auth.currentUserQuery);
 
     expect(result).toEqual(user);
     expect(seen).toEqual(['/api/v1/auth/me Bearer fresh', '/api/v1/auth/me Bearer fresh']);
@@ -303,7 +303,7 @@ describe('rate limited by the server', () => {
 
     await auth.restoreSession();
 
-    const result = await queryClient.fetchQuery(auth.currentUserQuery);
+    const result = await queryClient.query(auth.currentUserQuery);
 
     expect(result).toBeNull();
     expect(seen).toHaveLength(1);

@@ -12,7 +12,7 @@ import type { NavigationGuard, RouteLocationNormalized, RouteLocationRaw, Router
 
 import { channelAccessOptions } from '@/api/access';
 import { moderatedChannelsQuery, myChannelsQuery } from '@/api/channels';
-import { queryClient } from '@/api/queryClient';
+import { ensureQuery } from '@/api/queryClient';
 import { channelChoices, chosenChannelId, pickCurrent } from '@/composables/useCurrentChannel';
 import { dashboardNav } from '@/layouts/dashboard/navigation';
 import { merge } from '@/lib/array';
@@ -42,8 +42,8 @@ function namedChannel(to: RouteLocationNormalized): string | undefined {
 // Null when the channel is not set up in this bot, so no access can be read for it.
 async function targetChannelId(to: RouteLocationNormalized): Promise<string | null> {
   const [mine, moderated] = await Promise.all([
-    queryClient.ensureQueryData(myChannelsQuery),
-    queryClient.ensureQueryData(moderatedChannelsQuery),
+    ensureQuery(myChannelsQuery),
+    ensureQuery(moderatedChannelsQuery),
   ]);
   const choices = channelChoices(mine, moderated);
   const named = namedChannel(to);
@@ -126,7 +126,7 @@ export function accessGuard(router: Router): NavigationGuard {
       if (channelId === null)
         return true;
 
-      const access = await queryClient.ensureQueryData(channelAccessOptions(channelId));
+      const access = await ensureQuery(channelAccessOptions(channelId));
       const held = new Set<string>(access.heldActionKeys);
 
       if (held.has(action))

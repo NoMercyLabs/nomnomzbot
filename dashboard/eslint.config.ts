@@ -179,6 +179,8 @@ export default defineConfigWithVueTs(
     rules: {
       'app/no-redundant-type-annotation': 'error',
       'app/generic-over-annotation': 'error',
+      // Owner 2026-10-18: "use a linter to prevent deprecated code" (ts 6387 on ensureQueryData).
+      '@typescript-eslint/no-deprecated': 'error',
     },
   },
 

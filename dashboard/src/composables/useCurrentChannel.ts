@@ -21,7 +21,7 @@ import {
   type ChannelSuspension,
   type ModeratedChannel,
 } from '@/api/channels';
-import { queryClient } from '@/api/queryClient';
+import { ensureQuery } from '@/api/queryClient';
 import { merge } from '@/lib/array';
 
 export type ChannelChoice = {
@@ -106,8 +106,8 @@ export function pickCurrent(
 // A failed list is not retried here: a navigation must not wait out the retry back-off of a list that is down.
 export async function currentChannelLogin(): Promise<string | null> {
   const [mine, moderated] = await Promise.all([
-    queryClient.ensureQueryData({ ...myChannelsQuery, retry: false }),
-    queryClient.ensureQueryData({ ...moderatedChannelsQuery, retry: false }),
+    ensureQuery(myChannelsQuery),
+    ensureQuery(moderatedChannelsQuery),
   ]);
 
   return pickCurrent(channelChoices(mine, moderated), chosenChannelId.value)?.login ?? null;

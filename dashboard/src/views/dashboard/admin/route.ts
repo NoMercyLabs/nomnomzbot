@@ -11,7 +11,7 @@
 import type { RouteLocationNormalized, RouteLocationRaw, RouteRecordRaw } from 'vue-router';
 
 import { currentUserQuery } from '@/api/auth';
-import { queryClient } from '@/api/queryClient';
+import { ensureQuery } from '@/api/queryClient';
 import { holdsPlatformKey } from '@/composables/usePlatformCan';
 import { loadPage } from '@/i18n';
 
@@ -20,7 +20,7 @@ import { adminPageKey } from './adminKeys';
 // Only a platform admin who holds the page's platform key opens it; anyone else goes to the home page.
 // A page with no key in the table needs the admin flag only.
 export async function adminOnly(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
-  const user = await queryClient.ensureQueryData(currentUserQuery);
+  const user = await ensureQuery(currentUserQuery);
   const key = adminPageKey(String(to.name));
   const open = key === undefined
     ? user?.isAdmin === true

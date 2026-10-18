@@ -8,7 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { FetchQueryOptions, QueryClient } from '@tanstack/vue-query';
+import { noop } from '@tanstack/vue-query';
+import type { QueryClient, QueryExecuteOptions } from '@tanstack/vue-query';
 
 import { ANALYTICS_RANGES, analyticsOverviewOptions, type AnalyticsRange } from './analytics';
 import { chatEmotesOptions, chatHistoryOptions, userChatOptions } from './chat';
@@ -51,13 +52,16 @@ const analyticsRangeStorageKey = 'nnz.analytics.range';
 const defaultAnalyticsRange: AnalyticsRange = 'r30';
 
 type Warm = (queries: QueryClient, channelId: string) => Promise<void>;
-type ChannelOptions<T> = (channelId: string, queries: QueryClient) => FetchQueryOptions<T>;
+type ChannelOptions<T> = (channelId: string, queries: QueryClient) => QueryExecuteOptions<T>;
 
-async function warm<T>(queries: QueryClient, options: FetchQueryOptions<T>): Promise<void> {
-  await queries.prefetchQuery({
-    staleTime: intentStaleMs,
-    ...options,
-  });
+// A warm that fails leaves the cache as it was: the page asks again when it opens.
+async function warm<T>(queries: QueryClient, options: QueryExecuteOptions<T>): Promise<void> {
+  await queries
+    .query({
+      staleTime: intentStaleMs,
+      ...options,
+    })
+    .catch(noop);
 }
 
 // One warm for one channel read. The type parameter keeps each read's own data type.
@@ -80,10 +84,12 @@ const chatHistory = read((channelId, queries) => chatHistoryOptions(queries, cha
 const warmPeople: Warm = async (queries, channelId) => {
   const firstTab = communityListOptions(channelId, 'all', '');
 
-  await queries.prefetchInfiniteQuery({
-    staleTime: intentStaleMs,
-    ...firstTab,
-  });
+  await queries
+    .infiniteQuery({
+      staleTime: intentStaleMs,
+      ...firstTab,
+    })
+    .catch(noop);
 };
 
 const warmScripts: Warm = async (queries) => {
@@ -171,10 +177,12 @@ async function warmByInternalId(
   channelId: string,
   internalId: string,
 ): Promise<void> {
-  const chat = queries.prefetchInfiniteQuery({
-    staleTime: intentStaleMs,
-    ...userChatOptions(channelId, internalId),
-  });
+  const chat = queries
+    .infiniteQuery({
+      staleTime: intentStaleMs,
+      ...userChatOptions(channelId, internalId),
+    })
+    .catch(noop);
   const profile = warm(queries, viewerProfileOptions(channelId, internalId));
 
   await Promise.all([profile, chat]);
