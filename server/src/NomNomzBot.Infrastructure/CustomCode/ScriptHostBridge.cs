@@ -430,6 +430,9 @@ public sealed partial class ScriptHostBridge(
                 broadcasterId.ToString(),
                 args[0],
                 triggeringUserId,
+                // The bridge holds the trigger user's id but not their role, so the script asks as Everyone:
+                // a service the channel limits to a higher role (YouTube by default) refuses it. Never widen.
+                requesterRoleLevel: 0,
                 cancellationToken: ct
             )
             .GetAwaiter()

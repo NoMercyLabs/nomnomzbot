@@ -122,7 +122,9 @@ public sealed class YouTubeSongRequestRulesTests
                 AccessToken = "test-access-token",
             }
         );
-        db.SaveChanges();
+        // These tests are about queue behavior, so the channel has opened YouTube requests to everyone.
+        // The per-service role rules live in SongRequestSourceRoleTests.
+        db.OpenRequestsToEveryone(ChannelId, "youtube");
         MusicConfigDto config = new(true, "auto", 50, 5, allowYouTube, true, "everyone");
         return new(
             [_spotify, _youTube],

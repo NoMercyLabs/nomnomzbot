@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NSubstitute;
@@ -30,6 +31,19 @@ namespace NomNomzBot.Api.Tests.Controllers;
 public sealed class MusicControllerAddToQueueTests
 {
     private const string ChannelId = "11111111-1111-1111-1111-111111111111";
+
+    private static IRoleResolver ResolverReturning(int level)
+    {
+        IRoleResolver roles = Substitute.For<IRoleResolver>();
+        roles
+            .ResolveEffectiveLevelAsync(
+                Arg.Any<Guid>(),
+                Guid.Parse(ChannelId),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(level));
+        return roles;
+    }
 
     private static MusicController Build(IMusicService music, string? callerDisplayName)
     {
@@ -80,6 +94,7 @@ public sealed class MusicControllerAddToQueueTests
         IActionResult result = await controller.AddToQueue(
             ChannelId,
             new SongRequestDto { Query = "some song", RequestedBy = null },
+            ResolverReturning(0),
             CancellationToken.None
         );
 
@@ -121,6 +136,7 @@ public sealed class MusicControllerAddToQueueTests
         IActionResult result = await controller.AddToQueue(
             ChannelId,
             new SongRequestDto { Query = "some song", RequestedBy = "TargetViewer" },
+            ResolverReturning(0),
             CancellationToken.None
         );
 
@@ -132,6 +148,46 @@ public sealed class MusicControllerAddToQueueTests
                 "some song",
                 "TargetViewer",
                 Arg.Any<int?>(),
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
+            );
+    }
+
+    [Fact]
+    public async Task AddToQueue_passes_the_callers_resolved_role_level_so_each_service_gate_can_judge_it()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .RequestTrackAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
+            )
+            .Returns(
+                Result.Success(
+                    new MusicTrack("uri:1", "Track", "Artist", null, null, 1000, "youtube")
+                )
+            );
+        IRoleResolver roles = ResolverReturning(40);
+        MusicController controller = Build(music, callerDisplayName: "Streamer");
+
+        await controller.AddToQueue(
+            ChannelId,
+            new SongRequestDto { Query = "some song" },
+            roles,
+            CancellationToken.None
+        );
+
+        await music
+            .Received(1)
+            .RequestTrackAsync(
+                ChannelId,
+                "some song",
+                "Streamer",
+                40,
                 Arg.Any<CancellationToken>(),
                 Arg.Any<string?>()
             );

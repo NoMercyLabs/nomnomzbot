@@ -669,6 +669,17 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null)
             return NoProvider<MusicTrack>();
 
+        // Each music service has its own request role, checked on top of the channel's allow switch.
+        Result? roleRefused = await SongRequestSourceAccess.RefuseIfBelowAsync(
+            _db,
+            tenantId,
+            provider.Provider,
+            requesterRoleLevel,
+            cancellationToken
+        );
+        if (roleRefused is not null)
+            return Result.Failure<MusicTrack>(roleRefused.ErrorMessage!, roleRefused.ErrorCode);
+
         // The length cap applies to a search pick too, so a candidate over it is passed over for the next
         // one instead of being picked and then refused. Operators are not held by the cap.
         int? maxDurationMs = IsOperator(requesterRoleLevel)

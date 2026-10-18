@@ -294,6 +294,14 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
+            // The channel limits that music service to a higher role than the requester holds.
+            "SOURCE_ROLE_REQUIRED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.SourceNeedsRole,
+                "Your role can't request songs from that music service in this channel. Send a song name instead.",
+                null,
+                ct
+            ),
             // Spotify would accept it into its queue and then skip it without a word.
             "TRACK_UNAVAILABLE" => ComposeAsync(
                 context,

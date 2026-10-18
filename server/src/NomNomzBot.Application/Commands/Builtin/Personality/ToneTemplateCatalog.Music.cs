@@ -726,6 +726,24 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.SourceNeedsRole,
+            variables: [],
+            informative:
+            [
+                "Your role can't request songs from that music service in this channel. Send a song name instead.",
+            ],
+            friendly:
+            [
+                "Sorry, your role can't request from that music service here. Try a song name instead!",
+            ],
+            sassy: ["Not for your role. That music service is locked here. Send a song name."],
+            hype: ["THAT MUSIC SERVICE IS LOCKED FOR YOUR ROLE HERE! SEND A SONG NAME INSTEAD."],
+            chill: ["that music service is locked for your role here. send a song name instead."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.NotPlayable,
             variables: [],
             informative:

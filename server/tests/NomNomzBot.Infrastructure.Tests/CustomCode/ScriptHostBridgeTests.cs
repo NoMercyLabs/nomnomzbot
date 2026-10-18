@@ -272,7 +272,7 @@ public sealed class ScriptHostBridgeTests
                 Channel.ToString(),
                 "lofi beats",
                 Arg.Any<string?>(),
-                Arg.Any<int?>(),
+                0,
                 Arg.Any<CancellationToken>(),
                 Arg.Any<string?>()
             )
@@ -291,6 +291,7 @@ public sealed class ScriptHostBridgeTests
             );
         ScriptHostBridge bridge = Build(music: music);
 
+        // Matched only when the script asks as Everyone (level 0), so a role-limited service refuses it.
         bridge
             .Resolve("music.queue")("music.queue", ["lofi beats"], CancellationToken.None)
             .Should()

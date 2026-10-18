@@ -83,20 +83,56 @@ public sealed class ActionDefinitionSeeder : ISeeder
             }
             else
             {
-                _db.ActionDefinitions.Add(
-                    new()
-                    {
-                        ActionKey = seed.Key,
-                        Plane = seed.Plane,
-                        DefaultLevel = seed.DefaultLevel,
-                        FloorLevel = seed.FloorLevel,
-                        FloorTier = seed.Tier,
-                        IsGrantableViaPermit = seed.Grant,
-                        Description = seed.Description,
-                    }
-                );
+                ActionDefinition added = new()
+                {
+                    ActionKey = seed.Key,
+                    Plane = seed.Plane,
+                    DefaultLevel = seed.DefaultLevel,
+                    FloorLevel = seed.FloorLevel,
+                    FloorTier = seed.Tier,
+                    IsGrantableViaPermit = seed.Grant,
+                    Description = seed.Description,
+                };
+                _db.ActionDefinitions.Add(added);
+
+                if (
+                    seed.Key == SpotifyRequestKey
+                    && existing.TryGetValue(LegacyRequestKey, out ActionDefinition? legacy)
+                )
+                    await CopyLegacyOverridesAsync(legacy, added, ct);
             }
         }
+    }
+
+    private const string LegacyRequestKey = "music:request:submit";
+    private const string SpotifyRequestKey = "music:request:spotify";
+
+    /// <summary>
+    /// One-time upgrade copy: a channel that customized the single request level keeps that level for Spotify.
+    /// It runs only when the Spotify row is first created, so a channel that later resets its Spotify level is
+    /// not given the old level back. YouTube starts at its safe default (opt-in).
+    /// </summary>
+    private async Task CopyLegacyOverridesAsync(
+        ActionDefinition legacy,
+        ActionDefinition spotify,
+        CancellationToken ct
+    )
+    {
+        List<ChannelActionOverride> customized = await _db
+            .ChannelActionOverrides.IgnoreQueryFilters()
+            .Where(o => o.ActionDefinitionId == legacy.Id && o.DeletedAt == null)
+            .ToListAsync(ct);
+
+        foreach (ChannelActionOverride source in customized)
+            _db.ChannelActionOverrides.Add(
+                new()
+                {
+                    BroadcasterId = source.BroadcasterId,
+                    ActionDefinitionId = spotify.Id,
+                    OverrideLevel = source.OverrideLevel,
+                    SetByUserId = source.SetByUserId,
+                }
+            );
     }
 
     private static readonly IReadOnlyList<ActionSeed> Catalogue = Build();
@@ -504,7 +540,21 @@ public sealed class ActionDefinitionSeeder : ISeeder
         void C(string key) =>
             s.Add(new(key, Everyone, Everyone, DangerTier.Low, true, AuthPlane.Community));
 
+        // music:request:submit is the umbrella "may request a song at all" gate of the dashboard endpoint. The
+        // per-service keys below decide the rest: Spotify is safe by default (Everyone), YouTube is opt-in
+        // (Broadcaster by default, floor Everyone, so the channel raises its reach to Mods, Subs or Everyone).
         C("music:request:submit");
+        C("music:request:spotify");
+        s.Add(
+            new(
+                "music:request:youtube",
+                Broadcaster,
+                Everyone,
+                DangerTier.Low,
+                true,
+                AuthPlane.Community
+            )
+        );
         // Reading the queue and the now-playing track: the public song-request page, the music widget and
         // every signed-in viewer read it (music-sr.md §5.1 community / Everyone). A broadcaster may raise it.
         C("music:queue:read");

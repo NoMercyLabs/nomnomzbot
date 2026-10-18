@@ -96,6 +96,8 @@ public sealed class PublicSongRequestController(
             page.Value.BroadcasterId.ToString(),
             request.Query,
             string.IsNullOrWhiteSpace(request.RequestedBy) ? "Anonymous" : request.RequestedBy,
+            // An anonymous page visitor holds no role, so each music service's request key sees Everyone.
+            requesterRoleLevel: 0,
             cancellationToken: cancellationToken
         );
         if (requested.IsFailure)

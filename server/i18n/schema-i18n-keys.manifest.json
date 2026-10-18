@@ -464,6 +464,8 @@
     "builtin.reply.sr.requestsoff.label",
     "builtin.reply.sr.revoked.description",
     "builtin.reply.sr.revoked.label",
+    "builtin.reply.sr.sourceneedsrole.description",
+    "builtin.reply.sr.sourceneedsrole.label",
     "builtin.reply.sr.sourcenotallowed.description",
     "builtin.reply.sr.sourcenotallowed.label",
     "builtin.reply.sr.trackblocked.description",

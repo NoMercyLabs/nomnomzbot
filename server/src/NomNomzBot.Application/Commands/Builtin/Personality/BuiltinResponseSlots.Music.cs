@@ -169,6 +169,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>The link belongs to a music service this channel has switched off — no variables.</summary>
         public const string SourceNotAllowed = "sourcenotallowed";
 
+        /// <summary>The requester's role is below the level this channel set for that music service — no variables.</summary>
+        public const string SourceNeedsRole = "sourceneedsrole";
+
         /// <summary>The track cannot play in the streamer's country — no variables.</summary>
         public const string NotPlayable = "notplayable";
 

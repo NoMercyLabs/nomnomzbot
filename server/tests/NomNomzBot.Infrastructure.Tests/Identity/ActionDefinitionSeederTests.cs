@@ -45,6 +45,58 @@ public sealed class ActionDefinitionSeederTests
         all.Should().Contain(a => a.Plane == AuthPlane.Community);
     }
 
+    [Fact]
+    public async Task Upgrade_copies_a_customized_request_level_to_spotify_and_leaves_youtube_at_its_default()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+
+        // Simulate an install from before the split: only the single request key exists, and one
+        // channel raised it to Moderator (10) while another left it alone.
+        db.ActionDefinitions.RemoveRange(
+            db.ActionDefinitions.Where(a =>
+                a.ActionKey == "music:request:spotify" || a.ActionKey == "music:request:youtube"
+            )
+        );
+        Guid submitId = (
+            await db.ActionDefinitions.SingleAsync(a => a.ActionKey == "music:request:submit")
+        ).Id;
+        Guid customizedChannel = Guid.NewGuid();
+        db.ChannelActionOverrides.Add(
+            new()
+            {
+                BroadcasterId = customizedChannel,
+                ActionDefinitionId = submitId,
+                OverrideLevel = 10,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        await SeedAsync(db);
+
+        Guid spotifyId = (
+            await db.ActionDefinitions.SingleAsync(a => a.ActionKey == "music:request:spotify")
+        ).Id;
+        Guid youTubeId = (
+            await db.ActionDefinitions.SingleAsync(a => a.ActionKey == "music:request:youtube")
+        ).Id;
+        List<ChannelActionOverride> spotifyOverrides = await db
+            .ChannelActionOverrides.Where(o => o.ActionDefinitionId == spotifyId)
+            .ToListAsync();
+        spotifyOverrides.Should().ContainSingle();
+        spotifyOverrides[0].BroadcasterId.Should().Be(customizedChannel);
+        spotifyOverrides[0].OverrideLevel.Should().Be(10);
+        (await db.ChannelActionOverrides.AnyAsync(o => o.ActionDefinitionId == youTubeId))
+            .Should()
+            .BeFalse("YouTube starts at the safe default");
+
+        // A third run adds nothing: the copy happens once, when the Spotify row is created.
+        await SeedAsync(db);
+        (await db.ChannelActionOverrides.CountAsync(o => o.ActionDefinitionId == spotifyId))
+            .Should()
+            .Be(1);
+    }
+
     [Theory]
     [InlineData(ChatDecorationCapabilities.RenderHtml)]
     [InlineData(ChatDecorationCapabilities.PreviewLinks)]

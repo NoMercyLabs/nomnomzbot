@@ -31,6 +31,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Content.Identity;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 // Disambiguate the domain Record entity from xunit's Record helper (the test project globally imports Xunit).
 using Record = NomNomzBot.Domain.Platform.Entities.Record;
@@ -68,7 +69,34 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
             connection
         );
         db.Database.EnsureCreated();
+
+        // The real catalogue, so a song request sees the shipped per-service request levels
+        // (Spotify open to everyone, YouTube broadcaster-only) exactly as production does.
+        new ActionDefinitionSeeder(db)
+            .SeedAsync()
+            .GetAwaiter()
+            .GetResult();
+        db.SaveChanges();
         return db;
+    }
+
+    /// <summary>
+    /// The channel opens one music service's song requests to Everyone (an override of its
+    /// <c>music:request:&lt;service&gt;</c> action). For tests about queue behavior, not about the role rule.
+    /// </summary>
+    public void OpenRequestsToEveryone(Guid channelId, string providerKey)
+    {
+        ChannelActionOverrides.Add(
+            new()
+            {
+                BroadcasterId = channelId,
+                ActionDefinitionId = ActionDefinitions
+                    .Single(a => a.ActionKey == $"music:request:{providerKey}")
+                    .Id,
+                OverrideLevel = 0,
+            }
+        );
+        SaveChanges();
     }
 
     public override void Dispose()
@@ -128,6 +156,9 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(c => c.Tokens);
         });
 
+        modelBuilder.Entity<ActionDefinition>(b => b.HasKey(a => a.Id));
+        modelBuilder.Entity<ChannelActionOverride>(b => b.HasKey(o => o.Id));
+
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
 
@@ -156,6 +187,8 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(Record)
                 && t != typeof(User)
                 && t != typeof(UserIdentity)
+                && t != typeof(ActionDefinition)
+                && t != typeof(ChannelActionOverride)
             ),
     ];
 
@@ -353,8 +386,8 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         throw new NotSupportedException();
-    public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();
-    public DbSet<ChannelActionOverride> ChannelActionOverrides => throw new NotSupportedException();
+    public DbSet<ActionDefinition> ActionDefinitions => Set<ActionDefinition>();
+    public DbSet<ChannelActionOverride> ChannelActionOverrides => Set<ChannelActionOverride>();
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
     public DbSet<ChannelMissingScope> ChannelMissingScopes => throw new NotSupportedException();
     public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();

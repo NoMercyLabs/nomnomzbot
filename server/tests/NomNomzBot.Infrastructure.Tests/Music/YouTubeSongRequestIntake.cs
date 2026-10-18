@@ -54,6 +54,9 @@ internal sealed class YouTubeSongRequestIntake
         );
         db.SaveChanges();
 
+        // These tests are about intake behavior, so the channel has opened YouTube requests to everyone.
+        db.OpenRequestsToEveryone(ChannelId, "youtube");
+
         // The streamer's audio overlay is open, so a YouTube request has a player to play in.
         IYouTubePlayerDispatcher openPlayer = Substitute.For<IYouTubePlayerDispatcher>();
         openPlayer

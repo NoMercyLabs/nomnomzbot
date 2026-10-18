@@ -118,6 +118,7 @@ public sealed class MusicServiceProviderFailureTests
             }
         );
         db.SaveChanges();
+        db.OpenRequestsToEveryone(ChannelId, serviceName);
 
         return new MusicService(
             [provider],

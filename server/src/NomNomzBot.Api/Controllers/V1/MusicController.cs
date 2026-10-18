@@ -16,6 +16,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 
@@ -208,6 +209,7 @@ public class MusicController : BaseController
     public async Task<IActionResult> AddToQueue(
         string channelId,
         [FromBody] SongRequestDto request,
+        [FromServices] IRoleResolver roleResolver,
         CancellationToken ct
     )
     {
@@ -215,11 +217,27 @@ public class MusicController : BaseController
             ? User.GetDisplayName()
             : request.RequestedBy;
 
+        // The caller's own role decides which music services they may request from (one key per service).
+        int callerLevel = 0;
+        if (
+            Guid.TryParse(User.GetUserId(), out Guid userId)
+            && Guid.TryParse(channelId, out Guid broadcasterId)
+        )
+        {
+            Result<int> resolved = await roleResolver.ResolveEffectiveLevelAsync(
+                userId,
+                broadcasterId,
+                ct
+            );
+            callerLevel = resolved.IsSuccess ? resolved.Value : 0;
+        }
+
         Result<MusicTrack> requested = await _musicService.RequestTrackAsync(
             channelId,
             request.Query,
             requestedBy,
-            cancellationToken: ct
+            callerLevel,
+            ct
         );
         if (requested.IsFailure)
             return ResultResponse(requested);
