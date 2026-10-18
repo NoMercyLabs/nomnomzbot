@@ -418,6 +418,28 @@
           "error": "De geplande taken konden niet laden.",
           "forbidden": "Je mag de geplande taken niet bekijken."
         }
+      },
+      "tenantUsage": {
+        "title": "Gebruik per tenant",
+        "count": "{count} tenants",
+        "restricted": "Tenants voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "noUsage": "Geen gebruik vastgelegd",
+        "noCost": "Geen prijs",
+        "unpriced": "Nog geen prijs: {units}",
+        "columns": {
+          "channel": "Kanaal",
+          "period": "Periode",
+          "metrics": "Gebruik",
+          "tts": "TTS-tekens",
+          "cost": "Kosten"
+        },
+        "list": {
+          "title": "Gebruik per tenant",
+          "latestPeriod": "Laatste meetperiode van elke tenant",
+          "empty": "Er is nog geen gebruik vastgelegd.",
+          "error": "Het tenantgebruik kon niet laden.",
+          "forbidden": "Je mag het tenantgebruik niet bekijken."
+        }
       }
     },
     "adminFeatureFlags": {

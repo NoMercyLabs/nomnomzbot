@@ -68,6 +68,7 @@ export const apiOperations = {
   'admin webhook replay': 'admin',
   'admin jobs': 'admin',
   'admin job retry': 'admin',
+  'admin usage': 'admin',
   'admin feature flags': 'admin',
   'admin flag overrides': 'admin',
   'admin flag blast radius': 'admin',

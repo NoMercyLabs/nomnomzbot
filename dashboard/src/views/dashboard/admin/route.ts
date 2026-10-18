@@ -142,3 +142,15 @@ export const dashboardAdminScheduledJobsRoute = {
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
+
+export const dashboardAdminTenantUsageRoute = {
+  path: 'admin/tenant-usage',
+  name: 'dashboard-admin-tenant-usage',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminTenantUsageView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;

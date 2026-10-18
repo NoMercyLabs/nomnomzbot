@@ -418,6 +418,28 @@
           "error": "The scheduled jobs could not load.",
           "forbidden": "You may not see the scheduled jobs."
         }
+      },
+      "tenantUsage": {
+        "title": "Tenant usage",
+        "count": "{count} tenants",
+        "restricted": "Hosting tenants for third parties is a restricted option: running NomNomzBot as a hosted service is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+        "noUsage": "No usage recorded",
+        "noCost": "Not priced",
+        "unpriced": "No price yet: {units}",
+        "columns": {
+          "channel": "Channel",
+          "period": "Period",
+          "metrics": "Usage",
+          "tts": "TTS characters",
+          "cost": "Cost"
+        },
+        "list": {
+          "title": "Usage per tenant",
+          "latestPeriod": "Latest metering period of each tenant",
+          "empty": "No usage has been recorded yet.",
+          "error": "The tenant usage could not load.",
+          "forbidden": "You may not see tenant usage."
+        }
       }
     },
     "adminFeatureFlags": {
