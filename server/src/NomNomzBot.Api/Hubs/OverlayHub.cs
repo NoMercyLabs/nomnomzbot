@@ -12,11 +12,14 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.MediaShare.Dtos;
+using NomNomzBot.Application.MediaShare.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -388,6 +391,51 @@ public class OverlayHub : Hub<IOverlayClient>
             Context.Items[YouTubePlayingItem] = true;
         return reported.IsSuccess;
     }
+
+    /// <summary>
+    /// The media-share page reports its player. The report counts only from a widget of the connection's own
+    /// channel that subscribes to <c>media_share_command</c>; an ended or error report moves the queue on.
+    /// </summary>
+    public async Task<bool> ReportMediaSharePlayerState(
+        string widgetId,
+        string requestId,
+        string state,
+        int positionSeconds,
+        int durationSeconds,
+        int volume,
+        [FromServices] IMediaSharePlaybackService playback
+    )
+    {
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
+            return false;
+        if (!MayActFor(widgetId) || !Guid.TryParse(widgetId, out Guid parsedWidgetId))
+            return false;
+        if (!IsMediaPlayerState(state))
+            return false;
+
+        List<Widget> own = await _db
+            .Widgets.AsNoTracking()
+            .Where(w => w.Id == parsedWidgetId && w.BroadcasterId == broadcasterId)
+            .ToListAsync(Context.ConnectionAborted);
+        if (!WidgetAlertRouting.Subscribers(own, "media_share_command").Any())
+            return false;
+
+        Guid? parsedRequestId = Guid.TryParse(requestId, out Guid request) ? request : null;
+        Result reported = await playback.ReportStateAsync(
+            broadcasterId,
+            new(parsedRequestId, state, positionSeconds, durationSeconds, volume),
+            Context.ConnectionAborted
+        );
+        return reported.IsSuccess;
+    }
+
+    private static bool IsMediaPlayerState(string state) =>
+        state
+            is MediaPlayerStates.Idle
+                or MediaPlayerStates.Playing
+                or MediaPlayerStates.Paused
+                or MediaPlayerStates.Ended
+                or MediaPlayerStates.Error;
 
     private static bool IsOnThePlayer(string state) =>
         state.Equals("playing", StringComparison.OrdinalIgnoreCase)

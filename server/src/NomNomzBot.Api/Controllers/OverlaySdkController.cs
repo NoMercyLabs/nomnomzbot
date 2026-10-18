@@ -44,6 +44,9 @@ public sealed class OverlaySdkController : ControllerBase
            actions.claim(key) -> Promise<boolean> is true only for the first open copy of the widget to claim key.
            reportYouTubePlayerState(videoId, state, positionMs) -> Promise<boolean> tells the bot what a YouTube player
            page plays (state PLAYING, PAUSED or ENDED); true when the bot accepted the report.
+           reportMediaSharePlayerState(requestId | null, state, positionSeconds, durationSeconds, volume) -> Promise<boolean>
+           tells the bot what the media-share player does (state idle, playing, paused, ended or error); an ended or
+           error report moves the queue on. True when the bot accepted the report.
            data.nowPlaying() / data.queue() / data.storage(key) -> Promise: the channel's current snapshots, read
            with the SDK's own token (header X-Overlay-Token); they reject when the request fails.
            data.streamStats({ stream?, metrics }) -> Promise: the stream window plus the requested metric keys.
@@ -487,6 +490,18 @@ public sealed class OverlaySdkController : ControllerBase
             return callHub("ReportYouTubePlayerState", [widgetId, String(videoId), String(state), Math.round(Number(positionMs) || 0)]);
           }
 
+          // The media-share page reports its player (idle, playing, paused, ended or error) for the request it plays.
+          function reportMediaSharePlayerState(requestId, state, positionSeconds, durationSeconds, volume) {
+            return callHub("ReportMediaSharePlayerState", [
+              widgetId,
+              requestId ? String(requestId) : "",
+              String(state),
+              Math.round(Number(positionSeconds) || 0),
+              Math.round(Number(durationSeconds) || 0),
+              Math.round(Number(volume) || 0),
+            ]);
+          }
+
           function callHub(target, args) {
             return new Promise(function (resolve, reject) {
               if (!widgetId || !ws || ws.readyState !== WebSocket.OPEN) {
@@ -591,6 +606,7 @@ public sealed class OverlaySdkController : ControllerBase
               get name() { return window.WIDGET_NAME || ""; },
             },
             reportYouTubePlayerState: reportYouTubePlayerState,
+            reportMediaSharePlayerState: reportMediaSharePlayerState,
             get settings() { return currentSettings; },
           };
           window.NomNomz = api;

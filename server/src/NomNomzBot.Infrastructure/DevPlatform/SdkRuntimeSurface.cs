@@ -312,6 +312,15 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "  reportYouTubePlayerState(videoId: string, state: string, positionMs: number): Promise<boolean>;"
         );
+        sb.AppendLine(
+            "  /** The media-share page tells the bot what its player does: state is 'idle', 'playing', 'paused', 'ended' or"
+        );
+        sb.AppendLine(
+            "   *  'error'; an ended or error report moves the queue on. Resolves true when the bot accepted it. */"
+        );
+        sb.AppendLine(
+            "  reportMediaSharePlayerState(requestId: string | null, state: string, positionSeconds: number, durationSeconds: number, volume: number): Promise<boolean>;"
+        );
         sb.AppendLine($"  readonly settings: {settingsType};");
         sb.AppendLine("  readonly actions: NnzOverlayActions;");
         sb.AppendLine(

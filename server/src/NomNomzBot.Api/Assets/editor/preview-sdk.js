@@ -110,6 +110,11 @@
     return Promise.resolve(true);
   }
 
+  // A preview plays nothing for the bot, so there is nothing to report; it resolves as accepted.
+  function reportMediaSharePlayerState() {
+    return Promise.resolve(true);
+  }
+
   // An Error carries its stack, which the editor maps back to a file and line. A plain message has none.
   function report(error) {
     var isError = error && typeof error === "object" && typeof error.message === "string";
@@ -196,6 +201,7 @@
     onSettings: onSettings,
     reportError: report,
     reportYouTubePlayerState: reportYouTubePlayerState,
+    reportMediaSharePlayerState: reportMediaSharePlayerState,
     actions: {
       invoke: invokeAction,
       claim: claim,

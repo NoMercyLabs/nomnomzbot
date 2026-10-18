@@ -1591,6 +1591,9 @@ interface NnzOverlaySdk {
   /** A YouTube player page tells the bot what it plays: state is 'PLAYING', 'PAUSED' or 'ENDED', positionMs the
    *  playhead in milliseconds. Resolves true when the bot accepted it; rejects when the overlay is offline. */
   reportYouTubePlayerState(videoId: string, state: string, positionMs: number): Promise<boolean>;
+  /** The media-share page tells the bot what its player does: state is 'idle', 'playing', 'paused', 'ended' or
+   *  'error'; an ended or error report moves the queue on. Resolves true when the bot accepted it. */
+  reportMediaSharePlayerState(requestId: string | null, state: string, positionSeconds: number, durationSeconds: number, volume: number): Promise<boolean>;
   readonly settings: Record<string, unknown>;
   readonly actions: NnzOverlayActions;
   /** Snapshots of the channel's state. The SDK sends the overlay token itself. */
