@@ -80,3 +80,8 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 2026-10-18: "i like separate role permissions between youtube and spotify, spotify is safe by default, youtube requires us to get it right"
 2026-10-18: "the breakpoints need to be better defined based on the other component's needs"
 2026-10-18: "and i want extra pannels to be always toggle-able"
+2026-10-18: "all overlay pannels need a close button"
+2026-10-18: "no autocomplete search? we know all the options up front"
+2026-10-18: "90 days is crooked"
+2026-10-18: "i want more details and accuracy" (OBS stats against OBS's own status bar)
+2026-10-18: "HOLY MOLY THAT OBS PAGE!!! can you slap more things on in pannels that large?! how is that managible by the streamer while live?"
