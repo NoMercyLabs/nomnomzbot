@@ -23,7 +23,10 @@ import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { contentPrefix } from '@/api/adminContent';
 import { dataRequestsPrefix } from '@/api/adminDataRequests';
 import { eventReplayPrefix } from '@/api/adminEventReplay';
+import { adminScheduledJobsPrefix } from '@/api/adminActivity';
 import { platformBotPrefix } from '@/api/adminPlatformBot';
+import { adminPlatformDefaultsKey } from '@/api/adminPlatformDefaults';
+import { adminTenantUsagePrefix } from '@/api/adminUsage';
 import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
@@ -37,6 +40,8 @@ import type {
   AdminEventReplayPayload,
   AdminErrorBudgetPayload,
   AdminPlatformBotPayload,
+  AdminPlatformDefaultsPayload,
+  AdminScheduledJobsPayload,
   AdminSystemStatusPayload,
   AdminTrustSafetyPayload,
 } from './payloads';
@@ -109,6 +114,8 @@ export const adminHandlers: [
   HubEventHandler<AdminBillingPayload>,
   HubEventHandler<AdminPlatformBotPayload>,
   HubEventHandler<AdminAuditPayload>,
+  HubEventHandler<AdminPlatformDefaultsPayload>,
+  HubEventHandler<AdminScheduledJobsPayload>,
 ] = [
   {
     event: 'ReceiveSystemStatus',
@@ -164,9 +171,28 @@ export const adminHandlers: [
   },
   {
     // Another operator changed billing: tiers, invites, invoices, grants and priced units reload.
+    // A priced unit also moves the cost columns of the tenant usage page.
     event: 'ReceiveBillingChanged',
-    handle: ({ queries }) => {
+    handle: ({ queries }, change) => {
       void queries.invalidateQueries({ queryKey: billingPrefix });
+
+      if (change.area === 'priced-unit') {
+        void queries.invalidateQueries({ queryKey: adminTenantUsagePrefix });
+      }
+    },
+  },
+  {
+    // Another operator changed a platform default: every section of the defaults page reloads.
+    event: 'ReceivePlatformDefaultsChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: adminPlatformDefaultsKey });
+    },
+  },
+  {
+    // A scheduled job was retried: the jobs list reloads.
+    event: 'ReceiveScheduledJobsChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: adminScheduledJobsPrefix });
     },
   },
   {

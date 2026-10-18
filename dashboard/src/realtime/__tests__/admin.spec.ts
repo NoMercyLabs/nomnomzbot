@@ -154,3 +154,78 @@ describe('ReceiveChannelRegistryUpdate', () => {
     expect(() => push(new QueryClient(), { broadcasterId: 'a', isLive: true })).not.toThrow();
   });
 });
+
+type Invalidating = {
+  event: string;
+  payload: unknown;
+  stale: readonly unknown[];
+  fresh: readonly unknown[];
+};
+
+function fire(queries: QueryClient, event: string, payload: unknown): void {
+  const handler = adminHandlers.find((h) => h.event === event);
+
+  expect(handler).toBeDefined();
+
+  (handler as { handle: (c: unknown, p: unknown) => void }).handle(
+    { queries, channelId: null },
+    payload,
+  );
+}
+
+describe('admin pages that reload on a hub event', () => {
+  const cases: Invalidating[] = [
+    {
+      event: 'ReceivePlatformDefaultsChanged',
+      payload: { set: 'tts-voice', key: null },
+      stale: ['admin', 'platform-defaults', 'tts-voice'],
+      fresh: ['admin', 'scheduled-jobs'],
+    },
+    {
+      event: 'ReceiveScheduledJobsChanged',
+      payload: {
+        change: 'retried',
+        originalTaskId: 'a',
+        newTaskId: 'b',
+      },
+      stale: ['admin', 'scheduled-jobs', { page: 1 }],
+      fresh: ['admin', 'platform-defaults', 'tts-voice'],
+    },
+    {
+      event: 'ReceiveBillingChanged',
+      payload: {
+        area: 'priced-unit',
+        action: 'updated',
+        subjectId: 'u',
+      },
+      stale: ['admin', 'tenant-usage', { page: 1 }],
+      fresh: ['admin', 'platform-defaults', 'tts-voice'],
+    },
+  ];
+
+  it.each(cases)('$event reloads its own queries and no others', ({ event, payload, stale, fresh }) => {
+    const queries = new QueryClient();
+
+    queries.setQueryData(stale, 1);
+    queries.setQueryData(fresh, 1);
+
+    fire(queries, event, payload);
+
+    expect(queries.getQueryState(stale)?.isInvalidated).toBe(true);
+    expect(queries.getQueryState(fresh)?.isInvalidated).toBe(false);
+  });
+
+  it('a billing change in another area leaves the tenant usage alone', () => {
+    const queries = new QueryClient();
+
+    queries.setQueryData(['admin', 'tenant-usage', { page: 1 }], 1);
+
+    fire(queries, 'ReceiveBillingChanged', {
+      area: 'tier',
+      action: 'updated',
+      subjectId: 't',
+    });
+
+    expect(queries.getQueryState(['admin', 'tenant-usage', { page: 1 }])?.isInvalidated).toBe(false);
+  });
+});

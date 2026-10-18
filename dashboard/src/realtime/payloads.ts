@@ -157,6 +157,21 @@ export type AdminBillingPayload = {
   targetBroadcasterId?: string | null;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceivePlatformDefaultsChanged (AdminPlatformDefaultsBroadcastHandler). A platform
+// default was set; set names which family, key the row inside it (a built-in reply is "<builtinKey>/<slot>").
+export type AdminPlatformDefaultsPayload = {
+  set: 'actions' | 'builtin-replies' | 'event-responses' | 'tts-voice';
+  key: string | null;
+};
+
+// Hubs/Clients/IAdminClient.cs: ReceiveScheduledJobsChanged (AdminScheduledJobsBroadcastHandler). A failed job was
+// retried; the retry is a new task.
+export type AdminScheduledJobsPayload = {
+  change: 'retried';
+  originalTaskId: string;
+  newTaskId: string;
+};
+
 // Hubs/Clients/IDashboardClient.cs: ChatMessage carries DashboardChatMessageDto, the same record the history call returns.
 export type ChatMessagePayload = components['schemas']['DashboardChatMessage'];
 
