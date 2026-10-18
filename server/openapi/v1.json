@@ -71911,7 +71911,7 @@
         "tags": [
           "Pipelines"
         ],
-        "summary": "The option list for one resource-picker kind (`reward`, `widget`, `voice`,\r\n`sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`), paged\r\nand optionally search-filtered. With `value` set, only the option whose stored value equals it\r\nexactly comes back (search is ignored), so the dashboard can label a saved value that is not on the\r\nfirst page. A source that is not connected or could not be read comes back with\r\n`sourceAvailable: false` and a `unavailableReason` — never collapsed into an empty list.",
+        "summary": "The option list for one resource-picker kind (`reward`, `widget`, `voice`,\r\n`sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`, `twitch_reward`, `obs_audio_input`), paged\r\nand optionally search-filtered. With `value` set, only the option whose stored value equals it\r\nexactly comes back (search is ignored), so the dashboard can label a saved value that is not on the\r\nfirst page. A source that is not connected or could not be read comes back with\r\n`sourceAvailable: false` and a `unavailableReason` — never collapsed into an empty list.",
         "parameters": [
           {
             "name": "kind",
@@ -152128,6 +152128,12 @@
           "label"
         ],
         "type": "object",
+          },
+          "picker": {
+            "type": [
+              "null",
+              "string"
+            ]
         "properties": {
           "value": {
             "type": "string"

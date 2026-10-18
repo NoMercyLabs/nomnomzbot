@@ -41,6 +41,12 @@ public enum PipelineActionFieldKind
     /// <summary>One playlist of the channel's connected music provider, picked by name; the saved value is the provider's playlist id.</summary>
     MusicPlaylist,
 
+    /// <summary>One of the channel's channel-point rewards, picked by title; the saved value is the Twitch reward id a widget event carries.</summary>
+    TwitchReward,
+
+    /// <summary>One audio input of the connected OBS (an input that has a mute state), picked by name; the saved value is the input name OBS addresses it by.</summary>
+    ObsAudioInput,
+
     /// <summary>
     /// A labelled name→value map (S-PIPE-TREE-d2b(a)) — the builder renders one labelled field per
     /// declared name instead of an unlabelled positional list. Used by <c>run_pipeline</c>'s
@@ -126,6 +132,36 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.Script => "script",
             PipelineActionFieldKind.MusicPlaylist => "music_playlist",
             PipelineActionFieldKind.KeyValueMap => "key_value_map",
+            PipelineActionFieldKind.TwitchReward => "twitch_reward",
+            PipelineActionFieldKind.ObsAudioInput => "obs_audio_input",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
+
+    /// <summary>Finds the kind whose wire name is <paramref name="wireName"/> (ignoring case).</summary>
+    public static bool TryFromWireName(string? wireName, out PipelineActionFieldKind kind)
+    {
+        foreach (PipelineActionFieldKind candidate in Enum.GetValues<PipelineActionFieldKind>())
+        {
+            if (string.Equals(candidate.ToWireName(), wireName, StringComparison.OrdinalIgnoreCase))
+            {
+                kind = candidate;
+                return true;
+            }
+        }
+
+        kind = default;
+        return false;
+    }
+
+    /// <summary>True for a kind that renders a searchable lookup list; false for the plain controls and the id fallback.</summary>
+    public static bool IsResourcePicker(this PipelineActionFieldKind kind) =>
+        kind
+            is not (
+                PipelineActionFieldKind.Text
+                or PipelineActionFieldKind.Number
+                or PipelineActionFieldKind.Boolean
+                or PipelineActionFieldKind.Enum
+                or PipelineActionFieldKind.ResourceId
+                or PipelineActionFieldKind.KeyValueMap
+            );
 }

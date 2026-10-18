@@ -11,6 +11,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using NomNomzBot.Application.Abstractions.Localization;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -149,6 +150,10 @@ public static partial class CustomWidgetSettingsDeclaration
         if (step is <= 0)
             return Bad(name, "step must be greater than 0.");
 
+        Result<string?> picker = ParsePicker(element, type);
+        if (picker.IsFailure)
+            return Bad(name, picker.ErrorMessage!);
+
         string? help = Text(element, "help");
         return Result.Success(
             new WidgetSettingsField(
@@ -163,9 +168,40 @@ public static partial class CustomWidgetSettingsDeclaration
                 options,
                 min,
                 max,
-                step
+                step,
+                picker.Value
             )
         );
+    }
+
+    private static Result<string?> ParsePicker(JsonElement element, string type)
+    {
+        string? picker = Text(element, "picker");
+        if (picker is null)
+            return Result.Success<string?>(null);
+
+        if (type != "text")
+            return Result.Failure<string?>("picker is only allowed on a text field.");
+
+        if (
+            !PipelineActionFieldKindExtensions.TryFromWireName(
+                picker,
+                out PipelineActionFieldKind kind
+            ) || !kind.IsResourcePicker()
+        )
+        {
+            string allowed = string.Join(
+                ", ",
+                Enum.GetValues<PipelineActionFieldKind>()
+                    .Where(k => k.IsResourcePicker())
+                    .Select(k => k.ToWireName())
+            );
+            return Result.Failure<string?>(
+                $"picker \"{picker}\" is not a picker kind; use one of: {allowed}."
+            );
+        }
+
+        return Result.Success<string?>(kind.ToWireName());
     }
 
     private static Result<WidgetSettingsField> Bad(string name, string rule) =>

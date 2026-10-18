@@ -359,6 +359,8 @@ export const PICKER_KINDS = [
   'asset',
   'script',
   'music_playlist',
+  'twitch_reward',
+  'obs_audio_input',
 ] as const satisfies string[];
 
 export type PickerKind = (typeof PICKER_KINDS)[number];

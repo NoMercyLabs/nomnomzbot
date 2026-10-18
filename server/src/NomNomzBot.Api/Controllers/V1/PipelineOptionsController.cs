@@ -46,7 +46,7 @@ public sealed class PipelineOptionsController : BaseController
 
     /// <summary>
     /// The option list for one resource-picker kind (<c>reward</c>, <c>widget</c>, <c>voice</c>,
-    /// <c>sound_clip</c>, <c>discord_channel</c>, <c>discord_role</c>, <c>twitch_user</c>, <c>asset</c>, <c>script</c>, <c>music_playlist</c>), paged
+    /// <c>sound_clip</c>, <c>discord_channel</c>, <c>discord_role</c>, <c>twitch_user</c>, <c>asset</c>, <c>script</c>, <c>music_playlist</c>, <c>twitch_reward</c>, <c>obs_audio_input</c>), paged
     /// and optionally search-filtered. With <c>value</c> set, only the option whose stored value equals it
     /// exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the
     /// first page. A source that is not connected or could not be read comes back with

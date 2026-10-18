@@ -15,6 +15,7 @@ import type { JsonObject, JsonValue } from '@/lib/json';
 import RotateCcw from '~icons/nnz/arrow-counter-clockwise';
 import { computed, useId } from 'vue';
 
+import type { PickerKind } from '@/api/pipelines';
 import type { WidgetSettingsField } from '@/api/widgets';
 import MultiChoice from '@/components/layout/MultiChoice.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -30,6 +31,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 import { humanize } from '@/lib/text';
+import StepPicker from '@/views/dashboard/pipelines/components/StepPicker.vue';
+import { isPickerKind } from '@/views/dashboard/pipelines/components/stepFields';
 
 import SettingGroup from './SettingGroup.vue';
 import { clampNumber } from './settingField';
@@ -79,6 +82,11 @@ const shown = computed<string>(() =>
     ? ''
     : String(props.value),
 );
+// A text field that names a kind of thing the bot can list (a reward, an OBS input) is picked from that list.
+const pickerKind = computed<PickerKind | null>(() =>
+  props.field.picker && isPickerKind(props.field.picker)
+    ? props.field.picker
+    : null);
 const group = computed<JsonObject>(() =>
   props.value !== null && typeof props.value === 'object' && !Array.isArray(props.value)
     ? props.value
@@ -156,6 +164,15 @@ function onNumber(event: Event): void {
           @update:model-value="emit('update', String($event))"
         />
       </span>
+      <StepPicker
+        v-else-if="field.type === 'text' && pickerKind"
+        :id="titleId + '-picker'"
+        class="w-full sm:w-64"
+        :kind="pickerKind"
+        :value="shown"
+        :required="false"
+        @change="emit('update', $event ?? '')"
+      />
       <Input
         v-else-if="field.type === 'text'"
         class="w-full sm:w-48"

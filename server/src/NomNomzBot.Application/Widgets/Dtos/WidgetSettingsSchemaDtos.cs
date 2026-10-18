@@ -35,7 +35,9 @@ public sealed record WidgetSettingsSchema(
 /// <see cref="Options"/>), or <c>json</c> (raw-JSON textarea for a structural map/list the schema does not flatten).
 /// <see cref="Default"/> is the catalogue default (so a cleared field falls back to the widget's shipped value);
 /// <see cref="Min"/>/<see cref="Max"/>/<see cref="Step"/> bound a numeric control; <see cref="Group"/> lets the form
-/// section the fields. <see cref="Label"/>, <see cref="Help"/>, and <see cref="Group"/> are all
+/// section the fields. <see cref="Picker"/> (a <c>text</c> field only) names a pipeline resource-picker kind
+/// (<c>twitch_reward</c>, <c>obs_audio_input</c>, …): the form then offers a searchable list instead of a typed box,
+/// and the saved value is that kind's option value. <see cref="Label"/>, <see cref="Help"/>, and <see cref="Group"/> are all
 /// <see cref="LocalizedText"/> (S-SCHEMA-I18N-redesign) — a translation KEY only; the dashboard resolves each
 /// against <c>strings.xml</c> for the viewer's locale instead of the backend serving a hardcoded English literal.
 /// </summary>
@@ -49,7 +51,8 @@ public sealed record WidgetSettingsField(
     IReadOnlyList<WidgetSettingsFieldOption>? Options = null,
     double? Min = null,
     double? Max = null,
-    double? Step = null
+    double? Step = null,
+    string? Picker = null
 );
 
 /// <summary>

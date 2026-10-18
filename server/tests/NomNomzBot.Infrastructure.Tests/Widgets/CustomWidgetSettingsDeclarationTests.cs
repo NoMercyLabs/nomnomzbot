@@ -260,10 +260,45 @@ public sealed class CustomWidgetSettingsDeclarationTests
         ((Dictionary<string, object?>)group["inner"]!)["depth"].Should().Be(2d);
     }
 
+    [Fact]
+    public void Parse_TextFieldWithPicker_KeepsTheWirePickerKind()
+    {
+        Result<IReadOnlyList<WidgetSettingsField>> result = CustomWidgetSettingsDeclaration.Parse(
+            One(
+                """{ "key": "rewardId", "type": "text", "default": "", "picker": "twitch_reward" }"""
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Single().Picker.Should().Be("twitch_reward");
+    }
+
+    [Fact]
+    public void Parse_FieldWithoutPicker_HasNoPicker()
+    {
+        Result<IReadOnlyList<WidgetSettingsField>> result = CustomWidgetSettingsDeclaration.Parse(
+            AllTypes
+        );
+
+        result.Value.Should().OnlyContain(f => f.Picker == null);
+    }
+
     [Theory]
     [InlineData("""{ "key": "a", "type": "list", "default": "x" }""", "list")]
     [InlineData("""{ "key": "a", "type": "list", "default": [1] }""", "strings")]
     [InlineData("""{ "key": "a", "type": "group", "default": [] }""", "object")]
+    [InlineData(
+        """{ "key": "a", "type": "number", "default": 1, "picker": "twitch_reward" }""",
+        "only allowed on a text field"
+    )]
+    [InlineData(
+        """{ "key": "a", "type": "text", "default": "", "picker": "nope" }""",
+        "is not a picker kind"
+    )]
+    [InlineData(
+        """{ "key": "a", "type": "text", "default": "", "picker": "number" }""",
+        "is not a picker kind"
+    )]
     public void Parse_BadListOrGroupDefault_FailsAndNamesTheRule(string field, string rule)
     {
         Result<IReadOnlyList<WidgetSettingsField>> result = CustomWidgetSettingsDeclaration.Parse(
