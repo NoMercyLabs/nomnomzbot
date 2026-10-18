@@ -69,6 +69,7 @@
         "botIn": "De bot zit in de chat",
         "botOut": "De bot zit niet in de chat",
         "rewardsAllOn": "Alle {m} beloningen staan aan",
+        "rewardsUnavailable": "Kanaalpunten zijn niet beschikbaar op dit kanaal",
         "rewardOff": "{title} staat uit. {n} van {m} beloningen staan aan.",
         "shieldOff": "De chat is open voor iedereen",
         "shieldOn": "Shield-modus staat aan",

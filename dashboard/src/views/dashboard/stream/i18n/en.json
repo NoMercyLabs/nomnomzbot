@@ -69,6 +69,7 @@
         "botIn": "The bot is in chat",
         "botOut": "The bot is not in chat",
         "rewardsAllOn": "All {m} rewards are on",
+        "rewardsUnavailable": "Channel points are not available on this channel",
         "rewardOff": "{title} is off. {n} of {m} rewards are on.",
         "shieldOff": "Chat is open to everyone",
         "shieldOn": "Shield mode is on",

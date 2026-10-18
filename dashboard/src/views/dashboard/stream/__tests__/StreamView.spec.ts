@@ -118,6 +118,11 @@ function freshAnswers(): Record<string, () => Answer> {
         displayName: 'NoMercyBot_',
         profileImageUrl: null,
       }),
+    '/rewards/availability': () =>
+      ok({
+        channelPointsAvailable: true,
+        broadcasterType: 'affiliate',
+      }),
     '/rewards': () =>
       ok([
         {
@@ -541,6 +546,23 @@ describe('before you go live', () => {
 
     expect(text()).toContain('All 1 rewards are on');
     expect(document.body.querySelector('[data-check^="reward-"]')).toBeNull();
+  });
+
+  // A channel that is not an Affiliate or Partner has no channel points: "All 0 rewards are on" would be a green lie.
+  it('says channel points are not available when the channel is not an Affiliate or Partner', async () => {
+    answers['/rewards/availability'] = () =>
+      ok({
+        channelPointsAvailable: false,
+        broadcasterType: '',
+      });
+
+    answers['/rewards'] = () => ok([]);
+
+    await open();
+
+    expect(text()).toContain('Channel points are not available on this channel');
+    expect(text()).not.toContain('rewards are on');
+    expect(document.body.querySelector('[data-check="rewards"] [data-tone="off"]')).not.toBeNull();
   });
 
   it('warns when the title is empty', async () => {

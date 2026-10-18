@@ -13,7 +13,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useBotStatus } from '@/api/home';
-import { useRewards, type Reward } from '@/api/rewards';
+import { useRewardAvailability, useRewards, type Reward } from '@/api/rewards';
 import { useShieldMode } from '@/api/shield';
 import { useStreamInfo, type StreamInfo } from '@/api/stream';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -33,6 +33,7 @@ const { channelId } = useCurrentChannel();
 const infoQuery = useStreamInfo(channelId);
 const botQuery = useBotStatus(channelId);
 const rewardsQuery = useRewards(channelId);
+const availabilityQuery = useRewardAvailability(channelId);
 const shieldQuery = useShieldMode(channelId);
 
 const state = usePanelState(infoQuery, (info: StreamInfo | null) =>
@@ -96,6 +97,12 @@ const checks = computed<Check[]>(() => {
 
   if (rewardsQuery.isError.value) {
     list.push(unchecked('rewards', 'rewards'));
+  } else if (availabilityQuery.data.value?.channelPointsAvailable === false) {
+    list.push({
+      key: 'rewards',
+      tone: 'off',
+      label: t('dashboard.stream.checklist.rewardsUnavailable'),
+    });
   } else if (rewardsQuery.data.value !== undefined) {
     const rewards = rewardsQuery.data.value;
     const off = rewards.filter((reward: Reward) => !reward.isEnabled || reward.isPaused);
