@@ -11,6 +11,7 @@
 import type { QueryClient } from '@tanstack/vue-query';
 
 import { currentUserQuery } from '@/api/auth';
+import { myChannelsQuery } from '@/api/channels';
 import { communityFirstPageKey } from '@/api/community';
 import {
   activityKey,
@@ -68,6 +69,8 @@ function refreshing<TEvent extends keyof DashboardHubEvents>(
   };
 }
 
+const myChannelsKey: QueryKeyBuilder = () => myChannelsQuery.queryKey;
+
 const homeKeys = [homeStatsKey, activityKey] as const;
 const musicKeys = [musicQueueKey, musicHistoryKey, musicTopRequestersKey] as const;
 // An overlay's browser source opens and closes with the OBS bridge, so the widgets list (isAttached) follows it.
@@ -97,6 +100,8 @@ const eventHandlers = [
   refreshing('DataRightsChanged', [dataRequestsKey, consentsKey]),
   refreshing('FederationOptInChanged', [federationOptInsKey]),
   refreshing('VtsStatusChanged', [connectionsKey, botStatusKey, vtsConnectionKey, vtsInventoryKey]),
+  // The channel list carries the suspension, so the frame enters or leaves the suspended view on its refetch.
+  refreshing('ChannelSuspensionChanged', [myChannelsKey]),
 ] as const;
 
 // The server sends every Twitch poll and prediction step, and every bot chat poll change, as a ChannelEvent.

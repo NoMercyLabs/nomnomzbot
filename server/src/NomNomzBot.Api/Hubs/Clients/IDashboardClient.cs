@@ -36,4 +36,5 @@ public interface IDashboardClient
     Task ObsLiveStateChanged(ObsLiveStateDto evt);
     Task ObsStateChanged(ObsStateChangedDto evt);
     Task VtsStatusChanged(VtsStatusDto evt);
+    Task ChannelSuspensionChanged(ChannelSuspensionChangedDto evt);
 }

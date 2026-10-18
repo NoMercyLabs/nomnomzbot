@@ -31,4 +31,13 @@ public interface IChannelAccessService
     /// tenant is the caller's CHANNEL, never their user id.
     /// </summary>
     Task<Guid> ResolveOwnChannelAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every user who runs the channel's dashboard: the owner, its moderators and its management members,
+    /// whatever the channel status is. A suspension notice reaches them even when they cannot join the channel.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListDashboardUserIdsAsync(
+        Guid channelId,
+        CancellationToken cancellationToken = default
+    );
 }

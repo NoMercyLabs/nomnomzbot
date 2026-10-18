@@ -22,6 +22,8 @@ import { client } from './client';
 
 export type ChannelSummary = components['schemas']['ChannelSummary'];
 export type ModeratedChannel = components['schemas']['ModeratedChannel'];
+// Why and since when the platform suspended a channel, and where its people reach the platform.
+export type ChannelSuspension = components['schemas']['ChannelSuspension'];
 // Any channel this bot serves, with what every visitor already sees (chat-client.md 9a "Reaching any channel").
 // onBot is false for a Twitch channel this deployment does not serve.
 export type PublicChannel = components['schemas']['PublicChannel'];

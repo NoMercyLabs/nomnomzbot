@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core';
-import { provide, watchEffect } from 'vue';
+import { computed, provide, watchEffect } from 'vue';
 
 import { frameActionsKey } from '@/components/layout/frameActions';
 import ProfileDialog from '@/components/layout/ProfileDialog.vue';
@@ -24,6 +24,7 @@ import { useRealtime } from '@/realtime/useRealtime';
 
 import BottomBar from './dashboard/BottomBar.vue';
 import ChannelNoAccess from './dashboard/ChannelNoAccess.vue';
+import ChannelSuspended from './dashboard/ChannelSuspended.vue';
 import ChannelSwitch from './dashboard/ChannelSwitch.vue';
 import DashboardSidebar from './dashboard/DashboardSidebar.vue';
 import FrameActions from './dashboard/FrameActions.vue';
@@ -37,8 +38,12 @@ import ViewAsBanner from './dashboard/ViewAsBanner.vue';
 const wide = useMediaQuery('(min-width: 840px)');
 const medium = useMediaQuery('(min-width: 600px)');
 
-const { current, channelId } = useCurrentChannel();
+const { current, channels, channelId } = useCurrentChannel();
 const { name: channelName, denied } = useRouteChannel();
+
+// A suspended channel closes the whole frame: no navigation leads anywhere while it lasts.
+const suspension = computed(() => current.value?.suspension ?? null);
+const canSwitch = computed(() => channels.value.length > 1);
 
 // The theme wears the chat color of the channel being managed; the approved pink stands in without one.
 watchEffect(() => applyAccent(current.value?.chatColor ?? defaultAccent));
@@ -54,13 +59,15 @@ useReadableRedirect();
   <TooltipProvider :delay-duration="300">
     <!-- C1: the window never scrolls. Only a panel body scrolls, so every box here clips. -->
     <div class="flex h-svh overflow-hidden bg-background text-foreground">
-      <DashboardSidebar v-if="wide && !railWanted" />
-      <NavRail v-else-if="medium" />
+      <template v-if="!suspension">
+        <DashboardSidebar v-if="wide && !railWanted" />
+        <NavRail v-else-if="medium" />
+      </template>
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         <ViewAsBanner />
         <!-- Without the sidebar, the channel switch and the profile need a home of their own. -->
         <header
-          v-if="!wide"
+          v-if="!wide && !suspension"
           data-slot="frame-header"
           class="flex h-12 flex-none items-center gap-2 border-b border-border px-3"
         >
@@ -72,10 +79,18 @@ useReadableRedirect();
           </div>
         </header>
         <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ChannelNoAccess v-if="denied && channelName" :name="channelName" />
+          <ChannelSuspended
+            v-if="suspension && current"
+            :name="current.displayName"
+            :reason="suspension.reason ?? null"
+            :suspended-at="suspension.suspendedAt ?? null"
+            :contact-url="suspension.contactUrl ?? null"
+            :can-switch="canSwitch"
+          />
+          <ChannelNoAccess v-else-if="denied && channelName" :name="channelName" />
           <RouterView v-else />
         </main>
-        <BottomBar v-if="!medium" />
+        <BottomBar v-if="!medium && !suspension" />
       </div>
       <!-- The one profile dialog of the frame; every UserName opens it. -->
       <ProfileDialog v-if="channelId" :key="channelId" />

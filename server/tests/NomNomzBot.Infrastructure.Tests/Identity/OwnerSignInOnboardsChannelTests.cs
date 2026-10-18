@@ -220,7 +220,8 @@ public sealed class OwnerSignInOnboardsChannelTests
             Substitute.For<ITwitchEventSubService>(),
             Substitute.For<IChatProvider>(),
             Substitute.For<IBuiltinResponseComposer>(),
-            Substitute.For<IBotModeratorStatusService>()
+            Substitute.For<IBotModeratorStatusService>(),
+            Substitute.For<Application.Platform.Services.ISupportContactService>()
         );
 
     /// <summary>Runs one real BotLifecycleService sweep over the database and returns the channels it subscribed.</summary>

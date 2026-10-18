@@ -212,6 +212,18 @@ public record ObsLiveStateDto(
 public record VtsStatusDto(string BroadcasterId, string Status, string Timestamp);
 
 /// <summary>
+/// Pushed to everyone who runs the channel's dashboard when the platform suspends or reinstates it.
+/// <paramref name="Status"/> is <c>active</c>, <c>suspended</c> or <c>platform_banned</c>; the dashboard
+/// reloads its channel list, which carries the reason and the date.
+/// </summary>
+public record ChannelSuspensionChangedDto(
+    string BroadcasterId,
+    string Status,
+    string? Reason,
+    string Timestamp
+);
+
+/// <summary>
 /// Pushed to the channel's dashboards when one piece of live OBS state changes, carrying the new value so
 /// the OBS page patches in place without a refetch. <paramref name="Kind"/> names the piece; only its fields are set.
 /// </summary>

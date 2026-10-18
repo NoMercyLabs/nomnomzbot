@@ -784,6 +784,16 @@
         "title": "No access to {name}",
         "description": "You do not manage this channel. Pick one of your channels in the switcher, or ask the streamer to make you a moderator."
       },
+      "suspended": {
+        "title": "{name} is suspended",
+        "description": "The platform paused this channel. The bot does not run here, and the dashboard is closed until the channel is reinstated.",
+        "reason": "Reason",
+        "noReason": "No reason was given.",
+        "since": "Since",
+        "contact": "Contact us",
+        "noContact": "Ask the people who run this bot to reinstate the channel.",
+        "signOut": "Sign out"
+      },
       "yours": "Your channel",
       "recent": "Recent channels",
       "every": "Every channel",

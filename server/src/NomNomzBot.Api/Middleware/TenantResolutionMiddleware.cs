@@ -164,14 +164,27 @@ public class TenantResolutionMiddleware
         CancellationToken ct
     )
     {
-        string? status = await db
+        if (
+            context.GetEndpoint()?.Metadata.GetMetadata<AllowSuspendedTenantAttribute>() is not null
+        )
+            return false;
+
+        var suspension = await db
             .Channels.Where(c => c.Id == channelGuid)
-            .Select(c => c.Status)
+            .Select(c => new
+            {
+                c.Status,
+                c.SuspendedReason,
+                c.SuspendedAt,
+            })
             .FirstOrDefaultAsync(ct);
 
         if (
-            status != AuthEnums.ChannelStatus.Suspended
-            && status != AuthEnums.ChannelStatus.PlatformBanned
+            suspension is null
+            || (
+                suspension.Status != AuthEnums.ChannelStatus.Suspended
+                && suspension.Status != AuthEnums.ChannelStatus.PlatformBanned
+            )
         )
             return false;
 
@@ -181,7 +194,13 @@ public class TenantResolutionMiddleware
             Title = "Tenant suspended",
             Status = StatusCodes.Status403Forbidden,
             Detail = "This channel's access has been suspended by the platform.",
-            Extensions = { ["tenantStatus"] = status },
+            Extensions =
+            {
+                ["code"] = "CHANNEL_SUSPENDED",
+                ["tenantStatus"] = suspension.Status,
+                ["reason"] = suspension.SuspendedReason,
+                ["suspendedAt"] = suspension.SuspendedAt,
+            },
         };
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         context.Response.ContentType = "application/problem+json";

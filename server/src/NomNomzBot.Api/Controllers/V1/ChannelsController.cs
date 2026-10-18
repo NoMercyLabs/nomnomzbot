@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -67,6 +68,7 @@ public class ChannelsController : BaseController
 
     /// <summary>List all channels the current user owns or moderates.</summary>
     [HttpGet]
+    [AllowSuspendedTenant]
     [ProducesResponseType<PaginatedResponse<ChannelSummaryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
         [FromQuery] PageRequestDto request,
@@ -218,6 +220,7 @@ public class ChannelsController : BaseController
 
     /// <summary>Get all Twitch channels the current user moderates (from Twitch API, not just DB).</summary>
     [HttpGet("moderated")]
+    [AllowSuspendedTenant]
     [ProducesResponseType<StatusResponseDto<List<ModeratedChannelDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetModeratedChannels(CancellationToken ct)
     {

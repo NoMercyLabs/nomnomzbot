@@ -784,6 +784,16 @@
         "title": "Geen toegang tot {name}",
         "description": "Je beheert dit kanaal niet. Kies een van je kanalen in de kanaalwisselaar, of vraag de streamer je moderator te maken."
       },
+      "suspended": {
+        "title": "{name} is geschorst",
+        "description": "Het platform heeft dit kanaal gepauzeerd. De bot draait hier niet, en het dashboard is dicht tot het kanaal weer wordt vrijgegeven.",
+        "reason": "Reden",
+        "noReason": "Er is geen reden gegeven.",
+        "since": "Sinds",
+        "contact": "Neem contact op",
+        "noContact": "Vraag de mensen die deze bot beheren om het kanaal vrij te geven.",
+        "signOut": "Uitloggen"
+      },
       "yours": "Jouw kanaal",
       "recent": "Recente kanalen",
       "every": "Alle kanalen",

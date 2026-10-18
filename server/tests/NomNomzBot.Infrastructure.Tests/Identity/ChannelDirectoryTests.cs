@@ -103,7 +103,8 @@ public sealed class ChannelDirectoryTests
             Substitute.For<ITwitchEventSubService>(),
             Substitute.For<IChatProvider>(),
             Substitute.For<IBuiltinResponseComposer>(),
-            Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
+            Substitute.For<Application.Identity.Services.IBotModeratorStatusService>(),
+            Substitute.For<Application.Platform.Services.ISupportContactService>()
         );
 
     [Theory]
@@ -116,7 +117,7 @@ public sealed class ChannelDirectoryTests
         AuthDbContext db = await SeededAsync();
 
         Result<PagedList<PublicChannelDto>> result = await Service(db)
-            .SearchPublicChannelsAsync(query, new(1, 25));
+            .SearchPublicChannelsAsync(query, new());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TotalCount.Should().Be(1);
@@ -234,7 +235,7 @@ public sealed class ChannelDirectoryTests
             );
 
         Result<PagedList<PublicChannelDto>> result = await Directory(db, search)
-            .SearchAsync("fillz", new(1, 25));
+            .SearchAsync("fillz", new());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TotalCount.Should().Be(2);
@@ -276,9 +277,9 @@ public sealed class ChannelDirectoryTests
             .Returns(Result.Failure<TwitchPage<TwitchSearchChannel>>("down", "TWITCH_UNAVAILABLE"));
 
         Result<PagedList<PublicChannelDto>> failed = await Directory(db, search)
-            .SearchAsync("fillz", new(1, 25));
+            .SearchAsync("fillz", new());
         Result<PagedList<PublicChannelDto>> empty = await Directory(db, search)
-            .SearchAsync("", new(1, 25));
+            .SearchAsync("", new());
 
         failed.Value.Items.Should().ContainSingle().Which.OnBot.Should().BeTrue();
         empty.Value.Items.Should().OnlyContain(c => c.OnBot);

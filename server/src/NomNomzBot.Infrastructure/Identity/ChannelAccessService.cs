@@ -74,4 +74,32 @@ public sealed class ChannelAccessService : IChannelAccessService
             .Select(c => c.Id)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<string>> ListDashboardUserIdsAsync(
+        Guid channelId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Runs from an event handler with no tenant set: the tenant filter would hide every row, so the channel
+        // is named explicitly and only soft-deleted rows stay out.
+        List<Guid> owners = await _db
+            .Channels.Where(c => c.Id == channelId)
+            .Select(c => c.OwnerUserId)
+            .ToListAsync(cancellationToken);
+        List<Guid> moderators = await _db
+            .ChannelModerators.IgnoreQueryFilters()
+            .Where(m => m.ChannelId == channelId && m.DeletedAt == null)
+            .Select(m => m.UserId)
+            .ToListAsync(cancellationToken);
+        List<Guid> members = await _db
+            .ChannelMemberships.IgnoreQueryFilters()
+            .Where(m => m.BroadcasterId == channelId && m.DeletedAt == null)
+            .Select(m => m.UserId)
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. owners.Concat(moderators).Concat(members).Distinct().Select(id => id.ToString()),
+        ];
+    }
 }

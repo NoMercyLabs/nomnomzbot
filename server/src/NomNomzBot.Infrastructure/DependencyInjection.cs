@@ -980,6 +980,12 @@ public static class DependencyInjection
             Platform.Configuration.SystemCredentialsProvider
         >();
 
+        // The support contact a suspended channel shows; scoped because it reads the request's DbContext.
+        services.AddScoped<
+            Application.Platform.Services.ISupportContactService,
+            Platform.Configuration.SupportContactService
+        >();
+
         services.AddSingleton<IYouTubeApiKeyResolver, YouTubeApiKeyResolver>();
 
         // Per-channel BYOC credential resolution (S-BYOC-spotify-a) — layers a channel's own OAuth app

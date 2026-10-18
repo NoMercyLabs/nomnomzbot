@@ -11,7 +11,17 @@
 import { useLocalStorage } from '@vueuse/core';
 import { computed, type ComputedRef } from 'vue';
 
-import { useEnterModeratedChannel, useModeratedChannels, useMyChannels } from '@/api/channels';
+import {
+  moderatedChannelsQuery,
+  myChannelsQuery,
+  useEnterModeratedChannel,
+  useModeratedChannels,
+  useMyChannels,
+  type ChannelSummary,
+  type ChannelSuspension,
+  type ModeratedChannel,
+} from '@/api/channels';
+import { queryClient } from '@/api/queryClient';
 import { merge } from '@/lib/array';
 
 export type ChannelChoice = {
@@ -26,6 +36,8 @@ export type ChannelChoice = {
   twitchId: string | null;
   // The streamer's chat color (#RRGGBB), the theme accent while this channel is managed.
   chatColor: string | null;
+  // Set while the platform has suspended the channel: the frame then shows why and how to reach the platform.
+  suspension: ChannelSuspension | null;
 };
 
 export type CurrentChannel = {
@@ -41,49 +53,73 @@ export type CurrentChannel = {
 // The channel being managed. It outlives a reload and is shared by every part of the frame.
 const chosenChannelId = useLocalStorage<string>('nnz.channel', '');
 
+// The channels the person reaches: the ones set up here, then the Twitch channels they moderate that are not.
+function channelChoices(
+  rows: readonly ChannelSummary[],
+  moderatedRows: readonly ModeratedChannel[],
+): readonly ChannelChoice[] {
+  const own: ChannelChoice[] = rows.map((row) => ({
+    login: row.login,
+    displayName: row.displayName,
+    profileImageUrl: row.profileImageUrl ?? null,
+    isLive: row.isLive,
+    kind: row.role === 'broadcaster'
+      ? 'own'
+      : 'moderated',
+    channelId: row.id,
+    twitchId: null,
+    chatColor: row.chatColor ?? null,
+    suspension: row.suspension ?? null,
+  }));
+  const known = new Set<string>(own.map((row) => row.login.toLowerCase()));
+  const notSetUp: ChannelChoice[] = moderatedRows
+    .filter((row) => !known.has(row.login.toLowerCase()))
+    .map((row) => ({
+      login: row.login,
+      displayName: row.displayName,
+      profileImageUrl: null,
+      isLive: null,
+      kind: 'moderated',
+      channelId: null,
+      twitchId: row.id,
+      chatColor: null,
+      suspension: null,
+    }));
+
+  return merge(own, notSetUp);
+}
+
+// The chosen channel, else the person's own, else any that is set up.
+function pickCurrent(choices: readonly ChannelChoice[], chosenId: string): ChannelChoice | null {
+  return (
+    choices.find((row) => row.channelId !== null && row.channelId === chosenId) ??
+    choices.find((row) => row.kind === 'own') ??
+    choices.find((row) => row.channelId !== null) ??
+    null
+  );
+}
+
+// The login of the channel being managed, read outside a component (the router waits for it). Null for a person with no channel.
+export async function currentChannelLogin(): Promise<string | null> {
+  const [mine, moderated] = await Promise.all([
+    queryClient.ensureQueryData(myChannelsQuery),
+    queryClient.ensureQueryData(moderatedChannelsQuery),
+  ]);
+
+  return pickCurrent(channelChoices(mine, moderated), chosenChannelId.value)?.login ?? null;
+}
+
 export function useCurrentChannel(): CurrentChannel {
   const mine = useMyChannels();
   const moderated = useModeratedChannels();
   const enter = useEnterModeratedChannel();
 
-  const channels = computed<readonly ChannelChoice[]>(() => {
-    const own: ChannelChoice[] = (mine.data.value ?? []).map((row) => ({
-      login: row.login,
-      displayName: row.displayName,
-      profileImageUrl: row.profileImageUrl ?? null,
-      isLive: row.isLive,
-      kind: row.role === 'broadcaster'
-        ? 'own'
-        : 'moderated',
-      channelId: row.id,
-      twitchId: null,
-      chatColor: row.chatColor ?? null,
-    }));
-    const known = new Set<string>(own.map((row) => row.login.toLowerCase()));
-    const notSetUp: ChannelChoice[] = (moderated.data.value ?? [])
-      .filter((row) => !known.has(row.login.toLowerCase()))
-      .map((row) => ({
-        login: row.login,
-        displayName: row.displayName,
-        profileImageUrl: null,
-        isLive: null,
-        kind: 'moderated',
-        channelId: null,
-        twitchId: row.id,
-        chatColor: null,
-      }));
+  const channels = computed<readonly ChannelChoice[]>(() =>
+    channelChoices(mine.data.value ?? [], moderated.data.value ?? []),
+  );
 
-    return merge(own, notSetUp);
-  });
-
-  const current = computed<ChannelChoice | null>(
-    () =>
-      channels.value.find(
-        (row) => row.channelId !== null && row.channelId === chosenChannelId.value,
-      ) ??
-      channels.value.find((row) => row.kind === 'own') ??
-      channels.value.find((row) => row.channelId !== null) ??
-      null,
+  const current = computed<ChannelChoice | null>(() =>
+    pickCurrent(channels.value, chosenChannelId.value),
   );
 
   async function choose(choice: ChannelChoice): Promise<void> {

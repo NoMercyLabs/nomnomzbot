@@ -102,7 +102,8 @@ public sealed class ChannelBasicsServiceTests
                 eventSub,
                 chatProvider,
                 composer,
-                Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
+                Substitute.For<Application.Identity.Services.IBotModeratorStatusService>(),
+                Substitute.For<Application.Platform.Services.ISupportContactService>()
             ),
             registry,
             bus,

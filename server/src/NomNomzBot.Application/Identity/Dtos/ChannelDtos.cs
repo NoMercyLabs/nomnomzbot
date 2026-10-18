@@ -44,7 +44,19 @@ public sealed record ChannelSummaryDto(
     string Role,
     int? ViewerCount,
     string Provider,
-    string? ChatColor = null
+    string? ChatColor = null,
+    ChannelSuspensionDto? Suspension = null
+);
+
+/// <summary>
+/// Why a channel is suspended (<c>Status</c> is suspended or platform_banned), since when, and the page its
+/// people use to reach the platform. <c>ContactUrl</c> is null until a platform admin sets the support contact.
+/// </summary>
+public sealed record ChannelSuspensionDto(
+    string Status,
+    string? Reason,
+    DateTime? SuspendedAt,
+    string? ContactUrl
 );
 
 /// <summary>

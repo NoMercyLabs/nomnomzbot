@@ -28,6 +28,7 @@ function choice(login: string, kind: ChannelChoice['kind']): ChannelChoice {
     channelId: `${login}-id`,
     twitchId: null,
     chatColor: null,
+    suspension: null,
   };
 }
 

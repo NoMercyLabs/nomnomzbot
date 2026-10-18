@@ -36,7 +36,18 @@ vi.mock('@/api/auth', () => ({
   getAccessToken: () => '',
 }));
 
-const current = ref<{ chatColor: string | null } | null>(null);
+type Suspension = {
+  status: string;
+  reason: string | null;
+  suspendedAt: string | null;
+  contactUrl: string | null;
+};
+
+const current = ref<{
+  chatColor: string | null;
+  displayName?: string;
+  suspension?: Suspension | null;
+} | null>(null);
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
@@ -182,6 +193,103 @@ describe('a link to a channel the person cannot manage', () => {
 
     expect(wrapper.find('[data-slot="channel-no-access"]').exists()).toBe(false);
     expect(frames(wrapper)).toContain('view');
+  });
+});
+
+describe('a channel the platform suspended', () => {
+  const suspended = {
+    status: 'suspended',
+    reason: 'Spam reports',
+    suspendedAt: '2026-10-18T10:00:00Z',
+    contactUrl: 'https://support.example.org/contact',
+  } as const satisfies Suspension;
+
+  it('shows the suspended view with the reason and the contact link on load, and no navigation', async () => {
+    current.value = {
+      chatColor: null,
+      displayName: 'Streamer',
+      suspension: suspended,
+    };
+
+    const wrapper = mountLayout(1000);
+
+    await flushPromises();
+
+    const state = wrapper.find('[data-slot="channel-suspended"]');
+
+    expect(state.exists()).toBe(true);
+    expect(state.text()).toContain('Streamer');
+    expect(wrapper.find('[data-slot="suspension-reason"]').text()).toBe('Spam reports');
+    expect(wrapper.find('[data-slot="suspension-contact"]').attributes('href')).toBe(suspended.contactUrl);
+    expect(frames(wrapper)).not.toContain('view');
+    expect(frames(wrapper)).not.toContain('sidebar');
+  });
+
+  it('enters the suspended view live when the channel row turns suspended', async () => {
+    current.value = {
+      chatColor: null,
+      displayName: 'Streamer',
+      suspension: null,
+    };
+
+    const wrapper = mountLayout(1000);
+
+    await flushPromises();
+
+    expect(frames(wrapper)).toContain('view');
+
+    current.value = {
+      chatColor: null,
+      displayName: 'Streamer',
+      suspension: suspended,
+    };
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-slot="channel-suspended"]').exists()).toBe(true);
+    expect(frames(wrapper)).not.toContain('view');
+  });
+
+  it('leaves the suspended view live when the channel is reinstated', async () => {
+    current.value = {
+      chatColor: null,
+      displayName: 'Streamer',
+      suspension: suspended,
+    };
+
+    const wrapper = mountLayout(1000);
+
+    await flushPromises();
+
+    current.value = {
+      chatColor: null,
+      displayName: 'Streamer',
+      suspension: null,
+    };
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-slot="channel-suspended"]').exists()).toBe(false);
+    expect(frames(wrapper)).toContain('view');
+    expect(frames(wrapper)).toContain('sidebar');
+  });
+
+  it('says who to ask instead of linking when no support contact is set', async () => {
+    current.value = {
+      chatColor: null,
+      displayName: 'Streamer',
+      suspension: {
+        ...suspended,
+        contactUrl: null,
+      },
+    };
+
+    const wrapper = mountLayout(1000);
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-slot="suspension-contact"]').exists()).toBe(false);
+    expect(wrapper.find('[data-slot="suspension-no-contact"]').exists()).toBe(true);
   });
 });
 

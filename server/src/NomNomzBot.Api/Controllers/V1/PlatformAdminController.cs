@@ -22,6 +22,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -415,6 +416,35 @@ public class PlatformAdminController(
         return ResultResponse(await admin.ExportTenantAsync(acting.Value, broadcasterId, ct));
     }
 
+    /// <summary>The page a suspended channel's people use to reach the platform. Null until set.</summary>
+    [HttpGet("support-contact")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.TenantRead)]
+    [ProducesResponseType<StatusResponseDto<SupportContactDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSupportContact(
+        [FromServices] ISupportContactService supportContact,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            Result.Success(new SupportContactDto(await supportContact.GetContactUrlAsync(ct)))
+        );
+
+    /// <summary>Sets the support contact (absolute http or https); an empty URL clears it.</summary>
+    [HttpPut("support-contact")]
+    [Authorize(Policy = IamPermissionKeys.TenantSuspend)]
+    [ProducesResponseType<StatusResponseDto<SupportContactDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetSupportContact(
+        [FromBody] SupportContactDto body,
+        [FromServices] ISupportContactService supportContact,
+        CancellationToken ct
+    )
+    {
+        Result<string?> saved = await supportContact.SetContactUrlAsync(body.Url, ct);
+        if (saved.IsFailure)
+            return ResultResponse(saved.WithValue<SupportContactDto>(null!));
+        return ResultResponse(Result.Success(new SupportContactDto(saved.Value)));
+    }
+
     /// <summary>
     /// The caller's IAM principal id for the service's audited re-check, via the shared resolver (fix D2 item
     /// 4) — a resolve failure DENIES rather than substituting <c>Guid.Empty</c>.
@@ -422,6 +452,9 @@ public class PlatformAdminController(
     private Task<Result<Guid>> ActingPrincipalIdAsync(CancellationToken ct) =>
         actingPrincipalResolver.ResolveActingPrincipalIdAsync(currentUser.UserId, ct);
 }
+
+/// <summary>The support contact URL a suspended channel shows. Null means none is set.</summary>
+public sealed record SupportContactDto(string? Url);
 
 /// <summary>Body for the reinstate action — the justification lands in the audit row.</summary>
 public sealed record ReinstateTenantRequest(string Justification);

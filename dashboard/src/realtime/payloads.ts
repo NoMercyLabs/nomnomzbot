@@ -302,6 +302,21 @@ export type ObsLiveStatePayload = {
   timestamp: string;
 };
 
+// HubResponseDtos.cs: VtsStatusDto
+export type VtsStatusPayload = {
+  broadcasterId: string;
+  status: string;
+  timestamp: string;
+};
+
+// HubResponseDtos.cs: ChannelSuspensionChangedDto. Status is active, suspended or platform_banned.
+export type ChannelSuspensionChangedPayload = {
+  broadcasterId: string;
+  status: string;
+  reason: string | null;
+  timestamp: string;
+};
+
 // HubResponseDtos.cs: ObsStateChangedDto. Only the fields of the kind are set.
 export type ObsStateChangedPayload = {
   broadcasterId: string;
@@ -379,6 +394,8 @@ export type DashboardHubEvents = {
   ConfigChanged: ConfigChangedPayload;
   ObsBridgeStateChanged: ObsBridgeStatePayload;
   ObsLiveStateChanged: ObsLiveStatePayload;
+  VtsStatusChanged: VtsStatusPayload;
+  ChannelSuspensionChanged: ChannelSuspensionChangedPayload;
   ObsStateChanged: ObsStateChangedPayload;
   sr_queue_changed: SrQueueChangedPayload;
   VtsStatusChanged: VtsStatusPayload;

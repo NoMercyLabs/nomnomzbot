@@ -102,6 +102,14 @@ public interface IDashboardNotifier
         CancellationToken ct = default
     );
     Task SendVtsStatusAsync(string broadcasterId, VtsStatusDto dto, CancellationToken ct = default);
+
+    /// <summary>Sends a suspension change to the channel group and to every connection of <paramref name="userIds"/>.</summary>
+    Task SendChannelSuspensionChangedAsync(
+        string broadcasterId,
+        IReadOnlyList<string> userIds,
+        ChannelSuspensionChangedDto dto,
+        CancellationToken ct = default
+    );
 }
 
 public class DashboardNotifier : IDashboardNotifier
@@ -274,6 +282,21 @@ public class DashboardNotifier : IDashboardNotifier
         VtsStatusDto dto,
         CancellationToken ct = default
     ) => BaseGroup(broadcasterId).VtsStatusChanged(dto);
+
+    // A suspended channel refuses JoinChannel, so a dashboard opened after the suspension is in no channel
+    // group: the user-targeted push is what lets it hear the reinstatement.
+    public async Task SendChannelSuspensionChangedAsync(
+        string broadcasterId,
+        IReadOnlyList<string> userIds,
+        ChannelSuspensionChangedDto dto,
+        CancellationToken ct = default
+    )
+    {
+        await BaseGroup(broadcasterId).ChannelSuspensionChanged(dto);
+
+        if (userIds.Count > 0)
+            await _hub.Clients.Users(userIds).ChannelSuspensionChanged(dto);
+    }
 
     private IDashboardClient BaseGroup(string broadcasterId) =>
         _hub.Clients.Group(DashboardEventClasses.BaseGroup(broadcasterId));

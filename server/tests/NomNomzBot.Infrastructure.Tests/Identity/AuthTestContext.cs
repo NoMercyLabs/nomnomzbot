@@ -391,7 +391,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
         b.Entity<Channel>().HasKey(e => e.Id);
         b.Entity<Channel>().Ignore(e => e.Tags).Ignore(e => e.ContentLabels);
-        b.Entity<Channel>().Ignore(e => e.Moderators).Ignore(e => e.Streams).Ignore(e => e.Events);
+        b.Entity<Channel>().Ignore(e => e.Streams).Ignore(e => e.Events);
+        b.Entity<Channel>().HasMany(e => e.Moderators).WithOne().HasForeignKey(m => m.ChannelId);
 
         // Channel.User is mapped (via the domain entity's own [ForeignKey(nameof(OwnerUserId))]) so
         // ChannelService tests can exercise its `.Include(c => c.User)` reads through this harness.
@@ -450,7 +451,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.IdempotencyKeyConfiguration()
         );
 
-        // Mapped standalone (navs ignored, Channel.Moderators already ignored above) so the
+        // Mapped standalone (navs ignored, Channel.Moderators is mapped above) so the
         // ChannelAccessService tests can exercise the moderator-grant branch of tenant resolution.
         b.Entity<ChannelModerator>().HasKey(e => new { e.ChannelId, e.UserId });
         b.Entity<ChannelModerator>().Ignore(e => e.Channel).Ignore(e => e.User);

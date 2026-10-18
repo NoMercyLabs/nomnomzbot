@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
@@ -36,6 +37,7 @@ public class ChannelService : IChannelService
     private readonly IChatProvider _chatProvider;
     private readonly IBuiltinResponseComposer _responseComposer;
     private readonly IBotModeratorStatusService _botModeratorStatus;
+    private readonly ISupportContactService _supportContact;
 
     public ChannelService(
         IApplicationDbContext db,
@@ -45,9 +47,11 @@ public class ChannelService : IChannelService
         ITwitchEventSubService eventSub,
         IChatProvider chatProvider,
         IBuiltinResponseComposer responseComposer,
-        IBotModeratorStatusService botModeratorStatus
+        IBotModeratorStatusService botModeratorStatus,
+        ISupportContactService supportContact
     )
     {
+        _supportContact = supportContact;
         _db = db;
         _timeProvider = timeProvider;
         _eventBus = eventBus;
@@ -218,28 +222,55 @@ public class ChannelService : IChannelService
         // otherwise default to that moderated channel and be resolved as a mere viewer there — landing on the
         // participant surface instead of their own management dashboard. Owning a channel is the strongest claim,
         // so it wins the default.
-        List<ChannelSummaryDto> items = await query
+        var rows = await query
             .OrderByDescending(c => c.OwnerUserId == userGuid)
             .ThenBy(c => c.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(c => new ChannelSummaryDto(
-                c.Id.ToString(),
-                c.Name,
-                c.User.DisplayName,
-                c.User.ProfileImageUrl,
-                c.IsLive,
-                c.OwnerUserId == userGuid ? "broadcaster" : "moderator",
-                null,
-                c.Provider,
-                c.User.Color
-            ))
+            .Select(c => new
+            {
+                Summary = new ChannelSummaryDto(
+                    c.Id.ToString(),
+                    c.Name,
+                    c.User.DisplayName,
+                    c.User.ProfileImageUrl,
+                    c.IsLive,
+                    c.OwnerUserId == userGuid ? "broadcaster" : "moderator",
+                    null,
+                    c.Provider,
+                    c.User.Color,
+                    null
+                ),
+                c.Status,
+                c.SuspendedReason,
+                c.SuspendedAt,
+            })
             .ToListAsync(cancellationToken);
+
+        // A suspended channel stays in the list, carrying why and where to reach the platform, so the
+        // dashboard shows the suspended view instead of failing at boot.
+        string? contactUrl = rows.Any(r => IsSuspended(r.Status))
+            ? await _supportContact.GetContactUrlAsync(cancellationToken)
+            : null;
+        List<ChannelSummaryDto> items =
+        [
+            .. rows.Select(r =>
+                IsSuspended(r.Status)
+                    ? r.Summary with
+                    {
+                        Suspension = new(r.Status, r.SuspendedReason, r.SuspendedAt, contactUrl),
+                    }
+                    : r.Summary
+            ),
+        ];
 
         return Result.Success(
             new PagedList<ChannelSummaryDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
+
+    private static bool IsSuspended(string status) =>
+        status is AuthEnums.ChannelStatus.Suspended or AuthEnums.ChannelStatus.PlatformBanned;
 
     public async Task<Result<PagedList<PublicChannelDto>>> SearchPublicChannelsAsync(
         string? query,

@@ -63618,6 +63618,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/admin/support-contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The page a suspended channel's people use to reach the platform. Null until set. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfSupportContact"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        /** Sets the support contact (absolute http or https); an empty URL clears it. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SupportContact"];
+                    "text/json": components["schemas"]["SupportContact"];
+                    "application/*+json": components["schemas"]["SupportContact"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfSupportContact"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/platform/analytics/stats": {
         parameters: {
             query?: never;
@@ -87733,6 +87907,18 @@ export interface components {
             viewerCount?: null | number | string;
             provider: string;
             chatColor?: null | string;
+            suspension?: null | components["schemas"]["ChannelSuspension"];
+        };
+        /**
+         * @description Why a channel is suspended (`Status` is suspended or platform_banned), since when, and the page its
+         *     people use to reach the platform. `ContactUrl` is null until a platform admin sets the support contact.
+         */
+        ChannelSuspension: {
+            status: string;
+            reason?: null | string;
+            /** Format: date-time */
+            suspendedAt?: null | string;
+            contactUrl?: null | string;
         };
         /**
          * @description A chat badge (subscriber, moderator, etc.) resolved to its scale-keyed image urls ("1"/"2"/"4") from the cached
@@ -94037,6 +94223,7 @@ export interface components {
             reason: string;
             blocked: boolean;
         };
+        /** @description Whether the channel can have channel points: Twitch gives them to Affiliates and Partners only. */
         RewardAvailability: {
             channelPointsAvailable: boolean;
             broadcasterType: string;
@@ -98918,9 +99105,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfRewardDetail: {
+        StatusResponseOfRewardAvailability: {
             status?: string;
-            data?: null | components["schemas"]["RewardDetail"];
+            data?: null | components["schemas"]["RewardAvailability"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -98931,9 +99118,9 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfRewardAvailability: {
+        StatusResponseOfRewardDetail: {
             status?: string;
-            data?: null | components["schemas"]["RewardAvailability"];
+            data?: null | components["schemas"]["RewardDetail"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -99194,6 +99381,19 @@ export interface components {
         StatusResponseOfSubscription: {
             status?: string;
             data?: null | components["schemas"]["Subscription"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfSupportContact: {
+            status?: string;
+            data?: null | components["schemas"]["SupportContact"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -100161,6 +100361,10 @@ export interface components {
             isInviteOnlyGrant: boolean;
             allowsCustomBotName: boolean;
             prioritySupport: boolean;
+        };
+        /** @description The support contact URL a suspended channel shows. Null means none is set. */
+        SupportContact: {
+            url?: null | string;
         };
         /**
          * @description A supporter connection's public shape — the secret is never returned, only whether one is set. For a

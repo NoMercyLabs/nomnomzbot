@@ -42,6 +42,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Notifications.Services;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -350,5 +351,6 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddSingleton(Substitute.For<ILoginProviderRegistry>());
         services.AddSingleton(Substitute.For<IExternalLoginService>());
         services.AddSingleton(Substitute.For<ISystemCredentialsProvider>());
+        services.AddSingleton(Substitute.For<ISupportContactService>());
     }
 }
