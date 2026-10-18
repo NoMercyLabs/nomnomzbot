@@ -178,6 +178,7 @@ function apply(): void {
   </PanelCard>
 
   <FormDialog
+    v-if="can('platform:defaults:manage')"
     :open="editing !== null"
     :title="
       $t('dashboard.admin.platformDefaults.replies.dialog.title', {

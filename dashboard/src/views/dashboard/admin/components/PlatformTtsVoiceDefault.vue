@@ -166,6 +166,7 @@ function apply(): void {
   </PanelCard>
 
   <FormDialog
+    v-if="can('platform:defaults:manage')"
     :open="editing"
     :title="$t('dashboard.admin.platformDefaults.voice.dialog.title')"
     :description="$t('dashboard.admin.platformDefaults.voice.dialog.description')"

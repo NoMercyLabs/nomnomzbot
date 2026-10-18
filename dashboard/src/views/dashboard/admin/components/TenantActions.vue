@@ -266,7 +266,7 @@ const pending = computed(
                 rows="3"
       />
     </div>
-    <div v-if="action === 'access'" class="grid gap-3">
+    <div v-if="action === 'access' && can('tenant:access')" class="grid gap-3">
       <div class="flex items-center justify-between gap-3">
         <Label for="tenant-break-glass">{{ t('dashboard.admin.tenants.access.breakGlass') }}</Label>
         <Switch id="tenant-break-glass" v-model="breakGlass" />
