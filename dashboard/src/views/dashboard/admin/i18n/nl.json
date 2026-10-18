@@ -664,6 +664,40 @@
           "consequence": "Als je {name} intrekt, wordt het niet meer aangeboden. {installed} geinstalleerde kopieen blijven draaien ({behind} achter, {edited} aangepast). In geen enkel kanaal verandert iets."
         },
         "kindKey": "{kind} / {key}"
+      },
+      "audit": {
+        "title": "Auditlog",
+        "count": "{count} regels",
+        "breakGlass": "Noodtoegang",
+        "outcome": {
+          "any": "Elke uitkomst",
+          "Allowed": "Toegestaan",
+          "Denied": "Geweigerd"
+        },
+        "filters": {
+          "permission": "Recht",
+          "permissionHint": "tenant:suspend",
+          "outcome": "Uitkomst",
+          "principal": "Operator-ID",
+          "tenant": "Kanaal-ID",
+          "from": "Vanaf dag",
+          "to": "Tot dag"
+        },
+        "columns": {
+          "when": "Wanneer",
+          "principal": "Operator",
+          "permission": "Recht",
+          "target": "Kanaal",
+          "justification": "Reden",
+          "outcome": "Uitkomst"
+        },
+        "list": {
+          "title": "Rechtencontroles van operators",
+          "newestFirst": "Nieuwste eerst. Een nieuwe regel verschijnt vanzelf.",
+          "empty": "Geen auditregel past bij deze filters.",
+          "error": "De auditlog kon niet laden.",
+          "forbidden": "Je mag de auditlog niet lezen."
+        }
       }
     },
     "adminFeatureFlags": {

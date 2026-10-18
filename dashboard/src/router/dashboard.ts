@@ -15,6 +15,7 @@ import { merge } from '@/lib/array';
 import { channelVariants } from './channelRoutes';
 
 import {
+  dashboardAdminAuditRoute,
   dashboardAdminChannelsRoute,
   dashboardAdminEventSubHealthRoute,
   dashboardAdminFeatureFlagsRoute,
@@ -104,6 +105,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardAdminTrustSafetyRoute,
   dashboardAdminTenantUsageRoute,
   dashboardAdminErrorBudgetRoute,
+  dashboardAdminAuditRoute,
 ];
 
 // Every other planned page of every sidebar opens the empty "coming soon" page.

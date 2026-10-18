@@ -101,6 +101,15 @@ export type AdminErrorBudgetPayload = {
   status: string;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveAuditChanged (AdminAuditBroadcastHandler). One platform permission was
+// checked and an audit row written; outcome is Allowed or Denied.
+export type AdminAuditPayload = {
+  principalId: string;
+  permission: string;
+  outcome: string;
+  targetBroadcasterId: string | null;
+};
+
 // Hubs/Clients/IAdminClient.cs: ReceiveContentChanged (AdminContentBroadcastHandler). An operator created a
 // definition, drafted or published a version, or retired a definition.
 export type AdminContentPayload = {

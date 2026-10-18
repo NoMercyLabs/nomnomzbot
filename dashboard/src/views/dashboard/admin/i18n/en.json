@@ -664,6 +664,40 @@
           "consequence": "Retiring {name} stops it being offered. {installed} installed copies keep running ({behind} behind, {edited} edited). Nothing in any channel changes."
         },
         "kindKey": "{kind} / {key}"
+      },
+      "audit": {
+        "title": "Audit log",
+        "count": "{count} entries",
+        "breakGlass": "Break-glass",
+        "outcome": {
+          "any": "Any outcome",
+          "Allowed": "Allowed",
+          "Denied": "Denied"
+        },
+        "filters": {
+          "permission": "Permission",
+          "permissionHint": "tenant:suspend",
+          "outcome": "Outcome",
+          "principal": "Operator ID",
+          "tenant": "Channel ID",
+          "from": "From day",
+          "to": "To day"
+        },
+        "columns": {
+          "when": "When",
+          "principal": "Operator",
+          "permission": "Permission",
+          "target": "Channel",
+          "justification": "Reason",
+          "outcome": "Outcome"
+        },
+        "list": {
+          "title": "Operator permission checks",
+          "newestFirst": "Newest first. A new entry appears by itself.",
+          "empty": "No audit entry matches these filters.",
+          "error": "The audit log could not load.",
+          "forbidden": "You may not read the audit log."
+        }
       }
     },
     "adminFeatureFlags": {

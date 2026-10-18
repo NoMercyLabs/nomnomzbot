@@ -87,6 +87,7 @@ export const apiOperations = {
   'admin job retry': 'admin',
   'admin usage': 'admin',
   'admin error budget': 'admin',
+  'admin audit': 'admin',
   'content definitions': 'admin',
   'content definition': 'admin',
   'content definition create': 'admin',

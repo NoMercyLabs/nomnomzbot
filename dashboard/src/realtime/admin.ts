@@ -16,6 +16,7 @@ import {
   type AdminTenantDetail,
   type AdminTenantsPage,
 } from '@/api/admin';
+import { adminAuditPrefix } from '@/api/adminAudit';
 import { billingPrefix } from '@/api/adminBilling';
 import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { contentPrefix } from '@/api/adminContent';
@@ -23,6 +24,7 @@ import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type {
+  AdminAuditPayload,
   AdminBillingPayload,
   AdminChannelRegistryPayload,
   AdminContentPayload,
@@ -94,6 +96,7 @@ export const adminHandlers: [
   HubEventHandler<AdminErrorBudgetPayload>,
   HubEventHandler<AdminContentPayload>,
   HubEventHandler<AdminBillingPayload>,
+  HubEventHandler<AdminAuditPayload>,
 ] = [
   {
     event: 'ReceiveSystemStatus',
@@ -131,6 +134,13 @@ export const adminHandlers: [
     event: 'ReceiveBillingChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: billingPrefix });
+    },
+  },
+  {
+    // A platform permission was checked and an audit row written: the log reloads from the server.
+    event: 'ReceiveAuditChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: adminAuditPrefix });
     },
   },
 ];
