@@ -159,6 +159,54 @@
           "forbidden": "You may not see the user list."
         }
       },
+      "trustSafety": {
+        "title": "Trust and safety",
+        "justification": {
+          "label": "Reason for access",
+          "placeholder": "Why are you opening the desk?",
+          "hint": "Every read and action is audited with this reason. Nothing loads until you state it."
+        },
+        "idle": "State a reason to load the desk.",
+        "error": "The desk could not load.",
+        "review": {
+          "title": "Review queue",
+          "description": "Automatic account actions waiting for a human decision.",
+          "empty": "Nothing to review.",
+          "confirm": "Confirm",
+          "overturn": "Overturn",
+          "confirmTitle": "Confirm this action",
+          "confirmConsequence": "The action stays as it is and the review closes.",
+          "overturnTitle": "Overturn this action",
+          "overturnConsequence": "This reverses the real account action: {preview}"
+        },
+        "signals": {
+          "title": "Cross-channel signals",
+          "description": "Accounts flagged in two or more channels.",
+          "empty": "No account is flagged in more than one channel.",
+          "summary": "{tenants} channels, {detections} detections"
+        },
+        "blocks": {
+          "title": "Network blocks",
+          "description": "Bans that apply to every channel on this deployment.",
+          "empty": "No network blocks.",
+          "summary": "{status}, {count} channels",
+          "lift": "Lift",
+          "liftTitle": "Lift this block",
+          "liftConsequence": "This unbans the account in the {count} channels the block touched.",
+          "liftAction": "Lift block"
+        },
+        "apply": {
+          "title": "Block an account",
+          "target": "Twitch user id",
+          "reason": "Reason shown in the audit log",
+          "preview": "Preview block",
+          "previewResult": "{name} would be banned in {count} channels.",
+          "action": "Apply block",
+          "dialogTitle": "Apply this block",
+          "consequence": "This bans the account in {count} channels now. You can lift it later."
+        },
+        "failed": "The action failed."
+      },
       "eventsubHealth": {
         "title": "EventSub health",
         "count": "{count} channels",
@@ -247,7 +295,7 @@
         },
         "settings": {
           "isEnabled": {
-            "label": "Spam defence enabled",
+            "label": "Spam defense enabled",
             "explanation": "Turns the whole system on or off. Off means no detection and no records at all.",
             "cost": "Off leaves you with only the platform's own tools."
           },
@@ -390,7 +438,7 @@
         "invariants": {
           "sd0": "Under uncertainty the room is tightened, never the person. A raid is answered by making chat stricter for a while, never by mass bans.",
           "sd8": "An established regular of your channel is never actioned automatically, at any confidence, by any part of this system.",
-          "sd9": "Being present is never an offence. Nobody is actioned for being silent, for being new, or for arriving during an attack. Every action needs that account's own evidence.",
+          "sd9": "Being present is never an offense. Nobody is actioned for being silent, for being new, or for arriving during an attack. Every action needs that account's own evidence.",
           "sd11": "A viewer with standing, such as a moderator or subscriber anywhere or real watch time here, is never automatically banned or timed out. The most that can happen is a message removed and flagged.",
           "sd12": "We do not host the chat, so nothing here stops a message before it is published. What we can do is tighten the platform's own rules, and we say so plainly rather than implying cover we do not have."
         }

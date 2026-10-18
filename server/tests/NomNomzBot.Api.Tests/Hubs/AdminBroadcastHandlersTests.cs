@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
+using NomNomzBot.Domain.Identity.Enums;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -46,7 +47,7 @@ public sealed class AdminBroadcastHandlersTests
         await new AdminChannelOnlineBroadcastHandler(hub).HandleAsync(
             new()
             {
-                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                Provider = AuthEnums.Platform.Twitch,
                 BroadcasterId = Channel,
                 BroadcasterDisplayName = "Stoney",
                 StreamTitle = "blame the lag",
@@ -63,6 +64,30 @@ public sealed class AdminBroadcastHandlersTests
     }
 
     [Fact]
+    public async Task Trust_safety_change_pushes_area_action_and_subject_to_every_open_desk()
+    {
+        (IHubContext<AdminHub, IAdminClient> hub, IAdminClient all) = HubWithRecorder();
+        object? payload = null;
+        all.ReceiveTrustSafetyChanged(Arg.Do<object>(p => payload = p)).Returns(Task.CompletedTask);
+
+        await new AdminTrustSafetyBroadcastHandler(hub).HandleAsync(
+            new()
+            {
+                BroadcasterId = Guid.Empty,
+                Area = "network-block",
+                Action = "lifted",
+                SubjectId = Channel,
+            }
+        );
+
+        payload.Should().NotBeNull();
+        Type t = payload!.GetType();
+        t.GetProperty("Area")!.GetValue(payload).Should().Be("network-block");
+        t.GetProperty("Action")!.GetValue(payload).Should().Be("lifted");
+        t.GetProperty("SubjectId")!.GetValue(payload).Should().Be(Channel);
+    }
+
+    [Fact]
     public async Task Channel_offline_pushes_a_not_live_registry_update()
     {
         (IHubContext<AdminHub, IAdminClient> hub, IAdminClient all) = HubWithRecorder();
@@ -73,7 +98,7 @@ public sealed class AdminBroadcastHandlersTests
         await new AdminChannelOfflineBroadcastHandler(hub).HandleAsync(
             new()
             {
-                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                Provider = AuthEnums.Platform.Twitch,
                 BroadcasterId = Channel,
                 BroadcasterDisplayName = "Stoney",
                 StreamDuration = TimeSpan.FromHours(3),

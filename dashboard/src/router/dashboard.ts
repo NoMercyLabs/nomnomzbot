@@ -21,11 +21,11 @@ import {
   dashboardAdminOverviewRoute,
   dashboardAdminProvidersRoute,
   dashboardAdminScheduledJobsRoute,
-  dashboardAdminSupportRoute,
   dashboardAdminSpamDefaultsRoute,
   dashboardAdminSupportRoute,
   dashboardAdminTenantsRoute,
   dashboardAdminTenantUsageRoute,
+  dashboardAdminTrustSafetyRoute,
   dashboardAdminUsersRoute,
   dashboardAdminWebhookDeliveriesRoute,
 } from '@/views/dashboard/admin/route';
@@ -43,6 +43,7 @@ import { dashboardOverlaysRoute } from '@/views/dashboard/overlays/route';
 import { dashboardPeopleRoute } from '@/views/dashboard/people/route';
 import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboard/pipelines/route';
 import { dashboardMediaShareRoute } from '@/views/dashboard/media-share/route';
+import { dashboardGiveawaysRoute } from '@/views/dashboard/giveaways/route';
 import { dashboardPollsRoute } from '@/views/dashboard/polls/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
 import { dashboardSettingsRoute } from '@/views/dashboard/settings/route';
@@ -73,6 +74,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardOverlaysRoute,
   dashboardObsRoute,
   dashboardPollsRoute,
+  dashboardGiveawaysRoute,
   dashboardGamesRoute,
   dashboardPipelinesRoute,
   dashboardPipelineRoute,
@@ -90,6 +92,8 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardAdminTenantsRoute,
   dashboardAdminProvidersRoute,
   dashboardAdminScheduledJobsRoute,
+  dashboardAdminSupportRoute,
+  dashboardAdminTrustSafetyRoute,
   dashboardAdminTenantUsageRoute,
 ];
 

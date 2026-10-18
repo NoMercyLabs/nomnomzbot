@@ -143,18 +143,6 @@ export const dashboardAdminScheduledJobsRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
-export const dashboardAdminTenantUsageRoute = {
-  path: 'admin/tenant-usage',
-  name: 'dashboard-admin-tenant-usage',
-  meta: { navMode: 'admin' },
-  beforeEnter: adminOnly,
-  component: () =>
-    loadPage(
-      () => import('./AdminTenantUsageView.vue'),
-      (locale) => import(`./i18n/${locale}.json`),
-    ),
-} as const satisfies RouteRecordRaw;
-
 export const dashboardAdminSupportRoute = {
   path: 'admin/support',
   name: 'dashboard-admin-support',
@@ -163,6 +151,30 @@ export const dashboardAdminSupportRoute = {
   component: () =>
     loadPage(
       () => import('./AdminSupportView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
+export const dashboardAdminTrustSafetyRoute = {
+  path: 'admin/trust-safety',
+  name: 'dashboard-admin-trust-safety',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminTrustSafetyView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
+export const dashboardAdminTenantUsageRoute = {
+  path: 'admin/tenant-usage',
+  name: 'dashboard-admin-tenant-usage',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminTenantUsageView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;

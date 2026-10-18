@@ -86,6 +86,14 @@ export type AdminChannelRegistryPayload = {
   status?: string;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveTrustSafetyChanged (AdminTrustSafetyBroadcastHandler). An operator confirmed or
+// overturned a review, or applied or lifted a network block; area is review or network-block.
+export type AdminTrustSafetyPayload = {
+  area: string;
+  action: string;
+  subjectId: string;
+};
+
 // Hubs/Clients/IDashboardClient.cs: ChatMessage carries DashboardChatMessageDto, the same record the history call returns.
 export type ChatMessagePayload = components['schemas']['DashboardChatMessage'];
 

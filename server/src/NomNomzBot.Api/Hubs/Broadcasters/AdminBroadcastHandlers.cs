@@ -11,6 +11,7 @@
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
@@ -28,7 +29,7 @@ public sealed class AdminChannelOnlineBroadcastHandler(IHubContext<AdminHub, IAd
         hub.Clients.All.ReceiveChannelRegistryUpdate(
             new
             {
-                BroadcasterId = @event.BroadcasterId,
+                @event.BroadcasterId,
                 ChannelName = @event.BroadcasterDisplayName,
                 IsLive = true,
                 @event.StreamTitle,
@@ -45,7 +46,7 @@ public sealed class AdminChannelOfflineBroadcastHandler(IHubContext<AdminHub, IA
         hub.Clients.All.ReceiveChannelRegistryUpdate(
             new
             {
-                BroadcasterId = @event.BroadcasterId,
+                @event.BroadcasterId,
                 ChannelName = @event.BroadcasterDisplayName,
                 IsLive = false,
             }
@@ -73,4 +74,19 @@ public sealed class AdminTenantSuspensionBroadcastHandler(IHubContext<AdminHub, 
             }
         );
     }
+}
+
+/// <summary>Trust and safety desk changes reach every open operator desk live, so a queue or block list reloads.</summary>
+public sealed class AdminTrustSafetyBroadcastHandler(IHubContext<AdminHub, IAdminClient> hub)
+    : IEventHandler<TrustSafetyChangedEvent>
+{
+    public Task HandleAsync(TrustSafetyChangedEvent @event, CancellationToken ct = default) =>
+        hub.Clients.All.ReceiveTrustSafetyChanged(
+            new
+            {
+                @event.Area,
+                @event.Action,
+                @event.SubjectId,
+            }
+        );
 }

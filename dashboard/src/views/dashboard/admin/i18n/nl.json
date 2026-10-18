@@ -159,6 +159,54 @@
           "forbidden": "Je mag de gebruikerslijst niet zien."
         }
       },
+      "trustSafety": {
+        "title": "Vertrouwen en veiligheid",
+        "justification": {
+          "label": "Reden van toegang",
+          "placeholder": "Waarom open je het bureau?",
+          "hint": "Elke lees- en schrijfactie wordt met deze reden vastgelegd. Er laadt niets zonder."
+        },
+        "idle": "Geef een reden om het bureau te laden.",
+        "error": "Het bureau kon niet laden.",
+        "review": {
+          "title": "Beoordelingswachtrij",
+          "description": "Automatische accountacties die op een menselijk besluit wachten.",
+          "empty": "Niets te beoordelen.",
+          "confirm": "Bevestigen",
+          "overturn": "Terugdraaien",
+          "confirmTitle": "Deze actie bevestigen",
+          "confirmConsequence": "De actie blijft zoals ze is en de beoordeling sluit.",
+          "overturnTitle": "Deze actie terugdraaien",
+          "overturnConsequence": "Dit draait de echte accountactie terug: {preview}"
+        },
+        "signals": {
+          "title": "Signalen over kanalen heen",
+          "description": "Accounts die in twee of meer kanalen zijn gemarkeerd.",
+          "empty": "Geen account is in meer dan een kanaal gemarkeerd.",
+          "summary": "{tenants} kanalen, {detections} detecties"
+        },
+        "blocks": {
+          "title": "Netwerkblokkades",
+          "description": "Bans die gelden voor elk kanaal op deze installatie.",
+          "empty": "Geen netwerkblokkades.",
+          "summary": "{status}, {count} kanalen",
+          "lift": "Opheffen",
+          "liftTitle": "Deze blokkade opheffen",
+          "liftConsequence": "Dit heft de ban op in de {count} kanalen die de blokkade raakte.",
+          "liftAction": "Blokkade opheffen"
+        },
+        "apply": {
+          "title": "Een account blokkeren",
+          "target": "Twitch-gebruikers-id",
+          "reason": "Reden in het auditlog",
+          "preview": "Blokkade voorbeeld",
+          "previewResult": "{name} zou in {count} kanalen verbannen worden.",
+          "action": "Blokkade toepassen",
+          "dialogTitle": "Deze blokkade toepassen",
+          "consequence": "Dit verbant het account nu in {count} kanalen. Je kunt het later opheffen."
+        },
+        "failed": "De actie is mislukt."
+      },
       "eventsubHealth": {
         "title": "EventSub-gezondheid",
         "count": "{count} kanalen",

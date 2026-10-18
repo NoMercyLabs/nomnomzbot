@@ -16,9 +16,14 @@ import {
   type AdminTenantDetail,
   type AdminTenantsPage,
 } from '@/api/admin';
+import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
-import type { AdminChannelRegistryPayload, AdminSystemStatusPayload } from './payloads';
+import type {
+  AdminChannelRegistryPayload,
+  AdminSystemStatusPayload,
+  AdminTrustSafetyPayload,
+} from './payloads';
 
 // What a registry push says about one row. Absent fields stay as they are.
 function patchOf(update: AdminChannelRegistryPayload): Partial<AdminTenant> {
@@ -79,6 +84,7 @@ function applyRegistryUpdate(
 export const adminHandlers: [
   HubEventHandler<AdminSystemStatusPayload>,
   HubEventHandler<AdminChannelRegistryPayload>,
+  HubEventHandler<AdminTrustSafetyPayload>,
 ] = [
   {
     event: 'ReceiveSystemStatus',
@@ -89,5 +95,12 @@ export const adminHandlers: [
   {
     event: 'ReceiveChannelRegistryUpdate',
     handle: applyRegistryUpdate,
+  },
+  {
+    // Another operator changed the desk: the queue and the block list reload, nothing is patched by hand.
+    event: 'ReceiveTrustSafetyChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: trustSafetyPrefix });
+    },
   },
 ];

@@ -21,6 +21,8 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -43,7 +45,8 @@ public class AdminTrustSafetyController(
     ITrustSafetyReviewService trustSafety,
     INetworkBlockService networkBlocks,
     ICurrentUserService currentUser,
-    IIamCallerPrincipalResolverService actingPrincipalResolver
+    IIamCallerPrincipalResolverService actingPrincipalResolver,
+    IEventBus eventBus
 ) : BaseController
 {
     /// <summary>
@@ -111,9 +114,14 @@ public class AdminTrustSafetyController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting);
-        return ResultResponse(
-            await trustSafety.ConfirmAsync(acting.Value, detectionId, justification, ct)
+        Result confirmed = await trustSafety.ConfirmAsync(
+            acting.Value,
+            detectionId,
+            justification,
+            ct
         );
+        await PublishChangeAsync(confirmed, "review", "confirmed", detectionId, ct);
+        return ResultResponse(confirmed);
     }
 
     /// <summary>
@@ -131,9 +139,14 @@ public class AdminTrustSafetyController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting);
-        return ResultResponse(
-            await trustSafety.OverturnAsync(acting.Value, detectionId, justification, ct)
+        Result overturned = await trustSafety.OverturnAsync(
+            acting.Value,
+            detectionId,
+            justification,
+            ct
         );
+        await PublishChangeAsync(overturned, "review", "overturned", detectionId, ct);
+        return ResultResponse(overturned);
     }
 
     /// <summary>
@@ -174,7 +187,10 @@ public class AdminTrustSafetyController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<NetworkBlockDto>(null!));
-        return ResultResponse(await networkBlocks.ApplyAsync(acting.Value, request, ct));
+        Result<NetworkBlockDto> applied = await networkBlocks.ApplyAsync(acting.Value, request, ct);
+        if (applied.IsSuccess)
+            await PublishChangeAsync(applied, "network-block", "applied", applied.Value.Id, ct);
+        return ResultResponse(applied);
     }
 
     /// <summary>Every network block, newest first — active/partial ones are still enforced.</summary>
@@ -211,8 +227,37 @@ public class AdminTrustSafetyController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<NetworkBlockDto>(null!));
-        return ResultResponse(
-            await networkBlocks.LiftAsync(acting.Value, blockId, justification, ct)
+        Result<NetworkBlockDto> lifted = await networkBlocks.LiftAsync(
+            acting.Value,
+            blockId,
+            justification,
+            ct
+        );
+        await PublishChangeAsync(lifted, "network-block", "lifted", blockId, ct);
+        return ResultResponse(lifted);
+    }
+
+    /// <summary>Tells the open operator desks a change landed; a failed action changed nothing, so it says nothing.</summary>
+    private async Task PublishChangeAsync(
+        Result outcome,
+        string area,
+        string action,
+        Guid subjectId,
+        CancellationToken ct
+    )
+    {
+        if (outcome.IsFailure)
+            return;
+
+        await eventBus.PublishAsync(
+            new TrustSafetyChangedEvent
+            {
+                BroadcasterId = Guid.Empty,
+                Area = area,
+                Action = action,
+                SubjectId = subjectId,
+            },
+            ct
         );
     }
 
