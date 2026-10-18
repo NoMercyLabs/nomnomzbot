@@ -111,8 +111,9 @@ describe('the chart panel', () => {
       fresh: 0,
     }));
     const wrapper = chart('bar', { data: many });
-    const axis = wrapper.findAllComponents(VisAxis).find((one) => one.props('type') === 'x');
-    const ticks = axis?.props('tickValues') as number[];
+    const drawn = wrapper.findAllComponents(VisAxis);
+    const axes = drawn.map((one): Record<string, unknown> => one.props());
+    const ticks = axes.find((given) => given.type === 'x')?.tickValues as number[];
 
     expect(ticks.length).toBeLessThanOrEqual(8);
     expect(ticks[0]).toBe(0);

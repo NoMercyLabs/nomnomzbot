@@ -39,8 +39,8 @@ const sparse: AnalyticsDay[] = [
   day('2026-10-18', 7, 1),
 ];
 
-const followers = (row: AnalyticsDay): number => row.newFollowers;
-const chatters = (row: AnalyticsDay): number => row.uniqueChatters;
+const followers = (row: AnalyticsDay): number => Number(row.newFollowers);
+const chatters = (row: AnalyticsDay): number => Number(row.uniqueChatters);
 const dates = (rows: ChartRow[]): number[] =>
   rows.map((row: ChartRow) => (row.period as Date).getTime());
 
