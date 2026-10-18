@@ -11,7 +11,7 @@
 // One dense row with what OBS's own status bar shows, at the top of the page: stream and recording state with
 // their timers, bitrate, dropped frames, CPU and FPS; render-skipped, memory and congestion follow when OBS reports them.
 // The bitrate is the byte counter's change between two reads, so it shows from the second read on.
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { ObsStats } from '@/api/obsOutputs';
@@ -19,15 +19,26 @@ import type { ObsStats } from '@/api/obsOutputs';
 import {
   byteSample,
   obsStatusFacts,
+  withLiveOutputs,
   type ByteSample,
+  type LiveOutputs,
   type ObsStatusFacts,
 } from '../obsStatusFacts';
 
-const props = defineProps<{ stats: ObsStats | null | undefined; readAt: number }>();
+// `live` is the newest stream and recording state (a push lands before the next poll); the two timers count by themselves.
+const props = defineProps<{
+  stats: ObsStats | null | undefined;
+  readAt: number;
+  live: LiveOutputs | null;
+  streamTimer: string;
+  recordTimer: string;
+}>();
 
 const { n, t } = useI18n();
 
-const facts = ref<ObsStatusFacts | null>(null);
+const polled = ref<ObsStatusFacts | null>(null);
+const facts = computed<ObsStatusFacts | null>(() =>
+  polled.value && withLiveOutputs(polled.value, props.live));
 let previous: ByteSample | null = null;
 
 watch(
@@ -36,12 +47,12 @@ watch(
     const stats = props.stats;
 
     if (!stats) {
-      facts.value = null;
+      polled.value = null;
 
       return;
     }
 
-    facts.value = obsStatusFacts(stats, previous, at);
+    polled.value = obsStatusFacts(stats, previous, at);
     previous = byteSample(stats, at);
   },
   { immediate: true },
@@ -73,14 +84,14 @@ function cells(current: ObsStatusFacts): Cell[] {
   return [
     {
       key: 'stream',
-      value: [t(`dashboard.obs.stats.${current.stream.state}`), current.stream.timer].join(' ').trim(),
+      value: [t(`dashboard.obs.stats.${current.stream.state}`), props.streamTimer].join(' ').trim(),
       on: current.stream.state !== 'off',
     },
     {
       key: 'record',
       value: [
         t(`dashboard.obs.stats.${current.record.state}`),
-        current.record.timer,
+        props.recordTimer,
       ].join(' ').trim(),
       on: current.record.state === 'recording',
     },

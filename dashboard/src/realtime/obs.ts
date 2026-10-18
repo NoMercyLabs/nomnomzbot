@@ -18,6 +18,7 @@ import {
   type ObsScene,
   type ObsState,
 } from '@/api/obs';
+import { obsVirtualCamKey } from '@/api/obsOutputs';
 import {
   obsSceneItemsKey,
   obsSourceFiltersKey,
@@ -28,18 +29,50 @@ import {
 import type { HubEventHandler } from './hubEvent';
 import type { ObsStateChangedPayload } from './payloads';
 
-type StatePatch = (change: ObsStateChangedPayload) => Partial<ObsState>;
+type StatePatch = (change: ObsStateChangedPayload, state: ObsState) => Partial<ObsState>;
+
+// A push carries no timecode: a start begins the timer at zero, a stop clears it, and a change while the
+// output already runs (a pause, a resume) keeps what the page has.
+const startOfTimer = '00:00:00.000';
+
+function timecodeAfter(
+  active: boolean,
+  wasActive: boolean,
+  current: string | null | undefined,
+): string | null {
+  if (!active)
+    return null;
+
+  return wasActive
+    ? current ?? null
+    : startOfTimer;
+}
 
 // The fields of the OBS state read that each kind of change sets; kinds without a field here have no page data yet.
 const statePatches: Partial<Record<ObsStateChangedPayload['kind'], StatePatch>> = {
   programScene: (change) => ({ currentScene: change.sceneName ?? null }),
-  stream: (change) => ({ streaming: change.active === true }),
-  record: (change) => ({
+  stream: (change, state) => ({
+    streaming: change.active === true,
+    streamTimecode: timecodeAfter(change.active === true, state.streaming, state.streamTimecode),
+  }),
+  record: (change, state) => ({
     recording: change.active === true,
     recordPaused: change.paused === true,
+    recordTimecode: timecodeAfter(change.active === true, state.recording, state.recordTimecode),
   }),
   replayBuffer: (change) => ({ replayBufferActive: change.active === true }),
 };
+
+// The virtual camera has its own read; a push sets it in place.
+function patchVirtualCam(
+  queries: QueryClient,
+  channelId: string | null,
+  change: ObsStateChangedPayload,
+): void {
+  if (change.kind !== 'virtualCam') return;
+
+  queries.setQueryData<boolean>(obsVirtualCamKey(channelId), change.active === true);
+}
 
 function markCurrent(scenes: readonly ObsScene[], current: string | null): ObsScene[] {
   return scenes.map((scene) => ({
@@ -69,7 +102,7 @@ function patchState(
     state
       ? {
           ...state,
-          ...patch(change),
+          ...patch(change, state),
         }
       : state);
 }
@@ -173,6 +206,7 @@ export const obsStateChanged = {
   handle: ({ queries, channelId }, change) => {
     patchScenes(queries, channelId, change);
     patchState(queries, channelId, change);
+    patchVirtualCam(queries, channelId, change);
     patchInputs(queries, channelId, change);
     patchSceneItems(queries, channelId, change);
     patchFilters(queries, channelId, change);

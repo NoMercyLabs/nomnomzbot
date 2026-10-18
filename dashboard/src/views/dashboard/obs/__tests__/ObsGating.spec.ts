@@ -87,6 +87,8 @@ async function openOutputs(keys: string[]): Promise<VueWrapper> {
       channelId: 'c1',
       state,
       virtualCam: false,
+      streamTimer: '',
+      recordTimer: '',
       panelState: 'ready',
       offline: false,
     },

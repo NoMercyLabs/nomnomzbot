@@ -75,13 +75,18 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function show(state: ObsState, virtualCam: boolean = false): void {
+function show(
+  state: ObsState,
+  virtualCam: boolean = false,
+  timers: { streamTimer: string; recordTimer: string } = { streamTimer: '', recordTimer: '' },
+): void {
   mounted = mount(OutputsPanel, {
     attachTo: document.body,
     props: {
       channelId: 'c1',
       state,
       virtualCam,
+      ...timers,
       panelState: 'ready',
       offline: false,
     },
@@ -108,14 +113,16 @@ describe('OutputsPanel', () => {
   });
 
   it('asks before stopping the stream and sends nothing until confirmed', async () => {
-    show({
-      ...idle,
-      streaming: true,
-      streamTimecode: '01:02:03.456',
-    });
+    show(
+      {
+        ...idle,
+        streaming: true,
+      },
+      false,
+      { streamTimer: '1:02:03', recordTimer: '' },
+    );
 
-    expect(document.body.textContent).toContain('01:02:03');
-    expect(document.body.textContent).not.toContain('01:02:03.456');
+    expect(document.body.querySelector('[data-output="streaming"] [data-output-timer]')?.textContent?.trim()).toBe('1:02:03');
 
     await press('[data-output="streaming"] [data-act="stop"]');
 
@@ -195,6 +202,45 @@ describe('OutputsPanel', () => {
     expect(posts).toEqual([
       { path: '/api/v{version}/channels/{channelId}/obs/virtual-cam', body: { action: 1 } },
     ]);
+  });
+});
+
+describe('OutputsPanel rows', () => {
+  it('renders one compact row per output with its name, state and actions', () => {
+    show(
+      {
+        ...idle,
+        streaming: true,
+        recording: true,
+      },
+      false,
+      { streamTimer: '0:10', recordTimer: '0:05' },
+    );
+
+    const rows = [...document.body.querySelectorAll<HTMLElement>('[data-output-row]')];
+
+    expect(rows.map((row: HTMLElement) => row.dataset.output)).toEqual([
+      'streaming',
+      'recording',
+      'replay-buffer',
+      'virtual-cam',
+    ]);
+
+    const stream = rows[0];
+
+    expect(stream?.querySelector('[data-output-state]')?.textContent?.trim()).toBe(en.dashboard.obs.outputs.live);
+    expect(stream?.querySelector('[data-output-timer]')?.textContent?.trim()).toBe('0:10');
+    expect(rows[1]?.querySelector('[data-output-timer]')?.textContent?.trim()).toBe('0:05');
+    expect(rows[2]?.querySelector('[data-output-timer]')).toBeNull();
+    expect(document.body.querySelectorAll('[data-output-row] [data-act="stop"]')).toHaveLength(2);
+  });
+
+  it('shows the virtual camera as running when the read says so', () => {
+    show(idle, true);
+
+    const state = document.body.querySelector('[data-output="virtual-cam"] [data-output-state]');
+
+    expect(state?.textContent?.trim()).toBe(en.dashboard.obs.outputs.active);
   });
 });
 

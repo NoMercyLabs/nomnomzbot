@@ -44,6 +44,7 @@ import ScenesPanel from './components/ScenesPanel.vue';
 import SourcesPanel from './components/SourcesPanel.vue';
 import StudioPanel from './components/StudioPanel.vue';
 import ObsStatusBar from './components/ObsStatusBar.vue';
+import { useObsClocks } from './obsClocks';
 import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
 
 const { channelId } = useCurrentChannel();
@@ -90,6 +91,12 @@ const visibility = useDocumentVisibility();
 const visible = computed<boolean>(() => visibility.value === 'visible');
 const stats = useObsStats(channelId, enabled, visible, 2000);
 const virtualCam = useObsVirtualCam(channelId, enabled);
+const clocks = useObsClocks(() => ({
+  stats: stats.data.value,
+  statsAt: stats.dataUpdatedAt.value,
+  state: state.data.value,
+  stateAt: state.dataUpdatedAt.value,
+}));
 const outputsPanel = usePanelState(state);
 
 const connectionPanel = usePanelState(connection);
@@ -137,6 +144,9 @@ function retry(): void {
         v-if="enabled && access.can('obs:control')"
         :stats="stats.data.value"
         :read-at="stats.dataUpdatedAt.value"
+        :live="clocks.live.value"
+        :stream-timer="clocks.stream.value"
+        :record-timer="clocks.record.value"
       />
       <div
         ref="live"
@@ -149,6 +159,8 @@ function retry(): void {
           :channel-id="channelId"
           :state="state.data.value"
           :virtual-cam="virtualCam.data.value === true"
+          :stream-timer="clocks.stream.value"
+          :record-timer="clocks.record.value"
           :panel-state="outputsPanel"
           :offline="!enabled"
           @retry="retry"

@@ -12,7 +12,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { ObsStats } from '@/api/obsOutputs';
 
-import { byteSample, obsStatusFacts } from '../obsStatusFacts';
+import type { ObsState } from '@/api/obs';
+
+import {
+  byteSample,
+  liveOutputs,
+  obsStatusFacts,
+  withLiveOutputs,
+} from '../obsStatusFacts';
 
 // A payload as the server maps it from GetStats + GetStreamStatus + GetRecordStatus + GetVideoSettings,
 // at the moment OBS's own status bar read: 0 dropped, 30/30 FPS, CPU 1.5%, both timers 01:55:40.
@@ -108,5 +115,60 @@ describe('obsStatusFacts', () => {
     expect(facts.targetFps).toBe(30);
     expect(facts.memory).toBe(512);
     expect(facts.congestion).toBe(0.25);
+  });
+});
+
+describe('liveOutputs', () => {
+  const idle: ObsState = {
+    currentScene: 'Main',
+    streaming: false,
+    recording: false,
+    recordPaused: false,
+    replayBufferActive: false,
+    recordTimecode: null,
+    streamTimecode: null,
+  };
+
+  it('takes the stats read while it is the newest', () => {
+    const live = liveOutputs({
+      stats: recorded,
+      statsAt: 200,
+      state: idle,
+      stateAt: 100,
+    });
+
+    expect(live?.streaming).toBe(true);
+    expect(live?.streamTimecode).toBe('01:55:40.123');
+  });
+
+  it('takes a pushed state that is newer than the poll, so a stop shows at once', () => {
+    const live = liveOutputs({
+      stats: recorded,
+      statsAt: 100,
+      state: idle,
+      stateAt: 200,
+    });
+    const facts = withLiveOutputs(obsStatusFacts(recorded, null), live);
+
+    expect(facts.stream).toEqual({ state: 'off', timer: '' });
+    expect(facts.record).toEqual({ state: 'off', timer: '' });
+    expect(facts.cpu).toBe(1.5);
+  });
+
+  it('shows a pushed start as live with the timer at zero', () => {
+    const started: ObsState = {
+      ...idle,
+      streaming: true,
+      streamTimecode: '00:00:00.000',
+    };
+    const live = liveOutputs({
+      stats: { ...recorded, streamActive: false },
+      statsAt: 100,
+      state: started,
+      stateAt: 200,
+    });
+    const facts = withLiveOutputs(obsStatusFacts(recorded, null), live);
+
+    expect(facts.stream).toEqual({ state: 'live', timer: '00:00:00' });
   });
 });

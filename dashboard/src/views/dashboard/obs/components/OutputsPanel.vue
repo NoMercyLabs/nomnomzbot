@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The OBS outputs: stream, recording, replay buffer, virtual camera. Each row shows its state and timecode.
+// The OBS outputs: stream, recording, replay buffer, virtual camera, one dense row each with its state and timer.
 // One primary button on the panel: "Go live", and only while the stream is off. Stopping the stream is destructive
 // and asks first, because it ends the broadcast for every viewer.
 import { computed, ref } from 'vue';
@@ -22,16 +22,17 @@ import {
 } from '@/api/obsOutputs';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
-import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 
-import { wholeSeconds } from '../outputFormat';
+import OutputRow from './OutputRow.vue';
 
 const props = defineProps<{
   channelId: string | null;
   state: ObsState | null | undefined;
   virtualCam: boolean;
+  streamTimer: string;
+  recordTimer: string;
   panelState: PanelState;
   offline: boolean;
 }>();
@@ -92,141 +93,131 @@ async function stopStream(): Promise<void> {
     :error-text="$t('dashboard.obs.outputs.loadError')"
     @retry="$emit('retry')"
   >
-    <div class="px-1 py-0.5">
-      <div data-output="streaming">
-        <SummaryRow
-          :title="$t('dashboard.obs.outputs.stream')"
-          :detail="$t(streamDetail)"
-          :meta="streaming ? wholeSeconds(state?.streamTimecode) : undefined"
-        >
-          <template v-if="can('obs:control:broadcast')" #trailing>
+    <div class="divide-y divide-border">
+      <OutputRow
+        data-output="streaming"
+        :name="$t('dashboard.obs.outputs.stream')"
+        :state="$t(streamDetail)"
+        :on="streaming"
+        :timer="streamTimer"
+      >
+        <template v-if="can('obs:control:broadcast')">
+          <Button
+            v-if="!streaming"
+            data-act="start"
+            size="sm"
+            :disabled="busy"
+            @click="run('streaming', 'start')"
+          >
+            {{ $t("dashboard.obs.outputs.goLive") }}
+          </Button>
+          <Button
+            v-else
+            data-act="stop"
+            size="sm"
+            variant="destructive"
+            :disabled="busy"
+            @click="confirmStop = true"
+          >
+            {{ $t("dashboard.obs.outputs.stopStream.action") }}
+          </Button>
+        </template>
+      </OutputRow>
+
+      <OutputRow
+        data-output="recording"
+        :name="$t('dashboard.obs.outputs.record')"
+        :state="$t(recordDetail)"
+        :on="recording"
+        :timer="recordTimer"
+      >
+        <template v-if="can('obs:control:broadcast')">
+          <template v-if="recording">
             <Button
-              v-if="!streaming"
-              data-act="start"
+              v-if="!paused"
+              data-act="pause"
+              size="sm"
+              variant="ghost"
               :disabled="busy"
-              @click="run('streaming', 'start')"
+              @click="run('recording', 'pause')"
             >
-              {{ $t("dashboard.obs.outputs.goLive") }}
+              {{ $t("dashboard.obs.outputs.pause") }}
             </Button>
             <Button
               v-else
-              data-act="stop"
-              variant="destructive"
+              data-act="resume"
+              size="sm"
+              variant="ghost"
               :disabled="busy"
-              @click="confirmStop = true"
+              @click="run('recording', 'resume')"
             >
-              {{ $t("dashboard.obs.outputs.stopStream.action") }}
+              {{ $t("dashboard.obs.outputs.resume") }}
+            </Button>
+            <Button
+              data-act="split"
+              size="sm"
+              variant="ghost"
+              :disabled="busy"
+              @click="run('recording', 'split')"
+            >
+              {{ $t("dashboard.obs.outputs.split") }}
             </Button>
           </template>
-        </SummaryRow>
-      </div>
+          <Button
+            :data-act="recording ? 'stop' : 'start'"
+            size="sm"
+            variant="outline"
+            :disabled="busy"
+            @click="run('recording', recording ? 'stop' : 'start')"
+          >
+            {{ recording ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start") }}
+          </Button>
+        </template>
+      </OutputRow>
 
-      <div data-output="recording">
-        <SummaryRow
-          :title="$t('dashboard.obs.outputs.record')"
-          :detail="$t(recordDetail)"
-          :meta="recording ? wholeSeconds(state?.recordTimecode) : undefined"
+      <OutputRow
+        data-output="replay-buffer"
+        :name="$t('dashboard.obs.outputs.replay')"
+        :state="replay ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')"
+        :on="replay"
+      >
+        <Button
+          v-if="replay"
+          data-act="save"
+          size="sm"
+          variant="ghost"
+          :disabled="busy"
+          @click="saveReplay.mutate()"
         >
-          <template v-if="can('obs:control:broadcast')" #trailing>
-            <Button
-              v-if="!recording"
-              data-act="start"
-              variant="outline"
-              :disabled="busy"
-              @click="run('recording', 'start')"
-            >
-              {{ $t("dashboard.obs.outputs.start") }}
-            </Button>
-            <template v-else>
-              <Button
-                v-if="!paused"
-                data-act="pause"
-                variant="outline"
-                :disabled="busy"
-                @click="run('recording', 'pause')"
-              >
-                {{ $t("dashboard.obs.outputs.pause") }}
-              </Button>
-              <Button
-                v-else
-                data-act="resume"
-                variant="outline"
-                :disabled="busy"
-                @click="run('recording', 'resume')"
-              >
-                {{ $t("dashboard.obs.outputs.resume") }}
-              </Button>
-              <Button
-                data-act="split"
-                variant="outline"
-                :disabled="busy"
-                @click="run('recording', 'split')"
-              >
-                {{ $t("dashboard.obs.outputs.split") }}
-              </Button>
-              <Button
-                data-act="stop"
-                variant="outline"
-                :disabled="busy"
-                @click="run('recording', 'stop')"
-              >
-                {{ $t("dashboard.obs.outputs.stop") }}
-              </Button>
-            </template>
-          </template>
-        </SummaryRow>
-      </div>
+          {{ $t("dashboard.obs.outputs.saveClip") }}
+        </Button>
+        <Button
+          :data-act="replay ? 'stop' : 'start'"
+          size="sm"
+          variant="outline"
+          :disabled="busy"
+          @click="run('replay-buffer', replay ? 'stop' : 'start')"
+        >
+          {{ replay ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start") }}
+        </Button>
+      </OutputRow>
 
-      <div data-output="replay-buffer">
-        <SummaryRow
-          :title="$t('dashboard.obs.outputs.replay')"
-          :detail="
-            replay ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')
-          "
+      <OutputRow
+        data-output="virtual-cam"
+        :name="$t('dashboard.obs.outputs.virtualCam')"
+        :state="virtualCam ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')"
+        :on="virtualCam"
+      >
+        <Button
+          :data-act="virtualCam ? 'stop' : 'start'"
+          size="sm"
+          variant="outline"
+          :disabled="busy"
+          @click="run('virtual-cam', virtualCam ? 'stop' : 'start')"
         >
-          <template #trailing>
-            <Button
-              v-if="replay"
-              data-act="save"
-              variant="outline"
-              :disabled="busy"
-              @click="saveReplay.mutate()"
-            >
-              {{ $t("dashboard.obs.outputs.saveClip") }}
-            </Button>
-            <Button
-              :data-act="replay ? 'stop' : 'start'"
-              variant="outline"
-              :disabled="busy"
-              @click="run('replay-buffer', replay ? 'stop' : 'start')"
-            >
-              {{ replay ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start") }}
-            </Button>
-          </template>
-        </SummaryRow>
-      </div>
-
-      <div data-output="virtual-cam">
-        <SummaryRow
-          :title="$t('dashboard.obs.outputs.virtualCam')"
-          :detail="
-            virtualCam ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')
-          "
-        >
-          <template #trailing>
-            <Button
-              :data-act="virtualCam ? 'stop' : 'start'"
-              variant="outline"
-              :disabled="busy"
-              @click="run('virtual-cam', virtualCam ? 'stop' : 'start')"
-            >
-              {{
-                virtualCam ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start")
-              }}
-            </Button>
-          </template>
-        </SummaryRow>
-      </div>
+          {{ virtualCam ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start") }}
+        </Button>
+      </OutputRow>
     </div>
     <div v-if="$slots.default" class="border-t border-border">
       <slot />

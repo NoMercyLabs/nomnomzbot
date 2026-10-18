@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { ObsState } from '@/api/obs';
 import type { ObsStats } from '@/api/obsOutputs';
 
 import { wholeSeconds } from './outputFormat';
@@ -115,5 +116,96 @@ export function obsStatusFacts(
     targetFps: Number(stats.targetFps),
     memory: Number(stats.memoryUsage),
     congestion: Number(stats.streamCongestion),
+  };
+}
+
+// The stream and recording facts as the page knows them right now. The OBS stats read is polled; a pushed
+// change lands in the state read at once, so whichever read is newer wins until the next poll.
+export type LiveOutputs = {
+  streaming: boolean;
+  reconnecting: boolean;
+  streamTimecode: string | null;
+  recording: boolean;
+  paused: boolean;
+  recordTimecode: string | null;
+};
+
+export type LiveSources = {
+  stats: ObsStats | null | undefined;
+  statsAt: number;
+  state: ObsState | null | undefined;
+  stateAt: number;
+};
+
+function fromState(state: ObsState, reconnecting: boolean): LiveOutputs {
+  return {
+    streaming: state.streaming,
+    reconnecting: state.streaming && reconnecting,
+    streamTimecode: state.streamTimecode ?? null,
+    recording: state.recording,
+    paused: state.recording && state.recordPaused,
+    recordTimecode: state.recordTimecode ?? null,
+  };
+}
+
+function fromStats(stats: ObsStats): LiveOutputs {
+  return {
+    streaming: stats.streamActive,
+    reconnecting: stats.streamActive && stats.streamReconnecting,
+    streamTimecode: stats.streamTimecode ?? null,
+    recording: stats.recordActive,
+    paused: stats.recordActive && stats.recordPaused,
+    recordTimecode: stats.recordTimecode ?? null,
+  };
+}
+
+export function liveOutputs(sources: LiveSources): LiveOutputs | null {
+  const { stats, statsAt, state, stateAt } = sources;
+
+  if (state && (!stats || stateAt > statsAt))
+    return fromState(state, stats?.streamReconnecting === true);
+
+  return stats
+    ? fromStats(stats)
+    : null;
+}
+
+function liveStreamState(live: LiveOutputs): StreamState {
+  if (!live.streaming)
+    return 'off';
+
+  return live.reconnecting
+    ? 'reconnecting'
+    : 'live';
+}
+
+function liveRecordState(live: LiveOutputs): RecordState {
+  if (!live.recording)
+    return 'off';
+
+  return live.paused
+    ? 'paused'
+    : 'recording';
+}
+
+// The strip's stream and recording cells follow the newest read, so a push shows before the next poll.
+export function withLiveOutputs(facts: ObsStatusFacts, live: LiveOutputs | null): ObsStatusFacts {
+  if (!live)
+    return facts;
+
+  return {
+    ...facts,
+    stream: {
+      state: liveStreamState(live),
+      timer: live.streaming
+        ? wholeSeconds(live.streamTimecode)
+        : '',
+    },
+    record: {
+      state: liveRecordState(live),
+      timer: live.recording
+        ? wholeSeconds(live.recordTimecode)
+        : '',
+    },
   };
 }

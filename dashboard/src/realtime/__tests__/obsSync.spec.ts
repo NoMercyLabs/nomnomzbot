@@ -19,6 +19,7 @@ import {
   type ObsScene,
   type ObsState,
 } from '@/api/obs';
+import { obsVirtualCamKey } from '@/api/obsOutputs';
 import {
   obsSceneItemsKey,
   obsSourceFiltersKey,
@@ -148,10 +149,62 @@ describe('ObsStateChanged patches the OBS caches in place', () => {
     expect(queries.getQueryData<ObsState>(obsStateKey('c1'))).toEqual({
       ...state,
       streaming: true,
+      streamTimecode: '00:00:00.000',
       recording: true,
       recordPaused: true,
+      recordTimecode: '00:00:00.000',
       replayBufferActive: true,
     });
+  });
+
+  it('a stop clears the timer and a pause keeps the one the page has', async () => {
+    const [queries, connection] = await started();
+
+    queries.setQueryData(obsStateKey('c1'), {
+      ...state,
+      streaming: true,
+      streamTimecode: '00:10:00.000',
+      recording: true,
+      recordTimecode: '00:20:00.000',
+    });
+
+    send(connection, {
+      kind: 'record',
+      active: true,
+      paused: true,
+    });
+
+    send(connection, {
+      kind: 'stream',
+      active: false,
+    });
+
+    const after = queries.getQueryData<ObsState>(obsStateKey('c1'));
+
+    expect(after?.recordTimecode).toBe('00:20:00.000');
+    expect(after?.streamTimecode).toBeNull();
+  });
+
+  it('a virtual camera change sets the virtual camera read of that channel only', async () => {
+    const [queries, connection] = await started();
+
+    queries.setQueryData(obsVirtualCamKey('c1'), false);
+    queries.setQueryData(obsVirtualCamKey('other'), false);
+
+    send(connection, {
+      kind: 'virtualCam',
+      active: true,
+    });
+
+    expect(queries.getQueryData<boolean>(obsVirtualCamKey('c1'))).toBe(true);
+    expect(queries.getQueryData<boolean>(obsVirtualCamKey('other'))).toBe(false);
+
+    send(connection, {
+      kind: 'virtualCam',
+      active: false,
+    });
+
+    expect(queries.getQueryData<boolean>(obsVirtualCamKey('c1'))).toBe(false);
   });
 
   it('a scene list change replaces the list and keeps the live scene marked', async () => {
