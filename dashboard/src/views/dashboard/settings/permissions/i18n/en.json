@@ -1,0 +1,56 @@
+{
+  "dashboard": {
+    "settings": {
+      "permissions": {
+        "role": {
+          "Everyone": "Everyone",
+          "Subscriber": "Subscriber",
+          "Vip": "VIP",
+          "Artist": "Artist",
+          "Moderator": "Moderator",
+          "LeadModerator": "Lead moderator",
+          "Editor": "Editor",
+          "Broadcaster": "Broadcaster"
+        },
+        "person": {
+          "placeholder": "Search a person",
+          "clear": "Pick someone else"
+        },
+        "team": {
+          "title": "Your team",
+          "description": "Who helps run this channel, and the role each person has.",
+          "loadFailed": "The team could not be loaded.",
+          "roleOf": "Role of {name}",
+          "remove": "Remove {name} from the team",
+          "person": "Person to add",
+          "newRole": "Role for the new person",
+          "add": "Add to team"
+        },
+        "matrix": {
+          "title": "Who may do what",
+          "description": "The lowest role that may use each action in this channel.",
+          "empty": "The bot lists no actions yet.",
+          "loadFailed": "The actions could not be loaded.",
+          "plane": {
+            "Community": "Chat and community",
+            "Management": "Channel management"
+          },
+          "floor": "Lowest allowed: {role}",
+          "protected": "Protected",
+          "levelOf": "Lowest role for {action}",
+          "reset": "Back to the default for {action}"
+        },
+        "grants": {
+          "title": "Personal capabilities",
+          "description": "A dangerous capability goes to one person, never to a whole role.",
+          "loadFailed": "The personal capabilities could not be loaded.",
+          "empty": "Nobody has a personal capability.",
+          "revoke": "Take the capability from {name}",
+          "person": "Person to give a capability",
+          "capability": "Capability",
+          "add": "Give capability"
+        }
+      }
+    }
+  }
+}

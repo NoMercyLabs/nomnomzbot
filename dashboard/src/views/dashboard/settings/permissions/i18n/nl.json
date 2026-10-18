@@ -1,0 +1,56 @@
+{
+  "dashboard": {
+    "settings": {
+      "permissions": {
+        "role": {
+          "Everyone": "Iedereen",
+          "Subscriber": "Abonnee",
+          "Vip": "VIP",
+          "Artist": "Artiest",
+          "Moderator": "Moderator",
+          "LeadModerator": "Hoofdmoderator",
+          "Editor": "Editor",
+          "Broadcaster": "Streamer"
+        },
+        "person": {
+          "placeholder": "Zoek een persoon",
+          "clear": "Kies iemand anders"
+        },
+        "team": {
+          "title": "Je team",
+          "description": "Wie helpt dit kanaal te runnen, en welke rol iedereen heeft.",
+          "loadFailed": "Het team kon niet worden geladen.",
+          "roleOf": "Rol van {name}",
+          "remove": "Haal {name} uit het team",
+          "person": "Persoon om toe te voegen",
+          "newRole": "Rol voor de nieuwe persoon",
+          "add": "Toevoegen aan team"
+        },
+        "matrix": {
+          "title": "Wie mag wat",
+          "description": "De laagste rol die elke actie in dit kanaal mag gebruiken.",
+          "empty": "De bot toont nog geen acties.",
+          "loadFailed": "De acties konden niet worden geladen.",
+          "plane": {
+            "Community": "Chat en community",
+            "Management": "Kanaalbeheer"
+          },
+          "floor": "Laagste toegestaan: {role}",
+          "protected": "Beschermd",
+          "levelOf": "Laagste rol voor {action}",
+          "reset": "Terug naar de standaard voor {action}"
+        },
+        "grants": {
+          "title": "Persoonlijke bevoegdheden",
+          "description": "Een gevaarlijke bevoegdheid gaat naar één persoon, nooit naar een hele rol.",
+          "loadFailed": "De persoonlijke bevoegdheden konden niet worden geladen.",
+          "empty": "Niemand heeft een persoonlijke bevoegdheid.",
+          "revoke": "Neem de bevoegdheid af van {name}",
+          "person": "Persoon die een bevoegdheid krijgt",
+          "capability": "Bevoegdheid",
+          "add": "Bevoegdheid geven"
+        }
+      }
+    }
+  }
+}

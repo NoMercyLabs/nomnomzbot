@@ -20,6 +20,7 @@ import { settingsBillingRoute } from './billing/route';
 import { settingsFeaturesRoute } from './features/route';
 import { settingsFederationRoute } from './federation/route';
 import { settingsIntegrationsRoute } from './integrations/route';
+import { settingsPermissionsRoute } from './permissions/route';
 import { settingsResourceLimitsRoute } from './resource-limits/route';
 import { settingsWhiteLabelBotRoute } from './white-label-bot/route';
 
@@ -92,4 +93,5 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsBillingRoute,
   settingsCustomEventFeedsRoute,
   settingsFederationRoute,
+  settingsPermissionsRoute,
 ];

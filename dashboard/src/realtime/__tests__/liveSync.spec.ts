@@ -23,6 +23,7 @@ import {
 } from '@/api/music';
 import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
+import { actionMatrixKey, membersKey, personGrantsKey } from '@/api/permissions';
 import { pipelinesKey } from '@/api/pipelines';
 import { redemptionsKey, rewardsKey, type Redemption } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
@@ -90,6 +91,9 @@ const everyKey: Keys[] = [
   giveawaysKey,
   vtsConnectionKey,
   vtsInventoryKey,
+  actionMatrixKey,
+  membersKey,
+  personGrantsKey,
 ];
 
 // Each hub event with the keys it must mark stale for the joined channel.
@@ -125,6 +129,9 @@ const eventKeys: [string, unknown, Keys[]][] = [
     value: 1,
   }, [
     communityListsKey,
+    actionMatrixKey,
+    membersKey,
+    personGrantsKey,
   ]],
   ['ObsBridgeStateChanged', {
     broadcasterId: 'x',

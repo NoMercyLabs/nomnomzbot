@@ -27,6 +27,7 @@ import { mediaShareQueueKey } from '@/api/mediaShare';
 import { musicHistoryKey, musicQueueKey, musicTopRequestersKey } from '@/api/music';
 import { obsBridgeKey, obsConnectionKey, obsScenesKey, obsStateKey } from '@/api/obs';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
+import { actionMatrixKey, membersKey, personGrantsKey } from '@/api/permissions';
 import { rewardsKey } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
 import { vtsConnectionKey, vtsInventoryKey } from '@/api/vts';
@@ -121,7 +122,14 @@ const pollEventsChanged = {
 const permissionChanged = {
   event: 'PermissionChanged',
   handle: ({ queries, channelId }) => {
-    const keys = [communityListsKey, viewerProfilesKey, communityFirstPageKey];
+    const keys = [
+      communityListsKey,
+      viewerProfilesKey,
+      communityFirstPageKey,
+      actionMatrixKey,
+      membersKey,
+      personGrantsKey,
+    ];
 
     invalidateKeys(queries, keys, channelId);
     void queries.invalidateQueries({ queryKey: currentUserQuery.queryKey });
