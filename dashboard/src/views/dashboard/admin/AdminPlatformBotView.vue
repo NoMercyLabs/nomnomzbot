@@ -30,8 +30,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const slowDownMs = 5000;
+
+const { can } = usePlatformCan();
 
 const status = useAdminPlatformBot();
 const preview = usePreviewPlatformBotReconnect();
@@ -139,6 +142,7 @@ async function checkApproval(): Promise<void> {
     </PanelCard>
 
     <PanelCard
+      v-if="can('platform:bot:manage')"
       :title="$t('dashboard.admin.platformBot.reconnect.title')"
       :description="$t('dashboard.admin.platformBot.reconnect.description')"
     >

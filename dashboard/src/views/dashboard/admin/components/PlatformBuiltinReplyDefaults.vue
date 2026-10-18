@@ -26,12 +26,14 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { usePlatformDefaultListError } from '@/composables/usePlatformDefaultListError';
 import { usePlatformDefaultPreview } from '@/composables/usePlatformDefaultPreview';
 
 import PlatformDefaultPreview from './PlatformDefaultPreview.vue';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const replies = useAdminBuiltinReplyDefaults();
 const save = useSaveBuiltinReplyDefault();
@@ -163,7 +165,12 @@ function apply(): void {
             }}
           </p>
         </div>
-        <Button variant="outline" size="sm" data-edit @click="startEdit(row)">
+        <Button v-if="can('platform:defaults:manage')"
+                variant="outline"
+                size="sm"
+                data-edit
+                @click="startEdit(row)"
+        >
           {{ $t("dashboard.admin.platformDefaults.replies.edit") }}
         </Button>
       </li>

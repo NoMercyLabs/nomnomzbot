@@ -29,6 +29,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { usePlatformDefaultListError } from '@/composables/usePlatformDefaultListError';
 import { usePlatformDefaultPreview } from '@/composables/usePlatformDefaultPreview';
 import PlaySampleButton from '@/views/dashboard/tts/PlaySampleButton.vue';
@@ -37,6 +38,7 @@ import { groupVoices, localeLabel } from '@/views/dashboard/tts/voiceGroups';
 import PlatformDefaultPreview from './PlatformDefaultPreview.vue';
 
 const { t, locale } = useI18n();
+const { can } = usePlatformCan();
 
 const current = useAdminTtsVoiceDefault();
 const save = useSaveTtsVoiceDefault();
@@ -152,7 +154,12 @@ function apply(): void {
           }}
         </p>
       </div>
-      <Button variant="outline" size="sm" data-edit @click="startEdit">
+      <Button v-if="can('platform:defaults:manage')"
+              variant="outline"
+              size="sm"
+              data-edit
+              @click="startEdit"
+      >
         {{ $t("dashboard.admin.platformDefaults.voice.edit") }}
       </Button>
     </div>

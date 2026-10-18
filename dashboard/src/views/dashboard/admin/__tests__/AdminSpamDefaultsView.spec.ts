@@ -77,6 +77,13 @@ const policy = {
   isPinned: false,
 };
 
+// The signed-in admin holds every platform key unless a case takes them away.
+const keys = vi.hoisted(() => ({ held: true }));
+
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: true }, can: () => keys.held }),
+}));
+
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/api/client', () => ({
@@ -100,6 +107,7 @@ let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  keys.held = true;
   puts.length = 0;
   refused = false;
   pinia = createPinia();
@@ -164,6 +172,15 @@ describe('AdminSpamDefaultsView', () => {
     expect(row('accountAgeGateDays').querySelector('[data-inactive]')).toBeNull();
     expect(document.body.querySelector('[data-restricted]')?.textContent).toContain('restricted option');
     expect(document.body.querySelector('[data-invariants]')?.textContent).toContain('never actioned automatically');
+  });
+
+  it('shows each switch as its on or off state and no Save when the admin lacks featureflag:write', async () => {
+    keys.held = false;
+    await open();
+
+    expect(row('isEnabled').querySelector('[role="switch"]')).toBeNull();
+    expect(row('isEnabled').querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state')).toBe('on');
+    expect(document.body.querySelector('[data-save]')).toBeNull();
   });
 
   it('keeps Save off until something changed, then sends the whole record with the change', async () => {

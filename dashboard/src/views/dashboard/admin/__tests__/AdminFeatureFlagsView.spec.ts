@@ -73,6 +73,13 @@ const overrides = [
 
 const blast = { tenantsAffected: 12, sampleChannelNames: ['kitte', 'geennoob'] };
 
+// The signed-in admin holds every platform key unless a case takes them away.
+const keys = vi.hoisted(() => ({ held: true }));
+
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: true }, can: () => keys.held }),
+}));
+
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/api/client', () => ({
@@ -113,6 +120,7 @@ let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  keys.held = true;
   puts.length = 0;
   deletes.length = 0;
   reads.length = 0;
@@ -182,6 +190,17 @@ describe('AdminFeatureFlagsView', () => {
     expect(one('[data-override]').textContent).toContain('kitte');
     expect(one('[data-override]').textContent).toContain('beta tester');
     expect(one('[data-restricted]').textContent).toContain('restricted option');
+  });
+
+  it('shows the flags without new, edit or override actions when the admin lacks featureflag:write', async () => {
+    keys.held = false;
+    await open();
+
+    expect(document.body.querySelectorAll('[data-override]')).toHaveLength(1);
+    expect(document.body.querySelector('[data-new]')).toBeNull();
+    expect(document.body.querySelector('[data-edit]')).toBeNull();
+    expect(document.body.querySelector('[data-override-delete]')).toBeNull();
+    expect(document.body.querySelector('[data-override-save]')).toBeNull();
   });
 
   it('shows the counted blast radius before it saves, then sends every field of the definition', async () => {

@@ -32,6 +32,7 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,6 +43,7 @@ type Step =
   { kind: 'apply' };
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const justification = ref('');
 const targetId = ref('');
@@ -221,10 +223,20 @@ function run(current: Step): Promise<void> {
             </p>
             <p class="truncate text-xs text-muted-foreground">{{ item.reason }}</p>
           </div>
-          <Button variant="outline" size="sm" @click="step = { kind: 'confirm', item }">{{
+          <Button
+            v-if="can('trust-safety:review')"
+            variant="outline"
+            size="sm"
+            @click="step = { kind: 'confirm', item }"
+          >{{
             $t("dashboard.admin.trustSafety.review.confirm")
           }}</Button>
-          <Button variant="outline" size="sm" @click="step = { kind: 'overturn', item }">{{
+          <Button
+            v-if="can('trust-safety:review')"
+            variant="outline"
+            size="sm"
+            @click="step = { kind: 'overturn', item }"
+          >{{
             $t("dashboard.admin.trustSafety.review.overturn")
           }}</Button>
         </li>
@@ -295,12 +307,17 @@ function run(current: Step): Promise<void> {
               }}
             </p>
           </div>
-          <Button variant="outline" size="sm" @click="step = { kind: 'lift', block }">{{
+          <Button
+            v-if="can('network:block:manage')"
+            variant="outline"
+            size="sm"
+            @click="step = { kind: 'lift', block }"
+          >{{
             $t("dashboard.admin.trustSafety.blocks.lift")
           }}</Button>
         </li>
       </ul>
-      <template #footer>
+      <template v-if="can('network:block:manage')" #footer>
         <div class="grid w-full gap-2">
           <p class="text-sm font-medium">{{ $t("dashboard.admin.trustSafety.apply.title") }}</p>
           <div class="flex flex-wrap gap-2">

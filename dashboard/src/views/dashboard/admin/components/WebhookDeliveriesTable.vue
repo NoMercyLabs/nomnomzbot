@@ -13,6 +13,8 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { usePlatformCan } from '@/composables/usePlatformCan';
+
 import type { AdminWebhookDelivery } from '@/api/adminActivity';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,7 @@ defineProps<{ rows: readonly AdminWebhookDelivery[]; replaying: boolean }>();
 defineEmits<{ replay: [id: number] }>();
 
 const { locale, t } = useI18n();
+const { can } = usePlatformCan();
 
 function duration(value: AdminWebhookDelivery['durationMs']): string {
   return value == null
@@ -82,7 +85,7 @@ function stamp(value: string): string {
         <TableCell class="text-muted-foreground">{{ row.error ?? $t('dashboard.admin.webhookDeliveries.none') }}</TableCell>
         <TableCell class="text-right">
           <Button
-            v-if="row.endpointCanReplay"
+            v-if="row.endpointCanReplay && can('iam:manage')"
             variant="outline"
             size="sm"
             :disabled="replaying"

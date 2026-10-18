@@ -25,6 +25,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { usePlatformDefaultListError } from '@/composables/usePlatformDefaultListError';
 import { usePlatformDefaultPreview } from '@/composables/usePlatformDefaultPreview';
 
@@ -34,6 +35,7 @@ const SHIPPED = 'shipped';
 const LEVEL_COUNT = 8;
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const actions = useAdminActionDefaults();
 const save = useSaveActionDefault();
@@ -177,7 +179,12 @@ function apply(): void {
           </p>
         </div>
         <span class="text-sm font-medium">{{ levelName(row.effectiveDefaultLevel) }}</span>
-        <Button variant="outline" size="sm" data-edit @click="startEdit(row)">
+        <Button v-if="can('platform:defaults:manage')"
+                variant="outline"
+                size="sm"
+                data-edit
+                @click="startEdit(row)"
+        >
           {{ $t("dashboard.admin.platformDefaults.actions.edit") }}
         </Button>
       </li>

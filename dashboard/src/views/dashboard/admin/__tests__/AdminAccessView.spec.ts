@@ -78,6 +78,13 @@ const roles = [
   },
 ];
 
+// The signed-in admin holds every platform key unless a case takes them away.
+const keys = vi.hoisted(() => ({ held: true }));
+
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: true }, can: () => keys.held }),
+}));
+
 vi.mock('@/api/auth', async (original) => ({
   ...(await original<object>()),
   acceptAccessToken: (token: string) => accepted.push(token),
@@ -133,6 +140,7 @@ let pinia: Pinia;
 let router: Router;
 
 beforeEach(async () => {
+  keys.held = true;
   calls.length = 0;
   accepted.length = 0;
   localStorage.clear();
@@ -257,6 +265,15 @@ describe('AdminAccessView', () => {
       roleId: 'r2',
       reason: 'covers billing week',
     });
+  });
+
+  it('lists the principals without assign or revoke when the admin lacks iam:manage', async () => {
+    keys.held = false;
+    await open();
+
+    expect(document.body.textContent).toContain('Billing');
+    expect(document.body.querySelector('[data-assign]')).toBeNull();
+    expect(document.body.querySelector('[data-revoke]')).toBeNull();
   });
 
   it('revokes one assignment with its reason and touches nothing before the confirm', async () => {

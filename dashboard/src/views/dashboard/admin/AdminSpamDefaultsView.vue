@@ -26,11 +26,13 @@ import {
 } from '@/api/adminSpamDefaults';
 import { ApiError } from '@/api/errors';
 import PageHeader from '@/components/layout/PageHeader.vue';
+import EnabledState from '@/components/layout/EnabledState.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 import SpamSettingRow from './components/SpamSettingRow.vue';
 
@@ -46,6 +48,7 @@ const THRESHOLD_FIELDS = [
 ] as const;
 
 const { t, te } = useI18n();
+const { can } = usePlatformCan();
 
 const policy = useAdminSpamDefaults();
 const save = useSaveAdminSpamDefaults();
@@ -235,6 +238,7 @@ function submit(): void {
     </template>
     <template #actions>
       <Button
+        v-if="can('featureflag:write')"
         data-save
         :disabled="!dirty || hasInvalid || save.isPending.value"
         @click="submit"
@@ -276,8 +280,12 @@ function submit(): void {
               :inactive-reason="inactiveReasonOf(setting)"
               :invalid-text="invalidTextOf(setting)"
             >
+              <EnabledState
+                v-if="isToggleValue(setting) && !can('featureflag:write')"
+                :enabled="draft[camel(setting.key)] === true"
+              />
               <Switch
-                v-if="isToggleValue(setting)"
+                v-else-if="isToggleValue(setting)"
                 :model-value="draft[camel(setting.key)] === true"
                 :aria-label="labelOf(setting)"
                 @update:model-value="(on: boolean) => (draft[camel(setting.key)] = on)"

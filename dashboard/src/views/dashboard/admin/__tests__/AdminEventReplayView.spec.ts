@@ -63,6 +63,11 @@ const past = {
   occurredAt: '2026-10-17T10:00:00Z',
 };
 
+// The signed-in admin holds every platform key, so every action button shows.
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: true }, can: () => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

@@ -32,10 +32,12 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const allTypes = 'all';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const projectionName = useLocalStorage<string>('nnz.adminEventReplay.projection', '');
 const broadcasterId = ref('');
@@ -246,7 +248,7 @@ async function submit(): Promise<void> {
         </label>
       </div>
 
-      <div class="mt-4 flex flex-wrap items-center gap-3">
+      <div v-if="can('iam:manage')" class="mt-4 flex flex-wrap items-center gap-3">
         <Button
           variant="outline"
           data-preview

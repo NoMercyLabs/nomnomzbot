@@ -13,6 +13,8 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { usePlatformCan } from '@/composables/usePlatformCan';
+
 import type { AdminScheduledJob } from '@/api/adminActivity';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,7 @@ defineProps<{ rows: readonly AdminScheduledJob[]; retrying: boolean }>();
 defineEmits<{ retry: [id: string] }>();
 
 const { locale, t } = useI18n();
+const { can } = usePlatformCan();
 
 const tones: Record<string, StatusTone> = {
   succeeded: 'ok',
@@ -79,7 +82,7 @@ function stamp(value: string | null | undefined): string {
         <TableCell>{{ row.triggeredByDisplayName }}</TableCell>
         <TableCell class="text-right">
           <Button
-            v-if="row.canRetry"
+            v-if="row.canRetry && can('iam:manage')"
             variant="outline"
             size="sm"
             :disabled="retrying"

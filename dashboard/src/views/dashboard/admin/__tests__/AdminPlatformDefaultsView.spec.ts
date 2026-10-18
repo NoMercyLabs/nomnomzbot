@@ -122,6 +122,16 @@ const candidates = [
 
 const posts: { path: string; body: Record<string, unknown> }[] = [];
 
+// The signed-in admin holds every platform key, so every action button shows.
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: true }, can: () => true }),
+}));
+
+// The voice play button checks the channel key tts:voice:test; the admin holds it.
+vi.mock('@/composables/useCan', () => ({
+  useCan: () => ({ known: { value: true }, can: () => true }),
+}));
+
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/api/client', () => ({

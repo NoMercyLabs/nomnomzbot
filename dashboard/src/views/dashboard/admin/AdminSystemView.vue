@@ -32,6 +32,7 @@ import StatTile from '@/components/layout/StatTile.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const SECONDS_PER_MINUTE: number = 60;
 const SECONDS_PER_HOUR: number = 3600;
@@ -40,6 +41,7 @@ const SECONDS_PER_DAY: number = 86_400;
 type BadgeVariant = 'outline' | 'secondary' | 'destructive';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const status = useAdminSystemStatus();
 const rotating = useRotateEncryptionKey();
@@ -206,7 +208,7 @@ async function submit(): Promise<void> {
       :description="$t('dashboard.admin.system.rotation.description')"
     >
       <div class="flex flex-wrap items-center gap-3">
-        <Button variant="destructive" data-rotate @click="openConfirm">{{
+        <Button v-if="can('iam:manage')" variant="destructive" data-rotate @click="openConfirm">{{
           $t("dashboard.admin.system.rotation.open")
         }}</Button>
         <span v-if="outcome !== null" data-rotation-outcome class="text-sm">{{

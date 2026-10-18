@@ -36,6 +36,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 type Draft = {
   key: string;
@@ -58,6 +59,7 @@ const blankDraft = (): Draft => ({
 });
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 const copy = (key: string, values: Record<string, string | number> = {}): string =>
   t(`dashboard.admin.featureFlags.${key}`, values);
 
@@ -228,7 +230,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
 <template>
   <PageHeader :title="$t('dashboard.admin.featureFlags.title')" :crumb="$t('dashboard.admin.featureFlags.crumb')">
     <template #actions>
-      <Button data-new variant="outline" @click="startNew">
+      <Button v-if="can('featureflag:write')" data-new variant="outline" @click="startNew">
         {{ $t('dashboard.admin.featureFlags.newFlag') }}
       </Button>
     </template>
@@ -264,6 +266,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
             <p v-if="flag.description" class="text-sm text-muted-foreground">{{ flag.description }}</p>
           </div>
           <Button
+            v-if="can('featureflag:write')"
             data-edit
             variant="outline"
             size="icon"
@@ -276,7 +279,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
       </ul>
     </PanelCard>
     <PanelCard
-      v-if="editorOpen"
+      v-if="editorOpen && can('featureflag:write')"
       data-editor
       :title="isNew ? $t('dashboard.admin.featureFlags.editorNew') : $t('dashboard.admin.featureFlags.editorEdit', { key: editing })"
     >
@@ -362,7 +365,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
         <p v-if="editing === null" class="text-sm text-muted-foreground">
           {{ $t('dashboard.admin.featureFlags.overrideFormHint') }}
         </p>
-        <template v-else>
+        <template v-else-if="can('featureflag:write')">
           <div class="flex flex-col gap-1.5">
             <Label for="override-channel">{{ $t('dashboard.admin.featureFlags.overrideFields.channel') }}</Label>
             <Input id="override-channel" v-model="overrideChannel" data-field="overrideChannel" />
@@ -423,6 +426,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
             <p class="text-sm text-muted-foreground">{{ whenOf(entry) }}</p>
           </div>
           <Button
+            v-if="can('featureflag:write')"
             data-override-delete
             variant="ghost"
             size="icon"

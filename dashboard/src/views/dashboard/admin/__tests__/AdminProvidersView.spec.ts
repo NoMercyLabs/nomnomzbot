@@ -68,6 +68,11 @@ const providers = [
   },
 ];
 
+// The signed-in admin holds every platform key, so every action button shows.
+vi.mock('@/composables/usePlatformCan', () => ({
+  usePlatformCan: () => ({ known: { value: true }, can: () => true }),
+}));
+
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/api/client', () => ({

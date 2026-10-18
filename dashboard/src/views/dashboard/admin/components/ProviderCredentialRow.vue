@@ -12,6 +12,8 @@
 // field is sent, and the bot answers with where each value comes from, never the value.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { toast } from 'vue-sonner';
 
 import {
@@ -28,6 +30,7 @@ import { Label } from '@/components/ui/label';
 const props = defineProps<{ credential: ProviderCredential }>();
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 const copy = (key: string, values: Record<string, string | number> = {}): string =>
   t(`dashboard.admin.providers.${key}`, values);
 
@@ -129,7 +132,7 @@ function wipe(): void {
           autocomplete="new-password"
         />
       </div>
-      <div class="flex flex-wrap items-center justify-end gap-2">
+      <div v-if="can('iam:manage')" class="flex flex-wrap items-center justify-end gap-2">
         <template v-if="confirmingClear">
           <span class="mr-auto text-sm text-muted-foreground">{{ copy('clearConfirmText') }}</span>
           <Button variant="ghost" @click="confirmingClear = false">{{ copy('cancel') }}</Button>

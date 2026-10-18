@@ -42,10 +42,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 type Step = 'assign' | 'revoke' | 'deactivate';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 const router = useRouter();
 const queries = useQueryClient();
 
@@ -249,6 +251,7 @@ async function startImpersonation(): Promise<void> {
             >
               {{ held.roleName }}
               <Button
+                v-if="can('iam:manage')"
                 variant="ghost"
                 size="icon"
                 data-revoke
@@ -259,7 +262,7 @@ async function startImpersonation(): Promise<void> {
               </Button>
             </span>
           </div>
-          <div class="flex items-center gap-2">
+          <div v-if="can('iam:manage')" class="flex items-center gap-2">
             <template v-if="row.isActive">
               <Button variant="outline" data-assign @click="open('assign', row)">{{
                 $t("dashboard.admin.access.actions.assign")
@@ -310,6 +313,7 @@ async function startImpersonation(): Promise<void> {
     </PanelCard>
 
     <PanelCard
+      v-if="can('user:impersonate')"
       tier="quiet"
       :title="$t('dashboard.admin.access.session.title')"
       :description="$t('dashboard.admin.access.session.description')"

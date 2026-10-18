@@ -31,6 +31,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 // cspell:ignore cancelled (the API wire value for a canceled request)
 const statuses = ['pending', 'running', 'completed', 'failed', 'cancelled'] as const;
@@ -42,6 +43,7 @@ const statusLabelKey = (key: string) =>
 const types = ['erasure', 'export', 'opt_out'] as const;
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const status = useLocalStorage<string>('nnz.adminDataRequests.status', allRequests);
 const requestType = useLocalStorage<string>('nnz.adminDataRequests.type', allRequests);
@@ -218,7 +220,7 @@ async function submit(): Promise<void> {
             $t(statusLabelKey(row.status))
           }}</Badge>
           <Button
-            v-if="row.status === 'failed' && row.requestType === 'erasure'"
+            v-if="row.status === 'failed' && row.requestType === 'erasure' && can('compliance:erasure')"
             variant="outline"
             data-retry
             @click="openRetry(row)"

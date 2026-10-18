@@ -28,6 +28,7 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 type Step = 'create' | 'draft' | 'retire';
 
 const { t } = useI18n();
+const { can } = usePlatformCan();
 
 const kindFilter = ref('');
 const pickedId = ref<string | null>(null);
@@ -188,7 +190,7 @@ async function submit(): Promise<void> {
 <template>
   <PageHeader :title="$t('dashboard.admin.content.title')" :crumb="$t('dashboard.admin.crumb')">
     <template #actions>
-      <Button @click="openCreate">{{ $t("dashboard.admin.content.create.open") }}</Button>
+      <Button v-if="can('content:author')" @click="openCreate">{{ $t("dashboard.admin.content.create.open") }}</Button>
     </template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
@@ -278,7 +280,7 @@ async function submit(): Promise<void> {
           }}</Badge>
         </li>
       </ul>
-      <template #footer>
+      <template v-if="can('content:author')" #footer>
         <div class="flex w-full justify-end gap-2">
           <Button variant="outline" @click="openDraft">{{
             $t("dashboard.admin.content.draft.open")
