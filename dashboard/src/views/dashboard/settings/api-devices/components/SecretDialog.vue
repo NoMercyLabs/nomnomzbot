@@ -27,7 +27,11 @@ const open = defineModel<boolean>('open', { required: true });
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent data-dialog="token-secret" class="sm:max-w-130">
+    <DialogContent
+      data-dialog="token-secret"
+      class="sm:max-w-130"
+      :show-close-button="false"
+    >
       <DialogTitle>{{ $t('dashboard.settings.apiDevices.secret.title', { name }) }}</DialogTitle>
       <DialogDescription>{{ $t('dashboard.settings.apiDevices.secret.description') }}</DialogDescription>
       <code data-secret class="block rounded-lg bg-muted p-3 font-mono text-sm break-all select-all">

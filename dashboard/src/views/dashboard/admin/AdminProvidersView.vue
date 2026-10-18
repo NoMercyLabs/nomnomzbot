@@ -28,21 +28,21 @@ const state = usePanelState(providers, (data) =>
 
 const errorText = computed<string>(() =>
   providers.error.value instanceof ApiError && providers.error.value.status === 403
-    ? t('dashboard.adminProviders.forbidden')
-    : t('dashboard.adminProviders.loadError'),
+    ? t('dashboard.admin.providers.forbidden')
+    : t('dashboard.admin.providers.loadError'),
 );
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.adminProviders.title')" :crumb="$t('dashboard.adminProviders.crumb')" />
+  <PageHeader :title="$t('dashboard.admin.providers.title')" :crumb="$t('dashboard.admin.providers.crumb')" />
   <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4">
-    <p class="text-sm text-muted-foreground">{{ $t('dashboard.adminProviders.explain') }}</p>
-    <p data-restricted class="text-sm text-muted-foreground">{{ $t('dashboard.adminProviders.restricted') }}</p>
+    <p class="text-sm text-muted-foreground">{{ $t('dashboard.admin.providers.explain') }}</p>
+    <p data-restricted class="text-sm text-muted-foreground">{{ $t('dashboard.admin.providers.restricted') }}</p>
     <PanelCard
       tier="lead"
-      :title="$t('dashboard.adminProviders.listTitle')"
+      :title="$t('dashboard.admin.providers.listTitle')"
       :state="state"
-      :empty-text="$t('dashboard.adminProviders.empty')"
+      :empty-text="$t('dashboard.admin.providers.empty')"
       :error-text="errorText"
       @retry="providers.refetch()"
     >

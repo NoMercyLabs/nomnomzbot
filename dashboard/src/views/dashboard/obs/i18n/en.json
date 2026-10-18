@@ -71,7 +71,7 @@
         "password": "OBS password",
         "passwordKept": "A password is stored. Leave this empty to keep it.",
         "passwordClear": "Remove password",
-        "mask": "Event subscriptions mask",
+        "mask": "OBS event mask",
         "maskHelp": "A number. Each bit turns on one group of OBS events.",
         "save": "Save connection"
       },

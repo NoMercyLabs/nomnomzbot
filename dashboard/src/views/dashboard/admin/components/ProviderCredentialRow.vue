@@ -29,7 +29,7 @@ const props = defineProps<{ credential: ProviderCredential }>();
 
 const { t } = useI18n();
 const copy = (key: string, values: Record<string, string | number> = {}): string =>
-  t(`dashboard.adminProviders.${key}`, values);
+  t(`dashboard.admin.providers.${key}`, values);
 
 const save = useSaveProviderCredential();
 const clear = useClearProviderCredential();

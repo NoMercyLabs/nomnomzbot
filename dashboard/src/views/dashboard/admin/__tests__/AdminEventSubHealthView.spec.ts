@@ -151,7 +151,7 @@ describe('AdminEventSubHealthView', () => {
     expect(topicRows()[1]!.textContent).toContain('token gone');
     expect(topicRows()[1]!.querySelector('[data-tone="bad"]')).not.toBeNull();
     expect(text()).toContain('Quiet_One');
-    expect(text()).toContain('No subscriptions');
+    expect(text()).toContain('No Twitch subscriptions');
   });
 
   it('pages the registry', async () => {

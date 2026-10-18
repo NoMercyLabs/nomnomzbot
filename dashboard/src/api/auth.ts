@@ -134,6 +134,18 @@ function stripFragment(): void {
   history.replaceState(history.state, '', window.location.pathname + window.location.search);
 }
 
+// True once after the OAuth callback landed on this page. The landing goes straight to the page it asked for:
+// the first call with the new token is that page's own, never a side lookup the router makes on the way.
+let landedFromOAuth = false;
+
+export function takeOAuthLanding(): boolean {
+  const landed = landedFromOAuth;
+
+  landedFromOAuth = false;
+
+  return landed;
+}
+
 // The OAuth callback returns the access token in the URL fragment; take it once and strip it.
 function consumeFragment(): boolean {
   const fragment = new URLSearchParams(window.location.hash.slice(1));
@@ -144,6 +156,7 @@ function consumeFragment(): boolean {
 
   setAccessToken(token);
   signedIn.value = true;
+  landedFromOAuth = true;
   stripFragment();
 
   return true;

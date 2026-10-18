@@ -16,6 +16,7 @@ import type {
   RouteRecordRaw,
 } from 'vue-router';
 
+import { takeOAuthLanding } from '@/api/auth';
 import { currentChannelLogin } from '@/composables/useCurrentChannel';
 
 // Every dashboard page is reachable twice: /app/<page> for the channel being managed, and
@@ -156,7 +157,7 @@ export function platformPathGuard(to: RouteLocationNormalized): true | RouteLoca
 export async function ownChannelGuard(
   to: RouteLocationNormalized,
 ): Promise<true | RouteLocationRaw> {
-  if (!isShortChannelPage(to))
+  if (!isShortChannelPage(to) || takeOAuthLanding())
     return true;
 
   const login = await currentChannelLogin().catch(() => null);

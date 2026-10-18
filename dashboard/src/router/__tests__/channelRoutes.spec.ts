@@ -29,7 +29,10 @@ const held = vi.hoisted(() => ({
   login: 'mychannel' as string | null,
 }));
 
-vi.mock('@/api/auth', () => ({ restoreSession: () => Promise.resolve(held.signedIn) }));
+vi.mock('@/api/auth', () => ({
+  restoreSession: () => Promise.resolve(held.signedIn),
+  takeOAuthLanding: () => false,
+}));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   currentChannelLogin: () => Promise.resolve(held.login),

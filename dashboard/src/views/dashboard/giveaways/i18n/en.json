@@ -48,7 +48,7 @@
         },
         "who": {
           "legend": "Who may enter",
-          "requireSub": "Subscribers only",
+          "requireSub": "Twitch subscribers only",
           "excludeModerators": "Leave out moderators",
           "requires18Plus": "Viewers must confirm they are 18 or older",
           "requires18PlusHelp": "For prizes with an age limit.",
@@ -59,9 +59,9 @@
         "tickets": {
           "legend": "Tickets per viewer",
           "help": "More tickets raise the chance to win. 1 everywhere means no weighting.",
-          "subT1": "Tier 1 sub",
-          "subT2": "Tier 2 sub",
-          "subT3": "Tier 3 sub",
+          "subT1": "Twitch tier 1 sub",
+          "subT2": "Twitch tier 2 sub",
+          "subT3": "Twitch tier 3 sub",
           "vip": "VIP"
         },
         "draw": {

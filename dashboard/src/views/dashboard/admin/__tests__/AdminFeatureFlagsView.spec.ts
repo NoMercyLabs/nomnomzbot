@@ -297,7 +297,7 @@ describe('AdminFeatureFlagsView', () => {
     expect(dashboardAdminFeatureFlagsRoute.name).toBe('dashboard-admin-feature-flags');
     expect(dashboardAdminFeatureFlagsRoute.path).toBe('admin/feature-flags');
 
-    expect(Object.keys(nl.dashboard.adminFeatureFlags).sort())
-      .toEqual(Object.keys(en.dashboard.adminFeatureFlags).sort());
+    expect(Object.keys(nl.dashboard.admin.featureFlags).sort())
+      .toEqual(Object.keys(en.dashboard.admin.featureFlags).sort());
   });
 });

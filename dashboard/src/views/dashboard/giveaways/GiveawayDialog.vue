@@ -19,7 +19,7 @@ import { useCodePools, useSaveGiveaway, type Giveaway } from '@/api/giveaways';
 import { usePipelines } from '@/api/pipelines';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -146,9 +146,12 @@ async function submit(): Promise<void> {
       </Field>
       <div class="grid grid-cols-2 gap-3">
         <Field>
-          <FieldLabel for="giveaway-entry-cost">{{
-            $t("dashboard.giveaways.dialog.entry.cost")
-          }}</FieldLabel>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel for="giveaway-entry-cost">{{
+              $t("dashboard.giveaways.dialog.entry.cost")
+            }}</FieldLabel>
+            <FieldInfo>{{ $t("dashboard.giveaways.dialog.entry.costHelp") }}</FieldInfo>
+          </div>
           <Input
             id="giveaway-entry-cost"
             v-model="form.entryCost"
@@ -157,12 +160,14 @@ async function submit(): Promise<void> {
             min="0"
             inputmode="numeric"
           />
-          <FieldDescription>{{ $t("dashboard.giveaways.dialog.entry.costHelp") }}</FieldDescription>
         </Field>
         <Field>
-          <FieldLabel for="giveaway-max-entries">{{
-            $t("dashboard.giveaways.dialog.entry.maxPerUser")
-          }}</FieldLabel>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel for="giveaway-max-entries">{{
+              $t("dashboard.giveaways.dialog.entry.maxPerUser")
+            }}</FieldLabel>
+            <FieldInfo>{{ $t("dashboard.giveaways.dialog.entry.maxPerUserHelp") }}</FieldInfo>
+          </div>
           <Input
             id="giveaway-max-entries"
             v-model="form.maxEntriesPerUser"
@@ -171,9 +176,6 @@ async function submit(): Promise<void> {
             min="1"
             inputmode="numeric"
           />
-          <FieldDescription>{{
-            $t("dashboard.giveaways.dialog.entry.maxPerUserHelp")
-          }}</FieldDescription>
         </Field>
       </div>
     </FieldSet>
@@ -214,10 +216,12 @@ async function submit(): Promise<void> {
     </FieldSet>
 
     <FieldSet class="gap-3">
-      <FieldLegend variant="label">{{
-        $t("dashboard.giveaways.dialog.tickets.legend")
-      }}</FieldLegend>
-      <FieldDescription>{{ $t("dashboard.giveaways.dialog.tickets.help") }}</FieldDescription>
+      <div class="flex items-center gap-1.5">
+        <FieldLegend variant="label" class="mb-0">{{
+          $t("dashboard.giveaways.dialog.tickets.legend")
+        }}</FieldLegend>
+        <FieldInfo>{{ $t("dashboard.giveaways.dialog.tickets.help") }}</FieldInfo>
+      </div>
       <div class="grid grid-cols-4 gap-3">
         <Field v-for="key in ticketFields" :key="key">
           <FieldLabel :for="`giveaway-${key}`">{{
@@ -252,9 +256,12 @@ async function submit(): Promise<void> {
           />
         </Field>
         <Field>
-          <FieldLabel for="giveaway-claim-window">{{
-            $t("dashboard.giveaways.dialog.draw.claimWindow")
-          }}</FieldLabel>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel for="giveaway-claim-window">{{
+              $t("dashboard.giveaways.dialog.draw.claimWindow")
+            }}</FieldLabel>
+            <FieldInfo>{{ $t("dashboard.giveaways.dialog.draw.claimWindowHelp") }}</FieldInfo>
+          </div>
           <Input
             id="giveaway-claim-window"
             v-model="form.claimWindowMinutes"
@@ -263,22 +270,21 @@ async function submit(): Promise<void> {
             min="1"
             inputmode="numeric"
           />
-          <FieldDescription>{{
-            $t("dashboard.giveaways.dialog.draw.claimWindowHelp")
-          }}</FieldDescription>
         </Field>
       </div>
       <Field>
-        <FieldLabel for="giveaway-close-at">{{
-          $t("dashboard.giveaways.dialog.draw.closeAt")
-        }}</FieldLabel>
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="giveaway-close-at">{{
+            $t("dashboard.giveaways.dialog.draw.closeAt")
+          }}</FieldLabel>
+          <FieldInfo>{{ $t("dashboard.giveaways.dialog.draw.closeAtHelp") }}</FieldInfo>
+        </div>
         <Input
           id="giveaway-close-at"
           v-model="form.scheduledCloseAt"
           data-giveaway-close-at
           type="datetime-local"
         />
-        <FieldDescription>{{ $t("dashboard.giveaways.dialog.draw.closeAtHelp") }}</FieldDescription>
       </Field>
     </FieldSet>
 

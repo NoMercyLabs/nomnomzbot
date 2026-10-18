@@ -226,7 +226,7 @@ describe('AdminProvidersView', () => {
     expect(dashboardAdminProvidersRoute.name).toBe('dashboard-admin-providers');
     expect(dashboardAdminProvidersRoute.path).toBe('admin/providers');
 
-    expect(Object.keys(nl.dashboard.adminProviders).sort())
-      .toEqual(Object.keys(en.dashboard.adminProviders).sort());
+    expect(Object.keys(nl.dashboard.admin.providers).sort())
+      .toEqual(Object.keys(en.dashboard.admin.providers).sort());
   });
 });

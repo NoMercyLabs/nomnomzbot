@@ -100,10 +100,11 @@ function pickCurrent(choices: readonly ChannelChoice[], chosenId: string): Chann
 }
 
 // The login of the channel being managed, read outside a component (the router waits for it). Null for a person with no channel.
+// A failed list is not retried here: a navigation must not wait out the retry back-off of a list that is down.
 export async function currentChannelLogin(): Promise<string | null> {
   const [mine, moderated] = await Promise.all([
-    queryClient.ensureQueryData(myChannelsQuery),
-    queryClient.ensureQueryData(moderatedChannelsQuery),
+    queryClient.ensureQueryData({ ...myChannelsQuery, retry: false }),
+    queryClient.ensureQueryData({ ...moderatedChannelsQuery, retry: false }),
   ]);
 
   return pickCurrent(channelChoices(mine, moderated), chosenChannelId.value)?.login ?? null;

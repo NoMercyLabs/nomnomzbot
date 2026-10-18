@@ -36,13 +36,13 @@ const healthy = computed<boolean>(() => stats.data.value?.systemStatus === 'heal
 const statusLabel = computed<string>(() => {
   const status = stats.data.value?.systemStatus ?? '';
 
-  return t(`dashboard.adminOverview.status.${status}`, status);
+  return t(`dashboard.admin.overview.status.${status}`, status);
 });
 
 const uptime = computed<string>(() => {
   const seconds = Number(stats.data.value?.botUptimeSeconds ?? 0);
 
-  return t('dashboard.adminOverview.uptimeValue', {
+  return t('dashboard.admin.overview.uptimeValue', {
     days: Math.floor(seconds / SECONDS_PER_DAY),
     hours: Math.floor((seconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR),
     minutes: Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE),
@@ -51,53 +51,53 @@ const uptime = computed<string>(() => {
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.adminOverview.title')" :crumb="$t('dashboard.admin.crumb')" />
+  <PageHeader :title="$t('dashboard.admin.overview.title')" :crumb="$t('dashboard.admin.crumb')" />
   <PageBody>
     <PanelCard
       tier="lead"
-      :title="$t('dashboard.adminOverview.panel')"
-      :description="$t('dashboard.adminOverview.refresh')"
+      :title="$t('dashboard.admin.overview.panel')"
+      :description="$t('dashboard.admin.overview.refresh')"
       :state="panelState"
-      :empty-text="$t('dashboard.adminOverview.empty')"
-      :error-text="$t('dashboard.adminOverview.error')"
+      :empty-text="$t('dashboard.admin.overview.empty')"
+      :error-text="$t('dashboard.admin.overview.error')"
       @retry="stats.refetch()"
     >
       <StatStrip v-if="stats.data.value">
         <StatTile
-          :label="$t('dashboard.adminOverview.channels')"
+          :label="$t('dashboard.admin.overview.channels')"
           :value="Number(stats.data.value.totalChannels)"
-          :context="$t('dashboard.adminOverview.channelsContext')"
+          :context="$t('dashboard.admin.overview.channelsContext')"
         />
         <StatTile
-          :label="$t('dashboard.adminOverview.active')"
+          :label="$t('dashboard.admin.overview.active')"
           :value="Number(stats.data.value.activeChannels)"
-          :context="$t('dashboard.adminOverview.activeContext')"
+          :context="$t('dashboard.admin.overview.activeContext')"
         />
         <StatTile
-          :label="$t('dashboard.adminOverview.users')"
+          :label="$t('dashboard.admin.overview.users')"
           :value="Number(stats.data.value.totalUsers)"
-          :context="$t('dashboard.adminOverview.usersContext')"
+          :context="$t('dashboard.admin.overview.usersContext')"
         />
         <StatTile
-          :label="$t('dashboard.adminOverview.system')"
+          :label="$t('dashboard.admin.overview.system')"
           :value="statusLabel"
           :warn="!healthy"
-          :context="$t('dashboard.adminOverview.systemContext')"
+          :context="$t('dashboard.admin.overview.systemContext')"
         />
         <StatTile
-          :label="$t('dashboard.adminOverview.uptime')"
+          :label="$t('dashboard.admin.overview.uptime')"
           :value="uptime"
-          :context="$t('dashboard.adminOverview.uptimeContext')"
+          :context="$t('dashboard.admin.overview.uptimeContext')"
         />
         <StatTile
-          :label="$t('dashboard.adminOverview.events')"
+          :label="$t('dashboard.admin.overview.events')"
           :value="Number(stats.data.value.eventsProcessedToday)"
-          :context="$t('dashboard.adminOverview.eventsContext')"
+          :context="$t('dashboard.admin.overview.eventsContext')"
         />
       </StatStrip>
     </PanelCard>
     <p class="text-sm text-muted-foreground">
-      {{ $t('dashboard.adminOverview.restricted') }}
+      {{ $t('dashboard.admin.overview.restricted') }}
     </p>
   </PageBody>
 </template>

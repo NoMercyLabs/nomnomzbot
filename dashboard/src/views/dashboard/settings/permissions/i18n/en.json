@@ -4,7 +4,7 @@
       "permissions": {
         "role": {
           "Everyone": "Everyone",
-          "Subscriber": "Subscriber",
+          "Subscriber": "Twitch subscriber",
           "Vip": "VIP",
           "Artist": "Artist",
           "Moderator": "Moderator",
