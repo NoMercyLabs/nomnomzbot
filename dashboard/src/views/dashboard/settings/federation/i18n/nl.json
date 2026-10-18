@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Instellen",
+      "federation": {
+        "title": "Delen met andere bots",
+        "description": "Kies wat dit kanaal deelt met, of aanneemt van, andere vertrouwde NomNomzBot-installaties. Alles staat uit tot je het aanzet.",
+        "loadFailed": "De deelkeuzes konden niet worden geladen.",
+        "choice": {
+          "off": "Uit",
+          "accept": "Aannemen",
+          "share": "Delen",
+          "both": "Beide"
+        },
+        "type": {
+          "shared_chat_bans": {
+            "title": "Gedeelde chatbans",
+            "description": "Bans in een gedeelde chat. Neem bans van andere bots aan, deel de jouwe met hen, of beide."
+          },
+          "shared_ban_list": {
+            "title": "Gedeelde banlijst",
+            "description": "Een banlijst die vertrouwde bots samen bijhouden."
+          },
+          "shared_trust_list": {
+            "title": "Gedeelde vertrouwenslijst",
+            "description": "Kijkers waar vertrouwde bots voor instaan."
+          },
+          "shared_savings": {
+            "title": "Gedeeld spaarpotje",
+            "description": "Spaarpotten die bijdragen van andere kanalen aannemen."
+          }
+        },
+        "peers": {
+          "title": "Keuzes voor een enkele bot",
+          "description": "Deze keuzes noemen één bot-installatie in plaats van alle vertrouwde.",
+          "disable": "Zet deze keuze uit"
+        }
+      }
+    }
+  }
+}

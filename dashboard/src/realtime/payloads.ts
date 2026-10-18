@@ -324,6 +324,14 @@ export type CustomDataSourceChangedPayload = {
   change: string;
 };
 
+// FederationOptInChangedBroadcastHandler.cs: FederationOptInChangedAlertDto. PeerId is null for a choice about any trusted peer.
+export type FederationOptInChangedPayload = {
+  peerId: string | null;
+  optInType: string;
+  direction: string;
+  isEnabled: boolean;
+};
+
 // HubResponseDtos.cs: VtsStatusDto
 export type VtsStatusPayload = {
   broadcasterId: string;
@@ -354,4 +362,5 @@ export type DashboardHubEvents = {
   sr_queue_changed: SrQueueChangedPayload;
   VtsStatusChanged: VtsStatusPayload;
   CustomDataSourceChanged: CustomDataSourceChangedPayload;
+  FederationOptInChanged: FederationOptInChangedPayload;
 };

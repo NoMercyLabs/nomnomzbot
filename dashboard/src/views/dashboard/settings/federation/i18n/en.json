@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "federation": {
+        "title": "Sharing with other bots",
+        "description": "Choose what this channel shares with, or accepts from, other trusted NomNomzBot instances. Everything is off until you turn it on.",
+        "loadFailed": "The sharing choices could not be loaded.",
+        "choice": {
+          "off": "Off",
+          "accept": "Accept",
+          "share": "Share",
+          "both": "Both"
+        },
+        "type": {
+          "shared_chat_bans": {
+            "title": "Shared chat bans",
+            "description": "Bans in a shared chat. Accept bans from other bots, share yours with them, or both."
+          },
+          "shared_ban_list": {
+            "title": "Shared ban list",
+            "description": "A ban list that trusted bots keep together."
+          },
+          "shared_trust_list": {
+            "title": "Shared trust list",
+            "description": "Viewers that trusted bots vouch for."
+          },
+          "shared_savings": {
+            "title": "Shared savings",
+            "description": "Savings jars that take contributions from other channels."
+          }
+        },
+        "peers": {
+          "title": "Choices for one bot",
+          "description": "These choices name a single bot instance instead of every trusted one.",
+          "disable": "Turn this choice off"
+        }
+      }
+    }
+  }
+}
