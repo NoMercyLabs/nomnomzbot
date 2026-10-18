@@ -55,6 +55,14 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     'const events: readonly string[] = [\'a\', \'b\']; declare const name: string; events.includes(name)',
     'type Group = { entries: readonly string[] }; const groups: readonly Group[] = [{ entries: [\'a\'] }]',
     'function run() { const rows: readonly number[] = [1, 2]; return rows }',
+    // Callbacks: a parameter annotation that widens the contextual type stays.
+    'declare const rows: number[]; rows.map((row: number | string) => String(row))',
+    // A reduce accumulator feeds the inference of the result type.
+    'declare const rows: number[]; rows.reduce((total: number[], row) => total, [])',
+    // A callback outside an array method is left alone.
+    'declare function run(cb: (n: number) => { a: number }): void; run((n): { a: number } => ({ a: n }))',
+    // An async callback returns a promise, not the literal.
+    'declare const rows: number[]; rows.map(async (row): Promise<{ a: number }> => ({ a: row }))',
   ],
   invalid: [
     {
@@ -102,6 +110,67 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
       code: 'export const steps: ReadonlyArray<{ id: number }> = [{ id: 1 }]',
       output: 'export const steps = [{ id: 1 }] as const satisfies ReadonlyArray<{ id: number }>',
       errors: [{ messageId: 'list' }],
+    },
+    {
+      // useCurrentChannel: the return type moves from the arrow to the literal.
+      code: 'type Choice = { kind: \'own\' | \'other\'; id: string }; declare const rows: { id: string }[]; rows.map((row): Choice => ({ kind: \'own\', id: row.id }))',
+      output:
+        'type Choice = { kind: \'own\' | \'other\'; id: string }; declare const rows: { id: string }[]; rows.map((row) => ({ kind: \'own\', id: row.id }) as const satisfies Choice)',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // OverlaysView: a generic return type, the argument is typed by the list.
+      code: 'type PageTab<T> = { value: T; label: string }; type Tab = \'a\' | \'b\'; declare const TAB_VALUES: readonly Tab[]; TAB_VALUES.map((value): PageTab<Tab> => ({ value, label: value }))',
+      output:
+        'type PageTab<T> = { value: T; label: string }; type Tab = \'a\' | \'b\'; declare const TAB_VALUES: readonly Tab[]; TAB_VALUES.map((value) => ({ value, label: value }) as const satisfies PageTab<Tab>)',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // OverlaysView: the list is a non-empty tuple and the row has an optional count.
+      code: 'interface PageTab<V extends string = string> { value: V; label: string; count?: number }; declare const TAB_VALUES: [\'a\', ...\'a\'[]]; TAB_VALUES.map((value): PageTab<\'a\'> => ({ value, label: value }))',
+      output: null,
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A block body puts it on each returned literal.
+      code: 'type Row = { id: number }; declare const ids: number[]; ids.flatMap((id): readonly Row[] => { if (id > 1) { return [{ id }] } return [] })',
+      output:
+        'type Row = { id: number }; declare const ids: number[]; ids.flatMap((id) => { if (id > 1) { return [{ id }] as const satisfies readonly Row[] } return [] as const satisfies readonly Row[] })',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // One return is not a literal: report, no fix.
+      code: 'type Row = { id: number }; declare const ids: number[]; declare const fallback: Row; ids.map((id): Row => { if (id > 1) { return { id } } return fallback })',
+      output: null,
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A mutable list inside the row: `as const` would freeze it, so report, no fix.
+      code: 'type Row = { ids: number[] }; declare const rows: number[]; rows.map((row): Row => ({ ids: [row] }))',
+      output: null,
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A shape `as const` would loosen (optional field): report, no fix.
+      code: 'type Row = { id: number; note?: string }; declare const ids: number[]; ids.map((id): Row => ({ id }))',
+      output: null,
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      code: 'declare const rows: { id: number }[]; rows.map((row: { id: number }) => row.id)',
+      output: 'declare const rows: { id: number }[]; rows.map((row) => row.id)',
+      errors: [{ messageId: 'callbackParam' }],
+    },
+    {
+      code: 'declare const rows: { id: number }[]; rows.filter(({ id }: { id: number }, index: number) => id > index)',
+      output: 'declare const rows: { id: number }[]; rows.filter(({ id }, index) => id > index)',
+      errors: [{ messageId: 'callbackParam' }, { messageId: 'callbackParam' }],
+    },
+    {
+      // The reduce row (second parameter) is typed by the list; the accumulator is not touched.
+      code: 'declare const rows: number[]; rows.reduce((total, row: number) => total + row, 0)',
+      output: 'declare const rows: number[]; rows.reduce((total, row) => total + row, 0)',
+      errors: [{ messageId: 'callbackParam' }],
     },
   ],
 });

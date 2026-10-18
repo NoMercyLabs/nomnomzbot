@@ -339,6 +339,66 @@ function isWidenedForReading(element: ts.Type, checker: ts.TypeChecker): boolean
     .some((field) => checker.isArrayType(checker.getTypeOfSymbol(field)));
 }
 
+// Owner 2026-10-18: "when mapping i also want you to type the return as const instead of the
+// argument". Inside an array-method callback the list types the arguments, so an argument
+// annotation goes, and the returned literal states its type as `as const satisfies T`.
+const arrayMethods = new Set([
+  'every',
+  'filter',
+  'find',
+  'findIndex',
+  'findLast',
+  'findLastIndex',
+  'flatMap',
+  'forEach',
+  'map',
+  'reduce',
+  'reduceRight',
+  'some',
+  'sort',
+  'toSorted',
+]);
+
+type Callback = TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression;
+
+type Services = ReturnType<typeof ESLintUtils.getParserServices>;
+
+// The array method a callback is passed to, or null when it is anything else.
+function arrayMethodOf(node: Callback, checker: ts.TypeChecker, services: Services): string | null {
+  const call = node.parent;
+
+  if (call?.type !== 'CallExpression' || !call.arguments.includes(node))
+    return null;
+
+  const callee = call.callee;
+
+  if (callee.type !== 'MemberExpression' || callee.computed || callee.property.type !== 'Identifier')
+    return null;
+
+  if (!arrayMethods.has(callee.property.name))
+    return null;
+
+  const receiver = checker.getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(callee.object));
+
+  return checker.isArrayType(receiver) || checker.isTupleType(receiver)
+    ? callee.property.name
+    : null;
+}
+
+// A `readonly T[]` return is judged by its row: the list type itself carries optional members.
+function looksLoose(declared: ts.Type, checker: ts.TypeChecker): boolean {
+  if (!checker.isArrayType(declared) || declared.symbol.name !== 'ReadonlyArray')
+    return hasLooseShape(declared, checker, shapeDepth);
+
+  const row = checker.getIndexTypeOfType(declared, ts.IndexKind.Number);
+
+  return row === undefined || hasLooseShape(row, checker, shapeDepth);
+}
+
+function isLiteral(node: TSESTree.Node | null): node is TSESTree.Expression {
+  return node?.type === 'ObjectExpression' || node?.type === 'ArrayExpression';
+}
+
 export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
   meta: {
     type: 'suggestion',
@@ -349,6 +409,9 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
         'The value already has this type. Drop the annotation; keep one only to widen or narrow, through the generic (ref<T>(), computed<T>()).',
       table: 'A constant object states its type as `{ ... } as const satisfies T`.',
       list: 'A constant list states its type as `[ ... ] as const satisfies readonly T[]`.',
+      callbackParam: 'The list already types this callback parameter. Drop the annotation.',
+      callbackReturn:
+        'Type the returned literal, not the callback: `(x) => ({ ... }) as const satisfies T`.',
     },
   },
   defaultOptions: [],
@@ -360,7 +423,123 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
     const toTsType = (node: TSESTree.Node): ts.Type =>
       checker.getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(node));
 
+    const functions: TSESTree.ReturnStatement[][] = [];
+
+    // The literal's closing parenthesis comes first when the arrow body is `({ ... })`.
+    const literalEnd = (
+      literal: TSESTree.Expression,
+      callback: Callback,
+    ): TSESTree.Node | TSESTree.Token => {
+      const before = context.sourceCode.getTokenBefore(literal);
+      const arrow = before === null
+        ? null
+        : context.sourceCode.getTokenBefore(before);
+
+      if (callback.body === literal && before?.value === '(' && arrow?.value === '=>')
+        return context.sourceCode.getTokenAfter(literal) ?? literal;
+
+      return literal;
+    };
+
+    const checkParameters = (node: Callback, method: string): void => {
+      const tsNode = services.esTreeNodeToTSNodeMap.get(node) as ts.Expression;
+      const signature = checker.getContextualType(tsNode)?.getCallSignatures()[0];
+
+      if (signature === undefined) return;
+
+      for (const [index, parameter] of node.params.entries()) {
+        const symbol = signature.parameters[index];
+        const annotation = 'typeAnnotation' in parameter
+          ? parameter.typeAnnotation
+          : undefined;
+
+        // The first `reduce` parameter is the accumulator; its annotation picks the result type.
+        if (annotation === undefined || symbol === undefined) continue;
+
+        if (parameter.type === 'AssignmentPattern' || (method.startsWith('reduce') && index === 0)) continue;
+
+        const given = checker.getTypeOfSymbolAtLocation(symbol, tsNode);
+        const declared = toType(annotation.typeAnnotation);
+
+        if (isLoose(declared) || isLoose(given)) continue;
+
+        if (!checker.isTypeAssignableTo(declared, given)) continue;
+
+        if (!checker.isTypeAssignableTo(given, declared)) continue;
+
+        context.report({
+          node: annotation,
+          messageId: 'callbackParam',
+          fix: (fixer) => fixer.remove(annotation),
+        });
+      }
+    };
+
+    const checkReturn = (node: Callback, returns: TSESTree.ReturnStatement[]): void => {
+      const annotation = node.returnType;
+
+      if (annotation === undefined || node.async || node.generator) return;
+
+      if (annotation.typeAnnotation.type === 'TSTypePredicate') return;
+
+      const returned =
+        node.body.type === 'BlockStatement'
+          ? returns.map((item) => item.argument)
+          : [node.body];
+      const literals = returned.filter(isLiteral);
+      const declared = toType(annotation.typeAnnotation);
+
+      // A named type that resolves to `any` (an import from a .vue file) cannot be judged: report only.
+      const unresolved = isLoose(declared) && annotation.typeAnnotation.type === 'TSTypeReference';
+
+      if (literals.length === 0 || (isLoose(declared) && !unresolved)) return;
+
+      // Every return must be a literal, and `as const` must not freeze a list or drop an optional field.
+      const safe =
+        !unresolved && literals.length === returned.length && !looksLoose(declared, checker);
+      const typeText = context.sourceCode.getText(annotation.typeAnnotation);
+
+      context.report({
+        node: annotation,
+        messageId: 'callbackReturn',
+        fix: safe
+          ? (fixer) => [
+              fixer.remove(annotation),
+              ...literals.map((literal) =>
+                fixer.insertTextAfter(literalEnd(literal, node), ` as const satisfies ${typeText}`)),
+            ]
+          : null,
+      });
+    };
+
+    const leave = (node: Callback): void => {
+      const returns = functions.pop() ?? [];
+      const method = arrayMethodOf(node, checker, services);
+
+      if (method === null) return;
+
+      checkParameters(node, method);
+      checkReturn(node, returns);
+    };
+
     return {
+      ArrowFunctionExpression: (): void => {
+        functions.push([]);
+      },
+      'ArrowFunctionExpression:exit': leave,
+      FunctionExpression: (): void => {
+        functions.push([]);
+      },
+      'FunctionExpression:exit': leave,
+      FunctionDeclaration: (): void => {
+        functions.push([]);
+      },
+      'FunctionDeclaration:exit': (): void => {
+        functions.pop();
+      },
+      ReturnStatement(node): void {
+        functions.at(-1)?.push(node);
+      },
       VariableDeclarator(node): void {
         const annotation = node.id.typeAnnotation;
         const init = node.init;
