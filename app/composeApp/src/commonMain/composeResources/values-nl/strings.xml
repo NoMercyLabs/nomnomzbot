@@ -3619,6 +3619,10 @@
     <string name="event_type_channel_poll_begin">Poll gestart</string>
     <string name="event_type_channel_poll_end">Poll afgelopen</string>
     <string name="event_type_channel_prediction_begin">Voorspelling gestart</string>
+    <string name="event_type_channel_prediction_lock">Voorspelling vergrendeld</string>
+    <string name="event_type_channel_prediction_end">Voorspelling afgelopen</string>
+    <string name="event_type_channel_hype_train_begin">Hype Train gestart</string>
+    <string name="event_type_channel_hype_train_end">Hype Train afgelopen</string>
     <string name="event_type_channel_points_redemption">Beloning ingewisseld</string>
     <string name="event_type_reward_paused">Beloning gepauzeerd</string>
     <string name="event_type_reward_resumed">Beloning hervat</string>
@@ -5292,12 +5296,12 @@
     <string name="template_helper_poll_winner_percentage">Het winnende aandeel als tekst, zoals (68%), of niets als niemand stemde</string>
     <string name="template_helper_poll_results">Elke keuze met stemmen en aandeel, gescheiden door |</string>
     <string name="template_helper_poll_id">Het poll-ID</string>
-    <string name="template_helper_poll_duration">Hoe lang de poll loopt, als tekst (bijv. \"5 minuten\")</string>
-    <string name="template_helper_poll_choices">Alle keuzes van de poll, gescheiden door komma\'s</string>
+    <string name="template_helper_poll_duration">Hoe lang de poll loopt, als tekst (bijv. "5 minuten")</string>
+    <string name="template_helper_poll_choices">Alle keuzes van de poll, gescheiden door komma's</string>
     <string name="template_helper_prediction_id">Het voorspelling-ID</string>
     <string name="template_helper_prediction_title">De vraag van de voorspelling</string>
     <string name="template_helper_prediction_window">Hoeveel seconden kijkers kunnen voorspellen</string>
-    <string name="template_helper_prediction_outcomes">Alle uitkomsten, gescheiden door komma\'s</string>
+    <string name="template_helper_prediction_outcomes">Alle uitkomsten, gescheiden door komma's</string>
     <string name="template_helper_prediction_total_points">Alle kanaalpunten die tot nu toe zijn ingezet</string>
     <string name="template_helper_prediction_status">Hoe de voorspelling eindigde (resolved of canceled)</string>
     <string name="template_helper_prediction_winner">De winnende uitkomst, of niets bij een geannuleerde voorspelling</string>

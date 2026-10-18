@@ -22,6 +22,10 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_points_redem
 import nomnomzbot.composeapp.generated.resources.event_type_channel_poll_begin
 import nomnomzbot.composeapp.generated.resources.event_type_channel_poll_end
 import nomnomzbot.composeapp.generated.resources.event_type_channel_prediction_begin
+import nomnomzbot.composeapp.generated.resources.event_type_channel_prediction_end
+import nomnomzbot.composeapp.generated.resources.event_type_channel_prediction_lock
+import nomnomzbot.composeapp.generated.resources.event_type_channel_hype_train_begin
+import nomnomzbot.composeapp.generated.resources.event_type_channel_hype_train_end
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_out
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_start
@@ -86,6 +90,10 @@ internal val EventTypeLabels: Map<String, StringResource> =
         "channel.poll.begin" to Res.string.event_type_channel_poll_begin,
         "channel.poll.end" to Res.string.event_type_channel_poll_end,
         "channel.prediction.begin" to Res.string.event_type_channel_prediction_begin,
+        "channel.prediction.lock" to Res.string.event_type_channel_prediction_lock,
+        "channel.prediction.end" to Res.string.event_type_channel_prediction_end,
+        "channel.hype_train.begin" to Res.string.event_type_channel_hype_train_begin,
+        "channel.hype_train.end" to Res.string.event_type_channel_hype_train_end,
         "channel.channel_points_custom_reward_redemption.add" to Res.string.event_type_channel_points_redemption,
         "reward.paused" to Res.string.event_type_reward_paused,
         "reward.resumed" to Res.string.event_type_reward_resumed,

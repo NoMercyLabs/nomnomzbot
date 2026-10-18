@@ -3635,6 +3635,10 @@
     <string name="event_type_channel_poll_begin">Poll Started</string>
     <string name="event_type_channel_poll_end">Poll Ended</string>
     <string name="event_type_channel_prediction_begin">Prediction Started</string>
+    <string name="event_type_channel_prediction_lock">Prediction Locked</string>
+    <string name="event_type_channel_prediction_end">Prediction Ended</string>
+    <string name="event_type_channel_hype_train_begin">Hype Train Started</string>
+    <string name="event_type_channel_hype_train_end">Hype Train Ended</string>
     <string name="event_type_channel_points_redemption">Reward Redeemed</string>
     <string name="event_type_reward_paused">Reward Paused</string>
     <string name="event_type_reward_resumed">Reward Resumed</string>
@@ -5308,7 +5312,7 @@
     <string name="template_helper_poll_winner_percentage">The winning share as text, like (68%), or nothing when no one voted</string>
     <string name="template_helper_poll_results">Every choice with its votes and share, separated by |</string>
     <string name="template_helper_poll_id">The poll ID</string>
-    <string name="template_helper_poll_duration">How long the poll runs, as text (e.g. \"5 minutes\")</string>
+    <string name="template_helper_poll_duration">How long the poll runs, as text (e.g. "5 minutes")</string>
     <string name="template_helper_poll_choices">Every poll choice, separated by commas</string>
     <string name="template_helper_prediction_id">The prediction ID</string>
     <string name="template_helper_prediction_title">The prediction question</string>
