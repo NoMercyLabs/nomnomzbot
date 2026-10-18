@@ -103487,8 +103487,8 @@ export interface components {
             max?: null | number | string;
             /** Format: double */
             step?: null | number | string;
-        };
             picker?: null | string;
+        };
         /**
          * @description A single choice for a `select`/`multiselect` field: the wire string WidgetSettingsFieldOption.Value (the machine value
          *     stored/compared, never shown) and its display LocalizedText WidgetSettingsFieldOption.Label — a LocalizedText
