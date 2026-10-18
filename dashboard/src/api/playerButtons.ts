@@ -31,6 +31,35 @@ export type ActionRunResult = components['schemas']['ChannelActionRunResponse'];
 export const MAX_PLAYER_BUTTONS = 12;
 export const MAX_BUTTON_LABEL = 24;
 
+const ICON_KEY = /^[a-z0-9-]+$/;
+
+// What is wrong with one button, as the i18n keys of the messages; a key is absent when that part is fine.
+export type ButtonProblems = {
+  label?: string;
+  icon?: string;
+  action?: string;
+};
+
+// The same rules the bot enforces on a save (PlayerButtonService), so a refusal is shown before it is sent.
+export function buttonProblems(button: PlayerButton): ButtonProblems {
+  const length = button.label.trim().length;
+  const problems: ButtonProblems = {};
+
+  if (length === 0 || length > MAX_BUTTON_LABEL) {
+    problems.label = 'dashboard.music.now.buttons.editor.problem.label';
+  }
+
+  if (!ICON_KEY.test(button.icon)) {
+    problems.icon = 'dashboard.music.now.buttons.editor.problem.icon';
+  }
+
+  if (button.actionType.trim() === '') {
+    problems.action = 'dashboard.music.now.buttons.editor.problem.action';
+  }
+
+  return problems;
+}
+
 const version = '1';
 
 export const playerButtonsKey = (channelId: string | null) => [

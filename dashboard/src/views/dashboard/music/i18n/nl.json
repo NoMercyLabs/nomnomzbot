@@ -12,7 +12,28 @@
         "nothing": "Er speelt nu niets.",
         "error": "De speler kon niet laden.",
         "buttons": {
-          "failed": "{label} is niet uitgevoerd."
+          "failed": "{label} is niet uitgevoerd.",
+          "editor": {
+            "edit": "Knoppen bewerken",
+            "title": "Spelerknoppen",
+            "description": "Knoppen onder de kaart Nu aan het spelen. Elke knop voert een actie uit als je erop drukt.",
+            "save": "Knoppen opslaan",
+            "empty": "Nog geen knoppen.",
+            "add": "Knop toevoegen",
+            "full": "Een kanaal kan maximaal {max} knoppen vastzetten.",
+            "icon": "Pictogram",
+            "label": "Label",
+            "labelPlaceholder": "Label",
+            "moveUp": "Omhoog",
+            "moveDown": "Omlaag",
+            "remove": "Knop verwijderen",
+            "chooseAction": "Kies een actie",
+            "problem": {
+              "label": "Gebruik 1 tot {max} tekens.",
+              "icon": "Kies een pictogram.",
+              "action": "Kies een actie."
+            }
+          }
         },
         "requestedBy": "Aangevraagd door {name}",
         "volume": "Volume",

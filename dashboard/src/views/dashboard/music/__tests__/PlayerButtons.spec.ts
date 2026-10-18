@@ -42,7 +42,11 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 }));
 
 vi.mock('@/api/client', () => ({
-  client: { GET: held.get, POST: held.post },
+  client: {
+    GET: held.get,
+    POST: held.post,
+    use: vi.fn<() => void>(),
+  },
 }));
 
 const track = {

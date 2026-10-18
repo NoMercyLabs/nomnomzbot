@@ -12,7 +12,28 @@
         "nothing": "Nothing is playing right now.",
         "error": "The player could not load.",
         "buttons": {
-          "failed": "{label} did not run."
+          "failed": "{label} did not run.",
+          "editor": {
+            "edit": "Edit buttons",
+            "title": "Player buttons",
+            "description": "Buttons under the Now playing card. Each one runs an action when pressed.",
+            "save": "Save buttons",
+            "empty": "No buttons yet.",
+            "add": "Add a button",
+            "full": "A channel can pin at most {max} buttons.",
+            "icon": "Icon",
+            "label": "Label",
+            "labelPlaceholder": "Label",
+            "moveUp": "Move up",
+            "moveDown": "Move down",
+            "remove": "Remove button",
+            "chooseAction": "Choose an action",
+            "problem": {
+              "label": "Use 1 to {max} characters.",
+              "icon": "Choose an icon.",
+              "action": "Choose an action."
+            }
+          }
         },
         "requestedBy": "Requested by {name}",
         "volume": "Volume",

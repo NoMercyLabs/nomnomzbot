@@ -11,7 +11,8 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import Edit from '~icons/nnz/edit';
+import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { useI18n } from 'vue-i18n';
 
@@ -21,6 +22,7 @@ import { usePlayerButtons, useRunAction, type PlayerButton } from '@/api/playerB
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
+import PlayerButtonsEditor from './PlayerButtonsEditor.vue';
 import { playerIcon } from './playerIcons';
 
 const props = defineProps<{
@@ -31,6 +33,10 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const access = useChannelAccess(channelId);
 const canSee = computed(() => access.can('music:queue:read'));
+
+const canEdit = computed(() =>
+  canSee.value && access.can('music:config:write'));
+const editing = ref(false);
 
 const query = usePlayerButtons(() =>
   canSee.value
@@ -51,13 +57,13 @@ type ActionVariables = {
   'target.displayname': string;
 };
 
-const variables = computed<ActionVariables>(() => ({
+const variables = computed(() => ({
   'song.name': props.track.trackName ?? '',
   'song.artist': props.track.artist ?? '',
   'song.requester': props.track.requestedBy ?? '',
   'target.id': props.track.requesterId ?? '',
   'target.displayname': props.track.requestedBy ?? '',
-}));
+}) as const satisfies ActionVariables);
 
 function press(button: PlayerButton): void {
   run.mutate(
@@ -73,7 +79,7 @@ function press(button: PlayerButton): void {
 
 <template>
   <div
-    v-if="canSee && buttons.length > 0"
+    v-if="canSee && (buttons.length > 0 || canEdit)"
     data-player-buttons
     class="flex flex-wrap items-center justify-center gap-2"
   >
@@ -89,5 +95,16 @@ function press(button: PlayerButton): void {
       <component :is="playerIcon(button.icon)" class="size-5" />
       {{ button.label }}
     </Button>
+    <Button
+      v-if="canEdit"
+      data-player-buttons-edit
+      variant="ghost"
+      size="sm"
+      @click="editing = true"
+    >
+      <Edit class="size-5" aria-hidden="true" />
+      {{ $t('dashboard.music.now.buttons.editor.edit') }}
+    </Button>
+    <PlayerButtonsEditor v-if="canEdit" v-model:open="editing" :buttons="buttons" />
   </div>
 </template>

@@ -11,7 +11,7 @@
 // Every step a person can add (5-workbench.html:211-235): the checks and groups first, then each catalog
 // category with its actions by name. A search on top narrows all of them; a pick adds the step.
 import Cross from '~icons/nnz/cross';
-import { computed, useTemplateRef, type Component } from 'vue';
+import { computed, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PipelineActionDescriptor } from '@/api/pipelines';
@@ -31,8 +31,8 @@ import { useLocalizedText } from '@/composables/useLocalizedText';
 import { useShortcut } from '@/composables/useShortcut';
 
 import { ADDABLE_BLOCKS, type AddableBlock } from './newSteps';
-import { actionIcon, blockIcon } from './stepIcons';
-import { actionTitle } from './stepWords';
+import { actionGroups } from './stepGroups';
+import { blockIcon } from './stepIcons';
 
 const props = defineProps<{
   actions: PipelineActionDescriptor[];
@@ -51,17 +51,6 @@ const { t, te } = useI18n();
 const text = useLocalizedText();
 const page = 'dashboard.pipelines.workbench';
 
-type ActionRow = { type: string; title: string };
-type ActionGroup = {
-  key: string;
-  heading: string;
-  icon: Component;
-  rows: ActionRow[];
-};
-
-const byTitle = (left: { title: string }, right: { title: string }): number =>
-  left.title.localeCompare(right.title);
-
 const blocks = computed(() =>
   ADDABLE_BLOCKS.map((kind) =>
     ({
@@ -70,28 +59,12 @@ const blocks = computed(() =>
       icon: blockIcon(kind),
     })));
 
-const groups = computed<ActionGroup[]>(() => {
-  const found = new Map<string, ActionGroup>();
-
-  for (const action of props.actions) {
-    const key = action.category.key;
-    const group = found.get(key) ?? {
-      key,
-      heading: text(action.category, key),
-      icon: actionIcon(key),
-      rows: [],
-    };
-
-    group.rows.push({ type: action.type, title: actionTitle(action.type, { t, te }) });
-    found.set(key, group);
-  }
-
-  return [...found.values()]
-    .map((group) =>
-      ({ ...group, rows: group.rows.sort(byTitle) }))
-    .sort((left: ActionGroup, right: ActionGroup) =>
-      left.heading.localeCompare(right.heading));
-});
+const groups = computed(() =>
+  actionGroups(props.actions, {
+    t,
+    te,
+    text,
+  }));
 
 const root = useTemplateRef<InstanceType<typeof PanelCard>>('root');
 

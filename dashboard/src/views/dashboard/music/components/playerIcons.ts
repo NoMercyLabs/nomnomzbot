@@ -74,3 +74,6 @@ const playerIcons = {
 export function playerIcon(key: string): Component {
   return lookup(playerIcons, key) ?? Lightning;
 }
+
+// The keys the editor offers, in the table's order.
+export const PLAYER_ICON_KEYS = Object.keys(playerIcons);
