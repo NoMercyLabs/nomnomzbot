@@ -26,9 +26,11 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
+using NomNomzBot.Domain.EventStore.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.Billing;
@@ -59,6 +61,7 @@ public sealed class AdminService : IAdminService
     private readonly IScheduledPipelineService _scheduledPipelines;
     private readonly IEnumerable<IProjection> _projections;
     private readonly IEventUpcasterRegistry _upcasters;
+    private readonly IEventBus _eventBus;
 
     public AdminService(
         IApplicationDbContext db,
@@ -69,7 +72,8 @@ public sealed class AdminService : IAdminService
         IOutboundWebhookDispatcher webhookDispatcher,
         IScheduledPipelineService scheduledPipelines,
         IEnumerable<IProjection> projections,
-        IEventUpcasterRegistry upcasters
+        IEventUpcasterRegistry upcasters,
+        IEventBus eventBus
     )
     {
         _db = db;
@@ -81,6 +85,7 @@ public sealed class AdminService : IAdminService
         _scheduledPipelines = scheduledPipelines;
         _projections = projections;
         _upcasters = upcasters;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<AdminStatsDto>> GetStatsAsync(CancellationToken ct = default)
@@ -1009,6 +1014,21 @@ public sealed class AdminService : IAdminService
             }
         );
         await _db.SaveChangesAsync(ct);
+
+        // Open operator event replay pages reload their list of executed replays.
+        await _eventBus.PublishAsync(
+            new ReplayStatusChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                ReplayId = Guid.NewGuid(),
+                ProjectionName = projectionName,
+                Status = "completed",
+                FromPosition = matches.Count == 0 ? 0 : matches[0].StreamPosition,
+                ToPosition = matches.Count == 0 ? 0 : matches[^1].StreamPosition,
+                ProcessedCount = applied,
+            },
+            ct
+        );
 
         return Result.Success(
             new AdminEventReplayResultDto(

@@ -20,6 +20,7 @@ using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.EventStore;
@@ -61,7 +62,8 @@ public sealed class AdminServiceEventSubAndWebhookTests
             dispatcher,
             Substitute.For<IScheduledPipelineService>(),
             [],
-            new EventUpcasterRegistry([])
+            new EventUpcasterRegistry([]),
+            Substitute.For<IEventBus>()
         );
         return (sut, db, dispatcher);
     }

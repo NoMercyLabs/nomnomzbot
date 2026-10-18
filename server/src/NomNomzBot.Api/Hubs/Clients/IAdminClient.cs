@@ -23,4 +23,5 @@ public interface IAdminClient
     Task ReceiveAuditChanged(object change);
     Task ReceiveAccessChanged(object change);
     Task ReceiveDataRequestsChanged(object change);
+    Task ReceiveEventReplayChanged(object change);
 }

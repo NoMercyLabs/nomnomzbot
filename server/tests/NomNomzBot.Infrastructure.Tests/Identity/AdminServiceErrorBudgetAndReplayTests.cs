@@ -20,7 +20,9 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.EventStore.Entities;
+using NomNomzBot.Domain.EventStore.Events;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.EventStore;
@@ -40,7 +42,9 @@ public sealed class AdminServiceErrorBudgetAndReplayTests
 {
     private static readonly DateTime Now = new(2026, 9, 6, 12, 0, 0, DateTimeKind.Utc);
 
-    private static (AdminService Sut, AuthDbContext Db, FakeTimeProvider Clock) Build(
+    private readonly IEventBus _eventBus = Substitute.For<IEventBus>();
+
+    private (AdminService Sut, AuthDbContext Db, FakeTimeProvider Clock) Build(
         params IProjection[] projections
     )
     {
@@ -60,7 +64,8 @@ public sealed class AdminServiceErrorBudgetAndReplayTests
             Substitute.For<IOutboundWebhookDispatcher>(),
             Substitute.For<IScheduledPipelineService>(),
             projections,
-            new EventUpcasterRegistry([])
+            new EventUpcasterRegistry([]),
+            _eventBus
         );
         return (sut, db, clock);
     }
@@ -499,5 +504,40 @@ public sealed class AdminServiceErrorBudgetAndReplayTests
         audit.Justification.Should().Contain(actorUserId.ToString());
         audit.Justification.Should().Contain("fake-audited-replay");
         audit.Justification.Should().Contain("count=3");
+    }
+
+    [Fact]
+    public async Task ExecuteEventReplay_tells_open_admin_pages_which_projection_was_replayed_and_how_many_events()
+    {
+        FakeProjection projection = new("fake-announced-replay", "currency.credited");
+        (AdminService sut, AuthDbContext db, _) = Build(projection);
+        Channel tenant = SeedChannel(db, "streamer_announced_replay");
+        SeedEvent(db, tenant.Id, "currency.credited", Now.AddHours(-1), 1);
+        SeedEvent(db, tenant.Id, "currency.credited", Now.AddHours(-2), 2);
+        await db.SaveChangesAsync();
+
+        Result<AdminEventReplayResultDto> result = await sut.ExecuteEventReplayAsync(
+            tenant.Id,
+            "fake-announced-replay",
+            Now.AddDays(-1),
+            Now,
+            eventType: "currency.credited",
+            expectedCount: 2,
+            actorUserId: Guid.NewGuid()
+        );
+
+        result.IsSuccess.Should().BeTrue();
+
+        ReplayStatusChangedEvent published = _eventBus
+            .ReceivedCalls()
+            .Select(call => call.GetArguments()[0])
+            .OfType<ReplayStatusChangedEvent>()
+            .Single();
+        published.BroadcasterId.Should().Be(tenant.Id);
+        published.ProjectionName.Should().Be("fake-announced-replay");
+        published.Status.Should().Be("completed");
+        published.ProcessedCount.Should().Be(2);
+        published.FromPosition.Should().Be(1);
+        published.ToPosition.Should().Be(2);
     }
 }

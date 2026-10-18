@@ -21,6 +21,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.EventStore;
@@ -68,7 +69,8 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
             Substitute.For<IOutboundWebhookDispatcher>(),
             scheduler,
             [],
-            new EventUpcasterRegistry([])
+            new EventUpcasterRegistry([]),
+            Substitute.For<IEventBus>()
         );
         return (sut, db, clock);
     }

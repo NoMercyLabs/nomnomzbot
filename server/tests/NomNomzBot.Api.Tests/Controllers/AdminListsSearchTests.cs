@@ -25,6 +25,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
@@ -58,7 +59,8 @@ public sealed class AdminListsSearchTests
             Substitute.For<IOutboundWebhookDispatcher>(),
             Substitute.For<IScheduledPipelineService>(),
             [],
-            new EventUpcasterRegistry([])
+            new EventUpcasterRegistry([]),
+            Substitute.For<IEventBus>()
         );
 
         AdminController controller = new(
