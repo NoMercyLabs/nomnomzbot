@@ -349,3 +349,89 @@ Runs once per channel (a run-once guard by DB provider; both migration sets if a
 3. Do not press dashboard resume while a YouTube song plays. It resumes Spotify on top.
 4. Ask Stoney which OBS source is "the new audio source". If it is a separate browser source of the same overlay,
    both may load the audio widget. Presence was not checked.
+
+## 11. S-PD-0 audit result
+
+Read from the code on 2026-10-18, branch master. No code changed. Paths are under `server/src/`.
+Legend: real = does the work. no-op = returns without effect. throws = raises on a known failure.
+Interface files in `NomNomzBot.Domain/Music/Interfaces/`: `IMusicProvider.cs` (IMP), `IMusicProviderPlayNow.cs` (PlayNow), `IMusicProviderStartTrack.cs` (StartTrack).
+Provider files in `NomNomzBot.Infrastructure/Music/`: `SpotifyMusicProvider.cs` (SP), `YouTubeMusicProvider.cs` (YT).
+SP implements IMusicProvider, IMusicRemoteProvider, IMusicProviderManageApi, IMusicProviderStartTrack (SP:56-60). YT implements IMusicProvider, IMusicProviderManageApi, IMusicProviderPlayNow, IMusicProviderPlayerGate (YT:58-63).
+
+### 11.1 (a) Member table
+
+| Member (interface line) | Spotify | YouTube |
+|---|---|---|
+| `Provider`, `Capabilities` (IMP:168, 171) | real (SP:128, 176) | real (YT:109, 117) |
+| `PlayAsync` (IMP:181) | real: PUT /me/player/play; silent no-op when the token is null (SP:193-207) | real: `youtube.resume` to the player; throws `NoActiveDeviceException` with no player (YT:143-147, 193-203) |
+| `PauseAsync` (IMP:183) | real (SP:209) | real: `youtube.pause`; throws with no player (YT:149) |
+| `SkipAsync` (IMP:185) | real (SP:225) | real: calls the dispatcher `HandOverNextAsync`, else `StopAsync` (YT:155-163) |
+| `PreviousAsync` (IMP:188) | real: POST /me/player/previous; silent no-op when the token is null (SP:241-258) | no-op, logs debug (YT:205-211) |
+| `SetVolumeAsync` (IMP:191) | real: PUT /me/player/volume; silent no-op when the token is null (SP:260-279) | real: `youtube.volume`; throws with no player (YT:213-221) |
+| `SeekAsync` (IMP:198) | real (SP:696-716) | real: `youtube.seek`; throws with no player (YT:223-231) |
+| `SetShuffleAsync` (IMP:205) | real (SP:718) | no-op (YT:233-241) |
+| `SetRepeatAsync` (IMP:212) | real (SP:740) | no-op (YT:243-251) |
+| `GetDevicesAsync` (IMP:219) | real; returns [] when the token is null (SP:797-804) | no-op, returns [] (YT:253-260) |
+| `TransferPlaybackAsync` (IMP:225) | real; throws `DeviceTransferFailedException` on a rejected transfer (SP:767-795) | no-op (YT:262-271) |
+| `GetCurrentTrackAsync` (IMP:240) | real: GET player state (SP:281) | real: built from the player report and the pushed track, no Data API call; CanSkipPrevious, CanSetShuffle, CanSetRepeat false (YT:273-339) |
+| `SearchAsync` (IMP:255) | real (SP:347) | real (YT:341) |
+| `ResolveTrackAsync` (IMP:269) | real (SP:428) | real (YT:393) |
+| `OwnsLink`, `OwnsTrackUri` (IMP:277, 281) | real (SP:421, 425) | `OwnsLink` real (YT:391); `OwnsTrackUri` uses the interface default |
+| `AddToQueueAsync` (IMP:283) | real: POST /me/player/queue; throws `MusicAuthenticationFailedException`, `NoActiveDeviceException`, `MusicForbiddenException` (SP:578-605, 631-652) | real, different meaning: plays now if the player is idle, else fills a one-slot "next" buffer; with no player it stores the track in that buffer and answers true (YT:483-518) |
+| `GetQueueAsync` (IMP:298) | real: GET /me/player/queue, null when it cannot answer (SP:664) | real: only the one-slot "next" buffer (YT:536-559) |
+| `GetEmbeddedPlaybackTokenAsync` (IMP:311) | real (SP:530) | no-op, returns null (YT:562-569) |
+| `TryGetCoolingUntil` (IMP:326) | real (SP:131) | real: Data API quota (YT:131) |
+| `WorksWithoutConnectionAsync` (IMP:178) | interface default, false | real, true (YT:140) |
+| `PlayNowAsync` (PlayNow:415) | not implemented | real: finds the player, sends `youtube.play`, marks pushed; returns false with no video id or no player (YT:170-191) |
+| `StartTrackAsync` (StartTrack:443) | real: PUT /me/player/play {uris}; same exceptions as AddToQueue (SP:607-662) | not implemented |
+
+### 11.2 Gaps the S-PD-2 adapters must fill
+
+1. Start: Spotify has only `StartTrackAsync`. YouTube has only `PlayNowAsync`. The adapters map `Start(item)` to each. Failure differs: SP throws on no device or a dead token, YT returns false on no player. The adapter must turn both into one typed result.
+2. Missing precondition differs. SP returns silently when the token is null (SP:196-197, 244-245, 263-264). YT throws `NoActiveDeviceException` with no player (YT:200-201). Both must become the same `Blocked` reason.
+3. Previous: YT is a no-op. Spec 2.1 puts Previous in the director, so the engine needs only `Seek(0)` and `Start(item)`. SP's POST /me/player/previous must not be called.
+4. Stop: no member exists. SP has no stop (use pause). YT has `StopAsync` only on the dispatcher (`youtube.stop`), reached from `SkipAsync` (YT:160-162). The adapters must add `Stop()`.
+5. Resume: SP `PlayAsync` sends PUT /me/player/play with no body. YT `PlayAsync` sends `youtube.resume`. Both must be tested as "resume this engine only".
+6. Reports: SP is a poll (`GetCurrentTrackAsync`, `MusicStatePollingService`). YT is a push (`YouTubePlayerReportService`, plus a heartbeat in `audio.vue`). YT ended comes from `YouTubePlayerReportService.cs:78-80`. SP has no ended signal; the adapter must derive it (spec 2.1 Inputs).
+7. Shuffle, Repeat, Devices, Transfer, embedded token: YT no-op. They are not director inputs. The adapter returns a typed "not supported"; the dashboard gates on `Capabilities`.
+8. YT `SkipAsync` calls the dispatcher `HandOverNextAsync` (YT:160). That is one of the six hand-over callers and must go through the director.
+9. `AddToQueueAsync` on both engines must not be called by the director (spec 5: start the head with Start).
+
+### 11.3 (b) Hand-over callers (as of now)
+
+Two methods share the name. `ISongRequestHandover.HandOverNextAsync(string)` (declared `Music/SongRequestQueueStore.cs:48`, implemented `Music/MusicService.cs:2594`) takes the fair-queue head to the engine. `IYouTubePlayerDispatcher.HandOverNextAsync(Guid)` (declared `Music/YouTubePlayerDispatcher.cs:71`, implemented `:189`) hands the YouTube one-slot buffer to the player.
+
+| # | Caller | Method called | Trigger |
+|---|---|---|---|
+| 1 | `NomNomzBot.Api/Hubs/OverlayHub.cs:488` | dispatcher | audio widget ready, when `ReplayCurrentAsync` replayed nothing |
+| 1b | `NomNomzBot.Api/Hubs/OverlayHub.cs:489` | `ISongRequestHandover` | same ready event, always |
+| 2 | `NomNomzBot.Infrastructure/BackgroundServices/MusicStatePollingService.cs:277` | `ISongRequestHandover` | every poll tick (recovery tick) |
+| 3 | `NomNomzBot.Infrastructure/Music/SongRequestQueueReconciler.cs:168` | `ISongRequestHandover` | playback change, when nothing is in flight |
+| 4 | `NomNomzBot.Infrastructure/Music/YouTubePlayerReportService.cs:80` | dispatcher | player reported ended or error |
+| 5 | `NomNomzBot.Infrastructure/Music/PlayOnceResumeHandler.cs:108` | dispatcher | play-once track ended |
+| 6 | `NomNomzBot.Infrastructure/Music/YouTubeMusicProvider.cs:160` | dispatcher | `SkipAsync` |
+| - | `NomNomzBot.Infrastructure/Music/MusicService.cs:1192` calls `HandOverAdmittedIfIdleAsync` (defined `:1221`) | private; the only call site | a new request is admitted, inside the hand-over lock |
+
+Count: 6 caller files, 7 call lines (OverlayHub has two). Section 1 matches.
+
+### 11.4 (c) Where the music volume lives today
+
+- There is no stored music volume setting. The `audio` widget defaults (`NomNomzBot.Infrastructure/Content/Widgets/FirstPartyWidgetCatalogue.cs:259-267`) hold `showIndicator`, `accentColor`, `enableAudio` only. `WidgetSettingsSchemaProvider.cs` has no "volume" match.
+- Spotify: the volume is on the Spotify device. `SetVolumeAsync` sends PUT /me/player/volume (SP:260-279). The level reads back in `TrackInfo.VolumePercent` (IMP:369). The in-widget Web Playback SDK player is created with `volume: 1.0` (`Content/Widgets/Assets/audio.vue:325`).
+- YouTube: a page variable `ytVolume`, default 100 (`audio.vue:79`). The `youtube.volume` event sets it (`audio.vue:213-217`); each start applies it (`audio.vue:126`). It is not persisted: a reload resets it to 100. The server sends it from `YouTubePlayerDispatcher.VolumeAsync` (`:171`).
+- Routing: `MusicService.SetVolumeAsync` (`MusicService.cs:1377`) picks one provider with `VolumeProviderAsync` (`:1422`: the last engine from the queue store, else the active provider) and sets only that engine.
+- Mute memory: `MuteVolumeMemory` keeps the pre-mute level in the cache, key `music:premute:{broadcasterId}`, TTL 24 h (`Music/MuteVolumeMemory.cs`). It is not a setting.
+- REST entry: `PUT music/volume` (`NomNomzBot.Api/Controllers/V1/MusicController.cs:525`).
+- For spec 9.6: there is nothing to copy from the `audio` widget settings. The music level needs a new stored value. The migration seeds it with 100.
+
+### 11.5 (d) Where the music output widget is picked
+
+1. `YouTubePlayerDispatcher.FindPlayersAsync` (`Music/YouTubePlayerDispatcher.cs:106-120`): asks `presence.GetAudioWidgetId`, then checks the `Widgets` row is enabled for that broadcaster. Returns zero or one widget id. Callers: `YouTubeMusicProvider` (YT:165-168, 180, 198, 498), the dispatcher's own methods (`:198, 212, 227`), `YouTubePlayerReportService.cs:40`.
+2. `OverlayPresenceRegistry.GetAudioWidgetId` (`NomNomzBot.Api/Hubs/Overlay/OverlayPresenceRegistry.cs:102-111`): the audio-source connection with the highest join order wins. `GetAudioTarget` (`:92-100`) does the same for the connection id.
+3. `OverlayHub.cs:192-197` (join): a widget is the audio source when `WidgetKeyAliases.Canonical(naturalKey) == OverlayPresenceRegistry.AudioSourceNaturalKey`, that is the gallery key `audio`. It does not read `enableAudio`. A new audio source sends the old one `youtube.stop { handoff: true }`.
+4. `OverlayHub.cs:366-368` (player state report) and `:476-478` (widget ready): both accept only the current audio target and widget id.
+5. `NomNomzBot.Api/Controllers/OverlayHostController.cs:169-170` (`WantsSpotifyPlayback`): the page CSP allows player frames when the gallery key is `audio` OR the widget setting `enableAudio` is true. This is the only server code that reads `enableAudio` (other hits: `FirstPartyWidgetCatalogue.cs:266`, `WidgetSettingsSchemaProvider.cs:194`).
+6. `audio.vue:19, 124, 387, 406`: the widget makes YouTube audible and connects the Spotify SDK only when its own `cfg.enableAudio` is true.
+7. Bot audio (TTS) goes to the same widget by `WidgetNotifier.SendAudioWidgetEventAsync` (`NomNomzBot.Api/Hubs/WidgetNotifier.cs:114`, used by `WidgetEventNotifierAdapter.cs:43`). Which events take that path: not checked.
+
+For spec 3.1: the `audio` gallery key is the only output key today, for music and for bot audio. The `music_player` key must change sites 1, 3 and 4. Sites 5 and 6 need the new key added.
