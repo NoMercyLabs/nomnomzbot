@@ -1,0 +1,93 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "apiDevices": {
+        "never": "Never",
+        "prefixHint": "{prefix}...",
+        "noExpiry": "No end date",
+        "pinned": "Starts {count} chosen pipelines only",
+        "columns": {
+          "name": "Key",
+          "scopes": "Allowed",
+          "lastUsed": "Last used",
+          "expires": "Ends",
+          "state": "State"
+        },
+        "state": {
+          "active": "Active",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        },
+        "scopes": {
+          "invoke": "Start pipelines",
+          "read": "Read data",
+          "events": "Listen to events",
+          "chat": "Speak as the bot"
+        },
+        "tokens": {
+          "title": "API keys",
+          "description": "Keys let outside tools such as Stream Deck, Touch Portal or your own scripts use this channel. Paired devices show here too.",
+          "new": "New key",
+          "empty": "No keys yet. Make one to connect a tool.",
+          "error": "The keys could not be loaded."
+        },
+        "create": {
+          "title": "New API key",
+          "description": "Choose what the key may do. You see the key once, right after you make it.",
+          "action": "Make key",
+          "name": "Name",
+          "namePlaceholder": "Stream Deck on my desk",
+          "scopes": "Allowed actions",
+          "scopesHelp": "Give a key only what the tool needs. Speak as the bot lets the tool post chat messages.",
+          "pipelines": "Pipelines it may start",
+          "pipelinesHelp": "Pick none to allow every pipeline.",
+          "expires": "Ends on",
+          "expiresHelp": "Leave empty for a key that does not end."
+        },
+        "secret": {
+          "title": "Key for {name}",
+          "description": "Copy this key now. The bot keeps only a fingerprint, so you cannot see it again.",
+          "copy": "Copy key",
+          "done": "I copied it"
+        },
+        "rotate": {
+          "aria": "Make a new secret for {name}",
+          "title": "Make a new secret for {name}?",
+          "description": "The tool needs the new secret before it can connect again.",
+          "consequence": "The old secret stops working right away.",
+          "action": "Make new secret"
+        },
+        "revoke": {
+          "aria": "Revoke {name}",
+          "title": "Revoke {name}?",
+          "description": "The key stays in the list as revoked.",
+          "consequence": "Any tool or device that uses this key loses access right away. A paired device is unpaired.",
+          "action": "Revoke key"
+        },
+        "pairing": {
+          "title": "Pair a device",
+          "description": "Connect a Stream Deck or another device without copying a key by hand.",
+          "mint": {
+            "title": "Make a code for the device",
+            "placeholder": "Device name",
+            "action": "Make code",
+            "expires": "Type it into the device before {time}. It works once."
+          },
+          "approve": {
+            "title": "Approve a device code",
+            "placeholder": "Code shown on the device",
+            "action": "Approve device",
+            "done": "Device approved. It appears in the key list."
+          }
+        },
+        "events": {
+          "title": "Events a key can listen to",
+          "description": "A key with the listen scope can stream these public events.",
+          "empty": "No public events yet.",
+          "error": "The events could not be loaded."
+        }
+      }
+    }
+  }
+}

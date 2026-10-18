@@ -1,0 +1,93 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Inrichting",
+      "apiDevices": {
+        "never": "Nooit",
+        "prefixHint": "{prefix}...",
+        "noExpiry": "Geen einddatum",
+        "pinned": "Start alleen {count} gekozen pipelines",
+        "columns": {
+          "name": "Sleutel",
+          "scopes": "Toegestaan",
+          "lastUsed": "Laatst gebruikt",
+          "expires": "Eindigt",
+          "state": "Status"
+        },
+        "state": {
+          "active": "Actief",
+          "expired": "Verlopen",
+          "revoked": "Ingetrokken"
+        },
+        "scopes": {
+          "invoke": "Pipelines starten",
+          "read": "Gegevens lezen",
+          "events": "Naar events luisteren",
+          "chat": "Als de bot praten"
+        },
+        "tokens": {
+          "title": "API-sleutels",
+          "description": "Met sleutels gebruiken externe tools zoals Stream Deck, Touch Portal of je eigen scripts dit kanaal. Gekoppelde apparaten staan hier ook.",
+          "new": "Nieuwe sleutel",
+          "empty": "Nog geen sleutels. Maak er een om een tool te verbinden.",
+          "error": "De sleutels konden niet worden geladen."
+        },
+        "create": {
+          "title": "Nieuwe API-sleutel",
+          "description": "Kies wat de sleutel mag doen. Je ziet de sleutel één keer, direct na het maken.",
+          "action": "Sleutel maken",
+          "name": "Naam",
+          "namePlaceholder": "Stream Deck op mijn bureau",
+          "scopes": "Toegestane acties",
+          "scopesHelp": "Geef een sleutel alleen wat de tool nodig heeft. Als de bot praten laat de tool chatberichten plaatsen.",
+          "pipelines": "Pipelines die hij mag starten",
+          "pipelinesHelp": "Kies er geen om alle pipelines toe te staan.",
+          "expires": "Eindigt op",
+          "expiresHelp": "Laat leeg voor een sleutel die niet eindigt."
+        },
+        "secret": {
+          "title": "Sleutel voor {name}",
+          "description": "Kopieer deze sleutel nu. De bot bewaart alleen een vingerafdruk, dus je ziet hem niet nog eens.",
+          "copy": "Sleutel kopiëren",
+          "done": "Ik heb hem gekopieerd"
+        },
+        "rotate": {
+          "aria": "Nieuw geheim maken voor {name}",
+          "title": "Nieuw geheim maken voor {name}?",
+          "description": "De tool heeft het nieuwe geheim nodig om weer te verbinden.",
+          "consequence": "Het oude geheim werkt direct niet meer.",
+          "action": "Nieuw geheim maken"
+        },
+        "revoke": {
+          "aria": "{name} intrekken",
+          "title": "{name} intrekken?",
+          "description": "De sleutel blijft als ingetrokken in de lijst staan.",
+          "consequence": "Elke tool of elk apparaat met deze sleutel verliest direct toegang. Een gekoppeld apparaat wordt ontkoppeld.",
+          "action": "Sleutel intrekken"
+        },
+        "pairing": {
+          "title": "Apparaat koppelen",
+          "description": "Verbind een Stream Deck of ander apparaat zonder een sleutel met de hand te kopiëren.",
+          "mint": {
+            "title": "Maak een code voor het apparaat",
+            "placeholder": "Apparaatnaam",
+            "action": "Code maken",
+            "expires": "Typ hem in op het apparaat vóór {time}. Hij werkt één keer."
+          },
+          "approve": {
+            "title": "Een apparaatcode goedkeuren",
+            "placeholder": "Code op het apparaat",
+            "action": "Apparaat goedkeuren",
+            "done": "Apparaat goedgekeurd. Het staat nu in de sleutellijst."
+          }
+        },
+        "events": {
+          "title": "Events waar een sleutel naar kan luisteren",
+          "description": "Een sleutel met het luisterrecht kan deze openbare events streamen.",
+          "empty": "Nog geen openbare events.",
+          "error": "De events konden niet worden geladen."
+        }
+      }
+    }
+  }
+}
