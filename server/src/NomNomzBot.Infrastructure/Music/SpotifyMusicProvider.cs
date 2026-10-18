@@ -57,7 +57,8 @@ public sealed class SpotifyMusicProvider
     : IMusicProvider,
         IMusicRemoteProvider,
         IMusicProviderManageApi,
-        IMusicProviderStartTrack
+        IMusicProviderStartTrack,
+        IMusicProviderConnectionGate
 {
     private const string SpotifyApiBase = "https://api.spotify.com/v1";
     private const string SpotifyTokenEndpoint = "https://accounts.spotify.com/api/token";
@@ -1587,6 +1588,11 @@ public sealed class SpotifyMusicProvider
                 _timeProvider.GetUtcNow().UtcDateTime
             );
     }
+
+    public async Task<bool> IsConnectedAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    ) => await GetTokenAsync(broadcasterId, cancellationToken) is not null;
 
     private async Task<string?> GetTokenAsync(
         Guid broadcasterId,
