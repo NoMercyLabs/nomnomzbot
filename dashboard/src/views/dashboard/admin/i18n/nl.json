@@ -440,6 +440,50 @@
           "error": "Het tenantgebruik kon niet laden.",
           "forbidden": "Je mag het tenantgebruik niet bekijken."
         }
+      },
+      "support": {
+        "title": "Support",
+        "search": "Zoek mensen",
+        "reason": "Reden om te kijken (komt in het auditlog)",
+        "needReason": "Geef eerst een reden. Elke opzoeking komt in het auditlog.",
+        "pick": "Kies een persoon om de status te lezen.",
+        "forbidden": "Je mag de supportdesk niet gebruiken.",
+        "error": "Deze persoon kon niet laden.",
+        "restricted": "Tenants hosten voor derden is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "list": {
+          "title": "Mensen",
+          "empty": "Niemand komt overeen met deze zoekopdracht.",
+          "error": "De zoekopdracht kon niet draaien.",
+          "meta": "{username} - {count} kanalen"
+        },
+        "facts": {
+          "title": "Status",
+          "username": "Gebruikersnaam",
+          "platform": "Platform",
+          "twitchId": "Twitch-ID",
+          "lastSeen": "Laatst gezien"
+        },
+        "standing": {
+          "community": "Community",
+          "moderation": "Moderatie",
+          "trust": "Vertrouwensscore"
+        },
+        "history": {
+          "title": "Geschiedenis",
+          "empty": "Niets vastgelegd voor deze persoon.",
+          "error": "De geschiedenis kon niet laden.",
+          "platform": "Platform"
+        },
+        "items": {
+          "title": "Door het kanaal gebouwd",
+          "channel": "Kanaal",
+          "commands": "Commando's",
+          "pipelines": "Pipelines",
+          "empty": "Het kanaal bouwde hier niets van.",
+          "error": "De lijst kon niet laden.",
+          "on": "Aan",
+          "off": "Uit"
+        }
       }
     },
     "adminFeatureFlags": {

@@ -440,6 +440,50 @@
           "error": "The tenant usage could not load.",
           "forbidden": "You may not see tenant usage."
         }
+      },
+      "support": {
+        "title": "Support",
+        "search": "Search people",
+        "reason": "Reason for looking (kept in the audit log)",
+        "needReason": "Give a reason first. Every lookup is kept in the audit log.",
+        "pick": "Pick a person to read their state.",
+        "forbidden": "You may not use the support desk.",
+        "error": "This person could not load.",
+        "restricted": "Hosting tenants for third parties is a restricted option: running NomNomzBot as a hosted service is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+        "list": {
+          "title": "People",
+          "empty": "Nobody matches this search.",
+          "error": "The search could not run.",
+          "meta": "{username} - {count} channels"
+        },
+        "facts": {
+          "title": "State",
+          "username": "Username",
+          "platform": "Platform",
+          "twitchId": "Twitch ID",
+          "lastSeen": "Last seen"
+        },
+        "standing": {
+          "community": "Community",
+          "moderation": "Moderation",
+          "trust": "Trust score"
+        },
+        "history": {
+          "title": "History",
+          "empty": "Nothing recorded for this person.",
+          "error": "The history could not load.",
+          "platform": "Platform"
+        },
+        "items": {
+          "title": "Built by the channel",
+          "channel": "Channel",
+          "commands": "Commands",
+          "pipelines": "Pipelines",
+          "empty": "The channel built none of these.",
+          "error": "The list could not load.",
+          "on": "On",
+          "off": "Off"
+        }
       }
     },
     "adminFeatureFlags": {
