@@ -1353,12 +1353,27 @@ public sealed class AuthService : IAuthService
         BotAccount? bot = await _db
             .BotAccounts.IgnoreQueryFilters()
             .FirstOrDefaultAsync(b => b.Id == authorization.BotAccountId, cancellationToken);
-        if (bot?.ConnectionId is not null)
-            await _vault.RevokeConnectionAsync(
-                bot.ConnectionId.Value,
-                "channel_bot_disconnect",
-                cancellationToken
-            );
+        // The shared system bot and any bot another channel still uses keep their token: a channel action
+        // must never revoke a connection other channels depend on.
+        if (bot?.ConnectionId is not null && bot.IdentityType == AuthEnums.BotIdentityType.Custom)
+        {
+            bool usedElsewhere = await _db
+                .ChannelBotAuthorizations.IgnoreQueryFilters()
+                .AnyAsync(
+                    a =>
+                        a.BotAccountId == bot.Id
+                        && a.Id != authorization.Id
+                        && a.IsActive
+                        && a.DeletedAt == null,
+                    cancellationToken
+                );
+            if (!usedElsewhere)
+                await _vault.RevokeConnectionAsync(
+                    bot.ConnectionId.Value,
+                    "channel_bot_disconnect",
+                    cancellationToken
+                );
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
 
