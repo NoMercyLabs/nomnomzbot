@@ -18,7 +18,8 @@ defineOptions({
 const props = withDefaults(
   defineProps<SelectContentProps & { class?: HTMLAttributes['class'] }>(),
   {
-    position: 'item-aligned',
+    // Owner 2026-10-18: a dropdown opens below its field, never over it.
+    position: 'popper',
     align: 'center',
   },
 )
