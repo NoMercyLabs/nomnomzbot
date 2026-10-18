@@ -22,4 +22,5 @@ public interface IAdminClient
     Task ReceivePlatformBotChanged(object change);
     Task ReceiveAuditChanged(object change);
     Task ReceiveAccessChanged(object change);
+    Task ReceiveDataRequestsChanged(object change);
 }
