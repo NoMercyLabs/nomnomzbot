@@ -19,6 +19,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
@@ -110,13 +111,13 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
 </script>
 
 <template>
-  <section data-step-inspector class="flex min-h-0 flex-col gap-3 rounded-xl border bg-card p-4">
-    <header class="flex flex-col gap-0.5">
-      <span class="text-xs text-muted-foreground">
-        {{ $t("dashboard.pipelines.workbench.inspector.number", { number }) }}
-      </span>
-      <h2 class="font-semibold">{{ title }}</h2>
-    </header>
+  <PanelCard
+    data-step-inspector
+    :title="title"
+    :description="$t('dashboard.pipelines.workbench.inspector.number', { number })"
+    pad
+    class="h-full"
+  >
     <Tabs v-model="tab" class="flex min-h-0 flex-1 flex-col">
       <TabsList class="w-full">
         <TabsTrigger value="settings" data-inspector-tab="settings">
@@ -163,31 +164,32 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
         </p>
       </TabsContent>
     </Tabs>
-    <ReadOnlyScope
-      v-if="!readOnly"
-      :read-only="readOnly"
-      :reason="$t('dashboard.pipelines.noWrite')"
-      class="flex flex-wrap gap-2 border-t pt-3"
-    >
-      <Button
-        data-step-duplicate
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="$emit('duplicate')"
+    <template v-if="!readOnly" #footer>
+      <ReadOnlyScope
+        :read-only="readOnly"
+        :reason="$t('dashboard.pipelines.noWrite')"
+        class="flex flex-wrap gap-2"
       >
-        <FileCopy aria-hidden="true" />
-        {{ $t("dashboard.pipelines.workbench.inspector.duplicate") }}
-      </Button>
-      <Button data-step-remove
-              type="button"
-              variant="outline"
-              size="sm"
-              @click="$emit('remove')"
-      >
-        <Trash aria-hidden="true" />
-        {{ $t("dashboard.pipelines.workbench.inspector.remove") }}
-      </Button>
-    </ReadOnlyScope>
-  </section>
+        <Button
+          data-step-duplicate
+          type="button"
+          variant="outline"
+          size="sm"
+          @click="$emit('duplicate')"
+        >
+          <FileCopy aria-hidden="true" />
+          {{ $t("dashboard.pipelines.workbench.inspector.duplicate") }}
+        </Button>
+        <Button data-step-remove
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="$emit('remove')"
+        >
+          <Trash aria-hidden="true" />
+          {{ $t("dashboard.pipelines.workbench.inspector.remove") }}
+        </Button>
+      </ReadOnlyScope>
+    </template>
+  </PanelCard>
 </template>

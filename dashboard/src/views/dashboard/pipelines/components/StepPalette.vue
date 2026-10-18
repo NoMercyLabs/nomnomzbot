@@ -15,6 +15,7 @@ import { computed, useTemplateRef, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PipelineActionDescriptor } from '@/api/pipelines';
+import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -92,11 +93,11 @@ const groups = computed<ActionGroup[]>(() => {
       left.heading.localeCompare(right.heading));
 });
 
-const root = useTemplateRef<HTMLElement>('root');
+const root = useTemplateRef<InstanceType<typeof PanelCard>>('root');
 
 // The page opens the palette to add a step; the search takes the keys at once.
 function focus(): void {
-  root.value?.querySelector('input')?.focus();
+  root.value?.$el.querySelector('input')?.focus();
 }
 
 // The step search is the search of this page, so it answers "/" like every list search.
@@ -108,13 +109,18 @@ defineExpose({ focus });
 </script>
 
 <template>
-  <section ref="root" data-step-palette class="flex min-h-0 flex-col">
+  <PanelCard
+    ref="root"
+    data-step-palette
+    :title="$t('dashboard.pipelines.workbench.palette.label')"
+    class="h-full"
+  >
     <ReadOnlyScope
       :read-only="readOnly"
       :reason="$t('dashboard.pipelines.noWrite')"
-      class="flex min-h-0 flex-1 flex-col"
+      class="flex h-full min-h-0 flex-col"
     >
-      <Command class="min-h-0 flex-1 rounded-xl border bg-card">
+      <Command class="min-h-0 flex-1 bg-transparent">
         <CommandInput :placeholder="$t('dashboard.pipelines.workbench.palette.find')">
           <!-- The same quiet key cap as SearchField, curved to this field (8px minus the 4px inset). -->
           <Kbd class="rounded-[4px]! border border-border bg-transparent">{{ shortcut.key }}</Kbd>
@@ -170,5 +176,5 @@ defineExpose({ focus });
         </CommandList>
       </Command>
     </ReadOnlyScope>
-  </section>
+  </PanelCard>
 </template>

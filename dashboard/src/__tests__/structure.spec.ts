@@ -652,3 +652,69 @@ describe('domain vocabulary', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// Stoney 2026-10-18: "all overlay pannels need a close button". SidePanel hides the sheet's own X; the one
+// close button (data-drawer-close) is drawn by PanelCard's head. A component placed in a <SidePanel> therefore
+// roots in <PanelCard>, or the drawer has no way to close it.
+const sidePanelBlock = /<SidePanel\b[^>]*>([\s\S]*?)<\/SidePanel>/g;
+const childTag = /<([A-Z]\w*)\b/;
+const defaultImport = /import\s+(\w+)\s+from\s+'([^']+)'/g;
+
+function importedFrom(text: string, name: string): string | null {
+  const found = [...text.matchAll(defaultImport)].find((match) => match[1] === name);
+
+  return found?.[2] ?? null;
+}
+
+function resolveComponent(from: string, importPath: string): string {
+  return importPath.startsWith('@/')
+    ? join(src, importPath.slice(2))
+    : join(from, '..', importPath);
+}
+
+function templateRoot(text: string): string | null {
+  const found = /^<template>\s*<(\w+)/m.exec(text);
+
+  return found?.[1] ?? null;
+}
+
+function sidePanelChildren(text: string): string[] {
+  return [...text.matchAll(sidePanelBlock)]
+    .map((block) => childTag.exec(block[1] ?? '')?.[1])
+    .filter((name): name is string => name !== undefined);
+}
+
+function sidePanelChildrenOutsidePanelCard(path: string): string[] {
+  const text: string = readFileSync(path, 'utf8');
+
+  return sidePanelChildren(text).flatMap((name) => {
+    const importPath = importedFrom(text, name);
+
+    if (importPath === null)
+      return [];
+
+    const child = resolveComponent(path, importPath);
+
+    return templateRoot(readFileSync(child, 'utf8')) === 'PanelCard'
+      ? []
+      : [`${relative(src, path).replace(/\\/g, '/')}: ${name}`];
+  });
+}
+
+describe('side panels', () => {
+  it('finds the component placed in a SidePanel and the root of a template', () => {
+    const text = '<SidePanel v-model:open="o"><ChatIdentityPanel /></SidePanel>';
+
+    expect(sidePanelChildren(text)).toEqual(['ChatIdentityPanel']);
+    expect(templateRoot('<script setup></script>\n<template>\n  <div class="x">')).toBe('div');
+    expect(templateRoot('<template>\n  <PanelCard title="x">')).toBe('PanelCard');
+  });
+
+  it('roots every component placed in a SidePanel in PanelCard, so it shows the close button', () => {
+    const offenders = allPaths(src)
+      .filter((path) => path.endsWith('.vue'))
+      .flatMap((path) => sidePanelChildrenOutsidePanelCard(path));
+
+    expect(offenders).toEqual([]);
+  });
+});

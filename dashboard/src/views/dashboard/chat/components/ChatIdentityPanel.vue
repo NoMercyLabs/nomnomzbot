@@ -21,6 +21,7 @@ import {
   useSetChatColor,
   useStartScopeRegrant,
 } from '@/api/chatIdentity';
+import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -70,11 +71,12 @@ function badgeImage(urls: Record<string, string>): string | undefined {
 </script>
 
 <template>
-  <div class="flex h-full min-w-0 flex-col gap-4 overflow-y-auto rounded-xl border bg-card p-4">
-    <header class="flex flex-col gap-1">
-      <h2 class="text-base font-semibold">{{ $t('dashboard.chat.identity.title') }}</h2>
-      <p class="text-sm text-muted-foreground">{{ $t('dashboard.chat.identity.description') }}</p>
-    </header>
+  <PanelCard
+    :title="$t('dashboard.chat.identity.title')"
+    :description="$t('dashboard.chat.identity.description')"
+    pad
+    class="h-full"
+  >
     <p v-if="!canRead" data-test="no-access" class="text-sm text-muted-foreground">
       {{ $t('dashboard.chat.identity.noAccess') }}
     </p>
@@ -194,5 +196,5 @@ function badgeImage(urls: Record<string, string>): string | undefined {
         </p>
       </section>
     </div>
-  </div>
+  </PanelCard>
 </template>
