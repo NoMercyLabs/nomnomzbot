@@ -8,12 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { UseQueryReturnType } from '@tanstack/vue-query';
-import type { MaybeRefOrGetter } from 'vue';
+import {
+  useMutation,
+  useQueryClient,
+  type UseQueryReturnType,
+} from '@tanstack/vue-query';
+import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
-import { channelOptions, channelQuery } from './channelQuery';
+import { channelOptions, channelQuery, refusal } from './channelQuery';
 import { client } from './client';
 import { failed } from './errors';
 import type { components } from './schema';
@@ -51,4 +55,69 @@ async function readSupporterEvents(): Promise<SupporterEvent[]> {
     throw failed('supporter events', response.status, error);
 
   return data?.data ?? [];
+}
+
+export type SupporterConnection = components['schemas']['SupporterConnection'];
+export type SupporterConnectionDraft = components['schemas']['UpsertSupporterConnectionRequest'];
+
+// The providers the bot can take tips or memberships from, with how each one delivers events. The bot
+// refuses a mode that differs from the provider's own, so the form never offers a choice.
+export const supporterSources = {
+  buymeacoffee: { mode: 'webhook', oauth: false },
+  donordrive: { mode: 'poll', oauth: false },
+  fourthwall: { mode: 'webhook', oauth: false },
+  kofi: { mode: 'webhook', oauth: false },
+  pally: { mode: 'ws', oauth: false },
+  patreon: { mode: 'webhook', oauth: true },
+  shopify: { mode: 'webhook', oauth: true },
+  streamelements: { mode: 'socket', oauth: false },
+  streamlabs: { mode: 'socket', oauth: false },
+  tipeee: { mode: 'socket', oauth: false },
+  treatstream: { mode: 'socket', oauth: true },
+} as const satisfies Record<string, { mode: string; oauth: boolean }>;
+
+export type SupporterSourceKey = keyof typeof supporterSources;
+
+export const supporterConnectionsKey = (channelId: string | null): KeyParts => [
+  'supporters',
+  channelId,
+  'connections',
+];
+
+async function readSupporterConnections(): Promise<SupporterConnection[]> {
+  const { data, error, response } = await client.GET('/api/v{version}/supporters/connections', {
+    params: { path: { version } },
+  });
+
+  if (error !== undefined)
+    throw failed('supporter connections', response.status, error);
+
+  return data?.data ?? [];
+}
+
+export function useSupporterConnections(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<SupporterConnection[], Error> {
+  return channelQuery(channelId, supporterConnectionsKey, readSupporterConnections);
+}
+
+// The secret goes to the bot and is never read back: a connection only says whether one is stored.
+export function useSaveSupporterConnection(
+  channelId: MaybeRefOrGetter<string | null>,
+) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, SupporterConnectionDraft>({
+    mutationFn: async (draft: SupporterConnectionDraft): Promise<void> => {
+      const { error, response } = await client.PUT('/api/v{version}/supporters/connections', {
+        params: { path: { version } },
+        body: draft,
+      });
+
+      if (error !== undefined)
+        throw refusal('supporter connection', error, response.status);
+    },
+    onSuccess: () =>
+      queries.invalidateQueries({ queryKey: supporterConnectionsKey(toValue(channelId)) }),
+  });
 }

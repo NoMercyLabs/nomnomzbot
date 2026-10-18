@@ -1348,6 +1348,35 @@ public sealed class IntegrationOAuthServiceTests
     }
 
     [Fact]
+    public async Task GetStatus_ReportsTheConnectionId_SoAnotherFeatureCanReferenceTheGrant()
+    {
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());
+        IntegrationConnection stored = new()
+        {
+            BroadcasterId = Tenant,
+            Provider = AuthEnums.IntegrationProvider.Patreon,
+            ProviderAccountId = "patreon-user",
+            ProviderAccountName = "Streamer",
+            Status = AuthEnums.IntegrationStatus.Connected,
+            Scopes = [],
+            ConnectedAt = DateTime.UtcNow,
+        };
+        db.IntegrationConnections.Add(stored);
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<IntegrationStatusDto>> status = await service.GetStatusAsync(Tenant);
+
+        IntegrationStatusDto patreon = status.Value.Single(r =>
+            r.Provider == AuthEnums.IntegrationProvider.Patreon
+        );
+        patreon.ConnectionId.Should().Be(stored.Id);
+        status
+            .Value.Single(r => r.Provider == AuthEnums.IntegrationProvider.Spotify)
+            .ConnectionId.Should()
+            .BeNull("a provider with no grant has no connection to reference");
+    }
+
+    [Fact]
     public async Task GetStatus_YouTubeConnectedWithForceSsl_ShowsManageGranted()
     {
         (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());

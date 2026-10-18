@@ -114254,6 +114254,14 @@
           "decryptFailed": {
             "type": "boolean",
             "default": false
+          },
+          "connectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Per-provider status for the integrations screen (integrations-oauth §4). No secrets.\r\n            bool IntegrationStatusDto.LoginOnly distinguishes a provider the channel owner merely SIGNED IN with (an identity-plane\r\n            login, e.g. Kick) from a genuine tenant-scoped platform connection — a login alone grants none of the\r\n            scopes the bot needs and must never be shown as \"Connected\". bool IntegrationStatusDto.NeedsReauth is true for every\r\n            status only a fresh grant clears; bool IntegrationStatusDto.DecryptFailed narrows it to a stored token that can no\r\n            longer be decrypted."

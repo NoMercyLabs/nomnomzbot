@@ -90470,6 +90470,11 @@ export interface components {
             loginOnly: boolean;
             /** @default false */
             decryptFailed: boolean;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            connectionId?: null | string;
         };
         /** @description Invite a partner channel into a jar (economy.md §4). string InviteChannelRequest.Role is a JarRole token. */
         InviteChannelRequest: {

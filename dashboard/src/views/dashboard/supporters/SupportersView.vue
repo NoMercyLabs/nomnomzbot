@@ -28,6 +28,7 @@ import { usePanelState } from '@/composables/usePanelState';
 
 import GiftCard from '~icons/nnz/gift-card';
 
+import ConnectionsPanel from './ConnectionsPanel.vue';
 import {
   cheerRows,
   subscriptionRows,
@@ -253,6 +254,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
           />
         </RowGroup>
       </PanelCard>
+      <ConnectionsPanel class="lg:col-span-2" />
     </div>
   </PageBody>
 </template>

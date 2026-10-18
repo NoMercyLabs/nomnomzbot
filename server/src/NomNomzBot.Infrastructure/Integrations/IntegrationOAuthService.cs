@@ -443,7 +443,8 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                             StringComparison.OrdinalIgnoreCase
                         )
                         && hasKickLogin,
-                    DecryptFailed: c?.Status == AuthEnums.IntegrationStatus.DecryptFailed
+                    DecryptFailed: c?.Status == AuthEnums.IntegrationStatus.DecryptFailed,
+                    ConnectionId: c?.Id
                 )
             );
         }

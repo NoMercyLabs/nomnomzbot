@@ -36,6 +36,39 @@
         "gifters": "Meeste geschonken abonnementen",
         "subs": "{count} abonnement | {count} abonnementen"
       },
+      "connections": {
+        "title": "Bronnen voor tips en lidmaatschappen",
+        "description": "Koppel de diensten die je supporters gebruiken. Een geheim gaat naar de bot en wordt nooit meer getoond.",
+        "source": "Dienst",
+        "secret": "Geheim of token",
+        "secretStored": "Er is een geheim opgeslagen. Typ een nieuw geheim om het te vervangen.",
+        "secretNone": "Plak het geheim van de dienst",
+        "grant": "Gekoppeld account",
+        "grantNone": "Geen account gekoppeld",
+        "enabled": "Gebeurtenissen ontvangen",
+        "save": "Koppeling opslaan",
+        "saved": "Koppeling opgeslagen.",
+        "saveFailed": "De koppeling kon niet worden opgeslagen.",
+        "mode": {
+          "webhook": "Stuurt gebeurtenissen via een webhook naar de bot",
+          "socket": "De bot luistert op de socket van de dienst",
+          "ws": "De bot luistert op de websocket van de dienst",
+          "poll": "De bot vraagt de dienst op vaste tijden"
+        },
+        "sources": {
+          "buymeacoffee": "Buy Me a Coffee",
+          "donordrive": "DonorDrive",
+          "fourthwall": "Fourthwall",
+          "kofi": "Ko-fi",
+          "pally": "Pally",
+          "patreon": "Patreon",
+          "shopify": "Shopify",
+          "streamelements": "StreamElements",
+          "streamlabs": "Streamlabs",
+          "tipeee": "Tipeee",
+          "treatstream": "Treatstream"
+        }
+      },
       "tips": {
         "title": "Tips en lidmaatschappen",
         "empty": "Nog geen tips of lidmaatschappen vastgelegd.",

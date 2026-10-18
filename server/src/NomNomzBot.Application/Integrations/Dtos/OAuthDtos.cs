@@ -54,5 +54,6 @@ public sealed record IntegrationStatusDto(
     IReadOnlyDictionary<string, bool> Capabilities,
     bool NeedsReauth,
     bool LoginOnly = false,
-    bool DecryptFailed = false
+    bool DecryptFailed = false,
+    Guid? ConnectionId = null
 );

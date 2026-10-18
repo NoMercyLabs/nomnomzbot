@@ -36,6 +36,39 @@
         "gifters": "Most gifted Twitch subs",
         "subs": "{count} Twitch sub | {count} Twitch subs"
       },
+      "connections": {
+        "title": "Tip and membership sources",
+        "description": "Connect the services your supporters use. A secret is sent to the bot and never shown again.",
+        "source": "Service",
+        "secret": "Secret or token",
+        "secretStored": "A secret is stored. Type a new one to replace it.",
+        "secretNone": "Paste the secret from the service",
+        "grant": "Connected account",
+        "grantNone": "No account connected",
+        "enabled": "Receive events",
+        "save": "Save connection",
+        "saved": "Connection saved.",
+        "saveFailed": "The connection could not be saved.",
+        "mode": {
+          "webhook": "Sends events to the bot by webhook",
+          "socket": "The bot listens on the service's socket",
+          "ws": "The bot listens on the service's websocket",
+          "poll": "The bot checks the service on a schedule"
+        },
+        "sources": {
+          "buymeacoffee": "Buy Me a Coffee",
+          "donordrive": "DonorDrive",
+          "fourthwall": "Fourthwall",
+          "kofi": "Ko-fi",
+          "pally": "Pally",
+          "patreon": "Patreon",
+          "shopify": "Shopify",
+          "streamelements": "StreamElements",
+          "streamlabs": "Streamlabs",
+          "tipeee": "Tipeee",
+          "treatstream": "Treatstream"
+        }
+      },
       "tips": {
         "title": "Tips and memberships",
         "empty": "No tips or memberships recorded yet.",
