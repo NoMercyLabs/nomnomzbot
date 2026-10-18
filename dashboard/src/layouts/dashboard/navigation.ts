@@ -27,6 +27,7 @@ import MovieClap from '~icons/nnz/movie-clap';
 import NoteEighthPair from '~icons/nnz/note-eighth-pair';
 import PictureInPicture from '~icons/nnz/picture-in-picture';
 import Books from '~icons/nnz/books';
+import Quotes from '~icons/nnz/quotes';
 import Settings from '~icons/nnz/settings';
 import Smile from '~icons/nnz/smile';
 import SplitBranch from '~icons/nnz/split-branch';
@@ -222,6 +223,12 @@ export const dashboardNav: readonly NavGroup[] = [
         label: 'giveaways',
         icon: Gift,
         action: 'giveaways:read',
+      },
+      {
+        route: 'dashboard-quotes',
+        label: 'quotes',
+        icon: Quotes,
+        action: 'quotes:read',
       },
       {
         route: 'dashboard-supporters',

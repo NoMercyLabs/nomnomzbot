@@ -54,6 +54,7 @@ import { dashboardPeopleRoute } from '@/views/dashboard/people/route';
 import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboard/pipelines/route';
 import { dashboardMediaShareRoute } from '@/views/dashboard/media-share/route';
 import { dashboardGiveawaysRoute } from '@/views/dashboard/giveaways/route';
+import { dashboardQuotesRoute } from '@/views/dashboard/quotes/route';
 import { dashboardPollsRoute } from '@/views/dashboard/polls/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
 import { dashboardSettingsRoutes } from '@/views/dashboard/settings/route';
@@ -89,6 +90,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardPollsRoute,
   dashboardVoiceTriggersRoute,
   dashboardGiveawaysRoute,
+  dashboardQuotesRoute,
   dashboardGamesRoute,
   dashboardPipelinesRoute,
   dashboardPipelineRoute,

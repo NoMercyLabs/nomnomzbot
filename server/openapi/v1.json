@@ -112065,9 +112065,16 @@
               "null",
               "string"
             ]
+          },
+          "quotedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
-        "description": "Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable."
+        "description": "Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable. `QuotedAt` moves the date the line was said; null keeps the saved date."
       },
       "EndLockdownRequest": {
         "required": [

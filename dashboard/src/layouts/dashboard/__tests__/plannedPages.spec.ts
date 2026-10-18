@@ -31,9 +31,10 @@ const MODES = ['dashboard', 'admin', 'viewer', 'settings'] as const satisfies re
 const beyondMockup: ReadonlySet<string> = new Set(['connect']);
 
 // Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15;
-// the viewer chat, 2026-10-16).
+// the viewer chat, 2026-10-16; the quotes, 2026-10-18).
 const pagesBeyondMockup: ReadonlySet<string> = new Set([
   'dashboard-polls',
+  'dashboard-quotes',
   'dashboard-viewer-chat',
   'dashboard-voice-triggers',
 ]);

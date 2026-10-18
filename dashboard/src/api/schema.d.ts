@@ -89943,11 +89943,13 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** @description Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable. */
+        /** @description Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable. `QuotedAt` moves the date the line was said; null keeps the saved date. */
         EditQuoteRequest: {
             text: string;
             quotedDisplayName?: null | string;
             contextGame?: null | string;
+            /** Format: date-time */
+            quotedAt?: null | string;
         };
         /** @description An operator ending the active window on one platform now. */
         EndLockdownRequest: {

@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "quotes": {
+      "title": "Quotes",
+      "listTitle": "Quotes",
+      "numberLabel": "#{number}",
+      "empty": "No quotes yet.",
+      "noMatch": "No quote matches your search.",
+      "error": "The quotes could not be loaded.",
+      "search": "Search the quotes",
+      "new": "New quote",
+      "random": "Random quote",
+      "more": "Show more quotes",
+      "edit": "Edit quote {number}",
+      "delete": {
+        "title": "Delete quote {number}?",
+        "description": "This removes the quote for good.",
+        "line": "The number is not given to another quote.",
+        "action": "Delete quote"
+      },
+      "dialog": {
+        "newTitle": "New quote",
+        "editTitle": "Edit quote {number}",
+        "description": "The line, who said it, the game and when. The server gives the number.",
+        "text": "Quote",
+        "textHelp": "Up to {max} characters.",
+        "saidBy": "Said by",
+        "saidByHelp": "A name, with or without the {'@'}.",
+        "game": "Game",
+        "saidAt": "Said at",
+        "saidAtHelp": "Leave empty to use the time you save.",
+        "create": "Add quote",
+        "save": "Save quote",
+        "problem": {
+          "textRequired": "Type the quote.",
+          "textTooLong": "The quote may have at most {max} characters."
+        }
+      }
+    }
+  }
+}

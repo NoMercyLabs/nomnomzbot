@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "quotes": {
+      "title": "Quotes",
+      "listTitle": "Quotes",
+      "numberLabel": "#{number}",
+      "empty": "Nog geen quotes.",
+      "noMatch": "Geen quote past bij je zoekopdracht.",
+      "error": "De quotes konden niet worden geladen.",
+      "search": "Zoek in de quotes",
+      "new": "Nieuwe quote",
+      "random": "Willekeurige quote",
+      "more": "Meer quotes tonen",
+      "edit": "Quote {number} bewerken",
+      "delete": {
+        "title": "Quote {number} verwijderen?",
+        "description": "Dit verwijdert de quote voorgoed.",
+        "line": "Het nummer gaat niet naar een andere quote.",
+        "action": "Quote verwijderen"
+      },
+      "dialog": {
+        "newTitle": "Nieuwe quote",
+        "editTitle": "Quote {number} bewerken",
+        "description": "De tekst, wie het zei, de game en wanneer. De server geeft het nummer.",
+        "text": "Quote",
+        "textHelp": "Maximaal {max} tekens.",
+        "saidBy": "Gezegd door",
+        "saidByHelp": "Een naam, met of zonder {'@'}.",
+        "game": "Game",
+        "saidAt": "Gezegd op",
+        "saidAtHelp": "Laat leeg om het moment van opslaan te gebruiken.",
+        "create": "Quote toevoegen",
+        "save": "Quote opslaan",
+        "problem": {
+          "textRequired": "Typ de quote.",
+          "textTooLong": "De quote mag maximaal {max} tekens hebben."
+        }
+      }
+    }
+  }
+}
