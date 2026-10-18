@@ -332,6 +332,9 @@ export const apiOperations = {
   'block song': 'music',
   'unblock song': 'music',
   'save music config': 'music',
+  'player buttons': 'music',
+  'save player buttons': 'music',
+  'run action': 'music',
   'music history': 'music',
   'music playlists': 'music',
   'top requesters': 'music',
@@ -548,9 +551,9 @@ function fieldErrorsOf(body: JsonObject): Record<string, string[]> | undefined {
 
 // Reads a response body into a problem. The bot's own refusals carry `message` instead of `detail`.
 // eslint-disable-next-line no-restricted-syntax -- every endpoint's error body has a different generated type, so the input must accept any of them
-export function parseProblem(body: unknown): ApiProblem {
+export function parseProblem(body: unknown) {
   if (!isRecord(body))
-    return {};
+    return {} as const satisfies ApiProblem;
 
   const problem: ApiProblem = {
     type: textOf(body, 'type'),

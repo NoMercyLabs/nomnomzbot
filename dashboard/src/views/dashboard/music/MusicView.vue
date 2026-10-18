@@ -53,6 +53,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { musicMinimums } from './components/boardPanels';
 import HistoryPanel from './components/HistoryPanel.vue';
 import NowPlayingCard from './components/NowPlayingCard.vue';
+import PlayerButtons from './components/PlayerButtons.vue';
 import ThanksPanel from './components/ThanksPanel.vue';
 import RequesterBulkRemove from './components/RequesterBulkRemove.vue';
 import RulesPanel from './components/RulesPanel.vue';
@@ -291,7 +292,11 @@ const rulesInDrawer = computed(() =>
           @pause="pause.mutate()"
           @resume="resume.mutate()"
           @skip="skip.mutate()"
-        />
+        >
+          <template #buttons>
+            <PlayerButtons :track="nowPlaying" />
+          </template>
+        </NowPlayingCard>
       </PanelCard>
     </BoardCell>
     <BoardCell panel="queue" :span="span">

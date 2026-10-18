@@ -885,6 +885,7 @@
         "blockTrack": "Block {title}",
         "unblockTrack": "Unblock track {id}",
         "saveMusicSettings": "Save music settings",
+        "savePlayerButtons": "Save player buttons",
         "updateReward": "Save the reward",
         "completeRedemptions": "Complete {count} redemptions",
         "rejectRedemptions": "Reject {count} redemptions",

@@ -266,6 +266,8 @@ const nextRepeat = computed<RepeatMode>(() => {
             />
           </div>
         </div>
+
+        <slot name="buttons" />
       </div>
     </div>
   </div>

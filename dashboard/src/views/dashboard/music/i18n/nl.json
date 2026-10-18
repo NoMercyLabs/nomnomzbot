@@ -11,6 +11,9 @@
         "title": "Nu aan het spelen",
         "nothing": "Er speelt nu niets.",
         "error": "De speler kon niet laden.",
+        "buttons": {
+          "failed": "{label} is niet uitgevoerd."
+        },
         "requestedBy": "Aangevraagd door {name}",
         "volume": "Volume",
         "pause": "Pauze",

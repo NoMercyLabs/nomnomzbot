@@ -11,6 +11,9 @@
         "title": "Now playing",
         "nothing": "Nothing is playing right now.",
         "error": "The player could not load.",
+        "buttons": {
+          "failed": "{label} did not run."
+        },
         "requestedBy": "Requested by {name}",
         "volume": "Volume",
         "pause": "Pause",

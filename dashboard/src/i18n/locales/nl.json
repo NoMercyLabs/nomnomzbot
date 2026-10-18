@@ -885,6 +885,7 @@
         "blockTrack": "{title} blokkeren",
         "unblockTrack": "Nummer {id} deblokkeren",
         "saveMusicSettings": "Muziekinstellingen opslaan",
+        "savePlayerButtons": "Spelerknoppen opslaan",
         "updateReward": "De beloning opslaan",
         "completeRedemptions": "{count} inwisselingen afronden",
         "rejectRedemptions": "{count} inwisselingen afwijzen",
