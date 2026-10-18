@@ -1,0 +1,51 @@
+{
+  "dashboard": {
+    "voiceTriggers": {
+      "title": "Voice triggers",
+      "crumb": "Build",
+      "new": "New voice trigger",
+      "list": {
+        "title": "Voice triggers",
+        "error": "The voice triggers could not load.",
+        "empty": "No voice triggers yet.",
+        "makeFirst": "Make the first voice trigger",
+        "pick": "Pick a voice trigger to edit it.",
+        "pickTitle": "No voice trigger open",
+        "heard": "Heard {count} time | Heard {count} times",
+        "copyListener": "Copy listener link",
+        "off": "Off"
+      },
+      "editor": {
+        "enabled": "Enabled",
+        "enabledHelp": "A voice trigger that is off stays in the list and counts nothing.",
+        "word": "Word to listen for",
+        "cooldown": "Seconds between counts",
+        "cooldownHelp": "After a count the trigger waits this long, so one long word is not counted twice.",
+        "sticker": "Sticker",
+        "stickerHelp": "This image pops up on your stream each time the word is heard.",
+        "noSticker": "No sticker",
+        "stickersError": "Your images could not load.",
+        "stickerAlt": "Sticker for {word}",
+        "count": "Heard so far",
+        "startedAt": "Started at",
+        "lastHeard": "Last heard",
+        "never": "Not yet",
+        "unsaved": "{count} unsaved change | {count} unsaved changes",
+        "save": "Save changes",
+        "discard": "Discard",
+        "delete": "Delete",
+        "confirmTitle": "Delete {name}?",
+        "confirmBody": "The word stops counting and its count of {count} is lost. The sticker image stays in your files.",
+        "confirmAction": "Delete voice trigger"
+      },
+      "dialog": {
+        "title": "New voice trigger",
+        "description": "Pick a word to count when you say it. Keep the voice listener page open in Chrome.",
+        "wordRequired": "Give the trigger a word to listen for.",
+        "startingCount": "Start counting at",
+        "startingCountHelp": "Use this to carry over a count from another bot.",
+        "create": "Create voice trigger"
+      }
+    }
+  }
+}

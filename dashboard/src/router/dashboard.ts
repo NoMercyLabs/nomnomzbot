@@ -55,6 +55,7 @@ import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
 import { dashboardEventResponsesRoute } from '@/views/dashboard/event-responses/route';
 import { dashboardTimersRoute } from '@/views/dashboard/timers/route';
 import { dashboardTtsRoute } from '@/views/dashboard/tts/route';
+import { dashboardVoiceTriggersRoute } from '@/views/dashboard/voice-triggers/route';
 
 // The pages that are built.
 const builtRoutes: RouteRecordRaw[] = [
@@ -75,6 +76,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardOverlaysRoute,
   dashboardObsRoute,
   dashboardPollsRoute,
+  dashboardVoiceTriggersRoute,
   dashboardGiveawaysRoute,
   dashboardGamesRoute,
   dashboardPipelinesRoute,

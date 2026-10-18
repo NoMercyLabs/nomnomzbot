@@ -1,0 +1,51 @@
+{
+  "dashboard": {
+    "voiceTriggers": {
+      "title": "Spraaktriggers",
+      "crumb": "Bouwen",
+      "new": "Nieuwe spraaktrigger",
+      "list": {
+        "title": "Spraaktriggers",
+        "error": "De spraaktriggers konden niet laden.",
+        "empty": "Nog geen spraaktriggers.",
+        "makeFirst": "Maak de eerste spraaktrigger",
+        "pick": "Kies een spraaktrigger om hem te bewerken.",
+        "pickTitle": "Geen spraaktrigger open",
+        "heard": "{count} keer gehoord | {count} keer gehoord",
+        "copyListener": "Kopieer luisterlink",
+        "off": "Uit"
+      },
+      "editor": {
+        "enabled": "Aan",
+        "enabledHelp": "Een spraaktrigger die uit staat blijft in de lijst en telt niets.",
+        "word": "Woord om op te letten",
+        "cooldown": "Seconden tussen tellingen",
+        "cooldownHelp": "Na een telling wacht de trigger zo lang, zodat een lang woord niet twee keer telt.",
+        "sticker": "Sticker",
+        "stickerHelp": "Dit plaatje verschijnt op je stream elke keer dat het woord valt.",
+        "noSticker": "Geen sticker",
+        "stickersError": "Je plaatjes konden niet laden.",
+        "stickerAlt": "Sticker voor {word}",
+        "count": "Tot nu toe gehoord",
+        "startedAt": "Begonnen bij",
+        "lastHeard": "Laatst gehoord",
+        "never": "Nog niet",
+        "unsaved": "{count} niet-opgeslagen wijziging | {count} niet-opgeslagen wijzigingen",
+        "save": "Wijzigingen opslaan",
+        "discard": "Weggooien",
+        "delete": "Verwijderen",
+        "confirmTitle": "{name} verwijderen?",
+        "confirmBody": "Het woord stopt met tellen en de stand van {count} gaat verloren. Het plaatje blijft in je bestanden.",
+        "confirmAction": "Spraaktrigger verwijderen"
+      },
+      "dialog": {
+        "title": "Nieuwe spraaktrigger",
+        "description": "Kies een woord dat meetelt als jij het zegt. Houd de luisterpagina open in Chrome.",
+        "wordRequired": "Geef de trigger een woord om op te letten.",
+        "startingCount": "Begin te tellen bij",
+        "startingCountHelp": "Gebruik dit om een stand van een andere bot over te nemen.",
+        "create": "Spraaktrigger maken"
+      }
+    }
+  }
+}

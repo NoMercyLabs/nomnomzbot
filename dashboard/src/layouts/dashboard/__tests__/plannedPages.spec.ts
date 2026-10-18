@@ -32,7 +32,11 @@ const beyondMockup: ReadonlySet<string> = new Set(['connect']);
 
 // Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15;
 // the viewer chat, 2026-10-16).
-const pagesBeyondMockup: ReadonlySet<string> = new Set(['dashboard-polls', 'dashboard-viewer-chat']);
+const pagesBeyondMockup: ReadonlySet<string> = new Set([
+  'dashboard-polls',
+  'dashboard-viewer-chat',
+  'dashboard-voice-triggers',
+]);
 
 const stub = defineComponent({ render: () => h('div') });
 

@@ -22,6 +22,7 @@ import Grid from '~icons/nnz/grid';
 import Handshake from '~icons/nnz/handshake';
 import Home from '~icons/nnz/home';
 import LiveStream from '~icons/nnz/live-stream';
+import Mic from '~icons/nnz/mic';
 import MovieClap from '~icons/nnz/movie-clap';
 import NoteEighthPair from '~icons/nnz/note-eighth-pair';
 import PictureInPicture from '~icons/nnz/picture-in-picture';
@@ -139,6 +140,12 @@ export const dashboardNav: readonly NavGroup[] = [
         label: 'triggersTimers',
         icon: Timer,
         action: 'timers:read',
+      },
+      {
+        route: 'dashboard-voice-triggers',
+        label: 'voiceTriggers',
+        icon: Mic,
+        action: 'voicetriggers:read',
       },
       {
         route: 'dashboard-event-responses',

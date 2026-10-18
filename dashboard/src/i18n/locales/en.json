@@ -668,6 +668,7 @@
       "vtubeStudio": "VTube Studio",
       "commands": "Commands",
       "triggersTimers": "Triggers and timers",
+      "voiceTriggers": "Voice triggers",
       "eventResponses": "Event responses",
       "pipelines": "Pipelines",
       "overlays": "Overlays",

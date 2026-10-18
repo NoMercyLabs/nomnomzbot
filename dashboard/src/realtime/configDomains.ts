@@ -20,6 +20,7 @@ import { personalityKey } from '@/api/personalitySettings';
 import { pipelinesKey } from '@/api/pipelines';
 import { basicsKey } from '@/api/settings';
 import { ttsConfigKey } from '@/api/tts';
+import { voiceTriggersKey } from '@/api/voiceTriggers';
 import { widgetsKey } from '@/api/widgets';
 
 import type { QueryKeyBuilder } from './hubEvent';
@@ -41,6 +42,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'tts-config': [ttsConfigKey],
   widgets: [widgetsKey],
   timers: [timersKey],
+  'voice-triggers': [voiceTriggersKey],
   'event-responses': [eventResponsesKey],
   pipelines: [pipelinesKey],
   'music-config': [musicConfigKey, musicQueueKey],
