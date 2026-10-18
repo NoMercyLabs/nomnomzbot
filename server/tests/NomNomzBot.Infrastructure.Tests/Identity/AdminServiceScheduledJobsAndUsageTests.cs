@@ -20,6 +20,7 @@ using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
@@ -41,7 +42,9 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
 
-    private static (AdminService Sut, AuthDbContext Db, FakeTimeProvider Clock) Build()
+    private static (AdminService Sut, AuthDbContext Db, FakeTimeProvider Clock) Build(
+        IEventBus? bus = null
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new(Now);
@@ -70,7 +73,7 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
             scheduler,
             [],
             new EventUpcasterRegistry([]),
-            Substitute.For<IEventBus>()
+            bus ?? Substitute.For<IEventBus>()
         );
         return (sut, db, clock);
     }
@@ -258,6 +261,65 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
         audit.TargetBroadcasterId.Should().Be(tenant.Id);
         audit.Justification.Should().Contain(original.Id.ToString());
         audit.Justification.Should().Contain(retried.Id.ToString());
+    }
+
+    [Fact]
+    public async Task RetryScheduledJob_tells_open_admin_pages_which_job_was_retried_as_which_new_attempt()
+    {
+        IEventBus bus = Substitute.For<IEventBus>();
+        (AdminService sut, AuthDbContext db, _) = Build(bus);
+        Channel tenant = SeedChannel(db, "streamer_retry_announced");
+        Pipeline pipeline = SeedPipeline(db, tenant.Id, "announce-me");
+        ScheduledPipelineTask original = SeedTask(
+            db,
+            tenant.Id,
+            pipeline.Id,
+            pipeline.Name,
+            ScheduledPipelineTaskStatus.Expired,
+            Now.AddMinutes(-30)
+        );
+        await db.SaveChangesAsync();
+
+        Result<AdminScheduledJobRetryResultDto> result = await sut.RetryScheduledJobAsync(
+            original.Id,
+            Guid.NewGuid()
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        ScheduledJobsChangedEvent published = bus.ReceivedCalls()
+            .Select(call => call.GetArguments()[0])
+            .OfType<ScheduledJobsChangedEvent>()
+            .Single();
+        published.Change.Should().Be("retried");
+        published.OriginalTaskId.Should().Be(original.Id);
+        published.NewTaskId.Should().Be(result.Value.NewTaskId);
+        published.BroadcasterId.Should().Be(tenant.Id);
+    }
+
+    [Fact]
+    public async Task RetryScheduledJob_that_is_refused_tells_nobody()
+    {
+        IEventBus bus = Substitute.For<IEventBus>();
+        (AdminService sut, AuthDbContext db, _) = Build(bus);
+        Channel tenant = SeedChannel(db, "streamer_retry_refused");
+        Pipeline pipeline = SeedPipeline(db, tenant.Id, "already-ran");
+        ScheduledPipelineTask fired = SeedTask(
+            db,
+            tenant.Id,
+            pipeline.Id,
+            pipeline.Name,
+            ScheduledPipelineTaskStatus.Fired,
+            Now.AddMinutes(-5)
+        );
+        await db.SaveChangesAsync();
+
+        Result<AdminScheduledJobRetryResultDto> result = await sut.RetryScheduledJobAsync(
+            fired.Id,
+            Guid.NewGuid()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        bus.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

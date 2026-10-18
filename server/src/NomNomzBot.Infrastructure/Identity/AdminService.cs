@@ -25,6 +25,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Events;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.EventStore.Events;
 using NomNomzBot.Domain.Identity.Entities;
@@ -606,6 +607,18 @@ public sealed class AdminService : IAdminService
             }
         );
         await _db.SaveChangesAsync(ct);
+
+        // Open operator scheduled jobs pages reload their queue.
+        await _eventBus.PublishAsync(
+            new ScheduledJobsChangedEvent
+            {
+                BroadcasterId = original.BroadcasterId,
+                Change = "retried",
+                OriginalTaskId = original.Id,
+                NewTaskId = retried.Value.Id,
+            },
+            ct
+        );
 
         return Result.Success(
             new AdminScheduledJobRetryResultDto(
