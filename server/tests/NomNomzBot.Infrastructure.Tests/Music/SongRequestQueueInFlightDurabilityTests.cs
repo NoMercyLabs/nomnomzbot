@@ -131,7 +131,7 @@ public sealed class SongRequestQueueInFlightDurabilityTests
 
         // track-1 finishes playing: the reconciler drops it from the queue and clears the in-flight
         // marker (SongRequestQueueReconciler.HandleAsync), then hands the next one over.
-        queue.RemoveThrough(e => e.TrackUri == "track-1");
+        queue.RemoveFirst(e => e.TrackUri == "track-1");
         store.SetInFlight(ChannelA, null);
         SongRequestEntry? next = queue.Peek();
         next.Should().NotBeNull();

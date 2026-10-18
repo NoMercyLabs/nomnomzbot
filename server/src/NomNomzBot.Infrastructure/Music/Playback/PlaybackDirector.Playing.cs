@@ -71,22 +71,28 @@ public sealed partial class PlaybackDirector
 
     private async Task OnReportAsync(EngineReport report, CancellationToken ct)
     {
-        if (State.Kind == PlaybackStateKind.Playing && report.Engine != State.Engine)
-        {
-            await SilenceForeignAsync(report, ct);
-            return;
-        }
-
         if (!report.IsPlaying)
         {
-            await OnNotPlayingReportAsync(report);
+            if (State.Kind == PlaybackStateKind.Playing && report.Engine != State.Engine)
+                await SilenceForeignAsync(report, ct);
+            else
+                await OnNotPlayingReportAsync(report);
+
             return;
         }
 
+        // A queued row that plays on its own leaves the queue first, even when another engine holds
+        // the owner's music: the row was seen playing, so it is no longer waiting.
         if (FindRow(report) is { } row)
         {
             string reason = row.Id == _queue.Head?.Id ? "played_externally" : "played_out_of_order";
             await PlayRowAsync(row, report, reason);
+            return;
+        }
+
+        if (State.Kind == PlaybackStateKind.Playing && report.Engine != State.Engine)
+        {
+            await SilenceForeignAsync(report, ct);
             return;
         }
 

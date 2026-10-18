@@ -209,22 +209,6 @@ public class FairQueueTests
         order.Should().Equal("bamo-playing", "h1", "f1", "b2");
     }
 
-    [Fact]
-    public void RemoveThrough_PlayedSongs_ReRanksSoARankOneSongNeverSitsBehindARankTwoSong()
-    {
-        FairQueue<string> q = new();
-        q.Enqueue("finwo_", "f0");
-        q.Enqueue("Bamo16", "bamo-playing");
-        q.Enqueue("HakuTheWolfSpirit", "h1");
-        q.Enqueue("Bamo16", "b2");
-        q.Enqueue("finwo_", "f1");
-
-        q.RemoveThrough(item => item == "f0").Should().Be(1);
-
-        List<string> order = [.. q.GetSnapshot().Select(e => e.Item)];
-        order.Should().Equal("bamo-playing", "h1", "f1", "b2");
-    }
-
     // ─── Peek ────────────────────────────────────────────────────────────────
 
     [Fact]

@@ -49,6 +49,7 @@ using NomNomzBot.Infrastructure.Integrations.Kick;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Caching;
@@ -403,6 +404,7 @@ public static class DependencyInjection
         // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
         services.AddSingleton<ISongRequestQueueStore, SongRequestQueueStore>();
+        services.AddSingleton<IPlaybackReportSink, PlaybackDirectorReportSink>();
         // Song requests a limit refused, kept 15 minutes so a moderator's !permit can admit them.
         services.AddSingleton<RefusedSongRequestStore>();
 

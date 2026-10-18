@@ -8,24 +8,21 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Music.Playback;
 
 namespace NomNomzBot.Infrastructure.Music;
 
 /// <summary>
-/// Drains the song-request fair queue against what is actually playing. Every accepted request is handed
-/// to the provider's own queue at admission time, so the provider decides when a request becomes the
-/// current track — by a natural track end just as much as by an explicit skip. When the live playback
-/// state (<see cref="PlaybackStateChangedEvent"/>, published on the poller's cadence and after every
-/// mutation) reports a track we still hold as pending, that entry has stopped being pending and comes
-/// out, and the sr_queue surfaces get the corrected snapshot.
-/// <para>
-/// Without this the fair queue would only ever grow: nothing else removes an entry once it has been
-/// pushed, so the dashboard and overlay would keep listing tracks that already played.
-/// </para>
+/// Turns the live playback state (<see cref="PlaybackStateChangedEvent"/>, published on the poller's
+/// cadence and after every mutation) into engine reports for the playback director, and keeps the
+/// in-flight marker, the hand-over and the sr_queue surfaces in step with what the director did. It
+/// never removes a queue row itself: a row leaves only when the director sees it play, or on an
+/// explicit remove.
 /// </summary>
 public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChangedEvent>
 {
@@ -36,20 +33,17 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
     private readonly ISongRequestHandover _handover;
     private readonly ISongRequestQueuePersistence _queuePersistence;
     private readonly IEventBus _eventBus;
-    private readonly ILogger<SongRequestQueueReconciler> _logger;
-
-    /// <summary>A song change normally removes the sent song and, in a crossfade, the one after it.</summary>
-    private const int MaxExpectedRemovalsPerSongChange = 2;
+    private readonly IPlaybackReportSink _sink;
 
     public SongRequestQueueReconciler(
         ISongRequestQueueStore queueStore,
         ISongRequestHandover handover,
         ISongRequestQueuePersistence queuePersistence,
         IEventBus eventBus,
-        ILogger<SongRequestQueueReconciler> logger
+        IPlaybackReportSink sink
     )
     {
-        _logger = logger;
+        _sink = sink;
         _queueStore = queueStore;
         _handover = handover;
         _queuePersistence = queuePersistence;
@@ -81,41 +75,19 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
             _queueStore.SetPlayingRequest(broadcasterId, null);
     }
 
-    /// <summary>
-    /// Removes the playing song, and the songs above it only when it is the in-flight (sent) request or the
-    /// one directly after it. With nothing in flight the head counts as the sent song.
-    /// </summary>
-    private int RemovePlayedHead(
-        FairQueue<SongRequestEntry> queue,
-        string broadcasterId,
-        string playingTrackUri
-    )
+    /// <summary>The engine signal for what the player reported: a track end, or a playing/paused report.</summary>
+    private static EngineSignal ToSignal(PlaybackStateChangedEvent @event, string trackUri)
     {
-        List<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot =
-        [
-            .. queue.GetSnapshot(),
-        ];
-        int matchIndex = snapshot.FindIndex(e =>
-            string.Equals(e.Item.TrackUri, playingTrackUri, StringComparison.OrdinalIgnoreCase)
-        );
-        if (matchIndex < 0)
-            return 0;
-
-        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
-        int sentIndex = inFlight is null
-            ? 0
-            : snapshot.FindIndex(e => ReferenceEquals(e.Item, inFlight));
-        bool sentOrNext = sentIndex >= 0 && matchIndex >= sentIndex && matchIndex <= sentIndex + 1;
-        if (sentOrNext)
-            return queue.RemoveThrough(e =>
-                string.Equals(e.TrackUri, playingTrackUri, StringComparison.OrdinalIgnoreCase)
+        EngineKind engine = EngineKinds.ForTrack(@event.Provider, trackUri);
+        return @event.TrackEnded
+            ? new TrackEnded(engine, trackUri)
+            : new EngineReport(
+                engine,
+                trackUri,
+                @event.IsPlaying,
+                @event.ProgressMs,
+                @event.DurationMs
             );
-
-        return queue.RemoveFirst(e =>
-            string.Equals(e.TrackUri, playingTrackUri, StringComparison.OrdinalIgnoreCase)
-        )
-            ? 1
-            : 0;
     }
 
     public async Task HandleAsync(
@@ -132,27 +104,15 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         if (queue is null)
             return;
 
-        // The playing song always leaves. The songs above it leave too only when it is the request we sent
-        // to the provider or the one right after it: that absorbs Spotify's client-side crossfade (0–12s,
-        // set per client), where one track starts while the previous is still audible and the 1s poller
-        // can see the pair in either order. A song deeper in the queue that starts early (picked in the
-        // Spotify app, or left in Spotify's own queue after a failed YouTube item) never played the songs
-        // above it — live 2026-10-18, the 16th request starting emptied all 16 rows.
-        int dropped = RemovePlayedHead(queue, broadcasterId, @event.TrackUri);
-
-        // RemoveThrough stops at the FIRST match, so a second copy of the very track that just started
-        // survives and returns to the head — the track then plays again, and again. That is the
-        // "same songs over and over" loop seen live on 2026-08-25: the copy left behind kept the queue
-        // circular, and because in-flight pointed at the copy that WAS removed, "Now playing" also lost
-        // its requester and degraded to "someone". A track that is playing right now is by definition no
-        // longer pending, in every copy — TryEnqueueUnique keeps new duplicates out, and this keeps the
-        // ones already persisted before that gate existed from circulating forever.
-        while (
-            queue.RemoveFirst(e =>
-                string.Equals(e.TrackUri, @event.TrackUri, StringComparison.OrdinalIgnoreCase)
-            )
-        )
-            dropped++;
+        // This class only reports. The playback director sees what plays and is the only thing that
+        // removes a row: the played head, one queued row that played out of order, or nothing.
+        int before = queue.Count;
+        await _sink.ReportAsync(
+            @event.BroadcasterId,
+            ToSignal(@event, @event.TrackUri),
+            cancellationToken
+        );
+        int dropped = before - queue.Count;
 
         SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
         bool inFlightIsGone =
@@ -169,14 +129,6 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
 
         if (dropped == 0)
             return;
-
-        if (dropped > MaxExpectedRemovalsPerSongChange)
-            _logger.LogWarning(
-                "One song change removed {Dropped} queue rows for {BroadcasterId} (playing {TrackUri}).",
-                dropped,
-                broadcasterId,
-                @event.TrackUri
-            );
 
         await _queuePersistence.SyncAsync(
             broadcasterId,

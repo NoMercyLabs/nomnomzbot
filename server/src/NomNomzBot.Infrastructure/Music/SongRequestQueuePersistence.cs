@@ -26,7 +26,7 @@ namespace NomNomzBot.Infrastructure.Music;
 /// insert) rather than diffing — the fair queue is typically tens of entries, and matching the DB
 /// shape to the in-memory shape (a full ordered list) is far simpler to keep provably correct than
 /// tracking per-row deltas across five different mutation shapes (enqueue, rollback, RemoveAt,
-/// RemoveFirst, RemoveThrough). The transaction is what keeps a kill mid-write from leaving the table
+/// RemoveFirst, Dequeue). The transaction is what keeps a kill mid-write from leaving the table
 /// briefly empty: readers only ever see the old complete set or the new complete set, never neither.
 /// </summary>
 public interface ISongRequestQueuePersistence

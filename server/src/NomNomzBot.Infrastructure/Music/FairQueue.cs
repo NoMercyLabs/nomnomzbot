@@ -149,22 +149,6 @@ public sealed class FairQueue<T> : IFairQueue<T>
         }
     }
 
-    public int RemoveThrough(Func<T, bool> predicate)
-    {
-        lock (_lock)
-        {
-            int index = _queue.FindIndex(e => predicate(e.Item));
-            if (index < 0)
-                return 0;
-
-            int count = index + 1;
-            _queue.RemoveRange(0, count);
-            RecalculateRanks();
-            SettleAfterPlayedSongsLeave();
-            return count;
-        }
-    }
-
     public bool RemoveFirst(Func<T, bool> predicate)
     {
         lock (_lock)

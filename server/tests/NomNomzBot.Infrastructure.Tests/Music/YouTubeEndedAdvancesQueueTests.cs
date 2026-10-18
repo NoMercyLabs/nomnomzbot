@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -187,7 +188,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
             music,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            NullLogger<SongRequestQueueReconciler>.Instance
+            new PlaybackDirectorReportSink(queues, bus, TimeProvider.System)
         );
         return new(music, provider, reports, reconciler, queues, notifier, bus);
     }
@@ -340,7 +341,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
     }
 
     [Fact]
-    public async Task A_video_the_player_cannot_play_is_announced_and_the_next_request_plays()
+    public async Task A_video_the_player_cannot_play_is_announced_and_the_adapter_leaves_the_queue_to_the_director()
     {
         Rig rig = await TwoQueuedAsync();
 
@@ -360,8 +361,11 @@ public sealed class YouTubeEndedAdvancesQueueTests
                 rig.Bus.Published.FindIndex(e => e is PlaybackStateChangedEvent),
                 "the notice must read the request before the queue drops it"
             );
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
-        QueuedUris(rig).Should().Equal(Watch(Second));
+        // Queue ownership (S-PD-3): the report adapter only reports. Dropping the broken head and
+        // advancing is the playback director's job once the engine adapters feed it (S-PD-4).
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First], "the adapter hands nothing over by itself");
+        QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
     }
 
     [Fact]

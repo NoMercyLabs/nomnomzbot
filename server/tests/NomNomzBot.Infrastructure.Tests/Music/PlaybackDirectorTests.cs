@@ -110,6 +110,24 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
+    public async Task QueuedRowPlayingOnTheOtherEngine_WhileOwnerMusicPlays_IsRemovedNotSilenced()
+    {
+        Rig rig = new();
+        PlaybackItem row = Item("y1", EngineKind.YouTube, owner: "yara");
+        rig.Queue.Enqueue(row);
+        await rig.OwnerPlays(rig.Spotify, "spotify:track:owner", 1_000);
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+
+        await rig.Plays(rig.YouTube, row);
+
+        rig.QueueIds.Should().BeEmpty();
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.YouTube, row));
+        rig.Director.LastPlayed!.Id.Should().Be("y1");
+        rig.Journal.Last().Reason.Should().Be("played_externally");
+        rig.Spotify.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Row2_IdleWithHead_StartsTheHeadOnItsEngineExactlyOnce()
     {
         Rig rig = new();

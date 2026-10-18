@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -84,7 +85,7 @@ public sealed class MusicServiceQueuePromoteBanTests
             sut,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            NullLogger<SongRequestQueueReconciler>.Instance
+            new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
         );
         await reconciler.HandleAsync(
             new()

@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -197,7 +198,7 @@ public sealed class YouTubeTransportControlTests
             music,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            NullLogger<SongRequestQueueReconciler>.Instance
+            new PlaybackDirectorReportSink(queues, bus, TimeProvider.System)
         );
         PlayOnceResumeHandler resumeHandler = new(
             resumeTracker,
@@ -309,7 +310,7 @@ public sealed class YouTubeTransportControlTests
     }
 
     [Fact]
-    public async Task A_request_queued_while_the_player_was_open_is_handed_over_when_audio_attaches_again()
+    public async Task A_request_queued_while_the_player_was_open_is_not_dropped_by_the_ended_report_adapter()
     {
         Rig rig = await BuildAsync();
         (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(First), "viewer1"))
@@ -325,11 +326,14 @@ public sealed class YouTubeTransportControlTests
         rig.Presence.GetAudioWidgetId(Broadcaster).Returns(OwnerWidget);
         // The head kept its place in the fair queue while no player was open, so the dispatcher's own
         // slot is empty; the service's hand-over is what pushes it once audio attaches.
-        QueuedUris(rig).Should().ContainSingle().Which.Should().Be(Watch(Second));
+        // Queue ownership (S-PD-3): the ended report is only forwarded; the director (S-PD-4) drops
+        // the head, so the adapter leaves both rows and the in-flight request alone.
+        QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
+        rig.Queues.GetInFlight(Broadcaster.ToString())!.TrackUri.Should().Be(Watch(First));
         await rig.Music.HandOverNextAsync(Broadcaster.ToString());
 
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
-        rig.Notifier.Sent.Last().Widget.Should().Be(OwnerWidget);
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First], "the head is still the request at the player");
     }
 
     /// <summary>music-sr.md AUTH STANCE: YouTube search and the overlay queue ride the app-level Data API

@@ -9,10 +9,10 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -56,7 +56,7 @@ public sealed class SongRequestQueueReconcilerTests
             new RecordingHandover(),
             new NoOpSongRequestQueuePersistence(),
             bus,
-            NullLogger<SongRequestQueueReconciler>.Instance
+            new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
         );
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a"));
@@ -172,7 +172,7 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
-    public async Task A_crossfade_that_starts_the_song_after_the_sent_one_drops_both()
+    public async Task A_crossfade_that_starts_the_song_after_the_sent_one_removes_only_that_song()
     {
         (
             SongRequestQueueReconciler sut,
@@ -184,12 +184,13 @@ public sealed class SongRequestQueueReconcilerTests
         HandOver(store, queue, "a");
 
         // Playback is observed on "b" without "a" ever being seen as current — a 12s crossfade
-        // overlapping the poll cadence.
+        // overlapping the poll cadence. Only the director removes rows, and it removes the one row it
+        // saw play: "a" stays until it is seen playing too, and nothing new goes to the provider.
         await sut.HandleAsync(PlaybackOf("spotify:track:b"));
 
-        Titles(queue).Should().Equal("Track c");
-        store.GetInFlight(ChannelId.ToString()).Should().BeNull();
-        handover.Calls.Should().HaveCount(1);
+        Titles(queue).Should().Equal("Track a", "Track c");
+        store.GetInFlight(ChannelId.ToString())!.TrackName.Should().Be("Track a");
+        handover.Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -209,7 +210,7 @@ public sealed class SongRequestQueueReconcilerTests
             new RecordingHandover(),
             persistence,
             bus,
-            NullLogger<SongRequestQueueReconciler>.Instance
+            new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
         );
 
         // The 16th request starts in Spotify while the first is still the one we sent.
@@ -227,7 +228,7 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
-    public async Task A_failed_youtube_item_leaves_alone_and_the_spotify_song_that_then_starts_removes_only_itself()
+    public async Task A_youtube_item_that_is_not_playing_stays_and_the_spotify_song_that_then_starts_removes_only_itself()
     {
         SongRequestQueueStore store = new();
         FairQueue<SongRequestEntry> queue = store.GetOrCreate(ChannelId.ToString());
@@ -243,24 +244,28 @@ public sealed class SongRequestQueueReconcilerTests
             handover,
             persistence,
             bus,
-            NullLogger<SongRequestQueueReconciler>.Instance
+            new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
         );
 
-        // The overlay player reports Error for the video: only that request leaves, the next is handed over.
+        // The overlay player reports the video as not playing: a report that does not play a row removes
+        // nothing. Dropping a broken item is the director's two-failed-starts rule, not the adapter's.
         await sut.HandleAsync(
             PlaybackOf("https://www.youtube.com/watch?v=bad", "youtube", isPlaying: false)
         );
 
-        Titles(queue).Should().Equal("bcdefghijklmnop".Select(c => $"Track {c}"));
-        handover.Calls.Should().ContainSingle();
-        store.GetInFlight(ChannelId.ToString()).Should().BeNull();
+        Titles(queue)
+            .Should()
+            .Equal(["Broken video", .. "bcdefghijklmnop".Select(c => $"Track {c}")]);
+        handover.Calls.Should().BeEmpty();
+        persistence.Synced.Should().BeEmpty();
 
-        // Spotify then starts its own queue head, which is the last request (nothing is in flight yet).
-        store.SetInFlight(ChannelId.ToString(), queue.GetSnapshot()[0].Item);
+        // Spotify then starts the 16th request on its own: only that row leaves.
         await sut.HandleAsync(PlaybackOf("spotify:track:p"));
 
-        Titles(queue).Should().Equal("bcdefghijklmno".Select(c => $"Track {c}"));
-        persistence.Synced.Should().HaveCount(14);
+        Titles(queue)
+            .Should()
+            .Equal(["Broken video", .. "bcdefghijklmno".Select(c => $"Track {c}")]);
+        persistence.Synced.Should().HaveCount(15);
     }
 
     [Fact]
@@ -282,7 +287,7 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
-    public async Task Every_copy_of_the_track_that_just_started_leaves_the_queue()
+    public async Task Only_one_copy_of_the_track_that_just_started_leaves_the_queue()
     {
         (
             SongRequestQueueReconciler sut,
@@ -305,9 +310,14 @@ public sealed class SongRequestQueueReconcilerTests
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a"));
 
-        // Only "b" may remain. Leaving the second copy behind put it straight back at the head, so the
-        // track that had just played was handed over again on the next tick — the same song forever.
-        Titles(queue).Should().Equal("Track b");
+        // The director removes the one row it saw play. The late copy (queued before the duplicate gate
+        // existed) is its own request and stays; the gate keeps new duplicates out.
+        Titles(queue).Should().Equal("Track b", "Track a");
+        queue
+            .GetSnapshot()
+            .Select(e => e.Item.RequestedBy)
+            .Should()
+            .Equal("viewer-b", "viewer-late");
         store.GetInFlight(ChannelId.ToString()).Should().BeNull();
         handover.Calls.Should().ContainSingle();
     }
@@ -421,7 +431,7 @@ public sealed class SongRequestQueueReconcilerTests
                 handover,
                 new NoOpSongRequestQueuePersistence(),
                 bus,
-                NullLogger<SongRequestQueueReconciler>.Instance
+                new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
             ),
             queue,
             bus,
