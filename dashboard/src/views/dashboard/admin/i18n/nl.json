@@ -724,6 +724,62 @@
           "error": "De auditlog kon niet laden.",
           "forbidden": "Je mag de auditlog niet lezen."
         }
+      },
+      "access": {
+        "title": "Toegang",
+        "hideInactive": "Verberg inactieve principals",
+        "failed": "De wijziging is mislukt. Er is niets opgeslagen.",
+        "reason": "Reden",
+        "principals": {
+          "title": "Principals",
+          "description": "Medewerkers en servicekoppelingen met platformtoegang. Een wijziging van een andere operator verschijnt vanzelf.",
+          "empty": "Er bestaat nog geen principal.",
+          "error": "De principals konden niet laden.",
+          "employee": "Medewerker",
+          "serviceAccount": "Servicekoppeling",
+          "inactive": "Inactief",
+          "noRoles": "Geen actieve rollen"
+        },
+        "actions": {
+          "assign": "Rol toewijzen",
+          "deactivate": "Deactiveren",
+          "reactivate": "Heractiveren",
+          "revoke": "{role} intrekken"
+        },
+        "assign": {
+          "title": "Een rol toewijzen aan {name}",
+          "action": "Toewijzen",
+          "role": "Rol",
+          "pickRole": "Kies een rol"
+        },
+        "revoke": {
+          "title": "{role} intrekken van {name}",
+          "action": "Rol intrekken",
+          "consequence": "{name} verliest de rechten van {role} direct."
+        },
+        "deactivate": {
+          "title": "{name} deactiveren",
+          "action": "Principal deactiveren",
+          "consequence": "{name} verliest {count} actieve rol en kan niets doen tot heractivering. | {name} verliest {count} actieve rollen en kan niets doen tot heractivering."
+        },
+        "roles": {
+          "title": "Rollen",
+          "description": "Wat elke rol toestaat.",
+          "empty": "Er bestaat geen rol.",
+          "error": "De rollen konden niet laden.",
+          "system": "Ingebouwd",
+          "permissions": "{count} recht | {count} rechten"
+        },
+        "session": {
+          "title": "Supportsessie",
+          "description": "Beëindig een toegangsrecht tot een kanaal, of handel als een gebruiker via een open toegangsrecht. Start het toegangsrecht op de pagina Kanalen.",
+          "grant": "Toegangsrecht-ID",
+          "user": "Gebruikers-ID",
+          "justification": "Reden",
+          "end": "Toegang beëindigen",
+          "impersonate": "Overnemen",
+          "ended": "Het toegangsrecht is beëindigd."
+        }
       }
     },
     "adminFeatureFlags": {

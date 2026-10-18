@@ -124,6 +124,14 @@ export type AdminContentPayload = {
   definitionId: string;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveAccessChanged (AdminAccessBroadcastHandler). An operator provisioned a
+// principal, assigned or revoked a role, or deactivated or reactivated a principal. A revoke names no principal.
+export type AdminAccessPayload = {
+  action: string;
+  principalId: string | null;
+  assignmentId: string | null;
+};
+
 // Hubs/Clients/IAdminClient.cs: ReceiveBillingChanged (AdminBillingBroadcastHandler). An operator changed a tier, an
 // invite code, a grant, an invoice or a priced unit; area names which, targetBroadcasterId the channel it touched.
 export type AdminBillingPayload = {

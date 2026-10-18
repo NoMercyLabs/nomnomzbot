@@ -18,6 +18,7 @@ import {
 } from '@/api/admin';
 import { adminAuditPrefix } from '@/api/adminAudit';
 import { billingPrefix } from '@/api/adminBilling';
+import { accessPrefix } from '@/api/adminAccess';
 import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { contentPrefix } from '@/api/adminContent';
 import { platformBotPrefix } from '@/api/adminPlatformBot';
@@ -25,6 +26,7 @@ import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type {
+  AdminAccessPayload,
   AdminAuditPayload,
   AdminBillingPayload,
   AdminChannelRegistryPayload,
@@ -97,6 +99,7 @@ export const adminHandlers: [
   HubEventHandler<AdminTrustSafetyPayload>,
   HubEventHandler<AdminErrorBudgetPayload>,
   HubEventHandler<AdminContentPayload>,
+  HubEventHandler<AdminAccessPayload>,
   HubEventHandler<AdminBillingPayload>,
   HubEventHandler<AdminPlatformBotPayload>,
   HubEventHandler<AdminAuditPayload>,
@@ -130,6 +133,13 @@ export const adminHandlers: [
     event: 'ReceiveContentChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: contentPrefix });
+    },
+  },
+  {
+    // Another operator changed platform access: the principals and the roles reload.
+    event: 'ReceiveAccessChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: accessPrefix });
     },
   },
   {

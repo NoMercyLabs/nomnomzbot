@@ -724,6 +724,62 @@
           "error": "The audit log could not load.",
           "forbidden": "You may not read the audit log."
         }
+      },
+      "access": {
+        "title": "Access",
+        "hideInactive": "Hide inactive principals",
+        "failed": "The change failed. Nothing was saved.",
+        "reason": "Reason",
+        "principals": {
+          "title": "Principals",
+          "description": "Employees and service accounts with platform access. A change by another operator appears by itself.",
+          "empty": "No principal exists yet.",
+          "error": "The principals could not load.",
+          "employee": "Employee",
+          "serviceAccount": "Service account",
+          "inactive": "Inactive",
+          "noRoles": "No active roles"
+        },
+        "actions": {
+          "assign": "Assign role",
+          "deactivate": "Deactivate",
+          "reactivate": "Reactivate",
+          "revoke": "Revoke {role}"
+        },
+        "assign": {
+          "title": "Assign a role to {name}",
+          "action": "Assign",
+          "role": "Role",
+          "pickRole": "Pick a role"
+        },
+        "revoke": {
+          "title": "Revoke {role} from {name}",
+          "action": "Revoke role",
+          "consequence": "{name} loses the permissions of {role} at once."
+        },
+        "deactivate": {
+          "title": "Deactivate {name}",
+          "action": "Deactivate principal",
+          "consequence": "{name} loses {count} active role and cannot act until reactivated. | {name} loses {count} active roles and cannot act until reactivated."
+        },
+        "roles": {
+          "title": "Roles",
+          "description": "What each role grants.",
+          "empty": "No role exists.",
+          "error": "The roles could not load.",
+          "system": "Built in",
+          "permissions": "{count} permission | {count} permissions"
+        },
+        "session": {
+          "title": "Support session",
+          "description": "End a tenant access grant, or act as a user through an open grant. Begin the grant on the Tenants page.",
+          "grant": "Access grant ID",
+          "user": "User ID",
+          "justification": "Reason",
+          "end": "End access",
+          "impersonate": "Impersonate",
+          "ended": "The access grant ended."
+        }
       }
     },
     "adminFeatureFlags": {

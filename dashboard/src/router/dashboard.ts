@@ -15,6 +15,7 @@ import { merge } from '@/lib/array';
 import { channelVariants } from './channelRoutes';
 
 import {
+  dashboardAdminAccessRoute,
   dashboardAdminAuditRoute,
   dashboardAdminChannelsRoute,
   dashboardAdminEventSubHealthRoute,
@@ -103,6 +104,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardAdminScheduledJobsRoute,
   dashboardAdminSupportRoute,
   dashboardAdminBillingRoute,
+  dashboardAdminAccessRoute,
   dashboardAdminTrustSafetyRoute,
   dashboardAdminTenantUsageRoute,
   dashboardAdminErrorBudgetRoute,

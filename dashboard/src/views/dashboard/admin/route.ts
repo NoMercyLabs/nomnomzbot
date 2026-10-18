@@ -238,3 +238,15 @@ export const dashboardAdminPlatformBotRoute = {
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
+
+export const dashboardAdminAccessRoute = {
+  path: 'admin/access',
+  name: 'dashboard-admin-access',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminAccessView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
