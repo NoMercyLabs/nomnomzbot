@@ -8,19 +8,35 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import { createMemoryHistory, createRouter, type RouteRecordRaw, type Router } from 'vue-router';
 
+import { signInGuard } from '../guard';
 import {
   channelPrefixGuard,
   channelVariants,
+  ownChannelGuard,
+  pageLocation,
+  platformPathGuard,
   switchLocation,
   type ChannelParams,
 } from '../channelRoutes';
 
+// What the bot says: whether a session exists, and the login of the channel being managed.
+const held = vi.hoisted(() => ({
+  signedIn: true,
+  login: 'mychannel' as string | null,
+}));
+
+vi.mock('@/api/auth', () => ({ restoreSession: () => Promise.resolve(held.signedIn) }));
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  currentChannelLogin: () => Promise.resolve(held.login),
+}));
+
 const page = defineComponent({ render: () => null });
-const pages = [
+const pages: RouteRecordRaw[] = [
   {
     path: '',
     name: 'dashboard-home',
@@ -34,6 +50,23 @@ const pages = [
   {
     path: 'pipelines/:id',
     name: 'dashboard-pipeline',
+    component: page,
+  },
+  {
+    path: 'admin/channels',
+    name: 'dashboard-admin-channels',
+    meta: { navMode: 'admin' },
+    component: page,
+  },
+  {
+    path: 'settings',
+    name: 'dashboard-settings',
+    meta: { userLevel: true },
+    component: page,
+  },
+  {
+    path: 'settings/bot-basics',
+    name: 'dashboard-settings-bot-basics',
     component: page,
   },
 ];
@@ -127,13 +160,13 @@ describe('switching the channel', () => {
     expect(router.currentRoute.value.fullPath).toBe('/app/u/other/stream?x=1');
   });
 
-  it('goes to the short form for the own channel and the guard lets it stay short', async () => {
+  it('goes to the prefixed address for the own channel too', async () => {
     const router = makeRouter();
 
     await router.push('/app/u/friend/stream');
-    await router.push(switchLocation(router.currentRoute.value, null));
+    await router.push(switchLocation(router.currentRoute.value, 'mychannel'));
 
-    expect(router.currentRoute.value.fullPath).toBe('/app/stream');
+    expect(router.currentRoute.value.fullPath).toBe('/app/u/mychannel/stream');
   });
 
   it('adds the prefix when another channel is chosen on a short route', async () => {
@@ -158,5 +191,175 @@ describe('switching the channel', () => {
     const params = { channelName: 'friend' } as const satisfies ChannelParams;
 
     expect(Object.keys(params)).toEqual(['channelName']);
+  });
+});
+
+const loginRoute = {
+  path: '/login',
+  name: 'login',
+  component: page,
+};
+
+function makeGuardedRouter(): Router {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      loginRoute,
+      {
+        path: '/app',
+        component: page,
+        meta: { requiresAuth: true },
+        children: pages,
+      },
+      {
+        path: '/app/u/:channelName',
+        component: page,
+        meta: { requiresAuth: true },
+        children: channelVariants(pages),
+      },
+    ],
+  });
+
+  router.beforeEach(platformPathGuard);
+  router.beforeEach(channelPrefixGuard);
+  router.beforeEach(signInGuard);
+  router.beforeEach(ownChannelGuard);
+
+  return router;
+}
+
+describe('opening the dashboard without a channel prefix', () => {
+  beforeEach(() => {
+    held.signedIn = true;
+    held.login = 'mychannel';
+  });
+
+  it('sends /app to /app/u/<current channel>', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/u/mychannel');
+    expect(router.currentRoute.value.name).toBe('u:dashboard-home');
+  });
+
+  it('keeps the page, the query and the hash', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/stream?x=1#y');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/u/mychannel/stream?x=1#y');
+  });
+
+  it('replaces the entry, so back does not return to the short address', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/stream');
+
+    expect(router.options.history.state.back ?? null).toBeNull();
+  });
+
+  it('leaves an address that already names a channel as it is', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/u/friend/stream');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/u/friend/stream');
+  });
+
+  it('keeps the short address for a person with no channel', async () => {
+    held.login = null;
+    const router = makeGuardedRouter();
+
+    await router.push('/app/stream');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/stream');
+  });
+
+  it('keeps the login flow for a signed-out visitor, with no loop', async () => {
+    held.signedIn = false;
+    const router = makeGuardedRouter();
+
+    await router.push('/app/stream');
+
+    expect(router.currentRoute.value.path).toBe('/login');
+    expect(router.currentRoute.value.query.return_to).toBe('/app/stream');
+  });
+});
+
+describe('pages that belong to no channel', () => {
+  beforeEach(() => {
+    held.signedIn = true;
+    held.login = 'mychannel';
+  });
+
+  it('has no channel twin for the admin pages or the per-person settings', () => {
+    const twins = channelVariants(pages).map((twin) => twin.name);
+
+    expect(twins).not.toContain('u:dashboard-admin-channels');
+    expect(twins).not.toContain('u:dashboard-settings');
+    expect(twins).toContain('u:dashboard-settings-bot-basics');
+  });
+
+  it('keeps /app/admin/... at its own address', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/admin/channels?x=1');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/channels?x=1');
+  });
+
+  it('keeps the per-person settings at /app/settings', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/settings?view=device');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/settings?view=device');
+  });
+
+  it('keeps the admin address when the move starts on a channel route', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/u/friend/stream');
+    await router.push('/app/admin/channels');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/channels');
+  });
+
+  it('sends an old /app/u/<name>/admin/... address to /app/admin/...', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/u/friend/admin/channels?x=1#y');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/channels?x=1#y');
+  });
+
+  it('sends an old /app/u/<name>/settings address to /app/settings', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/u/friend/settings');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/settings');
+  });
+
+  it('leaves a channel settings page under its prefix', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/settings/bot-basics');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/u/mychannel/settings/bot-basics');
+  });
+});
+
+describe('a link to a page', () => {
+  it('names the channel twin when a channel is known', () => {
+    expect(pageLocation('dashboard-music', 'mychannel')).toEqual({
+      name: 'u:dashboard-music',
+      params: { channelName: 'mychannel' },
+    });
+  });
+
+  it('keeps the short page when no channel is known', () => {
+    expect(pageLocation('dashboard-music', null)).toEqual({ name: 'dashboard-music' });
   });
 });

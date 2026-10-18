@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useNavigation } from './useNavigation';
 
 const { t } = useI18n();
-const { groups, isCurrent } = useNavigation();
+const { groups, isCurrent, linkTo } = useNavigation();
 </script>
 
 <template>
@@ -38,7 +38,7 @@ const { groups, isCurrent } = useNavigation();
             as-child
           >
             <RouterLink
-              :to="{ name: entry.route }"
+              :to="linkTo(entry)"
               :aria-label="t(`frame.nav.${entry.label}`)"
               :aria-current="isCurrent(entry) ? 'page' : undefined"
             >

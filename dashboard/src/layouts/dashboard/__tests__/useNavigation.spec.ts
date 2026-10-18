@@ -13,13 +13,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import type { NavEntry } from '../navigation';
 import { useNavigation, type Navigation } from '../useNavigation';
 
 // What the bot says the person may read; null means it has not answered yet.
 const held = vi.hoisted(() => ({ keys: null as string[] | null }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
+  useCurrentChannel: () => ({
+    channelId: ref('c1'),
+    current: ref({ login: 'mychannel' }),
+  }),
 }));
 
 vi.mock('@/api/access', () => ({
@@ -81,6 +85,24 @@ beforeEach(() => {
 afterEach(() => localStorage.clear());
 
 describe('the dashboard navigation', () => {
+  it('links every entry to its page under the current channel prefix', async () => {
+    const navigation = await open(makeRouter(built), '/dashboard-home');
+    const stream = navigation.entries.value.find((entry) => entry.route === 'dashboard-stream');
+
+    expect(navigation.linkTo(stream as NavEntry)).toEqual({
+      name: 'u:dashboard-stream',
+      params: { channelName: 'mychannel' },
+    });
+  });
+
+  it('marks the page current on its channel twin route', async () => {
+    const router = makeRouter(built.flatMap((name) => [name, `u:${name}`]));
+    const navigation = await open(router, '/u:dashboard-stream');
+    const stream = navigation.entries.value.find((entry) => entry.route === 'dashboard-stream');
+
+    expect(navigation.isCurrent(stream as NavEntry)).toBe(true);
+  });
+
   it('shows every page until the bot has answered, then only the pages the person may read', async () => {
     const router = makeRouter(built);
 

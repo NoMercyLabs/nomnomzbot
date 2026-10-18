@@ -36,7 +36,10 @@ const settingsPage = () =>
 export const dashboardSettingsRoute = {
   path: 'settings',
   name: 'dashboard-settings',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    userLevel: true,
+  },
   props: { view: 'readability' },
   component: settingsPage,
 } as const satisfies RouteRecordRaw;

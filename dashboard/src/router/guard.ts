@@ -21,6 +21,8 @@ declare module 'vue-router' {
     guestOnly?: boolean;
     // The sidebar the page sits in; without it the page sits in the streamer dashboard.
     navMode?: NavMode;
+    // A page about the person, not a channel (the "You" settings): it has no /app/u/<name> twin.
+    userLevel?: boolean;
     // Words key under frame.nav of a page that is planned and not built yet.
     comingSoon?: string;
     // The chat page as a viewer sees it: read and send in your own voice, no moderation (chat-client.md 9a).

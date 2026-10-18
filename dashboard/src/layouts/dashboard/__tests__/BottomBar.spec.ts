@@ -20,7 +20,10 @@ import { dashboardNav } from '../navigation';
 
 // The navigation asks the bot what the person may read; these tests cover the frame, so nothing is known yet and nothing is hidden.
 vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref(null) }),
+  useCurrentChannel: () => ({
+    channelId: ref(null),
+    current: ref(null),
+  }),
 }));
 
 vi.mock('@/api/access', () => ({

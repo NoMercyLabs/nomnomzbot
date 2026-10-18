@@ -88,10 +88,8 @@ function stateWord(row: ChannelChoice): string | null {
 }
 
 // The address follows the choice: another channel is /app/u/<login>/<page>, and the address then
-// chooses it (useRouteChannel); the own channel is the short form, chosen after the address left the prefix.
+// chooses it (useRouteChannel); the own channel has its prefixed address too.
 async function pick(row: ChannelChoice): Promise<void> {
-  const own = row.kind === 'own';
-
   if (viewerChat.value) {
     await choose(row);
     open.value = false;
@@ -99,13 +97,7 @@ async function pick(row: ChannelChoice): Promise<void> {
     return;
   }
 
-  await router.push(switchLocation(route, own
-    ? null
-    : row.login));
-
-  if (own) {
-    await choose(row);
-  }
+  await router.push(switchLocation(route, row.login));
 
   open.value = false;
 }

@@ -12,8 +12,11 @@ import type {
   RouteLocationNormalized,
   RouteLocationNormalizedLoaded,
   RouteLocationRaw,
+  RouteMeta,
   RouteRecordRaw,
 } from 'vue-router';
+
+import { currentChannelLogin } from '@/composables/useCurrentChannel';
 
 // Every dashboard page is reachable twice: /app/<page> for the channel being managed, and
 // /app/u/<channelName>/<page> for one named channel, so a shared link needs no manual switch.
@@ -24,11 +27,18 @@ const variantMark = 'u:';
 export type ChannelParams = { channelName: string };
 
 // The channel-prefixed twin of each page: same page, name marked, path unchanged below the prefix.
+// A platform page (the admin) and a per-person page (the "You" settings) belong to no channel: they have no twin.
+export function isChannelPage(meta: RouteMeta | undefined): boolean {
+  return meta?.navMode !== 'admin' && meta?.userLevel !== true;
+}
+
 export function channelVariants(pages: readonly RouteRecordRaw[]): RouteRecordRaw[] {
-  return pages.map((page) => ({
-    ...page,
-    name: `${variantMark}${String(page.name)}`,
-  }) as RouteRecordRaw);
+  return pages
+    .filter((page) => isChannelPage(page.meta))
+    .map((page) => ({
+      ...page,
+      name: `${variantMark}${String(page.name)}`,
+    }) as RouteRecordRaw);
 }
 
 // The channel a route names, or null on a short route.
@@ -40,19 +50,34 @@ export function routeChannel(route: RouteLocationNormalizedLoaded): string | nul
     : null;
 }
 
-function baseName(route: RouteLocationNormalizedLoaded): string {
-  const name = String(route.name ?? 'dashboard-home');
-
+// A page's own route name, without the mark of its channel twin.
+export function pageName(name: string): string {
   return name.startsWith(variantMark)
     ? name.slice(variantMark.length)
     : name;
 }
 
-// Where the same page of another channel lives. A null login is the own channel: the short form.
+// Where a link to a page goes: the twin under the channel prefix, so no click bounces through a redirect.
+// Without a channel (a viewer, or the list not loaded yet) the link keeps the short page.
+export function pageLocation(name: string, login: string | null): RouteLocationRaw {
+  if (login === null)
+    return { name };
+
+  return {
+    name: `${variantMark}${name}`,
+    params: { [channelParam]: login },
+  };
+}
+
+function baseName(route: RouteLocationNormalizedLoaded): string {
+  return pageName(String(route.name ?? 'dashboard-home'));
+}
+
+// Where the same page of another channel lives. The own channel has its prefixed address too.
 // A page that belongs to one item of the old channel (an id param) falls back to the channel home.
 export function switchLocation(
   route: RouteLocationNormalizedLoaded,
-  login: string | null,
+  login: string,
 ): RouteLocationRaw {
   const itemParams = Object.keys(route.params).filter((key) => key !== channelParam);
   const name = itemParams.length > 0
@@ -62,12 +87,6 @@ export function switchLocation(
     ? {}
     : { query: route.query, hash: route.hash };
 
-  if (login === null) {
-    leaveOnce = true;
-
-    return { name, ...keep };
-  }
-
   return {
     name: `${variantMark}${name}`,
     params: { [channelParam]: login },
@@ -75,11 +94,28 @@ export function switchLocation(
   };
 }
 
-// The short form is asked for on purpose when the own channel is chosen; the guard lets it stay.
-let leaveOnce = false;
+// A page of the unprefixed dashboard: /app or /app/<page>.
+function isShortPath(path: string): boolean {
+  const inApp = path === '/app' || path.startsWith('/app/');
 
-function underChannelPrefix(path: string): boolean {
-  return path.startsWith(channelPrefix);
+  return inApp && !path.startsWith(channelPrefix);
+}
+
+// A short dashboard address of a page that has a channel twin. Platform and per-person pages stay short.
+function isShortChannelPage(to: RouteLocationNormalized): boolean {
+  return isShortPath(to.path) && isChannelPage(to.meta);
+}
+
+// The same address under a channel prefix, keeping query and hash. It replaces the entry: no extra history.
+function prefixed(to: RouteLocationNormalized, login: string): RouteLocationRaw {
+  const rest = to.path.slice('/app'.length);
+
+  return {
+    path: `${channelPrefix}${encodeURIComponent(login)}${rest}`,
+    query: to.query,
+    hash: to.hash,
+    replace: true,
+  };
 }
 
 // Moving inside a channel route keeps the prefix, whether the link is a name or a path.
@@ -87,26 +123,46 @@ export function channelPrefixGuard(
   to: RouteLocationNormalized,
   from: RouteLocationNormalized,
 ): true | RouteLocationRaw {
-  const asked = leaveOnce;
-
-  leaveOnce = false;
-
   const channel = from.params[channelParam];
 
-  if (asked || typeof channel !== 'string' || to.params[channelParam] !== undefined)
+  if (typeof channel !== 'string' || to.params[channelParam] !== undefined || !isShortChannelPage(to))
     return true;
 
-  const inApp = to.path === '/app' || to.path.startsWith('/app/');
+  return prefixed(to, channel);
+}
 
-  if (!inApp || underChannelPrefix(to.path))
+// An old /app/u/<name>/admin/... (or /settings) address has no twin; it opens the platform page at /app/....
+export function platformPathGuard(to: RouteLocationNormalized): true | RouteLocationRaw {
+  if (!to.path.startsWith(channelPrefix))
     return true;
 
-  const rest = to.path.slice('/app'.length);
+  const [, ...rest] = to.path.slice(channelPrefix.length).split('/');
+  const [first] = rest;
+
+  if (first !== 'admin' && !(first === 'settings' && rest.length === 1))
+    return true;
 
   return {
-    path: `${channelPrefix}${encodeURIComponent(channel)}${rest}`,
+    path: `/app/${rest.join('/')}`,
     query: to.query,
     hash: to.hash,
     replace: true,
   };
+}
+
+// Opening /app/<page> from outside a channel route lands on /app/u/<current channel>/<page>.
+// It runs after the sign-in guard, so a signed-out visitor never gets here and the login flow stays as it is.
+// A person with no channel (a viewer) keeps the short address.
+export async function ownChannelGuard(
+  to: RouteLocationNormalized,
+): Promise<true | RouteLocationRaw> {
+  if (!isShortChannelPage(to))
+    return true;
+
+  const login = await currentChannelLogin().catch(() => null);
+
+  if (login === null)
+    return true;
+
+  return prefixed(to, login);
 }

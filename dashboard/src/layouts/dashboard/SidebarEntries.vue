@@ -22,7 +22,7 @@ import { useNavigation } from './useNavigation';
 defineProps<{ entries: readonly NavEntry[] }>();
 
 const { t } = useI18n();
-const { isCurrent } = useNavigation();
+const { isCurrent, linkTo } = useNavigation();
 </script>
 
 <template>
@@ -30,7 +30,7 @@ const { isCurrent } = useNavigation();
     <SidebarMenu>
       <SidebarMenuItem v-for="entry in entries" :key="entry.route">
         <SidebarMenuButton as-child :is-active="isCurrent(entry)">
-          <RouterLink :to="{ name: entry.route }">
+          <RouterLink :to="linkTo(entry)">
             <component :is="entry.icon" aria-hidden="true" />
             <span>{{ t(`frame.nav.${entry.label}`) }}</span>
           </RouterLink>

@@ -29,7 +29,7 @@ import type { NavEntry } from './navigation';
 import { useNavigation } from './useNavigation';
 
 const { t } = useI18n();
-const { entries, isCurrent } = useNavigation();
+const { entries, isCurrent, linkTo } = useNavigation();
 const more = ref(false);
 
 // The pages a thumb needs most stay in the bar; the rest open in the sheet.
@@ -51,7 +51,7 @@ const sheetEntries = computed<NavEntry[]>(() => split.value.sheet);
       class="h-auto! min-h-11 flex-1 flex-col gap-1! px-1! py-1.5 text-xs"
       as-child
     >
-      <RouterLink :to="{ name: entry.route }">
+      <RouterLink :to="linkTo(entry)">
         <component :is="entry.icon" class="size-5" aria-hidden="true" />
         <span class="truncate">{{ t(`frame.nav.${entry.label}`) }}</span>
       </RouterLink>
@@ -87,7 +87,7 @@ const sheetEntries = computed<NavEntry[]>(() => split.value.sheet);
             :class="isCurrent(entry) && 'bg-muted'"
             as-child
           >
-            <RouterLink :to="{ name: entry.route }" @click="more = false">
+            <RouterLink :to="linkTo(entry)" @click="more = false">
               <ItemMedia variant="icon">
                 <component :is="entry.icon" aria-hidden="true" />
               </ItemMedia>

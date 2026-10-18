@@ -10,10 +10,11 @@
 
 import { useStorage } from '@vueuse/core';
 import { computed, watch, type ComputedRef } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 
 import { useChannelAccess } from '@/api/access';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { isChannelPage, pageLocation, pageName, routeChannel } from '@/router/channelRoutes';
 
 import { navByMode } from './navModes';
 import type { NavEntry, NavGroup, NavMode } from './navigation';
@@ -31,6 +32,8 @@ export type Navigation = {
   groups: ComputedRef<VisibleGroup[]>;
   entries: ComputedRef<NavEntry[]>;
   isCurrent: (entry: NavEntry) => boolean;
+  // Where the entry's link goes: the page under the channel prefix.
+  linkTo: (entry: NavEntry) => RouteLocationRaw;
   toggle: (group: VisibleGroup) => void;
 };
 
@@ -43,7 +46,7 @@ const folds = useStorage<Record<string, boolean>>(
 export function useNavigation(): Navigation {
   const router = useRouter();
   const route = useRoute();
-  const { channelId } = useCurrentChannel();
+  const { channelId, current } = useCurrentChannel();
   const access = useChannelAccess(channelId);
 
   // A page the person may not read has no entry. Until the bot has answered, nothing is hidden.
@@ -59,10 +62,20 @@ export function useNavigation(): Navigation {
 
   // A page that is not built yet has no route, so it has no entry (pages appear as they land).
   function isCurrent(entry: NavEntry): boolean {
-    return (
-      typeof route.name === 'string' &&
-      (route.name === entry.route || (entry.exact !== true && route.name.startsWith(`${entry.route}-`)))
-    );
+    if (typeof route.name !== 'string')
+      return false;
+
+    const page = pageName(route.name);
+
+    return page === entry.route || (entry.exact !== true && page.startsWith(`${entry.route}-`));
+  }
+
+  // The channel in the address while the person is on a channel route, else the one being managed.
+  function linkTo(entry: NavEntry): RouteLocationRaw {
+    if (!isChannelPage(router.resolve({ name: entry.route }).meta))
+      return { name: entry.route };
+
+    return pageLocation(entry.route, routeChannel(route) ?? current.value?.login ?? null);
   }
 
   // The open page says which sidebar it belongs to; a page that says nothing sits in the dashboard.
@@ -108,6 +121,7 @@ export function useNavigation(): Navigation {
     groups,
     entries: computed(() => groups.value.flatMap((group) => group.entries)),
     isCurrent,
+    linkTo,
     toggle,
   };
 }
