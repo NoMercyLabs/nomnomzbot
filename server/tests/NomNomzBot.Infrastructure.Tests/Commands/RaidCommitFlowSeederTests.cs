@@ -116,19 +116,19 @@ public sealed class RaidCommitFlowSeederTests
             .PipelineId!.Value;
         List<PipelineStep> steps = StepsOf(db, pipelineId);
 
-        steps.Should().HaveCount(4);
-        steps[0].ActionType.Should().Be("show_raid_recap");
-        steps[1].ActionType.Should().Be("obs_streaming");
-        steps[2].ActionType.Should().Be("music_pause");
-        steps[3].ActionType.Should().Be("announce");
+        steps.Should().HaveCount(3);
+        steps[0].ActionType.Should().Be("obs_streaming");
+        steps[1].ActionType.Should().Be("music_pause");
+        steps[2].ActionType.Should().Be("announce");
     }
 
     /// <summary>
-    /// The recap is the ending scene, so it must go out BEFORE the stop step ends the broadcast, and a
-    /// missing widget must never block the stop or the raid message.
+    /// The recap fires when the raid STARTS (<see cref="RaidStartFlowSeeder"/>) and covers the stream up to
+    /// the !raid command. At the raid-out signal the window would run on past the command, so the commit
+    /// flow carries no recap step.
     /// </summary>
     [Fact]
-    public async Task The_recap_is_the_first_step_and_a_missing_widget_never_blocks_the_rest()
+    public async Task The_commit_flow_carries_no_recap_step()
     {
         (RaidCommitFlowSeeder seeder, SeedTestDbContext db) = Build();
         db.EventResponses.Add(UntouchedStub(Tenant));
@@ -139,14 +139,11 @@ public sealed class RaidCommitFlowSeederTests
         Guid pipelineId = db
             .EventResponses.Single(r => r.BroadcasterId == Tenant)
             .PipelineId!.Value;
-        List<PipelineStep> steps = StepsOf(db, pipelineId);
 
-        steps[0].ActionType.Should().Be("show_raid_recap");
-        steps[0].ContinueOnError.Should().BeTrue();
-        steps[0].Order.Should().Be(0);
+        StepsOf(db, pipelineId).Should().NotContain(s => s.ActionType == "show_raid_recap");
         db.Pipelines.Single(p => p.Id == pipelineId)
             .GraphJsonCache.Should()
-            .Contain("show_raid_recap");
+            .NotContain("show_raid_recap");
     }
 
     private static Guid AddPipelineWith(
@@ -197,36 +194,6 @@ public sealed class RaidCommitFlowSeederTests
         return pipelineId;
     }
 
-    private const string LegacyAnnounce =
-        """{"message":"We have raided out to https://twitch.tv/{user.name}, See you there!"}""";
-
-    [Fact]
-    public async Task An_untouched_pipeline_seeded_before_the_recap_gets_the_recap_as_its_first_step()
-    {
-        (RaidCommitFlowSeeder seeder, SeedTestDbContext db) = Build();
-        Guid pipelineId = AddPipelineWith(
-            db,
-            ("obs_streaming", """{"action":"stop"}""", true),
-            ("music_pause", "{}", true),
-            ("announce", LegacyAnnounce, false)
-        );
-
-        await seeder.SeedAsync(Tenant);
-
-        List<PipelineStep> steps = StepsOf(db, pipelineId);
-        steps
-            .Select(s => s.ActionType)
-            .Should()
-            .Equal("show_raid_recap", "obs_streaming", "music_pause", "announce");
-        steps.Select(s => s.Order).Should().Equal(0, 1, 2, 3);
-        steps[0].ContinueOnError.Should().BeTrue();
-        steps[3].ConfigJson.Should().Be(LegacyAnnounce);
-        db.Pipelines.Single(p => p.Id == pipelineId)
-            .GraphJsonCache.Should()
-            .Contain("show_raid_recap");
-        db.Pipelines.Should().ContainSingle();
-    }
-
     [Fact]
     public async Task A_customized_pipeline_is_left_unchanged_and_gets_no_recap_step()
     {
@@ -246,23 +213,6 @@ public sealed class RaidCommitFlowSeederTests
             .Should()
             .Equal("obs_streaming", "music_pause", "announce");
         db.Pipelines.Single(p => p.Id == pipelineId).GraphJsonCache.Should().Be(cacheBefore);
-    }
-
-    [Fact]
-    public async Task Upgrading_twice_adds_the_recap_step_only_once()
-    {
-        (RaidCommitFlowSeeder seeder, SeedTestDbContext db) = Build();
-        Guid pipelineId = AddPipelineWith(
-            db,
-            ("obs_streaming", """{"action":"stop"}""", true),
-            ("music_pause", "{}", true),
-            ("announce", LegacyAnnounce, false)
-        );
-
-        await seeder.SeedAsync(Tenant);
-        await seeder.SeedAsync(Tenant);
-
-        StepsOf(db, pipelineId).Count(s => s.ActionType == "show_raid_recap").Should().Be(1);
     }
 
     /// <summary>

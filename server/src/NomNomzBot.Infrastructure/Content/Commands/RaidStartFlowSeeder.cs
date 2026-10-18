@@ -78,11 +78,18 @@ public sealed class RaidStartFlowSeeder : ISeeder
         foreach (EventResponse response in responses)
         {
             // Already wired to a BUILT pipeline — the streamer's own (or a prior run of this seeder).
+            // The one exception: a pipeline still in exactly the shape this seeder first wired gets the
+            // recap step added in front; anything the streamer edited stays as it is.
             if (
                 response is { ResponseType: "pipeline", PipelineId: { } pid }
                 && pipelineIdsWithSteps.Contains(pid)
             )
+            {
+                Pipeline? seeded = await _db.Pipelines.FirstOrDefaultAsync(p => p.Id == pid, ct);
+                if (seeded is not null)
+                    TryUpgradeToRecapFirst(pid, seeded);
                 continue;
+            }
 
             // A non-empty chat_message is the streamer's own customization (this is exactly what
             // Stoney's channel carried before tonight — the legacy bot's own hard-coded "We have
@@ -174,8 +181,70 @@ public sealed class RaidStartFlowSeeder : ISeeder
         bool ContinueOnError = false
     );
 
+    private const string RecapActionType = "show_raid_recap";
+    private const string SceneConfig = """{"scene":"Ending"}""";
+    private const string CallOutConfig =
+        """{"message":"We're heading out to {user}, thanks for watching!"}""";
+
+    /// <summary>
+    /// Adds <c>show_raid_recap</c> as the first step of a pipeline this seeder wired BEFORE the recap
+    /// existed — and only of one that still matches that seeded shape exactly (the only shape this seeder
+    /// ever wrote without the recap). A pipeline the streamer edited in any way is theirs and is never
+    /// touched. Returns true when the pipeline was upgraded.
+    /// </summary>
+    private bool TryUpgradeToRecapFirst(Guid pipelineId, Pipeline pipeline)
+    {
+        List<PipelineStep> steps = _db
+            .PipelineSteps.Where(s => s.PipelineId == pipelineId)
+            .OrderBy(s => s.Order)
+            .ToList();
+
+        if (!MatchesSeededShapeWithoutRecap(steps))
+            return false;
+
+        foreach (PipelineStep step in steps)
+            step.Order += 1;
+
+        PipelineStep recap = new()
+        {
+            Id = Guid.CreateVersion7(),
+            PipelineId = pipelineId,
+            BroadcasterId = pipeline.BroadcasterId,
+            ActionType = RecapActionType,
+            ConfigJson = "{}",
+            ContinueOnError = true,
+            Order = 0,
+            IsEnabled = true,
+        };
+        _db.PipelineSteps.Add(recap);
+        steps.Insert(0, recap);
+        pipeline.GraphJsonCache = PipelineGraphBuilder.BuildGraphJson(steps);
+        return true;
+    }
+
+    private static bool MatchesSeededShapeWithoutRecap(List<PipelineStep> steps) =>
+        steps
+            is [
+                {
+                    ActionType: "obs_switch_scene",
+                    ConfigJson: SceneConfig,
+                    ContinueOnError: true,
+                    IsEnabled: true,
+                },
+                {
+                    ActionType: "send_message",
+                    ConfigJson: CallOutConfig,
+                    ContinueOnError: false,
+                    IsEnabled: true,
+                },
+            ];
+
     private static IEnumerable<SeedStep> BuildSteps()
     {
+        // The recap covers the stream from its start to the moment of the !raid command, so it fires here,
+        // when the raid starts, and not at the raid-out signal. ContinueOnError: a widget nobody has open
+        // must never block the countdown.
+        yield return new(RecapActionType, "{}", ContinueOnError: true);
         // ContinueOnError: an OBS hiccup here must never take down the chat call-out. Confirmed live
         // 2026-09-01 in the old command-driven version: "OBS connection closed" on this one step killed
         // the whole rest of the raid flow while Twitch's clock kept running.

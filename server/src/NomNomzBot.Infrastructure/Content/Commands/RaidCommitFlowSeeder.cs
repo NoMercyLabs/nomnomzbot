@@ -83,18 +83,11 @@ public sealed class RaidCommitFlowSeeder : ISeeder
         foreach (EventResponse response in responses)
         {
             // Already wired to a BUILT pipeline — the streamer's own (or a prior run of this seeder).
-            // The one exception: a pipeline still in exactly the shape this seeder first wired gets the
-            // recap step added in front; anything the streamer edited stays as it is.
             if (
                 response is { ResponseType: "pipeline", PipelineId: { } pid }
                 && pipelineIdsWithSteps.Contains(pid)
             )
-            {
-                Pipeline? seeded = await _db.Pipelines.FirstOrDefaultAsync(p => p.Id == pid, ct);
-                if (seeded is not null)
-                    TryUpgradeToRecapFirst(pid, seeded);
                 continue;
-            }
 
             // A non-empty chat_message is the streamer's own customization (this is exactly what
             // Stoney's channel carried before tonight — the legacy bot's own hard-coded "We have
@@ -185,75 +178,12 @@ public sealed class RaidCommitFlowSeeder : ISeeder
         bool ContinueOnError = false
     );
 
-    private const string RecapActionType = "show_raid_recap";
     private const string StopConfig = """{"action":"stop"}""";
     private const string AnnounceConfig =
         """{"message":"We have raided out to https://twitch.tv/{user.name}, See you there!"}""";
 
-    /// <summary>
-    /// Adds <c>show_raid_recap</c> as the first step of a pipeline this seeder wired BEFORE the recap
-    /// existed — and only of one that still matches that seeded shape exactly (same three actions, same
-    /// configs, same flags). A pipeline the streamer edited in any way is theirs and is never touched.
-    /// Returns true when the pipeline was upgraded.
-    /// </summary>
-    private bool TryUpgradeToRecapFirst(Guid pipelineId, Pipeline pipeline)
-    {
-        List<PipelineStep> steps = _db
-            .PipelineSteps.Where(s => s.PipelineId == pipelineId)
-            .OrderBy(s => s.Order)
-            .ToList();
-
-        if (!MatchesSeededShapeWithoutRecap(steps))
-            return false;
-
-        foreach (PipelineStep step in steps)
-            step.Order += 1;
-
-        PipelineStep recap = new()
-        {
-            Id = Guid.CreateVersion7(),
-            PipelineId = pipelineId,
-            BroadcasterId = pipeline.BroadcasterId,
-            ActionType = RecapActionType,
-            ConfigJson = "{}",
-            ContinueOnError = true,
-            Order = 0,
-            IsEnabled = true,
-        };
-        _db.PipelineSteps.Add(recap);
-        steps.Insert(0, recap);
-        pipeline.GraphJsonCache = PipelineGraphBuilder.BuildGraphJson(steps);
-        return true;
-    }
-
-    private static bool MatchesSeededShapeWithoutRecap(List<PipelineStep> steps) =>
-        steps
-            is [
-                {
-                    ActionType: "obs_streaming",
-                    ConfigJson: StopConfig,
-                    ContinueOnError: true,
-                    IsEnabled: true,
-                },
-                {
-                    ActionType: "music_pause",
-                    ConfigJson: "{}",
-                    ContinueOnError: true,
-                    IsEnabled: true,
-                },
-                {
-                    ActionType: "announce",
-                    ConfigJson: AnnounceConfig,
-                    ContinueOnError: false,
-                    IsEnabled: true,
-                },
-            ];
-
     private static IEnumerable<SeedStep> BuildSteps()
     {
-        // The recap is the ending scene, so it goes out BEFORE the stop step ends the broadcast.
-        // ContinueOnError: a widget nobody has open must never block the stop or the raid message.
-        yield return new(RecapActionType, "{}", ContinueOnError: true);
         // ContinueOnError on both — one failing (a flaky OBS bridge, say) must never stop the other,
         // matching the legacy bot's two separate try/catches around StopStreaming and PauseSpotify.
         yield return new("obs_streaming", StopConfig, ContinueOnError: true);

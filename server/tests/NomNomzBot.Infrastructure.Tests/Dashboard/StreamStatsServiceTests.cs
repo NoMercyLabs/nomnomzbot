@@ -511,6 +511,37 @@ public sealed class StreamStatsServiceTests
         result.Value.Followers.Should().Be(1);
     }
 
+    /// <summary>The raid recap asks at the moment of the raid command: everything from this stream's start up
+    /// to that moment is in, the earlier stream and anything after the command is out.</summary>
+    [Fact]
+    public async Task A_live_stream_recap_runs_from_the_stream_start_to_the_raid_command_moment()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        DateTimeOffset raidCommand = Started.AddHours(2);
+        db.Streams.Add(NewStream("s-old", Started.AddDays(-1), Started.AddDays(-1).AddHours(3)));
+        db.Streams.Add(NewStream("s-live", Started, null));
+        db.ChannelEvents.Add(
+            Fact(Broadcaster, "channel.follow", Started.AddSeconds(-1), new { userId = "before" })
+        );
+        db.ChannelEvents.Add(
+            Fact(Broadcaster, "channel.follow", Started.AddSeconds(1), new { userId = "first" })
+        );
+        db.ChannelEvents.Add(
+            Fact(Broadcaster, "channel.follow", raidCommand.AddSeconds(-1), new { userId = "last" })
+        );
+        db.ChannelEvents.Add(
+            Fact(Broadcaster, "channel.follow", raidCommand.AddSeconds(1), new { userId = "after" })
+        );
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, raidCommand)
+            .GetAsync(Broadcaster, null, ["followers"]);
+
+        result
+            .Value.Followers.Should()
+            .Be(2, "only 'first' and 'last' lie between start and the raid command");
+    }
+
     [Fact]
     public async Task An_unknown_stream_fails_with_not_found()
     {

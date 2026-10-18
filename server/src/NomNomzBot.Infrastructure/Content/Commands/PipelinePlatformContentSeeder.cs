@@ -72,13 +72,13 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
     private static readonly FlowKey[] Flows =
     [
         new("raid_out", "Raid out", RaidFlowSeeder.BuildPlatformContentPayloadJson),
-        new("raid_start", "Raid starting", RaidStartFlowSeeder.BuildPlatformContentPayloadJson),
         new(
-            "raid_commit",
-            "Raid committed",
-            RaidCommitFlowSeeder.BuildPlatformContentPayloadJson,
+            "raid_start",
+            "Raid starting",
+            RaidStartFlowSeeder.BuildPlatformContentPayloadJson,
             RequiredAction: "show_raid_recap"
         ),
+        new("raid_commit", "Raid committed", RaidCommitFlowSeeder.BuildPlatformContentPayloadJson),
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
@@ -167,7 +167,7 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
     }
 
     /// <summary>Publishes the next version of a flow whose current published version predates the flow's
-    /// required action (<see cref="FlowKey.RequiredAction"/>), e.g. <c>raid_commit</c> v2 adding
+    /// required action (<see cref="FlowKey.RequiredAction"/>), e.g. <c>raid_start</c> v2 adding
     /// <c>show_raid_recap</c>. Not a hash comparison: the payload carries fresh step ids on every build, so
     /// its hash differs on every run. Returns true when a version was added.</summary>
     private async Task<bool> PublishNextVersionIfStaleAsync(

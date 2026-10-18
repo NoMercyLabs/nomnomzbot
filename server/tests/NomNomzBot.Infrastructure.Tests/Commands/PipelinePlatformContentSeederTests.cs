@@ -76,12 +76,12 @@ public sealed class PipelinePlatformContentSeederTests
     }
 
     [Fact]
-    public async Task Publishes_raid_commit_v2_with_the_recap_step_once_when_v1_predates_it()
+    public async Task Publishes_raid_start_v2_with_the_recap_step_once_when_v1_predates_it()
     {
         SeedTestDbContext db = BuildDb();
         await new PipelinePlatformContentSeeder(db).SeedAsync();
         PlatformContentDefinition definition = db.PlatformContentDefinitions.Single(d =>
-            d.Kind == PlatformContentKinds.Pipeline && d.Key == "raid_commit"
+            d.Kind == PlatformContentKinds.Pipeline && d.Key == "raid_start"
         );
         PlatformContentVersion v1 = db.PlatformContentVersions.Single(v =>
             v.Id == definition.CurrentVersionId
