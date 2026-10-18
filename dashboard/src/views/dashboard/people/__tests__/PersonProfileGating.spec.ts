@@ -82,11 +82,14 @@ beforeEach(() => {
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
 
-  vi.stubGlobal('ResizeObserver', class {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
 });
 
 afterEach(() => {
@@ -132,21 +135,20 @@ describe('A person on the People page shows only the actions the viewer may use'
 
     expect(view.find('[data-slot="profile-view"]').exists()).toBe(true);
 
-    for (const [selector] of actions) {
-      expect(view.find(selector).exists(), selector).toBe(false);
-    }
+    const shown = actions.filter(([selector]) => view.find(selector).exists());
+
+    expect(shown).toEqual([]);
   });
 
   it.each(actions)('shows %s only with %s', async (selector, key) => {
     const view = await open([key, 'tts:voice:read']);
 
-    expect(view.find(selector).exists(), selector).toBe(true);
+    expect(view.find(selector).exists()).toBe(true);
 
-    for (const [other, otherKey] of actions) {
-      if (otherKey !== key) {
-        expect(view.find(other).exists(), other).toBe(false);
-      }
-    }
+    const others = actions.filter(([, otherKey]) => otherKey !== key);
+    const shown = others.filter(([other]) => view.find(other).exists());
+
+    expect(shown).toEqual([]);
   });
 
   it('shows Unban, and no Ban or Timeout, for a banned person with moderation:unban', async () => {

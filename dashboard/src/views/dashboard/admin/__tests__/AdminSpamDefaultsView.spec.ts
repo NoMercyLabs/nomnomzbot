@@ -84,7 +84,9 @@ vi.mock('@/composables/usePlatformCan', () => ({
   usePlatformCan: () => ({ known: { value: true }, can: () => keys.held }),
 }));
 
-vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('vue-sonner', () => ({
+  toast: { success: vi.fn<() => void>(), error: vi.fn<() => void>() },
+}));
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -167,11 +169,21 @@ describe('AdminSpamDefaultsView', () => {
     expect(document.body.querySelectorAll('[data-group]')).toHaveLength(5);
     expect(field('accountAgeGateDays').value).toBe('7');
     expect(field('establishedDays').value).toBe('30');
-    expect(row('isEnabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('true');
+
+    expect(row('isEnabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe(
+      'true',
+    );
+
     expect(row('lockdownMinutes').querySelector('[data-inactive]')).not.toBeNull();
     expect(row('accountAgeGateDays').querySelector('[data-inactive]')).toBeNull();
-    expect(document.body.querySelector('[data-restricted]')?.textContent).toContain('restricted option');
-    expect(document.body.querySelector('[data-invariants]')?.textContent).toContain('never actioned automatically');
+
+    expect(document.body.querySelector('[data-restricted]')?.textContent).toContain(
+      'restricted option',
+    );
+
+    expect(document.body.querySelector('[data-invariants]')?.textContent).toContain(
+      'never actioned automatically',
+    );
   });
 
   it('shows each switch as its on or off state and no Save when the admin lacks featureflag:write', async () => {
@@ -179,7 +191,11 @@ describe('AdminSpamDefaultsView', () => {
     await open();
 
     expect(row('isEnabled').querySelector('[role="switch"]')).toBeNull();
-    expect(row('isEnabled').querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state')).toBe('on');
+
+    expect(
+      row('isEnabled').querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state'),
+    ).toBe('on');
+
     expect(document.body.querySelector('[data-save]')).toBeNull();
   });
 
@@ -236,10 +252,12 @@ describe('AdminSpamDefaultsView', () => {
     expect(dashboardAdminSpamDefaultsRoute.name).toBe('dashboard-admin-spam-defaults');
     expect(dashboardAdminSpamDefaultsRoute.path).toBe('admin/spam-defaults');
 
-    expect(Object.keys(nl.dashboard.admin.spamDefaults.settings).sort())
-      .toEqual(Object.keys(en.dashboard.admin.spamDefaults.settings).sort());
+    expect(Object.keys(nl.dashboard.admin.spamDefaults.settings).sort()).toEqual(
+      Object.keys(en.dashboard.admin.spamDefaults.settings).sort(),
+    );
 
-    expect(Object.keys(nl.dashboard.admin.spamDefaults.groups).sort())
-      .toEqual(Object.keys(en.dashboard.admin.spamDefaults.groups).sort());
+    expect(Object.keys(nl.dashboard.admin.spamDefaults.groups).sort()).toEqual(
+      Object.keys(en.dashboard.admin.spamDefaults.groups).sort(),
+    );
   });
 });

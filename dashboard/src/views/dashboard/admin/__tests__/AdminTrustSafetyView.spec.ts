@@ -84,11 +84,13 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/network-blocks/preview'))
         return {
-          data: { data: {
-            targetDisplayName: 'SpamLord',
-            tenantCount: 4,
-            tenants: [],
-          } },
+          data: {
+            data: {
+              targetDisplayName: 'SpamLord',
+              tenantCount: 4,
+              tenants: [],
+            },
+          },
           response: { status: 200, ok: true },
         };
 
@@ -270,7 +272,7 @@ describe('AdminTrustSafetyView', () => {
   });
 
   it('reloads the desk when the hub says another operator changed it', () => {
-    const invalidate = vi.fn();
+    const invalidate = vi.fn<(filter: { queryKey: string[] }) => void>();
     const handler = adminHandlers.find((entry) => entry.event === 'ReceiveTrustSafetyChanged')!;
 
     handler.handle(

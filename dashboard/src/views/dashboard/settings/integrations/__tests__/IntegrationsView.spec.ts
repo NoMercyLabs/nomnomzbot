@@ -97,11 +97,13 @@ beforeEach(() => {
       return ok({
         isMinimum: true,
         totalReferences: 3,
-        categories: [{
-          categoryKey: 'unknown.key',
-          count: 3,
-          sample: ['Song request', 'Now playing'],
-        }],
+        categories: [
+          {
+            categoryKey: 'unknown.key',
+            count: 3,
+            sample: ['Song request', 'Now playing'],
+          },
+        ],
       });
     }
 
@@ -194,8 +196,10 @@ async function click(el: Element | null): Promise<void> {
   await settle();
 }
 
-const row = (id: string): HTMLElement => document.body.querySelector<HTMLElement>(`[data-integration="${id}"]`) as HTMLElement;
-const action = (id: string, name: string): HTMLElement | null => row(id).querySelector(`[data-action="${name}"]`);
+const row = (id: string): HTMLElement =>
+  document.body.querySelector<HTMLElement>(`[data-integration="${id}"]`) as HTMLElement;
+const action = (id: string, name: string): HTMLElement | null =>
+  row(id).querySelector(`[data-action="${name}"]`);
 
 describe('Integrations page', () => {
   it('lists each service with its state, account, permission sets and capabilities', async () => {
@@ -204,14 +208,24 @@ describe('Integrations page', () => {
     expect(row('spotify').textContent).toContain('Plays music.');
     expect(row('spotify').textContent).toContain('Connected as stoney');
     expect(row('spotify').textContent).toContain(en.dashboard.settings.integrations.needsReauth);
-    expect(row('spotify').querySelector('[data-slot="scope-sets"]')?.textContent).toContain('spotify.playback');
-    expect(row('spotify').querySelector('[data-slot="capabilities"]')?.textContent).toContain('playback');
-    expect(row('spotify').querySelector('[data-slot="capabilities"]')?.textContent).not.toContain('library');
+
+    expect(row('spotify').querySelector('[data-slot="scope-sets"]')?.textContent).toContain(
+      'spotify.playback',
+    );
+
+    expect(row('spotify').querySelector('[data-slot="capabilities"]')?.textContent).toContain(
+      'playback',
+    );
+
+    expect(row('spotify').querySelector('[data-slot="capabilities"]')?.textContent).not.toContain(
+      'library',
+    );
+
     expect(row('patreon').textContent).toContain(en.dashboard.settings.integrations.notConnected);
   });
 
   it('connects a service with its scope set and the page to come back to', async () => {
-    const assign = vi.fn();
+    const assign = vi.fn<(url: string) => void>();
 
     vi.stubGlobal('location', {
       ...window.location,
@@ -226,13 +240,18 @@ describe('Integrations page', () => {
 
     expect(path).toBe(`${base}/{provider}/connect`);
     expect(init.params?.path).toMatchObject({ channelId: 'c1', provider: 'patreon' });
-    expect(init.body).toMatchObject({ scopeSetKey: 'patreon.supporters', returnUrl: 'http://app/settings' });
+
+    expect(init.body).toMatchObject({
+      scopeSetKey: 'patreon.supporters',
+      returnUrl: 'http://app/settings',
+    });
+
     expect(assign).toHaveBeenCalledWith('https://auth.example/go');
     vi.unstubAllGlobals();
   });
 
   it('asks for the shop name before Shopify connects and sends it', async () => {
-    vi.stubGlobal('location', { ...window.location, assign: vi.fn() });
+    vi.stubGlobal('location', { ...window.location, assign: vi.fn<(url: string) => void>() });
     await open();
 
     expect((action('shopify', 'connect') as HTMLButtonElement).disabled).toBe(true);
@@ -244,7 +263,9 @@ describe('Integrations page', () => {
     await settle();
     await click(action('shopify', 'connect'));
 
-    expect((http.POST.mock.calls[0]?.[1] as Call['init']).body).toMatchObject({
+    const call = http.POST.mock.calls[0] as [string, Call['init']];
+
+    expect(call[1].body).toMatchObject({
       scopeSetKey: 'shopify.orders',
       shopDomain: 'my-shop',
     });
@@ -263,14 +284,15 @@ describe('Integrations page', () => {
     await open();
     await click(action('spotify', 'disconnect'));
 
-    expect(http.GET).toHaveBeenCalledWith(
-      `${base}/{integrationId}/blast-radius`,
-      { params: { path: {
-        channelId: 'c1',
-        integrationId: 'spotify',
-        version: '1',
-      } } },
-    );
+    expect(http.GET).toHaveBeenCalledWith(`${base}/{integrationId}/blast-radius`, {
+      params: {
+        path: {
+          channelId: 'c1',
+          integrationId: 'spotify',
+          version: '1',
+        },
+      },
+    });
 
     expect(http.DELETE).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain('at least 3');
@@ -282,19 +304,25 @@ describe('Integrations page', () => {
 
     await click(confirm ?? null);
 
-    expect(http.DELETE).toHaveBeenCalledWith(
-      `${base}/{integrationId}`,
-      { params: { path: {
-        channelId: 'c1',
-        integrationId: 'spotify',
-        version: '1',
-      } } },
-    );
+    expect(http.DELETE).toHaveBeenCalledWith(`${base}/{integrationId}`, {
+      params: {
+        path: {
+          channelId: 'c1',
+          integrationId: 'spotify',
+          version: '1',
+        },
+      },
+    });
   });
 
   it('shows the refusal reason when the disconnect fails', async () => {
     await open();
-    http.DELETE.mockResolvedValueOnce({ error: { detail: 'Still in use.' }, response: { ok: false, status: 400 } });
+
+    http.DELETE.mockResolvedValueOnce({
+      error: { detail: 'Still in use.' },
+      response: { ok: false, status: 400 },
+    });
+
     await click(action('spotify', 'disconnect'));
 
     const confirm = [...document.body.querySelectorAll('[role="alertdialog"] button')].find(
@@ -354,12 +382,14 @@ describe('Spotify own app', () => {
     await settle();
     await click(document.body.querySelector('[data-action="save-spotify"]'));
 
-    expect(http.PUT).toHaveBeenCalledWith(
-      `${base}/spotify/credentials`,
-      { params: { path: { channelId: 'c1', version: '1' } }, body: { clientId: 'new-id', clientSecret: 's3cret' } },
-    );
+    expect(http.PUT).toHaveBeenCalledWith(`${base}/spotify/credentials`, {
+      params: { path: { channelId: 'c1', version: '1' } },
+      body: { clientId: 'new-id', clientSecret: 's3cret' },
+    });
 
-    expect((document.body.querySelector('input[name="clientSecret"]') as HTMLInputElement).value).toBe('');
+    expect(
+      (document.body.querySelector('input[name="clientSecret"]') as HTMLInputElement).value,
+    ).toBe('');
   });
 
   it('offers no shared app when the server reports none', async () => {
@@ -397,10 +427,9 @@ describe('Spotify own app', () => {
     await open();
     await click(document.body.querySelector('[data-action="clear-spotify"]'));
 
-    expect(http.DELETE).toHaveBeenCalledWith(
-      `${base}/spotify/credentials`,
-      { params: { path: { channelId: 'c1', version: '1' } } },
-    );
+    expect(http.DELETE).toHaveBeenCalledWith(`${base}/spotify/credentials`, {
+      params: { path: { channelId: 'c1', version: '1' } },
+    });
   });
 });
 
@@ -415,8 +444,12 @@ describe('Integrations live sync', () => {
 
 describe('Integrations route', () => {
   it('resolves the sidebar entry to the Integrations page and not a scaffold', () => {
-    const entry = settingsNav.flatMap((group) => group.entries).find((item) => item.route === 'dashboard-settings-integrations');
-    const record = dashboardSettingsRoutes.find((route) => route.name === 'dashboard-settings-integrations');
+    const entry = settingsNav
+      .flatMap((group) => group.entries)
+      .find((item) => item.route === 'dashboard-settings-integrations');
+    const record = dashboardSettingsRoutes.find(
+      (route) => route.name === 'dashboard-settings-integrations',
+    );
 
     expect(entry).toBeDefined();
     expect(record?.path).toBe('settings/integrations');

@@ -163,11 +163,13 @@ function answerPost(path: string): Answer {
 
   if (path === `${base}/invite/redeem`) {
     return {
-      data: { data: {
-        grantedFoundersBadge: true,
-        grantedTierKey: 'plus',
-        foundersBadge: null,
-      } },
+      data: {
+        data: {
+          grantedFoundersBadge: true,
+          grantedTierKey: 'plus',
+          foundersBadge: null,
+        },
+      },
       response: ok,
     };
   }
@@ -182,7 +184,10 @@ let held: string[] = [];
 async function open(): Promise<void> {
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: BillingView }] });
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/', component: BillingView }],
+  });
 
   mounted = mount(BillingView, {
     attachTo: document.body,
@@ -230,11 +235,14 @@ beforeEach(() => {
   http.POST.mockImplementation(async (path: string) => answerPost(path));
   FakeHubConnection.instances = [];
 
-  vi.stubGlobal('ResizeObserver', class {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
 });
 
 afterEach(() => {
@@ -279,7 +287,7 @@ describe('Billing page: plan', () => {
   });
 
   it('Manage payment opens the payment page the server names', async () => {
-    const assign = vi.fn();
+    const assign = vi.fn<(url: string) => void>();
 
     vi.stubGlobal('location', { ...window.location, assign });
     subscription = subscriptionOf('plus', 'Plus');
@@ -323,7 +331,9 @@ describe('Billing page: plans on offer', () => {
     subscription = subscriptionOf('plus', 'Plus');
     await open();
 
-    const keys = [...document.body.querySelectorAll<HTMLElement>('[data-tier]')].map((row) => row.dataset.tier);
+    const keys = [...document.body.querySelectorAll<HTMLElement>('[data-tier]')].map(
+      (row) => row.dataset.tier,
+    );
 
     expect(keys).toEqual(['free', 'plus', 'pro']);
     expect(find('[data-tier="plus"] [data-tier-price]').textContent).toBe('€12.50 per month');
@@ -333,7 +343,7 @@ describe('Billing page: plans on offer', () => {
   });
 
   it('without a paid plan, choosing a plan starts checkout with that tier key and goes to the payment page', async () => {
-    const assign = vi.fn();
+    const assign = vi.fn<(url: string) => void>();
 
     vi.stubGlobal('location', { ...window.location, assign });
     await open();
@@ -449,7 +459,9 @@ describe('Billing page: live updates', () => {
     await hub.startDashboardHub(queries);
     await hub.watchChannel('c1');
 
-    const paths = ['subscription', 'tiers', 'founders-badge', 'invoices'].map((name) => `${base}/${name}`);
+    const paths = ['subscription', 'tiers', 'founders-badge', 'invoices'].map(
+      (name) => `${base}/${name}`,
+    );
     const before = paths.map(readsOf);
 
     FakeHubConnection.at(FakeHubConnection.instances.length - 1).receive('ConfigChanged', {
@@ -492,8 +504,12 @@ describe('Billing page: without the manage key', () => {
 
 describe('Billing route', () => {
   it('the sidebar entry resolves to the page and is not a coming-soon scaffold', () => {
-    const entry = settingsNav.flatMap((group) => group.entries).find((item) => item.route === 'dashboard-settings-billing');
-    const record = dashboardSettingsRoutes.find((route) => route.name === 'dashboard-settings-billing');
+    const entry = settingsNav
+      .flatMap((group) => group.entries)
+      .find((item) => item.route === 'dashboard-settings-billing');
+    const record = dashboardSettingsRoutes.find(
+      (route) => route.name === 'dashboard-settings-billing',
+    );
 
     expect(entry).toBeDefined();
     expect(record).toBeDefined();

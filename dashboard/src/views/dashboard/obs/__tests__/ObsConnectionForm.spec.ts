@@ -110,7 +110,9 @@ describe('ObsConnectionForm', () => {
     await view.get('[data-obs-save]').trigger('click');
     await flushPromises();
 
-    expect((puts[0]?.body as Record<string, unknown>).password).toBeNull();
+    const sent = puts[0]?.body as Record<string, unknown> | undefined;
+
+    expect(sent?.password).toBeNull();
   });
 
   it('sends an empty string when the stored password is cleared on purpose', async () => {
@@ -120,6 +122,8 @@ describe('ObsConnectionForm', () => {
     await view.get('[data-obs-save]').trigger('click');
     await flushPromises();
 
-    expect((puts[0]?.body as Record<string, unknown>).password).toBe('');
+    const sent = puts[0]?.body as Record<string, unknown> | undefined;
+
+    expect(sent?.password).toBe('');
   });
 });

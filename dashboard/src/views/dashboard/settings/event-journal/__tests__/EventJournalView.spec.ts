@@ -370,9 +370,11 @@ describe('Event journal permissions', () => {
       '[data-import-legacy]',
     ];
 
-    for (const selector of writeControls) {
-      expect(document.body.querySelector(selector), selector).toBeNull();
-    }
+    const shown = writeControls.filter(
+      (selector) => document.body.querySelector(selector) !== null,
+    );
+
+    expect(shown).toEqual([]);
   });
 });
 

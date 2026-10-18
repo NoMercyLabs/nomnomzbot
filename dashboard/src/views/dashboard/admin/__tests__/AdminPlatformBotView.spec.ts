@@ -178,7 +178,7 @@ describe('AdminPlatformBotView', () => {
   });
 
   it('reloads the state when the hub says the platform bot changed', () => {
-    const invalidate = vi.fn();
+    const invalidate = vi.fn<(filter: { queryKey: string[] }) => void>();
     const handler = adminHandlers.find((entry) => entry.event === 'ReceivePlatformBotChanged')!;
 
     handler.handle(

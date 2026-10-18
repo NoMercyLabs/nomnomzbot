@@ -65,7 +65,8 @@ async function open(status: unknown): Promise<void> {
   http.GET.mockImplementation(async (path: string) =>
     path === statusPath
       ? ok(status)
-      : ok({ authorizeUrl: 'https://id.twitch.tv/authorize?x=1', state: 's' }));
+      : ok({ authorizeUrl: 'https://id.twitch.tv/authorize?x=1', state: 's' }),
+  );
 
   answerHeldKeys(http.GET, () => held);
 
@@ -177,7 +178,7 @@ describe('White-label bot page', () => {
   });
 
   it('browser sign-in asks the bot for the authorize URL and opens it', async () => {
-    const opener = vi.fn();
+    const opener = vi.fn<(url: string, target: string, features: string) => void>();
 
     vi.stubGlobal('open', opener);
     await open({ connected: false });
@@ -201,7 +202,8 @@ describe('White-label bot page', () => {
             interval: 1,
             expiresIn: 600,
           })
-        : ok({ status: 'authorized', bot: connectedBot }));
+        : ok({ status: 'authorized', bot: connectedBot }),
+    );
 
     await open({ connected: false });
 
@@ -233,7 +235,8 @@ describe('White-label bot page', () => {
             interval: 1,
             expiresIn: 600,
           })
-        : ok({ status: 'expired' }));
+        : ok({ status: 'expired' }),
+    );
 
     await open({ connected: false });
 

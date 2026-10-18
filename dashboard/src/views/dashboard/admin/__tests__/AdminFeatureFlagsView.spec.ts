@@ -80,7 +80,9 @@ vi.mock('@/composables/usePlatformCan', () => ({
   usePlatformCan: () => ({ known: { value: true }, can: () => keys.held }),
 }));
 
-vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('vue-sonner', () => ({
+  toast: { success: vi.fn<() => void>(), error: vi.fn<() => void>() },
+}));
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -316,7 +318,8 @@ describe('AdminFeatureFlagsView', () => {
     expect(dashboardAdminFeatureFlagsRoute.name).toBe('dashboard-admin-feature-flags');
     expect(dashboardAdminFeatureFlagsRoute.path).toBe('admin/feature-flags');
 
-    expect(Object.keys(nl.dashboard.admin.featureFlags).sort())
-      .toEqual(Object.keys(en.dashboard.admin.featureFlags).sort());
+    expect(Object.keys(nl.dashboard.admin.featureFlags).sort()).toEqual(
+      Object.keys(en.dashboard.admin.featureFlags).sort(),
+    );
   });
 });

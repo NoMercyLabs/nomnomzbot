@@ -289,8 +289,9 @@ describe('QuotesView', () => {
     expect(document.querySelectorAll('[data-quote-row]').length).toBeGreaterThan(0);
     expect(document.querySelector('[data-quote-random]')).not.toBeNull();
 
-    for (const selector of ['[data-quote-new]', '[data-quote-edit]', '[data-quote-delete]']) {
-      expect(document.querySelector(selector), selector).toBeNull();
-    }
+    const writeControls = ['[data-quote-new]', '[data-quote-edit]', '[data-quote-delete]'];
+    const shown = writeControls.filter((selector) => document.querySelector(selector) !== null);
+
+    expect(shown).toEqual([]);
   });
 });

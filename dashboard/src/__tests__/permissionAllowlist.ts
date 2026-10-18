@@ -22,7 +22,8 @@ export interface AllowlistGroup {
 
 export const permissionAllowlist = [
   {
-    reason: 'Local-only UI that changes no stored data: pager, back, close, retry, copy link, panel toggle, display preference, row pick, lookup, dev-only catalog page.',
+    reason:
+      'Local-only UI that changes no stored data: pager, back, close, retry, copy link, panel toggle, display preference, row pick, lookup, dev-only catalog page.',
     files: {
       'admin/AdminChannelsView.vue': 2,
       'admin/AdminContentView.vue': 1,
@@ -39,11 +40,9 @@ export const permissionAllowlist = [
       'home/components/PollDialog.vue': 1,
       'home/components/PredictionDialog.vue': 1,
       'scripts/ScriptsView.vue': 1,
-      'scripts/components/ScriptDetail.vue': 1,
       'channel-points/components/RedemptionsPanel.vue': 1,
       'home/HomeView.vue': 1,
-      'people/PeopleView.vue': 2,
-      'pipelines/WorkbenchView.vue': 1,
+      'people/PeopleView.vue': 1,
       'pipelines/components/StepPicker.vue': 1,
       'scripts/components/FailedRunDialog.vue': 1,
       'settings/ReadabilityView.vue': 1,
@@ -57,7 +56,8 @@ export const permissionAllowlist = [
     },
   },
   {
-    reason: 'Edits an in-memory draft or list inside a form; the save control of that form is the write, and it sits in the parent editor.',
+    reason:
+      'Edits an in-memory draft or list inside a form; the save control of that form is the write, and it sits in the parent editor.',
     files: {
       'commands/components/RandomReplyList.vue': 2,
       'overlays/components/SettingGroup.vue': 1,
@@ -70,7 +70,8 @@ export const permissionAllowlist = [
     },
   },
   {
-    reason: 'Own-data action: the page is about the signed-in person (open: true on its route), not a channel, so no channel key applies. The external chat sends as the person on a Twitch channel the bot does not serve.',
+    reason:
+      'Own-data action: the page is about the signed-in person (open: true on its route), not a channel, so no channel key applies. The external chat sends as the person on a Twitch channel the bot does not serve.',
     files: {
       'chat/ExternalChatView.vue': 2,
       'settings/your-data/components/ErasePanel.vue': 2,

@@ -74,7 +74,8 @@ const dirty = computed<boolean>(
 
 // Twitch sets this one from the category, so it is shown and never switched.
 const categoryLabelOn = computed<boolean>(() =>
-  form.value.contentLabels.includes(CATEGORY_CONTENT_LABEL));
+  form.value.contentLabels.includes(CATEGORY_CONTENT_LABEL),
+);
 
 const history = computed<PastStream[]>(() => historyQuery.data.value ?? []);
 
@@ -88,11 +89,7 @@ const recentTitles = computed<string[]>(() => {
 });
 
 const recentCategories = computed<string[]>(() => [
-  ...new Set(
-    history.value
-      .map((stream) => stream.gameName ?? '')
-      .filter((name) => name !== ''),
-  ),
+  ...new Set(history.value.map((stream) => stream.gameName ?? '').filter((name) => name !== '')),
 ]);
 
 const language = computed<string>(() => {
@@ -151,10 +148,10 @@ function submit(): void {
       <div class="flex flex-col gap-2">
         <div class="flex items-baseline justify-between">
           <label for="stream-title" class="text-sm font-medium">{{
-            t('dashboard.stream.info.titleLabel')
+            t("dashboard.stream.info.titleLabel")
           }}</label>
           <span class="text-sm text-muted-foreground tabular-nums">
-            {{ t('dashboard.stream.info.titleCount', { count: form.title.length }) }}
+            {{ t("dashboard.stream.info.titleCount", { count: form.title.length }) }}
           </span>
         </div>
         <Textarea
@@ -166,7 +163,7 @@ function submit(): void {
         />
         <div v-if="info?.title || recentTitles.length > 0" class="flex flex-col gap-1">
           <span class="text-sm text-muted-foreground">{{
-            t('dashboard.stream.info.recentTitles')
+            t("dashboard.stream.info.recentTitles")
           }}</span>
           <RowGroup>
             <button
@@ -178,7 +175,7 @@ function submit(): void {
             >
               {{ info.title }}
               <span class="text-xs text-muted-foreground">{{
-                t('dashboard.stream.info.currentTitle')
+                t("dashboard.stream.info.currentTitle")
               }}</span>
             </button>
             <button
@@ -196,31 +193,33 @@ function submit(): void {
       </div>
 
       <div class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{ t('dashboard.stream.info.category') }}</span>
+        <span class="text-sm font-medium">{{ t("dashboard.stream.info.category") }}</span>
         <CategoryPicker
+          v-if="canEdit"
           :model-value="form.gameName"
           :channel-id="channelId"
           :recent="recentCategories"
           @update:model-value="setGame"
         />
+        <p v-else class="text-sm">{{ form.gameName }}</p>
       </div>
 
       <div class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{ t('dashboard.stream.info.tags') }}</span>
+        <span class="text-sm font-medium">{{ t("dashboard.stream.info.tags") }}</span>
         <TagInput :model-value="form.tags" @update:model-value="setTags" />
       </div>
 
       <div class="flex flex-col gap-1">
-        <span class="text-sm font-medium">{{ t('dashboard.stream.info.language') }}</span>
+        <span class="text-sm font-medium">{{ t("dashboard.stream.info.language") }}</span>
         <span class="text-sm">{{ language }}</span>
         <span class="text-sm text-muted-foreground">{{
-          t('dashboard.stream.info.languageHint')
+          t("dashboard.stream.info.languageHint")
         }}</span>
       </div>
 
       <div class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{ t('dashboard.stream.info.labels') }}</span>
-        <p class="text-sm text-muted-foreground">{{ t('dashboard.stream.info.labelsHint') }}</p>
+        <span class="text-sm font-medium">{{ t("dashboard.stream.info.labels") }}</span>
+        <p class="text-sm text-muted-foreground">{{ t("dashboard.stream.info.labelsHint") }}</p>
         <RowGroup>
           <SettingRow
             v-for="label in EDITABLE_CONTENT_LABELS"
@@ -249,10 +248,10 @@ function submit(): void {
 
       <div v-if="canEdit" class="flex items-center justify-end gap-2">
         <Button variant="ghost" :disabled="!dirty" @click="draft = {}">{{
-          t('dashboard.stream.info.discard')
+          t("dashboard.stream.info.discard")
         }}</Button>
         <Button :disabled="!dirty || save.isPending.value" @click="submit">{{
-          t('dashboard.stream.info.save')
+          t("dashboard.stream.info.save")
         }}</Button>
       </div>
     </div>

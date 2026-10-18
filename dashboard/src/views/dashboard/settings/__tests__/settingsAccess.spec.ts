@@ -19,7 +19,9 @@ import { accessGuard } from '@/router/accessGuard';
 
 import { dashboardSettingsRoutes } from '../route';
 
-vi.mock('@/api/client', () => ({ client: { GET: vi.fn(), use: (): undefined => undefined } }));
+vi.mock('@/api/client', () => ({
+  client: { GET: vi.fn<() => void>(), use: (): undefined => undefined },
+}));
 
 const page = defineComponent({ render: () => null });
 
@@ -74,16 +76,19 @@ beforeEach(() => {
   queryClient.clear();
   chosenChannelId.value = 'c1';
 
-  queryClient.setQueryData(['channels', 'mine'], [
-    {
-      id: 'c1',
-      login: 'me',
-      displayName: 'me',
-      isLive: false,
-      role: 'broadcaster',
-      provider: 'twitch',
-    },
-  ]);
+  queryClient.setQueryData(
+    ['channels', 'mine'],
+    [
+      {
+        id: 'c1',
+        login: 'me',
+        displayName: 'me',
+        isLive: false,
+        role: 'broadcaster',
+        provider: 'twitch',
+      },
+    ],
+  );
 
   queryClient.setQueryData(['channels', 'moderated'], []);
 });
@@ -98,17 +103,14 @@ describe('settings pages', () => {
     gated
       .filter((route) => route.meta?.action !== 'dashboard:read')
       .map((route) => [route.name, route.path, route.meta?.action] as const),
-  )(
-    '%s sends a person without its key to the dashboard home',
-    async (_name, path) => {
-      hold(['dashboard:read']);
-      const router = makeRouter();
+  )('%s sends a person without its key to the dashboard home', async (_name, path) => {
+    hold(['dashboard:read']);
+    const router = makeRouter();
 
-      await router.push(`/app/${path}`);
+    await router.push(`/app/${path}`);
 
-      expect(router.currentRoute.value.name).toBe('dashboard-home');
-    },
-  );
+    expect(router.currentRoute.value.name).toBe('dashboard-home');
+  });
 
   it.each(gated.map((route) => [route.name, route.path, route.meta?.action] as const))(
     '%s opens for a person who holds its key',

@@ -120,7 +120,7 @@ vi.mock('@/api/client', () => {
         data: { data: { migrationsAppliedThisCall: ['M1'], stillPending: [] } },
       };
 
-    if (/\/admin\/tenants\/\{broadcasterId\}$/.test(path))
+    if (path.endsWith('/admin/tenants/{broadcasterId}'))
       return { data: { data: detail } };
 
     return { data: { data: {} } };
@@ -270,7 +270,9 @@ describe('AdminTenantsView', () => {
     document.body.querySelector<HTMLElement>('[data-clear-limit="commands.max"]')!.click();
     await settle();
 
-    expect(sent('DELETE', '/limits/{limitKey}')!.options.params?.path?.limitKey).toBe('commands.max');
+    expect(sent('DELETE', '/limits/{limitKey}')!.options.params?.path?.limitKey).toBe(
+      'commands.max',
+    );
   });
 
   it('forces a re-migration with the typed justification and shows what it applied', async () => {
@@ -282,7 +284,10 @@ describe('AdminTenantsView', () => {
     document.body.querySelector<HTMLElement>('[data-form-action]')!.click();
     await settle();
 
-    expect(sent('POST', '/remigrate')!.options.body).toEqual({ justification: 'Stuck after deploy' });
+    expect(sent('POST', '/remigrate')!.options.body).toEqual({
+      justification: 'Stuck after deploy',
+    });
+
     expect(text()).toContain('M1');
   });
 
@@ -306,8 +311,8 @@ describe('AdminTenantsView', () => {
   });
 
   it('asks for the export of the picked tenant', async () => {
-    URL.createObjectURL = vi.fn(() => 'blob:x');
-    URL.revokeObjectURL = vi.fn();
+    URL.createObjectURL = vi.fn<() => string>(() => 'blob:x');
+    URL.revokeObjectURL = vi.fn<() => void>();
     await open();
     byText('button', 'Export data')!.click();
     await settle();

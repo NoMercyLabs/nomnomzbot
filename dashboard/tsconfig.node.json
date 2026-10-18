@@ -6,6 +6,7 @@
     "vitest.config.*",
     "cypress.config.*",
     "playwright.config.*",
+    "pwa-assets.config.*",
     "eslint.config.*",
     "eslint-rules/**/*",
     "vite-plugins/**/*"

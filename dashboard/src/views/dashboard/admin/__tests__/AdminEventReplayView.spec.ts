@@ -292,7 +292,7 @@ describe('AdminEventReplayView', () => {
   });
 
   it('reloads when the hub says a replay finished', () => {
-    const invalidate = vi.fn();
+    const invalidate = vi.fn<(filter: { queryKey: string[] }) => void>();
     const handler = adminHandlers.find((entry) => entry.event === 'ReceiveEventReplayChanged')!;
 
     handler.handle(

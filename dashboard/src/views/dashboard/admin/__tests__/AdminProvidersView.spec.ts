@@ -73,7 +73,9 @@ vi.mock('@/composables/usePlatformCan', () => ({
   usePlatformCan: () => ({ known: { value: true }, can: () => true }),
 }));
 
-vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('vue-sonner', () => ({
+  toast: { success: vi.fn<() => void>(), error: vi.fn<() => void>() },
+}));
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -170,7 +172,11 @@ describe('AdminProvidersView', () => {
     expect(document.body.querySelectorAll('[data-provider]')).toHaveLength(3);
     expect(one('[data-provider="twitch"]').textContent).toContain('abc123client');
     expect(one('[data-provider="twitch"] [data-secret-source]').textContent).toContain('Stored');
-    expect(one('[data-provider="youtube"] [data-secret-source]').textContent).toContain('Environment');
+
+    expect(one('[data-provider="youtube"] [data-secret-source]').textContent).toContain(
+      'Environment',
+    );
+
     expect(one('[data-provider="kick"]').textContent).toContain('does not support');
 
     const secret = one<HTMLInputElement>('[data-provider="twitch"] [data-field="clientSecret"]');
@@ -191,14 +197,20 @@ describe('AdminProvidersView', () => {
     expect(puts).toHaveLength(1);
     expect(puts[0]?.params).toMatchObject({ path: { provider: 'twitch' } });
     expect(puts[0]?.body).toEqual({ clientSecret: 'rotated-secret' });
-    expect(one<HTMLInputElement>('[data-provider="twitch"] [data-field="clientSecret"]').value).toBe('');
+
+    expect(
+      one<HTMLInputElement>('[data-provider="twitch"] [data-field="clientSecret"]').value,
+    ).toBe('');
+
     expect(reads.length).toBeGreaterThan(1);
   });
 
   it('sends the client id and an api key for youtube only', async () => {
     await open();
 
-    expect(document.body.querySelector('[data-provider="twitch"] [data-field="apiKey"]')).toBeNull();
+    expect(
+      document.body.querySelector('[data-provider="twitch"] [data-field="apiKey"]'),
+    ).toBeNull();
 
     await type('[data-provider="youtube"] [data-field="clientId"]', 'yt-client');
     await type('[data-provider="youtube"] [data-field="apiKey"]', 'yt-key');
@@ -231,7 +243,8 @@ describe('AdminProvidersView', () => {
     expect(dashboardAdminProvidersRoute.name).toBe('dashboard-admin-providers');
     expect(dashboardAdminProvidersRoute.path).toBe('admin/providers');
 
-    expect(Object.keys(nl.dashboard.admin.providers).sort())
-      .toEqual(Object.keys(en.dashboard.admin.providers).sort());
+    expect(Object.keys(nl.dashboard.admin.providers).sort()).toEqual(
+      Object.keys(en.dashboard.admin.providers).sort(),
+    );
   });
 });

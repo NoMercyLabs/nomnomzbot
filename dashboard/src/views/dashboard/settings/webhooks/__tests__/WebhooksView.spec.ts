@@ -68,47 +68,51 @@ const inboundRow = {
 };
 
 vi.mock('@/api/client', () => {
-  const record = (method: string) => async (
-    path: string,
-    options: { body?: Body; params?: Body } = {},
-  ) => {
-    calls.push({
-      method,
-      path,
-      body: options.body,
-      params: options.params,
-    });
+  const record =
+    (method: string) =>
+      async (path: string, options: { body?: Body; params?: Body } = {}) => {
+        calls.push({
+          method,
+          path,
+          body: options.body,
+          params: options.params,
+        });
 
-    if (method !== 'GET')
-      return { response: { status: 200, ok: true } };
+        if (method !== 'GET')
+          return { response: { status: 200, ok: true } };
 
-    if (path.endsWith('/blast-radius')) {
-      return ok({ categories: [
-        {
-          categoryKey: 'blast_radius_category_pipeline_steps',
-          count: 2,
-          sample: [],
-        },
-        {
-          categoryKey: 'blast_radius_category_pending_webhook_deliveries',
-          count: 3,
-          sample: [],
-        },
-      ], isMinimum: false });
-    }
+        if (path.endsWith('/blast-radius')) {
+          return ok({
+            categories: [
+              {
+                categoryKey: 'blast_radius_category_pipeline_steps',
+                count: 2,
+                sample: [],
+              },
+              {
+                categoryKey: 'blast_radius_category_pending_webhook_deliveries',
+                count: 3,
+                sample: [],
+              },
+            ],
+            isMinimum: false,
+          });
+        }
 
-    // cspell:disable-next-line -- the route path carries the British spelling
-    if (path.endsWith('/event-catalogue'))
-      return ok([{
-        eventType: 'follow',
-        label: 'Follow',
-        category: 'channel',
-      }]);
+        // cspell:disable-next-line -- the route path carries the British spelling
+        if (path.endsWith('/event-catalogue'))
+          return ok([
+            {
+              eventType: 'follow',
+              label: 'Follow',
+              category: 'channel',
+            },
+          ]);
 
-    return path.endsWith('/inbound')
-      ? ok([inboundRow])
-      : ok([outboundRow]);
-  };
+        return path.endsWith('/inbound')
+          ? ok([inboundRow])
+          : ok([outboundRow]);
+      };
 
   return {
     client: {
@@ -268,15 +272,19 @@ describe('Webhooks permissions', () => {
       'button[role="switch"]',
     ];
 
-    for (const selector of writeControls) {
-      expect(document.body.querySelector(selector), selector).toBeNull();
-    }
+    const shown = writeControls.filter(
+      (selector) => document.body.querySelector(selector) !== null,
+    );
+
+    expect(shown).toEqual([]);
   });
 });
 
 describe('Webhooks route', () => {
   it('carries the action key and loads the real page', async () => {
-    const record = dashboardSettingsRoutes.find((route) => route.name === 'dashboard-settings-webhooks');
+    const record = dashboardSettingsRoutes.find(
+      (route) => route.name === 'dashboard-settings-webhooks',
+    );
     const loaded = await (record!.component as () => Promise<{ default: unknown }>)();
 
     expect(record?.meta).toEqual({ navMode: 'settings', action: 'webhooks:outbound:read' });

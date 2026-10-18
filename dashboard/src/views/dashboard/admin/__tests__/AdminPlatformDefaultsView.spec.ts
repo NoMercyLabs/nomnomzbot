@@ -132,7 +132,9 @@ vi.mock('@/composables/useCan', () => ({
   useCan: () => ({ known: { value: true }, can: () => true }),
 }));
 
-vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('vue-sonner', () => ({
+  toast: { success: vi.fn<() => void>(), error: vi.fn<() => void>() },
+}));
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -170,6 +172,8 @@ vi.mock('@/api/client', () => ({
 
       const lists: Record<string, unknown[]> = {
         candidates,
+        channels: [],
+        moderated: [],
         'builtin-replies': builtins,
         'event-responses': events,
       };
@@ -536,9 +540,7 @@ describe('AdminPlatformDefaultsView', () => {
     async function openVoiceEditor(): Promise<void> {
       await open();
 
-      document.body
-        .querySelector<HTMLElement>('[data-section="tts-voice"] [data-edit]')!
-        .click();
+      document.body.querySelector<HTMLElement>('[data-section="tts-voice"] [data-edit]')!.click();
 
       await settle();
     }
@@ -562,7 +564,10 @@ describe('AdminPlatformDefaultsView', () => {
 
       expect(headings).toEqual(['English (United States)', 'Dutch (Netherlands)']);
       expect(document.body.querySelectorAll('[data-voice-row]')).toHaveLength(3);
-      expect(voiceRow('en-US-Guy').parentElement?.querySelector('[data-voice-play]')).not.toBeNull();
+
+      expect(
+        voiceRow('en-US-Guy').parentElement?.querySelector('[data-voice-play]'),
+      ).not.toBeNull();
     });
 
     it('previews the picked voice, keeps Apply off until the count arrived, then sends that count', async () => {

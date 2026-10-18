@@ -32,6 +32,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useWidth } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
+import ChevronDown from '~icons/nnz/chevron-down';
 
 import AudioPanel from './components/AudioPanel.vue';
 import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
@@ -186,6 +187,7 @@ function retry(): void {
         <CollapsibleTrigger as-child>
           <Button variant="ghost" size="sm" class="text-muted-foreground">
             {{ $t(setupOpen ? "dashboard.obs.setup.hide" : "dashboard.obs.setup.show") }}
+            <ChevronDown class="size-5" :class="{ '-rotate-90': !setupOpen }" aria-hidden="true" />
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent>

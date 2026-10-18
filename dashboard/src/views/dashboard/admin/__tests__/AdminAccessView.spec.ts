@@ -353,7 +353,7 @@ describe('AdminAccessView', () => {
   });
 
   it('reloads the page when the hub says another operator changed access', () => {
-    const invalidate = vi.fn();
+    const invalidate = vi.fn<(filter: { queryKey: string[] }) => void>();
     const handler = adminHandlers.find((entry) => entry.event === 'ReceiveAccessChanged')!;
 
     handler.handle(

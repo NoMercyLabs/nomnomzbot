@@ -240,7 +240,7 @@ describe('AdminDataRequestsView', () => {
   });
 
   it('reloads the ledger when the hub says a data request changed', () => {
-    const invalidate = vi.fn();
+    const invalidate = vi.fn<(filter: { queryKey: string[] }) => void>();
     const handler = adminHandlers.find((entry) => entry.event === 'ReceiveDataRequestsChanged')!;
 
     handler.handle(

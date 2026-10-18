@@ -28,8 +28,14 @@ vi.mock('@/api/auth', () => ({
 }));
 
 vi.mock('@/api/adminProviders', () => ({
-  useSaveProviderCredential: () => ({ mutateAsync: vi.fn(), isPending: { value: false } }),
-  useClearProviderCredential: () => ({ mutateAsync: vi.fn(), isPending: { value: false } }),
+  useSaveProviderCredential: () => ({
+    mutateAsync: vi.fn<() => void>(),
+    isPending: { value: false },
+  }),
+  useClearProviderCredential: () => ({
+    mutateAsync: vi.fn<() => void>(),
+    isPending: { value: false },
+  }),
 }));
 
 const global = { plugins: [i18n] };
