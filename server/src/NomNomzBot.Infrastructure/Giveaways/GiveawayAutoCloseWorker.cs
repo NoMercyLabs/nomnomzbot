@@ -15,6 +15,8 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Giveaways.Entities;
+using NomNomzBot.Domain.Giveaways.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Giveaways;
 
@@ -103,6 +105,19 @@ public sealed class GiveawayAutoCloseWorker : BackgroundService
             giveaway.ClosesAt = now;
         }
         await db.SaveChangesAsync(ct);
+
+        IEventBus bus = scope.ServiceProvider.GetRequiredService<IEventBus>();
+        foreach (Giveaway closed in due)
+            await bus.PublishAsync(
+                new GiveawayChangedEvent
+                {
+                    BroadcasterId = closed.BroadcasterId,
+                    OccurredAt = _clock.GetUtcNow(),
+                    GiveawayId = closed.Id,
+                    Change = "closed",
+                },
+                ct
+            );
 
         _logger.LogInformation("Giveaway auto-close sweep closed {Count} giveaway(s)", due.Count);
     }

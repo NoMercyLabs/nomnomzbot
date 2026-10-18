@@ -205,6 +205,92 @@ public sealed class GiveawayServiceTests
         opened.ErrorCode.Should().Be("GIVEAWAY_ALREADY_ACTIVE");
     }
 
+    // ─── Live refresh: every change publishes one GiveawayChangedEvent so open pages reload ──
+
+    private static List<string> ChangesPublished(Harness harness, Guid giveawayId) =>
+        [
+            .. harness
+                .Bus.ReceivedCalls()
+                .Select(call => call.GetArguments()[0])
+                .OfType<GiveawayChangedEvent>()
+                .Where(e => e.GiveawayId == giveawayId && e.BroadcasterId == Tenant)
+                .Select(e => e.Change),
+        ];
+
+    [Fact]
+    public async Task Every_lifecycle_step_publishes_one_changed_event_in_order()
+    {
+        Harness harness = Build();
+        Guid viewer = SeedViewer(harness.Db, "111");
+        Guid other = SeedViewer(harness.Db, "222");
+
+        Result<GiveawayDto> created = await harness.Service.CreateAsync(
+            Tenant,
+            new("Drop", GiveawayEntryMode.Keyword, Keyword: "!win"),
+            CancellationToken.None
+        );
+        Guid id = created.Value.Id;
+        await harness.Service.UpdateAsync(
+            Tenant,
+            id,
+            new("Drop 2", GiveawayEntryMode.Keyword, Keyword: "!win"),
+            CancellationToken.None
+        );
+        await harness.Service.OpenAsync(Tenant, id, CancellationToken.None);
+        await harness.Service.EnterAsync(Tenant, id, viewer, CancellationToken.None);
+        await harness.Service.EnterAsync(Tenant, id, other, CancellationToken.None);
+        Result<IReadOnlyList<GiveawayWinnerDto>> drawn = await harness.Service.DrawAsync(
+            Tenant,
+            id,
+            CancellationToken.None
+        );
+        await harness.Service.RedrawAsync(
+            Tenant,
+            id,
+            drawn.Value.Single().Id,
+            CancellationToken.None
+        );
+        await harness.Service.DeleteAsync(Tenant, id, CancellationToken.None);
+
+        ChangesPublished(harness, id)
+            .Should()
+            .Equal(
+                "created",
+                "updated",
+                "opened",
+                "entered",
+                "entered",
+                "drawn",
+                "redrawn",
+                "deleted"
+            );
+    }
+
+    [Fact]
+    public async Task Closing_an_open_giveaway_publishes_a_closed_change()
+    {
+        Harness harness = Build();
+        Guid id = await SeedOpenGiveawayAsync(harness);
+
+        await harness.Service.CloseAsync(Tenant, id, CancellationToken.None);
+
+        ChangesPublished(harness, id).Should().EndWith("closed");
+    }
+
+    [Fact]
+    public async Task A_refused_step_publishes_no_changed_event()
+    {
+        Harness harness = Build();
+        Guid id = await SeedOpenGiveawayAsync(harness);
+        int before = ChangesPublished(harness, id).Count;
+
+        await harness.Service.DrawAsync(Tenant, id, CancellationToken.None);
+
+        ChangesPublished(harness, id)
+            .Should()
+            .HaveCount(before, "a draw with no entries changes nothing");
+    }
+
     // ─── Pipeline ownership: a request must not bind a pipeline id from another channel ──
 
     [Fact]

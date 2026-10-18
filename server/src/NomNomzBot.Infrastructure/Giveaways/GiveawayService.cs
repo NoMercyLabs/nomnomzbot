@@ -99,6 +99,7 @@ public sealed class GiveawayService : IGiveawayService
         Apply(giveaway, request);
         await _db.Giveaways.AddAsync(giveaway, ct);
         await _db.SaveChangesAsync(ct);
+        await PublishChangedAsync(broadcasterId, giveaway.Id, "created", ct);
         return Result.Success(ToDto(giveaway, entryCount: 0));
     }
 
@@ -132,6 +133,7 @@ public sealed class GiveawayService : IGiveawayService
 
         Apply(giveaway, request);
         await _db.SaveChangesAsync(ct);
+        await PublishChangedAsync(broadcasterId, giveawayId, "updated", ct);
         return Result.Success(ToDto(giveaway, await CountEntriesAsync(giveawayId, ct)));
     }
 
@@ -147,6 +149,7 @@ public sealed class GiveawayService : IGiveawayService
 
         giveaway.DeletedAt = _clock.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(ct);
+        await PublishChangedAsync(broadcasterId, giveawayId, "deleted", ct);
         return Result.Success();
     }
 
@@ -242,6 +245,7 @@ public sealed class GiveawayService : IGiveawayService
             },
             ct
         );
+        await PublishChangedAsync(broadcasterId, giveawayId, "opened", ct);
         return Result.Success(ToDto(giveaway, await CountEntriesAsync(giveawayId, ct)));
     }
 
@@ -263,6 +267,7 @@ public sealed class GiveawayService : IGiveawayService
         giveaway.Status = GiveawayStatus.Closed;
         giveaway.ClosesAt = _clock.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(ct);
+        await PublishChangedAsync(broadcasterId, giveawayId, "closed", ct);
         return Result.Success(ToDto(giveaway, await CountEntriesAsync(giveawayId, ct)));
     }
 
@@ -379,6 +384,7 @@ public sealed class GiveawayService : IGiveawayService
         };
         await _db.GiveawayEntries.AddAsync(entry, ct);
         await _db.SaveChangesAsync(ct);
+        await PublishChangedAsync(broadcasterId, giveawayId, "entered", ct);
 
         return Result.Success(
             new GiveawayEntryDto(
@@ -509,6 +515,7 @@ public sealed class GiveawayService : IGiveawayService
             },
             ct
         );
+        await PublishChangedAsync(broadcasterId, giveawayId, "drawn", ct);
 
         // Fewer codes than winners is flagged loudly, never silently dropped (§4 CODE_POOL_EXHAUSTED).
         if (
@@ -589,6 +596,7 @@ public sealed class GiveawayService : IGiveawayService
             ct
         );
 
+        await PublishChangedAsync(broadcasterId, giveawayId, "redrawn", ct);
         return Result.Success((await ToWinnerDtosAsync([replacement], ct))[0]);
     }
 
@@ -1031,6 +1039,23 @@ public sealed class GiveawayService : IGiveawayService
         giveaway.Requires18Plus = request.Requires18Plus;
         giveaway.ScheduledCloseAt = request.ScheduledCloseAt;
     }
+
+    private Task PublishChangedAsync(
+        Guid broadcasterId,
+        Guid giveawayId,
+        string change,
+        CancellationToken ct
+    ) =>
+        _bus.PublishAsync(
+            new GiveawayChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = _clock.GetUtcNow(),
+                GiveawayId = giveawayId,
+                Change = change,
+            },
+            ct
+        );
 
     private Task<Giveaway?> FindAsync(Guid broadcasterId, Guid giveawayId, CancellationToken ct) =>
         _db.Giveaways.FirstOrDefaultAsync(
