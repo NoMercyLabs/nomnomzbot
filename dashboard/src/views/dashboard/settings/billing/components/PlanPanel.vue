@@ -196,7 +196,7 @@ async function confirmCancel(): Promise<void> {
         <p data-restricted class="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">
           {{ $t('dashboard.settings.billing.restricted') }}
         </p>
-        <div v-if="plan && manageable" class="flex flex-wrap items-center gap-2">
+        <div v-if="plan && manageable && can('billing:manage')" class="flex flex-wrap items-center gap-2">
           <Button
             v-if="plan.cancelAtPeriodEnd"
             data-action="resume"
@@ -245,6 +245,7 @@ async function confirmCancel(): Promise<void> {
   >
     <div class="grid gap-3">
       <LabeledSwitch
+        v-if="can('billing:manage')"
         v-model="cancelNow"
         data-field="cancel-now"
         :label="$t('dashboard.settings.billing.plan.cancelNow')"

@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -57,6 +58,7 @@ const ticketFields = ['subT1', 'subT2', 'subT3', 'vip'] as const satisfies reado
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const save = useSaveGiveaway(channelId);
 const pipelines = usePipelines(channelId);
 const pools = useCodePools(channelId);
@@ -183,16 +185,19 @@ async function submit(): Promise<void> {
     <FieldSet class="gap-3">
       <FieldLegend variant="label">{{ $t("dashboard.giveaways.dialog.who.legend") }}</FieldLegend>
       <LabeledSwitch
+        v-if="can('giveaways:write')"
         v-model="form.requireSub"
         data-giveaway-require-sub
         :label="$t('dashboard.giveaways.dialog.who.requireSub')"
       />
       <LabeledSwitch
+        v-if="can('giveaways:write')"
         v-model="form.excludeModerators"
         data-giveaway-exclude-moderators
         :label="$t('dashboard.giveaways.dialog.who.excludeModerators')"
       />
       <LabeledSwitch
+        v-if="can('giveaways:write')"
         v-model="form.requires18Plus"
         data-giveaway-requires-18-plus
         :label="$t('dashboard.giveaways.dialog.who.requires18Plus')"
@@ -320,6 +325,7 @@ async function submit(): Promise<void> {
           />
         </Field>
         <LabeledSwitch
+          v-if="can('giveaways:write')"
           v-model="form.prizeFromPot"
           data-giveaway-prize-from-pot
           :label="$t('dashboard.giveaways.dialog.prize.fromPot')"

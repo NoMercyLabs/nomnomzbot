@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useSetScriptEnabled, type CodeScriptSummary } from '@/api/codeScripts';
+import { useCan } from '@/composables/useCan';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Switch } from '@/components/ui/switch';
@@ -24,6 +25,7 @@ const props = defineProps<{ script: CodeScriptSummary; selected: boolean }>();
 defineEmits<{ pick: [] }>();
 
 const { t, locale } = useI18n();
+const { can } = useCan();
 const setEnabled = useSetScriptEnabled();
 
 const ago = useTimeAgoIntl(() => props.script.lastRanAt ?? new Date(0), {
@@ -64,6 +66,7 @@ function toggle(isEnabled: boolean): void {
       </template>
       <template #trailing>
         <Switch
+          v-if="can('code:script:author')"
           class="mr-2"
           :model-value="script.isEnabled"
           :aria-label="$t('dashboard.scripts.list.switchLabel', { name: script.name })"

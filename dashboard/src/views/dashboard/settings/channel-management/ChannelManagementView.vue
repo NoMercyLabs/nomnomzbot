@@ -29,6 +29,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { merge } from '@/lib/array';
@@ -38,6 +39,7 @@ import BotPresenceRow from './components/BotPresenceRow.vue';
 import DeletedChannelNotice from './components/DeletedChannelNotice.vue';
 
 const { t, te } = useI18n();
+const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const info = useChannelInfo(channelId);
 const join = useJoinChannel(channelId);
@@ -182,7 +184,12 @@ async function restoreChannel(): Promise<void> {
           <p class="min-w-0 flex-1 text-sm text-muted-foreground">
             {{ $t('dashboard.settings.channelManagement.delete.help') }}
           </p>
-          <Button data-delete variant="destructive" :disabled="busy" @click="askDelete">
+          <Button v-if="can('setup:write')"
+                  data-delete
+                  variant="destructive"
+                  :disabled="busy"
+                  @click="askDelete"
+          >
             {{ $t('dashboard.settings.channelManagement.delete.action') }}
           </Button>
         </div>

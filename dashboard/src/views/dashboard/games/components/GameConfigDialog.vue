@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const props = defineProps<{ config: GameConfig | null; name: string }>();
@@ -43,6 +44,7 @@ type Field = (typeof fields)[number];
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const save = useSaveGameConfig(channelId);
 
 const values = ref<Record<Field, number | string>>({
@@ -125,7 +127,10 @@ function submit(): void {
         </div>
       </div>
 
-      <DialogFooter class="flex-none border-t border-border px-6 py-4">
+      <DialogFooter
+        v-if="can('economy:games:write')"
+        class="flex-none border-t border-border px-6 py-4"
+      >
         <Button variant="outline" @click="open = false">
           {{ t('dashboard.games.configs.cancel') }}
         </Button>

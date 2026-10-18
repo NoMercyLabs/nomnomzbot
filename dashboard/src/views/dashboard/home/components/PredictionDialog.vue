@@ -38,6 +38,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import Plus from '~icons/nnz/add';
 import Cross from '~icons/nnz/cross';
@@ -55,6 +56,7 @@ const PERCENT = 100;
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const queries = useQueryClient();
 const start = useStartPrediction(channelId);
 const lock = useLockPrediction(channelId);
@@ -202,7 +204,7 @@ watchEffect(() => {
               :placeholder="t('dashboard.home.quick.predictionOutcomeN', { n: index + 1 })"
             />
             <Button
-              v-if="outcomes.length > MIN_OUTCOMES"
+              v-if="outcomes.length > MIN_OUTCOMES && can('live-ops:predictions:write')"
               variant="ghost"
               size="icon"
               :aria-label="t('dashboard.home.quick.predictionRemoveOutcome', { n: index + 1 })"
@@ -214,7 +216,7 @@ watchEffect(() => {
           <p v-if="!enoughOutcomes" class="text-sm text-muted-foreground">
             {{ t('dashboard.home.quick.predictionNeedOutcomes') }}
           </p>
-          <div v-if="outcomes.length < MAX_OUTCOMES">
+          <div v-if="outcomes.length < MAX_OUTCOMES && can('live-ops:predictions:write')">
             <Button variant="ghost" size="sm" @click="addOutcome">
               <Plus />
               {{ t('dashboard.home.quick.predictionAddOutcome') }}
@@ -275,13 +277,13 @@ watchEffect(() => {
           }}
         </Button>
         <Button
-          v-if="prediction === null"
+          v-if="prediction === null && can('live-ops:predictions:write')"
           :disabled="!valid || start.isPending.value"
           @click="submit"
         >
           {{ t('dashboard.home.quick.predictionStartGo') }}
         </Button>
-        <template v-else>
+        <template v-else-if="prediction !== null && can('live-ops:predictions:write')">
           <Button variant="destructive" :disabled="cancel.isPending.value" @click="confirmOpen = true">
             {{ t('dashboard.home.quick.predictionCancel') }}
           </Button>

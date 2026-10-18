@@ -23,6 +23,7 @@ import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
@@ -37,6 +38,7 @@ import type { SessionRun } from './components/sessionRun';
 const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'failed'];
 
 const { t } = useI18n();
+const { can } = useCan();
 const route = useRoute();
 const router = useRouter();
 
@@ -162,7 +164,7 @@ function opened(id: string | null): void {
       <Button variant="outline" class="xl:hidden" @click="runsOpen = true">
         {{ $t('dashboard.scripts.runs.button') }}
       </Button>
-      <Button variant="outline" @click="newOpen = true">
+      <Button v-if="can('code:script:author')" variant="outline" @click="newOpen = true">
         <Add aria-hidden="true" />
         {{ $t('dashboard.scripts.new.button') }}
       </Button>

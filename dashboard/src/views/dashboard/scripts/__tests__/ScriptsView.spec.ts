@@ -240,6 +240,13 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => key === 'code:script:author',
+  }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));

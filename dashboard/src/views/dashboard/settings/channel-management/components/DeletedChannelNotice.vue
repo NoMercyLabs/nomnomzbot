@@ -13,6 +13,7 @@
 import { computed } from 'vue';
 
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 
 const props = defineProps<{
   permanentAfter: string;
@@ -20,6 +21,8 @@ const props = defineProps<{
 }>();
 
 defineEmits<{ restore: [] }>();
+
+const { can } = useCan();
 
 const until = computed(() =>
   new Date(props.permanentAfter).toLocaleString());
@@ -33,7 +36,12 @@ const until = computed(() =>
         {{ $t('dashboard.settings.channelManagement.deleted.help', { when: until }) }}
       </p>
     </div>
-    <Button data-restore variant="outline" :disabled="busy" @click="$emit('restore')">
+    <Button v-if="can('setup:write')"
+            data-restore
+            variant="outline"
+            :disabled="busy"
+            @click="$emit('restore')"
+    >
       {{ $t('dashboard.settings.channelManagement.deleted.restore') }}
     </Button>
   </div>

@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import Plus from '~icons/nnz/add';
 import Cross from '~icons/nnz/cross';
@@ -56,6 +57,7 @@ const PERCENT = 100;
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const queries = useQueryClient();
 const start = useStartPoll(channelId);
 const end = useEndPoll(channelId);
@@ -188,7 +190,7 @@ watchEffect(() => {
               :placeholder="t('dashboard.home.quick.pollChoiceN', { n: index + 1 })"
             />
             <Button
-              v-if="choices.length > MIN_CHOICES"
+              v-if="choices.length > MIN_CHOICES && can('live-ops:polls:write')"
               variant="ghost"
               size="icon"
               :aria-label="t('dashboard.home.quick.pollRemoveChoice', { n: index + 1 })"
@@ -200,7 +202,7 @@ watchEffect(() => {
           <p v-if="!enoughChoices" class="text-sm text-muted-foreground">
             {{ t('dashboard.home.quick.pollNeedChoices') }}
           </p>
-          <div v-if="choices.length < MAX_CHOICES">
+          <div v-if="choices.length < MAX_CHOICES && can('live-ops:polls:write')">
             <Button variant="ghost" size="sm" @click="addChoice">
               <Plus />
               {{ t('dashboard.home.quick.pollAddChoice') }}
@@ -221,7 +223,7 @@ watchEffect(() => {
           />
         </div>
 
-        <div class="flex items-center justify-between gap-3">
+        <div v-if="can('live-ops:polls:write')" class="flex items-center justify-between gap-3">
           <Label for="poll-points">{{ t('dashboard.home.quick.pollPoints') }}</Label>
           <Switch id="poll-points" v-model="pointsOn" data-poll-field="points" />
         </div>
@@ -270,13 +272,22 @@ watchEffect(() => {
               : t('dashboard.home.quick.pollClose')
           }}
         </Button>
-        <Button v-if="poll === null" :disabled="!valid || start.isPending.value" @click="submit">
+        <Button
+          v-if="poll === null && can('live-ops:polls:write')"
+          :disabled="!valid || start.isPending.value"
+          @click="submit"
+        >
           {{ t('dashboard.home.quick.pollStartGo') }}
         </Button>
-        <Button v-else-if="ended" @click="emit('newPoll')">
+        <Button v-else-if="ended && can('live-ops:polls:write')" @click="emit('newPoll')">
           {{ t('dashboard.home.quick.pollNew') }}
         </Button>
-        <Button v-else variant="destructive" :disabled="end.isPending.value" @click="end.mutate(poll.id)">
+        <Button
+          v-else-if="poll !== null && can('live-ops:polls:write')"
+          variant="destructive"
+          :disabled="end.isPending.value"
+          @click="end.mutate(poll.id)"
+        >
           {{ t('dashboard.home.quick.pollEnd') }}
         </Button>
       </DialogFooter>

@@ -14,6 +14,7 @@ import { computed } from 'vue';
 
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 
 const props = defineProps<{
   joinedAt: string | null | undefined;
@@ -21,6 +22,8 @@ const props = defineProps<{
 }>();
 
 defineEmits<{ join: []; leave: [] }>();
+
+const { can } = useCan();
 
 const joined = computed(() =>
   props.joinedAt !== null && props.joinedAt !== undefined);
@@ -46,7 +49,7 @@ const since = computed(() =>
         }}
       </p>
     </div>
-    <Button v-if="joined"
+    <Button v-if="joined && can('setup:write')"
             data-leave
             variant="outline"
             :disabled="busy"
@@ -54,7 +57,7 @@ const since = computed(() =>
     >
       {{ $t('dashboard.settings.channelManagement.presence.leave') }}
     </Button>
-    <Button v-else data-join :disabled="busy" @click="$emit('join')">
+    <Button v-else-if="can('setup:write')" data-join :disabled="busy" @click="$emit('join')">
       {{ $t('dashboard.settings.channelManagement.presence.join') }}
     </Button>
   </div>

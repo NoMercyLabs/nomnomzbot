@@ -104,6 +104,13 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => key === 'setup:write',
+  }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));

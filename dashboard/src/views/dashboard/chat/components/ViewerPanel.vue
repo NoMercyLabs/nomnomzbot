@@ -299,7 +299,7 @@ async function undo(): Promise<void> {
             {{ done.undo === 'ban' ? $t('dashboard.chat.viewer.unban') : $t('dashboard.chat.viewer.undo') }}
           </Button>
         </template>
-        <template v-else-if="step === 'ban'">
+        <template v-else-if="step === 'ban' && access.can('moderation:ban')">
           <Button variant="outline" size="sm" @click="go('idle')">
             {{ $t('dashboard.chat.viewer.cancel') }}
           </Button>
@@ -307,12 +307,12 @@ async function undo(): Promise<void> {
             {{ $t('dashboard.chat.viewer.ban') }}
           </Button>
         </template>
-        <template v-else-if="step === 'pick'">
+        <template v-else-if="step === 'pick' && access.can('moderation:ban')">
           <Button variant="ghost" size="sm" @click="go('idle')">
             {{ $t('dashboard.chat.viewer.cancel') }}
           </Button>
         </template>
-        <template v-else-if="sanctionable">
+        <template v-else-if="access.can('moderation:ban') && sanctionable">
           <Button variant="outline" size="sm" @click="go('pick')">
             <Clock class="size-4" aria-hidden="true" />
             {{ $t('dashboard.chat.viewer.timeout') }}

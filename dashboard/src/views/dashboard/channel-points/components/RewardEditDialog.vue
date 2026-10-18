@@ -29,6 +29,7 @@ import ChevronDown from '~icons/nnz/chevron-down';
 
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -47,6 +48,7 @@ const open = defineModel<boolean>('open', { required: true });
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const update = useUpdateReward(channelId);
 
 const limitKeys = [
@@ -223,7 +225,10 @@ async function submit(): Promise<void> {
     @submit="submit"
   >
     <template #header-action>
-      <div class="flex flex-none items-center gap-4">
+      <div
+        v-if="can('reward:manage')"
+        class="flex flex-none items-center gap-4"
+      >
         <label class="flex items-center gap-2 text-sm font-medium">
           {{ $t('dashboard.channelPoints.rewards.dialog.enabledSwitch') }}
           <Switch
@@ -317,7 +322,10 @@ async function submit(): Promise<void> {
         />
       </Field>
 
-      <Field class="md:col-span-2">
+      <Field
+        v-if="can('reward:manage')"
+        class="md:col-span-2"
+      >
         <div class="flex items-center gap-1.5">
           <FieldLabel for="reward-isUserInputRequired">{{ $t('dashboard.channelPoints.rewards.dialog.fields.isUserInputRequired') }}</FieldLabel>
           <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.isUserInputRequired') }}</FieldInfo>

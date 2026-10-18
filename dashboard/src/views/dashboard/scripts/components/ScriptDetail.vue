@@ -41,6 +41,7 @@ import { errorText } from '@/lib/errors';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { TestTrigger } from '@/composables/useEditorBridge';
+import { useCan } from '@/composables/useCan';
 import { usePanelState } from '@/composables/usePanelState';
 
 import type { SessionRun } from './sessionRun';
@@ -54,6 +55,7 @@ const emit = defineEmits<{
 }>();
 
 const { t, te, locale } = useI18n();
+const { can } = useCan();
 const detail = useScriptDetail(() => props.scriptId);
 const setEnabled = useSetScriptEnabled();
 const remove = useDeleteCodeScript();
@@ -204,7 +206,7 @@ function confirmDelete(): void {
       <div data-page-inset class="flex flex-wrap items-center gap-3">
         <h2 class="min-w-0 truncate text-lg font-semibold">{{ script.name }}</h2>
         <div class="ml-auto flex flex-wrap items-center gap-3">
-          <label class="flex items-center gap-2 text-sm text-muted-foreground">
+          <label v-if="can('code:script:author')" class="flex items-center gap-2 text-sm text-muted-foreground">
             {{
               $t(script.isEnabled ? 'dashboard.scripts.detail.on' : 'dashboard.scripts.detail.off')
             }}
@@ -214,7 +216,7 @@ function confirmDelete(): void {
               @update:model-value="toggle(Boolean($event))"
             />
           </label>
-          <div class="grid justify-items-end gap-1">
+          <div v-if="can('code:script:author')" class="grid justify-items-end gap-1">
             <Button :disabled="tester.running.value || tester.limited.value" @click="test(null)">
               <Play aria-hidden="true" />
               {{ $t('dashboard.scripts.test.run') }}
@@ -302,6 +304,7 @@ function confirmDelete(): void {
         <SummaryRow v-for="sample in triggers.data.value" :key="sample.id" :title="sample.label">
           <template #end>
             <Button
+              v-if="can('code:script:author')"
               variant="outline"
               size="sm"
               :disabled="tester.running.value || tester.limited.value"
@@ -322,6 +325,7 @@ function confirmDelete(): void {
         {{ $t('dashboard.scripts.detail.limits') }}
       </span>
       <Button
+        v-if="can('code:script:author')"
         data-slot="script-delete"
         variant="outline"
         size="sm"

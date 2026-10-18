@@ -165,6 +165,7 @@ async function redeemCode(): Promise<void> {
           @keydown.enter="checkCode"
         />
         <Button
+          v-if="can('billing:read')"
           data-action="check-code"
           variant="outline"
           :disabled="trimmed === '' || check.isPending.value"
