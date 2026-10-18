@@ -53,6 +53,9 @@ public static class PlaybackDirectorTestKit
         /// <summary>What <see cref="StartAsync"/> answers. Defaults to accepted.</summary>
         public EngineStartResult StartResult { get; set; } = EngineStartResult.Ok;
 
+        /// <summary>When set, <see cref="StartAsync"/> throws what this returns.</summary>
+        public Func<Exception>? StartThrows { get; set; }
+
         public IReadOnlyList<EngineCall> Calls => _calls;
 
         public event Func<EngineSignal, Task>? Reports;
@@ -60,6 +63,9 @@ public static class PlaybackDirectorTestKit
         public Task<EngineStartResult> StartAsync(PlaybackItem item, CancellationToken ct = default)
         {
             _calls.Add(new("Start", item.Id));
+            if (StartThrows is not null)
+                throw StartThrows();
+
             return Task.FromResult(StartResult);
         }
 

@@ -442,4 +442,140 @@ public sealed partial class PlaybackDirectorTests
             .Should()
             .Equal(("OwnerSkip", "ignored"), ("OwnerPause", "ignored"), ("OwnerVolume", "ignored"));
     }
+
+    [Fact]
+    public async Task Starting_FirstFailedStart_BlocksAndKeepsTheHeadWithNoNotice()
+    {
+        Rig rig = new();
+        rig.Spotify.StartResult = EngineStartResult.Refused("device gone");
+
+        await rig.Request(Item("a"));
+
+        rig.Director.State.Should().Be(PlaybackState.Blocked("device gone"));
+        rig.QueueIds.Should().Equal("a");
+        rig.Bus.Published.OfType<SongPlaybackFailedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Blocked_SecondFailedStartOfTheSameItem_DropsItWithANoticeAndStartsTheNext()
+    {
+        Rig rig = new();
+        PlaybackItem a = Item("a", owner: "alice");
+        PlaybackItem b = Item("b", EngineKind.YouTube, owner: "bob");
+        rig.Spotify.StartResult = EngineStartResult.Refused("device gone");
+        await rig.Request(a);
+        await rig.Request(b);
+        rig.Director.State.Should().Be(PlaybackState.Blocked("device gone"));
+
+        await rig.Director.HandleAsync(new OutputAttached());
+
+        SongPlaybackFailedEvent notice = rig
+            .Bus.Published.OfType<SongPlaybackFailedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        notice.BroadcasterId.Should().Be(Channel);
+        notice.TrackUri.Should().Be(a.Uri);
+        notice.TrackName.Should().Be(a.Title);
+        rig.QueueIds.Should().Equal("b");
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Start", "a"), new EngineCall("Start", "a"));
+        rig.YouTube.Calls.Should().Equal(new EngineCall("Start", "b"));
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.YouTube, b));
+        rig.Journal.Select(e => (e.From, e.To, e.Reason))
+            .Should()
+            .Equal(
+                ("Idle", "Starting", "start_head"),
+                ("Starting", "Blocked", "start_refused"),
+                ("Blocked", "Blocked", "ignored"),
+                ("Blocked", "Idle", "output_attached"),
+                ("Idle", "Starting", "start_head"),
+                ("Starting", "Idle", "start_dropped"),
+                ("Idle", "Starting", "next_item")
+            );
+    }
+
+    [Fact]
+    public async Task Blocked_DroppedItemWithNothingBehindIt_LeavesAnEmptyQueueAndIdle()
+    {
+        Rig rig = new();
+        rig.Spotify.StartResult = EngineStartResult.Refused("device gone");
+        await rig.Request(Item("a"));
+
+        await rig.Director.HandleAsync(new OutputAttached());
+
+        rig.QueueIds.Should().BeEmpty();
+        rig.Director.State.Should().Be(PlaybackState.Idle);
+        rig.Bus.Published.OfType<SongPlaybackFailedEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Starting_FailureCountsArePerItem_AFailedOtherItemDoesNotDropThisOne()
+    {
+        Rig rig = new();
+        PlaybackItem a = Item("a", owner: "alice");
+        PlaybackItem b = Item("b", owner: "bob");
+        rig.Spotify.StartResult = EngineStartResult.Refused("device gone");
+        await rig.Request(a);
+
+        rig.Queue.Remove("a");
+        await rig.Director.HandleAsync(new OutputAttached());
+        await rig.Request(b);
+
+        rig.Bus.Published.OfType<SongPlaybackFailedEvent>().Should().BeEmpty();
+        rig.QueueIds.Should().Equal("b");
+        rig.Director.State.Should().Be(PlaybackState.Blocked("device gone"));
+    }
+
+    [Fact]
+    public async Task Starting_WhenTheEngineThrows_BlocksWithATypedReasonAndReleasesTheGate()
+    {
+        Rig rig = new();
+        rig.Spotify.StartThrows = () => new InvalidOperationException("boom");
+
+        Func<Task> request = () => rig.Request(Item("a"));
+
+        await request.Should().NotThrowAsync();
+        rig.Director.State.Kind.Should().Be(PlaybackStateKind.Blocked);
+        rig.Director.State.Reason.Should().Be("start failed: InvalidOperationException");
+        rig.QueueIds.Should().Equal("a");
+        rig.Journal.Last().Reason.Should().Be("start_refused");
+
+        rig.Spotify.StartThrows = null;
+        await rig.Director.HandleAsync(new OutputAttached());
+        rig.Director.State.Kind.Should().Be(PlaybackStateKind.Starting);
+    }
+
+    [Fact]
+    public async Task Starting_WhenTheEngineThrowsTwice_DropsTheItemWithANotice()
+    {
+        Rig rig = new();
+        rig.Spotify.StartThrows = () => new InvalidOperationException("boom");
+        await rig.Request(Item("a"));
+
+        await rig.Director.HandleAsync(new OutputAttached());
+
+        rig.QueueIds.Should().BeEmpty();
+        rig.Director.State.Should().Be(PlaybackState.Idle);
+        rig.Bus.Published.OfType<SongPlaybackFailedEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Starting_WhenTheCallerCancels_TheCancellationPropagatesAndNothingIsBlocked()
+    {
+        Rig rig = new();
+        using CancellationTokenSource cts = new();
+        rig.Spotify.StartThrows = () =>
+        {
+            cts.Cancel();
+            return new OperationCanceledException(cts.Token);
+        };
+        rig.Queue.Enqueue(Item("a"));
+
+        Func<Task> request = () => rig.Director.HandleAsync(new RequestAdded(), cts.Token);
+
+        await request.Should().ThrowAsync<OperationCanceledException>();
+        rig.Director.State.Kind.Should().NotBe(PlaybackStateKind.Blocked);
+        rig.QueueIds.Should().Equal("a");
+    }
 }

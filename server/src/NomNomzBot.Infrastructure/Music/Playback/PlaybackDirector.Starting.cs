@@ -51,24 +51,20 @@ public sealed partial class PlaybackDirector
     {
         if (!_engines.TryGetValue(item.Engine, out IPlaybackEngine? engine))
         {
-            await MoveAsync(
-                PlaybackState.Blocked("engine unavailable"),
-                inputName,
-                "start_refused",
-                item.Id
-            );
+            await FailStartAsync(item, inputName, "engine unavailable", "start_refused", ct);
             return;
         }
 
-        EngineStartResult result = await engine.StartAsync(item, ct);
+        EngineStartResult result = await TryStartAsync(engine, item, ct);
         if (result.Accepted)
             _startDeadline = _time.GetUtcNow() + StartDeadline;
         else
-            await MoveAsync(
-                PlaybackState.Blocked(result.FailureReason ?? "start refused"),
+            await FailStartAsync(
+                item,
                 inputName,
+                result.FailureReason ?? "start refused",
                 "start_refused",
-                item.Id
+                ct
             );
     }
 
@@ -113,12 +109,7 @@ public sealed partial class PlaybackDirector
                 await SilenceForeignAsync(r, ct);
                 break;
             case StartTimeout:
-                await MoveAsync(
-                    PlaybackState.Blocked("did not start"),
-                    name,
-                    "start_timeout",
-                    item.Id
-                );
+                await FailStartAsync(item, name, "did not start", "start_timeout", ct);
                 break;
             default:
                 await IgnoreAsync(input);
@@ -134,6 +125,7 @@ public sealed partial class PlaybackDirector
     private async Task PlayRowAsync(PlaybackItem row, EngineReport report, string reason)
     {
         _queue.Remove(row.Id);
+        _failedStarts.Remove(row.Id);
         _history.Push(row);
         _ownerReport = null;
         await MoveAsync(PlaybackState.Playing(report.Engine, row), report, reason);
