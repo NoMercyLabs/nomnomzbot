@@ -1,0 +1,139 @@
+{
+  "dashboard": {
+    "giveaways": {
+      "title": "Giveaways",
+      "listTitle": "Giveaways",
+      "winnersTitle": "Winners of {title}",
+      "empty": "No giveaways yet.",
+      "error": "The giveaways could not be loaded.",
+      "winnersEmpty": "No winners drawn yet.",
+      "winnersError": "The winners could not be loaded.",
+      "entries": "{count} entry | {count} entries",
+      "winnerCount": "{count} winner | {count} winners",
+      "keyword": "Keyword {keyword}",
+      "viewerEntryMode": "Active viewers",
+      "redraw": "Draw a new winner",
+      "redrawn": "Redrawn",
+      "liveNotAvailable": "Live updates are not available yet. This page shows new entries after each step you take here.",
+      "new": "New giveaway",
+      "edit": "Edit giveaway",
+      "delete": {
+        "title": "Delete {title}?",
+        "description": "This removes the giveaway for good.",
+        "action": "Delete giveaway",
+        "line": "{count} {what}",
+        "lineAtLeast": "At least {count} {what}",
+        "nothing": "Nothing else is removed."
+      },
+      "dialog": {
+        "newTitle": "New giveaway",
+        "editTitle": "Edit giveaway",
+        "description": "Set how viewers enter, who may enter, how the winners are drawn and what they get.",
+        "title": "Title",
+        "keyword": "Keyword",
+        "winners": "Number of winners",
+        "create": "Create giveaway",
+        "save": "Save giveaway",
+        "entry": {
+          "legend": "Entering",
+          "mode": "How viewers enter",
+          "modes": {
+            "keyword": "Typing the keyword in chat",
+            "active_viewers": "Active viewers, no keyword"
+          },
+          "cost": "Entry cost",
+          "costHelp": "Currency taken per entry. Leave empty for free.",
+          "maxPerUser": "Entries per viewer",
+          "maxPerUserHelp": "How many entries one viewer may hold."
+        },
+        "who": {
+          "legend": "Who may enter",
+          "requireSub": "Subscribers only",
+          "excludeModerators": "Leave out moderators",
+          "requires18Plus": "Viewers must confirm they are 18 or older",
+          "requires18PlusHelp": "For prizes with an age limit.",
+          "minStandingLevel": "Least standing level",
+          "minWatchMinutes": "Least watch minutes",
+          "minAccountAgeDays": "Least account age (days)"
+        },
+        "tickets": {
+          "legend": "Tickets per viewer",
+          "help": "More tickets raise the chance to win. 1 everywhere means no weighting.",
+          "subT1": "Tier 1 sub",
+          "subT2": "Tier 2 sub",
+          "subT3": "Tier 3 sub",
+          "vip": "VIP"
+        },
+        "draw": {
+          "legend": "Drawing",
+          "claimWindow": "Claim window (minutes)",
+          "claimWindowHelp": "How long a winner has to answer. Empty uses the default.",
+          "closeAt": "Close entries at",
+          "closeAtHelp": "Entries close at this time on their own. Empty means you close them."
+        },
+        "prize": {
+          "legend": "Prize",
+          "mode": "What winners get",
+          "modes": {
+            "announce": "An announcement in chat",
+            "currency": "Currency",
+            "pipeline": "A pipeline runs",
+            "code_pool": "A code from a pool"
+          },
+          "amount": "Currency per winner",
+          "fromPot": "Pay from the pot",
+          "fromPotHelp": "Takes the prize from the entry fees instead of creating it.",
+          "pipeline": "Pipeline",
+          "pipelinePlaceholder": "Choose a pipeline",
+          "pool": "Code pool",
+          "poolPlaceholder": "Choose a code pool"
+        },
+        "problem": {
+          "titleRequired": "Type a title.",
+          "winnersInvalid": "Type a whole number of 1 or more for the winners.",
+          "maxEntriesInvalid": "Type a whole number of 1 or more for the entries per viewer.",
+          "entryCostInvalid": "Type a whole number of 0 or more for the entry cost, or leave it empty.",
+          "ruleInvalid": "Type a whole number of 0 or more for each entry rule, or leave it empty.",
+          "ticketsInvalid": "Type a whole number of 1 or more for each ticket count.",
+          "claimInvalid": "Type a whole number of 1 or more for the claim window, or leave it empty.",
+          "currencyInvalid": "Type a whole number of 1 or more for the currency prize.",
+          "pipelineRequired": "Choose the pipeline that runs for a winner.",
+          "poolRequired": "Choose the code pool the winners draw from.",
+          "closeInvalid": "Type a valid close time, or leave it empty."
+        }
+      },
+      "entryList": {
+        "title": "Entries of {title}",
+        "empty": "No entries yet.",
+        "error": "The entries could not be loaded.",
+        "tickets": "{count} ticket | {count} tickets"
+      },
+      "pools": {
+        "title": "Code pools",
+        "empty": "No code pools yet.",
+        "error": "The code pools could not be loaded.",
+        "counts": "{available} of {total} available",
+        "createNotAvailable": "Making a code pool is not available here yet."
+      },
+      "status": {
+        "draft": "Draft",
+        "open": "Open",
+        "closed": "Closed",
+        "drawn": "Drawn",
+        "archived": "Archived"
+      },
+      "action": {
+        "open": "Open for entries",
+        "close": "Close entries",
+        "draw": "Draw winners"
+      },
+      "winnerStatus": {
+        "pending": "Pending",
+        "fulfilled": "Delivered",
+        "claimed": "Claimed",
+        "forfeited": "Forfeited",
+        "failed": "Failed"
+      }
+    }
+  }
+}

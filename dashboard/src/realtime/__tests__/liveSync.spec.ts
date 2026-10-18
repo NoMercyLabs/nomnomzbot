@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { actionRequiredKey } from '@/api/actionRequired';
 import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
+import { giveawaysKey } from '@/api/giveaways';
 import { pollHistoryKey, pollsKey, predictionsKey, timersKey } from '@/api/liveOps';
 import {
   musicConfigKey,
@@ -86,6 +87,9 @@ const everyKey: Keys[] = [
   earningRulesKey,
   savingsJarsKey,
 ];
+  giveawaysKey,
+  vtsConnectionKey,
+  vtsInventoryKey,
 
 // Each hub event with the keys it must mark stale for the joined channel.
 const eventKeys: [string, unknown, Keys[]][] = [
@@ -164,6 +168,11 @@ const eventKeys: [string, unknown, Keys[]][] = [
   }, [homeStatsKey, activityKey]],
   ['CommandExecuted', {
     broadcasterId: 'x',
+  ['ChannelEvent', {
+    type: 'GiveawayChanged',
+    broadcasterId: 'x',
+    data: { giveawayId: 'g1', change: 'drawn' },
+  }, [homeStatsKey, activityKey, giveawaysKey]],
     commandName: 'hug',
     succeeded: true,
   }, [

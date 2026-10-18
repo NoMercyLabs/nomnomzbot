@@ -1,0 +1,139 @@
+{
+  "dashboard": {
+    "giveaways": {
+      "title": "Weggeefacties",
+      "listTitle": "Weggeefacties",
+      "winnersTitle": "Winnaars van {title}",
+      "empty": "Nog geen weggeefacties.",
+      "error": "De weggeefacties konden niet worden geladen.",
+      "winnersEmpty": "Nog geen winnaars getrokken.",
+      "winnersError": "De winnaars konden niet worden geladen.",
+      "entries": "{count} deelname | {count} deelnames",
+      "winnerCount": "{count} winnaar | {count} winnaars",
+      "keyword": "Trefwoord {keyword}",
+      "viewerEntryMode": "Actieve kijkers",
+      "redraw": "Nieuwe winnaar trekken",
+      "redrawn": "Opnieuw getrokken",
+      "liveNotAvailable": "Live updates zijn nog niet beschikbaar. Deze pagina toont nieuwe deelnames na elke stap die je hier zet.",
+      "new": "Nieuwe weggeefactie",
+      "edit": "Weggeefactie bewerken",
+      "delete": {
+        "title": "{title} verwijderen?",
+        "description": "Dit verwijdert de weggeefactie voorgoed.",
+        "action": "Weggeefactie verwijderen",
+        "line": "{count} {what}",
+        "lineAtLeast": "Minstens {count} {what}",
+        "nothing": "Verder wordt niets verwijderd."
+      },
+      "dialog": {
+        "newTitle": "Nieuwe weggeefactie",
+        "editTitle": "Weggeefactie bewerken",
+        "description": "Stel in hoe kijkers meedoen, wie mee mag doen, hoe de winnaars worden getrokken en wat ze krijgen.",
+        "title": "Titel",
+        "keyword": "Trefwoord",
+        "winners": "Aantal winnaars",
+        "create": "Weggeefactie maken",
+        "save": "Weggeefactie opslaan",
+        "entry": {
+          "legend": "Meedoen",
+          "mode": "Hoe kijkers meedoen",
+          "modes": {
+            "keyword": "Het trefwoord in de chat typen",
+            "active_viewers": "Actieve kijkers, geen trefwoord"
+          },
+          "cost": "Kosten per deelname",
+          "costHelp": "Valuta die per deelname wordt afgeschreven. Laat leeg voor gratis.",
+          "maxPerUser": "Deelnames per kijker",
+          "maxPerUserHelp": "Hoeveel deelnames een kijker mag hebben."
+        },
+        "who": {
+          "legend": "Wie mag meedoen",
+          "requireSub": "Alleen abonnees",
+          "excludeModerators": "Moderators uitsluiten",
+          "requires18Plus": "Kijkers moeten bevestigen dat ze 18 of ouder zijn",
+          "requires18PlusHelp": "Voor prijzen met een leeftijdsgrens.",
+          "minStandingLevel": "Minimaal standingniveau",
+          "minWatchMinutes": "Minimaal aantal kijkminuten",
+          "minAccountAgeDays": "Minimale accountleeftijd (dagen)"
+        },
+        "tickets": {
+          "legend": "Tickets per kijker",
+          "help": "Meer tickets geven meer kans om te winnen. Overal 1 betekent geen weging.",
+          "subT1": "Abonnee niveau 1",
+          "subT2": "Abonnee niveau 2",
+          "subT3": "Abonnee niveau 3",
+          "vip": "VIP"
+        },
+        "draw": {
+          "legend": "Trekking",
+          "claimWindow": "Claimtijd (minuten)",
+          "claimWindowHelp": "Hoe lang een winnaar heeft om te reageren. Leeg gebruikt de standaard.",
+          "closeAt": "Deelname sluit om",
+          "closeAtHelp": "Deelname sluit op dit tijdstip vanzelf. Leeg betekent dat jij het sluit."
+        },
+        "prize": {
+          "legend": "Prijs",
+          "mode": "Wat winnaars krijgen",
+          "modes": {
+            "announce": "Een aankondiging in de chat",
+            "currency": "Valuta",
+            "pipeline": "Een pipeline draait",
+            "code_pool": "Een code uit een pool"
+          },
+          "amount": "Valuta per winnaar",
+          "fromPot": "Betalen uit de pot",
+          "fromPotHelp": "Neemt de prijs uit de deelnamekosten in plaats van hem aan te maken.",
+          "pipeline": "Pipeline",
+          "pipelinePlaceholder": "Kies een pipeline",
+          "pool": "Codepool",
+          "poolPlaceholder": "Kies een codepool"
+        },
+        "problem": {
+          "titleRequired": "Typ een titel.",
+          "winnersInvalid": "Typ een heel getal van 1 of meer voor de winnaars.",
+          "maxEntriesInvalid": "Typ een heel getal van 1 of meer voor de deelnames per kijker.",
+          "entryCostInvalid": "Typ een heel getal van 0 of meer voor de kosten, of laat leeg.",
+          "ruleInvalid": "Typ een heel getal van 0 of meer voor elke deelnameregel, of laat leeg.",
+          "ticketsInvalid": "Typ een heel getal van 1 of meer voor elk aantal tickets.",
+          "claimInvalid": "Typ een heel getal van 1 of meer voor de claimtijd, of laat leeg.",
+          "currencyInvalid": "Typ een heel getal van 1 of meer voor de valutaprijs.",
+          "pipelineRequired": "Kies de pipeline die voor een winnaar draait.",
+          "poolRequired": "Kies de codepool waaruit winnaars trekken.",
+          "closeInvalid": "Typ een geldige sluitingstijd, of laat leeg."
+        }
+      },
+      "entryList": {
+        "title": "Deelnames aan {title}",
+        "empty": "Nog geen deelnames.",
+        "error": "De deelnames konden niet worden geladen.",
+        "tickets": "{count} lot | {count} loten"
+      },
+      "pools": {
+        "title": "Codepools",
+        "empty": "Nog geen codepools.",
+        "error": "De codepools konden niet worden geladen.",
+        "counts": "{available} van {total} beschikbaar",
+        "createNotAvailable": "Een codepool maken kan hier nog niet."
+      },
+      "status": {
+        "draft": "Concept",
+        "open": "Open",
+        "closed": "Gesloten",
+        "drawn": "Getrokken",
+        "archived": "Gearchiveerd"
+      },
+      "action": {
+        "open": "Openen voor deelnames",
+        "close": "Deelnames sluiten",
+        "draw": "Winnaars trekken"
+      },
+      "winnerStatus": {
+        "pending": "In afwachting",
+        "fulfilled": "Geleverd",
+        "claimed": "Opgeëist",
+        "forfeited": "Vervallen",
+        "failed": "Mislukt"
+      }
+    }
+  }
+}

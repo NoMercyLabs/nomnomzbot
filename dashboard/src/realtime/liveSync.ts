@@ -19,6 +19,7 @@ import {
   homeStatsKey,
   reviewQueueKey,
 } from '@/api/home';
+import { giveawaysKey } from '@/api/giveaways';
 import { pollHistoryKey, pollsKey, predictionsKey } from '@/api/liveOps';
 import { mediaShareQueueKey } from '@/api/mediaShare';
 import { musicHistoryKey, musicQueueKey, musicTopRequestersKey } from '@/api/music';
@@ -98,6 +99,7 @@ const pollEventKeys = [
   { prefix: 'ChatPollChanged', keys: [pollHistoryKey] },
   { prefix: 'media_share_', keys: [mediaShareQueueKey] },
 ] as const;
+  { prefix: 'GiveawayChanged', keys: [giveawaysKey] },
 
 const pollEventsChanged = {
   event: 'ChannelEvent',
