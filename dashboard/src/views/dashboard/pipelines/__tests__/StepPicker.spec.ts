@@ -20,13 +20,19 @@ import en from '../i18n/en.json';
 import StepPicker from '../components/StepPicker.vue';
 import { actionRows } from '../components/stepFields';
 
+// A list is keyed by its kind, or by `kind:provider` when the step's context names a provider.
 const lists = vi.hoisted(() => ({ byKind: {} as Record<string, unknown> }));
 
 vi.mock('@/api/pipelines', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/pipelines')>()),
-  usePipelineOptions: (_channel: unknown, kind: () => string) => ({
+  usePipelineOptions: (
+    _channel: unknown,
+    kind: () => string,
+    _search: unknown,
+    context?: { value: { provider?: string } },
+  ) => ({
     data: computed(() =>
-      lists.byKind[kind()]),
+      lists.byKind[`${kind()}:${context?.value.provider}`] ?? lists.byKind[kind()]),
     isPending: ref(false),
     isFetching: ref(false),
   }),
@@ -89,7 +95,11 @@ const playlists: PipelineOptionList = {
 
 let router: Router;
 
-async function openPicker(kind: PickerKind, value = ''): Promise<VueWrapper> {
+async function openPicker(
+  kind: PickerKind,
+  value = '',
+  context?: Record<string, string>,
+): Promise<VueWrapper> {
   const blank = { template: '<div />' };
 
   router = createRouter({
@@ -117,6 +127,7 @@ async function openPicker(kind: PickerKind, value = ''): Promise<VueWrapper> {
       kind,
       value,
       required: true,
+      context,
     },
     global: { plugins: [i18n, router] },
   });
@@ -190,6 +201,26 @@ describe('the script and playlist pickers', () => {
 
     expect(off.hasAttribute('data-disabled')).toBe(true);
     expect(off.textContent).toContain('Script is disabled.');
+  });
+
+  it('lists the playlists of the service the step chose, not the active one', async () => {
+    lists.byKind.music_playlist = playlists;
+
+    lists.byKind['music_playlist:youtube'] = {
+      sourceAvailable: true,
+      items: [{
+        value: 'PLyt1',
+        label: 'Stream tunes',
+        secondaryText: '7 tracks · youtube',
+        state: 0,
+      }],
+      totalCount: 1,
+    };
+
+    await openPicker('music_playlist', '', { provider: 'youtube' });
+
+    expect(document.body.querySelector('[data-picker-option="PLyt1"]')?.textContent).toContain('Stream tunes');
+    expect(document.body.querySelector('[data-picker-option="6GaEADx2wNUWA6DJsMVcct"]')).toBeNull();
   });
 
   it('lists the playlists by name and saves the provider playlist id', async () => {

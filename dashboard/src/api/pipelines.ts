@@ -368,7 +368,24 @@ export type PickerKind = (typeof PICKER_KINDS)[number];
 const optionPage = 50;
 
 // A search narrows the list; a value asks for that one item, so a saved choice shows its name.
-type OptionAsk = { search?: string; value?: string };
+// The context holds the step's other choice settings (provider = youtube), so a list can narrow by them.
+export type OptionContext = Record<string, string>;
+
+type OptionAsk = {
+  search?: string;
+  value?: string;
+  context?: OptionContext;
+};
+
+// The bot reads the context as repeated name=value entries.
+function contextEntries(context: OptionContext | undefined): string[] | undefined {
+  const entries = Object.entries(context ?? {}).map(([name, text]: [string, string]) =>
+    `${name}=${text}`);
+
+  return entries.length > 0
+    ? entries
+    : undefined;
+}
 
 async function readOptions(
   channelId: string,
@@ -382,6 +399,7 @@ async function readOptions(
         PageSize: optionPage,
         Search: ask.search || undefined,
         value: ask.value,
+        context: contextEntries(ask.context),
       },
     },
     // The route carries no channel, so the tenant goes in the header the bot reads it from.
@@ -399,12 +417,16 @@ export function usePipelineOptions(
   channelId: MaybeRefOrGetter<string | null>,
   kind: MaybeRefOrGetter<PickerKind>,
   search: MaybeRefOrGetter<string>,
+  context: MaybeRefOrGetter<OptionContext> = {},
 ): UseQueryReturnType<PipelineOptionList, Error> {
   return useQuery({
     queryKey: computed(() =>
-      ['channels', toValue(channelId), 'pipeline-options', toValue(kind), toValue(search)]),
+      ['channels', toValue(channelId), 'pipeline-options', toValue(kind), toValue(search), toValue(context)]),
     queryFn: () =>
-      readOptions(toValue(channelId) as string, toValue(kind), { search: toValue(search) }),
+      readOptions(toValue(channelId) as string, toValue(kind), {
+        search: toValue(search),
+        context: toValue(context),
+      }),
     enabled: computed(() => toValue(channelId) !== null),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
@@ -416,13 +438,15 @@ export function usePipelineOption(
   channelId: MaybeRefOrGetter<string | null>,
   kind: MaybeRefOrGetter<PickerKind>,
   value: MaybeRefOrGetter<string | null>,
+  context: MaybeRefOrGetter<OptionContext> = {},
 ): UseQueryReturnType<PipelineOption | null, Error> {
   return useQuery({
     queryKey: computed(() =>
-      ['channels', toValue(channelId), 'pipeline-options', toValue(kind), 'value', toValue(value)]),
+      ['channels', toValue(channelId), 'pipeline-options', toValue(kind), 'value', toValue(value), toValue(context)]),
     queryFn: async () => {
       const list = await readOptions(toValue(channelId) as string, toValue(kind), {
         value: toValue(value) as string,
+        context: toValue(context),
       });
 
       return list.items[0] ?? null;

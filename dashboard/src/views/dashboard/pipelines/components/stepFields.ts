@@ -115,6 +115,36 @@ export function itemText(item: JsonValue | undefined): string {
     : String(item ?? '');
 }
 
+// The step's closed choices that are set (provider = youtube): what a picker's list can narrow by.
+export function choiceContext(rows: FieldRow[]): Record<string, string> {
+  const set = rows.filter((row: FieldRow) =>
+    row.control === 'choice' && typeof row.value === 'string' && row.value !== '');
+
+  return Object.fromEntries(set.map((row: FieldRow) =>
+    [row.name, String(row.value)]));
+}
+
+// The settings one edit writes. A list the bot narrows by a closed choice (the playlist of one service) is
+// cleared when that choice changes, so the step never keeps a pick the new choice does not list.
+export function settingsAfter(
+  rows: FieldRow[],
+  edited: FieldRow,
+  value: JsonValue | undefined,
+): Record<string, JsonValue | undefined> {
+  const written: Record<string, JsonValue | undefined> = { [edited.name]: value };
+
+  if (edited.control !== 'choice' || value === edited.value)
+    return written;
+
+  for (const row of rows) {
+    if (row.control === 'pick' && row.target === edited.target && row.value !== undefined) {
+      written[row.name] = undefined;
+    }
+  }
+
+  return written;
+}
+
 export function actionRows(
   step: PipelineStep,
   descriptor: PipelineActionDescriptor | undefined,

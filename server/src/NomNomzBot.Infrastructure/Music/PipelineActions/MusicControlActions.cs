@@ -1041,6 +1041,7 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
                 Required: true,
                 Description: new("pipeline.music_add_to_playlist.playlistId.help")
             ),
+            PlaylistProviderChoice.Field(),
         ];
 
     public MusicAddToPlaylistAction(IMusicService music, IMusicProviderManageApi manageApi)
@@ -1062,18 +1063,20 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
         if (string.IsNullOrWhiteSpace(playlistId))
             return ActionResult.Failure("music_add_to_playlist requires a non-empty 'playlistId'");
 
-        (Result<string> provider, Result<NowPlaying> nowPlaying) =
-            await MusicSaveTrackAction.ResolveAsync(_music, ctx);
-        if (provider.IsFailure)
-            return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
-        if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
-            return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
+        Result<PlaylistTarget> target = await PlaylistProviderChoice.ResolveCurrentTrackAsync(
+            _music,
+            ctx.BroadcasterId,
+            action.GetString("provider"),
+            ctx.CancellationToken
+        );
+        if (target.IsFailure)
+            return ActionResult.Failure(target.ErrorMessage!);
 
         Result result = await _manageApi.AddPlaylistTracksAsync(
             ctx.BroadcasterId,
-            provider.Value,
+            target.Value.Provider,
             playlistId,
-            [nowPlaying.Value.TrackUri],
+            [target.Value.TrackUri],
             ctx.CancellationToken
         );
         return MusicControlResult.FromMusicResult(result, $"added to playlist {playlistId}");
@@ -1099,6 +1102,7 @@ public sealed class MusicRemoveFromPlaylistAction : ICommandAction
                 Required: true,
                 Description: new("pipeline.music_remove_from_playlist.playlistId.help")
             ),
+            PlaylistProviderChoice.Field(),
         ];
 
     public MusicRemoveFromPlaylistAction(IMusicService music, IMusicProviderManageApi manageApi)
@@ -1122,18 +1126,20 @@ public sealed class MusicRemoveFromPlaylistAction : ICommandAction
                 "music_remove_from_playlist requires a non-empty 'playlistId'"
             );
 
-        (Result<string> provider, Result<NowPlaying> nowPlaying) =
-            await MusicSaveTrackAction.ResolveAsync(_music, ctx);
-        if (provider.IsFailure)
-            return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
-        if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
-            return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
+        Result<PlaylistTarget> target = await PlaylistProviderChoice.ResolveCurrentTrackAsync(
+            _music,
+            ctx.BroadcasterId,
+            action.GetString("provider"),
+            ctx.CancellationToken
+        );
+        if (target.IsFailure)
+            return ActionResult.Failure(target.ErrorMessage!);
 
         Result result = await _manageApi.RemovePlaylistTracksAsync(
             ctx.BroadcasterId,
-            provider.Value,
+            target.Value.Provider,
             playlistId,
-            [nowPlaying.Value.TrackUri],
+            [target.Value.TrackUri],
             ctx.CancellationToken
         );
         return MusicControlResult.FromMusicResult(result, $"removed from playlist {playlistId}");

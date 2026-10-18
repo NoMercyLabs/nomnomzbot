@@ -42,15 +42,24 @@ internal sealed class MusicPlaylistOptionProvider : IPipelineOptionProvider
         CancellationToken ct = default
     )
     {
-        string? provider = await _music.GetActiveProviderKeyAsync(broadcasterId.ToString(), ct);
-        if (provider is null)
+        Result<string> provider = await PlaylistProviderChoice.ResolveAsync(
+            _music,
+            broadcasterId,
+            request.ContextValue(PlaylistProviderChoice.FieldName),
+            ct
+        );
+        if (provider.IsFailure)
             return Result.Success(
-                PipelineOptionListResult.Unavailable("No music provider is connected.")
+                PipelineOptionListResult.Unavailable(
+                    provider.ErrorCode == "INVALID_PROVIDER"
+                        ? provider.ErrorMessage!
+                        : "No music provider is connected."
+                )
             );
 
         Result<IReadOnlyList<MusicPlaylistDto>> listed = await _manage.ListPlaylistsAsync(
             broadcasterId,
-            provider,
+            provider.Value,
             ct
         );
         if (listed.IsFailure)

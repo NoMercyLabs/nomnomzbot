@@ -5461,6 +5461,7 @@
     <string name="pipeline_jar_contribute_amount_help">Hoeveel valuta er van het saldo van de kijker naar de spaarpot wordt overgeboekt.</string>
     <string name="pipeline_jar_contribute_jar_id_help">Welke spaarpot de bijdrage ontvangt.</string>
     <string name="pipeline_music_add_to_playlist_playlistId_help">Aan welke afspeellijst het nummer dat nu speelt wordt toegevoegd.</string>
+    <string name="pipeline_music_playlist_provider_help">Op welke muziekdienst de afspeellijst staat. Leeg gebruikt de actieve muziekdienst van het kanaal.</string>
     <string name="pipeline_music_remove_from_playlist_playlistId_help">Uit welke afspeellijst het nummer dat nu speelt wordt verwijderd.</string>
     <string name="pipeline_music_seek_positionSeconds_help">Springt het afspelen naar deze positie in het huidige nummer, in seconden vanaf het begin.</string>
     <string name="pipeline_music_set_repeat_mode_help">De herhaalmodus waarnaar wordt overgeschakeld: uit, huidig nummer herhalen, of hele afspeellijst/album herhalen.</string>

@@ -835,6 +835,7 @@
     "pipeline.music_play.description",
     "pipeline.music_play_pause.description",
     "pipeline.music_previous.description",
+    "pipeline.music_playlist.provider.help",
     "pipeline.music_remove_from_playlist.description",
     "pipeline.music_remove_from_playlist.playlistId.help",
     "pipeline.music_save_track.description",

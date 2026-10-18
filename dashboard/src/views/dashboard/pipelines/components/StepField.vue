@@ -16,7 +16,7 @@ import { computed, ref, useId, watch } from 'vue';
 
 import TemplateField from '@/components/layout/TemplateField.vue';
 
-import type { PickerKind } from '@/api/pipelines';
+import type { OptionContext, PickerKind } from '@/api/pipelines';
 import { Field, FieldContent, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,7 +29,7 @@ import type { FieldRow } from './stepFields';
 import StepPicker from './StepPicker.vue';
 import { valueText } from './stepWords';
 
-const props = defineProps<{ row: FieldRow }>();
+const props = defineProps<{ row: FieldRow; context?: OptionContext }>();
 
 const emit = defineEmits<{ change: [value: JsonValue | undefined] }>();
 
@@ -126,6 +126,7 @@ function typed(event: Event): void {
       :kind="row.kind as PickerKind"
       :value="text"
       :required="row.required"
+      :context="context"
       @change="emit('change', $event)"
     />
     <ListField

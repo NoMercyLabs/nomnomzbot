@@ -71987,6 +71987,16 @@
             }
           },
           {
+            "name": "context",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "version",
             "in": "path",
             "required": true,

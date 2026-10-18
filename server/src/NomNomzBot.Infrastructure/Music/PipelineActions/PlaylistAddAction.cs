@@ -30,6 +30,8 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 ///
 /// Parameters:
 ///   playlist_id — provider playlist id (required). Supports {variable} substitution.
+///   provider    — "spotify" or "youtube" (optional; absent uses the channel's active provider, so steps
+///                 saved before this setting keep working). The playlist is read and written on that service.
 ///   track_uri   — track to add (optional; defaults to the CURRENTLY PLAYING track).
 ///   message     — chat response template (optional; when absent the reply comes from the channel's
 ///                 personality slot <c>banger.added</c>, the same one the !banger built-in uses).
@@ -77,6 +79,7 @@ public sealed class PlaylistAddAction : ICommandAction
                 Required: true,
                 Description: new("pipeline.playlist_add.playlist_id.help")
             ),
+            PlaylistProviderChoice.Field(),
             new(
                 "track_uri",
                 PipelineActionFieldKind.Text,
@@ -129,12 +132,16 @@ public sealed class PlaylistAddAction : ICommandAction
             return ActionResult.Failure("playlist_add requires a non-empty 'playlist_id'");
 
         string broadcasterId = ctx.BroadcasterId.ToString();
-        string? provider = await _music.GetActiveProviderKeyAsync(
-            broadcasterId,
+        Result<string> chosen = await PlaylistProviderChoice.ResolveAsync(
+            _music,
+            ctx.BroadcasterId,
+            action.GetString("provider"),
             ctx.CancellationToken
         );
-        if (provider is null)
-            return ActionResult.Failure("no active music provider");
+        if (chosen.IsFailure)
+            return ActionResult.Failure(chosen.ErrorMessage ?? "no active music provider");
+
+        string provider = chosen.Value;
 
         string? trackUri = action.GetString("track_uri");
         string? trackName = null;
@@ -152,6 +159,10 @@ public sealed class PlaylistAddAction : ICommandAction
                 );
                 return ActionResult.Failure("nothing is currently playing");
             }
+
+            Result<NowPlaying> sameService = PlaylistProviderChoice.RequireTrackFrom(now, provider);
+            if (sameService.IsFailure)
+                return ActionResult.Failure(sameService.ErrorMessage!);
 
             trackUri = now.TrackUri;
             trackName = now.TrackName;

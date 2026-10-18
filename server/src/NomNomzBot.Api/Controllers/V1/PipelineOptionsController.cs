@@ -60,6 +60,7 @@ public sealed class PipelineOptionsController : BaseController
         string kind,
         [FromQuery] PageRequestDto request,
         [FromQuery] string? value,
+        [FromQuery] List<string>? context,
         CancellationToken ct
     )
     {
@@ -73,11 +74,25 @@ public sealed class PipelineOptionsController : BaseController
         Result<PipelineOptionListResult> result = await _registry.GetOptionsAsync(
             parsedKind,
             broadcasterId,
-            new PipelineOptionQuery(request.Search, value, pagination),
+            new PipelineOptionQuery(request.Search, value, pagination, ParseContext(context)),
             ct
         );
 
         return ResultResponse(result);
+    }
+
+    /// <summary>Reads the <c>context=name=value</c> query entries into a map; an entry without a name is dropped.</summary>
+    private static Dictionary<string, string> ParseContext(List<string>? entries)
+    {
+        Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string entry in entries ?? [])
+        {
+            int split = entry.IndexOf('=');
+            if (split > 0)
+                map[entry[..split]] = entry[(split + 1)..];
+        }
+
+        return map;
     }
 
     private static bool TryParseKind(string wireName, out PipelineActionFieldKind kind)

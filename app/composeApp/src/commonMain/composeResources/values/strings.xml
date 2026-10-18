@@ -5477,6 +5477,7 @@
     <string name="pipeline_jar_contribute_amount_help">How much currency to move from the viewer's balance into the savings jar.</string>
     <string name="pipeline_jar_contribute_jar_id_help">Which savings jar receives the contribution.</string>
     <string name="pipeline_music_add_to_playlist_playlistId_help">Which playlist the currently playing track is added to.</string>
+    <string name="pipeline_music_playlist_provider_help">Which music service the playlist is on. Blank uses the channel's active music service.</string>
     <string name="pipeline_music_remove_from_playlist_playlistId_help">Which playlist the currently playing track is removed from.</string>
     <string name="pipeline_music_seek_positionSeconds_help">Jumps playback to this position in the current track, in seconds from the start.</string>
     <string name="pipeline_music_set_repeat_mode_help">The repeat mode to switch to: off, repeat the current track, or repeat the whole playlist/album.</string>

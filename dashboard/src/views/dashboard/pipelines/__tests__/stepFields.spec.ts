@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
 
-import { actionRows, blockRows, type FieldRow, itemText, listItem } from '../components/stepFields';
+import { actionRows, blockRows, choiceContext, type FieldRow, itemText, listItem, settingsAfter } from '../components/stepFields';
 
 function step(over: Partial<PipelineStep>): PipelineStep {
   return {
@@ -55,6 +55,99 @@ const words = {
 const brief = (rows: FieldRow[]): string[] =>
   rows.map((row: FieldRow) =>
     `${row.name}:${row.control}:${String(row.value)}`);
+
+describe('the choices a picker narrows by', () => {
+  it('holds the closed choices that are set, and nothing else', () => {
+    const rows = actionRows(
+      step({
+        action: {
+          type: 'playlist_add',
+          provider: 'youtube',
+          playlist_id: 'PL1',
+          track_uri: 'x',
+        },
+      }),
+      {
+        type: 'playlist_add',
+        fields: [
+          field({
+            name: 'provider',
+            kind: 'enum',
+            options: ['spotify', 'youtube'],
+          }),
+          field({ name: 'playlist_id', kind: 'music_playlist' }),
+          field({ name: 'track_uri', kind: 'text' }),
+        ],
+      } as unknown as PipelineActionDescriptor,
+      words,
+    );
+
+    expect(choiceContext(rows)).toEqual({ provider: 'youtube' });
+  });
+
+  it('leaves out a choice that is not set, so the bot uses its active service', () => {
+    const rows = actionRows(
+      step({ action: { type: 'playlist_add', playlist_id: 'PL1' } }),
+      {
+        type: 'playlist_add',
+        fields: [field({
+          name: 'provider',
+          kind: 'enum',
+          options: ['spotify', 'youtube'],
+        })],
+      } as unknown as PipelineActionDescriptor,
+      words,
+    );
+
+    expect(choiceContext(rows)).toEqual({});
+  });
+});
+
+describe('the settings an edit writes', () => {
+  const descriptor = {
+    type: 'playlist_add',
+    fields: [
+      field({
+        name: 'provider',
+        kind: 'enum',
+        options: ['spotify', 'youtube'],
+      }),
+      field({ name: 'playlist_id', kind: 'music_playlist' }),
+      field({ name: 'track_uri', kind: 'text' }),
+    ],
+  } as unknown as PipelineActionDescriptor;
+  const rows = actionRows(
+    step({
+      action: {
+        type: 'playlist_add',
+        provider: 'spotify',
+        playlist_id: 'PL1',
+        track_uri: 'x',
+      },
+    }),
+    descriptor,
+    words,
+  );
+  const named = (name: string): FieldRow =>
+    rows.find((row: FieldRow) =>
+      row.name === name) as FieldRow;
+
+  it('clears the saved playlist when the provider changes', () => {
+    const written = settingsAfter(rows, named('provider'), 'youtube');
+
+    expect(written).toEqual({ provider: 'youtube', playlist_id: undefined });
+    expect('playlist_id' in written).toBe(true);
+    expect('track_uri' in written).toBe(false);
+  });
+
+  it('keeps the playlist when the provider is set to what it already is', () => {
+    expect(settingsAfter(rows, named('provider'), 'spotify')).toEqual({ provider: 'spotify' });
+  });
+
+  it('writes only the edited setting for a non-choice edit', () => {
+    expect(settingsAfter(rows, named('track_uri'), 'y')).toEqual({ track_uri: 'y' });
+  });
+});
 
 describe('the step form rows', () => {
   it('shows Pick from list as a picker of saved lists that keeps the saved list name', () => {

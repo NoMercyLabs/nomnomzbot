@@ -28,7 +28,7 @@ import { useLocalizedText } from '@/composables/useLocalizedText';
 
 import type { StepPatch } from './stepEdits';
 import StepField from './StepField.vue';
-import { actionRows, blockRows, type FieldRow } from './stepFields';
+import { actionRows, blockRows, choiceContext, type FieldRow, settingsAfter } from './stepFields';
 import { conditionSentence, stepSentence, stepTitle } from './stepWords';
 
 const props = defineProps<{
@@ -69,6 +69,9 @@ const fields = computed(() =>
     : blockRows(props.step, { t, te }),
 );
 
+const context = computed(() =>
+  choiceContext(fields.value));
+
 const keepGoing = computed<FieldRow>(() => ({
   name: 'continue_on_error',
   label: t(`${page}.inspector.keepGoing`),
@@ -87,7 +90,7 @@ function change(row: FieldRow, value: JsonValue | undefined): void {
     'patch',
     row.target === 'step'
       ? { continue_on_error: value === true }
-      : { [row.target]: { [row.name]: value } },
+      : { [row.target]: settingsAfter(fields.value, row, value) },
   );
 }
 
@@ -137,6 +140,7 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
               v-for="row in fields"
               :key="`${step.id}:${row.name}`"
               :row="row"
+              :context="context"
               @change="change(row, $event)"
             />
             <p v-if="fields.length === 0" class="text-sm text-muted-foreground">

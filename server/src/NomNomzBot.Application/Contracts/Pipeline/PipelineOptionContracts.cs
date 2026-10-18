@@ -76,8 +76,23 @@ public sealed record PipelineOptionListResult(
 /// in a step even when that option is not on the first page. For <c>twitch_user</c> it is the Twitch user id.
 /// </param>
 /// <param name="Pagination">Page window for the search-filtered list.</param>
-public sealed record PipelineOptionQuery(string? Search, string? Value, PaginationParams Pagination)
+/// <param name="Context">
+/// The step's other choice settings by field name (for example <c>provider</c> = <c>youtube</c>), so a kind can
+/// narrow its list by a sibling field. Null when the caller sends none.
+/// </param>
+public sealed record PipelineOptionQuery(
+    string? Search,
+    string? Value,
+    PaginationParams Pagination,
+    IReadOnlyDictionary<string, string>? Context = null
+)
 {
+    /// <summary>The sibling setting named <paramref name="name"/>, or null when it was not sent or is blank.</summary>
+    public string? ContextValue(string name) =>
+        Context is not null && Context.TryGetValue(name, out string? found) && found.Length > 0
+            ? found
+            : null;
+
     /// <summary>True when the caller asks for one option by its saved value.</summary>
     public bool IsValueLookup => !string.IsNullOrEmpty(Value);
 
