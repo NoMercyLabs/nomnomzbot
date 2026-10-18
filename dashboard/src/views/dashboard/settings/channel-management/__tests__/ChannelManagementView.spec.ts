@@ -22,6 +22,10 @@ import en from '../i18n/en.json';
 type Call = {
   method: string;
   path: string;
+  target?: string;
+};
+type Options = {
+  params?: { path?: { channelId?: string }; query?: { deleted?: boolean } };
 };
 type Answer = {
   data?: unknown;
@@ -31,6 +35,14 @@ type Answer = {
 
 const calls: Call[] = [];
 const bot = { joinedAt: null as string | null, previewFails: false };
+const sideChannel = {
+  id: 'c2',
+  login: 'side_quest',
+  displayName: 'Side Quest',
+  deletedAt: '2026-10-10T08:30:00Z',
+  permanentAfter: '2026-11-09T08:30:00Z',
+};
+const gone: { rows: unknown[] } = { rows: [] };
 
 const preview = {
   channelName: 'stoney_eagle',
@@ -89,11 +101,15 @@ const ok = (data?: unknown): Answer => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string): Promise<Answer> => {
+    GET: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'GET', path });
 
       if (path.endsWith('/reset-preview')) {
         return ok(resetPreview);
+      }
+
+      if (options?.params?.query?.deleted === true) {
+        return ok(gone.rows);
       }
 
       if (path.endsWith('/delete-preview')) {
@@ -107,8 +123,16 @@ vi.mock('@/api/client', () => ({
 
       return ok({ id: 'c1', botJoinedAt: bot.joinedAt });
     },
-    POST: async (path: string): Promise<Answer> => {
-      calls.push({ method: 'POST', path });
+    POST: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({
+        method: 'POST',
+        path,
+        target: options?.params?.path?.channelId,
+      });
+
+      if (path.endsWith('/restore')) {
+        gone.rows = gone.rows.filter((row) => row !== sideChannel);
+      }
 
       if (path.endsWith('/join')) {
         bot.joinedAt = '2026-10-18T08:00:00Z';
@@ -145,6 +169,7 @@ beforeEach(() => {
   calls.length = 0;
   bot.joinedAt = null;
   bot.previewFails = false;
+  gone.rows = [];
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -290,6 +315,28 @@ describe('Channel management', () => {
     await click(q('[data-confirm-action]'));
 
     expect(countOf('POST', '/reset')).toBe(1);
+  });
+
+  it('lists another deleted channel with its removal date and restores that channel by its own id', async () => {
+    gone.rows = [sideChannel];
+    await open();
+
+    const notice = q('[data-slot="deleted-channel"]');
+
+    expect(notice.textContent).toContain('Side Quest');
+    expect(document.body.querySelector('[data-delete]')).not.toBeNull();
+
+    await click(q('[data-slot="deleted-channel"] [data-restore]'));
+
+    const restores = calls.filter((call) => call.method === 'POST' && call.path.endsWith('/restore'));
+
+    expect(restores).toEqual([{
+      method: 'POST',
+      path: '/api/v{version}/channels/{channelId}/restore',
+      target: 'c2',
+    }]);
+
+    expect(document.body.querySelector('[data-slot="deleted-channel"]')).toBeNull();
   });
 
   it('offers no delete when the bot cannot count what it destroys', async () => {

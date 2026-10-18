@@ -18,6 +18,7 @@ import {
   fetchChannelDeletePreview,
   fetchChannelResetPreview,
   useChannelInfo,
+  useDeletedChannels,
   useDeleteChannel,
   useJoinChannel,
   useLeaveChannel,
@@ -171,6 +172,19 @@ async function confirmLeave(): Promise<void> {
   leaveOpen.value = false;
 }
 
+const deletedList = useDeletedChannels();
+
+// The channel just deleted here has its own notice above; the list shows every other channel waiting to be restored.
+const otherDeleted = computed(() =>
+  (deletedList.data.value ?? []).filter((row) =>
+    row.id !== channelId.value));
+
+async function restoreListed(id: string): Promise<void> {
+  await run(async () => {
+    await restore.mutateAsync(id);
+  });
+}
+
 async function restoreChannel(): Promise<void> {
   await run(async () => {
     await restore.mutateAsync();
@@ -231,7 +245,15 @@ async function restoreChannel(): Promise<void> {
           :busy="busy"
           @restore="restoreChannel"
         />
-        <div v-else class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+        <DeletedChannelNotice
+          v-for="gone in otherDeleted"
+          :key="gone.id"
+          :name="gone.displayName"
+          :permanent-after="gone.permanentAfter ?? ''"
+          :busy="busy"
+          @restore="restoreListed(gone.id)"
+        />
+        <div v-if="deleted === null" class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
           <p class="min-w-0 flex-1 text-sm text-muted-foreground">
             {{ $t('dashboard.settings.channelManagement.delete.help') }}
           </p>

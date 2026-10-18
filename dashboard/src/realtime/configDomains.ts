@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 import { actionRequiredKey } from '@/api/actionRequired';
+import { channelInfoKey, deletedChannelsKey } from '@/api/channelManagement';
+import { myChannelsQuery } from '@/api/channels';
 import { builtinsKey, commandsKey } from '@/api/commands';
 import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
 import { engagementConfigKey } from '@/api/engagement';
@@ -36,6 +38,9 @@ const eventResponsesKey: QueryKeyBuilder = (channelId) => [
   channelId,
   'event-responses',
 ];
+
+// The list of the caller's channels is not per channel, so its key ignores the channel the event names.
+const myChannelsKey: QueryKeyBuilder = () => myChannelsQuery.queryKey;
 
 // The domain names are the ones the server services publish with ConfigChanged
 // (ActionRequiredChangeNotifier, CommandService, BuiltinCommandService, TtsConfigService, WidgetService, and the
@@ -68,6 +73,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'savings-jar': [savingsJarsKey],
   permissions: [membersKey, actionMatrixKey],
   'event-journal': [eventJournalKey],
+  channels: [myChannelsKey, deletedChannelsKey, channelInfoKey, botStatusKey],
 };
 
 // A domain with no page key of its own (catalog, quotes, picklists, or a

@@ -25,7 +25,8 @@ public sealed class ChannelConfigChangedEvent : DomainEventBase
     /// query keys: commands, timers, pipelines, event-responses, rewards, economy-config, earning-rules, catalog,
     /// moderation-rules, blocked-terms, automod, tts-config, music-config, sr-config, webhooks, widgets, features,
     /// quotes, builtins, channel-settings, roles-permits, savings-jar (pushed to every channel in a jar group,
-    /// with the jar id as the entity).
+    /// with the jar id as the entity), channels (the bot joined, left, or the channel was deleted or restored:
+    /// <see cref="Action"/> is joined / left / deleted / restored, the entity is the channel id).
     /// </summary>
     public required string Domain { get; init; }
 

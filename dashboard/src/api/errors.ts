@@ -449,6 +449,7 @@ export const apiOperations = {
   'inbound webhook blast radius': 'settings',
   'outbound webhook blast radius': 'settings',
   'channel info': 'settings',
+  'deleted channels': 'settings',
   'join channel': 'settings',
   'leave channel': 'settings',
   'channel delete preview': 'settings',

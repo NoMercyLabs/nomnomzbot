@@ -67,13 +67,18 @@ public class ChannelsController : BaseController
         _viewAs = viewAs;
     }
 
-    /// <summary>List all channels the current user owns or moderates.</summary>
+    /// <summary>
+    /// List all channels the current user owns or moderates. With <c>deleted=true</c> it lists instead the
+    /// channels the caller OWNS that are soft-deleted and still inside the restore window, each with its delete
+    /// date and restore deadline (only an owner sees their deleted channels).
+    /// </summary>
     [HttpGet]
     [AllowSuspendedTenant]
     [ProducesResponseType<PaginatedResponse<ChannelSummaryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
         [FromQuery] PageRequestDto request,
-        CancellationToken ct
+        CancellationToken ct,
+        [FromQuery] bool deleted = false
     )
     {
         string? userId =
@@ -84,6 +89,9 @@ public class ChannelsController : BaseController
             return UnauthenticatedResponse();
 
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+
+        if (deleted)
+            return await ListDeletedChannelsAsync(userId, pagination, request, ct);
 
         // Fetch channels the caller moderates on Twitch so they appear even if not yet synced to the
         // ChannelModerators table. Resolve the caller's OWN channel from their identity — the key the
@@ -125,6 +133,26 @@ public class ChannelsController : BaseController
             return GetPaginatedResponse(AsPreviewedRole(result.Value), request);
 
         return GetPaginatedResponse(result.Value, request);
+    }
+
+    // Only the owner's own soft-deleted channels, so the owner-only filter in the service is the gate and this
+    // non-channel-scoped read needs no [RequireAction].
+    private async Task<IActionResult> ListDeletedChannelsAsync(
+        string userId,
+        PaginationParams pagination,
+        PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        Result<PagedList<ChannelSummaryDto>> result = await _channelService.GetDeletedChannelsAsync(
+            userId,
+            pagination,
+            ct
+        );
+
+        return result.IsFailure
+            ? ResultResponse(result)
+            : GetPaginatedResponse(result.Value, request);
     }
 
     public const int MaxDirectoryPageSize = 50;

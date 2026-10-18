@@ -33,7 +33,8 @@ public sealed record ChannelDto(
 /// each chat line / multi-watch pane — by its source. <c>ChatColor</c> is the streamer's Twitch chat color
 /// (#RRGGBB), populated from <c>User.Color</c> when known — null until the first login after the color-sync
 /// feature is deployed, or when the user has no color set; the dashboard uses it as the dynamic accent token
-/// (design-system §2).
+/// (design-system §2). <c>DeletedAt</c> and <c>PermanentAfter</c> are set only on a soft-deleted channel listed
+/// inside its restore window: when it was deleted and the instant after which it can no longer be restored.
 /// </summary>
 public sealed record ChannelSummaryDto(
     string Id,
@@ -45,7 +46,9 @@ public sealed record ChannelSummaryDto(
     int? ViewerCount,
     string Provider,
     string? ChatColor = null,
-    ChannelSuspensionDto? Suspension = null
+    ChannelSuspensionDto? Suspension = null,
+    DateTime? DeletedAt = null,
+    DateTime? PermanentAfter = null
 );
 
 /// <summary>

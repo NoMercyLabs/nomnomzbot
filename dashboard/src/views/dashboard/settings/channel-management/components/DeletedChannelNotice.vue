@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 
 const props = defineProps<{
+  name?: string;
   permanentAfter: string;
   busy: boolean;
 }>();
@@ -31,7 +32,9 @@ const until = computed(() =>
 <template>
   <div data-slot="deleted-channel" class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
     <div class="min-w-0 flex-1">
-      <p class="text-sm font-medium">{{ $t('dashboard.settings.channelManagement.deleted.title') }}</p>
+      <p class="text-sm font-medium">
+        {{ name ?? $t('dashboard.settings.channelManagement.deleted.title') }}
+      </p>
       <p class="text-sm text-muted-foreground">
         {{ $t('dashboard.settings.channelManagement.deleted.help', { when: until }) }}
       </p>

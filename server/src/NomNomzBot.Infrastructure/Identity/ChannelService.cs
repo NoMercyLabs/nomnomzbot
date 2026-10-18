@@ -94,6 +94,7 @@ public class ChannelService : IChannelService
         // Know on join whether the bot can moderate here, instead of after the next sweep. A failed read is
         // inconclusive and only leaves the status as it was, so it never fails the join.
         await _botModeratorStatus.ReconcileAsync(broadcasterGuid, cancellationToken);
+        await AnnouncePresenceAsync(broadcasterGuid, "joined", cancellationToken);
 
         // Opt-in, default OFF (house rule: opt-in/default-deny) — announce the bot's own connect. Distinct
         // from the operator-configured "stream.online" event response (that fires on the STREAM going live);
@@ -145,6 +146,7 @@ public class ChannelService : IChannelService
 
         // Take effect now, not on BotLifecycleService's next 5-minute reconcile tick.
         await _eventSub.UnsubscribeAllAsync(broadcasterGuid, cancellationToken);
+        await AnnouncePresenceAsync(broadcasterGuid, "left", cancellationToken);
 
         return Result.Success();
     }
@@ -190,6 +192,72 @@ public class ChannelService : IChannelService
 
         return Result.Success<IReadOnlyList<ChannelSummaryDto>>(channels);
     }
+
+    public async Task<Result<PagedList<ChannelSummaryDto>>> GetDeletedChannelsAsync(
+        string userId,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Guid.TryParse(userId, out Guid userGuid);
+
+        // A deleted channel is hidden from every filtered read, so this is the one list that looks past the
+        // filter. Only the owner sees it, and only inside the window the delete dialog promised.
+        DateTime windowStart = _timeProvider
+            .GetUtcNow()
+            .UtcDateTime.AddDays(-ChannelDeletionPolicy.RestoreWindowDays);
+
+        IQueryable<Channel> query = _db
+            .Channels.IgnoreQueryFilters()
+            .Include(c => c.User)
+            .Where(c =>
+                c.OwnerUserId == userGuid && c.DeletedAt != null && c.DeletedAt > windowStart
+            );
+
+        int total = await query.CountAsync(cancellationToken);
+
+        List<Channel> rows = await query
+            .OrderByDescending(c => c.DeletedAt)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(cancellationToken);
+
+        List<ChannelSummaryDto> items =
+        [
+            .. rows.Select(c => new ChannelSummaryDto(
+                c.Id.ToString(),
+                c.Name,
+                c.User.DisplayName,
+                c.User.ProfileImageUrl,
+                false,
+                "broadcaster",
+                null,
+                c.Provider,
+                c.User.Color,
+                null,
+                c.DeletedAt,
+                ChannelDeletionPolicy.PermanentAfter(c.DeletedAt!.Value)
+            )),
+        ];
+
+        return Result.Success(
+            new PagedList<ChannelSummaryDto>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    // Tells every open dashboard of the channel that it joined, left, was deleted or was restored, so its
+    // channel lists and presence refetch instead of waiting for a reload.
+    private Task AnnouncePresenceAsync(Guid channelId, string action, CancellationToken ct) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = channelId,
+                Domain = "channels",
+                EntityId = channelId.ToString(),
+                Action = action,
+            },
+            ct
+        );
 
     public async Task<Result<PagedList<ChannelSummaryDto>>> GetChannelsAsync(
         string userId,
@@ -722,6 +790,7 @@ public class ChannelService : IChannelService
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.RemoveAsync(channel.Id, cancellationToken);
+        await AnnouncePresenceAsync(channel.Id, "deleted", cancellationToken);
 
         return Result.Success();
     }
@@ -757,6 +826,7 @@ public class ChannelService : IChannelService
         channel.Enabled = true;
 
         await _db.SaveChangesAsync(cancellationToken);
+        await AnnouncePresenceAsync(channel.Id, "restored", cancellationToken);
 
         return Result.Success();
     }

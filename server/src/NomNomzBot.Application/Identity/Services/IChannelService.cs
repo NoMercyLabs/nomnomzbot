@@ -45,6 +45,14 @@ public interface IChannelService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The channels <paramref name="userId"/> owns that are soft-deleted and still inside their restore
+    /// window, newest delete first, each carrying when it was deleted and the restore deadline.</summary>
+    Task<Result<PagedList<ChannelSummaryDto>>> GetDeletedChannelsAsync(
+        string userId,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Every active channel this deployment serves whose login or display name contains
     /// <paramref name="query"/> (all of them when empty), live first. Public fields only.</summary>
     Task<Result<PagedList<PublicChannelDto>>> SearchPublicChannelsAsync(

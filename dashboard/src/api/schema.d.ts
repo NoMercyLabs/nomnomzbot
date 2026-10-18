@@ -17484,7 +17484,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all channels the current user owns or moderates. */
+        /** List all channels the current user owns or moderates. With deleted=true it lists instead the channels the caller owns that are soft-deleted and still inside the restore window, each with its delete date and restore deadline. */
         get: {
             parameters: {
                 query?: {
@@ -17500,6 +17500,7 @@ export interface paths {
                     Sort?: string;
                     Order?: string;
                     Search?: string;
+                    deleted?: boolean;
                 };
                 header?: never;
                 path: {
@@ -88208,7 +88209,8 @@ export interface components {
          *     each chat line / multi-watch pane — by its source. `ChatColor` is the streamer's Twitch chat color
          *     (#RRGGBB), populated from `User.Color` when known — null until the first login after the color-sync
          *     feature is deployed, or when the user has no color set; the dashboard uses it as the dynamic accent token
-         *     (design-system §2).
+         *     (design-system §2). `DeletedAt` and `PermanentAfter` are set only on a soft-deleted channel listed
+         *     inside its restore window: when it was deleted and the instant after which it can no longer be restored.
          */
         ChannelSummary: {
             id: string;
@@ -88222,6 +88224,10 @@ export interface components {
             provider: string;
             chatColor?: null | string;
             suspension?: null | components["schemas"]["ChannelSuspension"];
+            /** Format: date-time */
+            deletedAt?: null | string;
+            /** Format: date-time */
+            permanentAfter?: null | string;
         };
         /**
          * @description Why a channel is suspended (`Status` is suspended or platform_banned), since when, and the page its

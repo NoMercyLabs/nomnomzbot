@@ -10,6 +10,7 @@
 
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   type QueryClient,
   type UseMutationReturnType,
@@ -19,7 +20,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
-import { myChannelsQuery } from './channels';
+import { myChannelsQuery, type ChannelSummary } from './channels';
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import { botStatusKey } from './home';
@@ -40,6 +41,26 @@ export const channelInfoKey = (channelId: string | null): KeyParts => [
   channelId,
   'channel-info',
 ];
+
+// The caller's deleted channels are not per channel: the list is the same from every channel's page.
+export const deletedChannelsKey = (): KeyParts => ['channels', 'deleted'];
+
+async function readDeletedChannels(): Promise<ChannelSummary[]> {
+  const { data, error, response } = await client.GET('/api/v{version}/channels', {
+    params: { path: { version }, query: { deleted: true } },
+  });
+
+  if (error !== undefined)
+    throw failed('deleted channels', response.status, error);
+
+  // eslint-disable-next-line no-restricted-syntax -- the document types the rows as Channel, so the cast must go through the wire's true type
+  return (data?.data ?? []) as unknown as ChannelSummary[];
+}
+
+// The channels the caller deleted that are still inside the restore window, with the deadline of each.
+export function useDeletedChannels(): UseQueryReturnType<ChannelSummary[], Error> {
+  return useQuery({ queryKey: deletedChannelsKey(), queryFn: readDeletedChannels });
+}
 
 async function readChannel(channelId: string): Promise<ManagedChannel> {
   const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}', {
@@ -156,6 +177,14 @@ export function useResetChannel(
   });
 }
 
+// Both lists change with a delete or a restore: the channels the caller can open and the ones waiting to be restored.
+async function refreshChannelLists(queries: QueryClient): Promise<void> {
+  await Promise.all([
+    queries.invalidateQueries({ queryKey: myChannelsQuery.queryKey }),
+    queries.invalidateQueries({ queryKey: deletedChannelsKey() }),
+  ]);
+}
+
 // A delete is soft: the bot keeps the channel for the restore window, then removes it for good.
 export function useDeleteChannel(
   channelId: MaybeRefOrGetter<string | null>,
@@ -172,25 +201,25 @@ export function useDeleteChannel(
         throw refusal('delete channel', error, response.status);
     },
     onSuccess: () =>
-      queries.invalidateQueries({ queryKey: myChannelsQuery.queryKey }),
+      refreshChannelLists(queries),
   });
 }
 
 export function useRestoreChannel(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, void, undefined> {
+): UseMutationReturnType<void, Error, string | undefined, undefined> {
   const queries = useQueryClient();
 
-  return useMutation<void, Error, void, undefined>({
-    mutationFn: async (): Promise<void> => {
+  return useMutation<void, Error, string | undefined, undefined>({
+    mutationFn: async (target): Promise<void> => {
       const { error, response } = await client.POST('/api/v{version}/channels/{channelId}/restore', {
-        params: { path: { version, channelId: toValue(channelId) as string } },
+        params: { path: { version, channelId: target ?? (toValue(channelId) as string) } },
       });
 
       if (error !== undefined)
         throw refusal('restore channel', error, response.status);
     },
     onSuccess: () =>
-      queries.invalidateQueries({ queryKey: myChannelsQuery.queryKey }),
+      refreshChannelLists(queries),
   });
 }
