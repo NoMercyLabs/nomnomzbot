@@ -85,6 +85,7 @@ public sealed class PlayTtsAction : ICommandAction
     {
         List<TtsSpeakSegment>? segments = null;
         string text;
+        bool speaksViewerWords;
         if (action.Parameters?.TryGetValue("segments", out JsonElement rawSegments) == true)
         {
             (List<TtsSpeakSegment>? parsed, string? segmentError) = await ResolveSegmentsAsync(
@@ -94,11 +95,13 @@ public sealed class PlayTtsAction : ICommandAction
             if (parsed is null)
                 return ActionResult.Failure(segmentError ?? "play_tts 'segments' is invalid.");
             segments = parsed;
+            speaksViewerWords = ViewerWordsTemplate.IsIn(rawSegments.GetRawText());
             text = string.Join(' ', parsed.Select(p => p.Text));
         }
         else
         {
             string template = action.GetString("text") ?? string.Empty;
+            speaksViewerWords = ViewerWordsTemplate.IsIn(template);
             if (string.IsNullOrWhiteSpace(template))
                 return ActionResult.Failure("play_tts requires a 'text' parameter.");
 
@@ -141,6 +144,10 @@ public sealed class PlayTtsAction : ICommandAction
                     ctx.CancellationToken
                 )
             ).Trim();
+        // A blank `as` is the bot's own line, unless the text is built from the viewer's typed words (a TTS
+        // reward's {input}): then the viewer is the speaker. An explicit `as` always wins.
+        if (asField.Length == 0 && speaksViewerWords)
+            asField = "viewer";
         string speaker = await ResolveSpeakerAsync(asField, ctx);
 
         string rateTemplate = action.GetString("rate") ?? string.Empty;

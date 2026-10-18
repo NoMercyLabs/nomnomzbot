@@ -420,6 +420,89 @@ public sealed class PlayTtsActionTests
             );
     }
 
+    private static async Task<TtsSpeakRequest> SpokenRequestAsync(string textTemplate)
+    {
+        (PlayTtsAction action, ITtsDispatchService d) = Build("resolved words");
+        TtsSpeakRequest? seen = null;
+        d.RequestSpeakAsync(Arg.Do<TtsSpeakRequest>(r => seen = r), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        5,
+                        400,
+                        null
+                    )
+                )
+            );
+
+        ActionResult result = await action.ExecuteAsync(Context(), Action(("text", textTemplate)));
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        return seen!;
+    }
+
+    [Theory]
+    [InlineData("{input}")]
+    [InlineData("{{input}}")]
+    [InlineData("{{ message }}")]
+    [InlineData("{args}")]
+    [InlineData("{user.message}")]
+    [InlineData("They said: {input}")]
+    public async Task ExecuteAsync_BlankAs_WhenTheTextIsTheViewersOwnWords_SpeaksInTheViewersVoice(
+        string textTemplate
+    )
+    {
+        TtsSpeakRequest request = await SpokenRequestAsync(textTemplate);
+
+        request.Speaker.Should().Be(TtsSpeaker.Viewer);
+        request.RequestedByTwitchUserId.Should().Be("viewer-9");
+    }
+
+    [Theory]
+    [InlineData("Welcome to the stream, {user}!")]
+    [InlineData("hello")]
+    [InlineData("{reward} was redeemed")]
+    public async Task ExecuteAsync_BlankAs_WhenTheTextIsTheBotsOwnLine_StaysInTheBotsVoice(
+        string textTemplate
+    )
+    {
+        TtsSpeakRequest request = await SpokenRequestAsync(textTemplate);
+
+        request.Speaker.Should().Be(TtsSpeaker.Bot);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ExplicitBotAs_StaysInTheBotsVoice_EvenForTheViewersWords()
+    {
+        (PlayTtsAction action, ITtsDispatchService d) = BuildWithTemplateMap(
+            new Dictionary<string, string> { ["{input}"] = "hi", ["bot"] = "bot" }
+        );
+        d.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        5,
+                        400,
+                        null
+                    )
+                )
+            );
+
+        await action.ExecuteAsync(Context(), Action(("text", "{input}"), ("as", "bot")));
+
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.Speaker == TtsSpeaker.Bot),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task ExecuteAsync_AsViewer_NamesTheTriggeringUser_SoTheirSavedVoiceReadsTheirWords()
     {
