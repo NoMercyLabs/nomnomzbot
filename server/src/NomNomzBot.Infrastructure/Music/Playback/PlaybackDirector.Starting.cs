@@ -1,0 +1,136 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
+
+namespace NomNomzBot.Infrastructure.Music.Playback;
+
+public sealed partial class PlaybackDirector
+{
+    /// <summary>
+    /// Moves to Starting(item). When <paramref name="stopEngine"/> is set that engine is stopped
+    /// first and the start waits for its paused report, its track end, or 2 seconds.
+    /// </summary>
+    private async Task BeginStartAsync(
+        PlaybackItem item,
+        string inputName,
+        string reason,
+        EngineKind? stopEngine,
+        CancellationToken ct
+    )
+    {
+        _stopWait = null;
+        _startDeadline = null;
+        PlaybackState starting = PlaybackState.Starting(item.Engine, item);
+        if (stopEngine is { } old)
+        {
+            await _engines[old].StopAsync(ct);
+            if (_ownerReport is not { IsPlaying: false } quiet || quiet.Engine != old)
+            {
+                await MoveAsync(starting, inputName, reason);
+                _stopWait = old;
+                _stopDeadline = _time.GetUtcNow() + StopWait;
+                return;
+            }
+        }
+
+        await MoveAsync(starting, inputName, reason);
+        await SendStartAsync(item, inputName, ct);
+    }
+
+    private async Task SendStartAsync(PlaybackItem item, string inputName, CancellationToken ct)
+    {
+        if (!_engines.TryGetValue(item.Engine, out IPlaybackEngine? engine))
+        {
+            await MoveAsync(
+                PlaybackState.Blocked("engine unavailable"),
+                inputName,
+                "start_refused",
+                item.Id
+            );
+            return;
+        }
+
+        EngineStartResult result = await engine.StartAsync(item, ct);
+        if (result.Accepted)
+            _startDeadline = _time.GetUtcNow() + StartDeadline;
+        else
+            await MoveAsync(
+                PlaybackState.Blocked(result.FailureReason ?? "start refused"),
+                inputName,
+                "start_refused",
+                item.Id
+            );
+    }
+
+    private async Task OnStartingAsync(PlaybackInput input, CancellationToken ct)
+    {
+        PlaybackItem item = State.Item!;
+        string name = input.GetType().Name;
+
+        if (_stopWait is { } stopping)
+        {
+            bool confirmed = input switch
+            {
+                EngineReport { IsPlaying: false } r => r.Engine == stopping,
+                TrackEnded t => t.Engine == stopping,
+                _ => false,
+            };
+            if (confirmed)
+            {
+                _stopWait = null;
+                await MoveAsync(State, name, "stop_confirmed");
+                await SendStartAsync(item, name, ct);
+            }
+            else
+            {
+                await IgnoreAsync(input);
+            }
+
+            return;
+        }
+
+        switch (input)
+        {
+            case EngineReport { IsPlaying: true } r
+                when r.Engine == item.Engine && r.Uri == item.Uri:
+                await PlayRowAsync(item, r, "started");
+                break;
+            case EngineReport { IsPlaying: true } r when FindRow(r) is { } row:
+                await PlayRowAsync(row, r, "played_out_of_order");
+                break;
+            case StartTimeout:
+                await MoveAsync(
+                    PlaybackState.Blocked("did not start"),
+                    name,
+                    "start_timeout",
+                    item.Id
+                );
+                break;
+            default:
+                await IgnoreAsync(input);
+                break;
+        }
+    }
+
+    /// <summary>The queue row for a report, when that engine is playing a queued track.</summary>
+    private PlaybackItem? FindRow(EngineReport report) =>
+        _queue.Snapshot.FirstOrDefault(i => i.Engine == report.Engine && i.Uri == report.Uri);
+
+    /// <summary>A queue row is playing: remove that one row, remember it, and play it.</summary>
+    private async Task PlayRowAsync(PlaybackItem row, EngineReport report, string reason)
+    {
+        _queue.Remove(row.Id);
+        _history.Push(row);
+        _ownerReport = null;
+        await MoveAsync(PlaybackState.Playing(report.Engine, row), report, reason);
+    }
+}
