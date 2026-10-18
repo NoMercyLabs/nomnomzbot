@@ -234,7 +234,7 @@ describe('RulesPanel', () => {
     expect(text).toContain('Never Gonna Give You Up');
     expect(text).toContain('Baby Shark');
     expect(text).toContain('Not available yet');
-    expect(numberInput('song-seconds').value).toBe('360');
+    expect(numberInput('song-seconds').value).toBe('6:00');
     expect(numberInput('per-stream-limit').value).toBe('0');
     expect(buttonIn('Save').disabled).toBe(true);
   });
@@ -301,7 +301,7 @@ describe('RulesPanel', () => {
       .querySelector<HTMLButtonElement>('button[data-setting="allow-explicit"]')
       ?.click();
 
-    await typeInto('song-seconds', '240');
+    await typeInto('song-seconds', '4:30');
     await typeInto('per-stream-limit', '3');
     buttonIn('Save').click();
     await settle();
@@ -310,7 +310,7 @@ describe('RulesPanel', () => {
 
     expect(puts()[0]!.body).toEqual({
       allowExplicit: false,
-      maxSongSeconds: 240,
+      maxSongSeconds: 270,
       perStreamLimit: 3,
     });
   });
@@ -330,9 +330,9 @@ describe('RulesPanel', () => {
   it('does not save a song length below ten seconds or a per-stream cap above one hundred', async () => {
     await open();
 
-    await typeInto('song-seconds', '5');
+    await typeInto('song-seconds', '0:05');
     expect(buttonIn('Save').disabled).toBe(true);
-    await typeInto('song-seconds', '360');
+    await typeInto('song-seconds', '6:00');
     await typeInto('per-stream-limit', '101');
 
     expect(buttonIn('Save').disabled).toBe(true);

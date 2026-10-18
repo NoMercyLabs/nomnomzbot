@@ -85,7 +85,7 @@
         "open": "Requests are open",
         "limits": "Limits",
         "queueSize": "Songs in the queue, at most",
-        "songSeconds": "Longest song, in seconds",
+        "songSeconds": "Longest song (minutes:seconds)",
         "perStream": "Songs per person per stream",
         "perStreamHelp": "Counts songs that already played. 0 turns the cap off.",
         "allowExplicit": "Allow explicit songs",

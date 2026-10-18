@@ -68,7 +68,7 @@
           "broadcaster": "Alleen ik"
         },
         "perPerson": "Nummers per persoon",
-        "songSeconds": "Langste nummer, in seconden",
+        "songSeconds": "Langste nummer (minuten:seconden)",
         "perStream": "Nummers per persoon per stream",
         "perStreamHelp": "Telt nummers die al gespeeld zijn. 0 zet de limiet uit.",
         "allowExplicit": "Expliciete nummers toestaan",

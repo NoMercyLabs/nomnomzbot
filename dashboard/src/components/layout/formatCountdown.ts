@@ -19,3 +19,24 @@ export function formatCountdown(totalSeconds: number): string {
     ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}`
     : `${minutes}:${rest}`;
 }
+
+// Whole seconds as m:ss with the minutes counted past 60 ("60:00"), the form parseClock reads back.
+export function formatClock(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const rest: string = String(seconds % 60).padStart(2, '0');
+
+  return `${Math.floor(seconds / 60)}:${rest}`;
+}
+
+// What a person types for a length: m:ss ("4:30") or bare digits, which are minutes ("4"). Anything else is NaN.
+export function parseClock(text: string): number {
+  const trimmed = text.trim();
+  const clock = /^(\d+):([0-5]\d)$/.exec(trimmed);
+
+  if (clock)
+    return Number(clock[1]) * 60 + Number(clock[2]);
+
+  return /^\d+$/.test(trimmed)
+    ? Number(trimmed) * 60
+    : Number.NaN;
+}

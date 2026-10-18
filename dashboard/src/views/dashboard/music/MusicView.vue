@@ -184,13 +184,23 @@ function confirmRemove(): void {
 
 const rulesOpen = ref(false);
 
+// Stoney 2026-10-18: the rules sit in the board where it has its columns; only a narrow board keeps them in a drawer.
+// One RulesPanel serves both, so no field is written twice.
+const boardWide = ref(true);
+const canSeeRules = computed(() => access.can('music:config:read'));
+const rulesInline = computed(() => boardWide.value && canSeeRules.value);
+const span = computed(() =>
+  rulesInline.value
+    ? 4
+    : 6);
+
 const panels = computed<BoardPanel[]>(() => {
   const shown: BoardPanel[] = [
     { id: 'now', label: t('dashboard.music.now.title') },
     { id: 'queue', label: t('dashboard.music.queue.title') },
   ];
 
-  if (access.can('music:config:read')) {
+  if (canSeeRules.value) {
     shown.push(
       { id: 'history', label: t('dashboard.music.history.title') },
       { id: 'thanks', label: t('dashboard.music.thanks.title') },
@@ -206,9 +216,8 @@ const panels = computed<BoardPanel[]>(() => {
     <template #status>
       <StatusBadge :tone="spotify.tone" :label="$t(`dashboard.music.spotify.${spotify.key}`)" />
     </template>
-    <!-- The rules are set once and seldom touched, so they slide in on demand instead of taking a column. -->
     <template #actions>
-      <Sheet v-if="access.can('music:config:read')" v-model:open="rulesOpen">
+      <Sheet v-if="canSeeRules && !rulesInline" v-model:open="rulesOpen">
         <SheetTrigger as-child>
           <Button variant="outline">
             <IconRules aria-hidden="true" />
@@ -237,8 +246,8 @@ const panels = computed<BoardPanel[]>(() => {
       </Sheet>
     </template>
   </PageHeader>
-  <BoardGrid :panels="panels" :rows="2">
-    <BoardCell panel="now" :span="6">
+  <BoardGrid v-model:wide="boardWide" :panels="panels" :rows="2">
+    <BoardCell panel="now" :span="span">
       <PanelCard
         tier="lead"
         :title="$t('dashboard.music.now.title')"
@@ -257,7 +266,7 @@ const panels = computed<BoardPanel[]>(() => {
         />
       </PanelCard>
     </BoardCell>
-    <BoardCell panel="queue" :span="6">
+    <BoardCell panel="queue" :span="span">
       <PanelCard
         :title="$t('dashboard.music.queue.title')"
         :description="
@@ -374,10 +383,13 @@ const panels = computed<BoardPanel[]>(() => {
         </div>
       </PanelCard>
     </BoardCell>
-    <BoardCell v-if="access.can('music:config:read')" panel="history" :span="6">
+    <BoardCell v-if="rulesInline" panel="rules" :span="4" :rows="2">
+      <RulesPanel />
+    </BoardCell>
+    <BoardCell v-if="canSeeRules" panel="history" :span="span">
       <HistoryPanel />
     </BoardCell>
-    <BoardCell v-if="access.can('music:config:read')" panel="thanks" :span="6">
+    <BoardCell v-if="canSeeRules" panel="thanks" :span="span">
       <ThanksPanel />
     </BoardCell>
   </BoardGrid>

@@ -12,7 +12,7 @@
 // never grows; each BoardCell holds a panel and the panel body scrolls. On a phone a scroll inside a scroll
 // is bad, so the board shows one panel at a time, full height, behind a tab per panel (?panel=).
 import { useElementSize } from '@vueuse/core';
-import { computed, provide, useTemplateRef } from 'vue';
+import { computed, provide, useTemplateRef, watchEffect } from 'vue';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePageView } from '@/composables/usePageView';
@@ -33,6 +33,13 @@ const { width } = useElementSize(board, { width: window.innerWidth, height: 0 })
 const wide = computed(() =>
   width.value >= gridWidth);
 const tabbed = computed(() => !wide.value && props.panels.length > 1);
+// A page that keeps an optional panel in a drawer asks the board whether its columns are there.
+const columns = defineModel<boolean>('wide', { default: true });
+
+watchEffect(() => {
+  columns.value = wide.value;
+});
+
 const open = usePageView(() => props.panels.map((panel) =>
   panel.id), 'panel');
 

@@ -26,6 +26,7 @@ import {
   type MusicConfig,
   type MusicConfigChange,
 } from '@/api/music';
+import DurationInput from '@/components/layout/DurationInput.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -246,15 +247,12 @@ const missing = computed<KeyValueItem[]>(() =>
             <label :for="songSecondsId" class="min-w-0 flex-1 text-sm">{{
               $t("dashboard.music.rules.songSeconds")
             }}</label>
-            <Input
+            <DurationInput
               :id="songSecondsId"
-              v-model.number="draft.maxSongSeconds"
+              v-model="draft.maxSongSeconds"
               name="song-seconds"
-              type="number"
               :min="songSecondsLimits.min"
               :max="songSecondsLimits.max"
-              step="1"
-              :aria-invalid="!valid || undefined"
               class="w-20"
             />
           </div>
