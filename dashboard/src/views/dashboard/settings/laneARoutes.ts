@@ -10,5 +10,18 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
+import { loadPage } from '@/i18n';
+
+const whiteLabelBotRoute = {
+  path: 'settings/white-label-bot',
+  name: 'dashboard-settings-white-label-bot',
+  meta: { navMode: 'settings' },
+  component: () =>
+    loadPage(
+      () => import('./white-label-bot/WhiteLabelBotView.vue'),
+      (locale) => import(`./white-label-bot/i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
 // Settings pages of lane A: White-label bot, Features, Integrations, Federation. Each page adds its route here.
-export const settingsLaneARoutes: RouteRecordRaw[] = [];
+export const settingsLaneARoutes: RouteRecordRaw[] = [whiteLabelBotRoute];

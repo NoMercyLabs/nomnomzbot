@@ -1,0 +1,59 @@
+{
+  "dashboard": {
+    "settings": {
+      "whiteLabelBot": {
+        "title": "De eigen bot van je kanaal",
+        "description": "Praat in de chat als je eigen botaccount in plaats van de gedeelde NomNomzBot. Kijkers zien de naam en foto van je bot.",
+        "loadFailed": "Het botaccount kon niet worden geladen.",
+        "handle": "{'@'}{login}",
+        "connected": "Verbonden",
+        "notConnected": "Gedeelde bot",
+        "connectedToast": "Je botaccount is verbonden.",
+        "disconnectedToast": "Je botaccount is losgekoppeld. De gedeelde bot praat weer.",
+        "disconnectFailed": "Het botaccount kon niet worden losgekoppeld.",
+        "browserFailed": "De Twitch-aanmelding kon niet worden gestart.",
+        "shared": {
+          "title": "Gedeelde bot",
+          "description": "Je kanaal gebruikt het gedeelde NomNomzBot-account."
+        },
+        "connect": {
+          "title": "Koppel een botaccount",
+          "description": "Meld je op Twitch aan met het account dat voor je kanaal moet praten.",
+          "action": "Botaccount koppelen"
+        },
+        "replace": {
+          "title": "Gebruik een ander account",
+          "description": "Meld je aan met een ander botaccount. Het vervangt het huidige.",
+          "action": "Account wijzigen"
+        },
+        "browser": {
+          "title": "Aanmelden met de browser",
+          "description": "Open hier de Twitch-aanmeldpagina, als je geen code kunt gebruiken.",
+          "action": "Twitch openen"
+        },
+        "disconnect": {
+          "title": "Terug naar de gedeelde bot",
+          "description": "Je eigen botaccount stopt met praten in je kanaal.",
+          "action": "Loskoppelen",
+          "confirmTitle": "{name} loskoppelen?",
+          "confirmDescription": "Je kanaal gaat terug naar de gedeelde bot.",
+          "consequenceShared": "De gedeelde bot beantwoordt commando's en events in je kanaal weer.",
+          "consequenceAccount": "Het Twitch-account zelf blijft zoals het is. Je kunt het altijd opnieuw koppelen."
+        },
+        "login": {
+          "starting": "De aanmelding start...",
+          "instruction": "Open {site} en typ deze code. Meld je aan als het botaccount, niet als jezelf.",
+          "codeLabel": "Aanmeldcode",
+          "botAccountHint": "Gebruik een privévenster als je op Twitch bent aangemeld als jezelf.",
+          "open": "{site} openen",
+          "waiting": "Wachten tot je de code goedkeurt...",
+          "cancel": "Annuleren",
+          "again": "Opnieuw proberen",
+          "expired": "De code is verlopen. Begin opnieuw voor een nieuwe code.",
+          "denied": "De aanmelding is geweigerd op Twitch.",
+          "error": "De aanmelding is niet afgerond. Probeer het opnieuw."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "dashboard": {
+    "settings": {
+      "whiteLabelBot": {
+        "title": "Your channel's own bot",
+        "description": "Chat as your own bot account instead of the shared NomNomzBot. Viewers see your bot's name and picture.",
+        "loadFailed": "The bot account could not be loaded.",
+        "handle": "{'@'}{login}",
+        "connected": "Connected",
+        "notConnected": "Shared bot",
+        "connectedToast": "Your bot account is connected.",
+        "disconnectedToast": "Your bot account is disconnected. The shared bot speaks again.",
+        "disconnectFailed": "The bot account could not be disconnected.",
+        "browserFailed": "The Twitch sign-in could not be started.",
+        "shared": {
+          "title": "Shared bot",
+          "description": "Your channel uses the shared NomNomzBot account."
+        },
+        "connect": {
+          "title": "Connect a bot account",
+          "description": "Sign in on Twitch as the account that should speak for your channel.",
+          "action": "Connect bot account"
+        },
+        "replace": {
+          "title": "Use another account",
+          "description": "Sign in as a different bot account. It replaces the current one.",
+          "action": "Change account"
+        },
+        "browser": {
+          "title": "Sign in with the browser",
+          "description": "Open the Twitch sign-in page here, if you can not use a code.",
+          "action": "Open Twitch"
+        },
+        "disconnect": {
+          "title": "Go back to the shared bot",
+          "description": "Your own bot account stops speaking in your channel.",
+          "action": "Disconnect",
+          "confirmTitle": "Disconnect {name}?",
+          "confirmDescription": "Your channel goes back to the shared bot.",
+          "consequenceShared": "The shared bot answers commands and events in your channel again.",
+          "consequenceAccount": "The Twitch account itself stays as it is. You can connect it again at any time."
+        },
+        "login": {
+          "starting": "Starting the sign-in...",
+          "instruction": "Open {site} and type this code. Sign in as the bot account, not as yourself.",
+          "codeLabel": "Sign-in code",
+          "botAccountHint": "Use a private window if you are signed in to Twitch as yourself.",
+          "open": "Open {site}",
+          "waiting": "Waiting for you to approve the code...",
+          "cancel": "Cancel",
+          "again": "Try again",
+          "expired": "The code ran out of time. Start again to get a new one.",
+          "denied": "The sign-in was denied on Twitch.",
+          "error": "The sign-in did not finish. Try again."
+        }
+      }
+    }
+  }
+}

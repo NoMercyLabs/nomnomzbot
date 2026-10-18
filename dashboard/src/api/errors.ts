@@ -333,6 +333,10 @@ export const apiOperations = {
   'save personality': 'settings',
   'basics settings': 'settings',
   'save basics': 'settings',
+  'start bot login': 'settings',
+  'poll bot login': 'settings',
+  'start bot browser login': 'settings',
+  'disconnect bot': 'settings',
 } as const satisfies Record<string, ApiOrigin>;
 
 export type ApiOperation = keyof typeof apiOperations;
