@@ -1036,8 +1036,8 @@ public sealed class AdminService : IAdminService
                 ReplayId = Guid.NewGuid(),
                 ProjectionName = projectionName,
                 Status = "completed",
-                FromPosition = matches.Count == 0 ? 0 : matches[0].StreamPosition,
-                ToPosition = matches.Count == 0 ? 0 : matches[^1].StreamPosition,
+                FromPosition = matches.Count == 0 ? 0 : matches.Min(m => m.StreamPosition),
+                ToPosition = matches.Count == 0 ? 0 : matches.Max(m => m.StreamPosition),
                 ProcessedCount = applied,
             },
             ct
