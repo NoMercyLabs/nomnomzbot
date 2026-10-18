@@ -1,0 +1,97 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Instellen",
+      "customEventFeeds": {
+        "title": "Eigen eventfeeds",
+        "description": "Haal data van buiten binnen: een hartslagsensor, een REST-ticker, een companion-app. Elke feed maakt een eigen event dat pipelines start, variabelen vult en overlays voedt.",
+        "new": "Nieuwe feed",
+        "empty": "Nog geen feeds. Maak er een om data van buiten binnen te halen.",
+        "loadFailed": "De feeds konden niet worden geladen.",
+        "enabled": "Aan",
+        "enabledHelp": "Een feed die uit staat neemt niets binnen.",
+        "lastReceived": "Laatste data {when}",
+        "neverReceived": "Nog geen data",
+        "fieldErrors": "Deze velden mislukten bij de laatste data: {fields}",
+        "copyLink": "Link kopieren",
+        "displayName": "Naam",
+        "displayNamePlaceholder": "Hartslag",
+        "name": "Eventnaam",
+        "namePlaceholder": "heartrate",
+        "nameHelp": "Pipelines gebruiken custom.{name} als trigger en {'{{'}custom.{name}.veld{'}}'} als waarde.",
+        "address": "Adres",
+        "addressPlaceholder": {
+          "poll": "https://example.com/api/value",
+          "socket": "wss://example.com/stream",
+          "push": ""
+        },
+        "interval": "Controleer elke (seconden)",
+        "intervalHelp": "De bot mag dit getal verhogen om binnen de limiet van je abonnement te blijven.",
+        "secret": "Geheim",
+        "secretKept": "Opgeslagen. Typ een nieuw geheim om het te vervangen.",
+        "secretHelp": {
+          "poll": "Wordt als bearer-token naar het adres gestuurd. Laat leeg als het adres er geen nodig heeft.",
+          "socket": "Wordt als bearer-token naar de socket gestuurd. Laat leeg als de socket er geen nodig heeft.",
+          "push": "De bron tekent wat hij stuurt met dit geheim. Een push-feed heeft er een nodig."
+        },
+        "kind": {
+          "title": "Hoe de data binnenkomt",
+          "poll": "Adres controleren",
+          "socket": "Op een socket luisteren",
+          "push": "Bron stuurt naar ons",
+          "pollHelp": "De bot leest het adres op een timer. Het adres moet op je toegestane lijst staan.",
+          "socketHelp": "De bot houdt een verbinding open en neemt elk bericht binnen.",
+          "pushHelp": "De bron stuurt naar een link die de bot je geeft na het opslaan."
+        },
+        "preset": {
+          "title": "Begin met een dienst",
+          "none": "Geen, ik vul het zelf in"
+        },
+        "fields": {
+          "title": "Velden",
+          "help": "Een veld is een naam en het pad van de waarde in de data, bijvoorbeeld bpm en $.data.heartRate.",
+          "name": "Veldnaam",
+          "namePlaceholder": "bpm",
+          "path": "Pad in de data",
+          "pathPlaceholder": "$.data.heartRate",
+          "add": "Veld toevoegen",
+          "remove": "Veld verwijderen"
+        },
+        "create": {
+          "title": "Nieuwe feed",
+          "description": "Kies hoe de data binnenkomt en welke velden je eruit wilt.",
+          "action": "Feed maken"
+        },
+        "edit": {
+          "title": "Feed bewerken",
+          "action": "Feed opslaan",
+          "open": "{name} bewerken"
+        },
+        "test": {
+          "open": "{name} testen",
+          "title": "{name} testen",
+          "description": "Stuur een voorbeeld om het eigen event te zien werken, zonder op de bron te wachten.",
+          "action": "Testevent sturen",
+          "payload": "Voorbeelddata",
+          "fetch": "Nu ophalen",
+          "paths": "Paden in het antwoord",
+          "truncated": "De lijst is afgekapt. Het antwoord heeft meer paden.",
+          "sent": "Verstuurd. custom.{name} ging af met je voorbeeld."
+        },
+        "delete": {
+          "open": "{name} verwijderen",
+          "title": "{name} verwijderen?",
+          "description": "De feed stopt en de data komt niet meer binnen.",
+          "action": "Feed verwijderen",
+          "line": "{count} {what} gebruiken deze feed",
+          "lineAtLeast": "Minstens {count} {what} gebruiken deze feed",
+          "nothing": "Niets anders gebruikt deze feed.",
+          "category": {
+            "blast_radius_category_event_responses": "eventreacties",
+            "blast_radius_category_widgets": "widgets"
+          }
+        }
+      }
+    }
+  }
+}

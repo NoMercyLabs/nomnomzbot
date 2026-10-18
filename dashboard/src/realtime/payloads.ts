@@ -287,6 +287,12 @@ export type ObsStateChangedPayload = {
     'stream' |
     'record' |
     'replayBuffer' |
+// HubResponseDtos.cs: CustomDataSourceChangedDto. Change names what happened: created, updated, deleted or received.
+export type CustomDataSourceChangedPayload = {
+  sourceName: string;
+  change: string;
+};
+
 // HubResponseDtos.cs: VtsStatusDto
 export type VtsStatusPayload = {
   broadcasterId: string;
@@ -340,3 +346,4 @@ export type DashboardHubEvents = {
   sr_queue_changed: SrQueueChangedPayload;
 };
   VtsStatusChanged: VtsStatusPayload;
+  CustomDataSourceChanged: CustomDataSourceChangedPayload;

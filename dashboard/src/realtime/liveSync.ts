@@ -19,6 +19,7 @@ import {
   homeStatsKey,
   reviewQueueKey,
 } from '@/api/home';
+import { eventFeedsKey } from '@/api/customEventFeeds';
 import { giveawaysKey } from '@/api/giveaways';
 import { pollHistoryKey, pollsKey, predictionsKey } from '@/api/liveOps';
 import { mediaShareQueueKey } from '@/api/mediaShare';
@@ -89,6 +90,7 @@ const eventHandlers = [
   ),
   refreshing('ObsBridgeStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
+  refreshing('CustomDataSourceChanged', [eventFeedsKey]),
   refreshing('VtsStatusChanged', [connectionsKey, botStatusKey, vtsConnectionKey, vtsInventoryKey]),
 ] as const;
 

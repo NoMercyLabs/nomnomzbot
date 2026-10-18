@@ -1,0 +1,97 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "customEventFeeds": {
+        "title": "Custom event feeds",
+        "description": "Bring in data from outside: a heart-rate sensor, a REST ticker, a companion app. Each feed makes a custom event that starts pipelines, fills variables and feeds overlays.",
+        "new": "New feed",
+        "empty": "No feeds yet. Make one to bring in outside data.",
+        "loadFailed": "The feeds could not be loaded.",
+        "enabled": "On",
+        "enabledHelp": "A feed that is off takes in nothing.",
+        "lastReceived": "Last data {when}",
+        "neverReceived": "No data yet",
+        "fieldErrors": "These fields failed on the last data: {fields}",
+        "copyLink": "Copy link",
+        "displayName": "Name",
+        "displayNamePlaceholder": "Heart rate",
+        "name": "Event name",
+        "namePlaceholder": "heartrate",
+        "nameHelp": "Pipelines use custom.{name} as the trigger and {'{{'}custom.{name}.field{'}}'} as the value.",
+        "address": "Address",
+        "addressPlaceholder": {
+          "poll": "https://example.com/api/value",
+          "socket": "wss://example.com/stream",
+          "push": ""
+        },
+        "interval": "Check every (seconds)",
+        "intervalHelp": "The bot may raise this number to stay inside the limit of your plan.",
+        "secret": "Secret",
+        "secretKept": "Saved. Type a new one to replace it.",
+        "secretHelp": {
+          "poll": "Sent to the address as a bearer token. Leave empty if the address needs none.",
+          "socket": "Sent to the socket as a bearer token. Leave empty if the socket needs none.",
+          "push": "The source signs what it posts with this secret. A push feed needs one."
+        },
+        "kind": {
+          "title": "How data arrives",
+          "poll": "Check an address",
+          "socket": "Listen on a socket",
+          "push": "Source posts to us",
+          "pollHelp": "The bot reads the address on a timer. The address must be on your allowed list.",
+          "socketHelp": "The bot keeps a connection open and takes in every message.",
+          "pushHelp": "The source posts to a link the bot gives you after you save."
+        },
+        "preset": {
+          "title": "Start from a service",
+          "none": "None, I fill it in"
+        },
+        "fields": {
+          "title": "Fields",
+          "help": "A field is a name and the path of its value in the data, for example bpm and $.data.heartRate.",
+          "name": "Field name",
+          "namePlaceholder": "bpm",
+          "path": "Path in the data",
+          "pathPlaceholder": "$.data.heartRate",
+          "add": "Add field",
+          "remove": "Remove field"
+        },
+        "create": {
+          "title": "New feed",
+          "description": "Choose how the data arrives and which fields you want from it.",
+          "action": "Make feed"
+        },
+        "edit": {
+          "title": "Edit feed",
+          "action": "Save feed",
+          "open": "Edit {name}"
+        },
+        "test": {
+          "open": "Test {name}",
+          "title": "Test {name}",
+          "description": "Send a sample to see the custom event work, without waiting for the source.",
+          "action": "Send test event",
+          "payload": "Sample data",
+          "fetch": "Fetch now",
+          "paths": "Paths found in the answer",
+          "truncated": "The list is cut off. The answer has more paths.",
+          "sent": "Sent. custom.{name} fired with your sample."
+        },
+        "delete": {
+          "open": "Delete {name}",
+          "title": "Delete {name}?",
+          "description": "The feed stops and its data stops coming in.",
+          "action": "Delete feed",
+          "line": "{count} {what} use this feed",
+          "lineAtLeast": "At least {count} {what} use this feed",
+          "nothing": "Nothing else uses this feed.",
+          "category": {
+            "blast_radius_category_event_responses": "event responses",
+            "blast_radius_category_widgets": "widgets"
+          }
+        }
+      }
+    }
+  }
+}

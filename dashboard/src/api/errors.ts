@@ -402,6 +402,13 @@ export const apiOperations = {
   'billing portal': 'settings',
   'check invite code': 'settings',
   'redeem invite code': 'settings',
+  'custom event feeds': 'settings',
+  'custom event feed presets': 'settings',
+  'save custom event feed': 'settings',
+  'delete custom event feed': 'settings',
+  'custom event feed blast radius': 'settings',
+  'test custom event feed': 'settings',
+  'fetch custom event feed': 'settings',
 } as const satisfies Record<string, ApiOrigin>;
 
 export type ApiOperation = keyof typeof apiOperations;

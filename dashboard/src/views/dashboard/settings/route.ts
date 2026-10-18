@@ -15,6 +15,7 @@ import { dashboardDiscordRoute } from '@/views/dashboard/discord/route';
 import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
 
 import { settingsApiDevicesRoute } from './api-devices/route';
+import { settingsCustomEventFeedsRoute } from './custom-event-feeds/route';
 import { settingsBillingRoute } from './billing/route';
 import { settingsFeaturesRoute } from './features/route';
 import { settingsIntegrationsRoute } from './integrations/route';
@@ -88,4 +89,5 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsApiDevicesRoute,
   settingsResourceLimitsRoute,
   settingsBillingRoute,
+  settingsCustomEventFeedsRoute,
 ];
