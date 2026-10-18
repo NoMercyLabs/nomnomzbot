@@ -210,6 +210,8 @@ export const apiOperations = {
   'mass ban': 'modTools',
   'clear chat': 'modTools',
   'supporter events': 'supporters',
+  'supporter connections': 'supporters',
+  'supporter connection': 'supporters',
   'music queue': 'music',
   'blocked tracks': 'music',
   'music config': 'music',
