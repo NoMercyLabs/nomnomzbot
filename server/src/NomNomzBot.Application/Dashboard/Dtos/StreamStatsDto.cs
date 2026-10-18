@@ -23,6 +23,11 @@ public sealed record StreamStatsDto
     [JsonPropertyName("stream")]
     public required StreamStatsWindowDto Stream { get; init; }
 
+    /// <summary>Who streamed: the channel's display name and profile picture, for headers and watermarks.</summary>
+    [JsonPropertyName("channel")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public StreamStatsChannelDto? Channel { get; set; }
+
     /// <summary>Seconds from the start of the stream to its end (or to now while live).</summary>
     [JsonPropertyName("duration")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -62,6 +67,11 @@ public sealed record StreamStatsDto
     [JsonPropertyName("raidsIn")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<StreamStatsRaidDto>? RaidsIn { get; set; }
+
+    /// <summary>The hype trains that ended during the stream. Absent when there was none.</summary>
+    [JsonPropertyName("hypeTrain")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public StreamStatsHypeTrainDto? HypeTrain { get; set; }
 
     /// <summary>Redemption total and the top reward titles.</summary>
     [JsonPropertyName("redemptions")]
@@ -111,6 +121,30 @@ public sealed record StreamStatsWindowDto
     /// <summary>The game or category name.</summary>
     [JsonPropertyName("game")]
     public string? Game { get; init; }
+}
+
+/// <summary>The channel a stream belongs to.</summary>
+public sealed record StreamStatsChannelDto
+{
+    /// <summary>The channel display name.</summary>
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    /// <summary>The channel profile picture URL. Null when the platform gave none.</summary>
+    [JsonPropertyName("avatarUrl")]
+    public string? AvatarUrl { get; init; }
+}
+
+/// <summary>The hype trains that ended during a stream.</summary>
+public sealed record StreamStatsHypeTrainDto
+{
+    /// <summary>The highest level any hype train reached.</summary>
+    [JsonPropertyName("level")]
+    public required int Level { get; init; }
+
+    /// <summary>How many hype trains ended during the stream.</summary>
+    [JsonPropertyName("trains")]
+    public required int Trains { get; init; }
 }
 
 /// <summary>Subscription counts of a stream.</summary>
