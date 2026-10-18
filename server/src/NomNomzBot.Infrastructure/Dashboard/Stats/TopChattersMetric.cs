@@ -27,7 +27,7 @@ public sealed class TopChattersMetric(IApplicationDbContext db)
     {
         var rows = await db
             .ChatMessages.AsNoTracking()
-            .Where(m => m.BroadcasterId == window.ChannelId && m.StreamId == window.StreamId)
+            .InWindow(window)
             .Select(m => new { m.UserId, m.DisplayName })
             .ToListAsync(ct);
         return StreamRanking.Top(

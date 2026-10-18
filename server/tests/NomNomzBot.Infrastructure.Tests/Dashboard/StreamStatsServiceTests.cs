@@ -135,18 +135,23 @@ public sealed class StreamStatsServiceTests
             UpdatedAt = at.UtcDateTime,
         };
 
-    private static ChatMessage Chat(string id, string user, string? streamId) =>
+    // The live writer never sets StreamId (0 of 58685 rows on the dev box), so a chat row belongs to a stream by time.
+    private static ChatMessage Chat(
+        string id,
+        string user,
+        DateTimeOffset at,
+        Guid? broadcaster = null
+    ) =>
         new()
         {
             Id = id,
-            BroadcasterId = Broadcaster,
-            StreamId = streamId,
+            BroadcasterId = broadcaster ?? Broadcaster,
             UserId = user,
             Username = user,
             DisplayName = user,
             UserType = "viewer",
             Message = "hi",
-            CreatedAt = Started.UtcDateTime.AddMinutes(10),
+            CreatedAt = at.UtcDateTime,
         };
 
     private static CommandUsage Ran(string name, DateTimeOffset at) =>
@@ -338,10 +343,12 @@ public sealed class StreamStatsServiceTests
         );
 
         db.ChatMessages.AddRange(
-            Chat("m1", "alice", "s-1"),
-            Chat("m2", "alice", "s-1"),
-            Chat("m3", "bob", "s-1"),
-            Chat("m4", "carol", "s-other")
+            Chat("m1", "alice", inside),
+            Chat("m2", "alice", inside.AddMinutes(1)),
+            Chat("m3", "bob", inside.AddMinutes(2)),
+            Chat("m4", "carol", before),
+            Chat("m5", "dave", after),
+            Chat("m6", "erin", inside, OtherBroadcaster)
         );
 
         await db.SaveChangesAsync();

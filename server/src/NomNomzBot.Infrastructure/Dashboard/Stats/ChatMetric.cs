@@ -26,7 +26,7 @@ public sealed class ChatMetric(IApplicationDbContext db) : StreamMetric<StreamSt
     {
         List<string> userIds = await db
             .ChatMessages.AsNoTracking()
-            .Where(m => m.BroadcasterId == window.ChannelId && m.StreamId == window.StreamId)
+            .InWindow(window)
             .Select(m => m.UserId)
             .ToListAsync(ct);
         return new() { Messages = userIds.Count, UniqueChatters = userIds.Distinct().Count() };
