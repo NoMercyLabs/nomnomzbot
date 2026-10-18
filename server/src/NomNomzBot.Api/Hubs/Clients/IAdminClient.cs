@@ -25,4 +25,5 @@ public interface IAdminClient
     Task ReceiveDataRequestsChanged(object change);
     Task ReceiveEventReplayChanged(object change);
     Task ReceiveScheduledJobsChanged(object change);
+    Task ReceivePlatformDefaultsChanged(object change);
 }

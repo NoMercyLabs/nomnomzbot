@@ -16,9 +16,12 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PlatformDefaults.Dtos;
 using NomNomzBot.Application.PlatformDefaults.Services;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -35,7 +38,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 [EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class EventResponseDefaultsAdminController(
     IEventResponseDefaultsAdminService defaults,
-    ICurrentUserService currentUser
+    ICurrentUserService currentUser,
+    IEventBus eventBus
 ) : BaseController
 {
     /// <summary>Every event type with its platform default and how many channels follow it.</summary>
@@ -71,6 +75,17 @@ public class EventResponseDefaultsAdminController(
     {
         if (!Guid.TryParse(currentUser.UserId, out Guid caller))
             return UnauthenticatedResponse();
-        return ResultResponse(await defaults.SetAsync(eventType, request, caller, ct));
+        Result<EventResponseDefaultDto> saved = await defaults.SetAsync(
+            eventType,
+            request,
+            caller,
+            ct
+        );
+        if (saved.IsSuccess)
+            await eventBus.PublishAsync(
+                new PlatformDefaultsChangedEvent { Set = "event-responses", Key = eventType },
+                ct
+            );
+        return ResultResponse(saved);
     }
 }

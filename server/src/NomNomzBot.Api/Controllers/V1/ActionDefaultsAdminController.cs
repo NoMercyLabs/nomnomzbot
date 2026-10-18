@@ -16,9 +16,12 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PlatformDefaults.Dtos;
 using NomNomzBot.Application.PlatformDefaults.Services;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -36,7 +39,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 [EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class ActionDefaultsAdminController(
     IActionDefaultsAdminService defaults,
-    ICurrentUserService currentUser
+    ICurrentUserService currentUser,
+    IEventBus eventBus
 ) : BaseController
 {
     /// <summary>Every gateable action with its shipped, platform and effective default level.</summary>
@@ -75,6 +79,12 @@ public class ActionDefaultsAdminController(
     {
         if (!Guid.TryParse(currentUser.UserId, out Guid caller))
             return UnauthenticatedResponse();
-        return ResultResponse(await defaults.SetAsync(actionKey, request, caller, ct));
+        Result<ActionDefaultDto> saved = await defaults.SetAsync(actionKey, request, caller, ct);
+        if (saved.IsSuccess)
+            await eventBus.PublishAsync(
+                new PlatformDefaultsChangedEvent { Set = "actions", Key = actionKey },
+                ct
+            );
+        return ResultResponse(saved);
     }
 }

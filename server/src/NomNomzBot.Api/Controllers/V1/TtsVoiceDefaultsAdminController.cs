@@ -16,9 +16,12 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PlatformDefaults.Dtos;
 using NomNomzBot.Application.PlatformDefaults.Services;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -35,7 +38,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 [EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class TtsVoiceDefaultsAdminController(
     ITtsVoiceDefaultsAdminService defaults,
-    ICurrentUserService currentUser
+    ICurrentUserService currentUser,
+    IEventBus eventBus
 ) : BaseController
 {
     /// <summary>The platform default voice and how many channels follow it.</summary>
@@ -76,6 +80,12 @@ public class TtsVoiceDefaultsAdminController(
     {
         if (!Guid.TryParse(currentUser.UserId, out Guid caller))
             return UnauthenticatedResponse();
-        return ResultResponse(await defaults.SetAsync(request, caller, ct));
+        Result<TtsVoiceDefaultDto> saved = await defaults.SetAsync(request, caller, ct);
+        if (saved.IsSuccess)
+            await eventBus.PublishAsync(
+                new PlatformDefaultsChangedEvent { Set = "tts-voice", Key = null },
+                ct
+            );
+        return ResultResponse(saved);
     }
 }

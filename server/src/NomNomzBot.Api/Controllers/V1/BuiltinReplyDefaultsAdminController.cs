@@ -16,9 +16,12 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PlatformDefaults.Dtos;
 using NomNomzBot.Application.PlatformDefaults.Services;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -36,7 +39,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 [EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class BuiltinReplyDefaultsAdminController(
     IBuiltinReplyDefaultsAdminService defaults,
-    ICurrentUserService currentUser
+    ICurrentUserService currentUser,
+    IEventBus eventBus
 ) : BaseController
 {
     /// <summary>Every editable built-in reply slot with its shipped and platform wording.</summary>
@@ -74,6 +78,22 @@ public class BuiltinReplyDefaultsAdminController(
     {
         if (!Guid.TryParse(currentUser.UserId, out Guid caller))
             return UnauthenticatedResponse();
-        return ResultResponse(await defaults.SetAsync(builtinKey, slot, request, caller, ct));
+        Result<BuiltinReplyDefaultDto> saved = await defaults.SetAsync(
+            builtinKey,
+            slot,
+            request,
+            caller,
+            ct
+        );
+        if (saved.IsSuccess)
+            await eventBus.PublishAsync(
+                new PlatformDefaultsChangedEvent
+                {
+                    Set = "builtin-replies",
+                    Key = $"{builtinKey}/{slot}",
+                },
+                ct
+            );
+        return ResultResponse(saved);
     }
 }
