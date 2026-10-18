@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 
 import StickerSelect from './StickerSelect.vue';
@@ -31,7 +32,8 @@ import { changeOf, draftOf, type VoiceTriggerDraft } from './voiceTriggerDraft';
 const props = defineProps<{ row: VoiceTrigger }>();
 const emit = defineEmits<{ remove: [row: VoiceTrigger] }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const update = useUpdateVoiceTrigger(channelId);
 
@@ -54,7 +56,7 @@ const facts = computed(() => [
   {
     label: t('dashboard.voiceTriggers.editor.lastHeard'),
     value: props.row.lastFiredAt
-      ? new Date(props.row.lastFiredAt).toLocaleString(locale.value)
+      ? time.dateTime(props.row.lastFiredAt)
       : t('dashboard.voiceTriggers.editor.never'),
   },
 ]);

@@ -11,7 +11,6 @@
 // One inbound webhook: its name, the provider kind, the link the provider posts to (copy), how many calls arrived
 // and when the last one did, and the on/off switch.
 import Trash from '~icons/nnz/trash';
-import { computed } from 'vue';
 
 import type { InboundWebhook } from '@/api/webhooks';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
@@ -20,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
+import { useFormattedTime } from '@/composables/useTime';
 
 const { can } = useCan();
 const props = defineProps<{ endpoint: InboundWebhook; busy: boolean }>();
@@ -29,10 +29,7 @@ defineEmits<{
   remove: [];
 }>();
 
-const lastReceived = computed(() =>
-  props.endpoint.lastReceivedAt
-    ? new Date(props.endpoint.lastReceivedAt).toLocaleString()
-    : undefined);
+const lastReceived = useFormattedTime(() => props.endpoint.lastReceivedAt, 'dateTime');
 </script>
 
 <template>

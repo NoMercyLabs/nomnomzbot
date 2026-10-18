@@ -10,12 +10,12 @@
 <script setup lang="ts">
 // One script in the list: its name, when it last ran, whether that run worked, and its on/off switch.
 // The switch sits beside the pick button, not inside it, so a press on it never opens the script.
-import { useTimeAgoIntl } from '@vueuse/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useSetScriptEnabled, type CodeScriptSummary } from '@/api/codeScripts';
 import { useCan } from '@/composables/useCan';
+import { useFormattedTime } from '@/composables/useTime';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Switch } from '@/components/ui/switch';
@@ -24,13 +24,11 @@ const props = defineProps<{ script: CodeScriptSummary; selected: boolean }>();
 
 defineEmits<{ pick: [] }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const { can } = useCan();
 const setEnabled = useSetScriptEnabled();
 
-const ago = useTimeAgoIntl(() => props.script.lastRanAt ?? new Date(0), {
-  locale: locale.value,
-});
+const ago = useFormattedTime(() => props.script.lastRanAt, 'relative', { live: true });
 const detail = computed<string>(() =>
   props.script.lastRanAt
     ? t('dashboard.scripts.list.lastRun', { when: ago.value })

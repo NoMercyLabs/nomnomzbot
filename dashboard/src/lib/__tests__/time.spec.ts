@@ -52,6 +52,20 @@ describe('formatTime in the reader locale', () => {
   });
 });
 
+describe('forced clocks and short month', () => {
+  it('forces a 12 or 24 hour clock whatever the locale would pick', () => {
+    const afternoon: Date = new Date(Date.UTC(2026, 9, 18, 14, 5, 0));
+
+    expect(formatTime(afternoon, 'time12', 'nl')).toBe('02:05 p.m.');
+    expect(formatTime(afternoon, 'time24', 'en')).toBe('14:05');
+  });
+
+  it('writes a weekday with a 24 hour time and a short month with its year', () => {
+    expect(formatTime(MOMENT, 'weekdayTime', 'en')).toBe('Sun 14:05');
+    expect(formatTime(MOMENT, 'monthYearShort', 'en')).toBe('Oct 2026');
+  });
+});
+
 describe('relative', () => {
   const now = MOMENT;
   const ago = (seconds: number): Date => new Date(now.getTime() - seconds * 1000);

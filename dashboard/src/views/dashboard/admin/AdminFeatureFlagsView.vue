@@ -37,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import { useTime } from '@/composables/useTime';
 
 type Draft = {
   key: string;
@@ -59,6 +60,7 @@ const blankDraft = (): Draft => ({
 });
 
 const { t } = useI18n();
+const time = useTime();
 const { can } = usePlatformCan();
 const copy = (key: string, values: Record<string, string | number> = {}): string =>
   t(`dashboard.admin.featureFlags.${key}`, values);
@@ -223,7 +225,7 @@ function dropOverride(entry: FeatureFlagOverride): void {
 
 const whenOf = (entry: FeatureFlagOverride): string =>
   entry.expiresAt
-    ? copy('overrideExpires', { when: new Date(entry.expiresAt).toLocaleString() })
+    ? copy('overrideExpires', { when: time.dateTime(entry.expiresAt) })
     : copy('overrideNoExpiry');
 </script>
 

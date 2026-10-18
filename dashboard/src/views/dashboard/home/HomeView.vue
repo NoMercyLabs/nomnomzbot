@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useProviderName } from '@/composables/useProviderName';
+import { useTime } from '@/composables/useTime';
 import { formatDuration } from '@/views/dashboard/stream/formatDuration';
 
 import ConnectionsPanel from './components/ConnectionsPanel.vue';
@@ -38,7 +39,8 @@ import NeedsAttentionPanel from './components/NeedsAttentionPanel.vue';
 import QuickActionsPanel from './components/QuickActionsPanel.vue';
 import ReviewQueuePanel from './components/ReviewQueuePanel.vue';
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
@@ -100,15 +102,8 @@ const lastStreamLine = computed<string>(() => {
   if (!past?.endedAt)
     return '';
 
-  const ended = new Date(past.endedAt);
-
   return t('dashboard.home.lastStream', {
-    date: new Intl.DateTimeFormat(locale.value, {
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).format(ended),
+    date: time.weekdayTime(past.endedAt),
     length: formatDuration(Number(past.durationSeconds)),
   });
 });

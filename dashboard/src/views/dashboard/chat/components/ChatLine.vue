@@ -38,6 +38,7 @@ import { canSanction, type RoleKey } from '@/components/layout/profile/profileRo
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { readableNameColor } from '@/lib/accent';
 import { purifyChatHtml } from '@/lib/html';
+import { useTime } from '@/composables/useTime';
 import { formatLength, TIMEOUT_LENGTHS } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
@@ -80,13 +81,11 @@ const deletes = useDeleteChatMessage(() => props.channelId);
 const profile = useProfileDialogStore();
 const access = useChannelAccess(() => props.channelId);
 
+const clock = useTime();
 const time = computed<string>(() =>
-  new Date(props.line.timestamp).toLocaleTimeString(locale.value, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: props.display.timestamps === '12',
-  }),
-);
+  props.display.timestamps === '12'
+    ? clock.time12(props.line.timestamp)
+    : clock.time24(props.line.timestamp));
 
 // A chatter color as the Display option asks: off, as sent, or lifted to a readable contrast.
 function shownColor(color: string | null | undefined): string | undefined {

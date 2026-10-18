@@ -29,6 +29,7 @@ import { canSanction, roleKeys, type RoleKey } from '@/components/layout/profile
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import StatTile from '@/components/layout/StatTile.vue';
 import { Button } from '@/components/ui/button';
+import { useTime } from '@/composables/useTime';
 import { emoteFrames, smallestUrl, type EmoteImages } from '@/lib/assetCards';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
@@ -47,7 +48,8 @@ const props = defineProps<{
   hour12: boolean;
 }>();
 
-const { t, n, locale } = useI18n();
+const { t, n } = useI18n();
+const clock = useTime();
 const profile = useProfileDialogStore();
 const timeouts = useTimeoutUser(() => props.channelId);
 const banner = useBanUser(() => props.channelId);
@@ -127,11 +129,9 @@ const lengthChoices = LENGTHS.map((seconds) => ({
 }));
 
 function timeOf(line: ChatLine): string {
-  return new Date(line.timestamp).toLocaleTimeString(locale.value, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: props.hour12,
-  });
+  return props.hour12
+    ? clock.time12(line.timestamp)
+    : clock.time24(line.timestamp);
 }
 
 function emoteUrl(emote: EmoteImages): string | undefined {

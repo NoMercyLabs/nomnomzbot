@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
+import { useFormattedTime } from '@/composables/useTime';
 
 const { can } = useCan();
 const props = defineProps<{ feed: EventFeed; busy: boolean }>();
@@ -37,10 +38,7 @@ const eventName = computed(() => `custom.${props.feed.name}`);
 
 const failedFields = computed(() => Object.keys(props.feed.fieldErrors));
 
-const lastReceived = computed(() =>
-  props.feed.lastReceivedAt
-    ? new Date(props.feed.lastReceivedAt).toLocaleString()
-    : undefined);
+const lastReceived = useFormattedTime(() => props.feed.lastReceivedAt, 'dateTime');
 </script>
 
 <template>

@@ -31,11 +31,13 @@ import { Label } from '@/components/ui/label';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTime } from '@/composables/useTime';
 import { fromLocalInput, toLocalInput } from '@/lib/time';
 
 import SegmentDialog from './SegmentDialog.vue';
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const canEdit = computed(() => can('live-ops:schedule:write'));
@@ -63,8 +65,7 @@ const vacationValid = computed(
   () => !vacationOn.value || (vacationStart.value !== '' && vacationEnd.value > vacationStart.value),
 );
 
-const when = (iso: string): string =>
-  new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+const when = (iso: string): string => time.dateTime(iso);
 
 const isCanceled = (segment: ScheduleSegment): boolean => segment.canceledUntil != null;
 

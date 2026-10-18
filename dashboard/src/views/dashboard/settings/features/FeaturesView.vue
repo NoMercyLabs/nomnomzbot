@@ -24,9 +24,11 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 
 const { t } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const features = useChannelFeatures(channelId);
@@ -57,7 +59,7 @@ function since(feature: ChannelFeature): string | undefined {
   if (!feature.isEnabled || !feature.enabledAt)
     return undefined;
 
-  return t('dashboard.settings.features.since', { date: new Date(feature.enabledAt).toLocaleDateString() });
+  return t('dashboard.settings.features.since', { date: time.date(feature.enabledAt) });
 }
 
 async function flip(feature: ChannelFeature): Promise<void> {

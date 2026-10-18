@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { PollHistoryItem, PollHistoryOption } from '@/api/liveOps';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import { useFormattedTime } from '@/composables/useTime';
 
 import Trophy from '~icons/nnz/trophy';
 
@@ -24,14 +25,10 @@ import PollBar from './PollBar.vue';
 
 const props = defineProps<{ item: PollHistoryItem }>();
 
-const { t, n, locale } = useI18n();
+const { t, n } = useI18n();
 
 const winner = computed(() => winnerOf(props.item));
-const date = computed(() =>
-  new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(
-    new Date(props.item.startedAt),
-  ),
-);
+const date = useFormattedTime(() => props.item.startedAt, 'date');
 const statusLabel = computed(() => t(`dashboard.polls.status.${props.item.status.toLowerCase()}`, props.item.status));
 
 const meta = computed(() =>

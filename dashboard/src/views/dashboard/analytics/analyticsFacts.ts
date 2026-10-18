@@ -10,6 +10,7 @@
 
 import type { AnalyticsDay, AnalyticsRange, StreamRow } from '@/api/analytics';
 import type { ChartRow } from '@/components/layout/ChartPanel.vue';
+import { formatTime } from '@/lib/time';
 
 export type TopCategory = {
   name: string;
@@ -71,11 +72,10 @@ export function perPeriod(
     }));
   }
 
-  const months = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
   const totals = new Map<string, number>();
 
   for (const day of days) {
-    const month = months.format(new Date(`${day.activityDate}T00:00:00`));
+    const month = formatTime(`${day.activityDate}T00:00:00`, 'monthYearShort', locale);
 
     totals.set(month, (totals.get(month) ?? 0) + value(day));
   }

@@ -10,10 +10,10 @@
 <script setup lang="ts">
 // The channels of the registry, one row each. The bot sorts the list (newest first), so the heads do not sort.
 // The name is the one button of a row: it picks the channel, for the keyboard and the pointer alike.
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { AdminTenant } from '@/api/admin';
+import DateTime from '@/components/layout/DateTime.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -28,7 +28,7 @@ import {
 defineProps<{ rows: readonly AdminTenant[]; selectedId: string }>();
 defineEmits<{ pick: [row: AdminTenant] }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 
 const TONES: Readonly<Record<string, StatusTone>> = {
   active: 'ok',
@@ -52,15 +52,6 @@ function initials(name: string | undefined): string {
     .toUpperCase();
 }
 
-const dates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-);
-
-function created(value: string | undefined): string {
-  return value
-    ? dates.value.format(new Date(value))
-    : '';
-}
 </script>
 
 <template>
@@ -102,7 +93,7 @@ function created(value: string | undefined): string {
           <StatusBadge v-if="row.isLive" tone="live" :label="t('dashboard.admin.live.live')" />
           <span v-else class="text-muted-foreground">{{ t('dashboard.admin.live.offline') }}</span>
         </TableCell>
-        <TableCell class="text-muted-foreground">{{ created(row.createdAt) }}</TableCell>
+        <TableCell class="text-muted-foreground"><DateTime :value="row.createdAt" variant="date" /></TableCell>
       </TableRow>
     </TableBody>
   </Table>

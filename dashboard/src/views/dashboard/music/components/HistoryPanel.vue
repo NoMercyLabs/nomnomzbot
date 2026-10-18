@@ -9,18 +9,17 @@
 -->
 <script setup lang="ts">
 // The latest accepted song requests, newest first. A row rebuilt from the journal has no title yet.
-import { useI18n } from 'vue-i18n';
 
 import NoteDouble from '~icons/nnz/note-double';
 
 import { useMusicHistory, type SongHistoryItem } from '@/api/music';
+import DateTime from '@/components/layout/DateTime.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
-const { locale } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const query = useMusicHistory(channelId);
@@ -28,15 +27,6 @@ const state = usePanelState(
   query,
   (rows: SongHistoryItem[]): boolean => rows.length === 0,
 );
-
-function when(requestedAt: string): string {
-  return new Intl.DateTimeFormat(locale.value, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(requestedAt));
-}
 </script>
 
 <template>
@@ -69,7 +59,7 @@ function when(requestedAt: string): string {
             :name="item.requesterName"
             :color="item.requesterColor"
           />
-          <span>{{ when(item.requestedAt) }}</span>
+          <DateTime :value="item.requestedAt" variant="dateTimeShort" />
         </span>
       </template>
     </SummaryRow>

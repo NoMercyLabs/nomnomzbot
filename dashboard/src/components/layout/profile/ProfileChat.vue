@@ -11,7 +11,6 @@
 // A person's whole stored chat in this channel, newest first, one small heading per calendar day (local time)
 // and only the time on each line. Older pages load on request and join the day group they continue.
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { useUserChat, type ChatLine, type ChatSearchPage } from '@/api/chat';
 import EmoteText from '@/components/layout/EmoteText.vue';
@@ -19,11 +18,11 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
-import { shortDate } from '@/lib/time';
+import { useTime } from '@/composables/useTime';
 
 const props = defineProps<{ internalUserId: string | null }>();
 
-const { locale } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 
 type DayGroup = {
@@ -40,13 +39,13 @@ const lines = computed(() =>
 const state = usePanelState(chat, () =>
   lines.value.length === 0);
 
-// Local calendar day of a line, the key of its group.
+// Local calendar day of a line, the key of its group; it is also the heading the group shows.
 function dayOf(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-CA');
+  return time.date(iso);
 }
 
 function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' });
+  return time.time(iso);
 }
 
 const groups = computed(() => {
@@ -61,7 +60,7 @@ const groups = computed(() => {
     } else {
       found.push({
         day,
-        heading: shortDate(line.timestamp, locale.value),
+        heading: day,
         lines: [line],
       });
     }

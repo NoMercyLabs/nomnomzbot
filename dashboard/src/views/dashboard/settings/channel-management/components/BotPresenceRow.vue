@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
+import { useFormattedTime } from '@/composables/useTime';
 
 const props = defineProps<{
   joinedAt: string | null | undefined;
@@ -28,10 +29,7 @@ const { can } = useCan();
 const joined = computed(() =>
   props.joinedAt !== null && props.joinedAt !== undefined);
 
-const since = computed(() =>
-  joined.value
-    ? new Date(props.joinedAt as string).toLocaleString()
-    : '');
+const since = useFormattedTime(() => props.joinedAt, 'dateTime');
 </script>
 
 <template>

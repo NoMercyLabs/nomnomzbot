@@ -23,6 +23,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { useTime } from '@/composables/useTime';
 
 import CommercialPanel from './CommercialPanel.vue';
 import GoLiveChecklist from './GoLiveChecklist.vue';
@@ -32,7 +33,8 @@ import RaidRulesPanel from './RaidRulesPanel.vue';
 import SchedulePanel from './SchedulePanel.vue';
 import StreamInfoPanel from './StreamInfoPanel.vue';
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const VIEWS = ['overview', 'schedule', 'raids', 'ads'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
@@ -60,8 +62,7 @@ const now = useNow({ scheduler: (tick: () => void) => useIntervalFn(tick, 30_000
 const info = computed<StreamInfo | null>(() => infoQuery.data.value ?? null);
 const live = computed(() => info.value?.isLive === true);
 
-const date = (value: string): string =>
-  new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(value));
+const date = (value: string): string => time.date(value);
 
 const meta = computed<string>(() => {
   const current = info.value;

@@ -134,6 +134,11 @@ export function shortDate(iso: string, locale: string): string {
   return formatTime(iso, 'date', locale);
 }
 
+// The viewer's own time zone name, as the API takes it: "Europe/Amsterdam".
+export function localTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 const MINUTE_MS = 60_000;
 
 // The value a datetime-local input shows for a moment: the viewer's own clock, to the minute, no zone.
@@ -163,7 +168,23 @@ export type TimeValue = Date | string | number | null | undefined;
 const DATE_VARIANTS = {
   date: { dateStyle: 'medium' },
   dateShort: { day: 'numeric', month: 'short' },
+  weekdayDate: {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  },
   time: { hour: 'numeric', minute: '2-digit' },
+  // The chat Display option forces the clock, whatever the language would pick.
+  time12: {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  },
+  time24: {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  },
   timeSeconds: {
     hour: 'numeric',
     minute: '2-digit',
@@ -178,7 +199,16 @@ const DATE_VARIANTS = {
   },
   dateTimeFull: { dateStyle: 'long', timeStyle: 'medium' },
   weekday: { weekday: 'long' },
+  weekdayShort: { weekday: 'short' },
+  hour: { hour: 'numeric' },
+  weekdayTime: {
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  },
   monthYear: { month: 'long', year: 'numeric' },
+  monthYearShort: { month: 'short', year: 'numeric' },
 } as const satisfies Record<string, Intl.DateTimeFormatOptions>;
 
 // `relative` and `iso` read a moment; `duration` and `durationClock` read a length in seconds.

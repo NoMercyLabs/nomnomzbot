@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import { useTime } from '@/composables/useTime';
 
 // cspell:ignore cancelled (the API wire value for a canceled request)
 const statuses = ['pending', 'running', 'completed', 'failed', 'cancelled'] as const;
@@ -43,6 +44,7 @@ const statusLabelKey = (key: string) =>
 const types = ['erasure', 'export', 'opt_out'] as const;
 
 const { t } = useI18n();
+const time = useTime();
 const { can } = usePlatformCan();
 
 const status = useLocalStorage<string>('nnz.adminDataRequests.status', allRequests);
@@ -104,7 +106,7 @@ function hashOf(row: ErasureRequest): string {
 }
 
 function when(value: string): string {
-  return new Date(value).toLocaleString();
+  return time.dateTime(value);
 }
 
 function openRetry(row: ErasureRequest): void {

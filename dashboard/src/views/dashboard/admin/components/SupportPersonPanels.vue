@@ -16,11 +16,12 @@ import { useSupportPerson } from '@/api/adminSupport';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTime } from '@/composables/useTime';
 import { merge } from '@/lib/array';
 
 const props = defineProps<{ personId: string; justification: string }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 
 const query = useSupportPerson(
   () => props.personId,
@@ -30,9 +31,7 @@ const person = computed(() => query.data.value ?? null);
 const state = usePanelState(query, (data) =>
   data === null);
 
-const dates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-);
+const time = useTime();
 
 const facts = computed<KeyValueItem[]>(() => [
   { label: t('dashboard.admin.support.facts.username'), value: person.value?.username },
@@ -41,7 +40,7 @@ const facts = computed<KeyValueItem[]>(() => [
   {
     label: t('dashboard.admin.support.facts.lastSeen'),
     value: person.value?.lastSeenAt
-      ? dates.value.format(new Date(person.value.lastSeenAt))
+      ? time.date(person.value.lastSeenAt)
       : null,
   },
 ]);

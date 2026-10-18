@@ -10,10 +10,10 @@
 <script setup lang="ts">
 // The background job queue, newest first. A retry queues a brand-new run of a failed job;
 // it is offered only when the bot says so with canRetry (failed, and the pipeline still exists).
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import { useTime } from '@/composables/useTime';
 
 import type { AdminScheduledJob } from '@/api/adminActivity';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
@@ -31,7 +31,8 @@ defineProps<{ rows: readonly AdminScheduledJob[]; retrying: boolean }>();
 
 defineEmits<{ retry: [id: string] }>();
 
-const { locale, t } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 const { can } = usePlatformCan();
 
 const tones: Record<string, StatusTone> = {
@@ -44,14 +45,10 @@ function toneOf(state: string): StatusTone {
   return tones[state] ?? 'off';
 }
 
-const stamps = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }),
-);
-
 function stamp(value: string | null | undefined): string {
   return value == null
     ? t('dashboard.admin.scheduledJobs.none')
-    : stamps.value.format(new Date(value));
+    : time.dateTime(value);
 }
 </script>
 

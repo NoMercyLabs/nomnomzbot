@@ -21,19 +21,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useTime } from '@/composables/useTime';
 
 defineProps<{ rows: readonly AdminTenantUsage[] }>();
 
 const { locale } = useI18n();
 
-const dates = computed<Intl.DateTimeFormat>(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-);
+const time = useTime();
 const counts = computed<Intl.NumberFormat>(() => new Intl.NumberFormat(locale.value));
 
 function period(row: AdminTenantUsage): string {
-  const start = dates.value.format(new Date(row.periodStart));
-  const end = dates.value.format(new Date(row.periodEnd));
+  const start = time.date(row.periodStart);
+  const end = time.date(row.periodEnd);
 
   return `${start} - ${end}`;
 }

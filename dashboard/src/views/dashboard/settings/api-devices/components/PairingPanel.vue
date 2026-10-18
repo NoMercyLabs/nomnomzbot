@@ -22,9 +22,11 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 
 const { t } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const mint = useMintPairingCode();
 const approve = useApproveDevice(channelId);
@@ -86,7 +88,7 @@ async function approveCode(): Promise<void> {
         <p v-if="code" data-pair-code class="text-sm">
           <span class="font-mono text-lg tracking-widest">{{ code.code }}</span>
           <span class="block text-muted-foreground">
-            {{ $t('dashboard.settings.apiDevices.pairing.mint.expires', { time: new Date(code.expiresAt).toLocaleTimeString() }) }}
+            {{ $t('dashboard.settings.apiDevices.pairing.mint.expires', { time: time.timeSeconds(code.expiresAt) }) }}
           </span>
         </p>
       </form>
