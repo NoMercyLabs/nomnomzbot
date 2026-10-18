@@ -20,6 +20,8 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -40,7 +42,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class PlatformIamController(
     IPlatformIamService iam,
     ICurrentUserService currentUser,
-    IIamCallerPrincipalResolverService actingPrincipalResolver
+    IIamCallerPrincipalResolverService actingPrincipalResolver,
+    IEventBus eventBus
 ) : BaseController
 {
     /// <summary>The role catalog with each role's permission bundle — the role picker.</summary>
@@ -89,7 +92,10 @@ public class PlatformIamController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<IamPrincipalDto>(null!));
-        return ResultResponse(await iam.CreatePrincipalAsync(acting.Value, request, ct));
+        Result<IamPrincipalDto> created = await iam.CreatePrincipalAsync(acting.Value, request, ct);
+        if (created.IsSuccess)
+            await PublishChangeAsync("created", created.Value.Id, null, ct);
+        return ResultResponse(created);
     }
 
     /// <summary>Deactivates a principal and clears the employee's platform marker (the demote). Self-deactivation is refused.</summary>
@@ -105,9 +111,15 @@ public class PlatformIamController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting);
-        return ResultResponse(
-            await iam.DeactivatePrincipalAsync(acting.Value, principalId, reason, ct)
+        Result deactivated = await iam.DeactivatePrincipalAsync(
+            acting.Value,
+            principalId,
+            reason,
+            ct
         );
+        if (deactivated.IsSuccess)
+            await PublishChangeAsync("deactivated", principalId, null, ct);
+        return ResultResponse(deactivated);
     }
 
     /// <summary>Reactivates a principal and restores the employee's platform marker.</summary>
@@ -118,7 +130,10 @@ public class PlatformIamController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting);
-        return ResultResponse(await iam.ReactivatePrincipalAsync(acting.Value, principalId, ct));
+        Result reactivated = await iam.ReactivatePrincipalAsync(acting.Value, principalId, ct);
+        if (reactivated.IsSuccess)
+            await PublishChangeAsync("reactivated", principalId, null, ct);
+        return ResultResponse(reactivated);
     }
 
     /// <summary>Assigns a role to a principal, optionally tenant-scoped and time-boxed.</summary>
@@ -133,17 +148,18 @@ public class PlatformIamController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<IamRoleAssignmentDto>(null!));
-        return ResultResponse(
-            await iam.AssignRoleAsync(
-                acting.Value,
-                request.PrincipalId,
-                request.RoleId,
-                request.ScopeChannelId,
-                request.ExpiresAt,
-                request.Reason,
-                ct
-            )
+        Result<IamRoleAssignmentDto> assigned = await iam.AssignRoleAsync(
+            acting.Value,
+            request.PrincipalId,
+            request.RoleId,
+            request.ScopeChannelId,
+            request.ExpiresAt,
+            request.Reason,
+            ct
         );
+        if (assigned.IsSuccess)
+            await PublishChangeAsync("assigned", request.PrincipalId, assigned.Value.Id, ct);
+        return ResultResponse(assigned);
     }
 
     /// <summary>Revokes a role assignment (sets <c>RevokedAt</c>; already-revoked is a no-op).</summary>
@@ -162,10 +178,29 @@ public class PlatformIamController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting);
-        return ResultResponse(
-            await iam.RevokeAssignmentAsync(acting.Value, assignmentId, reason, ct)
-        );
+        Result revoked = await iam.RevokeAssignmentAsync(acting.Value, assignmentId, reason, ct);
+        if (revoked.IsSuccess)
+            await PublishChangeAsync("revoked", null, assignmentId, ct);
+        return ResultResponse(revoked);
     }
+
+    /// <summary>Tells the open operator access pages a change landed; a failed action changed nothing, so it says nothing.</summary>
+    private Task PublishChangeAsync(
+        string action,
+        Guid? principalId,
+        Guid? assignmentId,
+        CancellationToken ct
+    ) =>
+        eventBus.PublishAsync(
+            new PlatformAccessChangedEvent
+            {
+                BroadcasterId = Guid.Empty,
+                Action = action,
+                PrincipalId = principalId,
+                AssignmentId = assignmentId,
+            },
+            ct
+        );
 
     /// <summary>
     /// The caller's IAM principal id for the service's internal re-check, via the shared resolver (fix D2 item

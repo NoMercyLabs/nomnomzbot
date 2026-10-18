@@ -21,4 +21,5 @@ public interface IAdminClient
     Task ReceiveErrorBudgetChanged(object change);
     Task ReceivePlatformBotChanged(object change);
     Task ReceiveAuditChanged(object change);
+    Task ReceiveAccessChanged(object change);
 }
