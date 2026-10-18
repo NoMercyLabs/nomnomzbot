@@ -321,6 +321,7 @@ public sealed class QuoteService : IQuoteService
         quote.QuotedDisplayName = request.QuotedDisplayName?.Trim();
         quote.UserId = await ResolveQuotedUserIdAsync(broadcasterId, quote.QuotedDisplayName, ct);
         quote.ContextGame = request.ContextGame?.Trim();
+        quote.QuotedAt = request.QuotedAt ?? quote.QuotedAt;
 
         await _db.SaveChangesAsync(ct);
         await _eventBus.PublishAsync(

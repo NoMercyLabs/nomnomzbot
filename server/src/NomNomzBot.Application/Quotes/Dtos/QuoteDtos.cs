@@ -19,8 +19,16 @@ public sealed record AddQuoteRequest(
     Guid? CreatedByUserId
 );
 
-/// <summary>Edit payload (quotes.md §3). The per-channel <c>Number</c> is immutable and not editable.</summary>
-public sealed record EditQuoteRequest(string Text, string? QuotedDisplayName, string? ContextGame);
+/// <summary>
+/// Edit payload (quotes.md §3). The per-channel <c>Number</c> is immutable and not editable. <c>QuotedAt</c>
+/// moves the date the line was said; null keeps the saved date.
+/// </summary>
+public sealed record EditQuoteRequest(
+    string Text,
+    string? QuotedDisplayName,
+    string? ContextGame,
+    DateTime? QuotedAt = null
+);
 
 /// <summary>Free-text search filter over <c>Text</c>/<c>QuotedDisplayName</c> (quotes.md §1).</summary>
 public sealed record QuoteSearch(string? Term);

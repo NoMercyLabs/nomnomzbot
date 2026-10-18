@@ -313,6 +313,37 @@ public sealed class QuoteServiceTests
     }
 
     [Fact]
+    public async Task EditAsync_WithAQuotedAt_ChangesWhenItWasSaid_AndWithoutOneKeepsIt()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        RecordingEventBus bus = new();
+        DateTime original = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        DateTime corrected = new(2025, 12, 24, 20, 0, 0, DateTimeKind.Utc);
+
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            QuoteService service = NewService(db, bus);
+            await service.AddAsync(channel, new("said once", "Alice", null, original, null));
+            Result<QuoteDto> moved = await service.EditAsync(
+                channel,
+                1,
+                new("said once", "Alice", null, corrected)
+            );
+            moved.Value.QuotedAt.Should().Be(corrected);
+        }
+
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            QuoteService service = NewService(db, bus);
+            await service.EditAsync(channel, 1, new("said twice", "Alice", null));
+            Quote stored = await db.Quotes.SingleAsync(q => q.BroadcasterId == channel);
+            stored.Text.Should().Be("said twice");
+            stored.QuotedAt.Should().Be(corrected, "an edit without a date keeps the saved one");
+        }
+    }
+
+    [Fact]
     public async Task ListAsync_FiltersByTerm_OverTextAndAttribution()
     {
         using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
