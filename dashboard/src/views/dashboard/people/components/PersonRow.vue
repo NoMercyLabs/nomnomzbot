@@ -12,7 +12,6 @@
 // The list DTO carries only a trust level, so no other role badge can be shown yet.
 import Gem from '~icons/nnz/gem';
 import Shield from '~icons/nnz/shield';
-import { useTimeAgoIntl } from '@vueuse/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -20,13 +19,14 @@ import type { CommunityRow } from '@/api/people';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useFormattedTime } from '@/composables/useTime';
 
 const props = defineProps<{ person: CommunityRow; selected: boolean }>();
 
 defineEmits<{ pick: [] }>();
 
-const { t, locale } = useI18n();
-const ago = useTimeAgoIntl(() => props.person.lastSeen ?? 0, { locale: locale.value });
+const { t } = useI18n();
+const ago = useFormattedTime(() => props.person.lastSeen, 'relative', { live: true });
 
 const lastSeen = computed<string>(() =>
   props.person.lastSeen

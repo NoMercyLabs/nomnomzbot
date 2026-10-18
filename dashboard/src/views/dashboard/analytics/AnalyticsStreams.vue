@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTime } from '@/composables/useTime';
 import { hoursMinutes } from '@/lib/time';
 
 import { averageSeconds } from './analyticsFacts';
@@ -32,6 +33,7 @@ import { averageSeconds } from './analyticsFacts';
 const props = defineProps<{ range: AnalyticsRange }>();
 
 const { t, n, locale } = useI18n();
+const time = useTime();
 const { channelId } = useCurrentChannel();
 const page = 'dashboard.analytics.streams';
 
@@ -65,7 +67,7 @@ function startedAt(row: StreamRow): string {
 function length(row: StreamRow): string {
   return row.durationSeconds === null || row.durationSeconds === undefined
     ? t(`${page}.unknown`)
-    : hoursMinutes(Number(row.durationSeconds), locale.value);
+    : time.duration(Number(row.durationSeconds));
 }
 
 function peak(row: StreamRow): string {

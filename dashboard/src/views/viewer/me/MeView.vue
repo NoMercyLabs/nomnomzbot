@@ -29,10 +29,12 @@ import StatTile from '@/components/layout/StatTile.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTime } from '@/composables/useTime';
 import { useViewerMusicLive } from '@/realtime/useViewerMusicLive';
 import { formatClock } from '@/views/dashboard/music/components/formatClock';
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const time = useTime();
 const route = useRoute();
 
 const channelName = computed<string>(() => String(route.params.channel ?? ''));
@@ -54,9 +56,7 @@ const shown = computed<string>(() => channel.data.value?.channelName ?? channelN
 const songs = computed<readonly ViewerQueuedSong[]>(() => queue.data.value?.songs ?? []);
 
 function day(iso: string | null | undefined): string {
-  return iso
-    ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(iso))
-    : '';
+  return time.date(iso);
 }
 
 function followLine(data: ViewerSummary): string {

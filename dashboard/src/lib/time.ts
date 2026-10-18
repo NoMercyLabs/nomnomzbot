@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { keysOf, merge } from '@/lib/array';
+
 const UNITS = [
   ['day', 86_400],
   ['hour', 3_600],
@@ -129,11 +131,7 @@ export function agoText(iso: string | undefined, now: Date, locale: string): str
 
 // A moment as a short date in the reader's language: "Mar 4, 2020".
 export function shortDate(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatTime(iso, 'date', locale);
 }
 
 const MINUTE_MS = 60_000;
@@ -157,4 +155,142 @@ export function fromLocalInput(value: string): string {
 // Whole minutes between two ISO moments.
 export function minutesBetween(startIso: string, endIso: string): number {
   return Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / MINUTE_MS);
+}
+
+export type TimeValue = Date | string | number | null | undefined;
+
+// Every look a moment can have on screen. Add a look here; never build a formatter at a call site.
+const DATE_VARIANTS = {
+  date: { dateStyle: 'medium' },
+  dateShort: { day: 'numeric', month: 'short' },
+  time: { hour: 'numeric', minute: '2-digit' },
+  timeSeconds: {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  },
+  dateTime: { dateStyle: 'medium', timeStyle: 'short' },
+  dateTimeShort: {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  },
+  dateTimeFull: { dateStyle: 'long', timeStyle: 'medium' },
+  weekday: { weekday: 'long' },
+  monthYear: { month: 'long', year: 'numeric' },
+} as const satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+// `relative` and `iso` read a moment; `duration` and `durationClock` read a length in seconds.
+const OTHER_VARIANTS = ['relative', 'iso', 'duration', 'durationClock'] as const;
+
+export type TimeVariant = keyof typeof DATE_VARIANTS | (typeof OTHER_VARIANTS)[number];
+
+// Every variant, built from the tables above so a new look cannot be left out of the composables.
+export const TIME_VARIANTS: readonly TimeVariant[] = merge(keysOf(DATE_VARIANTS), OTHER_VARIANTS);
+
+const RELATIVE_UNITS = [
+  ['year', 31_536_000],
+  ['month', 2_592_000],
+  ['week', 604_800],
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+  ['second', 1],
+] as const satisfies readonly (readonly [Intl.RelativeTimeFormatUnit, number])[];
+
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const relativeFormats = new Map<string, Intl.RelativeTimeFormat>();
+
+function dateFormat(locale: string, variant: keyof typeof DATE_VARIANTS): Intl.DateTimeFormat {
+  const key = `${locale}|${variant}`;
+  const cached = dateFormats.get(key);
+
+  if (cached)
+    return cached;
+
+  const made = new Intl.DateTimeFormat(locale, DATE_VARIANTS[variant]);
+
+  dateFormats.set(key, made);
+
+  return made;
+}
+
+function relativeFormat(locale: string): Intl.RelativeTimeFormat {
+  const cached = relativeFormats.get(locale);
+
+  if (cached)
+    return cached;
+
+  const made = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+
+  relativeFormats.set(locale, made);
+
+  return made;
+}
+
+// The moment a value means, or null when it is empty or unreadable.
+export function toMoment(value: TimeValue): Date | null {
+  if (value === null || value === undefined || value === '')
+    return null;
+
+  const moment = new Date(value);
+
+  return Number.isNaN(moment.getTime())
+    ? null
+    : moment;
+}
+
+// "in 2 days", "3 minutes ago": the largest whole unit, past or future, in the reader's language.
+function relativeText(moment: Date, now: Date, locale: string): string {
+  const delta = (moment.getTime() - now.getTime()) / 1000;
+  const [unit, size] = RELATIVE_UNITS.find(([, seconds]) => Math.abs(delta) >= seconds) ??
+    RELATIVE_UNITS[6];
+
+  return relativeFormat(locale).format(Math.trunc(delta / size) || 0, unit);
+}
+
+// A length as a digital clock: "1:02:03", or "2:03" under an hour.
+export function clockLength(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const rest = `${twoDigits(Math.floor((total % 3600) / 60))}:${twoDigits(total % 60)}`;
+
+  return hours === 0
+    ? rest.replace(/^0/, '')
+    : `${hours}:${rest}`;
+}
+
+function lengthText(value: TimeValue, variant: 'duration' | 'durationClock', locale: string): string {
+  if (typeof value !== 'number' || !Number.isFinite(value))
+    return '';
+
+  return variant === 'duration'
+    ? hoursMinutes(value, locale)
+    : clockLength(value);
+}
+
+// One entry for every time on screen, in the locale the person chose (the i18n locale, never the browser's).
+// Empty text means the value was empty or unreadable; the caller shows its dash.
+export function formatTime(
+  value: TimeValue,
+  variant: TimeVariant,
+  locale: string,
+  now: Date = new Date(),
+): string {
+  if (variant === 'duration' || variant === 'durationClock')
+    return lengthText(value, variant, locale);
+
+  const moment = toMoment(value);
+
+  if (!moment)
+    return '';
+
+  if (variant === 'iso')
+    return moment.toISOString();
+
+  if (variant === 'relative')
+    return relativeText(moment, now, locale);
+
+  return dateFormat(locale, variant).format(moment);
 }

@@ -459,3 +459,86 @@ describe('button shapes', () => {
     expect(flat).toEqual([]);
   });
 });
+
+// Stoney 2026-10-18: "make a date component that can return any variation of time we need including relative
+// to display and ensure it applies the user's locale formatting". Every time on screen goes through formatTime
+// (lib/time.ts), <DateTime> or useTime(), which read the i18n locale. These files still build their own
+// formatter; the sweep removes them from the list, and a file that is clean must leave it (below).
+const ownFormatter = /Intl\.DateTimeFormat|toLocale(Date|Time)String|useTimeAgo|new Date\([^)]*\)\.toLocaleString/;
+const ownFormatterAllowlist: readonly string[] = [
+  'components/layout/ChartPanel.vue',
+  'components/layout/profile/ProfileChat.vue',
+  'components/layout/profile/ProfilePublicView.vue',
+  'views/dashboard/admin/AdminDataRequestsView.vue',
+  'views/dashboard/admin/AdminEventReplayView.vue',
+  'views/dashboard/admin/AdminFeatureFlagsView.vue',
+  'views/dashboard/admin/components/AuditTable.vue',
+  'views/dashboard/admin/components/ChannelsTable.vue',
+  'views/dashboard/admin/components/EventSubHealthTable.vue',
+  'views/dashboard/admin/components/ScheduledJobsTable.vue',
+  'views/dashboard/admin/components/SupportActivityPanels.vue',
+  'views/dashboard/admin/components/SupportPersonPanels.vue',
+  'views/dashboard/admin/components/TenantLimitsPanel.vue',
+  'views/dashboard/admin/components/TenantUsageTable.vue',
+  'views/dashboard/admin/components/UsersTable.vue',
+  'views/dashboard/admin/components/WebhookDeliveriesTable.vue',
+  'views/dashboard/analytics/AnalyticsStreams.vue',
+  'views/dashboard/analytics/analyticsFacts.ts',
+  'views/dashboard/analytics/chatFacts.ts',
+  'views/dashboard/chat/components/ChatLine.vue',
+  'views/dashboard/chat/components/RedemptionLine.vue',
+  'views/dashboard/chat/components/ViewerPanel.vue',
+  'views/dashboard/games/GamesView.vue',
+  'views/dashboard/home/HomeView.vue',
+  'views/dashboard/home/components/HappeningPanel.vue',
+  'views/dashboard/music/components/HistoryPanel.vue',
+  'views/dashboard/overlays/components/OverlayDetail.vue',
+  'views/dashboard/polls/components/PollHistoryCard.vue',
+  'views/dashboard/scripts/components/ScriptDetail.vue',
+  'views/dashboard/scripts/components/ScriptRow.vue',
+  'views/dashboard/scripts/components/ScriptRunsPanel.vue',
+  'views/dashboard/settings/api-devices/components/PairingPanel.vue',
+  'views/dashboard/settings/api-devices/components/TokensTable.vue',
+  'views/dashboard/settings/channel-management/components/BotPresenceRow.vue',
+  'views/dashboard/settings/channel-management/components/DeletedChannelNotice.vue',
+  'views/dashboard/settings/custom-event-feeds/components/EventFeedRow.vue',
+  'views/dashboard/settings/event-journal/components/JournalListPanel.vue',
+  'views/dashboard/settings/features/FeaturesView.vue',
+  'views/dashboard/settings/integrations/IntegrationsView.vue',
+  'views/dashboard/settings/webhooks/components/InboundWebhookRow.vue',
+  'views/dashboard/settings/webhooks/components/OutboundWebhookRow.vue',
+  'views/dashboard/stream/SchedulePanel.vue',
+  'views/dashboard/stream/SegmentDialog.vue',
+  'views/dashboard/stream/StreamView.vue',
+  'views/dashboard/supporters/SupportersView.vue',
+  'views/dashboard/voice-triggers/components/VoiceTriggerEditor.vue',
+];
+
+function ownsFormatter(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return ownFormatter.test(text);
+}
+
+function timeSourceFiles(): string[] {
+  return allPaths(src)
+    .filter((path) => /\.(vue|ts)$/.test(path) && !/__tests__|\.spec\.ts$|schema\.d\.ts$/.test(path))
+    .map((path) => relative(src, path).replace(/\\/g, '/'))
+    .filter((path) => path !== 'lib/time.ts' && path !== 'components/layout/DateTime.vue');
+}
+
+describe('time formatting', () => {
+  it('builds no date formatter outside lib/time.ts, except the files on the sweep list', () => {
+    const offenders = timeSourceFiles()
+      .filter((path) => ownsFormatter(path))
+      .filter((path) => !ownFormatterAllowlist.includes(path));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps no clean file on the sweep list', () => {
+    const stale = ownFormatterAllowlist.filter((path) => !ownsFormatter(path));
+
+    expect(stale).toEqual([]);
+  });
+});
