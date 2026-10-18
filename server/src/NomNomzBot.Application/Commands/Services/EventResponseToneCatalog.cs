@@ -354,33 +354,33 @@ public static class EventResponseToneCatalog
             "channel.cheer",
             informative:
             [
-                "{user} cheered {bits} bits! Thank you!",
-                "Thank you {user} for the {bits} bits!",
-                "{user} cheered with {bits} bits. Thank you for the support!",
+                "{user} cheered {bits} bits! Thank you!{also_said}",
+                "Thank you {user} for the {bits} bits!{also_said}",
+                "{user} cheered with {bits} bits. Thank you for the support!{also_said}",
             ],
             friendly:
             [
-                "{user} cheered {bits} bits. Thank you so much!",
-                "Wow, {bits} bits from {user}! You are the best!",
-                "Thank you {user} for {bits} bits. You are so kind!",
+                "{user} cheered {bits} bits. Thank you so much!{also_said}",
+                "Wow, {bits} bits from {user}! You are the best!{also_said}",
+                "Thank you {user} for {bits} bits. You are so kind!{also_said}",
             ],
             sassy:
             [
-                "{user} cheered {bits} bits. Actual money for pixels. I respect it. Thank you.",
-                "{bits} bits from {user}. The economy of tiny animated things continues. Thank you!",
-                "{user} threw {bits} bits our way. Correct behaviour. Thanks!",
+                "{user} cheered {bits} bits. Actual money for pixels. I respect it. Thank you.{also_said}",
+                "{bits} bits from {user}. The economy of tiny animated things continues. Thank you!{also_said}",
+                "{user} threw {bits} bits our way. Correct behaviour. Thanks!{also_said}",
             ],
             hype:
             [
-                "{user} CHEERED {bits} BITS! LET'S GOOO!",
-                "{bits} BITS FROM {user}! THE CHAT IS SHAKING!",
-                "{user} JUST DROPPED {bits} BITS! ABSOLUTE LEGEND!",
+                "{user} CHEERED {bits} BITS! LET'S GOOO!{also_said}",
+                "{bits} BITS FROM {user}! THE CHAT IS SHAKING!{also_said}",
+                "{user} JUST DROPPED {bits} BITS! ABSOLUTE LEGEND!{also_said}",
             ],
             chill:
             [
-                "{user} cheered {bits} bits. thanks.",
-                "{bits} bits from {user}. appreciate it.",
-                "thanks for the bits, {user}.",
+                "{user} cheered {bits} bits. thanks.{also_said}",
+                "{bits} bits from {user}. appreciate it.{also_said}",
+                "thanks for the bits, {user}.{also_said}",
             ]
         );
 

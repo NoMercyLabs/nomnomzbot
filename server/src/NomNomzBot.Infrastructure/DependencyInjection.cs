@@ -885,6 +885,7 @@ public static class DependencyInjection
         // injects the concrete seeder directly for the same immediate-seed-on-onboarding reason.
         services.AddScoped<Content.Commands.EventResponseDefaultsSeeder>();
         services.AddScoped<Content.Commands.RaidResponseFlowSeeder>();
+        services.AddScoped<Content.Commands.CheerResponseFlowSeeder>();
 
         // Service impls bound by their I<X>Service interface (scoped). Singletons,
         // deployment-variant, and special-construction interfaces stay explicit below

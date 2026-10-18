@@ -45,7 +45,7 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
             "An anonymous gifter gave a sub to {user}!",
         ["channel.subscription.message"] =
             "{user} resubscribed for {months} months! Thank you!{also_said}",
-        ["channel.cheer"] = "{user} cheered {bits} bits! Thank you!",
+        ["channel.cheer"] = "{user} cheered {bits} bits! Thank you!{also_said}",
         ["channel.raid"] = "{user} is raiding with {viewers} viewers! Welcome raiders!",
     };
 

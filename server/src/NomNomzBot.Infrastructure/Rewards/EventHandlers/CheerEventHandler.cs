@@ -36,16 +36,20 @@ public sealed class CheerEventHandler
     protected override string? GetUserDisplayName(CheerEvent e) =>
         e.IsAnonymous ? "Anonymous" : e.UserDisplayName;
 
-    protected override Dictionary<string, string> BuildVariables(CheerEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
+    protected override Dictionary<string, string> BuildVariables(CheerEvent e)
+    {
+        string message = CheermoteText.Strip(e.Message);
+        return new(StringComparer.OrdinalIgnoreCase)
         {
             ["user"] = e.IsAnonymous ? "Anonymous" : e.UserDisplayName,
             ["user.id"] = e.IsAnonymous ? string.Empty : e.UserId,
             ["bits"] = e.Bits.ToString(),
-            ["message"] = CheermoteText.Strip(e.Message),
+            ["message"] = message,
+            ["also_said"] = AlsoSaidClause.From(message),
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
             ["provider"] = e.Provider,
         };
+    }
 
     protected override CheerEvent SampleEvent(DateTimeOffset now) =>
         new()

@@ -76,5 +76,16 @@ public sealed class CheerEventHandlerTests
         Dictionary<string, string> variables = await VariablesForAsync("Cheer100 Cheer100");
 
         variables["message"].Should().BeEmpty();
+        variables["also_said"].Should().BeEmpty("an empty cheer message gives no quote");
+    }
+
+    [Fact]
+    public async Task The_also_said_clause_quotes_the_message_without_its_cheermotes()
+    {
+        Dictionary<string, string> variables = await VariablesForAsync(
+            "Cheer100 great stream Cheer50 keep going"
+        );
+
+        variables["also_said"].Should().Be(" They also said: \"great stream keep going\"");
     }
 }

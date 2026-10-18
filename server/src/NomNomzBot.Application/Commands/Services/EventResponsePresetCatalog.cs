@@ -61,7 +61,7 @@ public static class EventResponsePresetCatalog
             "channel.subscription.gift.received.anonymous",
             ["user", "user.id", "tier", "anonymous"]
         ),
-        Preset("channel.cheer", ["user", "user.id", "bits", "message", "anonymous"]),
+        Preset("channel.cheer", ["user", "user.id", "bits", "message", "also_said", "anonymous"]),
         Preset("channel.raid", ["user", "user.id", "user.name", "viewers"]),
         Preset(
             "channel.poll.end",
