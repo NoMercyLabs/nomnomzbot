@@ -108,6 +108,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardAdminScheduledJobsRoute,
   dashboardAdminSupportRoute,
   dashboardAdminBillingRoute,
+  dashboardAdminContentRoute,
   dashboardAdminAccessRoute,
   dashboardAdminDataRequestsRoute,
   dashboardAdminEventReplayRoute,

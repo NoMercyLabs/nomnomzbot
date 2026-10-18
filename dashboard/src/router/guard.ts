@@ -27,6 +27,10 @@ declare module 'vue-router' {
     comingSoon?: string;
     // The chat page as a viewer sees it: read and send in your own voice, no moderation (chat-client.md 9a).
     viewerChat?: boolean;
+    // The channel action key a person must hold to open the page; anyone else lands on the first page they may open.
+    action?: string;
+    // The page is open to every signed-in person on purpose (the You settings, a coming-soon page): the explicit opt-out from naming an action.
+    open?: true;
   }
 }
 

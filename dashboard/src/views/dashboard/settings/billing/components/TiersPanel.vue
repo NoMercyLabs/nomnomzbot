@@ -26,12 +26,14 @@ import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 import { centsAsMoney } from '@/lib/number';
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const tiers = useBillingTiers(channelId);
 const subscription = useSubscription(channelId);
@@ -131,7 +133,7 @@ async function choose(tier: BillingTier): Promise<void> {
     :error-text="$t('dashboard.settings.billing.tiers.error')"
     @retry="tiers.refetch()"
   >
-    <template v-if="hasPaidPlan" #actions>
+    <template v-if="hasPaidPlan && can('billing:manage')" #actions>
       <LabeledSwitch
         v-model="atPeriodEnd"
         data-field="at-period-end"
@@ -165,7 +167,7 @@ async function choose(tier: BillingTier): Promise<void> {
             {{ $t('dashboard.settings.billing.tiers.current') }}
           </span>
           <Button
-            v-else-if="offered(tier)"
+            v-else-if="offered(tier) && can('billing:manage')"
             data-action="choose"
             size="sm"
             variant="outline"

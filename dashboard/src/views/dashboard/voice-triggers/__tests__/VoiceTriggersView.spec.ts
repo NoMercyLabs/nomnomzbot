@@ -34,6 +34,7 @@ type Row = Record<string, unknown>;
 const calls: Call[] = [];
 let rows: Row[] = [];
 let refusePatch: string | null = null;
+let held: string[] = ['voicetriggers:read', 'voicetriggers:write'];
 
 const voice = (id: string, overrides: Row = {}): Row => ({
   id,
@@ -83,6 +84,9 @@ function write(method: string, options?: Options): Answer {
 }
 
 function read(path: string): unknown {
+  if (path.endsWith('/roles/effective/me'))
+    return { heldActionKeys: held };
+
   if (path.endsWith('/voice-triggers'))
     return rows;
 
@@ -116,6 +120,7 @@ beforeEach(() => {
   calls.length = 0;
   rows = [voice('a'), voice('b', { isEnabled: false })];
   refusePatch = null;
+  held = ['voicetriggers:read', 'voicetriggers:write'];
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -264,5 +269,33 @@ describe('Voice triggers tab', () => {
 
     expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.id)).toEqual(['a']);
     expect(words()).toEqual(['word b']);
+  });
+});
+
+describe('Voice triggers permission gating', () => {
+  it('shows a reader the list only: no New voice trigger, no editor on a picked row', async () => {
+    held = ['voicetriggers:read'];
+    await open();
+    await click(rowOf('word a'));
+
+    expect(words()).toEqual(['word a', 'word b']);
+    expect(buttonByText('New voice trigger')).toBeUndefined();
+    expect(document.body.querySelector('[data-voice-editor]')).toBeNull();
+  });
+
+  it('shows a person with voicetriggers:write the New voice trigger button and the editor', async () => {
+    await open();
+    await click(rowOf('word a'));
+
+    expect(buttonByText('New voice trigger')).toBeDefined();
+    expect(document.body.querySelector('[data-voice-editor]')).not.toBeNull();
+  });
+
+  it('hides the first-trigger button in the empty list from a reader', async () => {
+    held = ['voicetriggers:read'];
+    rows = [];
+    await open();
+
+    expect(buttonByText('Make the first voice trigger')).toBeUndefined();
   });
 });

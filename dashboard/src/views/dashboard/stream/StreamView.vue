@@ -20,6 +20,7 @@ import type { BoardPanel } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 
@@ -35,8 +36,23 @@ const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 const VIEWS = ['overview', 'schedule', 'raids', 'ads'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
+const viewKeys = {
+  overview: ['stream:read', 'integration:read'],
+  schedule: ['live-ops:schedule:read'],
+  raids: ['live-ops:raids:read'],
+  ads: ['live-ops:ads:read'],
+} as const satisfies Record<(typeof VIEWS)[number], readonly string[]>;
+const { can } = useCan();
+// A tab shows when the person holds the read key of at least one panel on it.
+const allowed = computed<readonly string[]>(() =>
+  VIEWS.filter((value) => viewKeys[value].some(can)));
 const tabs = computed<PageTab[]>(() =>
-  VIEWS.map((value) => ({ value, label: t(`dashboard.stream.views.${value}`) })));
+  allowed.value.map((value) => ({ value, label: t(`dashboard.stream.views.${value}`) })));
+// A typed ?view= the person may not open falls back to the first tab they can.
+const shown = computed(() =>
+  allowed.value.includes(view.value)
+    ? view.value
+    : allowed.value[0]);
 const infoQuery = useStreamInfo(channelId);
 const historyQuery = useStreamHistory(channelId);
 const now = useNow({ scheduler: (tick: () => void) => useIntervalFn(tick, 30_000) });
@@ -92,15 +108,15 @@ const panels = computed(() => [
       />
     </template>
     <template v-if="meta" #meta>{{ meta }}</template>
-    <template #bar><PageTabs :tabs="tabs" /></template>
+    <template v-if="tabs.length > 1" #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
-  <div v-if="view === 'schedule'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><SchedulePanel /></div>
-  <div v-else-if="view === 'raids'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><RaidRulesPanel /></div>
-  <div v-else-if="view === 'ads'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><CommercialPanel /></div>
-  <BoardGrid v-else :panels="panels" :rows="2">
-    <BoardCell panel="info" :span="8" :rows="2"><StreamInfoPanel /></BoardCell>
-    <BoardCell panel="platforms" :span="4"><PlatformRows /></BoardCell>
-    <BoardCell panel="checklist" :span="4"><GoLiveChecklist /></BoardCell>
+  <div v-if="shown === 'schedule'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><SchedulePanel /></div>
+  <div v-else-if="shown === 'raids'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><RaidRulesPanel /></div>
+  <div v-else-if="shown === 'ads'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><CommercialPanel /></div>
+  <BoardGrid v-else-if="shown === 'overview'" :panels="panels" :rows="2">
+    <BoardCell v-if="can('stream:read')" panel="info" :span="8" :rows="2"><StreamInfoPanel /></BoardCell>
+    <BoardCell v-if="can('integration:read')" panel="platforms" :span="4"><PlatformRows /></BoardCell>
+    <BoardCell v-if="can('stream:read')" panel="checklist" :span="4"><GoLiveChecklist /></BoardCell>
   </BoardGrid>
 </template>

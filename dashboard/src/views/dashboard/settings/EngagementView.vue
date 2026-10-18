@@ -21,6 +21,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -28,6 +29,7 @@ import ReadabilityRow from './components/ReadabilityRow.vue';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const config = useEngagementConfig(channelId);
 const save = useSaveEngagementConfig(channelId);
 
@@ -139,16 +141,19 @@ async function submit(): Promise<void> {
         <RowGroup>
           <SettingRow
             v-model="firstTime"
+            :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.firstTime.title')"
             :description="$t('dashboard.settings.engagement.firstTime.description')"
           />
           <SettingRow
             v-model="returning"
+            :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.returning.title')"
             :description="$t('dashboard.settings.engagement.returning.description')"
           />
           <SettingRow
             v-model="streak"
+            :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.streak.title')"
             :description="$t('dashboard.settings.engagement.streak.description')"
           />
@@ -172,6 +177,7 @@ async function submit(): Promise<void> {
               min="0"
               step="1"
               data-cooldown
+              :disabled="!can('engagement:write')"
               :model-value="cooldown"
               :aria-invalid="!cooldownValid"
               :aria-label="$t('dashboard.settings.engagement.cooldown.title')"
@@ -205,6 +211,7 @@ async function submit(): Promise<void> {
               min="1"
               step="1"
               data-milestone
+              :disabled="!can('engagement:write')"
               :model-value="milestone"
               :aria-invalid="!isCountValid(milestone)"
               :aria-label="$t('dashboard.settings.engagement.milestones.item', { number: index + 1 })"
@@ -214,6 +221,7 @@ async function submit(): Promise<void> {
               $t('dashboard.settings.engagement.milestones.unit')
             }}</span>
             <Button
+              v-if="can('engagement:write')"
               type="button"
               variant="ghost"
               size="icon"
@@ -231,7 +239,7 @@ async function submit(): Promise<void> {
             {{ $t('dashboard.settings.engagement.milestones.empty') }}
           </p>
         </RowGroup>
-        <div class="px-3">
+        <div v-if="can('engagement:write')" class="px-3">
           <Button
             type="button"
             variant="outline"
@@ -247,7 +255,7 @@ async function submit(): Promise<void> {
 
       <p v-if="error" role="alert" class="px-3 text-sm text-destructive">{{ error }}</p>
     </form>
-    <template #footer>
+    <template v-if="can('engagement:write')" #footer>
       <span v-if="changed && !(cooldownValid && milestonesValid)" class="mr-auto text-sm text-destructive">{{
         $t('dashboard.settings.engagement.invalid')
       }}</span>

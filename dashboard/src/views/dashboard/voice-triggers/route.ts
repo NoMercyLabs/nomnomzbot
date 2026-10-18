@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardVoiceTriggersRoute = {
   path: 'voice-triggers',
   name: 'dashboard-voice-triggers',
+  meta: { action: 'voicetriggers:read' },
   component: () =>
     loadPage(
       () => import('./VoiceTriggersView.vue'),

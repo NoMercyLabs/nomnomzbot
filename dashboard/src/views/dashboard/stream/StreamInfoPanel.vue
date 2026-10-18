@@ -26,6 +26,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -47,6 +48,8 @@ const CONTENT_LABELS: readonly string[] = [
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
+const canEdit = computed(() => can('channel:title:write'));
 const infoQuery = useStreamInfo(channelId);
 const historyQuery = useStreamHistory(channelId);
 const save = useSaveStreamInfo(channelId);
@@ -125,7 +128,7 @@ function submit(): void {
     :error-text="t('dashboard.stream.info.error')"
     @retry="infoQuery.refetch()"
   >
-    <div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-6" :inert="!canEdit">
       <div class="flex flex-col gap-2">
         <div class="flex items-baseline justify-between">
           <label for="stream-title" class="text-sm font-medium">{{
@@ -209,7 +212,7 @@ function submit(): void {
         </RowGroup>
       </div>
 
-      <div class="flex items-center justify-end gap-2">
+      <div v-if="canEdit" class="flex items-center justify-end gap-2">
         <Button variant="ghost" :disabled="!dirty" @click="draft = {}">{{
           t('dashboard.stream.info.discard')
         }}</Button>

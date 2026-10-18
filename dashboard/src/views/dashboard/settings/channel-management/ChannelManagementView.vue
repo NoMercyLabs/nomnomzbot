@@ -82,7 +82,7 @@ function label(base: string, key: string): string {
     : short.replaceAll('_', ' ');
 }
 
-const consequences = computed<string[]>(() => {
+const consequences = computed<readonly string[]>(() => {
   if (preview.value === null)
     return [];
 

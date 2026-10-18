@@ -188,7 +188,7 @@ describe('Resource limits route', () => {
     expect(entry).toBeDefined();
     expect(record).toBeDefined();
     expect(record!.path).toBe('settings/resource-limits');
-    expect(record!.meta).toMatchObject({ navMode: 'settings' });
+    expect(record!.meta).toMatchObject({ navMode: 'settings', action: 'billing:read' });
     expect(record!.meta?.comingSoon).toBeUndefined();
   });
 });

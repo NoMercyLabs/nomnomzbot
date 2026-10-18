@@ -57,7 +57,10 @@ export function useNavigation(): Navigation {
     if (entry.unless !== undefined && access.can(entry.unless))
       return false;
 
-    return entry.action === undefined || access.can(entry.action);
+    // The entry names its own action, else it takes the one its route names: one key for entry and route.
+    const needed = entry.action ?? router.resolve({ name: entry.route }).meta.action;
+
+    return needed === undefined || access.can(needed);
   }
 
   // A page that is not built yet has no route, so it has no entry (pages appear as they land).

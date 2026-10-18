@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { locales } from '@/i18n';
 import { merge } from '@/lib/array';
@@ -48,6 +49,7 @@ const linePattern = /^.{0,4}$/u;
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const basics = useBasics(channelId);
 const save = useUpdateBasics(channelId);
 
@@ -174,6 +176,7 @@ function discard(): void {
           class="w-24"
           maxlength="5"
           :aria-label="$t('dashboard.settings.basics.prefix.title')"
+          :disabled="!can('setup:write')"
           :aria-invalid="!prefixValid"
         />
       </ReadabilityRow>
@@ -186,6 +189,7 @@ function discard(): void {
           class="w-24"
           maxlength="4"
           :aria-label="$t('dashboard.settings.basics.botLinePrefix.title')"
+          :disabled="!can('setup:write')"
           :aria-invalid="!lineValid"
         />
       </ReadabilityRow>
@@ -193,7 +197,7 @@ function discard(): void {
         :title="$t('dashboard.settings.basics.locale.title')"
         :description="$t('dashboard.settings.basics.locale.description')"
       >
-        <Select v-model="draft.locale">
+        <Select v-model="draft.locale" :disabled="!can('setup:write')">
           <SelectTrigger
             class="w-56"
             :aria-label="$t('dashboard.settings.basics.locale.title')"
@@ -213,7 +217,7 @@ function discard(): void {
         :title="$t('dashboard.settings.basics.timezone.title')"
         :description="$t('dashboard.settings.basics.timezone.description')"
       >
-        <Select v-model="draft.timezone">
+        <Select v-model="draft.timezone" :disabled="!can('setup:write')">
           <SelectTrigger
             class="w-56"
             :aria-label="$t('dashboard.settings.basics.timezone.title')"
@@ -229,11 +233,12 @@ function discard(): void {
       </ReadabilityRow>
       <SettingRow
         v-model="draft.autoJoin"
+        :disabled="!can('setup:write')"
         :title="$t('dashboard.settings.basics.autoJoin.title')"
         :description="$t('dashboard.settings.basics.autoJoin.description')"
       />
     </RowGroup>
-    <template #footer>
+    <template v-if="can('setup:write')" #footer>
       <div class="flex w-full items-center justify-end gap-2">
         <Button variant="ghost" size="sm" :disabled="!dirty || save.isPending.value" @click="discard">
           {{ $t('dashboard.settings.basics.discard') }}

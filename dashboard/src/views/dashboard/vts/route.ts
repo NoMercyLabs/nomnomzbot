@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardVtsRoute = {
   path: 'vtube-studio',
   name: 'dashboard-vtube-studio',
+  meta: { action: 'vts:config:read' },
   component: () =>
     loadPage(
       () => import('./VtsView.vue'),

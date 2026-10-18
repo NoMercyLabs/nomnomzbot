@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardGamesRoute = {
   path: 'games',
   name: 'dashboard-games',
+  meta: { action: 'games:session:read' },
   component: () =>
     loadPage(
       () => import('./GamesView.vue'),

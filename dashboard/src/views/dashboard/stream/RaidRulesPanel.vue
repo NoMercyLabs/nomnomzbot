@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import Plus from '~icons/nnz/add';
@@ -27,6 +28,8 @@ import Cross from '~icons/nnz/cross';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
+const canEdit = computed(() => can('live-ops:raids:write'));
 const query = useRaidRules(channelId);
 const save = useSaveRaidRules(channelId);
 
@@ -107,18 +110,28 @@ function submit(): void {
     :error-text="t('dashboard.stream.raids.error')"
     @retry="query.refetch()"
   >
-    <div v-if="draft" class="flex flex-col gap-6">
+    <div v-if="draft" :inert="!canEdit" class="flex flex-col gap-6">
       <section class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t('dashboard.stream.raids.preferredCategories') }}</span>
         <div v-for="(rule, index) in draft.preferredCategories" :key="index" class="flex items-center gap-2" data-category-rule>
           <Input v-model="rule.name" :aria-label="t('dashboard.stream.raids.name')" :placeholder="t('dashboard.stream.raids.name')" />
           <Input v-model.number="rule.weight" type="number" class="w-24" :aria-label="t('dashboard.stream.raids.weight')" />
           <Input v-model="rule.label" :aria-label="t('dashboard.stream.raids.label')" :placeholder="t('dashboard.stream.raids.label')" />
-          <Button variant="ghost" size="icon" :aria-label="t('dashboard.stream.raids.remove')" @click="removeAt(draft.preferredCategories, index)">
+          <Button v-if="canEdit"
+                  variant="ghost"
+                  size="icon"
+                  :aria-label="t('dashboard.stream.raids.remove')"
+                  @click="removeAt(draft.preferredCategories, index)"
+          >
             <Cross class="size-5" />
           </Button>
         </div>
-        <Button variant="outline" size="sm" class="w-fit" @click="addCategory">
+        <Button v-if="canEdit"
+                variant="outline"
+                size="sm"
+                class="w-fit"
+                @click="addCategory"
+        >
           <Plus class="size-5" />{{ t('dashboard.stream.raids.addCategory') }}
         </Button>
         <div class="grid gap-3 sm:grid-cols-2">
@@ -151,11 +164,21 @@ function submit(): void {
           <label class="flex items-center gap-1.5 text-sm">
             <Switch v-model="rule.matchTitle" />{{ t('dashboard.stream.raids.matchTitle') }}
           </label>
-          <Button variant="ghost" size="icon" :aria-label="t('dashboard.stream.raids.remove')" @click="removeAt(draft.keywords, index)">
+          <Button v-if="canEdit"
+                  variant="ghost"
+                  size="icon"
+                  :aria-label="t('dashboard.stream.raids.remove')"
+                  @click="removeAt(draft.keywords, index)"
+          >
             <Cross class="size-5" />
           </Button>
         </div>
-        <Button variant="outline" size="sm" class="w-fit" @click="addKeyword">
+        <Button v-if="canEdit"
+                variant="outline"
+                size="sm"
+                class="w-fit"
+                @click="addKeyword"
+        >
           <Plus class="size-5" />{{ t('dashboard.stream.raids.addKeyword') }}
         </Button>
       </section>
@@ -167,11 +190,21 @@ function submit(): void {
           <Input v-model.number="band.max" type="number" class="w-24" :aria-label="t('dashboard.stream.raids.max')" />
           <Input v-model.number="band.weight" type="number" class="w-24" :aria-label="t('dashboard.stream.raids.weight')" />
           <Input v-model="band.label" :aria-label="t('dashboard.stream.raids.label')" :placeholder="t('dashboard.stream.raids.label')" />
-          <Button variant="ghost" size="icon" :aria-label="t('dashboard.stream.raids.remove')" @click="removeAt(draft.viewerBands, index)">
+          <Button v-if="canEdit"
+                  variant="ghost"
+                  size="icon"
+                  :aria-label="t('dashboard.stream.raids.remove')"
+                  @click="removeAt(draft.viewerBands, index)"
+          >
             <Cross class="size-5" />
           </Button>
         </div>
-        <Button variant="outline" size="sm" class="w-fit" @click="addBand">
+        <Button v-if="canEdit"
+                variant="outline"
+                size="sm"
+                class="w-fit"
+                @click="addBand"
+        >
           <Plus class="size-5" />{{ t('dashboard.stream.raids.addBand') }}
         </Button>
       </section>
@@ -186,11 +219,21 @@ function submit(): void {
           <Input v-model.number="step.withinDays" type="number" class="w-24" :aria-label="t('dashboard.stream.raids.withinDays')" />
           <Input v-model.number="step.weight" type="number" class="w-24" :aria-label="t('dashboard.stream.raids.weight')" />
           <Input v-model="step.note" :aria-label="t('dashboard.stream.raids.note')" :placeholder="t('dashboard.stream.raids.note')" />
-          <Button variant="ghost" size="icon" :aria-label="t('dashboard.stream.raids.remove')" @click="removeAt(draft.recency.steps, index)">
+          <Button v-if="canEdit"
+                  variant="ghost"
+                  size="icon"
+                  :aria-label="t('dashboard.stream.raids.remove')"
+                  @click="removeAt(draft.recency.steps, index)"
+          >
             <Cross class="size-5" />
           </Button>
         </div>
-        <Button variant="outline" size="sm" class="w-fit" @click="addStep">
+        <Button v-if="canEdit"
+                variant="outline"
+                size="sm"
+                class="w-fit"
+                @click="addStep"
+        >
           <Plus class="size-5" />{{ t('dashboard.stream.raids.addStep') }}
         </Button>
         <div class="grid gap-3 sm:grid-cols-2">
@@ -227,7 +270,7 @@ function submit(): void {
         </div>
       </section>
 
-      <div class="flex justify-end">
+      <div v-if="canEdit" class="flex justify-end">
         <Button data-raid-rules-save :disabled="!dirty || save.isPending.value" @click="submit">
           {{ t('dashboard.stream.raids.save') }}
         </Button>

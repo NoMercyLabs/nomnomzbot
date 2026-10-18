@@ -8,11 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteRecordRaw } from 'vue-router';
+import type { RouteMeta, RouteRecordRaw } from 'vue-router';
 
 import { adminOnly } from '@/views/dashboard/admin/route';
 import { navByMode } from '@/layouts/dashboard/navModes';
-import type { NavMode } from '@/layouts/dashboard/navigation';
+import type { NavEntry, NavMode } from '@/layouts/dashboard/navigation';
 
 // A page reads its address from its name: dashboard-admin-audit-log is /app/admin/audit-log,
 // dashboard-viewer-games is /app/me/games, and dashboard-obs is /app/obs.
@@ -23,6 +23,13 @@ function pathOf(name: string): string {
     return slug.replace('viewer-', 'me/');
 
   return slug.replace(/^(admin|settings)-/, '$1/');
+}
+
+// A planned page asks for the action key of its sidebar entry; an entry without one is open to every signed-in person.
+function access(entry: NavEntry): Pick<RouteMeta, 'action' | 'open'> {
+  return entry.action === undefined
+    ? { open: true }
+    : { action: entry.action };
 }
 
 // A route for every page of every sidebar that has no built route yet; each opens the empty "coming soon" page.
@@ -40,6 +47,7 @@ export function scaffoldRoutes(built: ReadonlySet<string>): RouteRecordRaw[] {
         meta: {
           navMode: mode,
           comingSoon: entry.label,
+          ...access(entry),
         },
         beforeEnter: mode === 'admin'
           ? adminOnly

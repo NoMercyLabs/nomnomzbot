@@ -17,12 +17,16 @@ type Router = typeof import('../router').default;
 
 const refreshOk = { data: { accessToken: 'token-from-cookie', expiresIn: 3600 } };
 
-function stubFetch(refreshStatus: number): void {
+// A signed-in person's other calls answer with an empty list, so the access guard reads no channel.
+function stubFetch(refreshStatus: number, otherCallsOk = false): void {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {
       if (request.url.endsWith('/auth/refresh') && refreshStatus === 200)
         return new Response(JSON.stringify(refreshOk), { status: 200 });
+
+      if (otherCallsOk && !request.url.endsWith('/auth/refresh'))
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
 
       return new Response('{}', { status: refreshStatus });
     }),
@@ -70,7 +74,7 @@ describe('sign-in guard', () => {
   });
 
   it('takes the token from the OAuth fragment, strips it from the address and never stores it', async () => {
-    stubFetch(401);
+    stubFetch(401, true);
     history.replaceState(null, '', '/app#access_token=from-fragment&expires_in=3600');
     const router = await freshRouter();
 

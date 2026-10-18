@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardScriptsRoute = {
   path: 'scripts',
   name: 'dashboard-scripts',
+  meta: { action: 'code:script:author' },
   component: () =>
     loadPage(
       () => import('./ScriptsView.vue'),

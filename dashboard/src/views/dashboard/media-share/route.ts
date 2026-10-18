@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardMediaShareRoute = {
   path: 'media-share',
   name: 'dashboard-media-share',
+  meta: { action: 'media:read' },
   component: () =>
     loadPage(
       () => import('./MediaShareView.vue'),

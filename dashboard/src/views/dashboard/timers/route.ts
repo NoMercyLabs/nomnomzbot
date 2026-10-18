@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardTimersRoute = {
   path: 'triggers-timers',
   name: 'dashboard-triggers-timers',
+  meta: { action: 'timers:read' },
   component: () =>
     loadPage(
       () => import('./TimersView.vue'),

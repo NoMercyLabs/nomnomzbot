@@ -22,6 +22,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 
@@ -34,6 +35,7 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const timers = useTimers(channelId);
 const remove = useDeleteTimer(channelId);
 
@@ -59,11 +61,28 @@ function removeTimer(item: Timer): void {
 const creating = ref(false);
 const creatingTrigger = ref(false);
 
-const tabs = computed<PageTab[]>(() => [
+// Each tab needs the read key of its own endpoint; the New button needs the write key of the open tab.
+const tabKeys = {
+  timers: { read: 'timers:read', write: 'timers:write' },
+  triggers: { read: 'chattriggers:read', write: 'chattriggers:write' },
+} as const;
+const allTabs = computed<PageTab[]>(() => [
   { value: 'timers', label: t('dashboard.timers.tabs.timers') },
   { value: 'triggers', label: t('dashboard.timers.tabs.triggers') },
 ]);
-const view = usePageView(['timers', 'triggers']);
+
+function canRead(tab: PageTab): boolean {
+  const keys = tabKeys[tab.value as keyof typeof tabKeys];
+
+  return can(keys.read);
+}
+
+const tabs = computed<PageTab[]>(() => allTabs.value.filter(canRead));
+const view = usePageView(() => tabs.value.map((tab: PageTab): string => tab.value));
+const canCreate = computed<boolean>(() =>
+  can(tabKeys[view.value === 'triggers'
+    ? 'triggers'
+    : 'timers'].write));
 
 function create(): void {
   if (view.value === 'triggers') {
@@ -79,7 +98,12 @@ function create(): void {
 <template>
   <PageHeader :title="$t('dashboard.timers.title')" :crumb="$t('dashboard.timers.crumb')">
     <template #actions>
-      <Button type="button" variant="outline" size="sm" @click="create">
+      <Button v-if="canCreate"
+              type="button"
+              variant="outline"
+              size="sm"
+              @click="create"
+      >
         <Plus aria-hidden="true" />
         {{ view === 'triggers' ? $t('dashboard.timers.triggers.new') : $t('dashboard.timers.new') }}
       </Button>
@@ -93,7 +117,7 @@ function create(): void {
     <template #list>
       <TimerList :selected="selected" @pick="select" @create="creating = true" />
     </template>
-    <template #detail>
+    <template v-if="can('timers:write')" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
         <Button
           data-detail-back

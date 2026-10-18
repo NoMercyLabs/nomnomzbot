@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsResourceLimitsRoute = {
   path: 'settings/resource-limits',
   name: 'dashboard-settings-resource-limits',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'billing:read',
+  },
   component: () =>
     loadPage(
       () => import('./ResourceLimitsView.vue'),

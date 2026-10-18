@@ -16,6 +16,7 @@ import { loadPage, schemaWords } from '@/i18n';
 export const dashboardOverlaysRoute = {
   path: 'overlays',
   name: 'dashboard-overlays',
+  meta: { action: 'widget:read' },
   component: () =>
     loadPage(
       () => import('./OverlaysView.vue'),

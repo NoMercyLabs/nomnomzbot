@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardHomeRoute = {
   path: '',
   name: 'dashboard-home',
+  meta: { action: 'dashboard:read' },
   component: () =>
     loadPage(
       () => import('./HomeView.vue'),

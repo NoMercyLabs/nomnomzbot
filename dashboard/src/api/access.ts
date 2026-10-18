@@ -10,7 +10,7 @@
 
 import { computed, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 
-import { channelQuery, failed } from './channelQuery';
+import { channelOptions, channelQuery, failed } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
@@ -40,6 +40,13 @@ async function readAccess(channelId: string): Promise<ResolvedAccess> {
     throw failed('channel access', response.status, error);
 
   return data.data;
+}
+
+// The key and reader of one channel's access: what the page runs and what a route guard awaits.
+export function channelAccessOptions(
+  channelId: string,
+): ReturnType<typeof channelOptions<ResolvedAccess>> {
+  return channelOptions(channelAccessKey, readAccess, channelId);
 }
 
 // What the signed-in person may do in a channel: the action keys the bot's own gate checks

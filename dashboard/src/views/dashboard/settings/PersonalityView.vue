@@ -19,6 +19,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -30,6 +31,7 @@ interface ToneChoice {
 
 const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const personality = usePersonality(channelId);
 const save = useSetPersonality(channelId);
 const state = usePanelState(personality);
@@ -66,6 +68,7 @@ function pick(value: AcceptableValue): void {
   >
     <RadioGroup
       class="gap-0"
+      :disabled="!can('setup:write')"
       :model-value="personality.data.value?.personality"
       :aria-label="$t('dashboard.settings.personality.title')"
       @update:model-value="pick"

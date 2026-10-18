@@ -31,6 +31,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText, fieldErrorLines } from '@/lib/errors';
@@ -41,6 +42,7 @@ import TestFeedDialog from './components/TestFeedDialog.vue';
 
 const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const feeds = useEventFeeds(channelId);
 const presets = useEventFeedPresets(channelId);
 const save = useSaveEventFeed(channelId);
@@ -180,7 +182,7 @@ async function confirmDelete(): Promise<void> {
       :error-text="$t('dashboard.settings.customEventFeeds.loadFailed')"
       @retry="feeds.refetch()"
     >
-      <template #actions>
+      <template v-if="can('customdata:write')" #actions>
         <Button data-new-feed @click="openEditor(null)">
           <Add class="size-5" />
           {{ $t('dashboard.settings.customEventFeeds.new') }}

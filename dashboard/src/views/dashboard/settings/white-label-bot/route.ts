@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsWhiteLabelBotRoute = {
   path: 'settings/white-label-bot',
   name: 'dashboard-settings-white-label-bot',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'channelbot:read',
+  },
   component: () =>
     loadPage(
       () => import('./WhiteLabelBotView.vue'),

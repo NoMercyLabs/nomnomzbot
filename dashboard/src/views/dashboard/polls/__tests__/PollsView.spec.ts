@@ -130,9 +130,25 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
+const allKeys = [
+  'live-ops:polls:read',
+  'live-ops:polls:write',
+  'live-ops:predictions:read',
+  'live-ops:predictions:write',
+];
+const access = vi.hoisted(() => ({ held: [] as string[] }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => access.held.includes(key),
+  }),
+}));
+
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
+  access.held = allKeys;
   localStorage.clear();
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
@@ -219,6 +235,55 @@ describe('PollsView lead panel', () => {
 
     expect(leading).toHaveLength(1);
     expect(leading?.[0]?.className).toContain('bg-primary');
+  });
+});
+
+describe('PollsView permissions', () => {
+  it('hides the history panel without the polls read key', async () => {
+    access.held = ['live-ops:polls:write', 'live-ops:predictions:write'];
+    await open();
+
+    expect(document.querySelector('[data-segment]')).toBeNull();
+    expect(document.querySelector('[data-lead="empty"]')).not.toBeNull();
+  });
+
+  it('hides the whole lead panel when nothing runs and the person starts neither', async () => {
+    access.held = ['live-ops:polls:read'];
+    await open();
+
+    expect(document.querySelector('[data-lead]')).toBeNull();
+    expect(document.querySelector('[data-segment]')).not.toBeNull();
+  });
+
+  it('leaves a lone primary Start a prediction when only predictions can be started', async () => {
+    access.held = ['live-ops:predictions:write'];
+    await open();
+
+    expect(document.querySelector('[data-lead-start="poll"]')).toBeNull();
+
+    const prediction = document.querySelector('[data-lead-start="prediction"]');
+
+    expect(prediction?.getAttribute('data-variant')).toBe('default');
+  });
+
+  it('shows a running poll without its End action when polls cannot be changed', async () => {
+    access.held = ['live-ops:polls:read'];
+    server.polls = [runningPoll];
+    await open();
+
+    const lead = document.querySelector('[data-lead="running"]');
+
+    expect(lead?.textContent).toContain('Play next?');
+    expect(lead?.querySelector('[data-lead-end]')).toBeNull();
+    expect(lead?.querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('shows the End action with the polls write key', async () => {
+    access.held = ['live-ops:polls:read', 'live-ops:polls:write'];
+    server.polls = [runningPoll];
+    await open();
+
+    expect(document.querySelector('[data-lead-end]')).not.toBeNull();
   });
 });
 

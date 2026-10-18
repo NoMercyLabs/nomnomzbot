@@ -18,6 +18,7 @@ import { ANALYTICS_RANGES, type AnalyticsRange } from '@/api/analytics';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
 
 import AnalyticsChat from './AnalyticsChat.vue';
@@ -25,6 +26,7 @@ import AnalyticsOverview from './AnalyticsOverview.vue';
 import AnalyticsStreams from './AnalyticsStreams.vue';
 
 const { t } = useI18n();
+const { can } = useCan();
 
 const VIEWS = ['overview', 'streams', 'chat'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
@@ -40,7 +42,11 @@ const rangeOptions = computed(() =>
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.analytics.title')" :crumb="$t('dashboard.analytics.crumb')">
+  <PageHeader
+    v-if="can('analytics:read')"
+    :title="$t('dashboard.analytics.title')"
+    :crumb="$t('dashboard.analytics.crumb')"
+  >
     <template #actions>
       <SegmentedControl
         v-model="range"
@@ -50,7 +56,9 @@ const rangeOptions = computed(() =>
     </template>
     <template #bar><PageTabs :tabs="views" /></template>
   </PageHeader>
-  <AnalyticsStreams v-if="view === 'streams'" :range="range" />
-  <AnalyticsChat v-else-if="view === 'chat'" :range="range" />
-  <AnalyticsOverview v-else :range="range" />
+  <template v-if="can('analytics:read')">
+    <AnalyticsStreams v-if="view === 'streams'" :range="range" />
+    <AnalyticsChat v-else-if="view === 'chat'" :range="range" />
+    <AnalyticsOverview v-else :range="range" />
+  </template>
 </template>

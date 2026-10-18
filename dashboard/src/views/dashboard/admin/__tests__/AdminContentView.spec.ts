@@ -20,7 +20,7 @@ import { dashboardRoutes } from '@/router/dashboard';
 
 import AdminContentView from '../AdminContentView.vue';
 import en from '../i18n/en.json';
-import { dashboardAdminContentRoute } from '../route';
+import { adminOnly, dashboardAdminContentRoute } from '../route';
 
 type Options = {
   params?: { query?: Record<string, unknown>; path?: Record<string, unknown> };
@@ -277,6 +277,8 @@ describe('AdminContentView', () => {
     const registered = children.find((route) => route.name === 'dashboard-admin-content');
 
     expect(registered?.path).toBe('admin/content');
-    expect(registered?.beforeEnter).toBe(dashboardAdminContentRoute.beforeEnter);
+    expect(registered?.beforeEnter).toBe(adminOnly);
+    expect(registered?.component).toBe(dashboardAdminContentRoute.component);
+    expect(registered?.meta?.comingSoon).toBeUndefined();
   });
 });

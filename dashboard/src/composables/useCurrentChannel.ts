@@ -51,10 +51,10 @@ export type CurrentChannel = {
 };
 
 // The channel being managed. It outlives a reload and is shared by every part of the frame.
-const chosenChannelId = useLocalStorage<string>('nnz.channel', '');
+export const chosenChannelId = useLocalStorage<string>('nnz.channel', '');
 
 // The channels the person reaches: the ones set up here, then the Twitch channels they moderate that are not.
-function channelChoices(
+export function channelChoices(
   rows: readonly ChannelSummary[],
   moderatedRows: readonly ModeratedChannel[],
 ): readonly ChannelChoice[] {
@@ -90,7 +90,10 @@ function channelChoices(
 }
 
 // The chosen channel, else the person's own, else any that is set up.
-function pickCurrent(choices: readonly ChannelChoice[], chosenId: string): ChannelChoice | null {
+export function pickCurrent(
+  choices: readonly ChannelChoice[],
+  chosenId: string,
+): ChannelChoice | null {
   return (
     choices.find((row) => row.channelId !== null && row.channelId === chosenId) ??
     choices.find((row) => row.kind === 'own') ??
@@ -115,13 +118,10 @@ export function useCurrentChannel(): CurrentChannel {
   const moderated = useModeratedChannels();
   const enter = useEnterModeratedChannel();
 
-  const channels = computed<readonly ChannelChoice[]>(() =>
+  const channels = computed(() =>
     channelChoices(mine.data.value ?? [], moderated.data.value ?? []),
   );
-
-  const current = computed<ChannelChoice | null>(() =>
-    pickCurrent(channels.value, chosenChannelId.value),
-  );
+  const current = computed(() => pickCurrent(channels.value, chosenChannelId.value));
 
   async function choose(choice: ChannelChoice): Promise<void> {
     if (choice.channelId) {

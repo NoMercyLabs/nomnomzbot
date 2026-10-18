@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardTtsRoute = {
   path: 'tts',
   name: 'dashboard-tts',
+  meta: { action: 'tts:config:read' },
   component: () =>
     loadPage(
       () => import('./TtsView.vue'),

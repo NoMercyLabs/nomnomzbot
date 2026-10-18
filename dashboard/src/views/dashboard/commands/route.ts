@@ -16,6 +16,7 @@ import { loadPage, schemaWords } from '@/i18n';
 export const dashboardCommandsRoute = {
   path: 'commands',
   name: 'dashboard-commands',
+  meta: { action: 'commands:read' },
   component: () =>
     loadPage(
       () => import('./CommandsView.vue'),

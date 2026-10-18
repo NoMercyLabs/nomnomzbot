@@ -20,6 +20,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -32,6 +33,7 @@ const CONNECTABLE: readonly { provider: string; scopeSetKey: string }[] = [
 const { t } = useI18n();
 const { channelId, current } = useCurrentChannel();
 const connectionsQuery = useConnections(channelId);
+const { can } = useCan();
 const connect = useConnectIntegration(channelId);
 const state = usePanelState(connectionsQuery);
 
@@ -83,6 +85,7 @@ async function open(provider: string, scopeSetKey: string): Promise<void> {
             <div v-else class="flex items-center gap-3">
               <StatusBadge tone="off" :label="t('dashboard.stream.platforms.notConnected')" />
               <InlineFlow
+                v-if="can('integration:write')"
                 kind="confirm"
                 right
                 :label="

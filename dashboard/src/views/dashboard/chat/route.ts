@@ -21,6 +21,7 @@ const chatPage = () =>
 export const dashboardChatRoute = {
   path: 'chat',
   name: 'dashboard-chat',
+  meta: { action: 'chat:read' },
   component: chatPage,
 } as const satisfies RouteRecordRaw;
 
@@ -29,7 +30,10 @@ export const dashboardViewerChatRoute = {
   path: 'viewer-chat',
   name: 'dashboard-viewer-chat',
   component: chatPage,
-  meta: { viewerChat: true },
+  meta: {
+    viewerChat: true,
+    action: 'chat:viewer:read',
+  },
 } as const satisfies RouteRecordRaw;
 
 // The viewer chat under the viewer frame, for one channel by its name.
@@ -37,7 +41,10 @@ export const viewerChatRoute = {
   path: ':channel/chat',
   name: 'viewer-chat',
   component: chatPage,
-  meta: { viewerChat: true },
+  meta: {
+    viewerChat: true,
+    action: 'chat:viewer:read',
+  },
 } as const satisfies RouteRecordRaw;
 
 // The chat of a Twitch channel the bot does not serve, found by its Twitch id in `?id=` (chat-client.md 9a).
@@ -49,7 +56,11 @@ export const viewerExternalChatRoute = {
       () => import('./ExternalChatView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
-  meta: { viewerChat: true },
+  // A channel the bot does not serve has no access rows and no action key: the page reads Twitch directly.
+  meta: {
+    viewerChat: true,
+    open: true,
+  },
 } as const satisfies RouteRecordRaw;
 
 // The same page in its own window, under the popout frame.
@@ -57,5 +68,8 @@ export const popoutChatRoute = {
   path: 'chat',
   name: 'popout-chat',
   component: chatPage,
-  meta: { popout: true },
+  meta: {
+    popout: true,
+    action: 'chat:read',
+  },
 } as const satisfies RouteRecordRaw;

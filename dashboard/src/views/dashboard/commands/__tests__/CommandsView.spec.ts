@@ -40,6 +40,7 @@ let answers: Record<string, () => Answer> = {};
 let rows: Row[] = [];
 let refusePut: string | null = null;
 let refusePost: string | null = null;
+let held: string[] = ['commands:read', 'commands:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 const refused = (message: string, status: number = 400): Answer => ({
@@ -73,6 +74,7 @@ const command = (name: string, overrides: Row = {}): Row => ({
 
 function freshAnswers(): Record<string, () => Answer> {
   return {
+    '/roles/effective/me': () => ok({ heldActionKeys: held }),
     '/commands': () => ok(rows.map((row) => ({ ...row }))),
     '/pipelines': () =>
       ok([
@@ -194,6 +196,7 @@ beforeEach(() => {
 
   refusePut = null;
   refusePost = null;
+  held = ['commands:read', 'commands:write'];
   answers = freshAnswers();
   pinia = createPinia();
   setActivePinia(pinia);
@@ -1072,5 +1075,41 @@ describe('CommandsView built-in tab', () => {
     expect(writes('PATCH')).toHaveLength(1);
     expect(writes('PATCH')[0]!.name).toBe('uptime');
     expect(writes('PATCH')[0]!.body).toEqual({ enabled: false });
+  });
+});
+
+describe('CommandsView permission gating', () => {
+  it('shows a reader the list only: no New command, no editor, no Built-in tab', async () => {
+    held = ['commands:read'];
+    await open('/app/commands?command=hello');
+
+    expect(rowNames()).toContain('hello');
+    expect(buttonByText('New command')).toBeUndefined();
+    expect(editor()).toBeNull();
+    expect(buttonByText('Built-in')).toBeUndefined();
+  });
+
+  it('shows a person with commands:write the New command button, the editor and the Built-in tab', async () => {
+    await open('/app/commands?command=hello');
+
+    expect(buttonByText('New command')).toBeDefined();
+    expect(editor()).not.toBeNull();
+    expect(buttonByText('Built-in')).toBeDefined();
+  });
+
+  it('opens the All tab for a reader who asks for the Built-in tab by address', async () => {
+    held = ['commands:read'];
+    await open('/app/commands?view=builtin');
+
+    expect(document.body.querySelector('[data-slot="setting-row"]')).toBeNull();
+    expect(rowNames()).toContain('hello');
+  });
+
+  it('hides the first-command button in the empty list from a reader', async () => {
+    held = ['commands:read'];
+    rows = [];
+    await open();
+
+    expect(buttonByText('Make the first command')).toBeUndefined();
   });
 });

@@ -21,11 +21,13 @@ import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const features = useChannelFeatures(channelId);
 const toggle = useToggleFeature(channelId);
 
@@ -112,7 +114,7 @@ async function flip(feature: ChannelFeature): Promise<void> {
           </div>
           <Switch
             :model-value="feature.isEnabled"
-            :disabled="!feature.entitled || busyKey !== undefined"
+            :disabled="!feature.entitled || busyKey !== undefined || !can('feature:write')"
             :aria-labelledby="`feature-${feature.featureKey}`"
             @update:model-value="flip(feature)"
           />

@@ -34,7 +34,7 @@ const props = withDefaults(
     open: boolean;
     title: string;
     description?: string;
-    consequences?: string[];
+    consequences?: readonly string[];
     action: string;
     pending?: boolean;
     // A confirm that must be armed by typing: the exact words to type, and the label of the field that takes them.

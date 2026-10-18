@@ -112,10 +112,22 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   }),
 }));
 
+const access = vi.hoisted(() => ({ held: [] as string[] }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => access.held.includes(key),
+  }),
+}));
+
+const writeKeys = ['live-ops:schedule:write', 'live-ops:raids:write', 'live-ops:ads:write'];
+
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  access.held = writeKeys;
   calls.length = 0;
   pinia = createPinia();
   setActivePinia(pinia);
@@ -221,5 +233,35 @@ describe('the commercial panel', () => {
 
     expect(sent('POST')[0]?.path).toBe('/api/v{version}/channels/{channelId}/live-ops/ads/commercial');
     expect(sent('POST')[0]?.body).toEqual({ lengthSeconds: 90 });
+  });
+});
+
+describe('what the person may change', () => {
+  it('shows the schedule with no vacation Save, Add, Edit or Cancel without the schedule write key', async () => {
+    access.held = [];
+    await show(SchedulePanel);
+
+    expect(document.body.querySelector('[data-segment-row]')).not.toBeNull();
+    expect(document.body.querySelector('[data-vacation-save]')).toBeNull();
+    expect(document.body.querySelector('[data-segment-add]')).toBeNull();
+    expect(document.body.querySelector('[data-segment-edit]')).toBeNull();
+    expect(document.body.querySelector('[data-segment-cancel]')).toBeNull();
+  });
+
+  it('shows the raid rules with no Save, Add or Remove button without the raids write key', async () => {
+    access.held = [];
+    await show(RaidRulesPanel);
+
+    expect(document.body.querySelector('[data-category-rule]')).not.toBeNull();
+    expect(document.body.querySelector('[data-raid-rules-save]')).toBeNull();
+    expect(document.body.querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('shows no ad lengths and no Run button without the ads write key', async () => {
+    access.held = [];
+    await show(CommercialPanel);
+
+    expect(document.body.querySelector('[data-commercial-run]')).toBeNull();
+    expect(document.body.querySelector('[data-commercial-length]')).toBeNull();
   });
 });

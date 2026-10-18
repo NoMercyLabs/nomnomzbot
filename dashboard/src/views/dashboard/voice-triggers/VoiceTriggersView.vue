@@ -27,6 +27,7 @@ import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -38,6 +39,9 @@ const creating = ref(false);
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
+// Creating and editing need voicetriggers:write; a reader sees the list only.
+const canWrite = computed<boolean>(() => can('voicetriggers:write'));
 const triggers = useVoiceTriggers(channelId);
 const listener = useVoiceListenerLink(channelId);
 const remove = useDeleteVoiceTrigger(channelId);
@@ -76,7 +80,12 @@ function removeTrigger(item: VoiceTrigger): void {
     :crumb="$t('dashboard.voiceTriggers.crumb')"
   >
     <template #actions>
-      <Button type="button" variant="outline" size="sm" @click="creating = true">
+      <Button v-if="canWrite"
+              type="button"
+              variant="outline"
+              size="sm"
+              @click="creating = true"
+      >
         <Plus aria-hidden="true" />
         {{ $t('dashboard.voiceTriggers.new') }}
       </Button>
@@ -103,7 +112,7 @@ function removeTrigger(item: VoiceTrigger): void {
           class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
         >
           {{ $t('dashboard.voiceTriggers.list.empty') }}
-          <Button type="button" size="sm" @click="creating = true">{{
+          <Button v-if="canWrite" type="button" size="sm" @click="creating = true">{{
             $t('dashboard.voiceTriggers.list.makeFirst')
           }}</Button>
         </div>
@@ -125,7 +134,7 @@ function removeTrigger(item: VoiceTrigger): void {
         </SummaryRow>
       </PanelCard>
     </template>
-    <template #detail>
+    <template v-if="canWrite" #detail>
       <VoiceTriggerEditor v-if="row" :key="row.id" :row="row" @remove="removeTrigger" />
       <PanelCard
         v-else

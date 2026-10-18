@@ -27,6 +27,7 @@ import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
@@ -36,6 +37,7 @@ import FederationPeerRow from './components/FederationPeerRow.vue';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const optIns = useFederationOptIns(channelId);
 const save = useSaveFederationOptIn(channelId);
 const disable = useDisableFederationOptIn(channelId);
@@ -129,7 +131,7 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
           :key="type"
           :type="type"
           :choice="choiceOf(type)"
-          :busy="busy"
+          :busy="busy || !can('federation:optin:write')"
           @choose="choose(type, $event)"
         />
       </RowGroup>
@@ -147,6 +149,7 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
           :key="optIn.id"
           :opt-in="optIn"
           :busy="busy"
+          :can-disable="can('federation:optin:delete')"
           @disable="turnOff(optIn)"
         />
       </RowGroup>

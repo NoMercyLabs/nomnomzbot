@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsApiDevicesRoute = {
   path: 'settings/api-devices',
   name: 'dashboard-settings-api-devices',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'automation:tokens:read',
+  },
   component: () =>
     loadPage(
       () => import('./ApiDevicesView.vue'),

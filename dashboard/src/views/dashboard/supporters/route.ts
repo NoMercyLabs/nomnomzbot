@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardSupportersRoute = {
   path: 'supporters',
   name: 'dashboard-supporters',
+  meta: { action: 'supporters:read' },
   component: () =>
     loadPage(
       () => import('./SupportersView.vue'),

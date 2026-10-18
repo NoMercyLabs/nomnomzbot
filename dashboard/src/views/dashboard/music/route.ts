@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardMusicRoute = {
   path: 'music',
   name: 'dashboard-music',
+  meta: { action: 'music:config:read' },
   component: () =>
     loadPage(
       () => import('./MusicView.vue'),

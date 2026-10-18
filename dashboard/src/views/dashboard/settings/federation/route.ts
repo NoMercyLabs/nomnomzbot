@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsFederationRoute = {
   path: 'settings/federation',
   name: 'dashboard-settings-federation',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'federation:optin:read',
+  },
   component: () =>
     loadPage(
       () => import('./FederationView.vue'),

@@ -109,7 +109,7 @@ export const dashboardNav: readonly NavGroup[] = [
         route: 'dashboard-polls',
         label: 'polls',
         icon: BarChart,
-        action: 'chatpolls:read',
+        action: 'live-ops:polls:read',
       },
       {
         route: 'dashboard-obs',

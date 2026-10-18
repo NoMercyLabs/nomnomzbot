@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardEconomyRoute = {
   path: 'economy',
   name: 'dashboard-economy',
+  meta: { action: 'economy:catalog:read' },
   component: () =>
     loadPage(
       () => import('./EconomyView.vue'),

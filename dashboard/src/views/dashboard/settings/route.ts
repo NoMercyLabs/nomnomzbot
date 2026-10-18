@@ -41,6 +41,8 @@ export const dashboardSettingsRoute = {
   meta: {
     navMode: 'settings',
     userLevel: true,
+    // Readability is a person-level preference, not a channel setting.
+    open: true,
   },
   props: { view: 'readability' },
   component: settingsPage,
@@ -49,7 +51,10 @@ export const dashboardSettingsRoute = {
 const botBasicsRoute = {
   path: 'settings/bot-basics',
   name: 'dashboard-settings-bot-basics',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'dashboard:read',
+  },
   props: { view: 'basics' },
   component: settingsPage,
 } as const satisfies RouteRecordRaw;
@@ -57,7 +62,10 @@ const botBasicsRoute = {
 const botPersonalityRoute = {
   path: 'settings/bot-personality',
   name: 'dashboard-settings-bot-personality',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'dashboard:read',
+  },
   props: { view: 'personality' },
   component: settingsPage,
 } as const satisfies RouteRecordRaw;
@@ -65,7 +73,10 @@ const botPersonalityRoute = {
 const engagementTriggersRoute = {
   path: 'settings/engagement-triggers',
   name: 'dashboard-settings-engagement-triggers',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'engagement:read',
+  },
   props: { view: 'engagement' },
   component: settingsPage,
 } as const satisfies RouteRecordRaw;
@@ -74,14 +85,20 @@ const engagementTriggersRoute = {
 const discordRoute = {
   path: 'settings/discord',
   name: 'dashboard-settings-discord',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'discord:connection:read',
+  },
   component: dashboardDiscordRoute.component,
 } as const satisfies RouteRecordRaw;
 
 const supporterSourcesRoute = {
   path: 'settings/supporter-sources',
   name: 'dashboard-settings-supporter-sources',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'supporters:read',
+  },
   component: dashboardSupportersRoute.component,
 } as const satisfies RouteRecordRaw;
 

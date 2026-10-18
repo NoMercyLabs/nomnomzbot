@@ -20,7 +20,9 @@ import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 
+const { can } = useCan();
 const props = defineProps<{ feed: EventFeed; busy: boolean }>();
 
 defineEmits<{
@@ -67,7 +69,7 @@ const lastReceived = computed(() =>
       :url="feed.inboundUrl"
       :label="$t('dashboard.settings.customEventFeeds.copyLink')"
     />
-    <div class="flex items-center gap-1">
+    <div v-if="can('customdata:write')" class="flex items-center gap-1">
       <Button
         variant="ghost"
         size="icon"
@@ -98,7 +100,7 @@ const lastReceived = computed(() =>
     </div>
     <Switch
       :model-value="feed.isEnabled"
-      :disabled="busy"
+      :disabled="busy || !can('customdata:write')"
       :aria-labelledby="`feed-${feed.name}`"
       @update:model-value="$emit('toggle')"
     />

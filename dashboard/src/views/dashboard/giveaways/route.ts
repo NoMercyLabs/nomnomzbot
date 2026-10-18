@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardGiveawaysRoute = {
   path: 'giveaways',
   name: 'dashboard-giveaways',
+  meta: { action: 'giveaways:read' },
   component: () =>
     loadPage(
       () => import('./GiveawaysView.vue'),

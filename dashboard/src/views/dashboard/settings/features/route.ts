@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsFeaturesRoute = {
   path: 'settings/features',
   name: 'dashboard-settings-features',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'feature:read',
+  },
   component: () =>
     loadPage(
       () => import('./FeaturesView.vue'),

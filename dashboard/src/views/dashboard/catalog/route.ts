@@ -16,6 +16,8 @@ import { loadPage } from '@/i18n';
 export const dashboardCatalogRoute = {
   path: 'catalog',
   name: 'dashboard-catalog',
+  // A component showcase with no channel data and no server call, so there is no action key to name.
+  meta: { open: true },
   component: () =>
     loadPage(
       () => import('./CatalogView.vue'),

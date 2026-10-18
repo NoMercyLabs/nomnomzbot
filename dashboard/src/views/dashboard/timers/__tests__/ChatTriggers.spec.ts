@@ -34,6 +34,16 @@ type Row = Record<string, unknown>;
 const calls: Call[] = [];
 let rows: Row[] = [];
 let refusePatch: string | null = null;
+let held: string[] = ['timers:read', 'chattriggers:read', 'chattriggers:write'];
+
+function read(path: string): unknown {
+  if (path.endsWith('/roles/effective/me'))
+    return { heldActionKeys: held };
+
+  return path.endsWith('/chat-triggers')
+    ? rows
+    : [];
+}
 
 const trigger = (id: string, overrides: Row = {}): Row => ({
   id,
@@ -86,9 +96,7 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string) => ({
-      data: { data: path.endsWith('/chat-triggers')
-        ? rows
-        : [] },
+      data: { data: read(path) },
       response: { status: 200, ok: true },
     }),
     POST: async (_path: string, options?: Options) => write('POST', options),
@@ -108,6 +116,7 @@ beforeEach(() => {
   calls.length = 0;
   rows = [trigger('a'), trigger('b', { isEnabled: false })];
   refusePatch = null;
+  held = ['timers:read', 'chattriggers:read', 'chattriggers:write'];
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -265,5 +274,33 @@ describe('Chat triggers tab', () => {
 
     expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.id)).toEqual(['a']);
     expect(patterns()).toEqual(['words b']);
+  });
+});
+
+describe('Chat triggers permission gating', () => {
+  it('shows a reader the trigger list only: no New trigger, no editor on a picked row', async () => {
+    held = ['timers:read', 'chattriggers:read'];
+    await open();
+    await click(rowOf('words a'));
+
+    expect(patterns()).toEqual(['words a', 'words b']);
+    expect(buttonByText('New trigger')).toBeUndefined();
+    expect(document.body.querySelector('[data-trigger-editor]')).toBeNull();
+  });
+
+  it('shows a person with chattriggers:write the New trigger button and the editor', async () => {
+    await open();
+    await click(rowOf('words a'));
+
+    expect(buttonByText('New trigger')).toBeDefined();
+    expect(document.body.querySelector('[data-trigger-editor]')).not.toBeNull();
+  });
+
+  it('hides the first-trigger button in the empty list from a reader', async () => {
+    held = ['timers:read', 'chattriggers:read'];
+    rows = [];
+    await open();
+
+    expect(buttonByText('Make the first trigger')).toBeUndefined();
   });
 });

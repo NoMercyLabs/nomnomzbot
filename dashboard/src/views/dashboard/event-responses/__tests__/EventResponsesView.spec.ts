@@ -41,6 +41,7 @@ type Row = Record<string, unknown>;
 const calls: Call[] = [];
 let rows: Row[] = [];
 let refusePut: string | null = null;
+let held: string[] = ['eventresponses:read', 'eventresponses:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -63,6 +64,9 @@ const response = (eventType: string, overrides: Row = {}): Row => ({
 
 function read(path: string, options?: Options): Answer {
   const eventType = options?.params?.path?.eventType;
+
+  if (path.endsWith('/roles/effective/me'))
+    return ok({ heldActionKeys: held });
 
   if (path.endsWith('/catalog'))
     return ok([{
@@ -139,6 +143,7 @@ let queries: QueryClient;
 beforeEach(() => {
   localStorage.clear();
   calls.length = 0;
+  held = ['eventresponses:read', 'eventresponses:write'];
 
   rows = [
     response('channel.follow'),
@@ -351,5 +356,21 @@ describe('Event responses page', () => {
     await settle();
 
     expect(rowTypes()).toContain('channel.cheer');
+  });
+});
+
+describe('Event responses permission gating', () => {
+  it('shows a reader the event list and no editor for the open event', async () => {
+    held = ['eventresponses:read'];
+    await open('/app/event-responses?event=channel.follow');
+
+    expect(rowTypes()).toContain('channel.follow');
+    expect(editor()).toBeNull();
+  });
+
+  it('shows a person with eventresponses:write the editor for the open event', async () => {
+    await open('/app/event-responses?event=channel.follow');
+
+    expect(editor()).not.toBeNull();
   });
 });

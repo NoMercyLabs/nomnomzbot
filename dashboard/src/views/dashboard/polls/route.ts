@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardPollsRoute = {
   path: 'polls',
   name: 'dashboard-polls',
+  meta: { action: 'live-ops:polls:read' },
   component: () =>
     loadPage(
       () => import('./PollsView.vue'),

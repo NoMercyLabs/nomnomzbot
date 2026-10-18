@@ -15,6 +15,7 @@ import { loadPage, schemaWords } from '@/i18n';
 export const dashboardPipelinesRoute = {
   path: 'pipelines',
   name: 'dashboard-pipelines',
+  meta: { action: 'pipelines:read' },
   component: () =>
     loadPage(
       () => import('./PipelinesView.vue'),
@@ -27,6 +28,7 @@ export const dashboardPipelinesRoute = {
 export const dashboardPipelineRoute = {
   path: 'pipelines/:id',
   name: 'dashboard-pipeline',
+  meta: { action: 'pipelines:read' },
   component: () =>
     loadPage(
       () => import('./WorkbenchView.vue'),

@@ -25,11 +25,13 @@ import {
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 const { t, d } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const badge = useFoundersBadge(channelId);
 const check = useCheckInviteCode(channelId);
@@ -171,6 +173,7 @@ async function redeemCode(): Promise<void> {
           {{ $t('dashboard.settings.billing.invite.check') }}
         </Button>
         <Button
+          v-if="can('billing:manage')"
           data-action="redeem-code"
           :disabled="trimmed === '' || redeem.isPending.value"
           @click="redeemCode"

@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardStreamRoute = {
   path: 'stream',
   name: 'dashboard-stream',
+  meta: { action: 'stream:read' },
   component: () =>
     loadPage(
       () => import('./StreamView.vue'),

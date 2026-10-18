@@ -19,6 +19,7 @@ import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 import { configDomainKeys } from '@/realtime/configDomains';
 
 import { dashboardSettingsRoutes } from '../../route';
+import { answerHeldKeys } from '../../__tests__/heldKeys';
 import en from '../i18n/en.json';
 import FeaturesView from '../FeaturesView.vue';
 
@@ -58,6 +59,7 @@ const togglePath = '/api/v{version}/channels/{channelId}/features/{featureKey}/t
 const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, status: 200 } });
 
 let features: Feature[] = [];
+let held: string[] = [];
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
@@ -94,7 +96,11 @@ beforeEach(() => {
     },
   ];
 
+  held = ['feature:read', 'feature:write'];
   http.GET.mockImplementation(async () => ok(features));
+
+  answerHeldKeys(http.GET, () =>
+    held);
 
   http.POST.mockImplementation(async (_path, init) => {
     const key = (init as { params: { path: { featureKey: string } } }).params.path.featureKey;
@@ -187,6 +193,17 @@ describe('Features page', () => {
     expect(http.POST).not.toHaveBeenCalled();
   });
 
+  it('shows every switch but leaves them off-limits without the feature write key', async () => {
+    held = ['feature:read'];
+    await open();
+
+    expect(switchOf('clips').disabled).toBe(true);
+    expect(switchOf('tts').getAttribute('aria-checked')).toBe('true');
+    await click(switchOf('clips'));
+
+    expect(http.POST).not.toHaveBeenCalled();
+  });
+
   it('shows the refusal reason when the toggle fails', async () => {
     await open();
 
@@ -222,7 +239,7 @@ describe('Features route', () => {
 
     expect(entry).toBeDefined();
     expect(record?.path).toBe('settings/features');
-    expect(record?.meta).toEqual({ navMode: 'settings' });
+    expect(record?.meta).toEqual({ navMode: 'settings', action: 'feature:read' });
     expect(record?.component).toBeTypeOf('function');
   });
 });

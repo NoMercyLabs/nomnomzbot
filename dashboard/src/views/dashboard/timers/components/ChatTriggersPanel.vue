@@ -19,6 +19,7 @@ import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -30,6 +31,7 @@ const creating = defineModel<boolean>('creating', { required: true });
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const triggers = useChatTriggers(channelId);
 const remove = useDeleteChatTrigger(channelId);
 
@@ -76,7 +78,7 @@ function removeTrigger(item: ChatTrigger): void {
           class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
         >
           {{ $t('dashboard.timers.triggers.list.empty') }}
-          <Button type="button" size="sm" @click="creating = true">{{
+          <Button v-if="can('chattriggers:write')" type="button" size="sm" @click="creating = true">{{
             $t('dashboard.timers.triggers.list.makeFirst')
           }}</Button>
         </div>
@@ -98,7 +100,7 @@ function removeTrigger(item: ChatTrigger): void {
         </SummaryRow>
       </PanelCard>
     </template>
-    <template #detail>
+    <template v-if="can('chattriggers:write')" #detail>
       <ChatTriggerEditor v-if="row" :key="row.id" :row="row" @remove="removeTrigger" />
       <PanelCard
         v-else

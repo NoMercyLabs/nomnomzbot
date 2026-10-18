@@ -36,6 +36,7 @@ type Answer = {
 
 const calls: Call[] = [];
 let tokens: Body[] = [];
+const held: string[] = ['automation:tokens:read', 'automation:tokens:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 const token = (id: string, name: string, extra: Body = {}): Body => ({
@@ -56,6 +57,9 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path });
+
+      if (path.endsWith('/roles/effective/me'))
+        return ok({ heldActionKeys: held });
 
       if (path.endsWith('/automation/tokens'))
         return { data: { data: tokens, hasMore: false }, response: { status: 200, ok: true } };
@@ -249,7 +253,7 @@ describe('API and devices route', () => {
 
     expect(entry).toBeDefined();
     expect(router.resolve({ name: 'dashboard-settings-api-devices' }).path).toBe('/app/settings/api-devices');
-    expect(record?.meta).toEqual({ navMode: 'settings' });
+    expect(record?.meta).toEqual({ navMode: 'settings', action: 'automation:tokens:read' });
     expect(loaded.default).toBe(ApiDevicesView);
   });
 });

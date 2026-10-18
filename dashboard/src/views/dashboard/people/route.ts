@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardPeopleRoute = {
   path: 'people',
   name: 'dashboard-people',
+  meta: { action: 'community:read' },
   component: () =>
     loadPage(
       () => import('./PeopleView.vue'),

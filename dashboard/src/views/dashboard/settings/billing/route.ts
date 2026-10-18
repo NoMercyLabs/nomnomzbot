@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsBillingRoute = {
   path: 'settings/billing',
   name: 'dashboard-settings-billing',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'billing:read',
+  },
   component: () =>
     loadPage(
       () => import('./BillingView.vue'),

@@ -29,6 +29,7 @@ import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 
@@ -42,16 +43,21 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const commands = useCommands(channelId);
 const remove = useDeleteCommand(channelId);
 const builtins = useBuiltins(channelId);
 
-const tabs = computed<PageTab[]>(() => [
+// Editing is a write: a reader gets the lists only, and the Built-in tab (switches only) is hidden.
+const canWrite = computed<boolean>(() => can('commands:write'));
+const allTabs = computed<PageTab[]>(() => [
   { value: 'all', label: t('dashboard.commands.tabs.all') },
   { value: 'custom', label: t('dashboard.commands.tabs.custom') },
   { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
 ]);
-const view = usePageView(['all', 'custom', 'builtin']);
+const tabs = computed<PageTab[]>(() =>
+  allTabs.value.filter((tab: PageTab): boolean => canWrite.value || tab.value !== 'builtin'));
+const view = usePageView(() => tabs.value.map((tab: PageTab): string => tab.value));
 const listed = computed<boolean>(() => view.value !== 'builtin');
 
 const sort = useLocalStorage<CommandSort>('nnz.commands.sort', 'uses');
@@ -112,7 +118,12 @@ const creating = ref(false);
 <template>
   <PageHeader :title="$t('dashboard.commands.title')" :crumb="$t('dashboard.commands.crumb')">
     <template #actions>
-      <Button type="button" variant="outline" size="sm" @click="creating = true">
+      <Button v-if="canWrite"
+              type="button"
+              variant="outline"
+              size="sm"
+              @click="creating = true"
+      >
         <Plus aria-hidden="true" />
         {{ $t('dashboard.commands.new') }}
       </Button>
@@ -141,7 +152,7 @@ const creating = ref(false);
         @create="creating = true"
       />
     </template>
-    <template #detail>
+    <template v-if="canWrite" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
         <Button
           data-detail-back

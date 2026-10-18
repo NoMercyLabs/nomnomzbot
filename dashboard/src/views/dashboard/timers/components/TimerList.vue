@@ -18,6 +18,7 @@ import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -26,6 +27,7 @@ const emit = defineEmits<{ pick: [id: string]; create: [] }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const timers = useTimers(channelId);
 
 const search = ref('');
@@ -80,7 +82,7 @@ function detailOf(row: Timer): string {
         class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
       >
         {{ $t('dashboard.timers.list.empty') }}
-        <Button type="button" size="sm" @click="emit('create')">{{
+        <Button v-if="can('timers:write')" type="button" size="sm" @click="emit('create')">{{
           $t('dashboard.timers.list.makeFirst')
         }}</Button>
       </div>

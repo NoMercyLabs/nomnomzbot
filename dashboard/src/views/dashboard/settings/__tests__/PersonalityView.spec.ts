@@ -20,6 +20,7 @@ import { useSaveErrorsStore } from '@/stores/saveErrors';
 
 import en from '../i18n/en.json';
 import PersonalityView from '../PersonalityView.vue';
+import { accessPath } from './heldKeys';
 
 type Answer = {
   data?: unknown;
@@ -30,6 +31,7 @@ type Answer = {
 const tones = ['informative', 'friendly', 'sassy', 'hype', 'chill'];
 const puts: unknown[] = [];
 let putAnswer: () => Answer;
+let held: string[] = [];
 
 const ok = (personality: string): Answer => ({
   data: { data: { personality, available: tones } },
@@ -39,7 +41,10 @@ const ok = (personality: string): Answer => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (): Promise<Answer> => ok('informative'),
+    GET: async (path: string): Promise<Answer> =>
+      path === accessPath
+        ? { data: { data: { heldActionKeys: held } }, response: { status: 200, ok: true } }
+        : ok('informative'),
     PUT: async (_path: string, init: { body: unknown }): Promise<Answer> => {
       puts.push(init.body);
 
@@ -59,6 +64,7 @@ let queries: QueryClient;
 beforeEach(() => {
   puts.length = 0;
   putAnswer = () => ok('sassy');
+  held = ['setup:read', 'setup:write'];
   pinia = createPinia();
   setActivePinia(pinia);
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -95,6 +101,19 @@ describe('PersonalityView', () => {
     expect(rows[2]!.textContent).toContain('Sassy');
     expect(radio('informative').getAttribute('aria-checked')).toBe('true');
     expect(radio('sassy').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('shows the saved tone to a person without the setup write key but leaves every tone off-limits', async () => {
+    held = ['setup:read'];
+    await open();
+
+    expect(radio('informative').getAttribute('aria-checked')).toBe('true');
+    expect(radio('sassy').hasAttribute('disabled')).toBe(true);
+
+    radio('sassy').click();
+    await flushPromises();
+
+    expect(puts).toEqual([]);
   });
 
   it('sends the picked tone and shows the tone the bot stored', async () => {

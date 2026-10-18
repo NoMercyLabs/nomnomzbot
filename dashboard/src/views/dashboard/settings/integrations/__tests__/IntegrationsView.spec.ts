@@ -19,6 +19,7 @@ import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 import { configDomainKeys } from '@/realtime/configDomains';
 
 import { dashboardSettingsRoutes } from '../../route';
+import { answerHeldKeys } from '../../__tests__/heldKeys';
 import IntegrationsView from '../IntegrationsView.vue';
 import en from '../i18n/en.json';
 
@@ -48,6 +49,7 @@ const base = '/api/v{version}/channels/{channelId}/integrations';
 const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, status: 200 } });
 
 let mounted: VueWrapper | null = null;
+let held: string[] = [];
 let spotifyStored = {
   clientId: 'abc',
   hasClientSecret: true,
@@ -138,6 +140,11 @@ beforeEach(() => {
       ],
     });
   });
+
+  held = ['integration:read', 'integration:write'];
+
+  answerHeldKeys(http.GET, () =>
+    held);
 
   http.POST.mockResolvedValue(ok({ authorizeUrl: 'https://auth.example/go', state: 's' }));
 
@@ -308,6 +315,19 @@ describe('Integrations page', () => {
   });
 });
 
+describe('Integrations page without the write key', () => {
+  it('lists the services and their state but offers no connect, disconnect or own-app form', async () => {
+    held = ['integration:read'];
+    await open();
+
+    expect(row('spotify').textContent).toContain('stoney');
+    expect(action('patreon', 'connect')).toBeNull();
+    expect(action('spotify', 'disconnect')).toBeNull();
+    expect(document.body.querySelector('[data-action="save-spotify"]')).toBeNull();
+    expect(document.body.querySelector('input[name="clientSecret"]')).toBeNull();
+  });
+});
+
 describe('Spotify own app', () => {
   it('shows the stored client id and never the secret, and keeps Save off until both are typed', async () => {
     await open();
@@ -401,7 +421,7 @@ describe('Integrations route', () => {
 
     expect(entry).toBeDefined();
     expect(record?.path).toBe('settings/integrations');
-    expect(record?.meta).toEqual({ navMode: 'settings' });
+    expect(record?.meta).toEqual({ navMode: 'settings', action: 'integration:read' });
     expect(record?.component).toBeTypeOf('function');
   });
 });

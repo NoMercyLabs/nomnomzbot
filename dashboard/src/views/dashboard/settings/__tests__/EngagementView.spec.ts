@@ -16,6 +16,7 @@ import { ref } from 'vue';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
+import { accessPath } from './heldKeys';
 import EngagementView from '../EngagementView.vue';
 
 type Body = Record<string, unknown>;
@@ -28,12 +29,15 @@ type Answer = {
 const saved: Body[] = [];
 let config: Body = {};
 let refusal: string | undefined;
+let held: string[] = [];
 
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (): Promise<Answer> => ({
-      data: { data: config },
+    GET: async (path: string): Promise<Answer> => ({
+      data: { data: path === accessPath
+        ? { heldActionKeys: held }
+        : config },
       response: { status: 200, ok: true },
     }),
     PUT: async (_path: string, options: { body: Body }): Promise<Answer> => {
@@ -58,6 +62,7 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   saved.length = 0;
   refusal = undefined;
+  held = ['engagement:read', 'engagement:write'];
 
   config = {
     firstTimeChatterEnabled: true,
@@ -124,6 +129,18 @@ describe('Greetings and streaks', () => {
     expect(q<HTMLInputElement>('[data-cooldown]').value).toBe('30');
     expect(milestoneInputs().map((input) => input.value)).toEqual(['5', '10']);
     expect(saveButton().disabled).toBe(true);
+  });
+
+  it('shows the saved config to a person without the write key but offers no way to change it', async () => {
+    held = ['engagement:read'];
+    await open();
+
+    expect(switchFor('First message ever').getAttribute('aria-checked')).toBe('true');
+    expect(switchFor('First message ever').hasAttribute('disabled')).toBe(true);
+    expect(q<HTMLInputElement>('[data-cooldown]').disabled).toBe(true);
+    expect(document.body.querySelector('button[form="engagement-form"]')).toBeNull();
+    expect(document.body.querySelector('[data-add-milestone]')).toBeNull();
+    expect(document.body.querySelector('[data-remove-milestone]')).toBeNull();
   });
 
   it('sends the edited config in one PUT and shows the saved state after', async () => {

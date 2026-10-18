@@ -10,6 +10,7 @@
 
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { accessGuard } from './accessGuard';
 import { channelPrefixGuard, ownChannelGuard, platformPathGuard } from './channelRoutes';
 import { dashboardChannelRoutes, dashboardRoutes } from './dashboard';
 import { signInGuard } from './guard';
@@ -26,5 +27,6 @@ router.beforeEach(platformPathGuard);
 router.beforeEach(channelPrefixGuard);
 router.beforeEach(signInGuard);
 router.beforeEach(ownChannelGuard);
+router.beforeEach(accessGuard(router));
 
 export default router;

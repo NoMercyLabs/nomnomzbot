@@ -18,6 +18,7 @@ import { i18n } from '@/i18n';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 
 import { dashboardSettingsRoutes } from '../../route';
+import { accessPath } from '../../__tests__/heldKeys';
 import FederationView from '../FederationView.vue';
 import en from '../i18n/en.json';
 
@@ -36,6 +37,7 @@ type Answer = {
 
 const calls: Call[] = [];
 let optIns: Body[] = [];
+let held: string[] = [];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -55,7 +57,9 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path });
 
-      return ok(optIns);
+      return path === accessPath
+        ? ok({ heldActionKeys: held })
+        : ok(optIns);
     },
     PUT: async (path: string, options: { body?: Body; params?: Body }): Promise<Answer> => {
       calls.push({
@@ -87,6 +91,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
+  held = ['federation:optin:read', 'federation:optin:write', 'federation:optin:delete'];
 
   optIns = [
     optIn('o1', 'shared_ban_list', { direction: 'accept' }),
@@ -193,6 +198,28 @@ describe('Federation', () => {
     });
   });
 
+  it('shows a person with only the read key the choices without a way to change them', async () => {
+    held = ['federation:optin:read'];
+    await open();
+
+    expect(segment('shared_ban_list', 'Accept').getAttribute('data-state')).toBe('on');
+    expect(segment('shared_chat_bans', 'Share').disabled).toBe(true);
+    expect(document.body.querySelector('[data-peer-opt-in="o3"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-peer-opt-in-disable]')).toBeNull();
+
+    await click(segment('shared_chat_bans', 'Share'));
+
+    expect(callTo('PUT')).toBeUndefined();
+  });
+
+  it('offers the per-peer off button only with the delete key', async () => {
+    held = ['federation:optin:read', 'federation:optin:write'];
+    await open();
+
+    expect(segment('shared_chat_bans', 'Share').disabled).toBe(false);
+    expect(document.body.querySelector('[data-peer-opt-in-disable]')).toBeNull();
+  });
+
   it('shows the reason when the bot refuses a change', async () => {
     await open();
 
@@ -225,7 +252,7 @@ describe('Federation route', () => {
 
     expect(router.resolve({ name: 'dashboard-settings-federation' }).path).toBe('/app/settings/federation');
 
-    expect(record?.meta).toEqual({ navMode: 'settings' });
+    expect(record?.meta).toEqual({ navMode: 'settings', action: 'federation:optin:read' });
     expect(loaded.default).toBe(FederationView);
   });
 });

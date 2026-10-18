@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardChannelPointsRoute = {
   path: 'channel-points',
   name: 'dashboard-channel-points',
+  meta: { action: 'reward:read' },
   component: () =>
     loadPage(
       () => import('./ChannelPointsView.vue'),

@@ -41,6 +41,7 @@ type Row = Record<string, unknown>;
 const calls: Call[] = [];
 let rows: Row[] = [];
 let refusePut: string | null = null;
+let held: string[] = ['timers:read', 'timers:write', 'chattriggers:read', 'chattriggers:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -64,6 +65,9 @@ const timer = (id: string, overrides: Row = {}): Row => ({
 
 function read(path: string, options?: Options): Answer {
   const id = options?.params?.path?.id;
+
+  if (path.endsWith('/roles/effective/me'))
+    return ok({ heldActionKeys: held });
 
   if (typeof id === 'string')
     return ok(rows.find((row) => row.id === id));
@@ -145,6 +149,7 @@ beforeEach(() => {
   ];
 
   refusePut = null;
+  held = ['timers:read', 'timers:write', 'chattriggers:read', 'chattriggers:write'];
   pinia = createPinia();
   setActivePinia(pinia);
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -306,5 +311,41 @@ describe('Triggers and timers page', () => {
     await settle();
 
     expect(rowNames()).toContain('Raid call');
+  });
+});
+
+describe('Triggers and timers permission gating', () => {
+  it('shows a timers reader the list only: no New timer, no editor, no Chat triggers tab', async () => {
+    held = ['timers:read'];
+    await open('/app/triggers-timers?timer=t1');
+
+    expect(rowNames()).toContain('Follow reminder');
+    expect(buttonByText('New timer')).toBeUndefined();
+    expect(editor()).toBeNull();
+    expect(buttonByText('Chat triggers')).toBeUndefined();
+  });
+
+  it('shows a person with timers:write and chattriggers:read the editor, New timer and both tabs', async () => {
+    await open('/app/triggers-timers?timer=t1');
+
+    expect(buttonByText('New timer')).toBeDefined();
+    expect(editor()).not.toBeNull();
+    expect(buttonByText('Chat triggers')).toBeDefined();
+  });
+
+  it('hides the Timers tab from a person who holds only chattriggers:read', async () => {
+    held = ['chattriggers:read'];
+    await open('/app/triggers-timers');
+
+    expect(buttonByText('Timers')).toBeUndefined();
+    expect(buttonByText('Chat triggers')).toBeDefined();
+  });
+
+  it('hides the first-timer button in the empty list from a reader', async () => {
+    held = ['timers:read'];
+    rows = [];
+    await open();
+
+    expect(buttonByText('Make the first timer')).toBeUndefined();
   });
 });

@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardDiscordRoute = {
   path: 'discord',
   name: 'dashboard-discord',
+  meta: { action: 'discord:connection:read' },
   component: () =>
     loadPage(
       () => import('./DiscordView.vue'),

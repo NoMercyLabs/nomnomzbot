@@ -203,12 +203,31 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   }),
 }));
 
+const everyKey = [
+  'stream:read',
+  'integration:read',
+  'live-ops:schedule:read',
+  'live-ops:raids:read',
+  'live-ops:ads:read',
+  'channel:title:write',
+  'integration:write',
+];
+const access = vi.hoisted(() => ({ held: [] as string[] }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => access.held.includes(key),
+  }),
+}));
+
 const assign = vi.fn<(url: string) => void>();
 
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  access.held = everyKey;
   calls.length = 0;
   answers = freshAnswers();
   saveRefused = false;
@@ -475,6 +494,59 @@ describe('the page header', () => {
     expect(text()).not.toContain('NaN');
     expect(text()).not.toContain('Last stream ended');
     expect(text()).toContain('Last streamed');
+  });
+});
+
+const tabLabels = (): string[] => {
+  const tabs = document.body.querySelector('[role="tablist"]')?.querySelectorAll('[role="tab"]');
+
+  return [...(tabs ?? [])].map((tab) => tab.textContent?.trim() ?? '');
+};
+
+describe('what the person may see', () => {
+  it('lists a tab only when its read key is held', async () => {
+    access.held = ['stream:read', 'live-ops:ads:read'];
+    await open();
+
+    const { overview, ads } = en.dashboard.stream.views;
+
+    expect(tabLabels()).toEqual([overview, ads]);
+  });
+
+  it('hides the info, platforms and checklist panels without their keys', async () => {
+    access.held = ['live-ops:ads:read'];
+    await open();
+
+    expect(document.body.querySelector('#stream-title')).toBeNull();
+    expect(document.body.querySelector('[data-platform]')).toBeNull();
+    expect(document.body.querySelector('[data-check]')).toBeNull();
+  });
+
+  it('shows the platforms panel with the integration read key', async () => {
+    access.held = ['integration:read'];
+    await open();
+
+    expect(document.body.querySelector('[data-platform]')).not.toBeNull();
+    expect(document.body.querySelector('#stream-title')).toBeNull();
+  });
+});
+
+describe('what the person may change', () => {
+  it('shows the title but no Save or Discard without the title write key', async () => {
+    access.held = ['stream:read'];
+    await open();
+
+    expect(titleBox().closest('[inert]')).not.toBeNull();
+    expect(button('Save changes')).toBeUndefined();
+    expect(button('Discard')).toBeUndefined();
+  });
+
+  it('shows a platform without its Connect button when integrations cannot be changed', async () => {
+    access.held = ['integration:read'];
+    await open();
+
+    expect(document.body.querySelector('[data-platform="kick"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-platform="kick"] button')).toBeNull();
   });
 });
 

@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardEventResponsesRoute = {
   path: 'event-responses',
   name: 'dashboard-event-responses',
+  meta: { action: 'eventresponses:read' },
   component: () =>
     loadPage(
       () => import('./EventResponsesView.vue'),

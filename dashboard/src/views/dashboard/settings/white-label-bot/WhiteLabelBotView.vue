@@ -26,6 +26,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import ReadabilityRow from '../components/ReadabilityRow.vue';
@@ -33,6 +34,7 @@ import BotLoginPanel from './components/BotLoginPanel.vue';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const status = useBotStatus(channelId);
 const disconnect = useDisconnectBot(channelId);
 const browserLogin = useStartBotBrowserLogin(channelId);
@@ -42,6 +44,7 @@ const confirming = ref(false);
 
 const bot = computed(() => status.data.value ?? null);
 const connected = computed(() => bot.value?.connected === true);
+const canLogIn = computed(() => can('channelbot:connect') && can('integration:write'));
 const name = computed(() => bot.value?.displayName ?? bot.value?.login ?? '');
 
 const state = computed<PanelState>(() => {
@@ -121,7 +124,7 @@ function openBrowserLogin(): void {
         </div>
         <BotLoginPanel v-if="loggingIn" @cancel="loggingIn = false" @connected="onConnected" />
         <ReadabilityRow
-          v-else-if="connected"
+          v-else-if="connected && canLogIn"
           :title="$t('dashboard.settings.whiteLabelBot.replace.title')"
           :description="$t('dashboard.settings.whiteLabelBot.replace.description')"
         >
@@ -130,7 +133,7 @@ function openBrowserLogin(): void {
           </Button>
         </ReadabilityRow>
         <ReadabilityRow
-          v-else
+          v-else-if="canLogIn"
           :title="$t('dashboard.settings.whiteLabelBot.connect.title')"
           :description="$t('dashboard.settings.whiteLabelBot.connect.description')"
         >
@@ -139,7 +142,7 @@ function openBrowserLogin(): void {
           </Button>
         </ReadabilityRow>
         <ReadabilityRow
-          v-if="!loggingIn"
+          v-if="!loggingIn && can('channelbot:connect')"
           :title="$t('dashboard.settings.whiteLabelBot.browser.title')"
           :description="$t('dashboard.settings.whiteLabelBot.browser.description')"
         >
@@ -153,7 +156,7 @@ function openBrowserLogin(): void {
           </Button>
         </ReadabilityRow>
         <ReadabilityRow
-          v-if="connected && !loggingIn"
+          v-if="connected && !loggingIn && can('channelbot:disconnect')"
           :title="$t('dashboard.settings.whiteLabelBot.disconnect.title')"
           :description="$t('dashboard.settings.whiteLabelBot.disconnect.description')"
         >

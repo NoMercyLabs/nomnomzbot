@@ -31,6 +31,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useCan } from '@/composables/useCan';
 import { usePanelState } from '@/composables/usePanelState';
 import PollDialog from '@/views/dashboard/home/components/PollDialog.vue';
 import PredictionDialog from '@/views/dashboard/home/components/PredictionDialog.vue';
@@ -43,6 +44,7 @@ import { filterByKind, historyKinds, splitByVotes, type HistoryKind } from './po
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const history = usePollHistory(channelId);
 const pollsQuery = usePolls(channelId);
@@ -58,6 +60,15 @@ const runningPoll = computed<Poll | null>(
 );
 const runningPrediction = computed<Prediction | null>(
   () => (predictionsQuery.data.value ?? []).find(isPredictionRunning) ?? null,
+);
+
+// The lead panel shows what runs, or offers a start; with nothing running and no start allowed it is empty.
+const showLead = computed(
+  () =>
+    runningPoll.value !== null ||
+    runningPrediction.value !== null ||
+    can('live-ops:polls:write') ||
+    can('live-ops:predictions:write'),
 );
 
 const kindOptions = computed(() =>
@@ -84,6 +95,7 @@ const state = usePanelState(history, () =>
   <PageHeader :title="t('dashboard.polls.title')" />
   <PageBody>
     <PollsLeadPanel
+      v-if="showLead"
       :poll="runningPoll"
       :prediction="runningPrediction"
       @start-poll="pollOpen = true"
@@ -91,6 +103,7 @@ const state = usePanelState(history, () =>
       @open-prediction="predictionOpen = true"
     />
     <PanelCard
+      v-if="can('live-ops:polls:read')"
       bare
       :title="t('dashboard.polls.historyTitle')"
       :state="state"

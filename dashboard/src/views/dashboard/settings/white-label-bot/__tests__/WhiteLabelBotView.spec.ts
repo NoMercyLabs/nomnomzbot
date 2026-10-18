@@ -19,6 +19,7 @@ import { i18n } from '@/i18n';
 import { dashboardSettingsRoutes } from '../../route';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 import en from '../i18n/en.json';
+import { answerHeldKeys } from '../../__tests__/heldKeys';
 import WhiteLabelBotView from '../WhiteLabelBotView.vue';
 
 type Answer = {
@@ -58,12 +59,16 @@ const connectedBot = {
 const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, status: 200 } });
 
 let mounted: VueWrapper | null = null;
+let held: string[] = [];
 
 async function open(status: unknown): Promise<void> {
   http.GET.mockImplementation(async (path: string) =>
     path === statusPath
       ? ok(status)
       : ok({ authorizeUrl: 'https://id.twitch.tv/authorize?x=1', state: 's' }));
+
+  answerHeldKeys(http.GET, () =>
+    held);
 
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -82,6 +87,7 @@ const button = (label: string): HTMLButtonElement | undefined =>
 
 beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
+  held = ['channelbot:read', 'channelbot:connect', 'channelbot:disconnect', 'integration:write'];
   http.GET.mockReset();
   http.POST.mockReset();
   http.DELETE.mockReset();
@@ -102,6 +108,30 @@ describe('White-label bot page', () => {
     expect(document.body.textContent).toContain('NomNomz Helper');
     expect(document.body.textContent).toContain('@nomnomz_helper');
     expect(document.body.textContent).toContain('Connected');
+    expect(button('Disconnect')).toBeDefined();
+  });
+
+  it('shows the connected bot to a person with only the read key but offers no connect, replace or disconnect', async () => {
+    held = ['channelbot:read'];
+    await open(connectedBot);
+
+    expect(document.body.textContent).toContain('@nomnomz_helper');
+    expect(button('Disconnect')).toBeUndefined();
+    expect(button('Open Twitch')).toBeUndefined();
+    expect(button('Connect bot account')).toBeUndefined();
+  });
+
+  it('offers disconnect only with the disconnect key', async () => {
+    held = ['channelbot:read', 'channelbot:connect', 'integration:write'];
+    await open(connectedBot);
+
+    expect(button('Disconnect')).toBeUndefined();
+
+    mounted?.unmount();
+    document.body.innerHTML = '';
+    held = ['channelbot:read', 'channelbot:disconnect'];
+    await open(connectedBot);
+
     expect(button('Disconnect')).toBeDefined();
   });
 

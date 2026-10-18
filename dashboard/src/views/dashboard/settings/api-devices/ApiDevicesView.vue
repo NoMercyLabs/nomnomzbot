@@ -28,6 +28,7 @@ import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -39,6 +40,7 @@ import TokensTable from './components/TokensTable.vue';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const tokens = useAutomationTokens(channelId);
 const create = useCreateAutomationToken(channelId);
 const rotate = useRotateAutomationToken(channelId);
@@ -136,7 +138,7 @@ async function confirmRevoke(): Promise<void> {
         :error-text="$t('dashboard.settings.apiDevices.tokens.error')"
         @retry="tokens.refetch()"
       >
-        <template #actions>
+        <template v-if="can('automation:tokens:write')" #actions>
           <Button data-new-token @click="creating = true">
             <Add class="size-5" />
             {{ $t('dashboard.settings.apiDevices.tokens.new') }}
@@ -146,7 +148,7 @@ async function confirmRevoke(): Promise<void> {
       </PanelCard>
       <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
 
-      <PairingPanel />
+      <PairingPanel v-if="can('automation:tokens:write')" />
       <EventsPanel />
     </div>
   </PageBody>

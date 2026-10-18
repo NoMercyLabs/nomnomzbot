@@ -165,10 +165,20 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1'), current: ref({ login: 'stoney_eagle' }) }),
 }));
 
+const access = vi.hoisted(() => ({ held: [] as string[] }));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => access.held.includes(key),
+  }),
+}));
+
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  access.held = ['analytics:read'];
   calls.length = 0;
   localStorage.clear();
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -357,5 +367,23 @@ describe('the Chat tab', () => {
       '4:00 PM to 5:00 PM 83% 1,500',
       '6:00 PM to 7:00 PM 17% 300',
     ]);
+  });
+});
+
+describe('what the person may see', () => {
+  it('shows the tabs and the numbers with the analytics read key', async () => {
+    await open();
+
+    expect(document.body.querySelector('[role="tablist"]')).not.toBeNull();
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it('shows no tabs and reads nothing without the analytics read key', async () => {
+    access.held = [];
+    await open();
+
+    expect(document.body.querySelector('[role="tablist"]')).toBeNull();
+    expect(document.body.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(calls).toHaveLength(0);
   });
 });

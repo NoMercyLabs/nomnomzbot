@@ -34,6 +34,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
@@ -43,6 +44,7 @@ const primaryAccount = 'twitch';
 
 const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const integrations = useIntegrations(channelId);
 const statuses = useConnections(channelId);
 const connect = useConnectProvider(channelId);
@@ -249,7 +251,7 @@ function setLeavingOpen(open: boolean): void {
               {{ $t('dashboard.settings.integrations.capabilities', { list: capabilitiesOf(row).join(', ') }) }}
             </span>
           </div>
-          <div class="flex flex-wrap items-center justify-end gap-2">
+          <div v-if="can('integration:write')" class="flex flex-wrap items-center justify-end gap-2">
             <Input
               v-if="needsShop(row) && !row.connected"
               v-model="shopDomain"
@@ -284,7 +286,7 @@ function setLeavingOpen(open: boolean): void {
       <p v-if="error" role="alert" class="px-3 pt-3 text-sm text-destructive">{{ error }}</p>
     </PanelCard>
 
-    <SpotifyCredentialsPanel />
+    <SpotifyCredentialsPanel v-if="can('integration:write')" />
 
     <ConfirmDialog
       :open="leaving !== null"

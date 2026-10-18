@@ -89,6 +89,12 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+let held: string[] = [];
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (key: string): boolean => held.includes(key) }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
@@ -97,6 +103,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
+  held = ['obs:control', 'obs:config:read'];
   liveFails = false;
   bridgeCount = 1;
 
@@ -243,5 +250,20 @@ describe('ObsView', () => {
     expect(calls.some((path) => path.endsWith('/obs/scenes') || path.endsWith('/obs/state'))).toBe(false);
     expect(dotsOf('connection')).toEqual(['dot']);
     expect(document.body.textContent).toContain(en.dashboard.obs.scenes.offline);
+  });
+
+  it('hides the connection panel from a person who may control OBS but not read its configuration', async () => {
+    held = ['obs:control'];
+    await open();
+
+    expect(document.querySelector('[data-obs-connection]')).toBeNull();
+    expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(2);
+  });
+
+  it('shows the connection panel to a person who holds the configuration key', async () => {
+    held = ['obs:control', 'obs:config:read'];
+    await open();
+
+    expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
   });
 });

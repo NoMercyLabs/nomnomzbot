@@ -22,6 +22,7 @@ import { dashboardSettingsRoutes } from '../../route';
 
 import en from '../i18n/en.json';
 import BillingView from '../BillingView.vue';
+import { answerHeldKeys } from '../../__tests__/heldKeys';
 
 type Answer = {
   data?: unknown;
@@ -176,6 +177,7 @@ function answerPost(path: string): Answer {
 
 let mounted: VueWrapper | null = null;
 let queries: QueryClient;
+let held: string[] = [];
 
 async function open(): Promise<void> {
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -221,6 +223,11 @@ beforeEach(() => {
   http.GET.mockReset();
   http.POST.mockReset();
   http.GET.mockImplementation(async (path: string, init: unknown) => answerGet(path, init));
+  held = ['billing:read', 'billing:manage'];
+
+  answerHeldKeys(http.GET, () =>
+    held);
+
   http.POST.mockImplementation(async (path: string) => answerPost(path));
   FakeHubConnection.instances = [];
 
@@ -459,6 +466,31 @@ describe('Billing page: live updates', () => {
   });
 });
 
+describe('Billing page: without the manage key', () => {
+  it('shows the plan, the offers and the code check but no button that changes anything', async () => {
+    held = ['billing:read'];
+    subscription = subscriptionOf('pro', 'Pro');
+    await open();
+
+    expect(text()).toContain('Pro');
+    expect(document.body.querySelectorAll('[data-tier]').length).toBeGreaterThan(0);
+    expect(document.body.querySelector('[data-action="choose"]')).toBeNull();
+    expect(document.body.querySelector('[data-action="cancel"]')).toBeNull();
+    expect(document.body.querySelector('[data-action="payment"]')).toBeNull();
+    expect(document.body.querySelector('[data-action="redeem-code"]')).toBeNull();
+    expect(document.body.querySelector('[data-action="check-code"]')).not.toBeNull();
+  });
+
+  it('offers the change buttons again with the manage key', async () => {
+    subscription = subscriptionOf('pro', 'Pro');
+    await open();
+
+    expect(document.body.querySelector('[data-action="choose"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-action="cancel"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-action="redeem-code"]')).not.toBeNull();
+  });
+});
+
 describe('Billing route', () => {
   it('the sidebar entry resolves to the page and is not a coming-soon scaffold', () => {
     const entry = settingsNav.flatMap((group) => group.entries).find((item) => item.route === 'dashboard-settings-billing');
@@ -467,7 +499,7 @@ describe('Billing route', () => {
     expect(entry).toBeDefined();
     expect(record).toBeDefined();
     expect(record!.path).toBe('settings/billing');
-    expect(record!.meta).toMatchObject({ navMode: 'settings' });
+    expect(record!.meta).toMatchObject({ navMode: 'settings', action: 'billing:read' });
     expect(record!.meta?.comingSoon).toBeUndefined();
   });
 });

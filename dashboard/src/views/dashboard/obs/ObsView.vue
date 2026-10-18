@@ -13,6 +13,7 @@
 import { useDocumentVisibility } from '@vueuse/core';
 import { computed } from 'vue';
 
+import { useChannelAccess } from '@/api/access';
 import { useObsBridge, useObsConnection, useObsScenes, useObsState } from '@/api/obs';
 import { useObsStats, useObsVirtualCam } from '@/api/obsOutputs';
 import { useWidgets, type Widget } from '@/api/widgets';
@@ -36,6 +37,8 @@ import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
 
 const { channelId } = useCurrentChannel();
 
+const access = useChannelAccess(channelId);
+const canSeeConnection = computed<boolean>(() => access.can('obs:config:read'));
 const connection = useObsConnection(channelId);
 const bridge = useObsBridge(channelId);
 const enabled = computed<boolean>(() => connection.data.value?.isEnabled === true);
@@ -90,6 +93,7 @@ function retry(): void {
   <PageBody>
     <div data-page-inset class="grid gap-4 @container lg:grid-cols-2">
       <ObsConnectionPanel
+        v-if="canSeeConnection"
         :connection="connection.data.value"
         :bridge="bridge.data.value"
         :state="state.data.value"

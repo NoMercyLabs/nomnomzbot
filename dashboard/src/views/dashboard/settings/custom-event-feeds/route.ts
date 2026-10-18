@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsCustomEventFeedsRoute = {
   path: 'settings/custom-event-feeds',
   name: 'dashboard-settings-custom-event-feeds',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'customdata:read',
+  },
   component: () =>
     loadPage(
       () => import('./CustomEventFeedsView.vue'),

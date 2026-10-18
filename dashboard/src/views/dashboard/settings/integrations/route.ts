@@ -15,7 +15,10 @@ import { loadPage } from '@/i18n';
 export const settingsIntegrationsRoute = {
   path: 'settings/integrations',
   name: 'dashboard-settings-integrations',
-  meta: { navMode: 'settings' },
+  meta: {
+    navMode: 'settings',
+    action: 'integration:read',
+  },
   component: () =>
     loadPage(
       () => import('./IntegrationsView.vue'),

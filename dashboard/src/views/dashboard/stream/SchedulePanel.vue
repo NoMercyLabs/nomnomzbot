@@ -28,6 +28,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { fromLocalInput, toLocalInput } from '@/lib/time';
@@ -36,6 +37,8 @@ import SegmentDialog from './SegmentDialog.vue';
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
+const canEdit = computed(() => can('live-ops:schedule:write'));
 const query = useSchedule(channelId);
 const saveSettings = useSaveScheduleSettings(channelId);
 const updateSegment = useUpdateSegment(channelId);
@@ -102,7 +105,7 @@ function toggleCanceled(segment: ScheduleSegment): void {
     @retry="query.refetch()"
   >
     <div class="flex flex-col gap-6">
-      <div class="flex flex-col gap-2">
+      <div v-if="canEdit" class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t('dashboard.stream.schedule.vacation') }}</span>
         <RowGroup>
           <SettingRow
@@ -136,7 +139,7 @@ function toggleCanceled(segment: ScheduleSegment): void {
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
           <span class="text-sm font-medium">{{ t('dashboard.stream.schedule.segments') }}</span>
-          <Button data-segment-add @click="addSegment">
+          <Button v-if="canEdit" data-segment-add @click="addSegment">
             {{ t('dashboard.stream.schedule.addSegment') }}
           </Button>
         </div>
@@ -164,10 +167,16 @@ function toggleCanceled(segment: ScheduleSegment): void {
             </span>
             <StatusBadge v-if="segment.isRecurring" tone="off" :label="t('dashboard.stream.schedule.weekly')" />
             <StatusBadge v-if="isCanceled(segment)" tone="off" :label="t('dashboard.stream.schedule.isCanceled')" />
-            <Button variant="ghost" size="sm" data-segment-edit @click="editSegment(segment)">
+            <Button v-if="canEdit"
+                    variant="ghost"
+                    size="sm"
+                    data-segment-edit
+                    @click="editSegment(segment)"
+            >
               {{ t('dashboard.stream.schedule.edit') }}
             </Button>
             <Button
+              v-if="canEdit"
               variant="ghost"
               size="sm"
               data-segment-cancel
@@ -181,5 +190,5 @@ function toggleCanceled(segment: ScheduleSegment): void {
       </div>
     </div>
   </PanelCard>
-  <SegmentDialog v-model:open="dialogOpen" :segment="editing" />
+  <SegmentDialog v-if="canEdit" v-model:open="dialogOpen" :segment="editing" />
 </template>

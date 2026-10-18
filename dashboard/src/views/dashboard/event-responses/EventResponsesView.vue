@@ -18,6 +18,7 @@ import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import EventResponseEditor from './components/EventResponseEditor.vue';
@@ -26,6 +27,7 @@ import EventResponseList from './components/EventResponseList.vue';
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const responses = useEventResponses(channelId);
 
 // The open event lives in the address (?event=), so a refresh or a link keeps it.
@@ -54,7 +56,7 @@ function select(eventType: string | undefined): void {
     <template #list>
       <EventResponseList :selected="selected" @pick="select" />
     </template>
-    <template #detail>
+    <template v-if="can('eventresponses:write')" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
         <Button
           data-detail-back

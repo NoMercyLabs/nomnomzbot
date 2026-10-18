@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardAnalyticsRoute = {
   path: 'analytics',
   name: 'dashboard-analytics',
+  meta: { action: 'analytics:read' },
   component: () =>
     loadPage(
       () => import('./AnalyticsView.vue'),

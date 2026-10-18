@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 import { useStartCommercial } from '@/api/schedule';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 // The lengths Twitch accepts, in seconds.
@@ -22,6 +23,7 @@ const LENGTHS = [30, 60, 90, 120, 150, 180] as const satisfies readonly number[]
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const start = useStartCommercial(channelId);
 
 const lengthSeconds = ref<number>(LENGTHS[0]);
@@ -33,6 +35,7 @@ function run(): void {
 
 <template>
   <PanelCard
+    v-if="can('live-ops:ads:write')"
     :title="t('dashboard.stream.ads.title')"
     :description="t('dashboard.stream.ads.description')"
   >

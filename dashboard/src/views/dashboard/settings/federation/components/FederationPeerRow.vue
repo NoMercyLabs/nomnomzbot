@@ -16,7 +16,11 @@ import type { FederationOptIn } from '@/api/federation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-defineProps<{ optIn: FederationOptIn; busy: boolean }>();
+defineProps<{
+  optIn: FederationOptIn;
+  busy: boolean;
+  canDisable: boolean;
+}>();
 
 defineEmits<{ disable: [] }>();
 </script>
@@ -33,6 +37,7 @@ defineEmits<{ disable: [] }>();
       <span class="block font-mono text-sm break-all text-muted-foreground">{{ optIn.peerId }}</span>
     </div>
     <Button
+      v-if="canDisable"
       variant="ghost"
       size="icon"
       data-peer-opt-in-disable

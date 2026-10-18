@@ -18,6 +18,7 @@ import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
 import BasicsView from '../BasicsView.vue';
+import { answerHeldKeys } from './heldKeys';
 
 type Answer = {
   data?: unknown;
@@ -46,6 +47,7 @@ const stored = {
 };
 
 let mounted: VueWrapper | null = null;
+let held: string[] = [];
 
 async function open(): Promise<void> {
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -75,7 +77,11 @@ beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   http.GET.mockReset();
   http.PUT.mockReset();
+  held = ['setup:read', 'setup:write'];
   http.GET.mockResolvedValue({ data: { data: stored }, response: { ok: true, status: 200 } });
+
+  answerHeldKeys(http.GET, () =>
+    held);
 
   vi.stubGlobal(
     'ResizeObserver',
@@ -99,6 +105,18 @@ describe('Basics settings', () => {
 
     expect(prefixInput().value).toBe('!');
     expect(saveButton().disabled).toBe(true);
+  });
+
+  it('shows the saved values to a person without the setup write key but offers no Save or edit', async () => {
+    held = ['setup:read'];
+    await open();
+
+    expect(prefixInput().value).toBe('!');
+    expect(prefixInput().disabled).toBe(true);
+
+    expect(
+      [...document.body.querySelectorAll('button')].some((item) => item.textContent?.trim() === 'Save'),
+    ).toBe(false);
   });
 
   it('saves the edited prefix with the other stored values', async () => {

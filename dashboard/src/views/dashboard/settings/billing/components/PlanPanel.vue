@@ -22,12 +22,14 @@ import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { merge } from '@/lib/array';
 import { errorText } from '@/lib/errors';
 
 const { t, te, d } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const subscription = useSubscription(channelId);
 const resume = useResumePlan(channelId);
@@ -100,7 +102,9 @@ const dates = computed<readonly DateRow[]>(() => {
   );
 });
 
-const manageable = computed(() => plan.value !== undefined && !plan.value.isInviteOnlyGrant);
+const manageable = computed(
+  () => can('billing:manage') && plan.value !== undefined && !plan.value.isInviteOnlyGrant,
+);
 const cancellable = computed(() => manageable.value && plan.value?.status !== 'canceled');
 
 function yesNo(value: boolean): string {

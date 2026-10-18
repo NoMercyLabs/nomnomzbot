@@ -23,6 +23,7 @@ import {
 import Countdown from '@/components/layout/Countdown.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { pollBars, predictionBars, type LeadBar } from '../pollHistory';
@@ -46,6 +47,14 @@ const { t, n } = useI18n();
 const { channelId } = useCurrentChannel();
 const endPoll = useEndPoll(channelId);
 const lockPrediction = useLockPrediction(channelId);
+const { can } = useCan();
+
+// What the running poll or prediction needs next is a change; a person who cannot change it only watches.
+const canChange = computed(() =>
+  props.poll !== null
+    ? can('live-ops:polls:write')
+    : can('live-ops:predictions:write'),
+);
 
 const running = computed(() => props.poll !== null || props.prediction !== null);
 const title = computed(() => props.poll?.title ?? props.prediction?.title ?? '');
@@ -123,7 +132,7 @@ function lockCurrentPrediction(): void {
           <PollBar size="lg" :tone="bar.leading ? 'accent' : 'muted'" :percent="bar.percent" />
         </li>
       </ul>
-      <div class="flex flex-wrap gap-2">
+      <div v-if="canChange" class="flex flex-wrap gap-2">
         <Button
           v-if="poll !== null"
           data-lead-end
@@ -151,10 +160,20 @@ function lockCurrentPrediction(): void {
     <div v-else data-lead="empty" class="flex flex-col gap-3">
       <p class="text-sm text-muted-foreground">{{ t('dashboard.polls.lead.idle') }}</p>
       <div class="flex flex-wrap gap-2">
-        <Button data-lead-start="poll" variant="default" @click="emit('startPoll')">
+        <Button
+          v-if="can('live-ops:polls:write')"
+          data-lead-start="poll"
+          variant="default"
+          @click="emit('startPoll')"
+        >
           {{ t('dashboard.polls.lead.startPoll') }}
         </Button>
-        <Button data-lead-start="prediction" variant="outline" @click="emit('startPrediction')">
+        <Button
+          v-if="can('live-ops:predictions:write')"
+          data-lead-start="prediction"
+          :variant="can('live-ops:polls:write') ? 'outline' : 'default'"
+          @click="emit('startPrediction')"
+        >
           {{ t('dashboard.polls.lead.startPrediction') }}
         </Button>
       </div>

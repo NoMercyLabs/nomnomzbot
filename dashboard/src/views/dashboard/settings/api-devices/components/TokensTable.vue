@@ -24,6 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useCan } from '@/composables/useCan';
+
+const { can } = useCan();
 
 defineProps<{ tokens: readonly AutomationToken[] }>();
 defineEmits<{ rotate: [token: AutomationToken]; revoke: [token: AutomationToken] }>();
@@ -65,7 +68,7 @@ function stateOf(token: AutomationToken): string {
         <TableHead>{{ $t('dashboard.settings.apiDevices.columns.lastUsed') }}</TableHead>
         <TableHead>{{ $t('dashboard.settings.apiDevices.columns.expires') }}</TableHead>
         <TableHead>{{ $t('dashboard.settings.apiDevices.columns.state') }}</TableHead>
-        <TableHead class="w-24" />
+        <TableHead v-if="can('automation:tokens:write')" class="w-24" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -92,7 +95,7 @@ function stateOf(token: AutomationToken): string {
             :label="$t(`dashboard.settings.apiDevices.state.${stateOf(token)}`)"
           />
         </TableCell>
-        <TableCell>
+        <TableCell v-if="can('automation:tokens:write')">
           <div v-if="stateOf(token) !== 'revoked'" class="flex justify-end gap-1">
             <Button
               data-rotate

@@ -36,6 +36,7 @@ type Answer = {
 
 const calls: Call[] = [];
 let feeds: Body[] = [];
+const held: string[] = ['customdata:read', 'customdata:write'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -61,6 +62,9 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path });
+
+      if (path.endsWith('/roles/effective/me'))
+        return ok({ heldActionKeys: held });
 
       if (path.endsWith('/blast-radius')) {
         return ok({
@@ -288,7 +292,7 @@ describe('Custom event feeds route', () => {
       '/app/settings/custom-event-feeds',
     );
 
-    expect(record?.meta).toEqual({ navMode: 'settings' });
+    expect(record?.meta).toEqual({ navMode: 'settings', action: 'customdata:read' });
     expect(loaded.default).toBe(CustomEventFeedsView);
   });
 });
