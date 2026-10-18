@@ -1,0 +1,50 @@
+{
+  "dashboard": {
+    "settings": {
+      "resourceLimits": {
+        "crumb": "Account",
+        "limits": {
+          "title": "Limits",
+          "description": "How much of each limited resource this channel uses right now.",
+          "empty": "This channel has no limited resources.",
+          "error": "The limits could not be loaded.",
+          "baseline": "Safety limit for every channel: {value}",
+          "costDriving": {
+            "title": "Tied to real cost",
+            "description": "These cost real money to serve, so they grow with your plan."
+          },
+          "nearFree": {
+            "title": "Abuse protection",
+            "description": "The same generous limit for every channel. It only stops runaway use."
+          }
+        },
+        "meter": {
+          "of": "{used} of {limit}",
+          "unlimited": "{used}, no limit"
+        },
+        "plan": {
+          "title": "Plan",
+          "description": "The plan that sets your limits.",
+          "error": "The plan could not be loaded.",
+          "tier": "Plan",
+          "customBotName": "Custom bot name",
+          "prioritySupport": "Priority support",
+          "yes": "Included",
+          "no": "Not included",
+          "change": "Change plan",
+          "restricted": "Running NomNomzBot as a hosted service for others is a restricted option, reserved to NoMercy Labs. Self-hosting your own bot is always free."
+        },
+        "usage": {
+          "title": "Usage this period",
+          "description": "Metered use in the current period.",
+          "period": "{from} to {to}",
+          "empty": "Nothing is metered yet this period.",
+          "error": "The usage could not be loaded."
+        },
+        "metrics": {
+          "tts_characters": "Text-to-speech characters"
+        }
+      }
+    }
+  }
+}

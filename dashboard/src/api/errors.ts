@@ -375,6 +375,9 @@ function statusOf(body: JsonObject): number | undefined {
 
 function fieldErrorsOf(body: JsonObject): Record<string, string[]> | undefined {
   const value = body.errors;
+  'resource limits': 'settings',
+  'plan usage': 'settings',
+  'plan entitlement': 'settings',
 
   if (!isRecord(value))
     return undefined;

@@ -1,0 +1,50 @@
+{
+  "dashboard": {
+    "settings": {
+      "resourceLimits": {
+        "crumb": "Account",
+        "limits": {
+          "title": "Limieten",
+          "description": "Hoeveel van elke beperkte bron dit kanaal nu gebruikt.",
+          "empty": "Dit kanaal heeft geen beperkte bronnen.",
+          "error": "De limieten konden niet worden geladen.",
+          "baseline": "Veiligheidslimiet voor elk kanaal: {value}",
+          "costDriving": {
+            "title": "Gekoppeld aan echte kosten",
+            "description": "Deze kosten echt geld om te leveren, dus ze groeien mee met je abonnement."
+          },
+          "nearFree": {
+            "title": "Misbruikbescherming",
+            "description": "Dezelfde ruime limiet voor elk kanaal. Hij stopt alleen buitensporig gebruik."
+          }
+        },
+        "meter": {
+          "of": "{used} van {limit}",
+          "unlimited": "{used}, geen limiet"
+        },
+        "plan": {
+          "title": "Abonnement",
+          "description": "Het abonnement dat je limieten bepaalt.",
+          "error": "Het abonnement kon niet worden geladen.",
+          "tier": "Abonnement",
+          "customBotName": "Eigen botnaam",
+          "prioritySupport": "Voorrangssupport",
+          "yes": "Inbegrepen",
+          "no": "Niet inbegrepen",
+          "change": "Abonnement wijzigen",
+          "restricted": "NomNomzBot als gehoste dienst voor anderen draaien is een beperkte optie, voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis."
+        },
+        "usage": {
+          "title": "Gebruik in deze periode",
+          "description": "Gemeten gebruik in de huidige periode.",
+          "period": "{from} tot {to}",
+          "empty": "Er is deze periode nog niets gemeten.",
+          "error": "Het gebruik kon niet worden geladen."
+        },
+        "metrics": {
+          "tts_characters": "Tekens voor tekst-naar-spraak"
+        }
+      }
+    }
+  }
+}

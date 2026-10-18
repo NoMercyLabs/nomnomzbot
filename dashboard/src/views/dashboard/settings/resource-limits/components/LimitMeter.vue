@@ -1,0 +1,65 @@
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<script setup lang="ts">
+// One limited resource: its name, "used of limit", and a bar. The bar is neutral until the resource is near
+// its limit; a full one turns destructive, because the next save of that kind is refused.
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import type { LimitLevel } from '../limitRows';
+
+const props = defineProps<{
+  label: string;
+  used: number;
+  limit: number;
+  percent: number;
+  level: LimitLevel;
+  detail?: string;
+}>();
+
+const { n, t } = useI18n();
+
+const figures = computed(() =>
+  props.level === 'unlimited'
+    ? t('dashboard.settings.resourceLimits.meter.unlimited', { used: n(props.used) })
+    : t('dashboard.settings.resourceLimits.meter.of', { used: n(props.used), limit: n(props.limit) }));
+
+const barClass = computed(() => {
+  if (props.level === 'full')
+    return 'bg-destructive';
+
+  return props.level === 'near'
+    ? 'bg-foreground'
+    : 'bg-foreground/50';
+});
+</script>
+
+<template>
+  <div data-limit-row :data-level="level" class="grid gap-1.5 px-3 py-2.5">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+      <span class="min-w-0 flex-1 basis-48 text-sm font-medium">{{ label }}</span>
+      <span class="text-sm tabular-nums" :class="level === 'full' ? 'text-destructive' : 'text-muted-foreground'">{{
+        figures
+      }}</span>
+    </div>
+    <div
+      v-if="level !== 'unlimited'"
+      role="progressbar"
+      :aria-label="label"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      :aria-valuenow="percent"
+      class="h-1.5 overflow-hidden rounded-full bg-background"
+    >
+      <div class="h-full rounded-full" :class="barClass" :style="{ width: `${percent}%` }" />
+    </div>
+    <span v-if="detail" class="text-sm text-muted-foreground">{{ detail }}</span>
+  </div>
+</template>
