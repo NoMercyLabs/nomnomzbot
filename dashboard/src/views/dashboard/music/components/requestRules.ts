@@ -16,6 +16,9 @@ export const providers = ['auto', 'spotify', 'youtube'] as const;
 export const queueLimits = { min: 1, max: 500 } as const;
 export const requestLimits = { min: 1, max: 50 } as const;
 export const songSecondsLimits = { min: 10, max: 3600 } as const;
+// The board width from which the rules sit as a third column. Below it the queue row (handle, number, cover,
+// Next, remove, ban) and the player lose the room they need, so the rules stay in the drawer.
+export const rulesInlineFrom = 1440;
 // 0 turns the per-stream cap off (the bot stores no cap); 1 to 100 turns it on.
 export const perStreamLimits = { min: 0, max: 100 } as const;
 

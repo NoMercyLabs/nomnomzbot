@@ -253,6 +253,28 @@ describe('RulesPanel', () => {
     expect(buttonIn('Save').disabled).toBe(true);
   });
 
+  // Stoney 2026-10-18: "you got to apply the same rules as all other pannels with a toggle in the header bar".
+  it('puts the requests-open toggle in the panel header, not the body, and saves it as before', async () => {
+    config = { ...baseConfig(), requestsOpen: true };
+    await open();
+
+    const header = document.body.querySelector<HTMLElement>('[data-slot="panel-actions"]');
+    const toggle = header?.querySelector<HTMLButtonElement>('button[data-setting="requests-open"]');
+    const inBody = document.body.querySelectorAll('button[data-setting="requests-open"]');
+
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute('aria-label')).toBe('Requests are open');
+    expect(inBody).toHaveLength(1);
+
+    toggle?.click();
+    await settle();
+    buttonIn('Save').click();
+    await settle();
+
+    expect(puts()).toHaveLength(1);
+    expect(puts()[0]!.body).toEqual({ requestsOpen: false });
+  });
+
   it('saves the songs per person the streamer types', async () => {
     await open();
 

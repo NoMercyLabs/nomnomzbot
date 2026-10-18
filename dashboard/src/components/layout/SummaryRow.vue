@@ -26,14 +26,27 @@ const props = withDefaults(
     meta?: string;
     pick?: boolean;
     selected?: boolean;
+    // A row in a crowded panel: the text keeps a minimum width and cuts with an ellipsis instead of wrapping
+    // one letter per line when the buttons beside it take the room.
+    truncate?: boolean;
   }>(),
   {
     detail: undefined,
     meta: undefined,
     pick: false,
     selected: false,
+    truncate: false,
   },
 );
+
+const textClass = computed<string>(() =>
+  props.truncate
+    ? 'min-w-24'
+    : '');
+const titleClass = computed<string>(() =>
+  props.truncate
+    ? 'truncate'
+    : 'wrap-break-word');
 
 const bodyClass = computed<string>(() => {
   if (props.selected)
@@ -56,12 +69,13 @@ const bodyClass = computed<string>(() => {
       v-bind="$attrs"
     >
       <slot name="leading" />
-      <span class="min-w-0 flex-1">
-        <!-- Wrap, never cut: on a phone a cut detail loses its meaning, and a long bot address its end. -->
-        <span class="block text-sm font-medium wrap-break-word"><slot name="title">{{ title }}</slot></span>
+      <span data-slot="summary-row-text" class="min-w-0 flex-1" :class="textClass">
+        <!-- Wrap, never cut: on a phone a cut detail loses its meaning, and a long bot address its end.
+             A row that sets truncate cuts instead, and keeps a minimum width. -->
+        <span data-slot="summary-row-title" class="block text-sm font-medium" :class="titleClass"><slot name="title">{{ title }}</slot></span>
         <span v-if="detail" class="flex items-center gap-2 text-sm text-muted-foreground">
           <slot name="detail-lead" />
-          <span>{{ detail }}</span>
+          <span :class="truncate ? 'truncate' : ''">{{ detail }}</span>
         </span>
         <span v-if="meta || $slots.meta" data-slot="summary-row-meta" class="block text-xs text-muted-foreground"><slot name="meta">{{ meta }}</slot></span>
       </span>

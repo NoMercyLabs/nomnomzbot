@@ -17,6 +17,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { i18n } from '@/i18n';
 
+import { rulesInlineFrom } from '../components/requestRules';
 import MusicView from '../MusicView.vue';
 import en from '../i18n/en.json';
 
@@ -129,6 +130,21 @@ describe('music request rules placement', () => {
     expect(cell?.querySelector('input[name="song-seconds"]')).not.toBeNull();
     expect(trigger()).toBeUndefined();
     expect(document.body.querySelector('[data-slot="sheet-content"]')).toBeNull();
+  });
+
+  // Stoney 2026-10-18: the third column squeezed the queue title to one letter per line. The rules come inline
+  // only where three panels keep their readable width.
+  it('switches from the drawer to the inline column exactly at rulesInlineFrom', async () => {
+    await mountAt(rulesInlineFrom - 1);
+    expect(document.body.querySelector('[data-panel="rules"]')).toBeNull();
+    expect(trigger()).toBeDefined();
+    mounted?.unmount();
+    document.body.innerHTML = '';
+
+    await mountAt(rulesInlineFrom);
+    expect(document.body.querySelector('[data-panel="rules"]')).not.toBeNull();
+    expect(trigger()).toBeUndefined();
+    expect(rulesInlineFrom).toBeGreaterThan(1100);
   });
 
   it('keeps the rules behind a drawer button when the board is narrow', async () => {

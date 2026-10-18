@@ -27,6 +27,22 @@ function pill(wrapper: VueWrapper): string {
   return wrapper.find('[data-slot="summary-row-body"]').classes().join(' ');
 }
 
+describe('summary row truncation', () => {
+  it('wraps a long title by default', () => {
+    const wrapper = mount(SummaryRow, { props: { title: 'Spaghetti Code' } });
+
+    expect(wrapper.find('[data-slot="summary-row-title"]').classes()).not.toContain('truncate');
+  });
+
+  it('keeps a minimum text width and cuts the title with an ellipsis when truncate is set', () => {
+    const wrapper = mount(SummaryRow, { props: { title: 'Spaghetti Code', truncate: true } });
+    const text = wrapper.find('[data-slot="summary-row-text"]');
+
+    expect(wrapper.find('[data-slot="summary-row-title"]').classes()).toContain('truncate');
+    expect(text.classes()).toContain('min-w-24');
+  });
+});
+
 describe('summary row visual balance', () => {
   it('gives text with no icon and no button the same 12px inset on both sides', () => {
     const wrapper = mountRow();

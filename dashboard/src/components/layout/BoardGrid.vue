@@ -35,9 +35,12 @@ const wide = computed(() =>
 const tabbed = computed(() => !wide.value && props.panels.length > 1);
 // A page that keeps an optional panel in a drawer asks the board whether its columns are there.
 const columns = defineModel<boolean>('wide', { default: true });
+// The measured width, for a page whose optional column needs more room than the grid itself.
+const measured = defineModel<number>('width', { default: 0 });
 
 watchEffect(() => {
   columns.value = wide.value;
+  measured.value = width.value;
 });
 
 const open = usePageView(() => props.panels.map((panel) =>

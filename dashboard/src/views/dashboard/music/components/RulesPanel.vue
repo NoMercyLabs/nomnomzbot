@@ -185,14 +185,19 @@ const missing = computed<KeyValueItem[]>(() =>
     :error-text="$t('dashboard.music.rules.error')"
     @retry="configQuery.refetch()"
   >
+    <!-- The master switch of the panel sits in its header bar, like the other panels' on/off. -->
+    <template v-if="draft" #actions>
+      <GatedSwitch
+        v-model="draft.requestsOpen"
+        action="music:config:write"
+        :aria-label="$t('dashboard.music.rules.open')"
+        data-setting="requests-open"
+      />
+    </template>
     <div v-if="draft" class="grid gap-5">
       <fieldset class="contents" :disabled="!can('music:config:write')">
         <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
           <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
-          <label class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.open") }}</span>
-            <GatedSwitch v-model="draft.requestsOpen" action="music:config:write" data-setting="requests-open" />
-          </label>
           <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
             <label
               v-for="level in trustLevels"

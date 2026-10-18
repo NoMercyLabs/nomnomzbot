@@ -104,7 +104,8 @@ const nextRepeat = computed<RepeatMode>(() => {
 <template>
   <!-- Every control is always drawn, disabled when the player cannot do it, so nothing jumps between songs. -->
   <div data-player class="flex h-full flex-col gap-5 p-4">
-    <div class="flex min-h-0 items-center gap-8">
+    <!-- Wrapping: in a narrow panel the text drops under the cover instead of being squeezed to a few letters. -->
+    <div data-player-head class="flex min-h-0 flex-wrap items-center gap-x-8 gap-y-4">
       <img
         v-if="track.imageUrl"
         :src="track.imageUrl"
@@ -117,8 +118,8 @@ const nextRepeat = computed<RepeatMode>(() => {
       >
         <Music class="size-16" aria-hidden="true" />
       </div>
-      <div class="grid min-w-0 flex-1 gap-3">
-        <p data-player-title class="line-clamp-2 text-5xl leading-tight font-bold">
+      <div class="grid min-w-0 flex-[1_1_16rem] gap-3">
+        <p data-player-title class="line-clamp-2 text-4xl leading-tight font-bold wrap-break-word">
           {{ track.trackName }}
         </p>
         <p class="truncate text-2xl text-muted-foreground">{{ track.artist }}</p>
