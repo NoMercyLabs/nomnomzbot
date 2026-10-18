@@ -180,6 +180,10 @@ export const apiOperations = {
   'save discord rule': 'discord',
   'create discord rule': 'discord',
   'discord preview': 'discord',
+  'discord notify roles': 'discord',
+  'create discord notify role': 'discord',
+  'save discord notify role': 'discord',
+  'post discord role button': 'discord',
   'currency config': 'economy',
   'save currency': 'economy',
   'earning rules': 'economy',
@@ -417,6 +421,11 @@ export const apiOperations = {
   'custom event feed blast radius': 'settings',
   'test custom event feed': 'settings',
   'fetch custom event feed': 'settings',
+  'channel features': 'settings',
+  'toggle feature': 'settings',
+  'resource limits': 'settings',
+  'plan usage': 'settings',
+  'plan entitlement': 'settings',
 } as const satisfies Record<string, ApiOrigin>;
 
 export type ApiOperation = keyof typeof apiOperations;
@@ -439,8 +448,6 @@ function isRecord(value: unknown): value is JsonObject {
 
 function textOf(body: JsonObject, key: string): string | undefined {
   const value = body[key];
-  'channel features': 'settings',
-  'toggle feature': 'settings',
 
   return typeof value === 'string' && value !== ''
     ? value
@@ -457,9 +464,6 @@ function statusOf(body: JsonObject): number | undefined {
 
 function fieldErrorsOf(body: JsonObject): Record<string, string[]> | undefined {
   const value = body.errors;
-  'resource limits': 'settings',
-  'plan usage': 'settings',
-  'plan entitlement': 'settings',
 
   if (!isRecord(value))
     return undefined;

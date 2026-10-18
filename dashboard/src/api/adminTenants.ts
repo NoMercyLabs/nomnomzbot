@@ -210,10 +210,12 @@ export function useExportTenant() {
         { params: { path: { version, broadcasterId } } },
       );
 
-      if (error !== undefined || data?.data === undefined)
+      const exported = data?.data;
+
+      if (error !== undefined || exported === undefined || exported === null)
         throw problemError('tenant export', response.status, error);
 
-      return data.data;
+      return exported;
     },
   });
 }

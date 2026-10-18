@@ -56,9 +56,9 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
   if (from < 0 || from >= moved.length || to < 0 || to >= moved.length)
     return moved;
 
-  const [item] = moved.splice(from, 1);
+  const removed = moved.splice(from, 1);
 
-  moved.splice(to, 0, item);
+  moved.splice(to, 0, ...removed);
 
   return moved;
 }

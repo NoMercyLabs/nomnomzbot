@@ -121,7 +121,9 @@ export function useDisconnectBot(
     onSuccess: (): void => {
       const key = botStatusKey(toValue(channelId));
 
-      queries.setQueryData<BotStatus | null>(key, { connected: false });
+      const disconnected: BotStatus = { connected: false };
+
+      queries.setQueryData<BotStatus | null>(key, disconnected);
     },
   });
 }

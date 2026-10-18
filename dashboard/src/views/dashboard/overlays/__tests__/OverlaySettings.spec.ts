@@ -332,8 +332,24 @@ async function type(key: string, value: string): Promise<void> {
 const listRows = (key: string): HTMLInputElement[] => [
   ...row(key).querySelectorAll<HTMLInputElement>('[data-list-item] input'),
 ];
-const listButton = (key: string, name: string, index: number): HTMLButtonElement =>
-  row(key).querySelectorAll<HTMLButtonElement>(`[data-list-${name}]`)[index];
+
+const listBox = (key: string, index: number): HTMLInputElement => {
+  const box = listRows(key)[index];
+
+  if (box === undefined)
+    throw new Error(`no list row ${index} in ${key}`);
+
+  return box;
+};
+
+const listButton = (key: string, name: string, index: number): HTMLButtonElement => {
+  const button = row(key).querySelectorAll<HTMLButtonElement>(`[data-list-${name}]`)[index];
+
+  if (button === undefined)
+    throw new Error(`no ${name} button ${index} in ${key}`);
+
+  return button;
+};
 
 async function typeInto(box: HTMLInputElement, value: string): Promise<void> {
   box.value = value;
@@ -544,10 +560,10 @@ describe('the preview', () => {
 
     expect(listRows('badgeTexts').map((box) => box.value)).toEqual(['Stoney_Eagle', 'NoMercy TV']);
 
-    await typeInto(listRows('badgeTexts')[0], 'Fillz');
+    await typeInto(listBox('badgeTexts', 0), 'Fillz');
     listButton('badgeTexts', 'add', 0).click();
     await settle();
-    await typeInto(listRows('badgeTexts')[2], 'https://nomercy.tv');
+    await typeInto(listBox('badgeTexts', 2), 'https://nomercy.tv');
     listButton('badgeTexts', 'down', 0).click();
     await settle();
     listButton('badgeTexts', 'remove', 0).click();
