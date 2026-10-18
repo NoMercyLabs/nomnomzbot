@@ -25,6 +25,7 @@ import type { NowPlaying } from '@/api/music';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { useCan } from '@/composables/useCan';
 
 import { formatClock } from './formatClock';
 
@@ -46,6 +47,8 @@ const emit = defineEmits<{
   repeat: [mode: RepeatMode];
   volume: [percent: number];
 }>();
+
+const { can } = useCan();
 
 const now = ref(Date.now());
 
@@ -115,7 +118,9 @@ const nextRepeat = computed<RepeatMode>(() => {
         <Music class="size-16" aria-hidden="true" />
       </div>
       <div class="grid min-w-0 flex-1 gap-3">
-        <p data-player-title class="line-clamp-2 text-5xl leading-tight font-bold">{{ track.trackName }}</p>
+        <p data-player-title class="line-clamp-2 text-5xl leading-tight font-bold">
+          {{ track.trackName }}
+        </p>
         <p class="truncate text-2xl text-muted-foreground">{{ track.artist }}</p>
         <p data-player-requester class="h-7 truncate text-lg text-muted-foreground">
           <template v-if="track.requestedBy">
@@ -142,7 +147,7 @@ const nextRepeat = computed<RepeatMode>(() => {
           :model-value="[shownPosition]"
           :max="Math.max(durationMs, 1)"
           :step="1000"
-          :disabled="!track.canSeek"
+          :disabled="!track.canSeek || !can('music:remote:control')"
           :aria-label="$t('dashboard.music.now.seek')"
           @update:model-value="seeking = $event ?? null"
           @value-commit="commitSeek"
@@ -155,6 +160,7 @@ const nextRepeat = computed<RepeatMode>(() => {
         <span aria-hidden="true" />
         <div class="flex items-center gap-5">
           <Button
+            v-if="can('music:remote:control')"
             variant="ghost"
             size="icon-lg"
             class="[&_svg]:size-6"
@@ -167,6 +173,7 @@ const nextRepeat = computed<RepeatMode>(() => {
             <Shuffle aria-hidden="true" />
           </Button>
           <Button
+            v-if="can('music:queue:moderate')"
             variant="secondary"
             size="icon-lg"
             class="size-12 [&_svg]:size-8"
@@ -176,27 +183,30 @@ const nextRepeat = computed<RepeatMode>(() => {
           >
             <Previous aria-hidden="true" />
           </Button>
+          <template v-if="can('music:queue:moderate')">
+            <Button
+              v-if="track.isPlaying"
+              size="icon-lg"
+              class="size-16 rounded-full [&_svg]:size-9"
+              :disabled="!track.canPause"
+              :aria-label="$t('dashboard.music.now.pause')"
+              @click="emit('pause')"
+            >
+              <Pause aria-hidden="true" />
+            </Button>
+            <Button
+              v-else
+              size="icon-lg"
+              class="size-16 rounded-full [&_svg]:size-9"
+              :disabled="!track.canResume"
+              :aria-label="$t('dashboard.music.now.play')"
+              @click="emit('resume')"
+            >
+              <Play aria-hidden="true" />
+            </Button>
+          </template>
           <Button
-            v-if="track.isPlaying"
-            size="icon-lg"
-            class="size-16 rounded-full [&_svg]:size-9"
-            :disabled="!track.canPause"
-            :aria-label="$t('dashboard.music.now.pause')"
-            @click="emit('pause')"
-          >
-            <Pause aria-hidden="true" />
-          </Button>
-          <Button
-            v-else
-            size="icon-lg"
-            class="size-16 rounded-full [&_svg]:size-9"
-            :disabled="!track.canResume"
-            :aria-label="$t('dashboard.music.now.play')"
-            @click="emit('resume')"
-          >
-            <Play aria-hidden="true" />
-          </Button>
-          <Button
+            v-if="can('music:queue:moderate')"
             variant="secondary"
             size="icon-lg"
             class="size-12 [&_svg]:size-8"
@@ -207,6 +217,7 @@ const nextRepeat = computed<RepeatMode>(() => {
             <Next aria-hidden="true" />
           </Button>
           <Button
+            v-if="can('music:remote:control')"
             variant="ghost"
             size="icon-lg"
             class="[&_svg]:size-6"
@@ -220,8 +231,12 @@ const nextRepeat = computed<RepeatMode>(() => {
           </Button>
         </div>
 
-        <div class="flex items-center justify-end gap-2">
-          <VolumeMuted v-if="volume[0] === 0" class="size-5 flex-none text-muted-foreground" aria-hidden="true" />
+        <div v-if="can('music:remote:control')" class="flex items-center justify-end gap-2">
+          <VolumeMuted
+            v-if="volume[0] === 0"
+            class="size-5 flex-none text-muted-foreground"
+            aria-hidden="true"
+          />
           <VolumeTwo v-else class="size-5 flex-none text-muted-foreground" aria-hidden="true" />
           <Slider
             v-model="volume"

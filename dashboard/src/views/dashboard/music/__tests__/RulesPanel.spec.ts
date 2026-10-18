@@ -107,6 +107,10 @@ function write(method: string, path: string, options?: Options): Answer {
     : { response: { status: 200, ok: true } };
 }
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

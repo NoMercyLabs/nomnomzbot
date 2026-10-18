@@ -15,6 +15,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 
 import { useTtsSample } from '@/api/tts';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 type SampleState = 'idle' | 'loading' | 'playing';
@@ -26,6 +27,7 @@ const props = withDefaults(defineProps<{ voiceId: string; compact?: boolean }>()
 });
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const sample = useTtsSample(channelId);
 const audio = ref<HTMLAudioElement | null>(null);
 const playing = ref(false);
@@ -68,6 +70,7 @@ onBeforeUnmount(stop);
 
 <template>
   <Button
+    v-if="can('tts:voice:test')"
     data-voice-play
     :data-state="state"
     type="button"
@@ -91,7 +94,7 @@ onBeforeUnmount(stop);
     <template v-if="!compact">
       {{
         $t(
-          state === 'playing' ? 'dashboard.tts.voices.stopLabel' : 'dashboard.tts.voices.playLabel',
+          state === "playing" ? "dashboard.tts.voices.stopLabel" : "dashboard.tts.voices.playLabel",
         )
       }}
     </template>

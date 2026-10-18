@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { requestersIn, type Requester } from './requesters';
@@ -31,13 +32,15 @@ const props = defineProps<{ rows: QueueItem[] }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const removeAll = useRemoveRequesterSongs(channelId);
 
 const requesters = computed<Requester[]>(() => requestersIn(props.rows));
 const picked = ref<string>('');
 const confirmOpen = ref<boolean>(false);
 const chosen = computed<Requester | undefined>(() =>
-  requesters.value.find((requester: Requester) => requester.name === picked.value));
+  requesters.value.find((requester: Requester) => requester.name === picked.value),
+);
 
 function confirmRemove(): void {
   if (chosen.value === undefined) return;
@@ -49,7 +52,11 @@ function confirmRemove(): void {
 </script>
 
 <template>
-  <div v-if="requesters.length > 0" data-requester-remove class="flex items-center gap-2 px-4 py-3">
+  <div
+    v-if="requesters.length > 0 && can('music:queue:moderate')"
+    data-requester-remove
+    class="flex items-center gap-2 px-4 py-3"
+  >
     <Select v-model="picked">
       <SelectTrigger class="min-w-0 flex-1" :aria-label="$t('dashboard.music.queue.pickRequester')">
         <SelectValue :placeholder="$t('dashboard.music.queue.pickRequester')" />
@@ -61,21 +68,22 @@ function confirmRemove(): void {
           :value="requester.name"
           data-requester-option
         >
-          {{ $t('dashboard.music.queue.requesterOption', requester) }}
+          {{ $t("dashboard.music.queue.requesterOption", requester) }}
         </SelectItem>
       </SelectContent>
     </Select>
-    <Button
-      variant="destructive"
-      :disabled="chosen === undefined"
-      @click="confirmOpen = true"
-    >
-      {{ $t('dashboard.music.queue.removeAll') }}
+    <Button variant="destructive" :disabled="chosen === undefined" @click="confirmOpen = true">
+      {{ $t("dashboard.music.queue.removeAll") }}
     </Button>
   </div>
   <ConfirmDialog
     v-model:open="confirmOpen"
-    :title="t('dashboard.music.queue.removeAllTitle', { count: chosen?.count ?? 0, name: chosen?.name ?? '' })"
+    :title="
+      t('dashboard.music.queue.removeAllTitle', {
+        count: chosen?.count ?? 0,
+        name: chosen?.name ?? '',
+      })
+    "
     :description="$t('dashboard.music.queue.removeAllBody')"
     :action="$t('dashboard.music.queue.removeAll')"
     @confirm="confirmRemove"

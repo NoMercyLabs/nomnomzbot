@@ -32,6 +32,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useProviderName } from '@/composables/useProviderName';
 
@@ -47,6 +48,7 @@ const SHOWN_STYLES = 2;
 const { t, te, locale } = useI18n();
 const providerName = useProviderName();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const config = useTtsConfig(channelId);
 const search = ref('');
 const family = useLocalStorage<string>('nnz.tts.voiceFamily', ALL);
@@ -107,9 +109,7 @@ const panelState = computed<PanelState>(() => {
   return 'loading';
 });
 
-const chosen = computed<string | null>(
-  () => config.data.value?.defaultVoiceId ?? null,
-);
+const chosen = computed<string | null>(() => config.data.value?.defaultVoiceId ?? null);
 const current = computed<TtsVoice | undefined>(() =>
   loaded.value.find((voice: TtsVoice) => voice.id === chosen.value),
 );
@@ -167,15 +167,18 @@ const currentDetail = computed<string>(() =>
 );
 
 function choose(voice: TtsVoice): void {
-  if (voice.id !== chosen.value) {
+  if (can('tts:config:write') && voice.id !== chosen.value) {
     pick.mutate({ voiceId: voice.id, provider: voice.provider });
   }
 }
 
-const panels = computed(() => [
-  { id: 'voices', label: t('dashboard.tts.voices.title') },
-  { id: 'detection', label: t('dashboard.tts.voices.detection.title') },
-] as const satisfies readonly BoardPanel[]);
+const panels = computed(
+  () =>
+    [
+      { id: 'voices', label: t('dashboard.tts.voices.title') },
+      { id: 'detection', label: t('dashboard.tts.voices.detection.title') },
+    ] as const satisfies readonly BoardPanel[],
+);
 </script>
 
 <template>
@@ -208,13 +211,13 @@ const panels = computed(() => [
                 v-if="config.data.value?.followsPlatformDefaultVoice"
                 class="block text-sm text-muted-foreground"
               >
-                {{ $t('dashboard.tts.voices.current.platform') }}
+                {{ $t("dashboard.tts.voices.current.platform") }}
               </span>
             </span>
             <PlaySampleButton :voice-id="chosen" />
           </div>
           <p v-else data-current-voice class="flex-none text-sm text-muted-foreground">
-            {{ $t('dashboard.tts.voices.current.none') }}
+            {{ $t("dashboard.tts.voices.current.none") }}
           </p>
 
           <SearchField
@@ -261,7 +264,7 @@ const panels = computed(() => [
             v-else-if="visible.length === 0"
             class="py-6 text-center text-sm text-muted-foreground"
           >
-            {{ $t('dashboard.tts.voices.empty') }}
+            {{ $t("dashboard.tts.voices.empty") }}
           </p>
           <VirtualList
             v-else
@@ -283,9 +286,9 @@ const panels = computed(() => [
                 v-else
                 data-voice-row
                 :data-voice-id="item.voice.id"
-                pick
-                role="radio"
-                :aria-checked="item.voice.id === chosen"
+                :pick="can('tts:config:write')"
+                :role="can('tts:config:write') ? 'radio' : undefined"
+                :aria-checked="can('tts:config:write') ? item.voice.id === chosen : undefined"
                 :selected="item.voice.id === chosen"
                 :title="item.voice.displayName"
                 :detail="detail(item.voice)"
@@ -313,17 +316,17 @@ const panels = computed(() => [
             :disabled="catalog.isFetchingNextPage.value"
             @click="catalog.fetchNextPage()"
           >
-            {{ $t('dashboard.tts.voices.more') }}
+            {{ $t("dashboard.tts.voices.more") }}
           </Button>
           <span class="ml-auto text-xs text-muted-foreground">{{
-            $t('dashboard.tts.voices.hint')
+            $t("dashboard.tts.voices.hint")
           }}</span>
         </template>
       </PanelCard>
     </BoardCell>
     <BoardCell panel="detection" :span="5">
       <PanelCard :title="$t('dashboard.tts.voices.detection.title')" tier="quiet" pad>
-        <p class="text-sm text-muted-foreground">{{ $t('dashboard.tts.voices.detection.body') }}</p>
+        <p class="text-sm text-muted-foreground">{{ $t("dashboard.tts.voices.detection.body") }}</p>
       </PanelCard>
     </BoardCell>
   </BoardGrid>

@@ -21,6 +21,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
@@ -34,19 +35,30 @@ import VoicesTab from './VoicesTab.vue';
 const { t, locale } = useI18n();
 const providerName = useProviderName();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const config = useTtsConfig(channelId);
 const overlay = useTtsOverlay(channelId);
 
-const tabs = computed<PageTab[]>(() => [
+// Each tab needs the read key of the endpoint it shows.
+const tabKeys = {
+  overview: 'tts:config:read',
+  voices: 'tts:voice:read',
+  rules: 'tts:config:read',
+} as const satisfies Record<string, string>;
+const allTabs = computed<PageTab[]>(() => [
   { value: 'overview', label: t('dashboard.tts.tabs.overview') },
   { value: 'voices', label: t('dashboard.tts.tabs.voices') },
   { value: 'rules', label: t('dashboard.tts.tabs.rules') },
 ]);
+
+function canRead(tab: PageTab): boolean {
+  return can(tabKeys[tab.value as keyof typeof tabKeys]);
+}
+
+const tabs = computed<PageTab[]>(() => allTabs.value.filter(canRead));
 const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
 
-const settings = computed<TtsConfig | null>(
-  () => config.data.value ?? null,
-);
+const settings = computed<TtsConfig | null>(() => config.data.value ?? null);
 
 const settingsState = usePanelState<TtsConfig | null>(
   config,
@@ -113,15 +125,25 @@ const overlayDetail = computed<string>(() => {
   });
 });
 
-const overviewPanels = computed(() => [
-  { id: 'history', label: t('dashboard.tts.history.title') },
-  { id: 'settings', label: t('dashboard.tts.settings.title') },
-] as const satisfies readonly BoardPanel[]);
-const rulesPanels = computed(() => [
-  { id: 'rules', label: t('dashboard.tts.rules.title') },
-  { id: 'lexicon', label: t('dashboard.tts.lexicon.title') },
-  { id: 'keys', label: t('dashboard.tts.keys.title') },
-] as const satisfies readonly BoardPanel[]);
+const overviewPanels = computed(
+  () =>
+    [
+      { id: 'history', label: t('dashboard.tts.history.title') },
+      { id: 'settings', label: t('dashboard.tts.settings.title') },
+    ] as const satisfies readonly BoardPanel[],
+);
+const rulesPanels = computed<BoardPanel[]>(() => {
+  const shown: BoardPanel[] = [
+    { id: 'rules', label: t('dashboard.tts.rules.title') },
+    { id: 'lexicon', label: t('dashboard.tts.lexicon.title') },
+  ];
+
+  if (can('tts:config:write')) {
+    shown.push({ id: 'keys', label: t('dashboard.tts.keys.title') });
+  }
+
+  return shown;
+});
 </script>
 
 <template>
@@ -136,7 +158,11 @@ const rulesPanels = computed(() => [
     <template #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
-  <BoardGrid v-if="view === 'overview'" :panels="overviewPanels" :rows="1">
+  <BoardGrid
+    v-if="view === 'overview' && can('tts:config:read')"
+    :panels="overviewPanels"
+    :rows="1"
+  >
     <BoardCell panel="history" :span="7">
       <PanelCard
         :title="$t('dashboard.tts.history.title')"
@@ -194,16 +220,16 @@ const rulesPanels = computed(() => [
     </BoardCell>
   </BoardGrid>
 
-  <VoicesTab v-else-if="view === 'voices'" />
+  <VoicesTab v-else-if="view === 'voices' && can('tts:voice:read')" />
 
-  <BoardGrid v-else :panels="rulesPanels" :rows="2">
+  <BoardGrid v-else-if="view === 'rules' && can('tts:config:read')" :panels="rulesPanels" :rows="2">
     <BoardCell panel="rules" :span="5">
       <RulesPanel />
     </BoardCell>
     <BoardCell panel="lexicon" :span="7" :rows="2">
       <LexiconPanel />
     </BoardCell>
-    <BoardCell panel="keys" :span="5">
+    <BoardCell v-if="can('tts:config:write')" panel="keys" :span="5">
       <KeysPanel />
     </BoardCell>
   </BoardGrid>

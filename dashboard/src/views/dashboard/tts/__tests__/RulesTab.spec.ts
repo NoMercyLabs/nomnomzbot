@@ -73,6 +73,10 @@ function write(method: string) {
   };
 }
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
@@ -101,12 +105,14 @@ let pinia: Pinia;
 beforeEach(() => {
   sent.length = 0;
 
-  lexicon = [{
-    id: 'e1',
-    phrase: 'gg',
-    replacement: 'good game',
-    matchKind: 'word',
-  }];
+  lexicon = [
+    {
+      id: 'e1',
+      phrase: 'gg',
+      replacement: 'good game',
+      matchKind: 'word',
+    },
+  ];
 
   pinia = createPinia();
   setActivePinia(pinia);
@@ -147,10 +153,12 @@ const byLabel = (label: string): HTMLInputElement =>
   document.body.querySelector<HTMLInputElement>(`[aria-label="${label}"]`) as HTMLInputElement;
 const button = (label: string): HTMLButtonElement =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((entry) =>
-    entry.textContent?.includes(label)) as HTMLButtonElement;
+    entry.textContent?.includes(label),
+  ) as HTMLButtonElement;
 const switchOf = (title: string): HTMLElement =>
-  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')].find((row) =>
-    row.textContent?.includes(title))?.querySelector('[role="switch"]') as HTMLElement;
+  [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')]
+    .find((row) => row.textContent?.includes(title))
+    ?.querySelector('[role="switch"]') as HTMLElement;
 
 describe('TTS rules panels', () => {
   it('sends the toggled rule to the config and shows the new value at once', async () => {
@@ -195,9 +203,9 @@ describe('TTS rules panels', () => {
   it('adds a lexicon rule with its match kind', async () => {
     await open();
 
-    const [phrase, replacement] = [...document.body.querySelectorAll<HTMLInputElement>(
-      '[data-view="tts-lexicon"] form input',
-    )];
+    const [phrase, replacement] = [
+      ...document.body.querySelectorAll<HTMLInputElement>('[data-view="tts-lexicon"] form input'),
+    ];
 
     phrase!.value = 'lol';
     phrase!.dispatchEvent(new Event('input'));

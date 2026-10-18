@@ -24,6 +24,10 @@ let releaseSample: Release = () => undefined;
 const posts: unknown[] = [];
 const paused: string[] = [];
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

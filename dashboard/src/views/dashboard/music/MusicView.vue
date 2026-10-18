@@ -184,15 +184,21 @@ function confirmRemove(): void {
 
 const rulesOpen = ref(false);
 
-const panels = computed(
-  () =>
-    [
-      { id: 'now', label: t('dashboard.music.now.title') },
-      { id: 'queue', label: t('dashboard.music.queue.title') },
+const panels = computed<BoardPanel[]>(() => {
+  const shown: BoardPanel[] = [
+    { id: 'now', label: t('dashboard.music.now.title') },
+    { id: 'queue', label: t('dashboard.music.queue.title') },
+  ];
+
+  if (access.can('music:config:read')) {
+    shown.push(
       { id: 'history', label: t('dashboard.music.history.title') },
       { id: 'thanks', label: t('dashboard.music.thanks.title') },
-    ] as const satisfies readonly BoardPanel[],
-);
+    );
+  }
+
+  return shown;
+});
 </script>
 
 <template>
@@ -202,7 +208,7 @@ const panels = computed(
     </template>
     <!-- The rules are set once and seldom touched, so they slide in on demand instead of taking a column. -->
     <template #actions>
-      <Sheet v-model:open="rulesOpen">
+      <Sheet v-if="access.can('music:config:read')" v-model:open="rulesOpen">
         <SheetTrigger as-child>
           <Button variant="outline">
             <IconRules aria-hidden="true" />
@@ -309,6 +315,7 @@ const panels = computed(
             </template>
             <template #leading>
               <span
+                v-if="canModerateQueue"
                 data-drag-handle
                 :title="$t('dashboard.music.queue.drag')"
                 class="-ml-1 flex size-6 flex-none cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"
@@ -334,7 +341,7 @@ const panels = computed(
                 <Music class="size-4" aria-hidden="true" />
               </span>
             </template>
-            <template #trailing>
+            <template v-if="canModerateQueue" #trailing>
               <Button
                 variant="outline"
                 size="sm"
@@ -367,10 +374,10 @@ const panels = computed(
         </div>
       </PanelCard>
     </BoardCell>
-    <BoardCell panel="history" :span="6">
+    <BoardCell v-if="access.can('music:config:read')" panel="history" :span="6">
       <HistoryPanel />
     </BoardCell>
-    <BoardCell panel="thanks" :span="6">
+    <BoardCell v-if="access.can('music:config:read')" panel="thanks" :span="6">
       <ThanksPanel />
     </BoardCell>
   </BoardGrid>

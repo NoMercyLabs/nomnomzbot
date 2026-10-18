@@ -17,11 +17,13 @@ import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTtsConfig } from '@/api/tts';
 import { useSetTtsRules, type TtsRulesChange } from '@/api/ttsRules';
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const config = useTtsConfig(channelId);
 const save = useSetTtsRules(channelId);
 
@@ -76,24 +78,28 @@ function commitBits(): void {
     <RowGroup v-if="stored">
       <SettingRow
         :model-value="stored.followsPlatformDefaultVoice"
+        :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.follow.title')"
         :description="$t('dashboard.tts.rules.follow.description')"
         @update:model-value="change({ followPlatformDefaultVoice: $event })"
       />
       <SettingRow
         :model-value="stored.readUsernames"
+        :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.readUsernames.title')"
         :description="$t('dashboard.tts.rules.readUsernames.description')"
         @update:model-value="change({ readUsernames: $event })"
       />
       <SettingRow
         :model-value="stored.modApprovalRequired"
+        :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.modApproval.title')"
         :description="$t('dashboard.tts.rules.modApproval.description')"
         @update:model-value="change({ modApprovalRequired: $event })"
       />
       <SettingRow
         :model-value="stored.viewerVoiceSelfServiceEnabled"
+        :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.selfService.title')"
         :description="$t('dashboard.tts.rules.selfService.description')"
         @update:model-value="change({ viewerVoiceSelfServiceEnabled: $event })"
@@ -107,6 +113,7 @@ function commitBits(): void {
           type="number"
           min="0"
           class="w-24"
+          :disabled="!can('tts:config:write')"
           :aria-label="$t('dashboard.tts.rules.minBits.title')"
           @blur="commitBits"
           @keydown.enter="commitBits"

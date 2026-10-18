@@ -13,15 +13,13 @@
 import type { UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
 
-import {
-  useSaveMediaShareConfig,
-  type MediaShareConfig,
-} from '@/api/mediaShare';
+import { useSaveMediaShareConfig, type MediaShareConfig } from '@/api/mediaShare';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { usePanelState } from '@/composables/usePanelState';
 
 const props = defineProps<{
@@ -29,9 +27,12 @@ const props = defineProps<{
   channelId: string | null;
 }>();
 
+const { can } = useCan();
 const save = useSaveMediaShareConfig(() => props.channelId);
-const state = usePanelState(props.query, (config: MediaShareConfig | null): boolean =>
-  config === null);
+const state = usePanelState(
+  props.query,
+  (config: MediaShareConfig | null): boolean => config === null,
+);
 
 const draft = ref<MediaShareConfig | null>(null);
 
@@ -45,12 +46,7 @@ watch(
   { immediate: true },
 );
 
-const switches = [
-  'isEnabled',
-  'requireApproval',
-  'allowTwitchClips',
-  'allowYouTube',
-] as const;
+const switches = ['isEnabled', 'requireApproval', 'allowTwitchClips', 'allowYouTube'] as const;
 const numbers = [
   'maxDurationSeconds',
   'entryCost',
@@ -61,10 +57,12 @@ const numbers = [
 const dirty = computed<boolean>(() => {
   const saved = props.query.data.value;
 
-  return saved !== null &&
+  return (
+    saved !== null &&
     saved !== undefined &&
     draft.value !== null &&
-    JSON.stringify(saved) !== JSON.stringify(draft.value);
+    JSON.stringify(saved) !== JSON.stringify(draft.value)
+  );
 });
 
 function setNumber(key: (typeof numbers)[number], value: string | number): void {
@@ -101,6 +99,7 @@ function submit(): void {
           v-for="key in switches"
           :key="key"
           v-model="draft[key]"
+          :disabled="!can('media:write')"
           :title="$t(`dashboard.mediaShare.config.${key}`)"
         />
       </RowGroup>
@@ -115,13 +114,14 @@ function submit(): void {
             type="number"
             min="0"
             class="w-28"
+            :disabled="!can('media:write')"
             :model-value="draft[key] ?? 0"
             :data-field="key"
             @update:model-value="setNumber(key, $event)"
           />
         </label>
       </RowGroup>
-      <div class="flex justify-end gap-2">
+      <div v-if="can('media:write')" class="flex justify-end gap-2">
         <Button variant="ghost" :disabled="!dirty" data-action="discard" @click="discard">
           {{ $t("dashboard.mediaShare.config.discard") }}
         </Button>

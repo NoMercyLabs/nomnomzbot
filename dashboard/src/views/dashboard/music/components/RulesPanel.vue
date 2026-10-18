@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
 import { usePanelState } from '@/composables/usePanelState';
@@ -75,6 +76,7 @@ const perStreamId = useId();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const configQuery = useMusicConfig(channelId);
 const blockedQuery = useBlockedTracks(channelId);
 const playlistsQuery = useMusicPlaylists(channelId);
@@ -183,166 +185,172 @@ const missing = computed<KeyValueItem[]>(() =>
     @retry="configQuery.refetch()"
   >
     <div v-if="draft" class="grid gap-5">
-      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
-        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
-        <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.open") }}</span>
-          <Switch v-model="draft.requestsOpen" data-setting="requests-open" />
-        </label>
-        <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
-          <label v-for="level in trustLevels" :key="level" class="flex items-center gap-2 text-sm">
-            <RadioGroupItem :value="level" />
-            {{ $t(`dashboard.music.rules.levels.${level}`) }}
+      <fieldset class="contents" :disabled="!can('music:config:write')">
+        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
+          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
+          <label class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.open") }}</span>
+            <Switch v-model="draft.requestsOpen" data-setting="requests-open" />
           </label>
-        </RadioGroup>
-      </section>
-      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.limits')">
-        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.limits") }}</h3>
-        <div class="flex items-center gap-3">
-          <label :for="queueSizeId" class="min-w-0 flex-1 text-sm">{{
-            $t("dashboard.music.rules.queueSize")
-          }}</label>
-          <Input
-            :id="queueSizeId"
-            v-model.number="draft.maxQueueSize"
-            name="queue-size"
-            type="number"
-            :min="queueLimits.min"
-            :max="queueLimits.max"
-            step="1"
-            :aria-invalid="!valid || undefined"
-            class="w-20"
-          />
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="min-w-0 flex-1">
-            <label :for="perPersonId" class="block text-sm">{{
-              $t("dashboard.music.rules.perPerson")
-            }}</label>
-            <span class="block text-sm text-muted-foreground">{{
-              $t("dashboard.music.rules.perPersonHelp")
-            }}</span>
-          </span>
-          <Input
-            :id="perPersonId"
-            v-model.number="draft.perPerson"
-            name="songs-per-person"
-            type="number"
-            :min="requestLimits.min"
-            :max="requestLimits.max"
-            step="1"
-            :aria-invalid="!valid || undefined"
-            class="w-20"
-          />
-        </div>
-        <div class="flex items-center gap-3">
-          <label :for="songSecondsId" class="min-w-0 flex-1 text-sm">{{
-            $t("dashboard.music.rules.songSeconds")
-          }}</label>
-          <Input
-            :id="songSecondsId"
-            v-model.number="draft.maxSongSeconds"
-            name="song-seconds"
-            type="number"
-            :min="songSecondsLimits.min"
-            :max="songSecondsLimits.max"
-            step="1"
-            :aria-invalid="!valid || undefined"
-            class="w-20"
-          />
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="min-w-0 flex-1">
-            <label :for="perStreamId" class="block text-sm">{{
-              $t("dashboard.music.rules.perStream")
-            }}</label>
-            <span class="block text-sm text-muted-foreground">{{
-              $t("dashboard.music.rules.perStreamHelp")
-            }}</span>
-          </span>
-          <Input
-            :id="perStreamId"
-            v-model.number="draft.perStreamLimit"
-            name="per-stream-limit"
-            type="number"
-            :min="perStreamLimits.min"
-            :max="perStreamLimits.max"
-            step="1"
-            :aria-invalid="!valid || undefined"
-            class="w-20"
-          />
-        </div>
-        <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowExplicit") }}</span>
-          <Switch v-model="draft.allowExplicit" data-setting="allow-explicit" />
-        </label>
-        <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.perRoleHelp") }}</p>
-        <label v-for="rung in roleRungs" :key="rung" class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t(`dashboard.music.rules.roles.${rung}`) }}</span>
-          <Input
-            v-model="draft.roleCaps[rung]"
-            :name="`songs-role-${rung}`"
-            type="number"
-            :min="requestLimits.min"
-            :max="requestLimits.max"
-            step="1"
-            :placeholder="$t('dashboard.music.rules.sameAsPerPerson')"
-            :aria-invalid="!valid || undefined"
-            class="w-20"
-          />
-        </label>
-      </section>
-      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.sources')">
-        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.sources") }}</h3>
-        <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowSpotify") }}</span>
-          <Switch v-model="draft.allowSpotify" data-setting="allow-spotify" />
-        </label>
-        <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowYouTube") }}</span>
-          <Switch v-model="draft.allowYouTube" data-setting="allow-youtube" />
-        </label>
-        <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
-        <RadioGroup v-model="draft.preferredProvider" class="gap-2">
-          <label
-            v-for="provider in providers"
-            :key="provider"
-            class="flex items-center gap-2 text-sm"
-          >
-            <RadioGroupItem :value="provider" />
-            {{ $t(`dashboard.music.rules.providers.${provider}`) }}
-          </label>
-        </RadioGroup>
-      </section>
-      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.banger')">
-        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.banger") }}</h3>
-        <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.bangerHelp") }}</p>
-        <Select v-model="draft.bangerPlaylist">
-          <SelectTrigger
-            data-setting="banger-playlist"
-            :aria-label="$t('dashboard.music.rules.banger')"
-            class="w-full"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem :value="noPlaylist">{{
-              $t("dashboard.music.rules.bangerAuto")
-            }}</SelectItem>
-            <SelectItem
-              v-for="playlist in playlistsQuery.data.value ?? []"
-              :key="playlist.id"
-              :value="playlistValue(playlist.provider, playlist.id)"
+          <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
+            <label
+              v-for="level in trustLevels"
+              :key="level"
+              class="flex items-center gap-2 text-sm"
             >
-              {{ playlist.name }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.bangerAutoCreate") }}</span>
-          <Switch v-model="draft.bangerAutoCreate" data-setting="banger-auto-create" />
-        </label>
-      </section>
+              <RadioGroupItem :value="level" />
+              {{ $t(`dashboard.music.rules.levels.${level}`) }}
+            </label>
+          </RadioGroup>
+        </section>
+        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.limits')">
+          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.limits") }}</h3>
+          <div class="flex items-center gap-3">
+            <label :for="queueSizeId" class="min-w-0 flex-1 text-sm">{{
+              $t("dashboard.music.rules.queueSize")
+            }}</label>
+            <Input
+              :id="queueSizeId"
+              v-model.number="draft.maxQueueSize"
+              name="queue-size"
+              type="number"
+              :min="queueLimits.min"
+              :max="queueLimits.max"
+              step="1"
+              :aria-invalid="!valid || undefined"
+              class="w-20"
+            />
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="min-w-0 flex-1">
+              <label :for="perPersonId" class="block text-sm">{{
+                $t("dashboard.music.rules.perPerson")
+              }}</label>
+              <span class="block text-sm text-muted-foreground">{{
+                $t("dashboard.music.rules.perPersonHelp")
+              }}</span>
+            </span>
+            <Input
+              :id="perPersonId"
+              v-model.number="draft.perPerson"
+              name="songs-per-person"
+              type="number"
+              :min="requestLimits.min"
+              :max="requestLimits.max"
+              step="1"
+              :aria-invalid="!valid || undefined"
+              class="w-20"
+            />
+          </div>
+          <div class="flex items-center gap-3">
+            <label :for="songSecondsId" class="min-w-0 flex-1 text-sm">{{
+              $t("dashboard.music.rules.songSeconds")
+            }}</label>
+            <Input
+              :id="songSecondsId"
+              v-model.number="draft.maxSongSeconds"
+              name="song-seconds"
+              type="number"
+              :min="songSecondsLimits.min"
+              :max="songSecondsLimits.max"
+              step="1"
+              :aria-invalid="!valid || undefined"
+              class="w-20"
+            />
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="min-w-0 flex-1">
+              <label :for="perStreamId" class="block text-sm">{{
+                $t("dashboard.music.rules.perStream")
+              }}</label>
+              <span class="block text-sm text-muted-foreground">{{
+                $t("dashboard.music.rules.perStreamHelp")
+              }}</span>
+            </span>
+            <Input
+              :id="perStreamId"
+              v-model.number="draft.perStreamLimit"
+              name="per-stream-limit"
+              type="number"
+              :min="perStreamLimits.min"
+              :max="perStreamLimits.max"
+              step="1"
+              :aria-invalid="!valid || undefined"
+              class="w-20"
+            />
+          </div>
+          <label class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowExplicit") }}</span>
+            <Switch v-model="draft.allowExplicit" data-setting="allow-explicit" />
+          </label>
+          <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.perRoleHelp") }}</p>
+          <label v-for="rung in roleRungs" :key="rung" class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1">{{ $t(`dashboard.music.rules.roles.${rung}`) }}</span>
+            <Input
+              v-model="draft.roleCaps[rung]"
+              :name="`songs-role-${rung}`"
+              type="number"
+              :min="requestLimits.min"
+              :max="requestLimits.max"
+              step="1"
+              :placeholder="$t('dashboard.music.rules.sameAsPerPerson')"
+              :aria-invalid="!valid || undefined"
+              class="w-20"
+            />
+          </label>
+        </section>
+        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.sources')">
+          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.sources") }}</h3>
+          <label class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowSpotify") }}</span>
+            <Switch v-model="draft.allowSpotify" data-setting="allow-spotify" />
+          </label>
+          <label class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowYouTube") }}</span>
+            <Switch v-model="draft.allowYouTube" data-setting="allow-youtube" />
+          </label>
+          <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
+          <RadioGroup v-model="draft.preferredProvider" class="gap-2">
+            <label
+              v-for="provider in providers"
+              :key="provider"
+              class="flex items-center gap-2 text-sm"
+            >
+              <RadioGroupItem :value="provider" />
+              {{ $t(`dashboard.music.rules.providers.${provider}`) }}
+            </label>
+          </RadioGroup>
+        </section>
+        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.banger')">
+          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.banger") }}</h3>
+          <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.bangerHelp") }}</p>
+          <Select v-model="draft.bangerPlaylist">
+            <SelectTrigger
+              data-setting="banger-playlist"
+              :aria-label="$t('dashboard.music.rules.banger')"
+              class="w-full"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem :value="noPlaylist">{{
+                $t("dashboard.music.rules.bangerAuto")
+              }}</SelectItem>
+              <SelectItem
+                v-for="playlist in playlistsQuery.data.value ?? []"
+                :key="playlist.id"
+                :value="playlistValue(playlist.provider, playlist.id)"
+              >
+                {{ playlist.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <label class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.bangerAutoCreate") }}</span>
+            <Switch v-model="draft.bangerAutoCreate" data-setting="banger-auto-create" />
+          </label>
+        </section>
+      </fieldset>
       <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.blocked')">
         <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.blocked") }}</h3>
         <p v-if="blockedQuery.isError.value" role="alert" class="text-sm text-destructive">
@@ -362,7 +370,7 @@ const missing = computed<KeyValueItem[]>(() =>
             :detail="track.reason ?? undefined"
             data-blocked-item
           >
-            <template #trailing>
+            <template v-if="can('music:queue:moderate')" #trailing>
               <Button
                 variant="outline"
                 size="sm"
@@ -386,7 +394,7 @@ const missing = computed<KeyValueItem[]>(() =>
       </section>
       <KeyValueList :items="missing" />
     </div>
-    <template v-if="state === 'ready'" #footer>
+    <template v-if="state === 'ready' && can('music:config:write')" #footer>
       <Button variant="outline" size="sm" :disabled="!dirty" @click="discard">{{
         $t("dashboard.music.rules.discard")
       }}</Button>

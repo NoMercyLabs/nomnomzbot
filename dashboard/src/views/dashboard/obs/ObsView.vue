@@ -50,7 +50,8 @@ const canSeeConnection = computed<boolean>(() => access.can('obs:config:read'));
 const configChannelId = computed<string | null>(() =>
   canSeeConnection.value
     ? channelId.value
-    : null);
+    : null,
+);
 const connection = useObsConnection(configChannelId);
 const bridge = useObsBridge(configChannelId);
 const status = useObsConnectionStatus(channelId);
@@ -117,6 +118,7 @@ function retry(): void {
         @retry="retry"
       />
       <OutputsPanel
+        v-if="access.can('obs:control')"
         :channel-id="channelId"
         :state="state.data.value"
         :virtual-cam="virtualCam.data.value === true"
@@ -127,21 +129,24 @@ function retry(): void {
         <StatsStrip :stats="stats.data.value" />
       </OutputsPanel>
       <ScenesPanel
+        v-if="access.can('obs:control')"
         :scenes="scenes.data.value"
         :panel-state="scenesPanel"
         :offline="!enabled"
         @retry="retry"
       />
-      <AudioPanel :offline="!enabled" />
-      <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
-      <ObsHotkeysPanel :offline="!enabled" />
-      <ObsScreenshotPanel :offline="!enabled" />
+      <AudioPanel v-if="access.can('obs:control')" :offline="!enabled" />
+      <StudioPanel v-if="enabled && access.can('obs:control')" :scenes="scenes.data.value" />
+      <ObsHotkeysPanel v-if="access.can('obs:control')" :offline="!enabled" />
+      <ObsScreenshotPanel v-if="access.can('obs:control')" :offline="!enabled" />
       <SourcesPanel
+        v-if="access.can('obs:control')"
         class="lg:col-span-2"
         :scene-name="state.data.value?.currentScene ?? null"
         :offline="!enabled"
       />
       <BrowserSourcesPanel
+        v-if="access.can('widget:read')"
         class="lg:col-span-2"
         :widgets="widgets.data.value"
         :panel-state="sourcesPanel"

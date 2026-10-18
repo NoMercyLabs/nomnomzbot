@@ -25,6 +25,10 @@ type Post = { path: string; body: unknown };
 const posts: Post[] = [];
 let statsReads: number = 0;
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

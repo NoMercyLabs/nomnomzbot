@@ -40,6 +40,10 @@ const config = {
   bangerAutoCreate: false,
 };
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
@@ -89,11 +93,13 @@ async function openDrawer(): Promise<HTMLElement> {
   const blank = { template: '<div />' };
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{
-      path: '/app/music',
-      name: 'dashboard-music',
-      component: blank,
-    }],
+    routes: [
+      {
+        path: '/app/music',
+        name: 'dashboard-music',
+        component: blank,
+      },
+    ],
   });
 
   await router.push('/app/music');

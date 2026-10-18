@@ -21,6 +21,7 @@ import {
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -28,6 +29,7 @@ import MediaShareQueueRow from './components/MediaShareQueueRow.vue';
 import MediaShareSettings from './components/MediaShareSettings.vue';
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const queueQuery = useMediaShareQueue(channelId);
 const configQuery = useMediaShareConfig(channelId);
 const decide = useDecideMediaShare(channelId);
@@ -35,7 +37,8 @@ const reorder = useReorderMediaShare(channelId);
 
 const rows = computed<MediaShareRequest[]>(() => queueQuery.data.value ?? []);
 const approved = computed<MediaShareRequest[]>(() =>
-  rows.value.filter((row: MediaShareRequest): boolean => row.status === 'approved'));
+  rows.value.filter((row: MediaShareRequest): boolean => row.status === 'approved'),
+);
 
 const queueState = usePanelState(
   queueQuery,
@@ -55,6 +58,7 @@ function move(row: MediaShareRequest, step: number): void {
   <PageHeader :title="$t('dashboard.mediaShare.title')" :crumb="$t('dashboard.mediaShare.crumb')" />
   <PageBody>
     <PanelCard
+      v-if="can('media:read')"
       tier="lead"
       :title="$t('dashboard.mediaShare.queue.title')"
       :description="
@@ -77,6 +81,6 @@ function move(row: MediaShareRequest, step: number): void {
         @move="(step) => move(row, step)"
       />
     </PanelCard>
-    <MediaShareSettings :query="configQuery" :channel-id="channelId" />
+    <MediaShareSettings v-if="can('media:read')" :query="configQuery" :channel-id="channelId" />
   </PageBody>
 </template>

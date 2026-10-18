@@ -25,6 +25,10 @@ const posts: Post[] = [];
 const toasts: string[] = [];
 let refuse: boolean = false;
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
@@ -75,11 +79,14 @@ beforeEach(() => {
   queries = new QueryClient();
   i18n.global.mergeLocaleMessage('en', en);
 
-  vi.stubGlobal('ResizeObserver', class {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
 });
 
 afterEach(() => {
@@ -145,9 +152,9 @@ describe('AudioPanel', () => {
 
     expect(cached()?.[0]?.muted).toBe(true);
 
-    expect(
-      document.body.querySelector('[data-obs-mute="Mic"]')?.getAttribute('aria-pressed'),
-    ).toBe('true');
+    expect(document.body.querySelector('[data-obs-mute="Mic"]')?.getAttribute('aria-pressed')).toBe(
+      'true',
+    );
   });
 
   it('a refused mute rolls the row back and toasts the error', async () => {

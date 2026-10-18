@@ -20,6 +20,7 @@ import { computed } from 'vue';
 import type { MediaShareAction, MediaShareRequest } from '@/api/mediaShare';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 
 const props = defineProps<{
   row: MediaShareRequest;
@@ -31,6 +32,8 @@ defineEmits<{
   decide: [action: MediaShareAction];
   move: [step: number];
 }>();
+
+const { can } = useCan();
 
 const pending = computed<boolean>(() => props.row.status === 'pending');
 const skippable = computed<boolean>(
@@ -60,7 +63,7 @@ const statusKey = computed<string>(() =>
         class="size-14 flex-none rounded-md object-cover"
       />
     </template>
-    <template #trailing>
+    <template v-if="can('media:moderate')" #trailing>
       <Button
         v-if="pending"
         size="icon"

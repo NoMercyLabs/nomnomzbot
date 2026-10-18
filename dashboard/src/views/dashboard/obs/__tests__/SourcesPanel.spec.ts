@@ -43,7 +43,8 @@ function apply(path: string, body: object): void {
             ...filter,
             enabled: change.enabled,
           }
-        : filter);
+        : filter,
+    );
 
     return;
   }
@@ -56,13 +57,18 @@ function apply(path: string, body: object): void {
           ...item,
           ...change,
         }
-      : item);
+      : item,
+  );
 }
 
 const ok = (data: ObsSceneItem[] | ObsFilter[] | object): Answer => ({
   data: { data },
   response: { status: 200, ok: true },
 });
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
 
 vi.mock('vue-sonner', () => ({ toast: { error: (message: string) => toastError(message) } }));
 

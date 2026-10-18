@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const matchKinds = ['word', 'exact'] as const;
@@ -45,6 +46,7 @@ const emptyDraft = {
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const lexicon = useTtsLexicon(channelId);
 const saveEntry = useSaveLexiconEntry(channelId);
 const removeEntry = useDeleteLexiconEntry(channelId);
@@ -122,17 +124,21 @@ function remove(entry: TtsLexiconEntry): void {
     :error-text="$t('dashboard.tts.lexicon.loadFailed')"
     @retry="lexicon.refetch()"
   >
-    <form class="flex flex-wrap items-end gap-2 border-b border-border p-3" @submit.prevent="submit">
+    <form
+      v-if="can('tts:config:write')"
+      class="flex flex-wrap items-end gap-2 border-b border-border p-3"
+      @submit.prevent="submit"
+    >
       <label class="flex min-w-32 flex-1 flex-col gap-1 text-sm font-medium">
-        {{ $t('dashboard.tts.lexicon.phrase') }}
+        {{ $t("dashboard.tts.lexicon.phrase") }}
         <Input v-model="draft.phrase" maxlength="100" />
       </label>
       <label class="flex min-w-32 flex-1 flex-col gap-1 text-sm font-medium">
-        {{ $t('dashboard.tts.lexicon.replacement') }}
+        {{ $t("dashboard.tts.lexicon.replacement") }}
         <Input v-model="draft.replacement" maxlength="200" />
       </label>
       <div class="flex flex-col gap-1 text-sm font-medium">
-        {{ $t('dashboard.tts.lexicon.matchKind') }}
+        {{ $t("dashboard.tts.lexicon.matchKind") }}
         <Select v-model="draft.matchKind">
           <SelectTrigger class="w-40" :aria-label="$t('dashboard.tts.lexicon.matchKind')">
             <SelectValue />
@@ -145,23 +151,26 @@ function remove(entry: TtsLexiconEntry): void {
         </Select>
       </div>
       <Button v-if="editing" type="button" variant="ghost" @click="reset">
-        {{ $t('dashboard.tts.lexicon.cancel') }}
+        {{ $t("dashboard.tts.lexicon.cancel") }}
       </Button>
       <Button type="submit" :disabled="!canSave">
-        {{ $t(editing
-          ? 'dashboard.tts.lexicon.save'
-          : 'dashboard.tts.lexicon.add') }}
+        {{ $t(editing ? "dashboard.tts.lexicon.save" : "dashboard.tts.lexicon.add") }}
       </Button>
     </form>
     <p v-if="entries.length === 0" class="p-3 text-sm text-muted-foreground">
-      {{ $t('dashboard.tts.lexicon.empty') }}
+      {{ $t("dashboard.tts.lexicon.empty") }}
     </p>
     <ul v-else class="divide-y divide-border">
-      <li v-for="entry in entries" :key="entry.id" class="flex items-center gap-2 px-3 py-2" data-lexicon-row>
+      <li
+        v-for="entry in entries"
+        :key="entry.id"
+        class="flex items-center gap-2 px-3 py-2"
+        data-lexicon-row
+      >
         <span class="min-w-0 flex-1 text-sm">
           <span class="font-medium">{{ entry.phrase }}</span>
           <span class="text-muted-foreground">
-            {{ $t('dashboard.tts.lexicon.saysAs') }}
+            {{ $t("dashboard.tts.lexicon.saysAs") }}
           </span>
           <span>{{ entry.replacement }}</span>
           <span class="block text-xs text-muted-foreground">
@@ -169,6 +178,7 @@ function remove(entry: TtsLexiconEntry): void {
           </span>
         </span>
         <Button
+          v-if="can('tts:config:write')"
           variant="ghost"
           size="icon"
           :aria-label="$t('dashboard.tts.lexicon.edit', { phrase: entry.phrase })"
@@ -177,6 +187,7 @@ function remove(entry: TtsLexiconEntry): void {
           <Edit class="size-5" />
         </Button>
         <Button
+          v-if="can('tts:config:write')"
           variant="ghost"
           size="icon"
           :aria-label="$t('dashboard.tts.lexicon.remove', { phrase: entry.phrase })"
@@ -190,7 +201,9 @@ function remove(entry: TtsLexiconEntry): void {
   <ConfirmDialog
     :open="pendingRemoval !== null"
     :title="$t('dashboard.tts.lexicon.confirmTitle')"
-    :description="$t('dashboard.tts.lexicon.confirmDescription', { phrase: pendingRemoval?.phrase ?? '' })"
+    :description="
+      $t('dashboard.tts.lexicon.confirmDescription', { phrase: pendingRemoval?.phrase ?? '' })
+    "
     :action="$t('dashboard.tts.lexicon.confirmAction')"
     :pending="removeEntry.isPending.value"
     @update:open="pendingRemoval = null"

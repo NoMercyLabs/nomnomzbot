@@ -59,6 +59,10 @@ const answer = (data: unknown): { data: { data: unknown }; response: { status: n
   response: { status: 200 },
 });
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

@@ -55,6 +55,10 @@ const config = {
   followsPlatformDefaultVoice: false,
 };
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

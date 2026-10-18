@@ -60,18 +60,22 @@ vi.mock('@/api/client', () => ({
         : path);
 
       // The server's rule: the full connection and the bridge need the configuration key.
-      const refusedWithoutConfig = path.endsWith('/obs/bridge/status') ||
+      const refusedWithoutConfig =
+        path.endsWith('/obs/bridge/status') ||
         (path.endsWith('/obs/connection') && view !== 'Status');
 
       if (refusedWithoutConfig && !held.includes('obs:config:read'))
         return { error: { status: 'error' }, response: { status: 403, ok: false } };
 
       if (path.endsWith('/widgets'))
-        return { data: {
-          data: widgets,
-          hasMore: false,
-          nextPage: null,
-        }, response: { status: 200, ok: true } };
+        return {
+          data: {
+            data: widgets,
+            hasMore: false,
+            nextPage: null,
+          },
+          response: { status: 200, ok: true },
+        };
 
       if (path.endsWith('/obs/connection') && view === 'Status')
         return {
@@ -93,16 +97,23 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/obs/state'))
         return {
-          data: { data: {
-            currentScene: 'Main',
-            streaming: true,
-            recording: false,
-          } },
+          data: {
+            data: {
+              currentScene: 'Main',
+              streaming: true,
+              recording: false,
+            },
+          },
           response: { status: 200, ok: true },
         };
 
       return {
-        data: { data: [{ name: 'Main', isCurrent: true }, { name: 'BRB', isCurrent: false }] },
+        data: {
+          data: [
+            { name: 'Main', isCurrent: true },
+            { name: 'BRB', isCurrent: false },
+          ],
+        },
         response: { status: 200, ok: true },
       };
     },
@@ -123,7 +134,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
-  held = ['obs:control', 'obs:config:read'];
+  held = ['obs:control', 'obs:config:read', 'widget:read'];
   liveFails = false;
   bridgeCount = 1;
 
@@ -160,10 +171,7 @@ async function open(): Promise<void> {
   mounted = mount(ObsView, {
     attachTo: document.body,
     global: {
-      plugins: [
-        i18n,
-        [VueQueryPlugin, { queryClient }],
-      ],
+      plugins: [i18n, [VueQueryPlugin, { queryClient }]],
     },
   });
 
@@ -181,12 +189,9 @@ describe('ObsView', () => {
 
     const rows = Array.from(document.querySelectorAll('[data-obs-source]'));
 
-    expect(rows.map((row) => row.querySelector('.dot')?.className.replace('dot', '').trim())).toEqual([
-      'ok',
-      'warn',
-      'bad',
-      '',
-    ]);
+    expect(
+      rows.map((row) => row.querySelector('.dot')?.className.replace('dot', '').trim()),
+    ).toEqual(['ok', 'warn', 'bad', '']);
 
     expect(rows[0]?.textContent).toContain(en.dashboard.obs.sources.loaded);
     expect(rows[1]?.textContent).toContain(en.dashboard.obs.sources.notLoaded);
@@ -203,7 +208,10 @@ describe('ObsView', () => {
     const scenes = Array.from(document.querySelectorAll('[data-obs-scene]'));
 
     expect(scenes.map((scene) => scene.getAttribute('data-current'))).toEqual(['true', 'false']);
-    expect(document.querySelector('[data-obs-live]')?.textContent).toContain(en.dashboard.obs.live.streaming);
+
+    expect(document.querySelector('[data-obs-live]')?.textContent).toContain(
+      en.dashboard.obs.live.streaming,
+    );
   });
 
   // Stoney 2026-10-15: "the current page does not even react to scene changes so i expect better".
@@ -211,12 +219,15 @@ describe('ObsView', () => {
     await open();
     calls.length = 0;
 
-    obsStateChanged.handle({ queries: queryClient, channelId: 'c1' }, {
-      broadcasterId: 'c1',
-      kind: 'programScene',
-      sceneName: 'BRB',
-      timestamp: '2026-10-15T20:00:00Z',
-    });
+    obsStateChanged.handle(
+      { queries: queryClient, channelId: 'c1' },
+      {
+        broadcasterId: 'c1',
+        kind: 'programScene',
+        sceneName: 'BRB',
+        timestamp: '2026-10-15T20:00:00Z',
+      },
+    );
 
     await flushPromises();
 
@@ -231,7 +242,11 @@ describe('ObsView', () => {
     await open();
 
     expect(dotsOf('connection')).toEqual(['dot bad']);
-    expect(document.querySelector('[data-obs-connection]')?.textContent).toContain('Authentication failed');
+
+    expect(document.querySelector('[data-obs-connection]')?.textContent).toContain(
+      'Authentication failed',
+    );
+
     expect(document.querySelector('[data-obs-overall] .dot')?.className).toContain('bad');
   });
 
@@ -251,8 +266,14 @@ describe('ObsView', () => {
     expect(dotsOf('connection')).toEqual(['dot ok']);
     expect(dotsOf('bridge')).toEqual(['dot']);
     expect(document.querySelector('[data-obs-overall] .dot')?.className).toContain('ok');
-    expect(document.querySelector('[data-obs-overall]')?.textContent).toContain(en.dashboard.obs.overall.ok);
-    expect(document.querySelector('[data-obs-connection]')?.textContent).toContain(en.dashboard.obs.bridge.optional);
+
+    expect(document.querySelector('[data-obs-overall]')?.textContent).toContain(
+      en.dashboard.obs.overall.ok,
+    );
+
+    expect(document.querySelector('[data-obs-connection]')?.textContent).toContain(
+      en.dashboard.obs.bridge.optional,
+    );
   });
 
   it('still turns the bridge orange when OBS is driven through the bridge and no page is open', async () => {
@@ -267,7 +288,10 @@ describe('ObsView', () => {
     connection = { ...connection, isEnabled: false };
     await open();
 
-    expect(calls.some((path) => path.endsWith('/obs/scenes') || path.endsWith('/obs/state'))).toBe(false);
+    expect(calls.some((path) => path.endsWith('/obs/scenes') || path.endsWith('/obs/state'))).toBe(
+      false,
+    );
+
     expect(dotsOf('connection')).toEqual(['dot']);
     expect(document.body.textContent).toContain(en.dashboard.obs.scenes.offline);
   });

@@ -97,6 +97,10 @@ function record(method: string, path: string, init: Call['init']): Answer | unde
     : undefined;
 }
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

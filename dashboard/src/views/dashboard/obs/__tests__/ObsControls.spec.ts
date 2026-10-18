@@ -35,16 +35,23 @@ let postFails = false;
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => {
       if (path.endsWith('/widgets'))
-        return { data: {
-          data: [],
-          hasMore: false,
-          nextPage: null,
-        }, response: { status: 200, ok: true } };
+        return {
+          data: {
+            data: [],
+            hasMore: false,
+            nextPage: null,
+          },
+          response: { status: 200, ok: true },
+        };
 
       if (path.endsWith('/obs/connection'))
         return ok({
@@ -166,7 +173,10 @@ describe('OBS scene controls', () => {
     sceneRow('BRB').click();
     await settle();
 
-    expect(posts).toEqual([{ path: '/api/v{version}/channels/{channelId}/obs/scene', body: { scene: 'BRB' } }]);
+    expect(posts).toEqual([
+      { path: '/api/v{version}/channels/{channelId}/obs/scene', body: { scene: 'BRB' } },
+    ]);
+
     expect(current()).toEqual(['BRB']);
   });
 
@@ -188,12 +198,18 @@ describe('OBS scene controls', () => {
     document.querySelector<HTMLElement>('[data-obs-studio-toggle]')?.click();
     await settle();
 
-    expect(posts[0]).toEqual({ path: '/api/v{version}/channels/{channelId}/obs/studio-mode', body: { enabled: true } });
+    expect(posts[0]).toEqual({
+      path: '/api/v{version}/channels/{channelId}/obs/studio-mode',
+      body: { enabled: true },
+    });
 
     document.querySelector<HTMLElement>('[data-obs-preview="BRB"]')?.click();
     await settle();
 
-    expect(posts[1]).toEqual({ path: '/api/v{version}/channels/{channelId}/obs/scene/preview', body: { scene: 'BRB' } });
+    expect(posts[1]).toEqual({
+      path: '/api/v{version}/channels/{channelId}/obs/scene/preview',
+      body: { scene: 'BRB' },
+    });
 
     const duration = document.querySelector<HTMLInputElement>('[data-obs-duration]');
 
@@ -219,9 +235,14 @@ describe('OBS scene controls', () => {
     await settle();
 
     expect(posts).toEqual([
-      { path: '/api/v{version}/channels/{channelId}/obs/scene-transitions/current', body: { transitionName: 'Cut' } },
+      {
+        path: '/api/v{version}/channels/{channelId}/obs/scene-transitions/current',
+        body: { transitionName: 'Cut' },
+      },
     ]);
 
-    expect(document.querySelector('[data-obs-transition-pick="Cut"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(
+      document.querySelector('[data-obs-transition-pick="Cut"]')?.getAttribute('aria-pressed'),
+    ).toBe('true');
   });
 });

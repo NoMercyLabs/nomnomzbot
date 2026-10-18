@@ -226,7 +226,7 @@ beforeEach(() => {
 
   nowPlaying = playing();
   requestsOpen = true;
-  heldActionKeys = ['music:queue:moderate'];
+  heldActionKeys = ['music:queue:moderate', 'music:config:read'];
   answers = freshAnswers();
   pinia = createPinia();
   setActivePinia(pinia);

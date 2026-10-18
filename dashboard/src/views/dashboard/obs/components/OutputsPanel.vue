@@ -24,6 +24,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 
 import { wholeSeconds } from '../outputFormat';
 
@@ -37,6 +38,7 @@ const props = defineProps<{
 
 defineEmits<{ retry: [] }>();
 
+const { can } = useCan();
 const action = useObsOutputAction(() => props.channelId);
 const saveReplay = useObsSaveReplay(() => props.channelId);
 const confirmStop = ref(false);
@@ -97,14 +99,14 @@ async function stopStream(): Promise<void> {
           :detail="$t(streamDetail)"
           :meta="streaming ? wholeSeconds(state?.streamTimecode) : undefined"
         >
-          <template #trailing>
+          <template v-if="can('obs:control:broadcast')" #trailing>
             <Button
               v-if="!streaming"
               data-act="start"
               :disabled="busy"
               @click="run('streaming', 'start')"
             >
-              {{ $t('dashboard.obs.outputs.goLive') }}
+              {{ $t("dashboard.obs.outputs.goLive") }}
             </Button>
             <Button
               v-else
@@ -113,7 +115,7 @@ async function stopStream(): Promise<void> {
               :disabled="busy"
               @click="confirmStop = true"
             >
-              {{ $t('dashboard.obs.outputs.stopStream.action') }}
+              {{ $t("dashboard.obs.outputs.stopStream.action") }}
             </Button>
           </template>
         </SummaryRow>
@@ -125,7 +127,7 @@ async function stopStream(): Promise<void> {
           :detail="$t(recordDetail)"
           :meta="recording ? wholeSeconds(state?.recordTimecode) : undefined"
         >
-          <template #trailing>
+          <template v-if="can('obs:control:broadcast')" #trailing>
             <Button
               v-if="!recording"
               data-act="start"
@@ -133,7 +135,7 @@ async function stopStream(): Promise<void> {
               :disabled="busy"
               @click="run('recording', 'start')"
             >
-              {{ $t('dashboard.obs.outputs.start') }}
+              {{ $t("dashboard.obs.outputs.start") }}
             </Button>
             <template v-else>
               <Button
@@ -143,7 +145,7 @@ async function stopStream(): Promise<void> {
                 :disabled="busy"
                 @click="run('recording', 'pause')"
               >
-                {{ $t('dashboard.obs.outputs.pause') }}
+                {{ $t("dashboard.obs.outputs.pause") }}
               </Button>
               <Button
                 v-else
@@ -152,7 +154,7 @@ async function stopStream(): Promise<void> {
                 :disabled="busy"
                 @click="run('recording', 'resume')"
               >
-                {{ $t('dashboard.obs.outputs.resume') }}
+                {{ $t("dashboard.obs.outputs.resume") }}
               </Button>
               <Button
                 data-act="split"
@@ -160,7 +162,7 @@ async function stopStream(): Promise<void> {
                 :disabled="busy"
                 @click="run('recording', 'split')"
               >
-                {{ $t('dashboard.obs.outputs.split') }}
+                {{ $t("dashboard.obs.outputs.split") }}
               </Button>
               <Button
                 data-act="stop"
@@ -168,7 +170,7 @@ async function stopStream(): Promise<void> {
                 :disabled="busy"
                 @click="run('recording', 'stop')"
               >
-                {{ $t('dashboard.obs.outputs.stop') }}
+                {{ $t("dashboard.obs.outputs.stop") }}
               </Button>
             </template>
           </template>
@@ -178,7 +180,9 @@ async function stopStream(): Promise<void> {
       <div data-output="replay-buffer">
         <SummaryRow
           :title="$t('dashboard.obs.outputs.replay')"
-          :detail="replay ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')"
+          :detail="
+            replay ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')
+          "
         >
           <template #trailing>
             <Button
@@ -188,7 +192,7 @@ async function stopStream(): Promise<void> {
               :disabled="busy"
               @click="saveReplay.mutate()"
             >
-              {{ $t('dashboard.obs.outputs.saveClip') }}
+              {{ $t("dashboard.obs.outputs.saveClip") }}
             </Button>
             <Button
               :data-act="replay ? 'stop' : 'start'"
@@ -196,7 +200,7 @@ async function stopStream(): Promise<void> {
               :disabled="busy"
               @click="run('replay-buffer', replay ? 'stop' : 'start')"
             >
-              {{ replay ? $t('dashboard.obs.outputs.stop') : $t('dashboard.obs.outputs.start') }}
+              {{ replay ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start") }}
             </Button>
           </template>
         </SummaryRow>
@@ -205,7 +209,9 @@ async function stopStream(): Promise<void> {
       <div data-output="virtual-cam">
         <SummaryRow
           :title="$t('dashboard.obs.outputs.virtualCam')"
-          :detail="virtualCam ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')"
+          :detail="
+            virtualCam ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')
+          "
         >
           <template #trailing>
             <Button
@@ -214,7 +220,9 @@ async function stopStream(): Promise<void> {
               :disabled="busy"
               @click="run('virtual-cam', virtualCam ? 'stop' : 'start')"
             >
-              {{ virtualCam ? $t('dashboard.obs.outputs.stop') : $t('dashboard.obs.outputs.start') }}
+              {{
+                virtualCam ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start")
+              }}
             </Button>
           </template>
         </SummaryRow>

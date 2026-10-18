@@ -22,6 +22,10 @@ type Post = { path: string; body: unknown };
 
 const posts: Post[] = [];
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

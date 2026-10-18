@@ -16,9 +16,12 @@ import { useI18n } from 'vue-i18n';
 import type { ObsBridgeStatus, ObsConnection, ObsState } from '@/api/obs';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { useCan } from '@/composables/useCan';
 
 import ObsConnectionForm from './ObsConnectionForm.vue';
 import { bridgeHealth, connectionHealth, type Health } from '../obsHealth';
+
+const { can } = useCan();
 
 const props = defineProps<{
   connection: ObsConnection | null | undefined;
@@ -91,6 +94,6 @@ const recordingText = computed<string | undefined>(() =>
         :meta="recordingText"
       />
     </div>
-    <ObsConnectionForm :connection="connection" />
+    <ObsConnectionForm v-if="can('obs:config:write')" :connection="connection" />
   </PanelCard>
 </template>

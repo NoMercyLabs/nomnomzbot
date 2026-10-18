@@ -22,6 +22,10 @@ type Put = { path: string; body: unknown };
 
 const puts: Put[] = [];
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
