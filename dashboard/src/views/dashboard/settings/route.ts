@@ -14,6 +14,10 @@ import { loadPage } from '@/i18n';
 import { dashboardDiscordRoute } from '@/views/dashboard/discord/route';
 import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
 
+import { settingsLaneARoutes } from './laneARoutes';
+import { settingsLaneBRoutes } from './laneBRoutes';
+import { settingsLaneCRoutes } from './laneCRoutes';
+
 const settingsPage = () =>
   loadPage(
     () => import('./SettingsView.vue'),
@@ -75,4 +79,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   engagementTriggersRoute,
   discordRoute,
   supporterSourcesRoute,
+  ...settingsLaneARoutes,
+  ...settingsLaneBRoutes,
+  ...settingsLaneCRoutes,
 ];
