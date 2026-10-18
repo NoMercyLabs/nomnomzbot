@@ -273,6 +273,45 @@ public sealed class ChatTranslatorsTests
     }
 
     [Fact]
+    public async Task ChatMessage_ArtistBadge_SetsIsArtistAndNothingElse()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
+        );
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.message",
+                """
+                {
+                    "chatter_user_id": "1",
+                    "chatter_user_login": "drawer",
+                    "chatter_user_name": "Drawer",
+                    "message_id": "m-art",
+                    "message": { "text": "hi", "fragments": [ { "type": "text", "text": "hi" } ] },
+                    "badges": [ { "set_id": "artist-badge", "id": "1", "info": "" } ]
+                }
+                """
+            )
+        );
+
+        ChatMessageReceivedEvent published = bus.EventsOf<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        published.IsArtist.Should().BeTrue("the artist-badge set is present");
+        published.IsVip.Should().BeFalse();
+        published.IsModerator.Should().BeFalse();
+        published.IsSubscriber.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ChatMessage_FounderBadge_CountsAsSubscriber()
     {
         CapturingEventBus bus = new();

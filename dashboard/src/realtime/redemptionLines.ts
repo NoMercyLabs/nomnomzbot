@@ -25,6 +25,7 @@ function redemptionLine(
     userType: 'viewer',
     isSubscriber: false,
     isVip: false,
+    isArtist: false,
     isModerator: false,
     isBroadcaster: false,
     isCheer: false,

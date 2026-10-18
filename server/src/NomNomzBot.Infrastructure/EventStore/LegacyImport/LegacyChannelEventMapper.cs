@@ -259,6 +259,7 @@ public sealed class LegacyChannelEventMapper
             Badges = badges,
             IsSubscriber = Bool(data, "IsSubscriber") ?? HasBadge(badges, "subscriber", "founder"),
             IsVip = Bool(data, "IsVip") ?? HasBadge(badges, "vip"),
+            IsArtist = HasBadge(badges, ChatBadge.ArtistSetId),
             IsModerator = Bool(data, "IsModerator") ?? HasBadge(badges, "moderator"),
             IsBroadcaster = Bool(data, "IsBroadcaster") ?? HasBadge(badges, "broadcaster"),
             Bits = cheer is null ? 0 : Int(cheer, "Bits") ?? 0,
@@ -298,6 +299,7 @@ public sealed class LegacyChannelEventMapper
             Badges = badges,
             IsSubscriber = HasBadge(badges, "subscriber", "founder"),
             IsVip = HasBadge(badges, "vip"),
+            IsArtist = HasBadge(badges, ChatBadge.ArtistSetId),
             IsModerator = HasBadge(badges, "moderator"),
             IsBroadcaster = HasBadge(badges, "broadcaster"),
         };

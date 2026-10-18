@@ -89,7 +89,8 @@ public static class ChatHistoryMapper
                     Timestamp: row.CreatedAt.ToString("O"),
                     AvatarUrl: enrichment?.AvatarUrl,
                     Pronouns: enrichment?.Pronouns,
-                    Provider: row.Provider
+                    Provider: row.Provider,
+                    IsArtist: row.Badges.Any(b => b.IsArtist)
                 )
             );
         }
@@ -123,6 +124,7 @@ public static class ChatHistoryMapper
             MessageType = row.MessageType,
             IsSubscriber = isSubscriber,
             IsVip = isVip,
+            IsArtist = row.Badges.Any(b => b.IsArtist),
             IsModerator = isModerator,
             IsBroadcaster = isBroadcaster,
             Bits = row.BitsAmount ?? 0,

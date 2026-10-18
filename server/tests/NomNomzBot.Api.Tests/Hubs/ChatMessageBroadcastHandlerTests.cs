@@ -310,6 +310,53 @@ public sealed class ChatMessageBroadcastHandlerTests
     }
 
     [Fact]
+    public async Task A_message_from_an_artist_reaches_the_dashboard_with_isArtist_set()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            Substitute.For<IChatMessageDecorator>(),
+            Substitute.For<IHubUserEnricher>(),
+            Substitute.For<ISevenTvUserPaintResolver>(),
+            Substitute.For<IWidgetNotifier>(),
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Provider = AuthEnums.Platform.YouTube,
+                MessageId = "m-artist",
+                TwitchBroadcasterId = "UCstreamer",
+                UserId = "UCviewer",
+                UserDisplayName = "Viewer",
+                UserLogin = "viewer",
+                Message = "hi",
+                Fragments = [new() { Type = "text", Text = "hi" }],
+                Badges = [],
+                IsSubscriber = false,
+                IsVip = false,
+                IsArtist = true,
+                IsModerator = false,
+                IsBroadcaster = false,
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto => dto.Id == "m-artist" && dto.IsArtist),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Message_is_also_pushed_to_overlays_as_a_decorated_ChatMessage_event()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();

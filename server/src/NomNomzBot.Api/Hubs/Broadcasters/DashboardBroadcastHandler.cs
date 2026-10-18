@@ -124,7 +124,8 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             AvatarUrl: enrichment?.AvatarUrl,
             Pronouns: enrichment?.Pronouns,
             Provider: evt.Provider,
-            Paint: paint
+            Paint: paint,
+            IsArtist: evt.IsArtist
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);

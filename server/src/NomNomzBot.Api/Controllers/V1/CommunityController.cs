@@ -287,7 +287,10 @@ public partial class CommunityController : BaseController
         // Asked of Twitch for this one user: true/false when Twitch answered, null when it could not
         // (missing token or scope, or an error) — never a guess.
         bool? IsVip,
-        bool? IsModerator
+        bool? IsModerator,
+        // Twitch has no artist list, so this reads the badges on the person's newest chat message here: true or
+        // false from that message, null when the person has no message — never a guess.
+        bool? IsArtist
     );
 
     public record ActivityDto(string Type, string Content, DateTime Timestamp);
@@ -1122,10 +1125,27 @@ public partial class CommunityController : BaseController
             recentMessages,
             banHistory,
             await AskTwitchIsVipAsync(broadcasterId, userId, ct),
-            await AskTwitchIsModeratorAsync(broadcasterId, userId, ct)
+            await AskTwitchIsModeratorAsync(broadcasterId, userId, ct),
+            await NewestMessageSaysArtistAsync(broadcasterId, userId, ct)
         );
 
         return Ok(new StatusResponseDto<UserDetailDto> { Data = detail });
+    }
+
+    /// <summary>Whether the badges on the user's newest chat message here include Twitch's artist badge; null when they have no message.</summary>
+    private async Task<bool?> NewestMessageSaysArtistAsync(
+        Guid broadcasterId,
+        string twitchUserId,
+        CancellationToken ct
+    )
+    {
+        List<ChatBadge>? badges = await _db
+            .ChatMessages.AsNoTracking()
+            .Where(m => m.BroadcasterId == broadcasterId && m.UserId == twitchUserId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Select(m => m.Badges)
+            .FirstOrDefaultAsync(ct);
+        return badges?.Any(b => b.IsArtist);
     }
 
     /// <summary>Whether Twitch lists the user as a VIP of the channel; null when Twitch could not answer.</summary>

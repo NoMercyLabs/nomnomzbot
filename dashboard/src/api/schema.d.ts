@@ -89628,6 +89628,8 @@ export interface components {
             /** @default twitch */
             provider: string;
             paint?: null | components["schemas"]["ChatPaint"];
+            /** @default false */
+            isArtist: boolean;
         };
         /**
          * @description Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.
@@ -102852,6 +102854,7 @@ export interface components {
             banHistory: components["schemas"]["BanRecord"][];
             isVip?: null | boolean;
             isModerator?: null | boolean;
+            isArtist?: null | boolean;
         };
         /**
          * @description One external identity linked to the caller's account (platform-identity §4). Never carries tokens — those

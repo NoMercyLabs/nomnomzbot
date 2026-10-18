@@ -75,6 +75,9 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
     /// <summary>True when the viewer is a VIP of the channel.</summary>
     public required bool IsVip { get; init; }
 
+    /// <summary>True when Twitch's <c>artist-badge</c> is on the message: the channel named the chatter an artist.</summary>
+    public bool IsArtist { get; init; }
+
     /// <summary>True when the viewer is a moderator of the channel.</summary>
     public required bool IsModerator { get; init; }
 

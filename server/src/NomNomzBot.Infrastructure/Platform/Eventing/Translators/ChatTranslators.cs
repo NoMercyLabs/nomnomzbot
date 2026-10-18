@@ -252,6 +252,7 @@ public sealed class ChannelChatMessageTranslator(
             Badges = badges,
             IsSubscriber = ChatPayload.HasBadge(badges, "subscriber", "founder"),
             IsVip = ChatPayload.HasBadge(badges, "vip"),
+            IsArtist = ChatPayload.HasBadge(badges, ChatBadge.ArtistSetId),
             // A lead moderator outranks a moderator and their badge can replace the "moderator" badge, so flag them
             // as a moderator too (the role gate then promotes them to LeadModerator via the lead_moderator badge).
             IsModerator =

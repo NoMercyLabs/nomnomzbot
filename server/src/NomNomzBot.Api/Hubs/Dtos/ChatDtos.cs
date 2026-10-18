@@ -52,7 +52,9 @@ public record DashboardChatMessageDto(
     // The chatter's 7TV name-theme paint, already flattened to CSS — null when they wear none, 7TV does not
     // know them, or the lookup failed. A widget applies it to the name/backdrop it renders for this chatter;
     // absent (not an empty object) so a viewer with no paint produces no style attribute at all.
-    ChatPaintDto? Paint = null
+    ChatPaintDto? Paint = null,
+    // True when Twitch's artist-badge is on the message (the channel named this chatter an artist).
+    bool IsArtist = false
 );
 
 /// <summary>

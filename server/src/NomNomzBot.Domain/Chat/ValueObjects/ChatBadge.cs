@@ -14,4 +14,11 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// <param name="SetId">The badge family, for example <c>moderator</c> or <c>subscriber</c>.</param>
 /// <param name="Id">The version inside the family, for example the number of subscribed months.</param>
 /// <param name="Info">Extra text for the badge, such as the exact subscribed months. Null when there is none.</param>
-public sealed record ChatBadge(string SetId, string Id, string? Info = null);
+public sealed record ChatBadge(string SetId, string Id, string? Info = null)
+{
+    /// <summary>Twitch's badge family for a channel's artists. Twitch has no list endpoint for them, so the badge is the only signal.</summary>
+    public const string ArtistSetId = "artist-badge";
+
+    /// <summary>Whether this badge is Twitch's artist badge.</summary>
+    public bool IsArtist => SetId == ArtistSetId;
+}

@@ -1472,6 +1472,102 @@ public sealed class CommunityControllerTests
         detail.IsModerator.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("artist-badge", true)]
+    [InlineData("subscriber", false)]
+    public async Task GetUserDetail_says_artist_from_the_badges_of_the_newest_chat_message(
+        string badgeSetId,
+        bool expected
+    )
+    {
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-555", "some_viewer", "Some_Viewer");
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                CreatedAt = DateTime.UtcNow.AddDays(-3),
+                BroadcasterId = Broadcaster,
+                UserId = "twitch-555",
+                Username = "some_viewer",
+                DisplayName = "Some_Viewer",
+                UserType = "viewer",
+                Message = "old, with the badge",
+                Badges = [new("artist-badge", "1")],
+            }
+        );
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                CreatedAt = DateTime.UtcNow,
+                BroadcasterId = Broadcaster,
+                UserId = "twitch-555",
+                Username = "some_viewer",
+                DisplayName = "Some_Viewer",
+                UserType = "viewer",
+                Message = "newest",
+                Badges = [new(badgeSetId, "1")],
+            }
+        );
+        await db.SaveChangesAsync();
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: moderators
+        );
+
+        IActionResult result = await controller.GetUserDetail(
+            Broadcaster.ToString(),
+            "twitch-555",
+            CancellationToken.None
+        );
+
+        CommunityController.UserDetailDto detail = (
+            (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
+        ).Data!;
+        detail.IsArtist.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task GetUserDetail_says_null_artist_for_a_person_with_no_chat_message()
+    {
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+
+        CommunityController.UserDetailDto detail = await DetailAsync(moderators);
+
+        detail.IsArtist.Should().BeNull();
+    }
+
     private static readonly DateTime OldChatAt = new(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime PresenceAt = new(2026, 10, 13, 20, 0, 0, DateTimeKind.Utc);
 

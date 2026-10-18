@@ -32,6 +32,7 @@ const line = (id: string, channelId: string, userId: string = 'u1'): ChatMessage
   userType: 'viewer',
   isSubscriber: false,
   isVip: false,
+  isArtist: false,
   isModerator: false,
   isBroadcaster: false,
   isCheer: false,
