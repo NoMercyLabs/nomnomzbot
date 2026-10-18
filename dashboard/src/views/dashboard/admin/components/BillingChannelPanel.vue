@@ -32,6 +32,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
+import { merge } from '@/lib/array';
 
 const { t } = useI18n();
 
@@ -88,13 +89,13 @@ const confirmTitle = computed<string>(() => {
 
   return t('dashboard.admin.billing.channel.tierTitle', { channel: channelId.value, tier: tierName.value });
 });
-const consequences = computed<string[]>(() => {
+const consequences = computed<readonly string[]>(() => {
   const count = Number(counted.value?.changedLimitCount ?? 0);
   const changed = action.value === 'comp'
     ? [t('dashboard.admin.billing.channel.changed', { count })]
     : [];
 
-  return [...changed, ...(counted.value?.changedLimitKeys ?? [])];
+  return merge(changed, counted.value?.changedLimitKeys ?? []);
 });
 
 async function confirmRefund(): Promise<void> {
