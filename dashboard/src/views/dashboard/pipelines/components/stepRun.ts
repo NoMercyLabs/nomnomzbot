@@ -54,7 +54,7 @@ function stepRun(row: PipelineTraceStep): StepRun {
 
 // A step inside a repeat runs once per round; its last round is what the canvas shows.
 export function runMarks(run: PipelineTestRun): RunMarks {
-  return new Map((run.trace ?? []).map((row: PipelineTraceStep) =>
+  return new Map((run.trace ?? []).map((row) =>
     [row.stepId, stepRun(row)]));
 }
 
@@ -71,7 +71,7 @@ export function runSummary(run: PipelineTestRun): RunSummary {
 
   return {
     ran: marks.length,
-    failed: marks.filter((mark: StepRun) =>
+    failed: marks.filter((mark) =>
       mark.state === 'failed').length,
   };
 }

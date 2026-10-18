@@ -67,7 +67,7 @@ export function useDismissActionRequired(
       return readActionRequired(id);
     },
     apply: (current: ActionRequiredItem[] | undefined, itemId: string): ActionRequiredItem[] =>
-      (current ?? []).filter((item: ActionRequiredItem) => item.id !== itemId),
+      (current ?? []).filter((item) => item.id !== itemId),
   });
 }
 

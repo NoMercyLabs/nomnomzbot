@@ -58,7 +58,7 @@ export function channelChoices(
   rows: readonly ChannelSummary[],
   moderatedRows: readonly ModeratedChannel[],
 ): readonly ChannelChoice[] {
-  const own: ChannelChoice[] = rows.map((row) => ({
+  const own = rows.map((row) => ({
     login: row.login,
     displayName: row.displayName,
     profileImageUrl: row.profileImageUrl ?? null,
@@ -70,9 +70,9 @@ export function channelChoices(
     twitchId: null,
     chatColor: row.chatColor ?? null,
     suspension: row.suspension ?? null,
-  }));
+  } as const satisfies ChannelChoice));
   const known = new Set<string>(own.map((row) => row.login.toLowerCase()));
-  const notSetUp: ChannelChoice[] = moderatedRows
+  const notSetUp = moderatedRows
     .filter((row) => !known.has(row.login.toLowerCase()))
     .map((row) => ({
       login: row.login,
@@ -84,7 +84,7 @@ export function channelChoices(
       twitchId: row.id,
       chatColor: null,
       suspension: null,
-    }));
+    } as const satisfies ChannelChoice));
 
   return merge(own, notSetUp);
 }
@@ -146,5 +146,5 @@ export function useCurrentChannel(): CurrentChannel {
     isPending: computed(() => enter.isPending.value),
     isLoaded: computed(() => !mine.isPending.value && !moderated.isPending.value),
     choose,
-  };
+  } as const satisfies CurrentChannel;
 }

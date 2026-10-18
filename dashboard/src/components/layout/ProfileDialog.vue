@@ -19,6 +19,7 @@ import Cross from '~icons/nnz/cross';
 import { useChannelAccess } from '@/api/access';
 import { useCommunityMember } from '@/api/community';
 import ProfilePublicView from '@/components/layout/profile/ProfilePublicView.vue';
+import type { ProfileTab } from '@/components/layout/profile/profileTabs';
 import ProfileView from '@/components/layout/profile/ProfileView.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -29,7 +30,7 @@ const profile = useProfileDialogStore();
 const { channelId } = useCurrentChannel();
 
 const isOpen = computed(() => profile.userId !== null);
-const tab = ref('overview');
+const tab = ref<ProfileTab>('overview');
 
 // The same query the view runs, so this costs no second request; the page opens a person by login.
 // A caller who may not read the community sees the public profile: no moderator page to link to, no request that 403s.

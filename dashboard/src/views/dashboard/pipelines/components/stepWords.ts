@@ -95,9 +95,9 @@ export function missingFields(
   words: Words,
 ): string[] {
   return (descriptor?.fields ?? [])
-    .filter((field: PipelineActionField) =>
+    .filter((field) =>
       field.required && isEmpty(step.action[field.name]))
-    .map((field: PipelineActionField) =>
+    .map((field) =>
       fieldLabel(field.name, words));
 }
 
@@ -133,7 +133,7 @@ export function laneTitle(lane: StepLane, index: number, { t }: Words): string {
 }
 
 function sourcesOf(kind: StartSource['kind'], names: string[]): StartSource[] {
-  return names.map((name: string) =>
+  return names.map((name) =>
     ({ kind, name }));
 }
 

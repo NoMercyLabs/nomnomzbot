@@ -21,7 +21,6 @@ import {
   useAdminTtsVoiceCandidates,
   useAdminTtsVoiceDefault,
   useSaveTtsVoiceDefault,
-  type TtsVoiceCandidate,
   type TtsVoiceDefault,
 } from '@/api/adminPlatformDefaults';
 import FormDialog from '@/components/layout/FormDialog.vue';
@@ -59,7 +58,7 @@ const listError = usePlatformDefaultListError(() => current.error.value);
 
 const items = computed(() =>
   groupVoices(
-    (candidates.data.value ?? []).map((voice: TtsVoiceCandidate) => ({
+    (candidates.data.value ?? []).map((voice) => ({
       ...voice,
       id: voice.voiceId,
     })),

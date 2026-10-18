@@ -23,7 +23,8 @@ import {
   type BillingTier,
 } from '@/api/billing';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';

@@ -147,7 +147,7 @@ function parentOf(line: ChatLineData): ChatLineData | null {
 
 const visible = computed<ChatLineData[]>(() =>
   lines.value.filter(
-    (line: ChatLineData) =>
+    (line) =>
       !(!display.value.commands && line.isCommand) &&
       !(display.value.deleted === 'hide' && line.removed === 'deleted') &&
       !(viewerRoute && line.removed !== undefined),
@@ -236,7 +236,7 @@ function pickChatter(line: ChatLineData): void {
 }
 
 const focusedName = computed<string>(() =>
-  lines.value.filter((line: ChatLineData) =>
+  lines.value.filter((line) =>
     line.userId === focusedUserId.value).at(-1)?.displayName ?? '');
 
 function closeViewer(): void {

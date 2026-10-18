@@ -83,7 +83,7 @@ function laneStart(place: Place, lane: number): Place {
 }
 
 function nodesOf(steps: PipelineStep[], groups: Siblings, start: Place): StepNode[] {
-  return steps.map((step: PipelineStep, index: number) =>
+  return steps.map((step, index) =>
     nodeOf(step, groups, { number: `${start.number}${index + 1}`, key: `${start.key}${index + 1}` }));
 }
 
@@ -92,7 +92,7 @@ function lanesOf(step: PipelineStep, groups: Siblings, place: Place): StepLane[]
 
   if (step.block_kind === 'if' || step.block_kind === 'try') {
     return BRANCH_LANES[step.block_kind].map((kind: BranchLane, lane: number) => {
-      const inLane = children.filter((child: PipelineStep) =>
+      const inLane = children.filter((child) =>
         child.branch === BRANCH_OF[kind]);
 
       return {
@@ -110,7 +110,7 @@ function lanesOf(step: PipelineStep, groups: Siblings, place: Place): StepLane[]
       ? 'case'
       : 'path';
 
-    return children.map((head: PipelineStep, lane: number) => ({
+    return children.map((head, lane) => ({
       kind,
       head,
       nodes: nodesOf(childrenOf(head, groups), groups, laneStart(place, lane)),
@@ -155,7 +155,7 @@ function findWhere(nodes: StepNode[], test: (node: StepNode) => boolean): StepNo
     if (test(node))
       return node;
 
-    const inner = findWhere(node.lanes.flatMap((lane: StepLane) => lane.nodes), test);
+    const inner = findWhere(node.lanes.flatMap((lane) => lane.nodes), test);
 
     if (inner)
       return inner;

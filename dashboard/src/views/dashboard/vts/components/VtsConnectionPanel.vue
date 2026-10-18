@@ -20,7 +20,8 @@ import {
   type VtsConnection,
 } from '@/api/vts';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';

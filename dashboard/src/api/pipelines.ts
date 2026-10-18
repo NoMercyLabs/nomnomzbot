@@ -379,7 +379,7 @@ type OptionAsk = {
 
 // The bot reads the context as repeated name=value entries.
 function contextEntries(context: OptionContext | undefined): string[] | undefined {
-  const entries = Object.entries(context ?? {}).map(([name, text]: [string, string]) =>
+  const entries = Object.entries(context ?? {}).map(([name, text]) =>
     `${name}=${text}`);
 
   return entries.length > 0

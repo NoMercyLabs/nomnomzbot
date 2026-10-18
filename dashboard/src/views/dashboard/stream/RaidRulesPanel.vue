@@ -52,8 +52,8 @@ const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(quer
 function words(text: string): string[] {
   return text
     .split(',')
-    .map((word: string) => word.trim())
-    .filter((word: string) => word !== '');
+    .map((word) => word.trim())
+    .filter((word) => word !== '');
 }
 
 function addCategory(): void {

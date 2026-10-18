@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 import type { AdminTenant } from '@/api/admin';
 import DateTime from '@/components/layout/DateTime.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import { lookup } from '@/lib/array';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Table,
@@ -30,15 +31,15 @@ defineEmits<{ pick: [row: AdminTenant] }>();
 
 const { t } = useI18n();
 
-const TONES: Readonly<Record<string, StatusTone>> = {
+const TONES = {
   active: 'ok',
   suspended: 'off',
   churned: 'off',
   platform_banned: 'bad',
-};
+} as const satisfies Readonly<Record<string, StatusTone>>;
 
 function tone(status: string | undefined): StatusTone {
-  return TONES[status ?? ''] ?? 'off';
+  return lookup(TONES, status) ?? 'off';
 }
 
 function statusLabel(status: string | undefined): string {

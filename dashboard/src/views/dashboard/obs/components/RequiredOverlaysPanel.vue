@@ -18,7 +18,8 @@ import { useTimeoutFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
 import type { RequiredOverlay } from '@/api/widgets';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { overlayHealth } from '@/views/dashboard/overlays/components/overlayHealth';

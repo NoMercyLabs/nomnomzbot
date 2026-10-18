@@ -20,7 +20,7 @@ import { skinTone, toneModifiers } from '../emotePicker';
 
 const tone = defineModel<number>({ required: true });
 
-const hands = [0, 1, 2, 3, 4, 5].map((index: number) =>
+const hands = [0, 1, 2, 3, 4, 5].map((index) =>
   skinTone({ insert: '✋', skins: toneModifiers.map((modifier) =>
     `✋${modifier}`) }, index));
 

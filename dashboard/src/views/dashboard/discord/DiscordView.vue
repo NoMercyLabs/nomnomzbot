@@ -81,7 +81,7 @@ const roleOpen = computed<boolean>({
   },
 });
 const roleBeingEdited = computed<NotifyRole | null>(
-  () => notifyRoles.value.find((role: NotifyRole) => role.id === editingRole.value) ?? null,
+  () => notifyRoles.value.find((role) => role.id === editingRole.value) ?? null,
 );
 
 const rules = computed<DiscordRule[]>(() => rulesQuery.data.value ?? []);
@@ -99,14 +99,14 @@ const open = computed<boolean>({
 const triggers = computed(() => {
   const known: string[] = [...discordTriggers];
   const extra = rules.value
-    .map((rule: DiscordRule) => rule.triggerType)
-    .filter((trigger: string) => !known.includes(trigger));
+    .map((rule) => rule.triggerType)
+    .filter((trigger) => !known.includes(trigger));
 
   return merge(known, extra);
 });
 
 function ruleOf(trigger: string): DiscordRule | null {
-  return rules.value.find((rule: DiscordRule) => rule.triggerType === trigger) ?? null;
+  return rules.value.find((rule) => rule.triggerType === trigger) ?? null;
 }
 
 function triggerLabel(trigger: string): string {

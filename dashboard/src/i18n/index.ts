@@ -97,7 +97,7 @@ export async function loadPage(
 
   const [page] = await Promise.all([
     view(),
-    ...messages.map((loader: WordsLoader) => loadWords(loader, targetLocale)),
+    ...messages.map((loader) => loadWords(loader, targetLocale)),
   ]);
 
   return page;

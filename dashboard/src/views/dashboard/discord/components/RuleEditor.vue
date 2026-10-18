@@ -69,10 +69,8 @@ const NO_ROLE = 'none';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
-const save = useSaveDiscordRule(channelId, () =>
-  props.connectionId);
-const create = useCreateDiscordRule(channelId, () =>
-  props.connectionId);
+const save = useSaveDiscordRule(channelId, () => props.connectionId);
+const create = useCreateDiscordRule(channelId, () => props.connectionId);
 const preview = useDiscordPreview(channelId);
 
 function draftOf(rule: DiscordRule | null): Draft {
@@ -87,7 +85,7 @@ function draftOf(rule: DiscordRule | null): Draft {
     thumbnailUrl: rule?.embedConfig?.thumbnailUrl ?? '',
     imageUrl: rule?.embedConfig?.imageUrl ?? '',
     footerText: rule?.embedConfig?.footerText ?? '',
-    fields: (rule?.embedConfig?.fields ?? []).map((field: DiscordEmbedField) => ({ ...field })),
+    fields: (rule?.embedConfig?.fields ?? []).map((field) => ({ ...field })),
   };
 }
 
@@ -114,7 +112,7 @@ function embedOf(edits: Draft): DiscordEmbed | null {
     thumbnailUrl: blankToNull(edits.thumbnailUrl),
     imageUrl: blankToNull(edits.imageUrl),
     footerText: blankToNull(edits.footerText),
-    fields: edits.fields.filter((field: DiscordEmbedField) => field.name.trim() !== ''),
+    fields: edits.fields.filter((field) => field.name.trim() !== ''),
   };
   const empty = Object.values(embed).every((value) =>
     value === null || (Array.isArray(value) && value.length === 0));

@@ -63,6 +63,7 @@ export const streamInfoKey = (channelId: string | null): KeyParts => [
   channelId,
   'stream',
 ];
+
 export const adScheduleKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -74,6 +75,7 @@ export const streamHistoryKey = (channelId: string | null): KeyParts => [
   channelId,
   'stream-history',
 ];
+
 export const categorySearchKey = (channelId: string | null, query: string): KeyParts => [
   'channels',
   channelId,

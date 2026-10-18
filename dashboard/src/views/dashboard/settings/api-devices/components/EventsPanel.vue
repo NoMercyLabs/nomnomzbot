@@ -12,7 +12,8 @@
 import { computed } from 'vue';
 
 import { useAutomationEvents } from '@/api/automationTokens';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const { channelId } = useCurrentChannel();

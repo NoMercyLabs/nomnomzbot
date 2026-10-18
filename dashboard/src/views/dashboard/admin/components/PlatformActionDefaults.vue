@@ -60,7 +60,7 @@ const preview = usePlatformDefaultPreview(() =>
 const rungs = computed<number[]>(() => {
   const floor = Number(editing.value?.floorLevel ?? 0);
 
-  return Array.from(Array(LEVEL_COUNT).keys()).filter((rung: number): boolean => rung >= floor);
+  return Array.from(Array(LEVEL_COUNT).keys()).filter((rung): boolean => rung >= floor);
 });
 
 const shippedOption = computed<string>(() =>

@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Instellen",
       "customEventFeeds": {
         "title": "Eigen eventfeeds",
         "description": "Haal data van buiten binnen: een hartslagsensor, een REST-ticker, een companion-app. Elke feed maakt een eigen event dat pipelines start, variabelen vult en overlays voedt.",

@@ -22,15 +22,19 @@ import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
 import ChartPanel, { type ChartRow, type ChartSeries } from '@/components/layout/ChartPanel.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
+import FilterBar from '@/components/layout/FilterBar.vue';
+import type { FilterOption } from '@/components/layout/filterOption';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import HelperPanel from '@/components/layout/HelperPanel.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -64,12 +68,13 @@ const boardPanels = computed(() => [
   { id: 'quiet', label: t('dashboard.catalog.panel.quiet') },
 ] as const satisfies readonly BoardPanel[]);
 
-const tabs: PageTab[] = [
+const VIEWS = ['blocks', 'states', 'layouts'] as const;
+const tabs: PageTab<(typeof VIEWS)[number]>[] = [
   { value: 'blocks', label: t('dashboard.catalog.tabs.blocks') },
   { value: 'states', label: t('dashboard.catalog.tabs.states') },
   { value: 'layouts', label: t('dashboard.catalog.tabs.layouts') },
 ];
-const view = usePageView(tabs.map((tab: PageTab) => tab.value));
+const view = usePageView(VIEWS);
 
 const kvItems: KeyValueItem[] = [
   { label: t('dashboard.catalog.kv.region'), value: t('dashboard.catalog.kv.regionValue') },
@@ -80,12 +85,12 @@ const kvItems: KeyValueItem[] = [
   },
 ];
 
-const stateOptions: FilterOption[] = ['all', 'on', 'off'].map((key: string) => ({
+const stateOptions: FilterOption[] = ['all', 'on', 'off'].map((key) => ({
   value: key,
   label: t(`dashboard.catalog.filter.${key}`),
 }));
 const sinceOptions: FilterOption[] = ['day', 'week', 'month', 'quarter', 'year'].map(
-  (key: string) => ({
+  (key) => ({
     value: key,
     label: t(`dashboard.catalog.filter.${key}`),
   }),
@@ -93,7 +98,7 @@ const sinceOptions: FilterOption[] = ['day', 'week', 'month', 'quarter', 'year']
 
 // Demo data only: these numbers are invented for the catalog and never shown anywhere else.
 const lineDemo: ChartRow[] = [1200, 1500, 1450, 2100, 2600, 2500, 3100, 3400].map(
-  (lines: number, day: number) => ({
+  (lines, day) => ({
     day: new Date(2026, 0, day + 1),
     lines,
   }),
@@ -155,7 +160,7 @@ const detailOpen = ref(false);
 const confirmOpen = ref(false);
 const confirmPending = ref(false);
 const confirmed = ref(0);
-const consequences = ['chat', 'pipeline', 'history'].map((key: string) =>
+const consequences = ['chat', 'pipeline', 'history'].map((key) =>
   t(`dashboard.catalog.confirm.${key}`),
 );
 

@@ -19,7 +19,7 @@ import { onTheWire } from '@/api/__tests__/wire';
 import ProfileDialog from '@/components/layout/ProfileDialog.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { i18n } from '@/i18n';
-import { merge } from '@/lib/array';
+import { lookup, merge } from '@/lib/array';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
@@ -402,7 +402,7 @@ const catalog = [voiceOf('en-US-AvaNeural', 'Ava'), voiceOf('en-US-EmmaNeural', 
 
 function voicesPage(options: Options | undefined): unknown {
   const q = String((options?.params?.query as Record<string, unknown> | undefined)?.q ?? '');
-  const found = catalog.filter((voice: Record<string, unknown>) =>
+  const found = catalog.filter((voice) =>
     String(voice.id).includes(q) || String(voice.displayName).includes(q));
 
   return {
@@ -424,7 +424,7 @@ function personVoice(options: Options | undefined): unknown {
 }
 
 // What GET chat/viewer/users/{userId}/profile answers a caller who may not read the community.
-const publicProfiles: Record<string, Record<string, unknown>> = {
+const publicProfiles = {
   u1: {
     twitchUserId: 'u1',
     internalUserId: 'g1',
@@ -460,7 +460,7 @@ const publicProfiles: Record<string, Record<string, unknown>> = {
       sentAt: '2026-10-01T10:00:00Z',
     }],
   },
-};
+} as const satisfies Record<string, Record<string, unknown>>;
 
 let held: string[] = [];
 
@@ -505,8 +505,10 @@ vi.mock('@/api/client', () => ({
       record(path, options);
 
       if (path.includes('/chat/viewer/users/')) {
+        const profile = lookup(publicProfiles, userIdOf(options)) ?? null;
+
         return {
-          data: { data: onTheWire(publicProfiles[userIdOf(options)] ?? null) },
+          data: { data: onTheWire(profile) },
           response: { ok: true, status: 200 },
         };
       }
@@ -656,7 +658,7 @@ vi.mock('@/api/client', () => ({
         const id = noteIdOf(options);
 
         notes = Object.fromEntries(Object.entries(notes).map(([user, list]) =>
-          [user, list.filter((note: Record<string, unknown>) => note.id !== id)]));
+          [user, list.filter((note) => note.id !== id)]));
 
         return { response: { ok: true } };
       }
@@ -845,7 +847,7 @@ async function vipItem(): Promise<HTMLElement> {
 
 async function openTab(label: string): Promise<void> {
   const tab = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]'))
-    .find((element: HTMLElement) => element.textContent?.trim() === label);
+    .find((element) => element.textContent?.trim() === label);
 
   tab!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
   await settle();
@@ -863,7 +865,7 @@ describe('the profile dialog', () => {
 
     expect(text).toContain('Ada');
     expect(text).toContain('@ada');
-    const detail = calls.find((c: Call) => c.path.endsWith('/community/{userId}'));
+    const detail = calls.find((c) => c.path.endsWith('/community/{userId}'));
 
     expect(detail?.params).toEqual({
       path: {
@@ -894,7 +896,7 @@ describe('the profile dialog', () => {
 
     const tabs: HTMLElement[] = Array.from(document.body.querySelectorAll('[role="tab"]'));
 
-    expect(tabs.map((t: HTMLElement) => t.textContent?.trim())).toEqual([
+    expect(tabs.map((t) => t.textContent?.trim())).toEqual([
       'Overview',
       'Chat',
       'Emotes',
@@ -940,7 +942,7 @@ describe('the profile dialog', () => {
     await openUser('u1');
 
     const data = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]'))
-      .find((tab: HTMLElement) => tab.textContent?.trim() === 'Data');
+      .find((tab) => tab.textContent?.trim() === 'Data');
 
     data!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     await settle();
@@ -988,7 +990,7 @@ describe('the profile dialog', () => {
     await openTab('Data');
 
     const permits = Array.from(document.body.querySelectorAll('[data-profile-permits] li'))
-      .map((line: Element) => line.textContent?.trim());
+      .map((line) => line.textContent?.trim());
 
     expect(permits).toEqual([
       'Lead moderator role, until Oct 20, 2026Raid night',
@@ -1008,7 +1010,7 @@ describe('the profile dialog', () => {
 
     // A lifted ban says when it was lifted; the ban still in force says nothing it does not know.
     const lifted = Array.from(active!.querySelectorAll('[data-profile-ban-lifted]'))
-      .map((line: Element) => line.textContent?.trim());
+      .map((line) => line.textContent?.trim());
 
     expect(lifted).toEqual(['Lifted on Aug 3, 2026']);
   });
@@ -1020,12 +1022,12 @@ describe('the profile dialog', () => {
     button('[data-profile-ban]').click();
     await settle();
     expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
-    expect(calls.filter((c: Call) => c.path.endsWith('/ban'))).toEqual([]);
+    expect(calls.filter((c) => c.path.endsWith('/ban'))).toEqual([]);
 
     button('[data-confirm-action]').click();
     await settle();
 
-    const bans = calls.filter((c: Call) => c.path.endsWith('/ban'));
+    const bans = calls.filter((c) => c.path.endsWith('/ban'));
 
     expect(bans.length).toBe(1);
 
@@ -1048,13 +1050,13 @@ describe('the profile dialog', () => {
     button('[data-profile-ban]').click();
     await settle();
     const cancel = Array.from(document.body.querySelectorAll('[role="alertdialog"] button')).find(
-      (b: Element) => b.textContent?.trim() === 'Cancel',
+      (b) => b.textContent?.trim() === 'Cancel',
     ) as HTMLButtonElement;
 
     cancel.click();
     await settle();
 
-    expect(calls.filter((c: Call) => c.path.endsWith('/ban'))).toEqual([]);
+    expect(calls.filter((c) => c.path.endsWith('/ban'))).toEqual([]);
   });
 
   it('flips the VIP choice at once and keeps it when the save works', async () => {
@@ -1075,7 +1077,7 @@ describe('the profile dialog', () => {
     release();
     await settle();
     expect((await vipItem()).textContent).toContain('Remove VIP');
-    expect(calls.some((c: Call) => c.path.endsWith('/vip'))).toBe(true);
+    expect(calls.some((c) => c.path.endsWith('/vip'))).toBe(true);
   });
 
   it('rolls the VIP choice back and tells the error inbox when the save fails', async () => {
@@ -1107,8 +1109,8 @@ describe('the profile dialog', () => {
       '/context',
       '/chat/users/{userId}/messages',
     ];
-    const writes = calls.filter((c: Call) =>
-      !reads.some((end: string) =>
+    const writes = calls.filter((c) =>
+      !reads.some((end) =>
         c.path.endsWith(end)));
 
     expect(writes).toEqual([]);
@@ -1133,9 +1135,9 @@ describe('the profile dialog', () => {
     button('[data-profile-timeout-length="600"]').click();
     await settle();
 
-    const timeouts = calls.filter((c: Call) => c.path.endsWith('/moderation/actions'));
+    const timeouts = calls.filter((c) => c.path.endsWith('/moderation/actions'));
 
-    expect(timeouts.map((c: Call) => c.body)).toEqual([
+    expect(timeouts.map((c) => c.body)).toEqual([
       {
         action: 'timeout',
         targetUserId: 'u1',
@@ -1146,7 +1148,7 @@ describe('the profile dialog', () => {
 
   describe('who may be timed out or banned', () => {
     const sanctionButtons = (): HTMLElement[] =>
-      ['[data-profile-timeout]', '[data-profile-ban]'].flatMap((selector: string) =>
+      ['[data-profile-timeout]', '[data-profile-ban]'].flatMap((selector) =>
         [...document.body.querySelectorAll<HTMLElement>(selector)]);
 
     it('shows both to a moderator on a viewer', async () => {
@@ -1196,7 +1198,7 @@ describe('the profile dialog', () => {
 
     expect(document.body.querySelector('[data-profile-more]')).toBeNull();
 
-    expect(['shoutout', 'vip', 'warn'].map((name: string) =>
+    expect(['shoutout', 'vip', 'warn'].map((name) =>
       document.body.querySelector(`[data-profile-${name}]`)?.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
   });
 
@@ -1207,9 +1209,9 @@ describe('the profile dialog', () => {
     button('[data-profile-shoutout]').click();
     await settle();
 
-    const shoutouts = calls.filter((c: Call) => c.path.endsWith('/moderation/shoutout'));
+    const shoutouts = calls.filter((c) => c.path.endsWith('/moderation/shoutout'));
 
-    expect(shoutouts.map((c: Call) => c.body)).toEqual([{ targetTwitchUserId: 'u1' }]);
+    expect(shoutouts.map((c) => c.body)).toEqual([{ targetTwitchUserId: 'u1' }]);
   });
 
   it('warns the person with the reason the moderator typed', async () => {
@@ -1225,7 +1227,7 @@ describe('the profile dialog', () => {
     button('[data-form-action]').click();
     await settle();
 
-    expect(calls.filter((c: Call) => c.path.endsWith('/moderation/warn'))).toHaveLength(0);
+    expect(calls.filter((c) => c.path.endsWith('/moderation/warn'))).toHaveLength(0);
     expect(document.body.textContent).toContain('Twitch needs a reason');
 
     reason.value = '  Please stop the caps  ';
@@ -1234,9 +1236,9 @@ describe('the profile dialog', () => {
     button('[data-form-action]').click();
     await settle();
 
-    const warns = calls.filter((c: Call) => c.path.endsWith('/moderation/warn'));
+    const warns = calls.filter((c) => c.path.endsWith('/moderation/warn'));
 
-    expect(warns.map((c: Call) => c.body)).toEqual([
+    expect(warns.map((c) => c.body)).toEqual([
       { targetUserId: 'u1', reason: 'Please stop the caps' },
     ]);
 
@@ -1275,9 +1277,9 @@ describe('the profile dialog', () => {
     button('[data-profile-unban]').click();
     await settle();
 
-    const unbans = calls.filter((c: Call) => c.path.endsWith('/moderation/actions/unban'));
+    const unbans = calls.filter((c) => c.path.endsWith('/moderation/actions/unban'));
 
-    expect(unbans.map((c: Call) => c.body)).toEqual([
+    expect(unbans.map((c) => c.body)).toEqual([
       { targetTwitchUserId: 'u2', scope: 'this_channel' },
     ]);
   });
@@ -1301,9 +1303,9 @@ describe('the profile dialog', () => {
     button('[data-profile-note-add]').click();
     await settle();
 
-    const added = calls.filter((c: Call) => c.path.endsWith('/notes') && c.body !== undefined);
+    const added = calls.filter((c) => c.path.endsWith('/notes') && c.body !== undefined);
 
-    expect(added.map((c: Call) => c.body)).toEqual([
+    expect(added.map((c) => c.body)).toEqual([
       { content: 'Asked about the giveaway rules.', pinned: false },
     ]);
 
@@ -1311,7 +1313,7 @@ describe('the profile dialog', () => {
   });
 
   it('hides Ban and Timeout when the caller may not ban here, and keeps VIP', async () => {
-    held = held.filter((key: string) => key !== 'moderation:ban');
+    held = held.filter((key) => key !== 'moderation:ban');
     await openPage();
     await openUser('u1');
 
@@ -1340,9 +1342,9 @@ describe('the profile dialog', () => {
     button('[data-form-action]').click();
     await settle();
 
-    const edits = calls.filter((c: Call) => c.path.endsWith('/notes/{noteId}') && c.body !== undefined);
+    const edits = calls.filter((c) => c.path.endsWith('/notes/{noteId}') && c.body !== undefined);
 
-    expect(edits.map((c: Call) => [noteIdOf(c), c.body])).toEqual([
+    expect(edits.map((c) => [noteIdOf(c), c.body])).toEqual([
       [7, { content: 'Helps new chatters find the rules and the FAQ.', pinned: false }],
     ]);
 
@@ -1360,14 +1362,14 @@ describe('the profile dialog', () => {
     await settle();
 
     const deletes = (): Call[] =>
-      calls.filter((c: Call) => c.path.endsWith('/notes/{noteId}') && c.body === undefined);
+      calls.filter((c) => c.path.endsWith('/notes/{noteId}') && c.body === undefined);
 
     expect(deletes()).toHaveLength(0);
 
     button('[data-confirm-action]').click();
     await settle();
 
-    expect(deletes().map((c: Call) => noteIdOf(c))).toEqual([7]);
+    expect(deletes().map((c) => noteIdOf(c))).toEqual([7]);
     expect(dialogs()[0]!.textContent).not.toContain('Helps new chatters find the rules.');
     expect(dialogs()[0]!.textContent).toContain('No notes on this person yet.');
   });
@@ -1395,9 +1397,9 @@ describe('the profile dialog', () => {
     button('[data-form-action]').click();
     await settle();
 
-    const writes = calls.filter((c: Call) => c.path.endsWith('/standing'));
+    const writes = calls.filter((c) => c.path.endsWith('/standing'));
 
-    expect(writes.map((c: Call) => [userIdOf(c), c.body])).toEqual([
+    expect(writes.map((c) => [userIdOf(c), c.body])).toEqual([
       ['u1', {
         provider: 'twitch',
         standing: 'shadowbanned',
@@ -1446,10 +1448,10 @@ describe('the profile dialog', () => {
     button('[data-form-action]').click();
     await settle();
 
-    const clears = calls.filter((c: Call) =>
+    const clears = calls.filter((c) =>
       c.path.endsWith('/standing') && c.body === undefined);
 
-    expect(clears.map((c: Call) => [userIdOf(c), c.params?.query])).toEqual([
+    expect(clears.map((c) => [userIdOf(c), c.params?.query])).toEqual([
       ['u1', { provider: 'twitch' }],
     ]);
 
@@ -1458,7 +1460,7 @@ describe('the profile dialog', () => {
   });
 
   it('locks the standing change for a caller without the standing right', async () => {
-    held = held.filter((key: string) => key !== 'moderation:suspicioususer:write');
+    held = held.filter((key) => key !== 'moderation:suspicioususer:write');
     await openPage();
     await openUser('u1');
     await openTab('Moderation');
@@ -1470,7 +1472,7 @@ describe('the profile dialog', () => {
   });
 
   it('locks the note box when the caller may read notes but not write them', async () => {
-    held = held.filter((key: string) => key !== 'moderation:note:write');
+    held = held.filter((key) => key !== 'moderation:note:write');
     await openPage();
     await openUser('u1');
     await openTab('Moderation');
@@ -1487,7 +1489,7 @@ describe('the profile dialog', () => {
     await openTab('Moderation');
 
     const rows = (): string[] =>
-      Array.from(dialogs()[0]!.querySelectorAll('[data-profile-history]')).map((row: Element) =>
+      Array.from(dialogs()[0]!.querySelectorAll('[data-profile-history]')).map((row) =>
         row.textContent ?? '');
 
     expect(rows()).toHaveLength(2);
@@ -1497,9 +1499,9 @@ describe('the profile dialog', () => {
     expect(rows()[1]).toContain('Caught by a chat filter');
     expect(rows()[1]).toContain('Automatic ·');
 
-    const asked = calls.filter((c: Call) => c.path.endsWith('/history/{userId}'));
+    const asked = calls.filter((c) => c.path.endsWith('/history/{userId}'));
 
-    expect(asked.map((c: Call) => userIdOf(c))).toEqual(['g1']);
+    expect(asked.map((c) => userIdOf(c))).toEqual(['g1']);
 
     button('[data-profile-history-more]').click();
     await settle();
@@ -1511,12 +1513,12 @@ describe('the profile dialog', () => {
   });
 
   it('does not ask for the moderation history when the caller may not read it', async () => {
-    held = held.filter((key: string) => key !== 'moderation:history:read');
+    held = held.filter((key) => key !== 'moderation:history:read');
     await openPage();
     await openUser('u1');
     await openTab('Moderation');
 
-    expect(calls.some((c: Call) => c.path.endsWith('/history/{userId}'))).toBe(false);
+    expect(calls.some((c) => c.path.endsWith('/history/{userId}'))).toBe(false);
     expect(dialogs()[0]!.textContent).toContain('Your role cannot see the moderation history.');
   });
 
@@ -1606,7 +1608,7 @@ describe('the profile header', () => {
 
     const badges = Array.from(header().querySelectorAll('[data-profile-role]'));
 
-    expect(badges.map((badge: Element) => badge.textContent?.trim())).toEqual([
+    expect(badges.map((badge) => badge.textContent?.trim())).toEqual([
       'Moderator',
       'VIP',
       'Subscriber',
@@ -1624,7 +1626,7 @@ describe('the profile header', () => {
     await openPage();
     await openUser('u1');
 
-    const roles = Array.from(header().querySelectorAll('[data-profile-role]')).map((badge: Element) =>
+    const roles = Array.from(header().querySelectorAll('[data-profile-role]')).map((badge) =>
       badge.textContent?.trim());
 
     expect(roles[0]).toBe('Broadcaster');
@@ -1637,7 +1639,7 @@ describe('the profile header', () => {
     await openPage();
     await openUser('u1');
 
-    const roles = Array.from(header().querySelectorAll('[data-profile-role]')).map((badge: Element) =>
+    const roles = Array.from(header().querySelectorAll('[data-profile-role]')).map((badge) =>
       badge.textContent?.trim());
 
     expect(roles).not.toContain('Broadcaster');
@@ -1694,7 +1696,7 @@ describe('the profile header', () => {
 
     const row = header().querySelector('[data-profile-standing]')!.parentElement!;
     const badge = (name: string): Element =>
-      [...row.querySelectorAll('[data-profile-role]')].find((b: Element) =>
+      [...row.querySelectorAll('[data-profile-role]')].find((b) =>
         b.textContent?.trim() === name)!;
 
     expect(row.firstElementChild?.hasAttribute('data-profile-standing')).toBe(true);
@@ -1718,7 +1720,7 @@ describe('the profile header', () => {
     await openUser('u1');
 
     const stats = Array.from(header().querySelectorAll('[data-profile-stat]')).map(
-      (tile: Element) => Array.from(tile.children).map((part: Element) => part.textContent).join(' '),
+      (tile) => Array.from(tile.children).map((part) => part.textContent).join(' '),
     );
 
     expect(stats).toEqual([
@@ -1819,7 +1821,7 @@ describe('the Overview tab', () => {
     await openPage();
     await openUser('u1');
 
-    const ages = [...document.body.querySelectorAll('[data-profile-age]')].map((age: Element) =>
+    const ages = [...document.body.querySelectorAll('[data-profile-age]')].map((age) =>
       [age.querySelector('dt')?.textContent?.trim(), age.querySelector('dd')?.textContent?.trim()]);
 
     expect(ages).toEqual([
@@ -1872,7 +1874,7 @@ describe('the Overview tab', () => {
     await openUser('u1');
 
     const days = (): string[] =>
-      Array.from(document.body.querySelectorAll('[data-profile-chat-day]')).map((day: Element) =>
+      Array.from(document.body.querySelectorAll('[data-profile-chat-day]')).map((day) =>
         day.textContent ?? '');
 
     expect(days()).toHaveLength(1);
@@ -1890,9 +1892,9 @@ describe('the Overview tab', () => {
     expect(document.body.querySelectorAll('[data-profile-chat-day-heading]')).toHaveLength(2);
     expect(document.body.querySelector('[data-profile-chat-more]')).toBeNull();
 
-    const asked = calls.filter((c: Call) => c.path.endsWith('/chat/users/{userId}/messages'));
+    const asked = calls.filter((c) => c.path.endsWith('/chat/users/{userId}/messages'));
 
-    expect(asked.map((c: Call) => userIdOf(c))).toEqual(['g1', 'g1']);
+    expect(asked.map((c) => userIdOf(c))).toEqual(['g1', 'g1']);
   });
 
   it('shows a known emote code in a chat line as the emote, and keeps other words as text', async () => {
@@ -1915,7 +1917,7 @@ describe('the TTS voice panel', () => {
   const VOICE_KEYS = ['tts:voice:read', 'tts:uservoice:write'];
   const panel = (): Element => document.body.querySelector('[data-slot="profile-voice"]')!;
   const voiceWrites = (): Call[] =>
-    calls.filter((c: Call) => c.path.endsWith('/tts/users/{userId}/voice') && c.body !== undefined);
+    calls.filter((c) => c.path.endsWith('/tts/users/{userId}/voice') && c.body !== undefined);
 
   beforeEach(() => {
     held = [...merge(held, VOICE_KEYS)];
@@ -1927,7 +1929,7 @@ describe('the TTS voice panel', () => {
 
     const tabPanel = panel().closest('[role="tabpanel"]')!;
     const settingsTab = Array.from(document.body.querySelectorAll('[role="tab"]')).find(
-      (t: Element) => t.textContent?.trim() === 'Settings',
+      (t) => t.textContent?.trim() === 'Settings',
     );
 
     expect(settingsTab?.getAttribute('aria-controls')).toBe(tabPanel.id);
@@ -1960,7 +1962,7 @@ describe('the TTS voice panel', () => {
     button('[data-form-action]').click();
     await settle();
 
-    expect(voiceWrites().map((c: Call) => [userIdOf(c), c.body])).toEqual([
+    expect(voiceWrites().map((c) => [userIdOf(c), c.body])).toEqual([
       ['u1', { voiceId: 'en-US-EmmaNeural' }],
     ]);
 
@@ -1989,7 +1991,7 @@ describe('the TTS voice panel', () => {
   });
 
   it('hides the voice change from a caller without the voice right, and still shows the voice', async () => {
-    held = held.filter((key: string) => key !== 'tts:uservoice:write');
+    held = held.filter((key) => key !== 'tts:uservoice:write');
     await openPage();
     await openUser('u1');
 
@@ -1998,11 +2000,11 @@ describe('the TTS voice panel', () => {
   });
 
   it('does not ask for the voice when the caller may not see the voices', async () => {
-    held = held.filter((key: string) => !VOICE_KEYS.includes(key));
+    held = held.filter((key) => !VOICE_KEYS.includes(key));
     await openPage();
     await openUser('u1');
 
-    expect(calls.some((c: Call) => c.path.includes('/tts/'))).toBe(false);
+    expect(calls.some((c) => c.path.includes('/tts/'))).toBe(false);
     expect(panel().textContent).toContain('Your role cannot see the TTS voices.');
   });
 });
@@ -2011,7 +2013,7 @@ describe('the shoutout line', () => {
   const OWN_LINE = '[data-profile-shoutout-text]';
 
   function shoutoutWrites(method: 'PUT' | 'DELETE'): Call[] {
-    return calls.filter((c: Call) =>
+    return calls.filter((c) =>
       c.path.includes('/shoutout-overrides') &&
       (method === 'PUT') === (c.body !== undefined));
   }
@@ -2039,7 +2041,7 @@ describe('the shoutout line', () => {
 
     const puts = shoutoutWrites('PUT');
 
-    expect(puts.map((c: Call) => c.body)).toEqual([
+    expect(puts.map((c) => c.body)).toEqual([
       {
         targetTwitchUserId: 'u1',
         targetDisplayName: 'Ada',
@@ -2067,14 +2069,14 @@ describe('the shoutout line', () => {
     button('[data-confirm-action]').click();
     await settle();
 
-    expect(shoutoutWrites('DELETE').map((c: Call) =>
+    expect(shoutoutWrites('DELETE').map((c) =>
       targetOf(c))).toEqual(['u1']);
 
     expect(dialogs()[0]!.querySelector(OWN_LINE)).toBeNull();
   });
 
   it('locks the edit for a caller without the shoutout right', async () => {
-    held = held.filter((key: string) => key !== 'moderation:shoutout');
+    held = held.filter((key) => key !== 'moderation:shoutout');
     await openPage();
     await openUser('u1');
 
@@ -2085,7 +2087,7 @@ describe('the shoutout line', () => {
 describe('the Emotes tab', () => {
   const groups = (): string[] =>
     Array.from(document.body.querySelectorAll<HTMLElement>('[data-profile-emote-group]'))
-      .map((group: HTMLElement) => group.dataset.profileEmoteGroup ?? '');
+      .map((group) => group.dataset.profileEmoteGroup ?? '');
   const emote = (code: string): HTMLElement =>
     document.body.querySelector(`[data-profile-emote="${code}"] [data-asset-trigger]`) as HTMLElement;
 
@@ -2094,7 +2096,7 @@ describe('the Emotes tab', () => {
     await openUser('u1');
     await openTab('Emotes');
 
-    expect(calls.some((c: Call) =>
+    expect(calls.some((c) =>
       c.path.endsWith('/community/{userId}/emotes') && userIdOf({ params: c.params } as Options) === 'g1'))
       .toBe(true);
 
@@ -2182,10 +2184,10 @@ describe('the public profile for a caller who cannot read the community', () => 
     expect(text).toContain('she/her');
     expect(document.body.querySelector('[data-slot="profile-public"]')).not.toBeNull();
 
-    expect(calls.some((c: Call) =>
+    expect(calls.some((c) =>
       c.path.endsWith('/chat/viewer/users/{userId}/profile'))).toBe(true);
 
-    expect(calls.some((c: Call) =>
+    expect(calls.some((c) =>
       c.path.endsWith('/community/{userId}'))).toBe(false);
 
     expect(document.body.querySelector('[data-profile-full-page]')).toBeNull();

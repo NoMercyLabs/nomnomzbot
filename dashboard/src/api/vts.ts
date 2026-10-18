@@ -35,6 +35,7 @@ export const vtsConnectionKey = (channelId: string | null): KeyParts => [
   'vts',
   'connection',
 ];
+
 export const vtsInventoryKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,

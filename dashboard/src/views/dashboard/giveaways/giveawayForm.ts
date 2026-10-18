@@ -157,7 +157,7 @@ export function formProblem(form: GiveawayForm): string | undefined {
     [!wholeOrBlank(form.minStandingLevel, 0), 'ruleInvalid'],
     [!wholeOrBlank(form.minWatchMinutes, 0), 'ruleInvalid'],
     [!wholeOrBlank(form.minAccountAgeDays, 0), 'ruleInvalid'],
-    [tickets.some((count: number): boolean => !wholeFrom(count, 1)), 'ticketsInvalid'],
+    [tickets.some((count): boolean => !wholeFrom(count, 1)), 'ticketsInvalid'],
     [!wholeOrBlank(form.claimWindowMinutes, 1), 'claimInvalid'],
     [
       form.prizeMode === 'currency' && !wholeFrom(Number(form.prizeCurrencyAmount), 1),

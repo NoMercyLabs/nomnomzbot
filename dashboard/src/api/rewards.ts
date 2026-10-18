@@ -106,13 +106,14 @@ export function useRedemptions(
 }
 
 export const rewardsOptions = (id: string) => channelOptions(rewardsKey, readRewards, id);
+
 export const redemptionsOptions = (id: string) =>
   channelOptions(redemptionsKey, readRedemptions, id);
 
 export type RewardEdit = { rewardId: string; change: RewardChange };
 
 function withChange(rewards: Reward[] | undefined, { rewardId, change }: RewardEdit): Reward[] {
-  return (rewards ?? []).map((reward: Reward): Reward => {
+  return (rewards ?? []).map((reward) => {
     if (reward.id !== rewardId)
       return reward;
 
@@ -131,7 +132,7 @@ function withChange(rewards: Reward[] | undefined, { rewardId, change }: RewardE
       globalCooldownSeconds: change.globalCooldownSeconds ?? reward.globalCooldownSeconds,
       timerDurationSeconds: change.timerDurationSeconds ?? reward.timerDurationSeconds,
       pipelineId: change.pipelineId ?? reward.pipelineId,
-    };
+    } as const satisfies Reward;
   });
 }
 
@@ -201,7 +202,7 @@ export function withDecision(
   rows: Redemption[] | undefined,
   { ids, action }: RedemptionDecision,
 ): Redemption[] {
-  return (rows ?? []).map((row: Redemption): Redemption =>
+  return (rows ?? []).map((row): Redemption =>
     ids.includes(row.redemptionId)
       ? { ...row, status: decidedStatus[action] }
       : row);
@@ -224,7 +225,7 @@ export function useRedemptionDecision(
       const id = toValue(channelId) as string;
 
       for (const run of chunk(ids, callsAtOnce)) {
-        await Promise.all(run.map((redemptionId: string) =>
+        await Promise.all(run.map((redemptionId) =>
           decide(id, redemptionId, action)));
       }
 

@@ -27,7 +27,8 @@ import {
 } from '@/api/community';
 import { useShoutout, useTimeout, useUnban, useViewerProfile } from '@/api/people';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import ProfileHeader, { type ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
 import ProfileData from '@/components/layout/profile/ProfileData.vue';
 import ProfileEmotes from '@/components/layout/profile/ProfileEmotes.vue';
@@ -59,6 +60,8 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { SAVE_FAILED_MESSAGE, SAVE_FAILED_TITLE } from '@/composables/useOptimisticSave';
 import { merge } from '@/lib/array';
+
+import { ALL_TABS, BASE_TABS, type ProfileTab, SETTINGS_TABS } from './profileTabs';
 import { formatLength, shortDate, TIMEOUT_LENGTHS } from '@/lib/time';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
@@ -67,9 +70,6 @@ const props = defineProps<{ userId: string; preview?: ProfilePreview | null }>()
 
 // The header already shows every count, so no tab repeats them. Points and Data come from the bot's stored
 // profile, so they show once it loaded.
-const BASE_TABS: readonly string[] = ['overview', 'chat', 'emotes', 'moderation'];
-const SETTINGS_TAB = 'settings';
-const PROFILE_TABS: readonly string[] = ['points', 'data'];
 
 // The dialog scrolls the tabs inside itself. On a page a phone scrolls the page once, never a box inside it.
 const inDialog = injectDialogRootContext(null) !== null;
@@ -100,8 +100,7 @@ const tabStrip = useTemplateRef<HTMLElement>('tabStrip');
 const confirmBan = ref(false);
 const warnOpen = ref(false);
 
-const member = useCommunityMember(channelId, () =>
-  props.userId);
+const member = useCommunityMember(channelId, () => props.userId);
 const person = computed<CommunityMember | null>(() => member.data.value ?? null);
 const viewer = useViewerProfile(channelId, () =>
   person.value?.internalUserId ?? null);
@@ -149,18 +148,14 @@ const vipLabel = computed<string>(() => {
     ? t('profile.vip.remove')
     : t('profile.vip.make');
 });
-// Settings is always last: it changes how the bot treats the person, where the other tabs only show.
-const tabs = computed<readonly string[]>(() => {
-  const shown = viewerProfile.value
-    ? merge(BASE_TABS, PROFILE_TABS)
-    : BASE_TABS;
-
-  return [...shown, SETTINGS_TAB];
-});
+const tabs = computed(() =>
+  viewerProfile.value
+    ? ALL_TABS
+    : merge(BASE_TABS, SETTINGS_TABS));
 // On a page the open tab is ?tab=, so a link opens it and Back returns to the last one. The dialog sits over a
 // page whose query is not its own, so it keeps the tab as a model: its Open full page link carries it over.
-const dialogTab = defineModel<string>('tab', { default: 'overview' });
-const pageTab = usePageView(tabs, 'tab');
+const dialogTab = defineModel<ProfileTab>('tab', { default: 'overview' });
+const pageTab = usePageView(ALL_TABS, 'tab', tabs);
 const tab = inDialog
   ? dialogTab
   : pageTab;

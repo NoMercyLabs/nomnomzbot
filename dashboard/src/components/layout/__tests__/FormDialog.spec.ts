@@ -97,7 +97,7 @@ describe('the form dialog', () => {
       document.body.querySelectorAll('[data-slot="dialog-footer"] button'),
     );
 
-    expect(buttons.map((b: HTMLButtonElement) => b.textContent?.trim())).toEqual([
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual([
       'Cancel',
       'Create command',
     ]);

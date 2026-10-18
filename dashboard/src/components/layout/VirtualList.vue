@@ -17,6 +17,7 @@ import { useVirtualizer, type PartialKeys, type VirtualizerOptions } from '@tans
 import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance, type VNode } from 'vue';
 
 import { Button } from '@/components/ui/button';
+import { lookup } from '@/lib/array';
 
 const props = withDefaults(
   defineProps<{
@@ -165,15 +166,15 @@ function onKey(event: KeyboardEvent): void {
   if (!element || event.target !== element) return;
 
   const page = viewportHeight(element);
-  const moves: Record<string, () => void> = {
+  const moves = {
     ArrowDown: () => scrollBy(props.estimateSize),
     ArrowUp: () => scrollBy(-props.estimateSize),
     PageDown: () => scrollBy(page),
     PageUp: () => scrollBy(-page),
     Home: () => scrollBy(-element.scrollTop),
     End: () => scrollBy(maxOffset(element) - element.scrollTop),
-  };
-  const move = moves[event.key];
+  } as const satisfies Record<string, () => void>;
+  const move = lookup(moves, event.key);
 
   if (!move) return;
 

@@ -13,7 +13,8 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PersonProfile } from '@/api/people';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import { shortDate } from '@/lib/time';
 
 const props = defineProps<{ profile: PersonProfile }>();

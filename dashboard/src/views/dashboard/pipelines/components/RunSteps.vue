@@ -29,8 +29,7 @@ const page = 'dashboard.pipelines.workbench';
 
 const words = useI18n();
 
-const run = usePipelineRun(() => props.channelId, () =>
-  props.runId);
+const run = usePipelineRun(() => props.channelId, () => props.runId);
 const steps = computed<PipelineRunStep[]>(() => {
   const logs = [...(run.data.value?.stepLogs ?? [])];
 

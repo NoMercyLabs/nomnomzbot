@@ -132,7 +132,7 @@ function ownerSections(
       (a.name ?? a.id).localeCompare(b.name ?? b.id));
 
   const fixed = (ids: readonly string[]): PickerSection[] =>
-    ids.flatMap((id: string) => {
+    ids.flatMap((id) => {
       const section = groups.get(id);
 
       return section

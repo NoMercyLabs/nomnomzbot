@@ -81,8 +81,8 @@ const history = computed<PastStream[]>(() => historyQuery.data.value ?? []);
 const recentTitles = computed<string[]>(() => {
   const current = info.value?.title ?? '';
   const past = history.value
-    .map((stream: PastStream) => stream.title ?? '')
-    .filter((title: string) => title !== '' && title !== current);
+    .map((stream) => stream.title ?? '')
+    .filter((title) => title !== '' && title !== current);
 
   return [...new Set(past)].slice(0, RECENT_TITLES);
 });
@@ -90,8 +90,8 @@ const recentTitles = computed<string[]>(() => {
 const recentCategories = computed<string[]>(() => [
   ...new Set(
     history.value
-      .map((stream: PastStream) => stream.gameName ?? '')
-      .filter((name: string) => name !== ''),
+      .map((stream) => stream.gameName ?? '')
+      .filter((name) => name !== ''),
   ),
 ]);
 
@@ -114,7 +114,7 @@ function setTags(value: string[]): void {
 }
 
 function setLabel(id: string, on: boolean): void {
-  const others = form.value.contentLabels.filter((label: string) => label !== id);
+  const others = form.value.contentLabels.filter((label) => label !== id);
 
   draft.value = {
     ...draft.value,

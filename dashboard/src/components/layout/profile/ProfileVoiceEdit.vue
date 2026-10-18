@@ -15,7 +15,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Check from '~icons/nnz/check';
 
-import { useSetPersonVoice, useTtsVoices, type TtsVoice, type TtsVoicePage } from '@/api/tts';
+import { useSetPersonVoice, useTtsVoices, type TtsVoice } from '@/api/tts';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -52,7 +52,7 @@ const catalog = useTtsVoices(
   () => ({ q: asked.value }),
 );
 const voices = computed(() =>
-  (catalog.data.value?.pages ?? []).flatMap((page: TtsVoicePage) =>
+  (catalog.data.value?.pages ?? []).flatMap((page) =>
     page.voices));
 
 watch(open, (isOpen: boolean) => {

@@ -37,7 +37,7 @@ const selected = computed<string | null>(() =>
 );
 const row = computed<EventResponse | undefined>(() =>
   (responses.data.value ?? []).find(
-    (item: EventResponse): boolean => item.eventType === selected.value,
+    (item): boolean => item.eventType === selected.value,
   ),
 );
 

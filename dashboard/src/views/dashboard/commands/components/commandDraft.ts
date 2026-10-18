@@ -22,11 +22,11 @@ export type MatchMode = (typeof matchModes)[number];
 
 // The bot sends the mode as text; a value this list does not know falls back to the default.
 function prefixModeOf(raw: string): PrefixMode {
-  return prefixModes.find((mode: PrefixMode): boolean => mode === raw) ?? 'Default';
+  return prefixModes.find((mode): boolean => mode === raw) ?? 'Default';
 }
 
 function matchModeOf(raw: string): MatchMode {
-  return matchModes.find((mode: MatchMode): boolean => mode === raw) ?? 'StartsWith';
+  return matchModes.find((mode): boolean => mode === raw) ?? 'StartsWith';
 }
 
 export type ReplyKind = 'text' | 'random';
@@ -52,7 +52,7 @@ export interface CommandDraft {
 // The bot may send the level in any letter case; the form keeps the matching rung of the list.
 function canonicalLevel(level: string): string {
   return (
-    rungNames.find((rung: string): boolean => rung.toLowerCase() === level.toLowerCase()) ??
+    rungNames.find((rung): boolean => rung.toLowerCase() === level.toLowerCase()) ??
     level
   );
 }
@@ -82,7 +82,7 @@ export function draftOf(row: CommandListItem): CommandDraft {
 function sameReplies(left: readonly string[], right: readonly string[]): boolean {
   return (
     left.length === right.length &&
-    left.every((reply: string, index: number): boolean => reply === right[index])
+    left.every((reply, index): boolean => reply === right[index])
   );
 }
 

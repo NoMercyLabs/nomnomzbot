@@ -32,6 +32,7 @@ const pageSize = 100;
 export type GiveawayEntry = components['schemas']['GiveawayEntry'];
 export type CodePool = components['schemas']['CodePool'];
 export type GiveawayBlastRadius = components['schemas']['BlastRadius'];
+
 // Who may enter. The server stores it as the eligibilityJson text; the dialog edits the four fields.
 export type Eligibility = {
   requireSub: boolean;
@@ -154,7 +155,7 @@ export function eligibilityText(rules: Eligibility): string | null {
 }
 
 export function weightingText(tickets: Weighting): string | null {
-  const unweighted = Object.values(tickets).every((count: number): boolean => count === 1);
+  const unweighted = Object.values(tickets).every((count): boolean => count === 1);
 
   return unweighted
     ? null
@@ -165,6 +166,7 @@ export function weightingText(tickets: Weighting): string | null {
         vip: tickets.vip,
       });
 }
+
 export type SaveGiveaway = { existing: Giveaway | null; draft: GiveawayDraft };
 
 export const giveawaysKey = (channelId: string | null): KeyParts => [
@@ -380,7 +382,7 @@ export function withGiveawayChange(
   rows: Giveaway[] | undefined,
   { id, action }: GiveawayChange,
 ): Giveaway[] {
-  return (rows ?? []).map((row: Giveaway): Giveaway =>
+  return (rows ?? []).map((row): Giveaway =>
     row.id === id
       ? { ...row, status: nextStatus[action] }
       : row,

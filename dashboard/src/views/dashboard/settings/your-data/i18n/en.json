@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Setup",
       "yourData": {
         "export": {
           "title": "Download your data",

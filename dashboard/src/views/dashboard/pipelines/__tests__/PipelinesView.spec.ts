@@ -108,7 +108,7 @@ async function open(): Promise<void> {
 
 const listed = (): string[] =>
   [...document.body.querySelectorAll<HTMLElement>('[data-pipeline-row]')].map(
-    (row: HTMLElement) => row.dataset.pipelineId ?? '',
+    (row) => row.dataset.pipelineId ?? '',
   );
 const newButton = (): HTMLButtonElement =>
   document.body.querySelector<HTMLButtonElement>('[data-pipelines-new]')!;
@@ -164,7 +164,7 @@ describe('the pipelines list', () => {
     await flushPromises();
 
     [...document.body.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button: HTMLButtonElement) => button.textContent?.trim() === 'Make pipeline')!
+      .find((button) => button.textContent?.trim() === 'Make pipeline')!
       .click();
 
     await flushPromises();
@@ -187,7 +187,7 @@ describe('the pipelines list', () => {
     await flushPromises();
 
     [...document.body.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button: HTMLButtonElement) => button.textContent?.trim() === 'Make pipeline')!
+      .find((button) => button.textContent?.trim() === 'Make pipeline')!
       .click();
 
     await flushPromises();

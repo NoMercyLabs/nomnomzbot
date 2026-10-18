@@ -13,7 +13,8 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useTimers, type Timer } from '@/api/liveOps';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -44,7 +45,7 @@ const none = computed<boolean>(() => panel.value === 'empty');
 const rows = computed<Timer[]>(() => {
   const needle = search.value.trim().toLowerCase();
 
-  return (timers.data.value ?? []).filter((row: Timer): boolean =>
+  return (timers.data.value ?? []).filter((row): boolean =>
     row.name.toLowerCase().includes(needle),
   );
 });

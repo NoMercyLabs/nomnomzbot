@@ -37,7 +37,7 @@ const state = usePanelState(responses, (data: EventResponse[]): boolean =>
 const rows = computed<EventResponse[]>(() => {
   const needle = search.value.trim().toLowerCase();
 
-  return (responses.data.value ?? []).filter((row: EventResponse): boolean =>
+  return (responses.data.value ?? []).filter((row): boolean =>
     nameOf(row.eventType).toLowerCase().includes(needle),
   );
 });

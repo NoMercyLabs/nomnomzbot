@@ -182,7 +182,7 @@ describe('the page header', () => {
 
     expect(full.text()).toContain('Updated now');
 
-    ['i', 'b', 'u'].forEach((tag: string) => expect(full.find(tag).exists()).toBe(true));
+    ['i', 'b', 'u'].forEach((tag) => expect(full.find(tag).exists()).toBe(true));
   });
 
   it('ends its title row with the controls the frame gives it, after the page action', () => {
@@ -208,7 +208,7 @@ describe('the status badge', () => {
     expect(wrapper.text()).toBe('Connected');
     expect(wrapper.attributes('data-tone')).toBe('ok');
     expect(wrapper.find('[aria-hidden="true"]').classes()).toContain('bg-success');
-    expect(wrapper.classes().some((name: string) => name.startsWith('bg-'))).toBe(false);
+    expect(wrapper.classes().some((name) => name.startsWith('bg-'))).toBe(false);
   });
 
   it('paints harm red and a quiet state gray', () => {

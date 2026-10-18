@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Setup",
       "federation": {
         "title": "Sharing with other bots",
         "description": "Choose what this channel shares with, or accepts from, other trusted NomNomzBot instances. Everything is off until you turn it on.",

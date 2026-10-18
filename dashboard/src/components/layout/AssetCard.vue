@@ -12,7 +12,8 @@
 // its name and the facts it carries, as Twitch and FrankerFaceZ show them.
 import { computed } from 'vue';
 
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

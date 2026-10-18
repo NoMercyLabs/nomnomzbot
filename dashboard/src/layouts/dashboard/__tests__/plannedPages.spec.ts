@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, type RouteRecordRaw, type Router } from 'vue-router';
 
+import { lookup } from '@/lib/array';
 import { dashboardRoutes } from '@/router/dashboard';
 import en from '@/i18n/locales/en.json';
 
@@ -97,10 +98,10 @@ function words(path: string): string {
 
 // The mockup says "TTS" and "&"; the shipped words spell them out.
 function same(shown: string, mockup: string): boolean {
-  const aliases: Record<string, string> = { tts: 'text to speech' };
+  const aliases = { tts: 'text to speech' } as const satisfies Record<string, string>;
   const norm = (text: string): string => text.toLowerCase().replace(/&/g, 'and');
 
-  return norm(shown) === (aliases[norm(mockup)] ?? norm(mockup));
+  return norm(shown) === (lookup(aliases, norm(mockup)) ?? norm(mockup));
 }
 
 beforeEach(() => {

@@ -44,7 +44,7 @@ type Answer = {
 
 const REFUSAL: string = 'Custom code is switched off for this channel.';
 
-const WORKED: Record<string, unknown> = {
+const WORKED = {
   success: true,
   error: null,
   durationMs: 42,
@@ -61,8 +61,8 @@ const WORKED: Record<string, unknown> = {
       text: 'Started: chat message',
     },
   ],
-};
-const BROKE: Record<string, unknown> = {
+} as const satisfies Record<string, unknown>;
+const BROKE = {
   ...WORKED,
   success: false,
   error: 'ReferenceError: raider is not defined',
@@ -85,7 +85,7 @@ const BROKE: Record<string, unknown> = {
     line: 4,
     column: 42,
   },
-};
+} as const satisfies Record<string, unknown>;
 
 const calls: Call[] = [];
 let testResult: Record<string, unknown> = WORKED;

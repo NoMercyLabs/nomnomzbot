@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Setup",
       "customEventFeeds": {
         "title": "Custom event feeds",
         "description": "Bring in data from outside: a heart-rate sensor, a REST ticker, a companion app. Each feed makes a custom event that starts pipelines, fills variables and feeds overlays.",

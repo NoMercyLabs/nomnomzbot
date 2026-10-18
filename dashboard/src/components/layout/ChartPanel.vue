@@ -24,7 +24,8 @@ import {
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
 import { evenSteps } from '@/lib/array';
 import {
@@ -38,6 +39,7 @@ import {
 export type ChartKind = 'line' | 'area' | 'bar' | 'groupedBar';
 export type ChartToken = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5';
 export type ChartRow = Record<string, string | number | Date>;
+
 export interface ChartSeries {
   key: string;
   labelKey: string;
@@ -79,7 +81,7 @@ const panelState = computed(() =>
 
 const config = computed<ChartConfig>(() =>
   Object.fromEntries(
-    props.series.map((entry: ChartSeries) => [
+    props.series.map((entry) => [
       entry.key,
       { label: t(entry.labelKey), color: `var(--${entry.color})` },
     ]),
@@ -121,13 +123,13 @@ const xAccessor = (row: ChartRow, index: number): number => {
 
 const yAccessors = computed(() =>
   props.series.map(
-    (entry: ChartSeries) =>
+    (entry) =>
       (row: ChartRow): number =>
         Number(row[entry.key] ?? 0),
   ),
 );
 const colors = computed(() =>
-  props.series.map((entry: ChartSeries) => `var(--color-${entry.key})`),
+  props.series.map((entry) => `var(--color-${entry.key})`),
 );
 
 function xTick(tick: number | Date): string {
@@ -158,7 +160,7 @@ function escapeHtml(text: string): string {
 function tooltip(row: ChartRow): string {
   const lines: string = props.series
     .map(
-      (entry: ChartSeries) =>
+      (entry) =>
         `<div class="flex items-center justify-between gap-4">` +
         `<span class="flex items-center gap-2 text-muted-foreground">` +
         `<i class="size-2.5 shrink-0 rounded-xs" style="background:var(--color-${entry.key})"></i>` +

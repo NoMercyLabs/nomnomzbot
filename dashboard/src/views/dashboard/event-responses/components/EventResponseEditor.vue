@@ -20,9 +20,9 @@ import {
   useUpdateEventResponse,
   type EventResponse,
   type EventResponseDetail,
-  type EventResponsePreset,
 } from '@/api/eventResponses';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
@@ -37,8 +37,7 @@ const props = defineProps<{ row: EventResponse }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
-const response = useEventResponse(channelId, () =>
-  props.row.eventType);
+const response = useEventResponse(channelId, () => props.row.eventType);
 const presets = useEventPresets(channelId);
 const update = useUpdateEventResponse(channelId);
 const reset = useResetEventResponse(channelId);
@@ -85,10 +84,10 @@ const unsaved = computed<string>(() =>
 );
 const variables = computed<string>(() => {
   const preset = (presets.data.value ?? []).find(
-    (item: EventResponsePreset): boolean => item.eventType === props.row.eventType,
+    (item): boolean => item.eventType === props.row.eventType,
   );
 
-  return (preset?.variables ?? []).map((name: string): string => `{${name}}`).join(' ');
+  return (preset?.variables ?? []).map((name): string => `{${name}}`).join(' ');
 });
 
 async function run(work: () => Promise<void>): Promise<void> {

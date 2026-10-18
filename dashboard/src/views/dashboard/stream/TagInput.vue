@@ -28,7 +28,7 @@ function add(): void {
   const tag = entry.value.trim();
 
   entry.value = '';
-  const known = tags.value.some((existing: string) => existing.toLowerCase() === tag.toLowerCase());
+  const known = tags.value.some((existing) => existing.toLowerCase() === tag.toLowerCase());
 
   if (tag === '' || known || tags.value.length >= MAX_TAGS) return;
 
@@ -38,7 +38,7 @@ function add(): void {
 
 function remove(index: number): void {
   removed.value = { tag: tags.value[index] as string, index };
-  tags.value = tags.value.filter((_tag: string, at: number) => at !== index);
+  tags.value = tags.value.filter((_tag, at) => at !== index);
 }
 
 function undo(): void {

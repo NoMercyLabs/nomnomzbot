@@ -20,8 +20,7 @@ import Cross from '~icons/nnz/cross';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDrawerClose } from '@/composables/useDrawerClose';
-
-export type PanelState = 'ready' | 'loading' | 'empty' | 'error';
+import type { PanelState } from '@/composables/usePanelState';
 
 const props = withDefaults(
   defineProps<{

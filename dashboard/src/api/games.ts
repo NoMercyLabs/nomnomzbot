@@ -32,18 +32,22 @@ const version = '1';
 const historyPageSize = 25;
 
 export const gamesKey = (channelId: string | null): KeyParts => ['channels', channelId, 'games'];
+
 export const gameCatalogKey = (channelId: string | null): KeyParts => [
   ...gamesKey(channelId),
   'catalog',
 ];
+
 export const activeGameKey = (channelId: string | null): KeyParts => [
   ...gamesKey(channelId),
   'active',
 ];
+
 export const gameHistoryKey = (channelId: string | null): KeyParts => [
   ...gamesKey(channelId),
   'history',
 ];
+
 export const gameConfigsKey = (channelId: string | null): KeyParts => [
   ...gamesKey(channelId),
   'configs',

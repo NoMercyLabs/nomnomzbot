@@ -19,13 +19,15 @@ import Add from '~icons/nnz/add';
 import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
+import { keysOf } from '@/lib/array';
 import { errorText } from '@/lib/errors';
 import { dashboardReturn } from '@/router/returnTarget';
 
@@ -36,7 +38,16 @@ import ScriptRow from './components/ScriptRow.vue';
 import ScriptRunsPanel from './components/ScriptRunsPanel.vue';
 import type { SessionRun } from './components/sessionRun';
 
-const TAB_VALUES = ['all', 'on', 'off', 'failed'] as const satisfies readonly string[];
+const FILTERS = {
+  all: () => true,
+  on: (script: CodeScriptSummary) => script.isEnabled,
+  off: (script: CodeScriptSummary) => !script.isEnabled,
+  failed: (script: CodeScriptSummary) => Boolean(script.lastRuntimeError),
+} as const satisfies Record<string, (script: CodeScriptSummary) => boolean>;
+
+const TAB_VALUES = keysOf(FILTERS);
+
+type ScriptFilter = (typeof TAB_VALUES)[number];
 
 const { t } = useI18n();
 const { can } = useCan();
@@ -49,19 +60,12 @@ const search = ref('');
 
 const loaded = computed(() => scripts.data.value);
 
-const FILTERS: Readonly<Record<string, (script: CodeScriptSummary) => boolean>> = {
-  all: () => true,
-  on: (script: CodeScriptSummary) => script.isEnabled,
-  off: (script: CodeScriptSummary) => !script.isEnabled,
-  failed: (script: CodeScriptSummary) => Boolean(script.lastRuntimeError),
-};
-
-function countOf(tab: string): number | undefined {
-  return loaded.value?.filter(FILTERS[tab]!).length;
+function countOf(tab: ScriptFilter): number | undefined {
+  return loaded.value?.filter(FILTERS[tab]).length;
 }
 
 const tabs = computed<PageTab[]>(() =>
-  TAB_VALUES.map((value: string): PageTab => ({
+  TAB_VALUES.map((value) => ({
     value,
     label: t(`dashboard.scripts.tabs.${value}`),
     count: countOf(value),
@@ -72,7 +76,7 @@ const visible = computed<CodeScriptSummary[] | undefined>(() => {
   const typed = search.value.trim().toLowerCase();
 
   return loaded.value
-    ?.filter(FILTERS[view.value] ?? FILTERS.all!)
+    ?.filter(FILTERS[view.value])
     .filter(
       (script: CodeScriptSummary) =>
         typed === '' ||
@@ -81,8 +85,7 @@ const visible = computed<CodeScriptSummary[] | undefined>(() => {
     );
 });
 
-const listState = usePanelState(scripts, () =>
-  false);
+const listState = usePanelState(scripts, () => false);
 const panelState = computed(() => {
   if (listState.value !== 'ready')
     return listState.value;

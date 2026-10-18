@@ -9,7 +9,8 @@
 // -----------------------------------------------------------------------------
 
 import type { ChatEmoteEntry, ChatLine } from '@/api/chat';
-import type { KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
+import { lookup } from '@/lib/array';
 
 type Fragment = ChatLine['fragments'][number];
 type Badge = ChatLine['badges'][number];
@@ -90,7 +91,7 @@ export function largestUrl(urls: Record<string, string>): string | undefined {
 }
 
 function emotePage(emote: EmoteFacts): string | null {
-  const base: string | undefined = emotePages[emote.provider as keyof typeof emotePages];
+  const base: string | undefined = lookup(emotePages, emote.provider);
 
   return base && emote.id
     ? base + emote.id

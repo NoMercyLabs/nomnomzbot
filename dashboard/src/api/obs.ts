@@ -37,6 +37,7 @@ export const obsConnectionKey = (channelId: string | null): KeyParts => [
   'obs',
   'connection',
 ];
+
 export const obsConnectionStatusKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -44,18 +45,21 @@ export const obsConnectionStatusKey = (channelId: string | null): KeyParts => [
   'connection',
   'status',
 ];
+
 export const obsBridgeKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'obs',
   'bridge',
 ];
+
 export const obsStateKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'obs',
   'state',
 ];
+
 export const obsScenesKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -188,6 +192,7 @@ export const obsStudioKey = (channelId: string | null): KeyParts => [
   'obs',
   'studio-mode',
 ];
+
 export const obsTransitionsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -272,7 +277,7 @@ function markCurrent<T extends { name: string; isCurrent: boolean }>(
   list: readonly T[],
   name: string,
 ): T[] {
-  return list.map((item: T) => ({ ...item, isCurrent: item.name === name }));
+  return list.map((item) => ({ ...item, isCurrent: item.name === name }));
 }
 
 export function rollBack<T>(queries: QueryClient, context: Rollback<T> | undefined): void {
@@ -324,8 +329,7 @@ export function useObsSetStudioMode(channelId: MaybeRefOrGetter<string | null>) 
         throw failed('obs studio mode', response.status, error);
     },
     onMutate: (enabled: boolean) =>
-      applyOptimistic<boolean>(queries, studioKey(channelId), () =>
-        enabled),
+      applyOptimistic<boolean>(queries, studioKey(channelId), () => enabled),
     onError: (_error, _enabled, context) => rollBack(queries, context),
     onSettled: () => queries.invalidateQueries({ queryKey: obsStudioKey(toValue(channelId)) }),
   });
@@ -427,7 +431,7 @@ function changeInput(
   name: string,
   change: Partial<ObsInput>,
 ): ObsInput[] {
-  return list.map((item: ObsInput) =>
+  return list.map((item) =>
     item.name === name
       ? { ...item, ...change }
       : item);

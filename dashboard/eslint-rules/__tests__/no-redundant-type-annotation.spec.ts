@@ -29,10 +29,8 @@ const tester = new RuleTester({
 
 tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
   valid: [
-    // Widens: an empty list, a string-keyed table, an index over a bare object.
+    // Widens: an empty list, an index over a bare object.
     'const ids: string[] = []',
-    'declare const name: string; const scores: Record<string, number> = { a: 1 }; scores[name]',
-    'export const shared: Record<string, number> = { a: 1 }',
     'declare function props(): {}; const given: Record<string, unknown> = props()',
     // Narrows through a generic that only the annotation feeds.
     'const root: HTMLElement | null = document.querySelector(\'.x\')',
@@ -45,14 +43,13 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     'let total: number = Math.max(1, 2)',
     // A table whose value has an optional field keeps it readable on every key.
     'type Row = { label: string; hint?: string }; const rows: Record<\'a\' | \'b\', Row> = { a: { label: \'A\' }, b: { label: \'B\', hint: \'h\' } }',
+    // An open table handed on in an options object keeps its index: the consumer infers its keys from it.
+    'declare function open<T>(messages: T): T; const start: Record<string, number> = { en: 1 }; open({ messages: start })',
     // `as const` would reject the write or freeze the list.
     'const counter: { seen: number } = { seen: 0 }; counter.seen++',
     'const bucket: { seen: string[] } = { seen: [] }',
-    // ScriptsView FILTERS: read by a computed string key, `as const` would reject `FILTERS[tab]`.
-    'type Script = { on: boolean }; declare const tab: string; const FILTERS: Readonly<Record<string, (script: Script) => boolean>> = { all: () => true, on: (script: Script) => script.on }; FILTERS[tab]',
     // A mutable list and a list inside a function keep their annotation.
     'const names: string[] = [\'a\']; names.push(\'b\')',
-    'const events: readonly string[] = [\'a\', \'b\']; declare const name: string; events.includes(name)',
     'type Group = { entries: readonly string[] }; const groups: readonly Group[] = [{ entries: [\'a\'] }]',
     'function run() { const rows: readonly number[] = [1, 2]; return rows }',
     // Callbacks: a parameter annotation that widens the contextual type stays.
@@ -65,6 +62,23 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     'declare const rows: number[]; rows.map(async (row): Promise<{ a: number }> => ({ a: row }))',
   ],
   invalid: [
+    {
+      // A string-keyed table read by a computed key still moves to `as const satisfies`; the read narrows the key.
+      code: 'declare const name: string; const scores: Record<string, number> = { a: 1 }; scores[name]',
+      output:
+        'declare const name: string; const scores = { a: 1 } as const satisfies Record<string, number>; scores[name]',
+      errors: [{ messageId: 'table' }],
+    },
+    {
+      code: 'export const shared: Record<string, number> = { a: 1 }',
+      output: 'export const shared = { a: 1 } as const satisfies Record<string, number>',
+      errors: [{ messageId: 'table' }],
+    },
+    {
+      code: 'const events: readonly string[] = [\'a\', \'b\']',
+      output: 'const events = [\'a\', \'b\'] as const satisfies readonly string[]',
+      errors: [{ messageId: 'list' }],
+    },
     {
       code: 'type Theme = { bg: string; fg: string }; const dark: Theme = { bg: \'#000\', fg: \'#fff\' }',
       output:
@@ -128,7 +142,8 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     {
       // OverlaysView: the list is a non-empty tuple and the row has an optional count.
       code: 'interface PageTab<V extends string = string> { value: V; label: string; count?: number }; declare const TAB_VALUES: [\'a\', ...\'a\'[]]; TAB_VALUES.map((value): PageTab<\'a\'> => ({ value, label: value }))',
-      output: null,
+      output:
+        'interface PageTab<V extends string = string> { value: V; label: string; count?: number }; declare const TAB_VALUES: [\'a\', ...\'a\'[]]; TAB_VALUES.map((value) => ({ value, label: value }) as const satisfies PageTab<\'a\'>)',
       errors: [{ messageId: 'callbackReturn' }],
     },
     {
@@ -139,9 +154,31 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
       errors: [{ messageId: 'callbackReturn' }],
     },
     {
-      // One return is not a literal: report, no fix.
+      // A return that is no literal keeps its own type; the literal states its type.
       code: 'type Row = { id: number }; declare const ids: number[]; declare const fallback: Row; ids.map((id): Row => { if (id > 1) { return { id } } return fallback })',
-      output: null,
+      output:
+        'type Row = { id: number }; declare const ids: number[]; declare const fallback: Row; ids.map((id) => { if (id > 1) { return { id } as const satisfies Row } return fallback })',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A spread brings the optional field along, so nothing is dropped (music.ts renumbered).
+      code: 'type Row = { id: number; note?: string }; declare const rows: Row[]; rows.map((row, index): Row => ({ ...row, id: index }))',
+      output:
+        'type Row = { id: number; note?: string }; declare const rows: Row[]; rows.map((row, index) => ({ ...row, id: index }) as const satisfies Row)',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A tuple is frozen too: the satisfies type is readonly.
+      code: 'declare const ids: number[]; ids.map((id): [number, string] => [id, String(id)])',
+      output:
+        'declare const ids: number[]; ids.map((id) => [id, String(id)] as const satisfies readonly [number, string])',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // A list read from elsewhere is not frozen: only a list the literal writes out is.
+      code: 'type Row = { ids: number[] }; declare const rows: Row[]; rows.map((row): Row => ({ ids: row.ids }))',
+      output:
+        'type Row = { ids: number[] }; declare const rows: Row[]; rows.map((row) => ({ ids: row.ids }) as const satisfies Row)',
       errors: [{ messageId: 'callbackReturn' }],
     },
     {
@@ -151,9 +188,17 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
       errors: [{ messageId: 'callbackReturn' }],
     },
     {
-      // A shape `as const` would loosen (optional field): report, no fix.
+      // An optional field the literal leaves out stays out; the type check names a read of it.
       code: 'type Row = { id: number; note?: string }; declare const ids: number[]; ids.map((id): Row => ({ id }))',
-      output: null,
+      output:
+        'type Row = { id: number; note?: string }; declare const ids: number[]; ids.map((id) => ({ id }) as const satisfies Row)',
+      errors: [{ messageId: 'callbackReturn' }],
+    },
+    {
+      // flatMap reads a readonly list: the mutable list return turns readonly (voiceGroups).
+      code: 'type Item = { key: string }; declare const ids: string[]; ids.flatMap((id): Item[] => [{ key: id }, { key: id + \'x\' }])',
+      output:
+        'type Item = { key: string }; declare const ids: string[]; ids.flatMap((id) => [{ key: id }, { key: id + \'x\' }] as const satisfies readonly Item[])',
       errors: [{ messageId: 'callbackReturn' }],
     },
     {

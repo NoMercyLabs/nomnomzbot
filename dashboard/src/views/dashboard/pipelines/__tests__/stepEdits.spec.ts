@@ -69,14 +69,14 @@ function counter(): () => string {
 }
 
 const shape = (steps: PipelineStep[]): string[] =>
-  steps.map((item: PipelineStep) =>
+  steps.map((item) =>
     `${item.id}@${item.parent_step_id ?? '-'}:${item.order}`);
 
 describe('the step edits', () => {
   it('gives every step the bot saved without an id one of its own, and keeps the rest', () => {
     const steps = withIds([step({}), step({ id: 'kept', order: 1 })], counter());
 
-    expect(steps.map((item: PipelineStep) => item.id)).toEqual(['new1', 'kept']);
+    expect(steps.map((item) => item.id)).toEqual(['new1', 'kept']);
   });
 
   it('numbers each lane in the order the engine runs it, the list position breaking a tie', () => {
@@ -114,7 +114,7 @@ describe('the step edits', () => {
       'new2@new1:0',
     ]);
 
-    expect(steps.find((item: PipelineStep) =>
+    expect(steps.find((item) =>
       item.id === 'new2')?.branch).toBe('then');
   });
 

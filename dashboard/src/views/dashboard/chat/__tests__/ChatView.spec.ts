@@ -71,7 +71,7 @@ let searchPages: Record<string, SearchPage> = {};
 
 let favoriteList: Record<string, unknown>[] = [];
 
-const emoteList = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code): ChatEmoteEntry => ({
+const emoteList: ChatEmoteEntry[] = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code) => ({
   id: `id-${code}`,
   origin: 'channel',
   code,
@@ -589,7 +589,7 @@ describe('ChatView', () => {
     history = [line('m1', 'u1', 'Geen', 'thanks @f0xb17 for that')];
     await open();
 
-    const tags: string[] = [...rowOf('m1').querySelectorAll('[data-mention-tag]')].map((tag: Element) => tag.textContent ?? '');
+    const tags: string[] = [...rowOf('m1').querySelectorAll('[data-mention-tag]')].map((tag) => tag.textContent ?? '');
 
     expect(tags).toEqual(['@f0xb17']);
     expect(rowOf('m1').querySelector('[data-mention-tag]')!.className).toContain('font-bold');

@@ -111,7 +111,7 @@ function isAllowedUrl(name: string, value: string): boolean {
   if (name !== 'srcset')
     return isHttps(value);
 
-  return value.split(',').every((candidate: string) =>
+  return value.split(',').every((candidate) =>
     isHttps(candidate.trim().split(/\s+/)[0] ?? ''));
 }
 

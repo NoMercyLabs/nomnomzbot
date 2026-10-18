@@ -18,6 +18,7 @@ import { client } from './client';
 export type LoginProvider = components['schemas']['LoginProvider'];
 export type DeviceCode = components['schemas']['DeviceCodeStart'];
 export type DeviceOutcome = 'authorized' | 'expired' | 'denied' | 'error';
+
 export type DeviceApproval = {
   status: DeviceOutcome | 'pending' | 'slow_down';
   intervalMs: number;

@@ -17,7 +17,8 @@ import { useI18n } from 'vue-i18n';
 import { useToggleTimer, type Timer as TimerRow } from '@/api/liveOps';
 import { useTimer, useUpdateTimer, type Timer } from '@/api/timers';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
 import TemplateField from '@/components/layout/TemplateField.vue';
@@ -33,8 +34,7 @@ const emit = defineEmits<{ remove: [row: TimerRow] }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
-const timer = useTimer(channelId, () =>
-  props.row.id);
+const timer = useTimer(channelId, () => props.row.id);
 const update = useUpdateTimer(channelId);
 const toggle = useToggleTimer(channelId);
 

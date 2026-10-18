@@ -49,6 +49,7 @@ export const myChannelsQuery = queryOptions({
   queryKey: ['channels', 'mine'],
   queryFn: fetchMyChannels,
 });
+
 export const moderatedChannelsQuery = queryOptions({
   queryKey: ['channels', 'moderated'],
   queryFn: fetchModeratedChannels,

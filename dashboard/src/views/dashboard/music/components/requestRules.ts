@@ -71,12 +71,12 @@ export function draftOf(config: MusicConfig): RuleDraft {
       ? playlistValue(config.bangerPlaylistProvider ?? '', config.bangerPlaylistId)
       : noPlaylist,
     roleCaps: Object.fromEntries(
-      musicRoleRungs.map((rung: MusicRoleRung): [MusicRoleRung, string] => [
+      musicRoleRungs.map((rung) => [
         rung,
         stored[rung] === undefined
           ? ''
           : String(stored[rung]),
-      ]),
+      ] as const satisfies readonly [MusicRoleRung, string]),
     ) as Record<MusicRoleRung, string>,
   };
 }
@@ -108,8 +108,10 @@ export function draftValid(draft: RuleDraft): boolean {
 
 // Blank rungs drop out of the map; the bot replaces the stored map whole.
 function roleMapOf(caps: Record<MusicRoleRung, RoleCap>): Record<string, number> {
-  const filled = musicRoleRungs.filter((rung: MusicRoleRung): boolean => !isBlank(caps[rung]));
-  const entries = filled.map((rung: MusicRoleRung): [string, number] => [rung, Number(caps[rung])]);
+  const filled = musicRoleRungs.filter((rung): boolean => !isBlank(caps[rung]));
+  const entries = filled.map(
+    (rung) => [rung, Number(caps[rung])] as const satisfies readonly [string, number],
+  );
 
   return Object.fromEntries(entries);
 }
@@ -118,7 +120,7 @@ function sameMap(a: Record<string, number>, b: Record<string, number>): boolean 
   const keys = Object.keys(a);
   const sameSize = keys.length === Object.keys(b).length;
 
-  return sameSize && keys.every((key: string): boolean => a[key] === b[key]);
+  return sameSize && keys.every((key): boolean => a[key] === b[key]);
 }
 
 // An empty id clears the playlist; the bot then makes one on first use if auto-create is on.

@@ -11,11 +11,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { failed } from '@/api/errors';
+import { lookup } from '@/lib/array';
 
 import { errorText, fieldErrorLines } from '../errors';
 
-const words: Record<string, string> = { 'errors.forbidden': 'No right.', 'errors.invalid': 'Bad input.' };
-const t = (key: string): string => words[key] ?? key;
+const words = { 'errors.forbidden': 'No right.', 'errors.invalid': 'Bad input.' } as const satisfies Record<string, string>;
+const t = (key: string): string => lookup(words, key) ?? key;
 
 describe('errorText', () => {
   it('shows the translated message and the server detail of a typed error', () => {

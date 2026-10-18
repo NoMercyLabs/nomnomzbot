@@ -16,10 +16,10 @@ import {
   triggerWord,
   useBuiltins,
   useCommands,
-  type BuiltinCommand,
   type CommandListItem,
 } from '@/api/commands';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -66,7 +66,7 @@ const state = computed<PanelState>(() =>
 const none = computed<boolean>(() => panel.value === 'empty');
 
 function matches(row: CommandListItem, needle: string): boolean {
-  return [row.name, ...row.aliases].some((word: string): boolean =>
+  return [row.name, ...row.aliases].some((word): boolean =>
     word.toLowerCase().includes(needle),
   );
 }
@@ -85,30 +85,30 @@ const needle = computed<string>(() => search.value.trim().replace(/^!+/, '').toL
 
 const customRows = computed<ListRow[]>(() =>
   (commands.data.value ?? [])
-    .filter((row: CommandListItem): boolean => matches(row, needle.value))
-    .map((row: CommandListItem): ListRow => ({
+    .filter((row): boolean => matches(row, needle.value))
+    .map((row) => ({
       key: row.id,
       name: row.name,
       detail: detailOf(row),
       isEnabled: row.isEnabled,
       uses: Number(row.useCount),
       builtin: false,
-    })));
+    }) as const satisfies ListRow));
 
 const builtinRows = computed<ListRow[]>(() => {
   if (!props.withBuiltins)
     return [];
 
   return (builtins.data.value ?? [])
-    .filter((row: BuiltinCommand): boolean => triggerWord(row).toLowerCase().includes(needle.value))
-    .map((row: BuiltinCommand): ListRow => ({
+    .filter((row): boolean => triggerWord(row).toLowerCase().includes(needle.value))
+    .map((row) => ({
       key: `builtin:${row.builtinKey}`,
       name: triggerWord(row),
       detail: t('dashboard.commands.list.kindBuiltin'),
       isEnabled: row.isEnabled,
       uses: -1,
       builtin: true,
-    }));
+    }) as const satisfies ListRow);
 });
 
 const rows = computed<ListRow[]>(() =>

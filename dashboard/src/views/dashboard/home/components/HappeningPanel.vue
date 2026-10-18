@@ -112,7 +112,7 @@ function eventTime(event: ActivityEvent): string {
 }
 
 const rows = computed<Row[]>(() =>
-  (activityQuery.data.value ?? []).map((event: ActivityEvent): Row => {
+  (activityQuery.data.value ?? []).map((event) => {
     const view = describeActivity(event);
     const detail = say(view.detail);
     const title = view.title
@@ -130,7 +130,7 @@ const rows = computed<Row[]>(() =>
         ? undefined
         : detail,
       time: eventTime(event),
-    };
+    } as const satisfies Row;
   }),
 );
 </script>

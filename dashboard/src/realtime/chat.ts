@@ -123,8 +123,7 @@ export const chatHandlers: [
       }
 
       if (event.type === 'chat_cleared') {
-        markLines(queries, event.broadcasterId, { removed: 'cleared' }, () =>
-          true);
+        markLines(queries, event.broadcasterId, { removed: 'cleared' }, () => true);
       }
 
       if (event.type === 'user_messages_cleared') {

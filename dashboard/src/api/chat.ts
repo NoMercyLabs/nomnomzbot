@@ -62,16 +62,19 @@ export type SendChatInput = {
   senderIdentity?: string;
   replyToMessageId?: string | null;
 };
+
 export type TimeoutInput = {
   targetUserId: string;
   durationSeconds: number;
   reason?: string | null;
 };
+
 export type BanInput = {
   targetUserId: string;
   scope: ChatScope;
   reason?: string | null;
 };
+
 export type UnbanInput = { targetUserId: string; scope: ChatScope };
 
 // eslint-disable-next-line no-restricted-syntax -- every chat endpoint's error body has a different generated type, so the input must accept any of them

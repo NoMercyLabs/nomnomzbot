@@ -17,6 +17,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { usePanelState } from '@/composables/usePanelState';
+import { lookup } from '@/lib/array';
 import { shortDate } from '@/lib/time';
 
 const { t, te, locale } = useI18n();
@@ -32,9 +33,7 @@ const tones = {
 } as const satisfies Record<string, StatusTone>;
 
 function tone(status: string): StatusTone {
-  return status in tones
-    ? tones[status as keyof typeof tones]
-    : 'off';
+  return lookup(tones, status) ?? 'off';
 }
 
 function word(group: string, key: string): string {

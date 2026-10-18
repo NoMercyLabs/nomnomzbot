@@ -14,7 +14,8 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { Widget } from '@/api/widgets';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { overlayHealth } from '@/views/dashboard/overlays/components/overlayHealth';
 

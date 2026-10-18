@@ -43,13 +43,13 @@ function linesOf(tenant: AdminEventSubTenantHealth): Line[] {
       topic: null,
     }];
 
-  return tenant.topics.map((topic: AdminEventSubTopicHealth, index: number): Line => ({
+  return tenant.topics.map((topic, index) => ({
     key: topic.subscriptionId,
     channel: index === 0
       ? tenant.channelDisplayName
       : null,
     topic,
-  }));
+  }) as const satisfies Line);
 }
 
 const lines = computed<Line[]>(() => props.rows.flatMap(linesOf));

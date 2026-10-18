@@ -8,28 +8,28 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useIntervalFn } from "@vueuse/core";
-import Music from "~icons/nnz/note-eighth-pair";
-import Next from "~icons/nnz/next";
-import Pause from "~icons/nnz/pause";
-import Play from "~icons/nnz/play";
-import Previous from "~icons/nnz/previous";
-import Repeat from "~icons/nnz/repeat";
-import RepeatOne from "~icons/nnz/repeat-one";
-import Shuffle from "~icons/nnz/shuffle";
-import VolumeMuted from "~icons/nnz/volume-muted";
-import VolumeTwo from "~icons/nnz/volume-two";
-import { computed, ref, watch } from "vue";
+import { useIntervalFn } from '@vueuse/core';
+import Music from '~icons/nnz/note-eighth-pair';
+import Next from '~icons/nnz/next';
+import Pause from '~icons/nnz/pause';
+import Play from '~icons/nnz/play';
+import Previous from '~icons/nnz/previous';
+import Repeat from '~icons/nnz/repeat';
+import RepeatOne from '~icons/nnz/repeat-one';
+import Shuffle from '~icons/nnz/shuffle';
+import VolumeMuted from '~icons/nnz/volume-muted';
+import VolumeTwo from '~icons/nnz/volume-two';
+import { computed, ref, watch } from 'vue';
 
-import type { NowPlaying } from "@/api/music";
-import UserName from "@/components/layout/UserName.vue";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { useCan } from "@/composables/useCan";
+import type { NowPlaying } from '@/api/music';
+import UserName from '@/components/layout/UserName.vue';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { useCan } from '@/composables/useCan';
 
-import { formatClock } from "./formatClock";
+import { formatClock } from './formatClock';
 
-type RepeatMode = "off" | "context" | "track";
+type RepeatMode = 'off' | 'context' | 'track';
 
 const props = defineProps<{
   track: NowPlaying;
@@ -59,7 +59,9 @@ useIntervalFn(() => {
 const durationMs = computed<number>(() => Number(props.track.durationMs));
 const positionMs = computed<number>(() => {
   const reported = Number(props.track.progressMs);
-  const elapsed = props.track.isPlaying ? Math.max(0, now.value - props.observedAt) : 0;
+  const elapsed = props.track.isPlaying
+    ? Math.max(0, now.value - props.observedAt)
+    : 0;
 
   return Math.min(durationMs.value, reported + elapsed);
 });
@@ -72,7 +74,7 @@ function commitSeek(value: number[] | undefined): void {
   seeking.value = null;
 
   if (value?.[0] !== undefined) {
-    emit("seek", value[0]);
+    emit('seek', value[0]);
   }
 }
 
@@ -87,15 +89,15 @@ watch(
 
 function commitVolume(value: number[] | undefined): void {
   if (value?.[0] !== undefined) {
-    emit("volume", value[0]);
+    emit('volume', value[0]);
   }
 }
 
 const repeatMode = computed(() => props.track.repeatState as RepeatMode);
 const nextRepeat = computed<RepeatMode>(() => {
-  const order: RepeatMode[] = ["off", "context", "track"];
+  const order: RepeatMode[] = ['off', 'context', 'track'];
 
-  return order[(order.indexOf(repeatMode.value) + 1) % order.length] ?? "off";
+  return order[(order.indexOf(repeatMode.value) + 1) % order.length] ?? 'off';
 });
 </script>
 

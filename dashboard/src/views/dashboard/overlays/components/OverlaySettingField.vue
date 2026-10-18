@@ -62,14 +62,14 @@ interface Choice {
   label: string;
 }
 const choices = computed<Choice[]>(() =>
-  (props.field.options ?? []).map((option): Choice => ({
+  (props.field.options ?? []).map((option) => ({
     value: option.value,
     label: text(option.label, humanize(option.value)),
-  })),
+  }) as const satisfies Choice),
 );
 const chosenLabel = computed<string>(
   () =>
-    choices.value.find((choice: Choice) => choice.value === props.value)?.label ??
+    choices.value.find((choice) => choice.value === props.value)?.label ??
     String(props.value ?? ''),
 );
 const picked = computed<string[]>(() =>

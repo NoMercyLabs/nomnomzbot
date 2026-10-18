@@ -42,21 +42,25 @@ export const homeStatsKey = (channelId: string | null): KeyParts => [
   channelId,
   'stats',
 ];
+
 export const reviewQueueKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'automod-queue',
 ];
+
 export const connectionsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'integrations-status',
 ];
+
 export const botStatusKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'bot-status',
 ];
+
 export const activityKey = (channelId: string | null): KeyParts => [
   'dashboard',
   channelId,
@@ -135,10 +139,13 @@ async function readActivity(id: string): Promise<ActivityEvent[]> {
 
 // The home page reads these five; the intent prefetch warms the same entries with the same readers.
 export const homeStatsOptions = (id: string) => channelOptions(homeStatsKey, readHomeStats, id);
+
 export const reviewQueueOptions = (id: string) =>
   channelOptions(reviewQueueKey, readReviewQueue, id);
+
 export const connectionsOptions = (id: string) =>
   channelOptions(connectionsKey, readConnections, id);
+
 export const botStatusOptions = (id: string) => channelOptions(botStatusKey, readBotStatus, id);
 export const activityOptions = (id: string) => channelOptions(activityKey, readActivity, id);
 
@@ -277,6 +284,6 @@ export function useResolveQueueItem(
       current: ReviewQueueItem[] | undefined,
       { queueItemId }: QueueResolution,
     ): ReviewQueueItem[] =>
-      (current ?? []).filter((item: ReviewQueueItem) => item.id !== queueItemId),
+      (current ?? []).filter((item) => item.id !== queueItemId),
   });
 }

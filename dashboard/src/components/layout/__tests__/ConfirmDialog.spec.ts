@@ -58,7 +58,7 @@ describe('the confirm dialog', () => {
     expect(document.body.textContent).toContain('This command ran 333 times.');
     const items: string[] = Array.from(
       document.body.querySelectorAll('[data-slot="blast-list"] li'),
-    ).map((li: Element) => li.textContent ?? '');
+    ).map((li) => li.textContent ?? '');
 
     expect(items).toEqual(['Chat stops answering !so.', 'The history stays.']);
 
@@ -82,7 +82,7 @@ describe('the confirm dialog', () => {
       document.body.querySelectorAll('[data-slot="alert-dialog-footer"] button'),
     );
 
-    expect(buttons.map((b: HTMLButtonElement) => b.textContent?.trim())).toEqual([
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual([
       'Cancel',
       'Delete command',
     ]);

@@ -225,9 +225,9 @@ export function scanControls(): Control[] {
   const covered = coveredFiles(scans);
 
   return [...scans].flatMap(([path, scan]) =>
-    scan.controls.map((control, index): Control => ({
+    scan.controls.map((control, index) => ({
       ...control,
       file: relative(scanRoot, path).replace(/\\/g, '/'),
       gated: scan.localGate[index] || covered.has(path),
-    })));
+    }) as const satisfies Control));
 }

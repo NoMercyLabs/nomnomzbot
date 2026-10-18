@@ -139,7 +139,7 @@ describe('useTtsVoices', () => {
     });
 
     expect(
-      hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id)),
+      hook.data.value?.pages.flatMap((page) => page.voices.map((row) => row.id)),
     ).toEqual(['nl-NL-ColetteNeural']);
 
     expect(hook.hasNextPage.value).toBe(false);
@@ -178,7 +178,7 @@ describe('useTtsVoices', () => {
     });
 
     expect(
-      hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id)),
+      hook.data.value?.pages.flatMap((page) => page.voices.map((row) => row.id)),
     ).toEqual(['en-US-AriaNeural', 'en-GB-SoniaNeural']);
 
     expect(hook.hasNextPage.value).toBe(false);

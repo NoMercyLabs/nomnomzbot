@@ -282,6 +282,9 @@ export default defineConfigWithVueTs(
         { blankLine: 'any', prev: 'import', next: 'import' },
         { blankLine: 'always', prev: '*', next: ['function', 'class', 'export'] },
         { blankLine: 'any', prev: 'export', next: 'export' },
+        // Owner 2026-10-18: "what happened to my empty line rule?" Each overload stands apart.
+        { blankLine: 'always', prev: ['function-overload', 'multiline-export'], next: '*' },
+        { blankLine: 'always', prev: '*', next: ['function-overload', 'multiline-export'] },
         { blankLine: 'always', prev: '*', next: ['if', 'for', 'while', 'do', 'switch', 'try'] },
         { blankLine: 'always', prev: ['if', 'for', 'while', 'do', 'switch', 'try'], next: '*' },
       ],
@@ -329,6 +332,12 @@ export default defineConfigWithVueTs(
           message: 'Join lists with merge(a, b) from @/lib/array.',
         },
         {
+          // Owner 2026-10-18: "STOP DOING THINGS BY HAND". A value that picks from a known set is narrowed
+          // once, with oneOf(keysOf(TABLE), value), never cast to the table's keys.
+          selector: 'TSAsExpression > TSTypeOperator[operator=\'keyof\']',
+          message: 'Narrow the value with oneOf(keysOf(TABLE), value) from @/lib/array instead of casting to keyof.',
+        },
+        {
           // Owner 2026-10-15: "i don't want any unknowns if the type can be infered, it is only allowed when the
           // argument MUST accept everything". Allowed without a comment: a catch variable and a type guard (its
           // input is anything by definition). Anything else types the real shape, or says why it must take anything
@@ -352,6 +361,10 @@ export default defineConfigWithVueTs(
           selector:
             'ArrayExpression[elements.0.type=\'SpreadElement\'][elements.1.type=\'SpreadElement\']',
           message: 'Join lists with merge(a, b) from @/lib/array.',
+        },
+        {
+          selector: 'TSAsExpression > TSTypeOperator[operator=\'keyof\']',
+          message: 'Narrow the value with oneOf(keysOf(TABLE), value) from @/lib/array instead of casting to keyof.',
         },
       ],
     },

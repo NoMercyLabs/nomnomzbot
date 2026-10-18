@@ -25,7 +25,7 @@ function counter(): () => string {
 }
 
 const kinds = (steps: PipelineStep[]): (string | null)[] =>
-  steps.map((step: PipelineStep) =>
+  steps.map((step) =>
     step.block_kind);
 
 describe('a new step', () => {
@@ -71,7 +71,7 @@ describe('a new step', () => {
 
     expect(kinds(steps)).toEqual(['random_branch', 'random_case', 'random_case']);
 
-    expect(steps.slice(1).map((step: PipelineStep) =>
+    expect(steps.slice(1).map((step) =>
       [step.parent_step_id, step.order, step.block_config])).toEqual([
       ['new1', 0, { weight: 1 }],
       ['new1', 1, { weight: 1 }],

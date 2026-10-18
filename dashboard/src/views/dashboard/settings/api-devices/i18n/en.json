@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Setup",
       "apiDevices": {
         "never": "Never",
         "prefixHint": "{prefix}...",

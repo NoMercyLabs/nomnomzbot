@@ -37,7 +37,7 @@ const removing = useDeletePipeline(() => props.channelId);
 const deleting = ref(false);
 
 const consequences = computed(() =>
-  props.sources.map((source: StartSource) =>
+  props.sources.map((source) =>
     t(`${page}.delete.consequence`, {
       source: t(`${page}.starts.${source.kind}`, { name: source.name }),
     }),

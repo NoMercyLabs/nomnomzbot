@@ -51,14 +51,14 @@ async function started(): Promise<[QueryClient, FakeHubConnection]> {
   return [queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)];
 }
 
-function seed(queries: QueryClient, keys: Keys[]): void {
+function seed(queries: QueryClient, keys: readonly Keys[]): void {
   for (const key of keys) {
     queries.setQueryData(key('c1'), []);
     queries.setQueryData(key('other'), []);
   }
 }
 
-function staleFor(queries: QueryClient, keys: Keys[], channelId: string): boolean[] {
+function staleFor(queries: QueryClient, keys: readonly Keys[], channelId: string): boolean[] {
   return keys.map((key) => queries.getQueryState(key(channelId))?.isInvalidated === true);
 }
 
@@ -101,7 +101,7 @@ const everyKey: Keys[] = [
 ];
 
 // Each hub event with the keys it must mark stale for the joined channel.
-const eventKeys: [string, unknown, Keys[]][] = [
+const eventKeys: (readonly [string, unknown, readonly Keys[]])[] = [
   [
     'MusicStateChanged',
     { isPlaying: true, currentTrack: null },
@@ -154,7 +154,7 @@ const eventKeys: [string, unknown, Keys[]][] = [
   ]],
   // Owner 2026-10-15: "ALL data must be live updates as it happens". The server sends each poll,
   // prediction and chat poll change as a ChannelEvent; the history list follows every one of them.
-  ...['poll_begin', 'poll_progress', 'poll_end'].map((type): [string, unknown, Keys[]] => [
+  ...['poll_begin', 'poll_progress', 'poll_end'].map((type) => [
     'ChannelEvent',
     {
       type,
@@ -162,9 +162,9 @@ const eventKeys: [string, unknown, Keys[]][] = [
       data: null,
     },
     [homeStatsKey, activityKey, pollsKey, pollHistoryKey],
-  ]),
+  ] as const satisfies readonly [string, unknown, Keys[]]),
   ...['prediction_begin', 'prediction_progress', 'prediction_lock', 'prediction_end'].map(
-    (type): [string, unknown, Keys[]] => [
+    (type) => [
       'ChannelEvent',
       {
         type,
@@ -172,7 +172,7 @@ const eventKeys: [string, unknown, Keys[]][] = [
         data: null,
       },
       [homeStatsKey, activityKey, predictionsKey, pollHistoryKey],
-    ],
+    ] as const satisfies readonly [string, unknown, Keys[]],
   ),
   ['ChannelEvent', {
     type: 'ChatPollChanged',

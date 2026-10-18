@@ -12,7 +12,8 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 
 const tabs: PageTab[] = [
   { value: 'info', label: 'Stream info' },

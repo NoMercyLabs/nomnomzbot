@@ -234,15 +234,15 @@ async function open(to = '/app/analytics'): Promise<void> {
 
 const tile = (label: string): string =>
   [...document.body.querySelectorAll('[data-slot="stat-tile"]')]
-    .find((element: Element) => element.textContent?.includes(label))
+    .find((element) => element.textContent?.includes(label))
     ?.textContent ?? '';
-const asked = (suffix: string): Call[] => calls.filter((call: Call) => call.path.endsWith(suffix));
+const asked = (suffix: string): Call[] => calls.filter((call) => call.path.endsWith(suffix));
 
 describe('the Analytics overview', () => {
   it('shows the range in numbers: streams, live time, chat, follows, Twitch subs, bits and peak viewers', async () => {
     await open();
 
-    expect(asked('/analytics/channel/summary').map((call: Call) => call.query)).toEqual([
+    expect(asked('/analytics/channel/summary').map((call) => call.query)).toEqual([
       { from: '2026-09-15', to: '2026-10-14' },
     ]);
 
@@ -291,7 +291,7 @@ describe('the Analytics overview', () => {
     await open();
 
     const ninety = [...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button')]
-      .find((button: HTMLButtonElement) => button.textContent?.trim() === '90 days')!;
+      .find((button) => button.textContent?.trim() === '90 days')!;
 
     ninety.click();
     await settle();
@@ -302,16 +302,16 @@ describe('the Analytics overview', () => {
 });
 
 const textOf = (selector: string): string[] =>
-  [...document.body.querySelectorAll(selector)].map((element: Element) =>
+  [...document.body.querySelectorAll(selector)].map((element) =>
     element.textContent?.replace(/\s+/g, ' ').trim() ?? '');
 
 // A bar item reads as its parts with a space between: label, detail and number.
 const barsOf = (selector: string): string[] =>
-  [...document.body.querySelectorAll(`${selector} [data-bar-item] > div:first-child`)].map((line: Element) =>
+  [...document.body.querySelectorAll(`${selector} [data-bar-item] > div:first-child`)].map((line) =>
     [...line.children]
-      .map((part: Element) =>
+      .map((part) =>
         part.textContent?.trim() ?? '')
-      .filter((part: string) =>
+      .filter((part) =>
         part !== '')
       .join(' '));
 
@@ -340,7 +340,7 @@ describe('the Chat tab', () => {
   it('asks for chat by day and hour over the range and names the busiest hour', async () => {
     await open('/app/analytics?view=chat');
 
-    expect(asked('/analytics/channel/chat-hours').map((call: Call) => call.query)).toEqual([
+    expect(asked('/analytics/channel/chat-hours').map((call) => call.query)).toEqual([
       { from: '2026-09-15', to: '2026-10-14' },
     ]);
 

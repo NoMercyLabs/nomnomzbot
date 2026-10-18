@@ -22,7 +22,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
 import ChatHeatGrid from './ChatHeatGrid.vue';
-import { busiestCell, dayName, dayTotals, hourName, topHours, type DayTotal, type HourTotal } from './chatFacts';
+import { busiestCell, dayName, dayTotals, hourName, topHours } from './chatFacts';
 
 const props = defineProps<{ range: AnalyticsRange }>();
 
@@ -30,8 +30,7 @@ const { t, n, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 const page = 'dashboard.analytics.chat';
 
-const hours = useChatHours(channelId, () =>
-  props.range);
+const hours = useChatHours(channelId, () => props.range);
 const cells = computed<ChatHourCell[]>(() => hours.data.value?.cells ?? []);
 const state = usePanelState(hours, (data: ChatHours | null) =>
   (data?.cells.length ?? 0) === 0);
@@ -61,7 +60,7 @@ const zone = computed(() =>
   t(`${page}.zone`, { zone: hours.data.value?.timeZone ?? 'UTC' }));
 
 const days = computed<BarItem[]>(() =>
-  dayTotals(cells.value).map((total: DayTotal) => ({
+  dayTotals(cells.value).map((total) => ({
     key: String(total.day),
     label: dayName(total.day, 'long', locale.value),
     detail: total.busiestHour === null
@@ -89,7 +88,7 @@ const busyTake = computed(() => {
 });
 
 const peakHours = computed<BarItem[]>(() =>
-  topHours(cells.value, 7).map((total: HourTotal) => ({
+  topHours(cells.value, 7).map((total) => ({
     key: String(total.hour),
     label: span(total.hour),
     detail: n(total.share, { style: 'percent' }),

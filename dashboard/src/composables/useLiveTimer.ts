@@ -19,10 +19,10 @@ type Anchor = { seconds: number; at: number };
 export function timecodeSeconds(timecode: string | null | undefined): number {
   const parts = (timecode ?? '').split(':').map(Number);
 
-  if (parts.length === 0 || parts.some((part: number) => !Number.isFinite(part)))
+  if (parts.length === 0 || parts.some((part) => !Number.isFinite(part)))
     return 0;
 
-  return parts.reduce((total: number, part: number) => total * 60 + part, 0);
+  return parts.reduce((total: number, part) => total * 60 + part, 0);
 }
 
 // A running clock built from the last known timecode: it counts up every second by itself and starts over from

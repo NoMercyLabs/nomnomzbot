@@ -55,7 +55,7 @@ function isBlock(text: string): boolean {
 
 function save(): void {
   const kept = items.value
-    .filter((text: string) =>
+    .filter((text) =>
       text.trim() !== '')
     .map(listItem);
   const value = kept.length === 0

@@ -70,7 +70,7 @@ const winner = ref<string | null>(null);
 const confirmOpen = ref(false);
 
 const filledOutcomes = computed(() =>
-  outcomes.value.map((text: string) => text.trim()).filter((text: string) => text !== ''),
+  outcomes.value.map((text) => text.trim()).filter((text) => text !== ''),
 );
 const minutesValue = computed(() => Number(minutes.value));
 const enoughOutcomes = computed(() => filledOutcomes.value.length >= MIN_OUTCOMES);
@@ -132,7 +132,7 @@ function addOutcome(): void {
 }
 
 function removeOutcome(index: number): void {
-  outcomes.value = outcomes.value.filter((_text: string, at: number) => at !== index);
+  outcomes.value = outcomes.value.filter((_text, at) => at !== index);
 }
 
 function resolveWinner(predictionId: string): void {

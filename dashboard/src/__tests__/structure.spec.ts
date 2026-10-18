@@ -21,7 +21,7 @@ import {
   streamPlatforms,
   trustTiers,
 } from '../api/vocabulary';
-import { merge } from '../lib/array';
+import { merge, oneOf } from '../lib/array';
 import * as utils from '../lib/utils';
 
 const src = join(__dirname, '..');
@@ -572,10 +572,10 @@ describe('time formatting', () => {
 // composables/useLayout.ts (its width table, useScreenFrom, usePhone, useFits), never with a media query or a
 // size measure written in a view. The two files left are a height measure and the generated shadcn sidebar.
 const ownRoomCheck = /useMediaQuery\(\s*['"`(]|useElementSize\(/;
-const ownRoomCheckAllowlist: readonly string[] = [
+const ownRoomCheckAllowlist = [
   'components/layout/ReplyModeField.vue',
   'components/ui/sidebar/SidebarProvider.vue',
-];
+] as const satisfies readonly string[];
 
 function ownsRoomCheck(path: string): boolean {
   const text: string = readFileSync(join(src, path), 'utf8');
@@ -594,7 +594,7 @@ describe('room checks', () => {
     const offenders = timeSourceFiles()
       .filter((path) => path !== 'composables/useLayout.ts')
       .filter((path) => ownsRoomCheck(path))
-      .filter((path) => !ownRoomCheckAllowlist.includes(path));
+      .filter((path) => oneOf(ownRoomCheckAllowlist, path) === undefined);
 
     expect(offenders).toEqual([]);
   });
@@ -619,13 +619,13 @@ const vocabularyLists: Record<string, readonly string[]> = {
   musicRoleRungs,
   trustTiers,
 };
-const vocabularyHomes: readonly string[] = ['api/vocabulary.ts', 'api/permissions.ts'];
+const vocabularyHomes = ['api/vocabulary.ts', 'api/permissions.ts'] as const satisfies readonly string[];
 // Two lists that only look like a ladder: the people page's filter tabs, and the three personas a visitor
 // picks on the login page. Neither is a role the bot ranks.
-const vocabularyLookalikes: readonly string[] = [
+const vocabularyLookalikes = [
   'views/dashboard/people/PeopleView.vue',
   'views/site/login/LoginView.vue',
-];
+] as const satisfies readonly string[];
 const quotedList = /\[\s*((?:'[^'\n]+'\s*,\s*)+'[^'\n]+'\s*,?)\s*\]/g;
 
 // The names of the vocabulary lists a text copies: a list with at least min(3, its length) of one list's words.
@@ -651,8 +651,8 @@ function copiedIn(path: string): string[] {
 
 function vocabularySourceFiles(): string[] {
   return timeSourceFiles()
-    .filter((path) => !vocabularyHomes.includes(path))
-    .filter((path) => !vocabularyLookalikes.includes(path))
+    .filter((path) => oneOf(vocabularyHomes, path) === undefined)
+    .filter((path) => oneOf(vocabularyLookalikes, path) === undefined)
     .filter((path) => !path.startsWith('i18n/') && !path.startsWith('components/ui/'));
 }
 

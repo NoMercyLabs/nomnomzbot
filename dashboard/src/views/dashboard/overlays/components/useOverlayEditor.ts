@@ -168,7 +168,7 @@ export function useOverlayEditor(widget: () => Widget): OverlayEditor {
       guarded(async () => {
         await rollbackWidget(channel(), widget().id, versionId);
 
-        loaded = loaded.map((entry: VersionSummary) => ({
+        loaded = loaded.map((entry) => ({
           ...entry,
           isCurrent: entry.id === versionId,
         }));
@@ -179,7 +179,7 @@ export function useOverlayEditor(widget: () => Widget): OverlayEditor {
   } as const satisfies EditorHistoryRunner;
 
   function currentVersionId(): string | null {
-    return loaded.find((entry: VersionSummary) => entry.isCurrent)?.id ?? null;
+    return loaded.find((entry) => entry.isCurrent)?.id ?? null;
   }
 
   return {

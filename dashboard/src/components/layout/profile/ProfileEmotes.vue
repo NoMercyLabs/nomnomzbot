@@ -24,8 +24,7 @@ const props = defineProps<{
 
 const { channelId } = useCurrentChannel();
 
-const emotes = usePersonEmotes(channelId, () =>
-  props.userId);
+const emotes = usePersonEmotes(channelId, () => props.userId);
 const state = usePanelState(emotes, (list: PersonEmote[]) =>
   list.length === 0);
 </script>

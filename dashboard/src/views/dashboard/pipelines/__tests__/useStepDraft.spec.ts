@@ -37,7 +37,7 @@ const pipeline = {
 } as unknown as Pipeline;
 
 function stepIds(steps: PipelineStep[]): (string | null)[] {
-  return steps.map((item: PipelineStep) =>
+  return steps.map((item) =>
     item.id);
 }
 

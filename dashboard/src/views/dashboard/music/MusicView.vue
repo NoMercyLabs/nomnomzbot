@@ -17,7 +17,7 @@ import IconRules from '~icons/nnz/settings-fader';
 import Trash2 from '~icons/nnz/trash';
 import Ban from '~icons/nnz/do-not-enter';
 import Cross from '~icons/nnz/cross';
-import { computed, ref, useTemplateRef } from 'vue';
+import { computed, ref, useTemplateRef, type ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useChannelAccess } from '@/api/access';
@@ -190,7 +190,7 @@ const rulesOpen = ref(false);
 // declares the narrowest column it renders properly in; the rules join the board as a third column only where all
 // panels keep theirs, otherwise they sit in a drawer. The rules switch in the header hides them in both places.
 // One RulesPanel serves both, so no field is written twice.
-const board = useTemplateRef('board');
+const board = useTemplateRef<ComponentPublicInstance>('board');
 const canSeeRules = computed(() => access.can('music:config:read'));
 
 const panels = computed<BoardPanel[]>(() => {
@@ -231,8 +231,7 @@ const panels = computed<BoardPanel[]>(() => {
   return shown;
 });
 
-const layout = useBoard('music', board, () =>
-  panels.value);
+const layout = useBoard('music', board, () => panels.value);
 const span = layout.span;
 const rulesInline = computed(() =>
   layout.isInline('rules'));

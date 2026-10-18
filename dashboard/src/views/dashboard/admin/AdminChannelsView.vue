@@ -19,7 +19,8 @@ import ChevronRight from '~icons/nnz/chevron-right';
 
 import { useAdminTenants, type AdminTenant, type AdminTenantsParams } from '@/api/admin';
 import { ApiError } from '@/api/errors';
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
+import FilterBar from '@/components/layout/FilterBar.vue';
+import type { FilterOption } from '@/components/layout/filterOption';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
@@ -64,16 +65,16 @@ const total = computed(() => Number(tenants.data.value?.total ?? 0));
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 
 const statusOptions = computed<FilterOption[]>(() =>
-  ['all', 'active', 'suspended', 'platform_banned'].map((value: string): FilterOption => ({
+  ['all', 'active', 'suspended', 'platform_banned'].map((value) => ({
     value,
     label: t(`dashboard.admin.filters.status.${value}`),
-  })),
+  }) as const satisfies FilterOption),
 );
 const liveOptions = computed<FilterOption[]>(() =>
-  ['all', 'live', 'offline'].map((value: string): FilterOption => ({
+  ['all', 'live', 'offline'].map((value) => ({
     value,
     label: t(`dashboard.admin.filters.live.${value}`),
-  })),
+  }) as const satisfies FilterOption),
 );
 
 const panelState = usePanelState(tenants, (data) =>

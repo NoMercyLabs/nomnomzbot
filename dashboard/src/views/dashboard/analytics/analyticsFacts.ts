@@ -31,7 +31,7 @@ function seconds(row: StreamRow): number {
 }
 
 export function liveSeconds(rows: readonly StreamRow[]): number {
-  return rows.reduce((total: number, row: StreamRow) => total + seconds(row), 0);
+  return rows.reduce((total: number, row) => total + seconds(row), 0);
 }
 
 export function averageSeconds(rows: readonly StreamRow[]): number {
@@ -96,13 +96,13 @@ export function perPeriod(
   }
 
   const zone = getLocalTimeZone();
-  const slots = calendarDays(range).map((date: CalendarDate): Slot => ({
+  const slots = calendarDays(range).map((date) => ({
     at: date.toDate(zone),
     total: byDate.get(date.toString()) ?? 0,
-  }));
+  }) as const satisfies Slot);
 
   if (range !== 'r365') {
-    return slots.map((slot: Slot) => ({
+    return slots.map((slot) => ({
       period: slot.at,
       value: slot.total,
     }));
@@ -116,5 +116,5 @@ export function perPeriod(
     months.set(month, (months.get(month) ?? 0) + slot.total);
   }
 
-  return [...months].map(([period, total]: [string, number]) => ({ period, value: total }));
+  return [...months].map(([period, total]) => ({ period, value: total }));
 }

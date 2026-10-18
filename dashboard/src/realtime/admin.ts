@@ -77,7 +77,7 @@ function applyRegistryUpdate(
 
     queries.setQueryData<AdminTenantsPage>(key, {
       ...page,
-      data: page.data.map((row: AdminTenant) =>
+      data: page.data.map((row) =>
         row.id === update.broadcasterId
           ? { ...row, ...patch }
           : row,

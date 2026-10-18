@@ -14,12 +14,14 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ChevronDown from '~icons/nnz/chevron-down';
 
-import { usePipelineRuns, type PipelineRun, type PipelineRunPage } from '@/api/pipelineRuns';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import { usePipelineRuns, type PipelineRun } from '@/api/pipelineRuns';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { lookup } from '@/lib/array';
 import { agoText, durationText } from '@/lib/time';
 
 import RunSteps from './RunSteps.vue';
@@ -41,12 +43,11 @@ const TONES = {
 
 const { t, te, locale } = useI18n();
 
-const runs = usePipelineRuns(() => props.channelId, () =>
-  props.pipelineId);
+const runs = usePipelineRuns(() => props.channelId, () => props.pipelineId);
 const open = ref<string | null>(null);
 
 const list = computed<PipelineRun[]>(() =>
-  (runs.data.value?.pages ?? []).flatMap((part: PipelineRunPage) => part.runs));
+  (runs.data.value?.pages ?? []).flatMap((part) => part.runs));
 
 const state = computed<PanelState>(() => {
   if (runs.isPending.value)
@@ -61,7 +62,7 @@ const state = computed<PanelState>(() => {
 });
 
 function toneOf(run: PipelineRun): StatusTone {
-  return TONES[run.status as keyof typeof TONES] ?? 'off';
+  return lookup(TONES, run.status) ?? 'off';
 }
 
 // An outcome the bot adds later shows as the bot names it, never as a missing word.

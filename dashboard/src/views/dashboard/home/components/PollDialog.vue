@@ -69,7 +69,7 @@ const pointsOn = ref(false);
 const pointsPerVote = ref('10');
 
 const filledChoices = computed(() =>
-  choices.value.map((text: string) => text.trim()).filter((text: string) => text !== ''),
+  choices.value.map((text) => text.trim()).filter((text) => text !== ''),
 );
 const minutesValue = computed(() => Number(minutes.value));
 const pointsValue = computed(() => Number(pointsPerVote.value));
@@ -134,7 +134,7 @@ function addChoice(): void {
 }
 
 function removeChoice(index: number): void {
-  choices.value = choices.value.filter((_text: string, at: number) => at !== index);
+  choices.value = choices.value.filter((_text, at) => at !== index);
 }
 
 function refresh(): void {

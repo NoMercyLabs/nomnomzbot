@@ -17,7 +17,8 @@ import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -25,6 +26,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
 
@@ -46,18 +48,22 @@ const tabKeys = {
   voices: 'tts:voice:read',
   rules: 'tts:config:read',
 } as const satisfies Record<string, string>;
-const allTabs = computed<PageTab[]>(() => [
+const VIEWS = keysOf(tabKeys);
+
+type TtsTab = (typeof VIEWS)[number];
+const allTabs = computed<PageTab<TtsTab>[]>(() => [
   { value: 'overview', label: t('dashboard.tts.tabs.overview') },
   { value: 'voices', label: t('dashboard.tts.tabs.voices') },
   { value: 'rules', label: t('dashboard.tts.tabs.rules') },
 ]);
 
-function canRead(tab: PageTab): boolean {
-  return can(tabKeys[tab.value as keyof typeof tabKeys]);
+function canRead(tab: PageTab<TtsTab>): boolean {
+  return can(tabKeys[tab.value]);
 }
 
-const tabs = computed<PageTab[]>(() => allTabs.value.filter(canRead));
-const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
+const tabs = computed(() => allTabs.value.filter(canRead));
+const view = usePageView(VIEWS, 'view', () =>
+  tabs.value.map((tab) => tab.value));
 
 const settings = computed<TtsConfig | null>(() => config.data.value ?? null);
 

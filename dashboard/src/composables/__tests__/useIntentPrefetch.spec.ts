@@ -19,6 +19,7 @@ import { memberKey } from '@/api/community';
 import { activityKey, homeStatsKey } from '@/api/home';
 import { communityListKey, userNotesKey, viewerProfileKey } from '@/api/people';
 import { prefetchRouteData } from '@/api/prefetch';
+import { lookup } from '@/lib/array';
 
 import { useIntentPrefetch } from '../useIntentPrefetch';
 
@@ -41,7 +42,7 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 
-const answers: Record<string, unknown> = {
+const answers = {
   '/api/v{version}/channels/{channelId}/chat/messages': [{ id: 'm1', timestamp: '2026-10-16T10:00:00Z' }],
   '/api/v{version}/channels/{channelId}/chat/emotes': [{ id: 'e1' }],
   '/api/v{version}/channels/{channelId}/community': [{ id: '42' }],
@@ -54,7 +55,7 @@ const answers: Record<string, unknown> = {
   '/api/v{version}/channels/{channelId}/moderation/users/{userId}/notes': [{ id: 1 }],
   '/api/v{version}/dashboard/{channelId}/stats': { viewers: 3 },
   '/api/v{version}/dashboard/{channelId}/activity': [],
-};
+} as const satisfies Record<string, unknown>;
 
 const stub = defineComponent({ render: () => h('div') });
 const lazyChat = vi.fn<() => Promise<typeof stub>>(() => Promise.resolve(stub));
@@ -92,10 +93,8 @@ async function mountFrame(): Promise<void> {
       useIntentPrefetch();
 
       return () => h('div', [
-        h(RouterLink, { to: { name: 'dashboard-chat' } }, () =>
-          'Chat'),
-        h(RouterLink, { to: { name: 'dashboard-people' } }, () =>
-          'People'),
+        h(RouterLink, { to: { name: 'dashboard-chat' } }, () => 'Chat'),
+        h(RouterLink, { to: { name: 'dashboard-people' } }, () => 'People'),
         h('button', { 'data-user': '42' }, 'viewer'),
         h('a', { href: 'https://example.com/x' }, 'outside'),
       ]);
@@ -118,7 +117,7 @@ describe('useIntentPrefetch', () => {
 
     http.GET.mockImplementation((path: string) =>
       Promise.resolve({
-        data: { data: answers[path] },
+        data: { data: lookup(answers, path) },
         response: ok,
       }));
 

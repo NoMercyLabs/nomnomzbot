@@ -63,7 +63,7 @@ const byTitle = (left: { title: string }, right: { title: string }): number =>
   left.title.localeCompare(right.title);
 
 const blocks = computed(() =>
-  ADDABLE_BLOCKS.map((kind: AddableBlock) =>
+  ADDABLE_BLOCKS.map((kind) =>
     ({
       kind,
       title: t(`${page}.block.${kind}`),
@@ -87,7 +87,7 @@ const groups = computed<ActionGroup[]>(() => {
   }
 
   return [...found.values()]
-    .map((group: ActionGroup) =>
+    .map((group) =>
       ({ ...group, rows: group.rows.sort(byTitle) }))
     .sort((left: ActionGroup, right: ActionGroup) =>
       left.heading.localeCompare(right.heading));

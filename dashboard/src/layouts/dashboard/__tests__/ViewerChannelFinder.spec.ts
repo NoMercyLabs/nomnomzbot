@@ -131,8 +131,7 @@ describe('the viewer channel finder', () => {
     await flushPromises();
 
     const botRows = document.body.querySelectorAll('[data-slot="directory-channel"]');
-    const botNames = Array.from(botRows, (bot) =>
-      bot.textContent);
+    const botNames = Array.from(botRows, (bot) => bot.textContent);
     const row = document.body.querySelector<HTMLElement>('[data-slot="twitch-channel"]');
 
     expect(botNames.join()).not.toContain('Twitch');

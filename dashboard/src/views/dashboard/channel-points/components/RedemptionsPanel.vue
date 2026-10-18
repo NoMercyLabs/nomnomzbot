@@ -59,7 +59,7 @@ const selected = ref<string[]>([]);
 const rejecting = ref<string[]>([]);
 
 const pending = computed<Redemption[]>(() =>
-  (queue.data.value ?? []).filter((row: Redemption) =>
+  (queue.data.value ?? []).filter((row) =>
     row.status === 'unfulfilled'));
 
 type Filter = {
@@ -72,7 +72,7 @@ type Filter = {
 // A redemption carries Twitch's reward id and the reward list carries ours, so the two meet on the title,
 // which Twitch keeps unique per channel.
 function rowsOf(reward: Reward): Redemption[] {
-  return pending.value.filter((row: Redemption) =>
+  return pending.value.filter((row) =>
     row.rewardTitle === reward.title);
 }
 
@@ -95,13 +95,13 @@ const filters = computed<Filter[]>(() => {
 
 // A remembered reward that no longer exists falls back to All.
 const filter = computed<string>(() =>
-  filters.value.some((entry: Filter) =>
+  filters.value.some((entry) =>
     entry.id === chosen.value)
     ? chosen.value
     : allRewards);
 
 const visible = computed<Redemption[]>(() => {
-  const reward = filters.value.find((entry: Filter) =>
+  const reward = filters.value.find((entry) =>
     entry.id === filter.value)?.reward;
 
   return reward
@@ -111,8 +111,8 @@ const visible = computed<Redemption[]>(() => {
 
 const chosenIds = computed<string[]>(() =>
   visible.value
-    .map((row: Redemption) => row.redemptionId)
-    .filter((id: string) =>
+    .map((row) => row.redemptionId)
+    .filter((id) =>
       selected.value.includes(id)));
 
 // Like Twitch, the section's Reject all / Complete all stay in place: they act on the ticked rows, or on
@@ -120,7 +120,7 @@ const chosenIds = computed<string[]>(() =>
 const bulkIds = computed<string[]>(() =>
   chosenIds.value.length > 0
     ? chosenIds.value
-    : visible.value.map((row: Redemption) =>
+    : visible.value.map((row) =>
         row.redemptionId));
 
 const allChosen = computed<boolean | 'indeterminate'>(() => {
@@ -138,7 +138,7 @@ function pick(id: string): void {
 }
 
 function toggle(id: string, on: boolean | 'indeterminate'): void {
-  const others = selected.value.filter((entry: string) =>
+  const others = selected.value.filter((entry) =>
     entry !== id);
 
   selected.value = on === true
@@ -148,7 +148,7 @@ function toggle(id: string, on: boolean | 'indeterminate'): void {
 
 function toggleAll(on: boolean | 'indeterminate'): void {
   selected.value = on === true
-    ? visible.value.map((row: Redemption) =>
+    ? visible.value.map((row) =>
         row.redemptionId)
     : [];
 }
@@ -163,7 +163,7 @@ function decide(ids: string[], action: RedemptionAction): void {
     },
   );
 
-  selected.value = selected.value.filter((id: string) =>
+  selected.value = selected.value.filter((id) =>
     !ids.includes(id));
 }
 

@@ -25,7 +25,7 @@ const props = defineProps<{ items: readonly BarItem[] }>();
 const { n } = useI18n();
 
 const most = computed(() =>
-  Math.max(0, ...props.items.map((item: BarItem) =>
+  Math.max(0, ...props.items.map((item) =>
     item.value)));
 
 function width(value: number): string {

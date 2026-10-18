@@ -63,8 +63,7 @@ async function mountPage(): Promise<{ open: ReturnType<typeof ref<boolean>> }> {
           },
         }, () =>
           h(DialogContent, null, () =>
-            h(DialogTitle, null, () =>
-              'Menu')));
+            h(DialogTitle, null, () => 'Menu')));
     },
   }), { attachTo: document.body, global: { plugins: [router] } });
 

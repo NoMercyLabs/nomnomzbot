@@ -14,6 +14,7 @@
 import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 
+import type { FilterOption } from '@/components/layout/filterOption';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import {
   Select,
@@ -22,11 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-export interface FilterOption {
-  value: string;
-  label: string;
-}
 
 const props = defineProps<{ label: string; options: readonly FilterOption[] }>();
 

@@ -36,12 +36,12 @@ function access(entry: NavEntry): Pick<RouteMeta, 'action' | 'open'> {
 export function scaffoldRoutes(built: ReadonlySet<string>): RouteRecordRaw[] {
   const modes = Object.keys(navByMode) as NavMode[];
 
-  return modes.flatMap((mode: NavMode) =>
+  return modes.flatMap((mode) =>
     navByMode[mode]
       .filter((group) => group.key !== 'back')
       .flatMap((group) => group.entries)
       .filter((entry) => !built.has(entry.route))
-      .map((entry): RouteRecordRaw => ({
+      .map((entry) => ({
         path: pathOf(entry.route),
         name: entry.route,
         meta: {
@@ -53,5 +53,5 @@ export function scaffoldRoutes(built: ReadonlySet<string>): RouteRecordRaw[] {
           ? adminOnly
           : undefined,
         component: () => import('./ComingSoonView.vue'),
-      })));
+      }) as const satisfies RouteRecordRaw));
 }

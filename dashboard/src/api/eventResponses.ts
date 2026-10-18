@@ -43,6 +43,7 @@ export const eventResponseKey = (channelId: string | null, eventType: string): K
   ...eventResponsesKey(channelId),
   eventType,
 ];
+
 export const eventPresetsKey = (channelId: string | null): KeyParts => [
   ...eventResponsesKey(channelId),
   'catalog',

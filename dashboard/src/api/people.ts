@@ -52,20 +52,24 @@ export const communityListsKey = (channelId: string | null): KeyParts => [
   channelId,
   'list',
 ];
+
 export const communityListKey = (
   channelId: string | null,
   role: string,
   search: string,
 ): KeyParts => [...communityListsKey(channelId), role, search];
+
 export const viewerProfilesKey = (channelId: string | null): KeyParts => [
   'community',
   channelId,
   'profile',
 ];
+
 export const viewerProfileKey = (channelId: string | null, userId: string | null): KeyParts => [
   ...viewerProfilesKey(channelId),
   userId,
 ];
+
 export const userNotesKey = (channelId: string | null, userId: string | null): KeyParts => [
   'community',
   channelId,
@@ -314,7 +318,7 @@ export function useEditNote(
       return readNotes(id, userId);
     },
     apply: (current: UserNote[] | undefined, { noteId, content, pinned }: NoteChange): UserNote[] =>
-      (current ?? []).map((note: UserNote) =>
+      (current ?? []).map((note) =>
         Number(note.id) === noteId
           ? {
               ...note,
@@ -350,7 +354,7 @@ export function useDeleteNote(
       return readNotes(id, userId);
     },
     apply: (current: UserNote[] | undefined, { noteId }: NoteRemoval): UserNote[] =>
-      (current ?? []).filter((note: UserNote) => Number(note.id) !== noteId),
+      (current ?? []).filter((note) => Number(note.id) !== noteId),
   });
 }
 

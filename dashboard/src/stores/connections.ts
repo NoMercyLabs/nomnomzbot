@@ -16,7 +16,7 @@ import { computed } from 'vue';
 import { merge } from '@/lib/array';
 import { officialOrigin, servedOrigin } from '@/lib/botAddress';
 
-const alwaysListed: readonly string[] = [servedOrigin, officialOrigin];
+const alwaysListed = [servedOrigin, officialOrigin] as const satisfies readonly string[];
 
 function readOrigins(raw: string): string[] {
   try {

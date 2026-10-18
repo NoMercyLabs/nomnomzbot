@@ -316,7 +316,7 @@ describe('ChannelPointsView', () => {
     const segments = [...document.body.querySelectorAll<HTMLButtonElement>('[data-reply-mode] [data-segment]')];
 
     expect(segments.length).toBe(2);
-    expect(segments.every((segment: HTMLButtonElement) => segment.disabled)).toBe(true);
+    expect(segments.every((segment) => segment.disabled)).toBe(true);
     const reason = en.dashboard.channelPoints.rewards.dialog.unmanageable;
 
     expect(document.body.textContent).toContain(reason);

@@ -16,7 +16,8 @@ import { useI18n } from 'vue-i18n';
 
 import { ANALYTICS_RANGES, type AnalyticsRange } from '@/api/analytics';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
@@ -35,7 +36,7 @@ const views = computed<PageTab[]>(() =>
 
 const range = useLocalStorage<AnalyticsRange>('nnz.analytics.range', 'r30');
 const rangeOptions = computed(() =>
-  (Object.keys(ANALYTICS_RANGES) as AnalyticsRange[]).map((value: AnalyticsRange) => ({
+  (Object.keys(ANALYTICS_RANGES) as AnalyticsRange[]).map((value) => ({
     value,
     label: t(`dashboard.analytics.range.${value}`),
   })));

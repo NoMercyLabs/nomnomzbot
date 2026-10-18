@@ -12,7 +12,7 @@
 // and only the time on each line. Older pages load on request and join the day group they continue.
 import { computed } from 'vue';
 
-import { useUserChat, type ChatLine, type ChatSearchPage } from '@/api/chat';
+import { useUserChat, type ChatLine } from '@/api/chat';
 import EmoteText from '@/components/layout/EmoteText.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
@@ -31,10 +31,9 @@ type DayGroup = {
   lines: ChatLine[];
 };
 
-const chat = useUserChat(channelId, () =>
-  props.internalUserId);
+const chat = useUserChat(channelId, () => props.internalUserId);
 const lines = computed(() =>
-  (chat.data.value?.pages ?? []).flatMap((page: ChatSearchPage) =>
+  (chat.data.value?.pages ?? []).flatMap((page) =>
     page.messages));
 const state = usePanelState(chat, () =>
   lines.value.length === 0);

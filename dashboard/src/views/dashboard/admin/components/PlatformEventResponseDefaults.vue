@@ -68,7 +68,7 @@ const applyLabel = computed<string>(() =>
 );
 
 const variableNames = computed<string>(() =>
-  (editing.value?.variables ?? []).map((name: string) => `{${name}}`).join(' '),
+  (editing.value?.variables ?? []).map((name) => `{${name}}`).join(' '),
 );
 
 function startEdit(row: EventResponseDefault): void {

@@ -14,8 +14,8 @@ import { type InjectionKey, shallowRef } from 'vue';
 // minWidth is the narrowest column the panel renders properly in (the page writes the reason beside the value).
 // An optional panel has a show/hide switch in the page header and joins as a column only where every panel
 // keeps its minimum; narrower, it stays in the page's drawer.
-export type BoardPanel = {
-  id: string;
+export type BoardPanel<Id extends string = string> = {
+  id: Id;
   label: string;
   minWidth?: number;
   optional?: boolean;

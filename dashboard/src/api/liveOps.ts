@@ -32,6 +32,7 @@ export const pollsKey = (channelId: string | null): KeyParts => [
   channelId,
   'live-ops-polls',
 ];
+
 export const predictionsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -149,7 +150,7 @@ export function useToggleTimer(
       return readTimers(id);
     },
     apply: (current: Timer[] | undefined, timerId: string): Timer[] =>
-      (current ?? []).map((timer: Timer) =>
+      (current ?? []).map((timer) =>
         timer.id === timerId
           ? { ...timer, isEnabled: !timer.isEnabled }
           : timer,
@@ -198,7 +199,7 @@ function provisionalPoll(poll: NewPoll): Poll {
     broadcasterName: '',
     broadcasterLogin: '',
     title: poll.title,
-    choices: poll.choices.map((title: string, index: number) => ({
+    choices: poll.choices.map((title, index) => ({
       id: `pending-${index}`,
       title,
       votes: 0,
@@ -235,7 +236,7 @@ function provisionalPrediction(prediction: NewPrediction): Prediction {
     broadcasterLogin: '',
     title: prediction.title,
     winningOutcomeId: null,
-    outcomes: prediction.outcomes.map((title: string, index: number) => ({
+    outcomes: prediction.outcomes.map((title, index) => ({
       id: `pending-${index}`,
       title,
       users: 0,
@@ -324,7 +325,7 @@ function changePrediction(
   predictionId: string,
   change: Partial<Prediction>,
 ): Prediction[] {
-  return (predictions ?? []).map((prediction: Prediction) =>
+  return (predictions ?? []).map((prediction) =>
     prediction.id === predictionId
       ? { ...prediction, ...change }
       : prediction,
@@ -411,7 +412,7 @@ export function useEndPoll(
       return readPolls(id);
     },
     apply: (current: Poll[] | undefined, pollId: string): Poll[] =>
-      (current ?? []).map((poll: Poll) =>
+      (current ?? []).map((poll) =>
         poll.id === pollId
           ? { ...poll, status: 'TERMINATED' }
           : poll,

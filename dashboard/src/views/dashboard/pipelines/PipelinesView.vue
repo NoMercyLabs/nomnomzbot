@@ -17,7 +17,8 @@ import { useRouter } from 'vue-router';
 import { useChannelAccess } from '@/api/access';
 import { usePipelines, type PipelineListItem } from '@/api/pipelines';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -52,7 +53,7 @@ const rows = computed(() => {
   const needle = search.value.trim().toLowerCase();
 
   return (pipelines.data.value ?? [])
-    .filter((row: PipelineListItem) =>
+    .filter((row) =>
       `${row.name} ${row.description ?? ''}`.toLowerCase().includes(needle),
     )
     .sort((left: PipelineListItem, right: PipelineListItem) => left.name.localeCompare(right.name));

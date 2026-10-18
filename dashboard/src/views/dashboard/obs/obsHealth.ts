@@ -31,7 +31,7 @@ const SEVERITY = {
 
 export function worstDot(dots: readonly HealthDot[]): HealthDot {
   return dots.reduce<HealthDot>(
-    (worst: HealthDot, next: HealthDot) =>
+    (worst: HealthDot, next) =>
       SEVERITY[next] > SEVERITY[worst]
         ? next
         : worst,

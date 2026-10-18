@@ -24,13 +24,14 @@ import StarFilled from '~icons/nnz/star-filled';
 
 import { useCurrentUser } from '@/api/auth';
 import type { ChatEmoteEntry } from '@/api/chat';
-import { useFavoriteEmoteChange, useFavoriteEmotes, type FavoriteEmote } from '@/api/favoriteEmotes';
+import { useFavoriteEmoteChange, useFavoriteEmotes } from '@/api/favoriteEmotes';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePhone } from '@/composables/useLayout';
+import { lookup } from '@/lib/array';
 
 import type { Suggestion } from '../composerSuggest';
 import { loadEmoji, type EmojiEntry } from '../emojiCatalog';
@@ -71,7 +72,7 @@ watch(open, (isOpen) => {
 });
 
 const favoriteKeys = computed(() =>
-  (favorites.data.value ?? []).map((favorite: FavoriteEmote) =>
+  (favorites.data.value ?? []).map((favorite) =>
     favoriteKey(favorite.provider, favorite.emoteId)));
 
 const me = useCurrentUser();
@@ -220,12 +221,12 @@ function groupOf(section: PickerSection): string {
   return section.id.slice('emoji-'.length);
 }
 
-function isEmojiGroup(section: PickerSection): boolean {
-  return groupOf(section) in groupMarks;
+function mark(section: PickerSection): string | undefined {
+  return lookup(groupMarks, groupOf(section));
 }
 
-function mark(section: PickerSection): string {
-  return groupMarks[groupOf(section) as keyof typeof groupMarks];
+function isEmojiGroup(section: PickerSection): boolean {
+  return mark(section) !== undefined;
 }
 
 const list = useTemplateRef('list');

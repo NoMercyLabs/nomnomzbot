@@ -13,8 +13,8 @@ import { formatTime } from '@/lib/time';
 
 // The week runs Monday to Sunday; the bot numbers Sunday 0.
 export const WEEK = [1, 2, 3, 4, 5, 6, 0] as const satisfies readonly number[];
-export const HOURS = Array.from({ length: 24 }, (_: undefined, hour: number) =>
-  hour);
+
+export const HOURS = Array.from({ length: 24 }, (_: undefined, hour: number) => hour);
 
 export type DayTotal = {
   day: number;
@@ -33,11 +33,11 @@ function lines(cell: ChatHourCell): number {
 }
 
 export function totalLines(cells: readonly ChatHourCell[]): number {
-  return cells.reduce((total: number, cell: ChatHourCell) => total + lines(cell), 0);
+  return cells.reduce((total: number, cell) => total + lines(cell), 0);
 }
 
 export function linesAt(cells: readonly ChatHourCell[], day: number, hour: number): number {
-  const cell = cells.find((item: ChatHourCell) =>
+  const cell = cells.find((item) =>
     Number(item.dayOfWeek) === day && Number(item.hour) === hour);
 
   return cell
@@ -47,7 +47,7 @@ export function linesAt(cells: readonly ChatHourCell[], day: number, hour: numbe
 
 // The hour with the most chat over the whole range; null when nobody chatted.
 export function busiestCell(cells: readonly ChatHourCell[]): ChatHourCell | null {
-  return cells.reduce<ChatHourCell | null>((best: ChatHourCell | null, cell: ChatHourCell) =>
+  return cells.reduce<ChatHourCell | null>((best: ChatHourCell | null, cell) =>
     best === null || lines(cell) > lines(best)
       ? cell
       : best, null);
@@ -56,7 +56,7 @@ export function busiestCell(cells: readonly ChatHourCell[]): ChatHourCell | null
 // Each weekday, Monday first, with its lines and the hour it was busiest.
 export function dayTotals(cells: readonly ChatHourCell[]): DayTotal[] {
   return WEEK.map((day: number) => {
-    const ofDay = cells.filter((cell: ChatHourCell) =>
+    const ofDay = cells.filter((cell) =>
       Number(cell.dayOfWeek) === day);
     const busiest = busiestCell(ofDay);
 
@@ -71,8 +71,8 @@ export function dayTotals(cells: readonly ChatHourCell[]): DayTotal[] {
 // The hours of the day with the most chat, most first, each with its part of all chat.
 export function topHours(cells: readonly ChatHourCell[], count: number): HourTotal[] {
   const total = totalLines(cells);
-  const hours = HOURS.map((hour: number) => {
-    const sum = totalLines(cells.filter((cell: ChatHourCell) =>
+  const hours = HOURS.map((hour) => {
+    const sum = totalLines(cells.filter((cell) =>
       Number(cell.hour) === hour));
 
     return {
@@ -85,7 +85,7 @@ export function topHours(cells: readonly ChatHourCell[], count: number): HourTot
   });
 
   return hours
-    .filter((item: HourTotal) =>
+    .filter((item) =>
       item.lines > 0)
     .sort((a: HourTotal, b: HourTotal) => b.lines - a.lines)
     .slice(0, count);

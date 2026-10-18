@@ -94,7 +94,7 @@ const sections = [
 function choices(name: SegmentName): { value: string; label: string }[] {
   const keys: Record<string, string> = segmentKeys[name];
 
-  return Object.keys(keys).map((value: string) => ({
+  return Object.keys(keys).map((value) => ({
     value,
     label: t(`dashboard.chat.display.${keys[value]}`),
   }));

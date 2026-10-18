@@ -14,7 +14,8 @@ import { useLocalStorage } from '@vueuse/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
+import FilterBar from '@/components/layout/FilterBar.vue';
+import type { FilterOption } from '@/components/layout/filterOption';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { useTime } from '@/composables/useTime';
@@ -30,13 +31,13 @@ const clock = useTime();
 const filter = useLocalStorage<RunFilter>('nnz.scripts.runFilter', 'all');
 
 const options = computed<FilterOption[]>(() =>
-  (['all', 'failed', 'tests'] as const).map((value: RunFilter): FilterOption => ({
+  (['all', 'failed', 'tests'] as const).map((value) => ({
     value,
     label: t(`dashboard.scripts.runs.filter.${value}`),
-  })),
+  }) as const satisfies FilterOption),
 );
 const shown = computed<SessionRun[]>(() =>
-  props.runs.filter((run: SessionRun) => matchesRunFilter(run, filter.value)),
+  props.runs.filter((run) => matchesRunFilter(run, filter.value)),
 );
 const state = computed<'ready' | 'empty'>(() =>
   shown.value.length > 0

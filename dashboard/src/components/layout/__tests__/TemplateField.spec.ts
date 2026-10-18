@@ -17,6 +17,7 @@ import { defineComponent, h, ref, type Ref } from 'vue';
 import HelperPanel from '@/components/layout/HelperPanel.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { i18n } from '@/i18n';
+import { lookup } from '@/lib/array';
 
 let mounted: VueWrapper | null = null;
 let text: Ref<string>;
@@ -51,7 +52,7 @@ const bot: { seen: string[]; channelHeaders: (string | null)[] } = vi.hoisted(()
     },
   ];
 
-  const answers: Record<string, unknown> = {
+  const answers = {
     '/api/v1/templates/helpers': data,
     '/api/v1/auth/me': {
       id: 'user-1',
@@ -65,7 +66,7 @@ const bot: { seen: string[]; channelHeaders: (string | null)[] } = vi.hoisted(()
       role: 'broadcaster',
     }],
     '/api/v1/channels/moderated': [],
-  };
+  } as const satisfies Record<string, unknown>;
 
   globalThis.fetch = (async (request: Request) => {
     const url = new URL(request.url);
@@ -75,7 +76,9 @@ const bot: { seen: string[]; channelHeaders: (string | null)[] } = vi.hoisted(()
       state.channelHeaders.push(request.headers.get('X-Channel-Id'));
     }
 
-    return new Response(JSON.stringify({ data: answers[url.pathname] ?? [] }), { status: 200 });
+    const body = JSON.stringify({ data: lookup(answers, url.pathname) ?? [] });
+
+    return new Response(body, { status: 200 });
   }) as typeof fetch;
 
   return state;
@@ -158,7 +161,7 @@ async function press(area: HTMLTextAreaElement, key: string): Promise<void> {
 
 function options(): string[] {
   return [...document.body.querySelectorAll('[role="option"]')].map(
-    (option: Element) => option.getAttribute('data-helper') ?? '',
+    (option) => option.getAttribute('data-helper') ?? '',
   );
 }
 
@@ -299,7 +302,7 @@ describe('the helper panel', () => {
     await flushPromises();
 
     const rows: string[] = [...document.body.querySelectorAll('[data-template-panel] [data-helper-row]')]
-      .map((row: Element) => row.getAttribute('data-helper-row') ?? '');
+      .map((row) => row.getAttribute('data-helper-row') ?? '');
 
     expect(rows).toEqual(['user', 'user.name', 'channel', 'args.<n>']);
 

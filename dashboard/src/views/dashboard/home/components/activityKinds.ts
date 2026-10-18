@@ -44,6 +44,7 @@ import {
 
 // Text for the panel to translate: an i18n key with optional params.
 export type ActivityRowText = { key: string; params?: Record<string, string | number> };
+
 export type ActivityRowView = {
   icon: Component;
   // The person named in the data, for when the server sent no username.

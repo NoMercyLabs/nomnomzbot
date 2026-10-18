@@ -23,7 +23,8 @@ import {
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -61,7 +62,7 @@ const selected = computed<string | null>(() =>
     : null,
 );
 const row = computed<VoiceTrigger | undefined>(() =>
-  (triggers.data.value ?? []).find((item: VoiceTrigger): boolean => item.id === selected.value),
+  (triggers.data.value ?? []).find((item): boolean => item.id === selected.value),
 );
 
 function select(id: string | undefined): void {

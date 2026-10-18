@@ -165,6 +165,6 @@ export function useDeleteTimer(
       return readRows(id);
     },
     apply: (current, { timerId }): TimerRow[] =>
-      (current ?? []).filter((row: TimerRow) => row.id !== timerId),
+      (current ?? []).filter((row) => row.id !== timerId),
   });
 }

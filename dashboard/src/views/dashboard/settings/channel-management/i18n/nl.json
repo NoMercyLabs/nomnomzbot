@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Instellen",
       "channelManagement": {
         "loadFailed": "Het kanaal kon niet worden geladen.",
         "presence": {

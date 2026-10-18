@@ -81,10 +81,10 @@ function limitRowOf(item: ResourceUsage): LimitRow {
 
 export function groupLimits(items: readonly ResourceUsage[]): LimitGroups {
   const costDriving = items
-    .filter((item: ResourceUsage) => item.class === costDrivingClass)
+    .filter((item) => item.class === costDrivingClass)
     .map(limitRowOf);
   const nearFree = items
-    .filter((item: ResourceUsage) => item.class !== costDrivingClass)
+    .filter((item) => item.class !== costDrivingClass)
     .map(limitRowOf);
 
   return { costDriving, nearFree };

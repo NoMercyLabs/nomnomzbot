@@ -17,11 +17,15 @@ import type { components } from './schema';
 import type { KeyPart, KeyParts } from '@/lib/array';
 
 export type SupportPerson = components['schemas']['SupportPersonSearchResult'];
+
 export type SupportPeoplePage =
   components['schemas']['PaginatedResponseOfSupportPersonSearchResult'];
+
 export type SupportPersonView = components['schemas']['SupportPersonView'];
+
 export type SupportHistoryPage =
   components['schemas']['PaginatedResponseOfSupportPersonHistoryEntry'];
+
 export type SupportCommandsPage = components['schemas']['PaginatedResponseOfCommandListItem'];
 export type SupportPipelinesPage = components['schemas']['PaginatedResponseOfPipelineListItem'];
 

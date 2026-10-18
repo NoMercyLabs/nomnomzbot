@@ -374,7 +374,7 @@ describe('OverlaysView', () => {
     await open('/app/overlays?id=w1');
 
     // The row's text block only (title and detail); the Test button beside it is not part of the name.
-    const rows: string[] = [...detail().querySelectorAll('[data-event]')].map((row: Element) =>
+    const rows: string[] = [...detail().querySelectorAll('[data-event]')].map((row) =>
       (row.querySelector('[data-slot="summary-row-text"]')?.textContent ?? '')
         .replace(/\s+/g, ' ')
         .trim(),

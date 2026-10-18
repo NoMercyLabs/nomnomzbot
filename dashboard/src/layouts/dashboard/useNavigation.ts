@@ -19,7 +19,7 @@ import { isChannelPage, pageLocation, pageName, routeChannel } from '@/router/ch
 import { adminPageKey } from '@/views/dashboard/admin/adminKeys';
 
 import { navByMode } from './navModes';
-import type { NavEntry, NavGroup, NavMode } from './navigation';
+import type { NavEntry, NavMode } from './navigation';
 
 export type VisibleGroup = {
   key: string;
@@ -99,7 +99,7 @@ export function useNavigation(): Navigation {
 
   const groups = computed<VisibleGroup[]>(() =>
     navByMode[mode.value]
-      .map((group: NavGroup): VisibleGroup => {
+      .map((group) => {
         const entries = group.entries.filter(
           (entry) => router.hasRoute(entry.route) && readable(entry),
         );
@@ -111,7 +111,7 @@ export function useNavigation(): Navigation {
           foldable: entries.length > 1,
           open: entries.length <= 1 || holdsOpenPage || folds.value[group.key] === true,
           holdsOpenPage,
-        };
+        } as const satisfies VisibleGroup;
       })
       .filter((group) => group.entries.length > 0),
   );

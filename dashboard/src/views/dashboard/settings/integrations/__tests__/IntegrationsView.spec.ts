@@ -143,8 +143,7 @@ beforeEach(() => {
 
   held = ['integration:read', 'integration:write'];
 
-  answerHeldKeys(http.GET, () =>
-    held);
+  answerHeldKeys(http.GET, () => held);
 
   http.POST.mockResolvedValue(ok({ authorizeUrl: 'https://auth.example/go', state: 's' }));
 

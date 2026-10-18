@@ -44,6 +44,7 @@ export const commandsKey = (channelId: string | null): KeyParts => [
   channelId,
   'commands',
 ];
+
 export const builtinsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -166,7 +167,7 @@ function saveRow<TVariables>(
     apply: (current: CommandListItem[] | undefined, variables: TVariables): CommandListItem[] => {
       const { commandName, change } = send(variables);
 
-      return (current ?? []).map((row: CommandListItem) =>
+      return (current ?? []).map((row) =>
         row.name === commandName
           ? applyChange(row, change)
           : row,
@@ -228,7 +229,7 @@ export function useDeleteCommand(
       current: CommandListItem[] | undefined,
       { commandName }: { commandName: string },
     ): CommandListItem[] =>
-      (current ?? []).filter((row: CommandListItem) => row.name !== commandName),
+      (current ?? []).filter((row) => row.name !== commandName),
   });
 }
 
@@ -301,7 +302,7 @@ export function useToggleBuiltin(
       current: BuiltinCommand[] | undefined,
       { builtinKey, enabled }: { builtinKey: string; enabled: boolean },
     ): BuiltinCommand[] =>
-      (current ?? []).map((row: BuiltinCommand) =>
+      (current ?? []).map((row) =>
         row.builtinKey === builtinKey
           ? { ...row, isEnabled: enabled }
           : row,
@@ -373,7 +374,7 @@ export function useUpdateBuiltinSettings(
       current: BuiltinCommand[] | undefined,
       change: BuiltinSettingsChange,
     ): BuiltinCommand[] =>
-      (current ?? []).map((row: BuiltinCommand) =>
+      (current ?? []).map((row) =>
         row.builtinKey === change.builtinKey
           ? {
               ...row,
@@ -430,9 +431,9 @@ export function useSetBuiltinReply(
       current: BuiltinReplyGroup[] | undefined,
       { builtinKey, slot, template }: BuiltinReplyChange,
     ): BuiltinReplyGroup[] =>
-      (current ?? []).map((group: BuiltinReplyGroup) => ({
+      (current ?? []).map((group) => ({
         ...group,
-        replies: group.replies.map((reply: BuiltinReply) =>
+        replies: group.replies.map((reply) =>
           reply.builtinKey === builtinKey && reply.slot === slot
             ? {
                 ...reply,
@@ -470,7 +471,7 @@ export function useSetBuiltinTts(
       return readBuiltins(id);
     },
     apply: (current: BuiltinCommand[] | undefined, { builtinKey, enabled }): BuiltinCommand[] =>
-      (current ?? []).map((row: BuiltinCommand) =>
+      (current ?? []).map((row) =>
         row.builtinKey === builtinKey
           ? { ...row, speakWithTts: enabled }
           : row,

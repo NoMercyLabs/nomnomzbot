@@ -45,7 +45,7 @@ const remove = useDeleteEarningRule(channelId);
 const state = usePanelState(rules, (data: readonly EarningRule[]): boolean =>
   data.length === 0);
 const rows = computed<readonly EarningRule[]>(() => rules.data.value ?? []);
-const usedSources = computed<string[]>(() => rows.value.map((row: EarningRule) => row.source));
+const usedSources = computed<string[]>(() => rows.value.map((row) => row.source));
 
 const editing = ref<EarningRule | null>(null);
 const deleting = ref<EarningRule | null>(null);

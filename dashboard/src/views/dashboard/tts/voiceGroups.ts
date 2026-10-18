@@ -70,16 +70,16 @@ export function groupVoices<V extends GroupableVoice>(
       localeOrder(a, b),
   );
 
-  return locales.flatMap((locale: string): VoiceListItem<V>[] => [
+  return locales.flatMap((locale) => [
     {
       kind: 'heading',
       key: `group:${locale}`,
       label: localeLabel(locale, language),
     },
-    ...(byLocale.get(locale) ?? []).map((voice: V): VoiceListItem<V> => ({
+    ...(byLocale.get(locale) ?? []).map((voice) => ({
       kind: 'voice',
       key: voice.id,
       voice,
-    })),
-  ]);
+    }) as const satisfies VoiceListItem<V>),
+  ] as const satisfies readonly VoiceListItem<V>[]);
 }

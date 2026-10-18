@@ -13,7 +13,8 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useSupportPerson } from '@/api/adminSupport';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
@@ -58,26 +59,26 @@ const standings = computed<Standing[]>(() => {
   if (!view)
     return [];
 
-  const community = view.communityStandings.map((row): Standing => ({
+  const community = view.communityStandings.map((row) => ({
     key: `c-${row.broadcasterId}`,
     channel: row.channelName,
     kind: t('dashboard.admin.support.standing.community'),
     value: row.standing,
-  }));
-  const moderation = view.moderationStandings.map((row): Standing => ({
+  }) as const satisfies Standing);
+  const moderation = view.moderationStandings.map((row) => ({
     key: `m-${row.broadcasterId}-${row.provider}`,
     channel: row.channelName,
     kind: t('dashboard.admin.support.standing.moderation'),
     value: row.reason
       ? `${row.standing}: ${row.reason}`
       : row.standing,
-  }));
-  const trust = view.trustScores.map((row): Standing => ({
+  }) as const satisfies Standing);
+  const trust = view.trustScores.map((row) => ({
     key: `t-${row.broadcasterId}`,
     channel: row.channelName,
     kind: t('dashboard.admin.support.standing.trust'),
     value: String(row.trustScore),
-  }));
+  }) as const satisfies Standing);
 
   return Array.from(merge(community, moderation, trust));
 });

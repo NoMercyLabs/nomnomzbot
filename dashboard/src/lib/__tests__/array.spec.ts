@@ -10,7 +10,7 @@
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { evenSteps, keysOf, merge } from '../array';
+import { evenSteps, keysOf, lookup, merge, oneOf } from '../array';
 
 describe('merge', () => {
   it('joins the lists in order and keeps each position typed, read-only', () => {
@@ -53,7 +53,48 @@ describe('keysOf', () => {
     const keys = keysOf(sizes);
 
     expect(keys).toEqual(['sm', 'md', 'lg']);
-    expectTypeOf(keys).toEqualTypeOf<('sm' | 'md' | 'lg')[]>();
+    expectTypeOf(keys).toEqualTypeOf<['sm' | 'md' | 'lg', ...('sm' | 'md' | 'lg')[]]>();
+  });
+});
+
+describe('oneOf', () => {
+  it('returns the list item that equals the value, typed as the list items', () => {
+    const tabs = keysOf({
+      all: 1,
+      on: 2,
+    } as const);
+
+    const found = oneOf(tabs, 'on');
+
+    expect(found).toBe('on');
+    expectTypeOf(found).toEqualTypeOf<'all' | 'on' | undefined>();
+  });
+
+  it('returns undefined for a value outside the list or no value', () => {
+    const tabs = ['all', 'on'] as const;
+
+    expect(oneOf(tabs, 'off')).toBeUndefined();
+    expect(oneOf(tabs, undefined)).toBeUndefined();
+  });
+});
+
+describe('lookup', () => {
+  const tones = {
+    done: 'ok',
+    failed: 'bad',
+  } as const;
+
+  it('returns the table entry for a known key, typed as the table values', () => {
+    const tone = lookup(tones, 'failed');
+
+    expect(tone).toBe('bad');
+    expectTypeOf(tone).toEqualTypeOf<'ok' | 'bad' | undefined>();
+  });
+
+  it('returns undefined for an unknown key, no key, or a prototype name', () => {
+    expect(lookup(tones, 'other')).toBeUndefined();
+    expect(lookup(tones, undefined)).toBeUndefined();
+    expect(lookup(tones, 'toString')).toBeUndefined();
   });
 });
 
@@ -67,7 +108,7 @@ describe('evenSteps', () => {
 
     expect(ticks.length).toBeLessThanOrEqual(8);
     expect(ticks[0]).toBe(0);
-    const gaps = ticks.slice(1).map((tick: number, at: number) => tick - (ticks[at] ?? 0));
+    const gaps = ticks.slice(1).map((tick, at) => tick - (ticks[at] ?? 0));
 
     expect(new Set(gaps).size).toBe(1);
   });

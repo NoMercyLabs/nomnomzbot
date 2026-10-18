@@ -86,14 +86,14 @@ const stored = (): Readability =>
 const html = (): HTMLElement => document.documentElement;
 const button = (label: string): HTMLButtonElement =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find(
-    (item: HTMLButtonElement) => item.textContent?.trim() === label,
+    (item) => item.textContent?.trim() === label,
   ) as HTMLButtonElement;
 const group = (label: string): HTMLElement =>
   document.body.querySelector<HTMLElement>(`[aria-label="${label}"]`) as HTMLElement;
 
 const choose = async (groupLabel: string, optionLabel: string): Promise<void> => {
   const option = [...group(groupLabel).querySelectorAll<HTMLButtonElement>('button')].find(
-    (item: HTMLButtonElement) => item.textContent?.trim() === optionLabel,
+    (item) => item.textContent?.trim() === optionLabel,
   ) as HTMLButtonElement;
 
   option.click();
@@ -153,7 +153,7 @@ describe('Readability options', () => {
     await choose('Line spacing', 'Wider');
 
     const states = [...group('Line spacing').querySelectorAll<HTMLElement>('button')].map(
-      (item: HTMLElement) => item.dataset.state,
+      (item) => item.dataset.state,
     );
 
     expect(states).toEqual(['off', 'off', 'on']);

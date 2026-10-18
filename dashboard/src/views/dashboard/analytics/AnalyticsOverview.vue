@@ -47,12 +47,9 @@ const props = defineProps<{ range: AnalyticsRange }>();
 const { t, n, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 
-const summary = useAnalyticsSummary(channelId, () =>
-  props.range);
-const days = useAnalyticsDays(channelId, () =>
-  props.range);
-const streams = useStreamsInRange(channelId, () =>
-  props.range);
+const summary = useAnalyticsSummary(channelId, () => props.range);
+const days = useAnalyticsDays(channelId, () => props.range);
+const streams = useStreamsInRange(channelId, () => props.range);
 
 const daysState = usePanelState(days, (list: AnalyticsDay[]) =>
   list.length === 0);

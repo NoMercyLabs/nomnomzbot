@@ -15,17 +15,21 @@ import Diamond from '~icons/nnz/diamond';
 import type { CommunityMember } from '@/api/community';
 import type { PersonProfile } from '@/api/people';
 import { trustTiers, type TrustTier } from '@/api/vocabulary';
+import { lookup } from '@/lib/array';
 
-export type RoleKey = 'broadcaster' | 'moderator' | 'vip' | 'subscriber';
+export type RoleKey = 'broadcaster' | 'moderator' | 'vip' | 'subscriber' | 'artist';
 
 // Twitch's own badge per role in its own color (owner 2026-10-14). A subscriber and a moderator carry
 // the platform logo instead: both roles belong to one platform.
 export const roleIcons = {
   broadcaster: { icon: Crown, color: 'text-role-broadcaster' },
   vip: { icon: Diamond, color: 'text-role-vip' },
-} as const satisfies Record<Exclude<RoleKey, 'subscriber' | 'moderator'>, {
+  moderator: { icon: Diamond, color: 'text-role-moderator' },
+  subscriber: { icon: Diamond, color: 'text-role-subscriber' },
+  artist: { icon: Diamond, color: 'text-role-artist' },
+} as const satisfies Record<RoleKey, {
   icon: Component;
-  color: string;
+  color: `text-role-${RoleKey}`;
 }>;
 
 // Twitch sends a subscription tier as its code ("1000"); a person reads it as its number.
@@ -33,11 +37,13 @@ const tierNumbers = {
   1000: 1,
   2000: 2,
   3000: 3,
-} as const satisfies Record<number, number>;
+} as const satisfies Record<string, number>;
 
 // The tier number for a Twitch tier code, or null for a code Twitch has not defined.
 export function tierNumber(code: string | number | null | undefined): number | null {
-  return tierNumbers[Number(code) as keyof typeof tierNumbers] ?? null;
+  const digits = Number(code);
+
+  return lookup(tierNumbers, String(digits)) ?? null;
 }
 
 // The broadcaster is the channel's own account (a Twitch login is unique); a stored role row never makes
@@ -66,6 +72,10 @@ export function roleKeys(
 
   if (stored === 'moderator' || person.isModerator === true) {
     roles.push('moderator');
+  }
+
+  if (stored === 'artist' || person.isArtist === true) {
+    roles.push('artist');
   }
 
   if (person.isVip === true) {
@@ -107,7 +117,7 @@ const standings = ['affiliate', 'partner'] as const satisfies TwitchStanding[];
 
 // The person's Twitch channel status. Twitch sends "" for a channel with neither, and that is no status.
 export function twitchStanding(profile: PersonProfile | null): TwitchStanding | null {
-  return standings.find((standing: TwitchStanding) =>
+  return standings.find((standing) =>
     standing === profile?.identity.broadcasterType) ?? null;
 }
 
@@ -118,7 +128,7 @@ export function hasNoTwitchEmotes(profile: PersonProfile | null): boolean {
 
 // The tier the bot resolved for this person, or null when it could not say or sent a name we do not know.
 export function trustTier(profile: PersonProfile | null): TrustTier | null {
-  return trustTiers.find((tier: TrustTier) =>
+  return trustTiers.find((tier) =>
     tier === profile?.identity.trustTier) ?? null;
 }
 

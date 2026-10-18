@@ -15,6 +15,7 @@ import { ref } from 'vue';
 
 import { eventJournalKey } from '@/api/eventJournal';
 import { i18n } from '@/i18n';
+import { keysOf } from '@/lib/array';
 import { dashboardSettingsRoutes } from '../../route';
 import EventJournalView from '../EventJournalView.vue';
 import en from '../i18n/en.json';
@@ -69,7 +70,7 @@ vi.mock('@/api/access', () => ({
   }),
 }));
 
-const answers: Record<string, unknown> = {
+const answers = {
   '/export': '{"id":1}\n{"id":2}\n',
   '/import': {
     data: {
@@ -97,7 +98,7 @@ const answers: Record<string, unknown> = {
       { projectionName: 'analytics-dailies', eventsApplied: 9 },
     ],
   },
-};
+} as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -128,7 +129,7 @@ vi.mock('@/api/client', () => ({
         };
       }
 
-      const key = Object.keys(answers).find((suffix) => path.endsWith(suffix)) as string;
+      const key = keysOf(answers).find((suffix) => path.endsWith(suffix))!;
 
       return {
         data: answers[key],

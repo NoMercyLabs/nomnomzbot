@@ -31,7 +31,8 @@ import {
 import BackLink from '@/components/layout/BackLink.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -65,8 +66,7 @@ const triggers: UseQueryReturnType<TestTrigger[], Error> = useQuery({
 });
 const tester = useScriptTester(() => props.scriptId);
 
-const state = usePanelState(detail, () =>
-  false);
+const state = usePanelState(detail, () => false);
 const script = computed(() => detail.data.value);
 // The detail answer carries no run facts; the list row of the same script does.
 const ago = useFormattedTime(() => props.summary?.lastRanAt, 'relative', { live: true });

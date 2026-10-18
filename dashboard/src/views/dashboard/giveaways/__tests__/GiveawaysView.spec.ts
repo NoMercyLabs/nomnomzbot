@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
 import { i18n } from '@/i18n';
+import { lookup } from '@/lib/array';
 
 import en from '../i18n/en.json';
 import GiveawaysView from '../GiveawaysView.vue';
@@ -61,7 +62,7 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string) => {
-      const bodiesByPath: Record<string, unknown> = {
+      const bodiesByPath = {
         '/api/v{version}/giveaways/{id}/winners': winners,
         '/api/v{version}/giveaways/{id}/entries': entries,
         '/api/v{version}/giveaways/code-pools': pools,
@@ -76,10 +77,10 @@ vi.mock('@/api/client', () => ({
           ],
           isMinimum: false,
         },
-      };
+      } as const satisfies Record<string, unknown>;
 
       return {
-        data: { data: bodiesByPath[path] ?? giveaways },
+        data: { data: lookup(bodiesByPath, path) ?? giveaways },
         response: { status: 200, ok: true },
       };
     },

@@ -10,11 +10,7 @@
 <script setup lang="ts">
 // Facts as a label and a value (C11): a value with no source shows a dash and, when given, the reason.
 // The value slot lets a row show a StatusBadge or a link instead of plain text.
-export interface KeyValueItem {
-  label: string;
-  value?: string | number | null;
-  reason?: string;
-}
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 
 // subgrid: the list takes its columns from the parent grid, so stacked lists share one label column.
 defineProps<{ items: readonly KeyValueItem[]; subgrid?: boolean }>();

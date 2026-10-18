@@ -18,13 +18,14 @@ import CreditCard from '~icons/nnz/credit-card-front';
 import { useCancelPlan, useOpenBillingPortal, useResumePlan, useSubscription } from '@/api/billing';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { merge } from '@/lib/array';
+import { lookup, merge } from '@/lib/array';
 import { errorText } from '@/lib/errors';
 
 const { t, te, d } = useI18n();
@@ -59,7 +60,7 @@ const tones = {
   incomplete: 'off',
 } as const satisfies Record<string, StatusTone>;
 
-const tone = computed<StatusTone>(() => tones[(plan.value?.status ?? '') as keyof typeof tones] ?? 'off');
+const tone = computed<StatusTone>(() => lookup(tones, plan.value?.status) ?? 'off');
 const statusLabel = computed(() => {
   const key = `dashboard.settings.billing.status.${plan.value?.status ?? ''}`;
 

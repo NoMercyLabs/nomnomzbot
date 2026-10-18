@@ -140,9 +140,9 @@ export function useReadability(): UseReadability {
   const activePreset = computed<ReadabilityPreset | null>(
     () => {
       const names = keysOf(readabilityPresets);
-      const match = names.find((name: ReadabilityPreset) =>
+      const match = names.find((name) =>
         keysOf(readabilityDefaults).every(
-          (key: keyof Readability) => settings.value[key] === readabilityPresets[name][key],
+          (key) => settings.value[key] === readabilityPresets[name][key],
         ),
       );
 

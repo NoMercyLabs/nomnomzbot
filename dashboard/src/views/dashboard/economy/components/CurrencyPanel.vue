@@ -14,7 +14,8 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCurrencyConfig, useSaveCurrencyConfig, type CurrencyConfig } from '@/api/economy';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';

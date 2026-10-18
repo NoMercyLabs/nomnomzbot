@@ -25,17 +25,20 @@ export type BuildError = {
   line?: number;
   column?: number;
 };
+
 export type CompileFeedback = {
   ok: boolean;
   message: string;
   errors?: BuildError[];
 };
+
 export type VersionSummary = {
   id: string;
   version: number;
   validationStatus: string;
   isCurrent: boolean;
 };
+
 export type VersionsPage = { versions: VersionSummary[]; hasMore: boolean };
 export type EditorOutcome<T> = { ok: true; value: T } | { ok: false; message: string };
 
@@ -44,6 +47,7 @@ export type TestTrigger = {
   label: string;
   variables: EditorVariables;
 };
+
 export type TestRunRequest = {
   files: EditorFiles;
   variables: EditorVariables;
@@ -51,6 +55,7 @@ export type TestRunRequest = {
   trigger: string | null;
   role: string | null;
 };
+
 export type TestRunResult = {
   success: boolean;
   durationMs: number;
@@ -74,6 +79,7 @@ export type PreviewActionRequest = {
   params: JsonObject | null;
   variables: EditorVariables;
 };
+
 export type PreviewActionResult = {
   success: boolean;
   output: string | null;

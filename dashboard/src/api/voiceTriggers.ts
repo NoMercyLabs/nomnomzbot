@@ -84,7 +84,7 @@ async function readStickers(): Promise<ChannelAsset[]> {
   if (error !== undefined)
     throw failed('stickers', response.status, error);
 
-  return (data?.data ?? []).filter((asset: ChannelAsset): boolean => asset.kind === 'image');
+  return (data?.data ?? []).filter((asset): boolean => asset.kind === 'image');
 }
 
 export function useVoiceTriggers(

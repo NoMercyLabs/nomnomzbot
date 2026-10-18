@@ -19,12 +19,14 @@ import { useDeleteTimer } from '@/api/timers';
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { keysOf } from '@/lib/array';
 
 import ChatTriggersPanel from './components/ChatTriggersPanel.vue';
 import NewTimerDialog from './components/NewTimerDialog.vue';
@@ -46,7 +48,7 @@ const selected = computed<string | null>(() =>
     : null,
 );
 const row = computed<Timer | undefined>(() =>
-  (timers.data.value ?? []).find((item: Timer): boolean => item.id === selected.value),
+  (timers.data.value ?? []).find((item): boolean => item.id === selected.value),
 );
 
 function select(id: string | undefined): void {
@@ -66,19 +68,23 @@ const tabKeys = {
   timers: { read: 'timers:read', write: 'timers:write' },
   triggers: { read: 'chattriggers:read', write: 'chattriggers:write' },
 } as const;
-const allTabs = computed<PageTab[]>(() => [
+const VIEWS = keysOf(tabKeys);
+
+type TimersTab = (typeof VIEWS)[number];
+const allTabs = computed<PageTab<TimersTab>[]>(() => [
   { value: 'timers', label: t('dashboard.timers.tabs.timers') },
   { value: 'triggers', label: t('dashboard.timers.tabs.triggers') },
 ]);
 
-function canRead(tab: PageTab): boolean {
-  const keys = tabKeys[tab.value as keyof typeof tabKeys];
+function canRead(tab: PageTab<TimersTab>): boolean {
+  const keys = tabKeys[tab.value];
 
   return can(keys.read);
 }
 
-const tabs = computed<PageTab[]>(() => allTabs.value.filter(canRead));
-const view = usePageView(() => tabs.value.map((tab: PageTab): string => tab.value));
+const tabs = computed(() => allTabs.value.filter(canRead));
+const view = usePageView(VIEWS, 'view', () =>
+  tabs.value.map((tab) => tab.value));
 const canCreate = computed<boolean>(() =>
   can(tabKeys[view.value === 'triggers'
     ? 'triggers'

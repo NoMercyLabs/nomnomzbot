@@ -17,6 +17,7 @@ import { useTime } from '@/composables/useTime';
 
 import type { AdminScheduledJob } from '@/api/adminActivity';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import { lookup } from '@/lib/array';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -35,14 +36,14 @@ const { t } = useI18n();
 const time = useTime();
 const { can } = usePlatformCan();
 
-const tones: Record<string, StatusTone> = {
+const tones = {
   succeeded: 'ok',
   failed: 'bad',
   running: 'live',
-};
+} as const satisfies Record<string, StatusTone>;
 
 function toneOf(state: string): StatusTone {
-  return tones[state] ?? 'off';
+  return lookup(tones, state) ?? 'off';
 }
 
 function stamp(value: string | null | undefined): string {

@@ -7,7 +7,7 @@
 
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
-<script setup lang="ts">
+<script setup lang="ts" generic="Id extends string">
 // The board layout (C1): from laptop width, a fixed 12-column grid whose rows split the height. The page
 // never grows; each BoardCell holds a panel and the panel body scrolls. On a phone a scroll inside a scroll
 // is bad, so the board shows one panel at a time, full height, behind a tab per panel (?panel=).
@@ -20,7 +20,7 @@ import { usePageView } from '@/composables/usePageView';
 import { boardKey, type BoardPanel } from './board';
 
 const props = withDefaults(defineProps<{
-  panels: readonly BoardPanel[];
+  panels: readonly BoardPanel<Id>[];
   rows?: number;
   // A page with an optional panel builds its own board (useBoard on this component's ref) to know the span and
   // to draw the drawer; every other page lets the grid count its columns itself.
@@ -34,8 +34,7 @@ const rowTemplate = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr)
 // Stoney 2026-10-14: "constrained layouts need to be considered for". The sidebar takes its share of the window,
 // so the board measures itself and counts columns from what its panels declare they need (minWidth).
 const root = useTemplateRef('root');
-const state = props.board ?? useBoard('board', root, () =>
-  props.panels);
+const state = props.board ?? useBoard('board', root, () => props.panels);
 const wide = state.wide;
 const tabbed = state.tabbed;
 const tabPanels = computed(() =>

@@ -47,6 +47,7 @@ export const obsStatsKey = (channelId: string | null): KeyParts => [
   'obs',
   'stats',
 ];
+
 export const obsVirtualCamKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,

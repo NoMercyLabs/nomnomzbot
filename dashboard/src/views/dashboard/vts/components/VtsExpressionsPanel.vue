@@ -12,7 +12,8 @@
 import { ref } from 'vue';
 
 import { useVtsControl, type VtsModelInventory } from '@/api/vts';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
 import {
   Select,

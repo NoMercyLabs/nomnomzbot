@@ -24,7 +24,8 @@ import {
   type TtsLexiconEntry,
 } from '@/api/ttsRules';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {

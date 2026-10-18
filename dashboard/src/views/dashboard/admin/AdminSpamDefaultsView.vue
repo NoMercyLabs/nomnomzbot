@@ -20,7 +20,6 @@ import {
   useAdminSpamDefaults,
   useSaveAdminSpamDefaults,
   type SpamPolicy,
-  type SpamInvariant,
   type SpamSetting,
   type SpamSettings,
 } from '@/api/adminSpamDefaults';
@@ -61,12 +60,12 @@ const camel = (key: string): string => key.charAt(0).toLowerCase() + key.slice(1
 
 function numbersOf(source: Record<string, number | string | boolean | undefined>): Draft {
   return Object.fromEntries(
-    Object.entries(source).map(([key, value]): [string, Value] => [
+    Object.entries(source).map(([key, value]) => [
       key,
       typeof value === 'boolean'
         ? value
         : Number(value),
-    ]),
+    ] as const satisfies readonly [string, Value]),
   );
 }
 
@@ -115,9 +114,9 @@ const groups = computed<{ group: string; settings: SpamSetting[] }[]>(() => {
     }
   }
 
-  return order.map((group: string) => ({
+  return order.map((group) => ({
     group,
-    settings: catalog.value.filter((setting: SpamSetting) => setting.group === group),
+    settings: catalog.value.filter((setting) => setting.group === group),
   }));
 });
 
@@ -166,15 +165,15 @@ const exonerationAboveCampaign = computed<boolean>(() => {
 });
 
 const thresholdBlank = computed<boolean>(() =>
-  Object.values(thresholds.value).some((value: Value) => value === '' || Number(value) < 0));
+  Object.values(thresholds.value).some((value) => value === '' || Number(value) < 0));
 
 const hasInvalid = computed<boolean>(() =>
-  catalog.value.some((setting: SpamSetting) => outOfRange(setting)) ||
+  catalog.value.some((setting) => outOfRange(setting)) ||
   exonerationAboveCampaign.value ||
   thresholdBlank.value);
 
 const invariants = computed<string[]>(() =>
-  (policy.data.value?.invariants ?? []).map((invariant: SpamInvariant): string =>
+  (policy.data.value?.invariants ?? []).map((invariant): string =>
     hasCopy(`invariants.${invariant.decision.toLowerCase()}`)
       ? copy(`invariants.${invariant.decision.toLowerCase()}`)
       : invariant.guaranteeKey));
@@ -211,10 +210,10 @@ function inactiveReasonOf(setting: SpamSetting): string | undefined {
 }
 
 function body(): SpamSettings {
-  const settings: Record<string, Value | Draft> = {
+  const settings = {
     ...draft.value,
     [THRESHOLDS_KEY]: { ...thresholds.value },
-  };
+  } as const satisfies Record<string, Value | Draft>;
 
   return settings as SpamSettings;
 }

@@ -37,11 +37,11 @@ export function filterHelpers(
   query: string,
 ): readonly TemplateHelper[] {
   const needle = query.toLowerCase();
-  const starts = helpers.filter((helper: TemplateHelper) =>
+  const starts = helpers.filter((helper) =>
     helper.key.toLowerCase().startsWith(needle),
   );
   const contains = helpers.filter(
-    (helper: TemplateHelper) =>
+    (helper) =>
       !helper.key.toLowerCase().startsWith(needle) && helper.key.toLowerCase().includes(needle),
   );
 
@@ -68,7 +68,7 @@ export function unknownPlaceholders(text: string, helpers: TemplateHelper[]): st
   for (const match of text.matchAll(/\{([^{}\s][^{}]*)\}/g)) {
     const name: string = (match[1] ?? '').trim().toLowerCase();
 
-    if (helpers.some((helper: TemplateHelper) => matches(helper, name))) continue;
+    if (helpers.some((helper) => matches(helper, name))) continue;
 
     if (!unknown.includes(match[0])) {
       unknown.push(match[0]);
@@ -94,7 +94,7 @@ export function groupHelpers(
     groups.set(group, [...(groups.get(group) ?? []), helper]);
   }
 
-  return [...groups].map(([group, grouped]: [string, TemplateHelper[]]) => ({
+  return [...groups].map(([group, grouped]) => ({
     group,
     helpers: grouped,
   }));

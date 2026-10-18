@@ -45,18 +45,18 @@ function toPairs(value: JsonValue | undefined): Pair[] {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     return [];
 
-  return Object.entries(value).map(([name, saved]: [string, JsonValue | undefined]) =>
+  return Object.entries(value).map(([name, saved]) =>
     ({ name, value: itemText(saved) }));
 }
 
 const named = computed(() =>
-  pairs.value.filter((pair: Pair) =>
+  pairs.value.filter((pair) =>
     pair.name.trim() !== ''));
 const twice = computed(() =>
   named.value
-    .map((pair: Pair) =>
+    .map((pair) =>
       pair.name.trim())
-    .find((name: string, index: number, names: string[]) =>
+    .find((name, index, names) =>
       names.indexOf(name) !== index));
 
 function save(): void {
@@ -64,7 +64,7 @@ function save(): void {
 
   const value = named.value.length === 0
     ? undefined
-    : Object.fromEntries(named.value.map((pair: Pair) =>
+    : Object.fromEntries(named.value.map((pair) =>
         [pair.name.trim(), pair.value]));
 
   sent = jsonOf(value);

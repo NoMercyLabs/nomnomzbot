@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
+import { lookup } from '@/lib/array';
 
 import { actionRows, blockRows, choiceContext, type FieldRow, itemText, listItem, settingsAfter } from '../components/stepFields';
 
@@ -42,10 +43,10 @@ function field(over: Partial<PipelineActionField>): PipelineActionField {
   };
 }
 
-const labels: Record<string, string> = { 'pipelineField.message': 'Message' };
+const labels = { 'pipelineField.message': 'Message' } as const satisfies Record<string, string>;
 const words = {
   t: (key: string) =>
-    labels[key] ?? key,
+    lookup(labels, key) ?? key,
   te: (key: string) =>
     key in labels,
   text: (_text: unknown, fallback: string) =>
@@ -53,7 +54,7 @@ const words = {
 };
 
 const brief = (rows: FieldRow[]): string[] =>
-  rows.map((row: FieldRow) =>
+  rows.map((row) =>
     `${row.name}:${row.control}:${String(row.value)}`);
 
 describe('the choices a picker narrows by', () => {
@@ -129,7 +130,7 @@ describe('the settings an edit writes', () => {
     words,
   );
   const named = (name: string): FieldRow =>
-    rows.find((row: FieldRow) =>
+    rows.find((row) =>
       row.name === name) as FieldRow;
 
   it('clears the saved playlist when the provider changes', () => {
@@ -218,7 +219,7 @@ describe('the step form rows', () => {
       { value: 'dark_green', label: 'Dark green' },
     ]);
 
-    expect(rows.every((row: FieldRow) =>
+    expect(rows.every((row) =>
       row.target === 'action')).toBe(true);
   });
 
@@ -247,7 +248,7 @@ describe('the step form rows', () => {
     expect(rows[1]?.choices.map((choice) =>
       choice.value)).toEqual(['eq', 'ne', 'gt', 'lt', 'gte', 'lte', 'contains']);
 
-    expect(rows.every((row: FieldRow) =>
+    expect(rows.every((row) =>
       row.target === 'block_config')).toBe(true);
   });
 

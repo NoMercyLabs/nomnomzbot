@@ -99,8 +99,7 @@ beforeEach(() => {
   held = ['feature:read', 'feature:write'];
   http.GET.mockImplementation(async () => ok(features));
 
-  answerHeldKeys(http.GET, () =>
-    held);
+  answerHeldKeys(http.GET, () => held);
 
   http.POST.mockImplementation(async (_path, init) => {
     const key = (init as { params: { path: { featureKey: string } } }).params.path.featureKey;

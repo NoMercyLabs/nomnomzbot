@@ -101,7 +101,7 @@ const showing = computed<boolean>(() => matches.value.length > 0);
 const unknown = computed<string[]>(() =>
   known.value.length > 0
     ? unknownPlaceholders(text.value, known.value)
-        .filter((name: string) => !props.localNames.some((local: string) => braced(local) === name))
+        .filter((name) => !props.localNames.some((local) => braced(local) === name))
     : [],
 );
 

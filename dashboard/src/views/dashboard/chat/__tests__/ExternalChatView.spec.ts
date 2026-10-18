@@ -44,8 +44,7 @@ const hub = vi.hoisted(() => ({
   ),
 }));
 
-vi.mock('@/realtime/dashboardHub', () =>
-  hub);
+vi.mock('@/realtime/dashboardHub', () => hub);
 
 const broadcasterId = '4242';
 

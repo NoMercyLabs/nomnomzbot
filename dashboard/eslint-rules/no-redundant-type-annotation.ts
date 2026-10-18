@@ -168,7 +168,6 @@ function addsIndex(declared: ts.Type, value: ts.Type, checker: ts.TypeChecker): 
   return checker.getIndexInfosOfType(declared).length > checker.getIndexInfosOfType(value).length;
 }
 
-const entryReaders = new Set(['entries', 'keys', 'values']);
 const shapeDepth = 4;
 
 // `as const` drops what the literal leaves out and freezes every list. A shape with an optional
@@ -199,53 +198,6 @@ function hasLooseShape(type: ts.Type, checker: ts.TypeChecker, depth: number): b
   return inner.some((member) => hasLooseShape(member, checker, depth - 1));
 }
 
-function isLiteralKey(
-  node: TSESTree.Expression,
-  toTsType: (node: TSESTree.Node) => ts.Type,
-): boolean {
-  if (node.type === 'Literal')
-    return true;
-
-  const key = toTsType(node);
-
-  return (key.isUnion()
-    ? key.types
-    : [key]).every((member) => member.isLiteral());
-}
-
-// A read that looks a key up by name: `t.name`, `t['name']`, `t[preset]` with a literal-typed
-// `preset`, `Object.entries(t)`, `for (k in t)`, `{ ...t }`.
-function isNamedRead(
-  identifier: TSESTree.Node,
-  toTsType: (node: TSESTree.Node) => ts.Type,
-): boolean {
-  const parent = identifier.parent;
-
-  if (parent === undefined)
-    return false;
-
-  if (parent.type === 'MemberExpression' && parent.object === identifier) {
-    return !parent.computed || isLiteralKey(parent.property as TSESTree.Expression, toTsType);
-  }
-
-  if (parent.type === 'CallExpression' && parent.arguments[0] === identifier) {
-    const callee = parent.callee;
-
-    return (
-      callee.type === 'MemberExpression' &&
-      callee.object.type === 'Identifier' &&
-      callee.object.name === 'Object' &&
-      callee.property.type === 'Identifier' &&
-      entryReaders.has(callee.property.name)
-    );
-  }
-
-  if (parent.type === 'ForInStatement')
-    return parent.right === identifier;
-
-  return parent.type === 'SpreadElement';
-}
-
 // `t.x = 1`, `t.x++`, `delete t.x`: a frozen object would reject them.
 function isWrite(identifier: TSESTree.Node): boolean {
   const member = identifier.parent;
@@ -263,16 +215,14 @@ function isWrite(identifier: TSESTree.Node): boolean {
 }
 
 // A constant object states its type as `as const satisfies T`. It keeps a plain annotation when
-// the code writes to it, when `as const` would drop an optional field or freeze a list, and, for
-// an open-keyed table (`Record<string, V>`), when something reads it by a computed key or from
-// another file.
+// the code writes to it, or when `as const` would drop an optional field or freeze a list. A
+// string-keyed table moves too: a read by a computed key narrows the key (oneOf), the table stays exact.
 function isConstantObject(
   node: TSESTree.VariableDeclarator,
   init: TSESTree.Expression,
   declared: ts.Type,
   checker: ts.TypeChecker,
   scope: Readonly<TSESLint.Scope.ScopeManager>,
-  toTsType: (node: TSESTree.Node) => ts.Type,
 ): boolean {
   if (init.type !== 'ObjectExpression' || init.properties.length === 0)
     return false;
@@ -284,16 +234,18 @@ function isConstantObject(
     (reference) => reference.identifier !== node.id,
   );
 
-  if (references.some((reference) => isWrite(reference.identifier)))
+  if (checker.getIndexInfosOfType(declared).length > 0 && references.some(isHandedOn))
     return false;
 
-  if (checker.getIndexInfosOfType(declared).length === 0)
-    return true;
+  return !references.some((reference) => isWrite(reference.identifier));
+}
 
-  if (node.parent.parent?.type === 'ExportNamedDeclaration')
-    return false;
+// An open table handed on inside an options object (`createI18n({ messages })`) lets that call
+// infer its keys from the annotation; `as const` would narrow them to the literal's keys.
+function isHandedOn(reference: TSESLint.Scope.Reference): boolean {
+  const parent = reference.identifier.parent;
 
-  return references.every((reference) => isNamedRead(reference.identifier, toTsType));
+  return parent?.type === 'Property' && parent.value === reference.identifier;
 }
 
 function isModuleScope(node: TSESTree.VariableDeclarator): boolean {
@@ -322,17 +274,14 @@ function isConstantList(
 
   const element = checker.getIndexTypeOfType(declared, ts.IndexKind.Number);
 
-  return element !== undefined && !isLoose(element) && !isWidenedForReading(element, checker);
+  return element !== undefined && !isLoose(element) && !holdsList(element, checker);
 }
 
-// `readonly string[]` exists so `.includes(someString)` compiles, and a row that holds a list
-// (`entries: NavEntry[]`) turns into a union of different tuples that `.flatMap()` cannot read.
-function isWidenedForReading(element: ts.Type, checker: ts.TypeChecker): boolean {
-  if ((element.flags & primitiveFlags) !== 0)
-    return true;
-
+// A row that holds a list (`entries: NavEntry[]`) turns into a union of different tuples that
+// `.flatMap()` cannot read.
+function holdsList(element: ts.Type, checker: ts.TypeChecker): boolean {
   if (element.isUnion())
-    return element.types.some((member) => isWidenedForReading(member, checker));
+    return element.types.some((member) => holdsList(member, checker));
 
   return element
     .getProperties()
@@ -385,14 +334,100 @@ function arrayMethodOf(node: Callback, checker: ts.TypeChecker, services: Servic
     : null;
 }
 
-// A `readonly T[]` return is judged by its row: the list type itself carries optional members.
-function looksLoose(declared: ts.Type, checker: ts.TypeChecker): boolean {
-  if (!checker.isArrayType(declared) || declared.symbol.name !== 'ReadonlyArray')
-    return hasLooseShape(declared, checker, shapeDepth);
+function propertyName(property: TSESTree.ObjectLiteralElement): string | null {
+  if (property.type !== 'Property' || property.computed)
+    return null;
+
+  if (property.key.type === 'Identifier')
+    return property.key.name;
+
+  return property.key.type === 'Literal'
+    ? String(property.key.value)
+    : null;
+}
+
+// `as const` freezes the lists the literal writes out. It loosens a literal when such a list is
+// declared mutable; a list that arrives through a spread or a variable is not frozen. An optional
+// field the literal leaves out is fine: the owner types the return, and the type check names a
+// read of the dropped field.
+function loosensLiteral(
+  literal: TSESTree.Node,
+  declared: ts.Type,
+  checker: ts.TypeChecker,
+  services: Services,
+  depth: number = shapeDepth,
+): boolean {
+  if (depth === 0)
+    return false;
+
+  if (declared.isUnion())
+    return declared.types.some((member) =>
+      loosensLiteral(literal, member, checker, services, depth));
+
+  if (literal.type === 'ArrayExpression')
+    return loosensList(literal, declared, checker, services, depth);
+
+  if (literal.type !== 'ObjectExpression')
+    return false;
+
+  return declared.getProperties().some((field) => {
+    const stated = literal.properties.find((property) => propertyName(property) === field.name);
+
+    return (
+      stated?.type === 'Property' &&
+      loosensLiteral(stated.value, checker.getTypeOfSymbol(field), checker, services, depth - 1)
+    );
+  });
+}
+
+function loosensList(
+  literal: TSESTree.ArrayExpression,
+  declared: ts.Type,
+  checker: ts.TypeChecker,
+  services: Services,
+  depth: number,
+  mutableOk: boolean = false,
+): boolean {
+  if (checker.isTupleType(declared) || !checker.isArrayType(declared))
+    return false;
+
+  if (declared.symbol.name !== 'ReadonlyArray' && !mutableOk)
+    return true;
 
   const row = checker.getIndexTypeOfType(declared, ts.IndexKind.Number);
 
-  return row === undefined || hasLooseShape(row, checker, shapeDepth);
+  if (row === undefined)
+    return true;
+
+  return literal.elements.some(
+    (element) =>
+      element !== null &&
+      element.type !== 'SpreadElement' &&
+      loosensLiteral(element, row, checker, services, depth - 1),
+  );
+}
+
+// `as const` makes a tuple readonly, so the satisfies type says so too. `flatMap` reads a
+// readonly list as well, so its mutable list return turns readonly the same way.
+function isMutableFlatList(declared: ts.Type, method: string, checker: ts.TypeChecker): boolean {
+  return method === 'flatMap' && checker.isArrayType(declared) && declared.symbol.name === 'Array';
+}
+
+function isTuple(type: ts.Type, checker: ts.TypeChecker): type is ts.TupleTypeReference {
+  return checker.isTupleType(type);
+}
+
+function frozenTypeText(
+  declared: ts.Type,
+  text: string,
+  method: string,
+  checker: ts.TypeChecker,
+): string {
+  const mutableTuple = isTuple(declared, checker) && !declared.target.readonly;
+
+  return mutableTuple || isMutableFlatList(declared, method, checker)
+    ? `readonly ${text}`
+    : text;
 }
 
 function isLiteral(node: TSESTree.Node | null): node is TSESTree.Expression {
@@ -420,8 +455,6 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
     const checker = services.program.getTypeChecker();
     const toType = (node: TSESTree.TypeNode): ts.Type =>
       checker.getTypeFromTypeNode(services.esTreeNodeToTSNodeMap.get(node) as ts.TypeNode);
-    const toTsType = (node: TSESTree.Node): ts.Type =>
-      checker.getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(node));
 
     const functions: TSESTree.ReturnStatement[][] = [];
 
@@ -475,7 +508,11 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
       }
     };
 
-    const checkReturn = (node: Callback, returns: TSESTree.ReturnStatement[]): void => {
+    const checkReturn = (
+      node: Callback,
+      returns: TSESTree.ReturnStatement[],
+      method: string,
+    ): void => {
       const annotation = node.returnType;
 
       if (annotation === undefined || node.async || node.generator) return;
@@ -494,10 +531,20 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
 
       if (literals.length === 0 || (isLoose(declared) && !unresolved)) return;
 
-      // Every return must be a literal, and `as const` must not freeze a list or drop an optional field.
-      const safe =
-        !unresolved && literals.length === returned.length && !looksLoose(declared, checker);
-      const typeText = context.sourceCode.getText(annotation.typeAnnotation);
+      // `as const` must not freeze a list the code mutates; a return that is no literal
+      // (`return reward`) already has its type and stays as it is.
+      const flat = isMutableFlatList(declared, method, checker);
+      const loosens = (literal: TSESTree.Expression): boolean =>
+        flat && literal.type === 'ArrayExpression'
+          ? loosensList(literal, declared, checker, services, shapeDepth, true)
+          : loosensLiteral(literal, declared, checker, services);
+      const safe = !unresolved && !literals.some(loosens);
+      const typeText = frozenTypeText(
+        declared,
+        context.sourceCode.getText(annotation.typeAnnotation),
+        method,
+        checker,
+      );
 
       context.report({
         node: annotation,
@@ -519,7 +566,7 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
       if (method === null) return;
 
       checkParameters(node, method);
-      checkReturn(node, returns);
+      checkReturn(node, returns, method);
     };
 
     return {
@@ -551,7 +598,7 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
         const scope = context.sourceCode.scopeManager;
         const declared = toType(annotation.typeAnnotation);
 
-        if (scope !== null && isConstantObject(node, init, declared, checker, scope, toTsType)) {
+        if (scope !== null && isConstantObject(node, init, declared, checker, scope)) {
           const typeText = context.sourceCode.getText(annotation.typeAnnotation);
 
           context.report({

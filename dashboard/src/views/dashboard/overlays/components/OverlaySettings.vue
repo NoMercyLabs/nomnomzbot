@@ -25,8 +25,10 @@ import {
   type WidgetSettingsField,
 } from '@/api/widgets';
 import { ApiError } from '@/api/errors';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -46,8 +48,7 @@ const { t } = useI18n();
 const text = useLocalizedText();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
-const schema = useWidgetSchema(channelId, () =>
-  props.widget.id);
+const schema = useWidgetSchema(channelId, () => props.widget.id);
 const save = useSaveWidgetSettings(channelId);
 
 const fields = computed<WidgetSettingsField[]>(() => schema.data.value?.fields ?? []);
@@ -103,14 +104,14 @@ const groups = computed<Group[]>(() => {
     byName.set(name, [...(byName.get(name) ?? []), field]);
   }
 
-  return [...byName].map(([name, list]): Group => ({ name, fields: list }));
+  return [...byName].map(([name, list]) => ({ name, fields: list }) as const satisfies Group);
 });
 
 const rawKeys = computed<KeyValueItem[]>(() =>
-  Object.entries(saved.value).map(([key, value]): KeyValueItem => ({
+  Object.entries(saved.value).map(([key, value]) => ({
     label: key,
     value: JSON.stringify(value),
-  })),
+  }) as const satisfies KeyValueItem),
 );
 
 // The bot answers 404 when an overlay declares no settings schema: that is an answer, not a failure,

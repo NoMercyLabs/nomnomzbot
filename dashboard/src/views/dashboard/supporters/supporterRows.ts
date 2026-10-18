@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { ActivityEvent } from '@/api/home';
+import { lookup } from '@/lib/array';
 import {
   parseActivityData,
   pickCount,
@@ -98,7 +99,7 @@ export function subscriptionRows(events: readonly ActivityEvent[]): Subscription
   const rows: SubscriptionRow[] = [];
 
   for (const event of events) {
-    const kind = subscriptionKinds[event.type as keyof typeof subscriptionKinds];
+    const kind = lookup(subscriptionKinds, event.type);
 
     if (kind !== undefined) {
       rows.push(subscriptionRow(event, kind));

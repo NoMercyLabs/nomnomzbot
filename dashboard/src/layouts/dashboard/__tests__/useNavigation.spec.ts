@@ -48,7 +48,7 @@ const page = defineComponent({ render: () => h('div') });
 function makeRouter(names: string[]): Router {
   return createRouter({
     history: createMemoryHistory(),
-    routes: names.map((name: string) => ({
+    routes: names.map((name) => ({
       name,
       path: `/${name}`,
       component: page,
@@ -138,7 +138,7 @@ describe('the dashboard navigation', () => {
     const adminPages = ['dashboard-admin-users', 'dashboard-admin-billing', 'dashboard-admin-audit-log'];
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: adminPages.map((name: string) => ({
+      routes: adminPages.map((name) => ({
         name,
         path: `/${name}`,
         component: page,

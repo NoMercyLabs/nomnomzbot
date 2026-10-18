@@ -36,6 +36,7 @@ export const mediaShareQueueKey = (channelId: string | null): KeyParts => [
   channelId,
   'media-share-queue',
 ];
+
 export const mediaShareConfigKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,

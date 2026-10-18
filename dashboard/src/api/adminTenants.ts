@@ -31,7 +31,9 @@ export const tenantMembersKey = (id: string | null, search: string): KeyParts =>
   'members',
   search,
 ];
+
 export const tenantLimitsKey = (id: string | null): KeyParts => ['admin', 'tenant', id, 'limits'];
+
 export const tenantErasePreviewKey = (id: string | null): KeyParts => [
   'admin',
   'tenant',

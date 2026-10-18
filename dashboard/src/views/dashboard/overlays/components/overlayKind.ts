@@ -54,7 +54,7 @@ const PLAIN: OverlayKind = { key: 'overlay', icon: null };
 
 export function overlayKind(eventSubscriptions: readonly string[]): OverlayKind {
   const rule: KindRule | undefined = RULES.find((candidate: KindRule) =>
-    candidate.events.some((event: string) => eventSubscriptions.includes(event)),
+    candidate.events.some((event) => eventSubscriptions.includes(event)),
   );
 
   return rule ?? PLAIN;

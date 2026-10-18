@@ -49,7 +49,7 @@ function makeRouter(): Router {
 
   return createRouter({
     history: createMemoryHistory(),
-    routes: names.map((name: string) => ({
+    routes: names.map((name) => ({
       name,
       path: `/${name}`,
       component: page,

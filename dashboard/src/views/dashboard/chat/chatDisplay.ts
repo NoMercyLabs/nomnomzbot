@@ -92,8 +92,8 @@ export function splitMentions(text: string, username: string | null): MentionPar
 
   return text
     .split(pattern)
-    .filter((part: string) => part !== '')
-    .map((part: string) => ({
+    .filter((part) => part !== '')
+    .map((part) => ({
       text: part,
       mention: me?.test(part) ?? false,
       at: part.startsWith('@'),

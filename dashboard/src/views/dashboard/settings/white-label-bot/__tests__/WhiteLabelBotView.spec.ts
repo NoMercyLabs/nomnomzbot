@@ -67,8 +67,7 @@ async function open(status: unknown): Promise<void> {
       ? ok(status)
       : ok({ authorizeUrl: 'https://id.twitch.tv/authorize?x=1', state: 's' }));
 
-  answerHeldKeys(http.GET, () =>
-    held);
+  answerHeldKeys(http.GET, () => held);
 
   const queries: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 

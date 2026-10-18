@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Instellen",
       "federation": {
         "title": "Delen met andere bots",
         "description": "Kies wat dit kanaal deelt met, of aanneemt van, andere vertrouwde NomNomzBot-installaties. Alles staat uit tot je het aanzet.",

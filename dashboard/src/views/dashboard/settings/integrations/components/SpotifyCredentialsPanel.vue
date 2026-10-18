@@ -16,7 +16,8 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
 import { useClearSpotifyCredentials, useSaveSpotifyCredentials, useSpotifyCredentials } from '@/api/integrations';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

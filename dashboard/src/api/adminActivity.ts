@@ -24,6 +24,7 @@ import { merge, type KeyParts } from '@/lib/array';
 
 export type AdminEventSubTenantHealth = components['schemas']['AdminEventSubTenantHealth'];
 export type AdminEventSubTopicHealth = components['schemas']['AdminEventSubTopicHealth'];
+
 export type AdminEventSubHealthPage =
   components['schemas']['PaginatedResponseOfAdminEventSubTenantHealth'];
 
@@ -64,8 +65,10 @@ export function useAdminEventSubHealth(
 }
 
 export type AdminWebhookDelivery = components['schemas']['AdminWebhookDelivery'];
+
 export type AdminWebhookDeliveriesPage =
   components['schemas']['PaginatedResponseOfAdminWebhookDelivery'];
+
 export type AdminWebhookReplayResult = components['schemas']['AdminWebhookReplayResult'];
 
 export const adminWebhookDeliveriesPrefix: KeyParts = ['admin', 'webhook-deliveries'];

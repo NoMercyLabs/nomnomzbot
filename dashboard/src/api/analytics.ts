@@ -28,6 +28,7 @@ export const ANALYTICS_RANGES = {
   r90: 90,
   r365: 365,
 } as const satisfies Record<string, number>;
+
 export type AnalyticsRange = keyof typeof ANALYTICS_RANGES;
 
 export type RangeDates = { from: string; to: string };
@@ -137,7 +138,7 @@ async function readStreams(channelId: string, dates: RangeDates): Promise<Stream
       throw failed('analytics streams', response.status, error);
 
     const batch = data?.data ?? [];
-    const inRange = batch.filter((row: StreamRow) => (row.startedAt ?? '').slice(0, 10) >= dates.from);
+    const inRange = batch.filter((row) => (row.startedAt ?? '').slice(0, 10) >= dates.from);
 
     rows.push(...inRange);
 

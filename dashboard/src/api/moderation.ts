@@ -130,7 +130,7 @@ async function readStanding(channelId: string, userId: string): Promise<Moderati
 
   const standings = data?.data?.standings ?? [];
 
-  return standings.find((standing: ModerationStanding) =>
+  return standings.find((standing) =>
     standing.provider === provider) ?? null;
 }
 

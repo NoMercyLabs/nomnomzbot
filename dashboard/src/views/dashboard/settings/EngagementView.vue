@@ -16,7 +16,8 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useEngagementConfig, useSaveEngagementConfig } from '@/api/engagement';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';

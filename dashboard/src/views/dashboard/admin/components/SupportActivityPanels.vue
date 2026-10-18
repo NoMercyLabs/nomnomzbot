@@ -48,10 +48,8 @@ const channelId = computed<string | null>(
   () => picked.value ?? connections.value[0]?.broadcasterId ?? null,
 );
 
-const commands = useSupportTenantItems('commands', channelId, () =>
-  props.justification);
-const pipelines = useSupportTenantItems('pipelines', channelId, () =>
-  props.justification);
+const commands = useSupportTenantItems('commands', channelId, () => props.justification);
+const pipelines = useSupportTenantItems('pipelines', channelId, () => props.justification);
 const itemQuery = computed(() =>
   kind.value === 'commands'
     ? commands

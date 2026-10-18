@@ -24,7 +24,7 @@ const { t, n, locale } = useI18n();
 const LEVELS = ['bg-muted', 'bg-foreground/30', 'bg-foreground/60', 'bg-foreground'] as const;
 
 const most = computed(() =>
-  Math.max(0, ...props.cells.map((cell: ChatHourCell) =>
+  Math.max(0, ...props.cells.map((cell) =>
     Number(cell.messages))));
 
 function tone(day: number, hour: number): string {

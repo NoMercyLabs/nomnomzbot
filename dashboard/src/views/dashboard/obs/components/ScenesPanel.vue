@@ -12,7 +12,8 @@
 import { computed } from 'vue';
 
 import { useObsSwitchScene, type ObsScene } from '@/api/obs';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 

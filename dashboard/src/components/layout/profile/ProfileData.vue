@@ -15,7 +15,8 @@ import { useI18n } from 'vue-i18n';
 
 import { teamRoles } from '@/api/permissions';
 import type { PersonProfile } from '@/api/people';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import ProfileShoutoutLine from '@/components/layout/profile/ProfileShoutoutLine.vue';
 import { shortDate } from '@/lib/time';
 

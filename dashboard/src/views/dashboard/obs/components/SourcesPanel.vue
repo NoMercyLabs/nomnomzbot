@@ -19,7 +19,8 @@ import Locked from '~icons/nnz/locked';
 import UnLocked from '~icons/nnz/un-locked';
 
 import { useObsSceneItemFlag, useObsSceneItems, type ObsSceneItem } from '@/api/obsSources';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';

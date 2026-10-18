@@ -62,7 +62,7 @@ async function open(): Promise<void> {
 
 const saveButton = (): HTMLButtonElement =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find(
-    (item: HTMLButtonElement) => item.textContent?.trim() === 'Save',
+    (item) => item.textContent?.trim() === 'Save',
   ) as HTMLButtonElement;
 const prefixInput = (): HTMLInputElement =>
   document.body.querySelector<HTMLInputElement>('input[aria-label="Command prefix"]') as HTMLInputElement;
@@ -80,8 +80,7 @@ beforeEach(() => {
   held = ['setup:read', 'setup:write'];
   http.GET.mockResolvedValue({ data: { data: stored }, response: { ok: true, status: 200 } });
 
-  answerHeldKeys(http.GET, () =>
-    held);
+  answerHeldKeys(http.GET, () => held);
 
   vi.stubGlobal(
     'ResizeObserver',

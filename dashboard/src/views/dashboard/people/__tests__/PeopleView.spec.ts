@@ -484,7 +484,7 @@ describe('PeopleView', () => {
     expect(active()).toBe('Moderation');
 
     const data = Array.from(document.body.querySelectorAll<HTMLElement>('[data-person-detail] [role="tab"]'))
-      .find((tab: HTMLElement) => tab.textContent?.trim() === 'Data');
+      .find((tab) => tab.textContent?.trim() === 'Data');
 
     data!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     await flushPromises();

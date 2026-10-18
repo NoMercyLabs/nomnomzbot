@@ -11,13 +11,15 @@
 import { defineComponent } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { lookup } from '@/lib/array';
+
 const page = { default: defineComponent({ name: 'TestPage', render: () => null }) };
 // A key of this test's own page, not of the app, so the lint key check does not apply to it.
 const titleKey: string = 'page.title';
-const pageWords: Record<string, { page: { title: string } }> = {
+const pageWords = {
   en: { page: { title: 'Welcome' } },
   nl: { page: { title: 'Welkom' } },
-};
+} as const satisfies Record<string, { page: { title: string } }>;
 
 async function freshI18n(): Promise<typeof import('@/i18n')> {
   vi.resetModules();
@@ -37,7 +39,7 @@ describe('switching the language', () => {
 
     await loadPage(
       async () => page,
-      async (locale: string) => ({ default: pageWords[locale]! }),
+      async (locale: string) => ({ default: lookup(pageWords, locale)! }),
     );
 
     expect(i18n.global.t(titleKey)).toBe('Welcome');
@@ -70,7 +72,7 @@ describe('switching the language', () => {
 
     await loadPage(
       async () => page,
-      async (locale: string) => ({ default: pageWords[locale]! }),
+      async (locale: string) => ({ default: lookup(pageWords, locale)! }),
     );
 
     await starting;

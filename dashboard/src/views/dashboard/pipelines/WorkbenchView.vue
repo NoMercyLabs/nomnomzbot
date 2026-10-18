@@ -30,7 +30,6 @@ import {
   usePipelineCatalog,
   useSavePipeline,
   useTestRunPipeline,
-  type PipelineActionDescriptor,
   type PipelineStep,
   type PipelineTestRun,
 } from '@/api/pipelines';
@@ -57,7 +56,7 @@ import StepPalette from './components/StepPalette.vue';
 import { runMarks, runSummary } from './components/stepRun';
 import TestRunInput from './components/TestRunInput.vue';
 import { buildStepTree, findNode, findStepNode, type StepLane } from './components/stepTree';
-import { startSources, type StartSource } from './components/stepWords';
+import { startSources } from './components/stepWords';
 import { useStepDraft } from './useStepDraft';
 
 const { t } = useI18n();
@@ -97,7 +96,7 @@ const stepCount = computed(() => draft.steps.value.length);
 const descriptors = computed(
   () =>
     new Map(
-      (catalog.data.value?.actions ?? []).map((action: PipelineActionDescriptor) => [
+      (catalog.data.value?.actions ?? []).map((action) => [
         action.type,
         action,
       ]),
@@ -110,7 +109,7 @@ const starts = computed(() => {
   if (sources.value.length === 0)
     return t('dashboard.pipelines.workbench.starts.none');
 
-  const named = sources.value.map((source: StartSource) =>
+  const named = sources.value.map((source) =>
     t(`dashboard.pipelines.workbench.starts.${source.kind}`, { name: source.name }),
   );
 

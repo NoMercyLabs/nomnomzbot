@@ -39,7 +39,7 @@ const requesters = computed<Requester[]>(() => requestersIn(props.rows));
 const picked = ref<string>('');
 const confirmOpen = ref<boolean>(false);
 const chosen = computed<Requester | undefined>(() =>
-  requesters.value.find((requester: Requester) => requester.name === picked.value),
+  requesters.value.find((requester) => requester.name === picked.value),
 );
 
 function confirmRemove(): void {

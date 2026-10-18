@@ -24,8 +24,8 @@ export interface TimerDraft {
 export function messagesOf(lines: string): string[] {
   return lines
     .split('\n')
-    .map((line: string): string => line.trim())
-    .filter((line: string): boolean => line !== '');
+    .map((line): string => line.trim())
+    .filter((line): boolean => line !== '');
 }
 
 export function draftOf(timer: Timer): TimerDraft {

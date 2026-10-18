@@ -40,6 +40,7 @@ export type TtsRulesChange = {
 // The providers that take a channel's own key.
 export const byokProviders = ['azure', 'elevenlabs'] as const;
 export type ByokProvider = (typeof byokProviders)[number];
+
 export type ByokKey = {
   provider: ByokProvider;
   apiKey: string;
@@ -53,6 +54,7 @@ export const lexiconKey = (channelId: string | null): KeyParts => [
   channelId,
   'tts-lexicon',
 ];
+
 export const namePronunciationKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,

@@ -12,7 +12,6 @@ import { watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { navByMode } from './navModes';
-import type { NavEntry } from './navigation';
 import { useNavigation } from './useNavigation';
 
 // A page whose read action the person does not hold shows failing panels. The person lands on the first
@@ -28,7 +27,7 @@ export function useReadableRedirect(): void {
       const mode = route.meta.navMode ?? 'dashboard';
       const owner = navByMode[mode]
         .flatMap((group) => group.entries)
-        .find((entry: NavEntry) => navigation.isCurrent(entry));
+        .find((entry) => navigation.isCurrent(entry));
       const first = readableRoutes[0];
 
       if (typeof name !== 'string' || owner === undefined || first === undefined) return;

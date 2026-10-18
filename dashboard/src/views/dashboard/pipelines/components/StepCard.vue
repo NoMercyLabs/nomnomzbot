@@ -78,7 +78,7 @@ const runTone = {
 // The lane a check took in the run, in the words of that lane.
 const taken = computed(() => {
   const index = props.node.lanes.findIndex(
-    (lane: StepLane) => lane.branch !== null && lane.branch === run.value?.branch,
+    (lane) => lane.branch !== null && lane.branch === run.value?.branch,
   );
 
   return index === -1

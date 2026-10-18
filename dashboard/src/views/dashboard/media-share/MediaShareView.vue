@@ -37,7 +37,7 @@ const reorder = useReorderMediaShare(channelId);
 
 const rows = computed<MediaShareRequest[]>(() => queueQuery.data.value ?? []);
 const approved = computed<MediaShareRequest[]>(() =>
-  rows.value.filter((row: MediaShareRequest): boolean => row.status === 'approved'),
+  rows.value.filter((row): boolean => row.status === 'approved'),
 );
 
 const queueState = usePanelState(
@@ -46,7 +46,7 @@ const queueState = usePanelState(
 );
 
 function position(row: MediaShareRequest): number {
-  return approved.value.findIndex((item: MediaShareRequest): boolean => item.id === row.id) + 1;
+  return approved.value.findIndex((item): boolean => item.id === row.id) + 1;
 }
 
 function move(row: MediaShareRequest, step: number): void {

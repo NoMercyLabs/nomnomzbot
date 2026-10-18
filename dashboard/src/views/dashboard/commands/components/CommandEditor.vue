@@ -51,7 +51,8 @@ import {
   type ReplyKind,
 } from './commandDraft';
 import { rungNames } from '@/api/permissions';
-import RandomReplyDialog, { type ReplySet } from './RandomReplyDialog.vue';
+import RandomReplyDialog from './RandomReplyDialog.vue';
+import type { ReplySet } from './replySet';
 import TriggerFields from './TriggerFields.vue';
 
 const props = defineProps<{ row: CommandListItem }>();
@@ -139,17 +140,17 @@ const replyType = computed<string>({
 const sets = computed<ReplySet[]>(() =>
   (commands.data.value ?? [])
     .filter(
-      (item: CommandListItem): boolean =>
+      (item): boolean =>
         item.name !== props.row.name && (item.templateResponses?.length ?? 0) > 0,
     )
-    .map((item: CommandListItem): ReplySet => ({
+    .map((item) => ({
       name: item.name,
       replies: item.templateResponses ?? [],
-    })),
+    }) as const satisfies ReplySet),
 );
 const repliesOpen = ref(false);
 const replyCount = computed<number>(
-  () => draft.value.replies.filter((line: string): boolean => line.trim() !== '').length,
+  () => draft.value.replies.filter((line): boolean => line.trim() !== '').length,
 );
 
 function setNumber(key: 'cooldownSeconds' | 'userCooldownSeconds', value: string | number): void {

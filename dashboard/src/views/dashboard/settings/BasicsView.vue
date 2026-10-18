@@ -16,7 +16,8 @@ import { toast } from 'vue-sonner';
 
 import { ApiError } from '@/api/errors';
 import { useBasics, useUpdateBasics, type ChannelBasics } from '@/api/settings';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ import {
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { locales } from '@/i18n';
-import { merge } from '@/lib/array';
+import { keysOf, merge } from '@/lib/array';
 
 import ReadabilityRow from './components/ReadabilityRow.vue';
 
@@ -86,8 +87,8 @@ const stored = computed(() => fromStored(basics.data.value ?? {
   autoJoin: false,
 }));
 
-const dirty = computed(() => Object.keys(draft).some(
-  (key) => draft[key as keyof Draft] !== stored.value[key as keyof Draft],
+const dirty = computed(() => keysOf(draft).some(
+  (key) => draft[key] !== stored.value[key],
 ));
 const prefixValid = computed(() => prefixPattern.test(draft.prefix));
 const lineValid = computed(() => linePattern.test(draft.botLinePrefix));

@@ -14,10 +14,12 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
+import { keysOf } from '@/lib/array';
 
 import CatalogPanel from './components/CatalogPanel.vue';
 import CurrencyPanel from './components/CurrencyPanel.vue';
@@ -40,7 +42,10 @@ const tabKeys = {
     create: 'economy:leaderboards:config:write',
   },
 } as const satisfies Record<string, { read: string; create: string | null }>;
-const allTabs = computed<PageTab[]>(() => [
+const VIEWS = keysOf(tabKeys);
+
+type EconomyView = (typeof VIEWS)[number];
+const allTabs = computed<PageTab<EconomyView>[]>(() => [
   { value: 'currency', label: t('dashboard.economy.tabs.currency') },
   { value: 'rules', label: t('dashboard.economy.tabs.rules') },
   { value: 'jars', label: t('dashboard.economy.tabs.jars') },
@@ -48,18 +53,19 @@ const allTabs = computed<PageTab[]>(() => [
   { value: 'leaderboards', label: t('dashboard.economy.tabs.leaderboards') },
 ]);
 
-function canRead(tab: PageTab): boolean {
-  return can(tabKeys[tab.value as keyof typeof tabKeys].read);
+function canRead(tab: PageTab<EconomyView>): boolean {
+  return can(tabKeys[tab.value].read);
 }
 
-function canCreate(tab: keyof typeof tabKeys): boolean {
+function canCreate(tab: EconomyView): boolean {
   const key = tabKeys[tab].create;
 
   return key !== null && can(key);
 }
 
-const tabs = computed<PageTab[]>(() => allTabs.value.filter(canRead));
-const view = usePageView(() => tabs.value.map((tab: PageTab): string => tab.value));
+const tabs = computed(() => allTabs.value.filter(canRead));
+const view = usePageView(VIEWS, 'view', () =>
+  tabs.value.map((tab) => tab.value));
 
 const addingRule = ref(false);
 const addingJar = ref(false);

@@ -11,7 +11,8 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
+import FilterBar from '@/components/layout/FilterBar.vue';
+import type { FilterOption } from '@/components/layout/filterOption';
 
 function options(count: number): FilterOption[] {
   return Array.from({ length: count }, (_: unknown, index: number) => ({
@@ -32,7 +33,7 @@ function bar(count: number, modelValue: string = 'v0'): VueWrapper {
 
 describe('the filter bar', () => {
   it('shows 2 to 4 options as a segmented control', () => {
-    [2, 3, 4].forEach((count: number) => {
+    [2, 3, 4].forEach((count) => {
       const wrapper = bar(count);
 
       expect(wrapper.find('[data-slot="toggle-group"]').exists()).toBe(true);

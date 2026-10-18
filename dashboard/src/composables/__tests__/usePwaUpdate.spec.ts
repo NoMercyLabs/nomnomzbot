@@ -45,7 +45,7 @@ function mountHost(): void {
 
 describe('usePwaUpdate', () => {
   afterEach(() => {
-    hosts.splice(0).forEach((host: VueWrapper) => host.unmount());
+    hosts.splice(0).forEach((host) => host.unmount());
   });
 
   beforeEach(() => {

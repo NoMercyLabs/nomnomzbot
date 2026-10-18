@@ -11,6 +11,8 @@
 import { noop } from '@tanstack/vue-query';
 import type { QueryClient, QueryExecuteOptions } from '@tanstack/vue-query';
 
+import { lookup } from '@/lib/array';
+
 import { ANALYTICS_RANGES, analyticsOverviewOptions, type AnalyticsRange } from './analytics';
 import { chatEmotesOptions, chatHistoryOptions, userChatOptions } from './chat';
 import { codeScriptsOptions } from './codeScripts';
@@ -112,7 +114,7 @@ const warmAnalytics: Warm = async (queries, channelId) => {
 
 // The queries each page runs when it opens, by route name. Every built page with data has an entry;
 // the settings page and the "coming soon" pages read nothing on open, so the code chunk is all they need.
-const routeWarmers: Record<string, Warm> = {
+const routeWarmers = {
   'dashboard-home': reads(
     read(homeStatsOptions),
     read(reviewQueueOptions),
@@ -156,7 +158,7 @@ const routeWarmers: Record<string, Warm> = {
     read(rewardsOptions),
   ),
   'dashboard-analytics': warmAnalytics,
-};
+} as const satisfies Record<string, Warm>;
 
 // Fill the cache for the page a route name opens. Never throws: a failed prefetch is the page's own load later.
 export async function prefetchRouteData(
@@ -164,7 +166,7 @@ export async function prefetchRouteData(
   routeName: string,
   channelId: string,
 ): Promise<void> {
-  const run = routeWarmers[routeName];
+  const run = lookup(routeWarmers, routeName);
 
   if (!run) return;
 

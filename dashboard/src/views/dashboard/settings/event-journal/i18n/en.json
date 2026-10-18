@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Setup",
       "eventJournal": {
         "list": {
           "title": "Journal",

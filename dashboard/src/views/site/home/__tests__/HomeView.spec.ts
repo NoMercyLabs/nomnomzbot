@@ -69,7 +69,7 @@ describe('the site root', () => {
     const panel: HTMLElement | null = document.querySelector('[role="dialog"]');
 
     expect(panel).not.toBeNull();
-    const links: string[] = [...panel!.querySelectorAll('a')].map((link: HTMLAnchorElement) =>
+    const links: string[] = [...panel!.querySelectorAll('a')].map((link) =>
       link.textContent!.trim(),
     );
 

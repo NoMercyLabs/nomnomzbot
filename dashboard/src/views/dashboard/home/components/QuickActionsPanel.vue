@@ -90,7 +90,7 @@ const queue = computed<QueueItem[]>(() => queueQuery.data.value?.queue ?? []);
 const senders = computed<string[]>(() => [
   ...new Set(
     queue.value
-      .map((item: QueueItem): string | null => item.requestedBy ?? null)
+      .map((item): string | null => item.requestedBy ?? null)
       .filter((n): n is string => n !== null),
   ),
 ]);
@@ -98,7 +98,7 @@ const queueDetail = computed<string>(() => {
   const waiting: string = t('dashboard.home.quick.waiting', { count: queue.value.length });
   const everyoneNamed =
     senders.value.length === 1 &&
-    queue.value.every((item: QueueItem) => item.requestedBy === senders.value[0]);
+    queue.value.every((item) => item.requestedBy === senders.value[0]);
 
   return everyoneNamed
     ? `${waiting} · ${t('dashboard.home.quick.allSentBy', { name: senders.value[0] })}`
@@ -114,7 +114,7 @@ function dueAt(timer: Timer): number {
 }
 
 const enabledTimers = computed<Timer[]>(() =>
-  (timersQuery.data.value ?? []).filter((timer: Timer) => timer.isEnabled),
+  (timersQuery.data.value ?? []).filter((timer) => timer.isEnabled),
 );
 const nextTimer = computed<Timer | null>(
   () => [...enabledTimers.value].sort((a: Timer, b: Timer) => dueAt(a) - dueAt(b))[0] ?? null,
@@ -130,7 +130,7 @@ const shownPollId = ref<string | null>(null);
 const dialogPoll = computed<Poll | null>(
   () =>
     runningPoll.value ??
-    (pollsQuery.data.value ?? []).find((poll: Poll) => poll.id === shownPollId.value) ??
+    (pollsQuery.data.value ?? []).find((poll) => poll.id === shownPollId.value) ??
     null,
 );
 

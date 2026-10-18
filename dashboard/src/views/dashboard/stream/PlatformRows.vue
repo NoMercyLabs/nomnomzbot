@@ -38,7 +38,7 @@ const state = usePanelState(connectionsQuery);
 
 function connectionOf(provider: string): IntegrationStatus | undefined {
   return (connectionsQuery.data.value ?? []).find(
-    (connection: IntegrationStatus) => connection.provider === provider,
+    (connection) => connection.provider === provider,
   );
 }
 

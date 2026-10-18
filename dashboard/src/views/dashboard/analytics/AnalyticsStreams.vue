@@ -36,8 +36,7 @@ const time = useTime();
 const { channelId } = useCurrentChannel();
 const page = 'dashboard.analytics.streams';
 
-const streams = useStreamsInRange(channelId, () =>
-  props.range);
+const streams = useStreamsInRange(channelId, () => props.range);
 const rows = computed<StreamRow[]>(() => streams.data.value ?? []);
 const state = usePanelState(streams, (list: StreamRow[]) =>
   list.length === 0);

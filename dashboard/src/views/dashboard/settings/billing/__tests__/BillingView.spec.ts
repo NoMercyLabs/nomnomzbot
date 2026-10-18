@@ -225,8 +225,7 @@ beforeEach(() => {
   http.GET.mockImplementation(async (path: string, init: unknown) => answerGet(path, init));
   held = ['billing:read', 'billing:manage'];
 
-  answerHeldKeys(http.GET, () =>
-    held);
+  answerHeldKeys(http.GET, () => held);
 
   http.POST.mockImplementation(async (path: string) => answerPost(path));
   FakeHubConnection.instances = [];

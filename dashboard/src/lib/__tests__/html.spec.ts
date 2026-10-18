@@ -48,7 +48,7 @@ describe('purifyChatHtml', () => {
     );
     const links: HTMLAnchorElement[] = [...host.querySelectorAll('a')];
 
-    expect(links.map((link: HTMLAnchorElement) => link.getAttribute('href'))).toEqual([null, 'https://ok.test', null]);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([null, 'https://ok.test', null]);
     expect(links[0]!.hasAttribute('id')).toBe(false);
     expect(links[0]!.hasAttribute('onclick')).toBe(false);
   });
@@ -56,7 +56,7 @@ describe('purifyChatHtml', () => {
   it('drops an image whose url was not https, instead of a broken placeholder', () => {
     const host = parse('<img src="http://cdn.test/a.gif" alt="a"><img src="javascript:x" alt="b"><img src="https://cdn.test/c.gif" alt="c">');
 
-    expect([...host.querySelectorAll('img')].map((image: HTMLImageElement) => image.alt)).toEqual(['c']);
+    expect([...host.querySelectorAll('img')].map((image) => image.alt)).toEqual(['c']);
   });
 
   // Stoney 2026-10-14: "NO VIDEO AND AUDIO!!!! NO CODE EXECUTION!!!"

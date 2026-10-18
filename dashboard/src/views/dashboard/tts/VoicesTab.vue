@@ -21,12 +21,12 @@ import {
   voiceFamily,
   voiceFamilyOrder,
   type TtsVoice,
-  type TtsVoicePage,
 } from '@/api/tts';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
@@ -57,14 +57,14 @@ const catalog = useTtsVoices(channelId, () => ({ q: asked.value }));
 const pick = useSetTtsVoice(channelId);
 
 const loaded = computed<TtsVoice[]>(() =>
-  (catalog.data.value?.pages ?? []).flatMap((page: TtsVoicePage) => page.voices),
+  (catalog.data.value?.pages ?? []).flatMap((page) => page.voices),
 );
 
 // The language chips filter the loaded pages; the server has no language-family filter.
 const visible = computed<TtsVoice[]>(() =>
   family.value === ALL
     ? loaded.value
-    : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === family.value),
+    : loaded.value.filter((voice) => voiceFamily(voice.locale) === family.value),
 );
 
 const items = computed<VoiceListItem[]>(() => groupVoices(visible.value, locale.value));
@@ -76,14 +76,14 @@ type Chip = {
 };
 
 const chips = computed<Chip[]>(() =>
-  [ALL, ...voiceFamilyOrder].map((value: string): Chip => ({
+  [ALL, ...voiceFamilyOrder].map((value) => ({
     value,
     label: t(`dashboard.tts.voices.family.${value}`),
     count:
       value === ALL
         ? loaded.value.length
-        : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === value).length,
-  })),
+        : loaded.value.filter((voice) => voiceFamily(voice.locale) === value).length,
+  }) as const satisfies Chip),
 );
 
 // The search box and the chips live inside the panel, so a new search must not swap the panel for a skeleton.
@@ -111,7 +111,7 @@ const panelState = computed<PanelState>(() => {
 
 const chosen = computed<string | null>(() => config.data.value?.defaultVoiceId ?? null);
 const current = computed<TtsVoice | undefined>(() =>
-  loaded.value.find((voice: TtsVoice) => voice.id === chosen.value),
+  loaded.value.find((voice) => voice.id === chosen.value),
 );
 
 // Only a total the bot returned is shown; the loaded pages never stand in for it.
@@ -147,7 +147,7 @@ function detail(voice: TtsVoice): string {
     genderLabel(voice.gender),
     voice.styles.slice(0, SHOWN_STYLES).join(', '),
   ]
-    .filter((part: string) => part !== '')
+    .filter((part) => part !== '')
     .join(SEPARATOR);
 }
 
@@ -162,7 +162,7 @@ const currentDetail = computed<string>(() =>
       ? providerName(config.data.value.defaultProvider)
       : '',
   ]
-    .filter((part: string) => part !== '')
+    .filter((part) => part !== '')
     .join(SEPARATOR),
 );
 

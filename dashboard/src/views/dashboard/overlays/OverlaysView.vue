@@ -18,19 +18,29 @@ import { useRoute, useRouter } from 'vue-router';
 import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useNarrowScreen } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
+import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
 import OverlayDetail from './components/OverlayDetail.vue';
 import OverlayRow from './components/OverlayRow.vue';
 
-const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'problem'];
+const FILTERS = {
+  all: () => true,
+  on: (widget: Widget) => widget.isEnabled,
+  off: (widget: Widget) => !widget.isEnabled,
+  problem: (widget: Widget) => Boolean(widget.lastRuntimeError),
+} as const satisfies Record<string, (widget: Widget) => boolean>;
+const TAB_VALUES = keysOf(FILTERS);
+
+type OverlayTab = (typeof TAB_VALUES)[number];
 
 const { t } = useI18n();
 const route = useRoute();
@@ -51,35 +61,27 @@ const loaded = computed(() =>
     : undefined,
 );
 
-const FILTERS: Readonly<Record<string, (widget: Widget) => boolean>> = {
-  all: () => true,
-  on: (widget: Widget) => widget.isEnabled,
-  off: (widget: Widget) => !widget.isEnabled,
-  problem: (widget: Widget) => Boolean(widget.lastRuntimeError),
-};
-
-function countOf(tab: string): number | undefined {
-  return loaded.value?.filter(FILTERS[tab]!).length;
+function countOf(tab: OverlayTab): number | undefined {
+  return loaded.value?.filter(FILTERS[tab]).length;
 }
 
-const tabs = computed<PageTab[]>(() =>
-  TAB_VALUES.map((value: string): PageTab => ({
+const tabs = computed(() =>
+  TAB_VALUES.map((value) => ({
     value,
     label: t(`dashboard.overlays.tabs.${value}`),
     count: countOf(value),
-  })),
+  }) as const satisfies PageTab<OverlayTab>),
 );
 
 const visible = computed(() => {
   const typed = search.value.trim().toLowerCase();
 
   return loaded.value
-    ?.filter(FILTERS[view.value] ?? FILTERS.all!)
+    ?.filter(FILTERS[view.value])
     .filter((widget: Widget) => typed === '' || widget.name.toLowerCase().includes(typed));
 });
 
-const listState = usePanelState(widgets, () =>
-  false);
+const listState = usePanelState(widgets, () => false);
 const panelState = computed(() => {
   if (listState.value !== 'ready')
     return listState.value;

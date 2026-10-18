@@ -117,7 +117,7 @@ describe('the chart panel', () => {
 
     expect(ticks.length).toBeLessThanOrEqual(8);
     expect(ticks[0]).toBe(0);
-    expect(ticks.every((tick: number) => Number.isInteger(tick) && tick < 90)).toBe(true);
+    expect(ticks.every((tick) => Number.isInteger(tick) && tick < 90)).toBe(true);
   });
 
   it('hides the drawing from screen readers', () => {

@@ -59,7 +59,6 @@ export const permissionAllowlist = [
   {
     reason: 'Edits an in-memory draft or list inside a form; the save control of that form is the write, and it sits in the parent editor.',
     files: {
-      'commands/components/RandomReplyDialog.vue': 1,
       'commands/components/RandomReplyList.vue': 2,
       'overlays/components/SettingGroup.vue': 1,
       'overlays/components/StringListEditor.vue': 4,

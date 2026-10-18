@@ -27,7 +27,8 @@ import {
   type MusicConfigChange,
 } from '@/api/music';
 import DurationInput from '@/components/layout/DurationInput.vue';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -169,10 +170,10 @@ function undoAllow(): void {
 }
 
 const missing = computed<KeyValueItem[]>(() =>
-  ['cost', 'words'].map((key: string): KeyValueItem => ({
+  ['cost', 'words'].map((key) => ({
     label: t(`dashboard.music.rules.missing.${key}`),
     reason: t('dashboard.music.rules.notYet'),
-  })),
+  }) as const satisfies KeyValueItem),
 );
 </script>
 

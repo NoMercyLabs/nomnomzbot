@@ -17,11 +17,7 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import { Button } from '@/components/ui/button';
 
 import RandomReplyList from './RandomReplyList.vue';
-
-export interface ReplySet {
-  name: string;
-  replies: string[];
-}
+import type { ReplySet } from './replySet';
 
 const open = defineModel<boolean>('open', { required: true });
 const replies = defineModel<string[]>({ required: true });

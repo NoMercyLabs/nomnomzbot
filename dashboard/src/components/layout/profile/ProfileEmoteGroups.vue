@@ -72,7 +72,7 @@ function setKey(emote: PersonEmote): string {
 const SET_ORDER = ['follower', 'tier1', 'tier2', 'tier3', 'bitstier', 'other'] as const;
 
 function sets(provider: string): EmoteSet[] {
-  const list = props.emotes.filter((emote: PersonEmote) =>
+  const list = props.emotes.filter((emote) =>
     emote.provider === provider);
 
   if (provider !== 'Twitch')
@@ -86,7 +86,7 @@ function sets(provider: string): EmoteSet[] {
   return SET_ORDER.map((key) => ({
     key,
     label: t(`profile.emotes.sets.${key}`),
-    emotes: shown(list.filter((emote: PersonEmote) =>
+    emotes: shown(list.filter((emote) =>
       setKey(emote) === key)),
   })).filter((set) =>
     set.emotes.length > 0);
@@ -94,7 +94,7 @@ function sets(provider: string): EmoteSet[] {
 
 function shown(list: PersonEmote[]): ShownEmote[] {
   return list
-    .flatMap((emote: PersonEmote) => {
+    .flatMap((emote) => {
       const card = catalogEmoteCard(emote, t);
       const src = smallestUrl(emoteFrames(emote)) ?? card?.image;
 

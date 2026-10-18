@@ -41,7 +41,7 @@ const built: string[] = ['dashboard-home', 'dashboard-chat', 'dashboard-viewer-c
 async function open(): Promise<Navigation> {
   const router: Router = createRouter({
     history: createMemoryHistory(),
-    routes: built.map((name: string) => ({
+    routes: built.map((name) => ({
       name,
       path: `/${name}`,
       component: page,

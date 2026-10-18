@@ -40,6 +40,7 @@ export const widgetsKey = (channelId: string | null): KeyParts => [
   channelId,
   'widgets',
 ];
+
 export const widgetSchemaKey = (channelId: string | null, widgetId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -122,9 +123,9 @@ export function withoutRequired(
   widgets: readonly Widget[],
   required: readonly RequiredOverlay[] | undefined,
 ): Widget[] {
-  const ids = new Set((required ?? []).map((overlay: RequiredOverlay) => overlay.widget.id));
+  const ids = new Set((required ?? []).map((overlay) => overlay.widget.id));
 
-  return widgets.filter((widget: Widget) => !ids.has(widget.id));
+  return widgets.filter((widget) => !ids.has(widget.id));
 }
 
 // The schema is read per widget; a widget without one returns an empty field list.
@@ -196,7 +197,7 @@ function changed(
   widgetId: string,
   change: Partial<Widget>,
 ): Widget[] {
-  return (current ?? []).map((row: Widget): Widget =>
+  return (current ?? []).map((row): Widget =>
     row.id === widgetId
       ? { ...row, ...change }
       : row,

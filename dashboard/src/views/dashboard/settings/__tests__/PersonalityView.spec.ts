@@ -96,7 +96,7 @@ describe('PersonalityView', () => {
 
     const rows = [...document.querySelectorAll('[data-tone]')];
 
-    expect(rows.map((row: Element) => row.getAttribute('data-tone'))).toEqual(tones);
+    expect(rows.map((row) => row.getAttribute('data-tone'))).toEqual(tones);
     expect(rows[0]!.textContent).toContain('Clear, helpful and polite');
     expect(rows[2]!.textContent).toContain('Sassy');
     expect(radio('informative').getAttribute('aria-checked')).toBe('true');

@@ -40,7 +40,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { Spinner } from '@/components/ui/spinner';
 import { useBackLayer } from '@/composables/useBackCloses';
 import { keyCaps, useShortcut } from '@/composables/useShortcut';
-import { merge } from '@/lib/array';
+import { lookup as tableEntry, merge } from '@/lib/array';
 
 import { ChatInput, EmoteNode, type EmoteImage } from '../chatEditor';
 import { emoteSuggestion, type Suggestion } from '../composerSuggest';
@@ -85,8 +85,12 @@ const failed = ref(false);
 const emotes = props.viewer
   ? useViewerChatEmotes(emoteChannel)
   : useChatEmotes(emoteChannel);
-const list = useComposerSuggestions(text, caret, () => emotes.data.value ?? [], () =>
-  props.chatters);
+const list = useComposerSuggestions(
+  text,
+  caret,
+  () => emotes.data.value ?? [],
+  () => props.chatters,
+);
 const listOpen = computed(() => list.suggestions.value.length > 0);
 
 // On a phone the back button closes the suggestion list first, then the reply, like a native app.
@@ -224,7 +228,7 @@ const listKeys = {
 // key stops here, so the page keeps its own Escape for the chatter focus.
 function onKey(event: KeyboardEvent): boolean {
   const listKey = listOpen.value
-    ? listKeys[event.key as keyof typeof listKeys]
+    ? tableEntry(listKeys, event.key)
     : undefined;
 
   if (listKey) {

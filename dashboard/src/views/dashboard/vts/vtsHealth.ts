@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { VtsConnection } from '@/api/vts';
+import { lookup } from '@/lib/array';
 import type { HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
 
 // A state of the VTube Studio link: the dot color and the i18n key (under dashboard.vts.status) of the words beside it.
@@ -28,7 +29,7 @@ export function vtsHealth(connection: VtsConnection | null | undefined): VtsHeal
   if (connection?.isEnabled !== true)
     return { dot: '', reason: 'off' };
 
-  const known = BY_STATUS[connection.status as keyof typeof BY_STATUS] as VtsHealth | undefined;
+  const known: VtsHealth | undefined = lookup(BY_STATUS, connection.status);
 
   return known ?? { dot: 'warn', reason: 'unauthorized' };
 }

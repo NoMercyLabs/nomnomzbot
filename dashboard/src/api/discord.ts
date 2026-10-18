@@ -41,6 +41,7 @@ export const discordConnectionsKey = (channelId: string | null): KeyParts => [
   channelId,
   'discord-connections',
 ];
+
 export const discordRulesKey = (
   channelId: string | null,
   connectionId: string | null,
@@ -50,6 +51,7 @@ export const discordRulesKey = (
   'discord-rules',
   connectionId,
 ];
+
 const discordPickersKey = (
   channelId: string | null,
   connectionId: string | null,

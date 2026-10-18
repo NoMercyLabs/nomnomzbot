@@ -43,6 +43,8 @@ import Code from '~icons/nnz/code';
 import CreditCard from '~icons/nnz/credit-card-front';
 import type { Component } from 'vue';
 
+import { lookup } from '@/lib/array';
+
 import type { BlockKind } from '@/api/pipelines';
 
 const BLOCK_ICONS = {
@@ -91,7 +93,5 @@ export function blockIcon(kind: BlockKind): Component {
 export function actionIcon(categoryKey: string | undefined): Component {
   const name = categoryKey?.split('.').at(-1) ?? '';
 
-  return name in CATEGORY_ICONS
-    ? CATEGORY_ICONS[name as keyof typeof CATEGORY_ICONS]
-    : Macro;
+  return lookup(CATEGORY_ICONS, name) ?? Macro;
 }

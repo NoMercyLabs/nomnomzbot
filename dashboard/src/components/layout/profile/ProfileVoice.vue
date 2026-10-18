@@ -36,8 +36,7 @@ const personVoice = usePersonVoice(channelId, () =>
   canRead.value
     ? props.userId
     : null);
-const readState = usePanelState(personVoice, () =>
-  false);
+const readState = usePanelState(personVoice, () => false);
 const state = computed(() =>
   canRead.value
     ? readState.value

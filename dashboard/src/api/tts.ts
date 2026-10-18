@@ -24,18 +24,20 @@ import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
-import type { KeyParts } from '@/lib/array';
+import { oneOf, type KeyParts } from '@/lib/array';
 
 export type TtsConfig = components['schemas']['TtsConfig'];
 export type TtsVoice = components['schemas']['TtsVoice'];
 export type TtsSampleResult = components['schemas']['TtsTestResult'];
 export type TtsVoiceFilters = { q: string };
+
 export type TtsVoicePage = {
   voices: TtsVoice[];
   hasMore: boolean;
   nextPage: number | null;
   total: number | null;
 };
+
 export type TtsVoicePick = { voiceId: string; provider: string };
 // No text: the bot speaks the voice's own introduction.
 export type TtsSampleRequest = { voiceId: string; text?: string };
@@ -44,10 +46,10 @@ const version = '1';
 // The server clamps a voices page to 200 rows.
 const voicePageSize = 200;
 const firstVoicePage = 1;
-const languageFamilies: readonly string[] = ['en', 'nl', 'de', 'fr', 'es'];
+const languageFamilies = ['en', 'nl', 'de', 'fr', 'es'] as const satisfies readonly string[];
 
 // The order the voice list and its chips show the language families in.
-export const voiceFamilyOrder: readonly string[] = [...languageFamilies, 'other'];
+export const voiceFamilyOrder = [...languageFamilies, 'other'] as const satisfies readonly string[];
 
 // The realtime layer writes into these entries, so the keys are part of the module's surface.
 export const ttsConfigKey = (channelId: string | null): KeyParts => [
@@ -55,6 +57,7 @@ export const ttsConfigKey = (channelId: string | null): KeyParts => [
   channelId,
   'tts-config',
 ];
+
 export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters): KeyParts => [
   'channels',
   channelId,
@@ -63,12 +66,10 @@ export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters)
 ];
 
 // The language part of a locale such as en-US or nl_BE; a language the page has no chip for is "other".
-export function voiceFamily(locale: string): string {
-  const language = locale.split(/[-_]/)[0]?.toLowerCase() ?? '';
+export function voiceFamily(locale: string): (typeof voiceFamilyOrder)[number] {
+  const language = locale.split(/[-_]/)[0]?.toLowerCase();
 
-  return languageFamilies.includes(language)
-    ? language
-    : 'other';
+  return oneOf(languageFamilies, language) ?? 'other';
 }
 
 export function useTtsConfig(
@@ -216,7 +217,7 @@ async function readPersonVoice(channelId: string, userId: string): Promise<Perso
 
   const voiceId = data.data.voiceId;
   const matches = await readVoicePage(channelId, voiceId, firstVoicePage);
-  const voice = matches.voices.find((entry: TtsVoice) =>
+  const voice = matches.voices.find((entry) =>
     entry.id === voiceId) ?? null;
 
   return { voiceId, voice };

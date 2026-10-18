@@ -25,12 +25,14 @@ export type ViewerQueuedSong = components['schemas']['ViewerQueuedSong'];
 const version = '1';
 
 export const viewerChannelKey = (name: string): KeyParts => ['viewer', 'channel', name];
+
 export const viewerSummaryKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'viewer',
   'summary',
 ];
+
 export const viewerQueueKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,

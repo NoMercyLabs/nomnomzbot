@@ -25,7 +25,8 @@ import {
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
@@ -50,14 +51,18 @@ const builtins = useBuiltins(channelId);
 
 // Editing is a write: a reader gets the lists only, and the Built-in tab (switches only) is hidden.
 const canWrite = computed<boolean>(() => can('commands:write'));
-const allTabs = computed<PageTab[]>(() => [
+const VIEWS = ['all', 'custom', 'builtin'] as const;
+
+type CommandView = (typeof VIEWS)[number];
+const allTabs = computed<PageTab<CommandView>[]>(() => [
   { value: 'all', label: t('dashboard.commands.tabs.all') },
   { value: 'custom', label: t('dashboard.commands.tabs.custom') },
   { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
 ]);
-const tabs = computed<PageTab[]>(() =>
-  allTabs.value.filter((tab: PageTab): boolean => canWrite.value || tab.value !== 'builtin'));
-const view = usePageView(() => tabs.value.map((tab: PageTab): string => tab.value));
+const tabs = computed(() =>
+  allTabs.value.filter((tab) => canWrite.value || tab.value !== 'builtin'));
+const view = usePageView(VIEWS, 'view', () =>
+  tabs.value.map((tab) => tab.value));
 const listed = computed<boolean>(() => view.value !== 'builtin');
 
 const sort = useLocalStorage<CommandSort>('nnz.commands.sort', 'uses');
@@ -74,7 +79,7 @@ const selected = computed<string | null>(() =>
 );
 const row = computed<CommandListItem | undefined>(() =>
   (commands.data.value ?? []).find(
-    (item: CommandListItem): boolean => item.name === selected.value,
+    (item): boolean => item.name === selected.value,
   ),
 );
 
@@ -86,7 +91,7 @@ const selectedBuiltin = computed<string | null>(() =>
 );
 const builtin = computed<BuiltinCommand | undefined>(() =>
   (builtins.data.value ?? []).find(
-    (item: BuiltinCommand): boolean => triggerWord(item) === selectedBuiltin.value,
+    (item): boolean => triggerWord(item) === selectedBuiltin.value,
   ),
 );
 const open = computed<boolean>(() => row.value !== undefined || builtin.value !== undefined);

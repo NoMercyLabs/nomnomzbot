@@ -15,7 +15,8 @@ import { useI18n } from 'vue-i18n';
 import Receipt from '~icons/nnz/receipt';
 
 import { useInvoices, type ChannelInvoice } from '@/api/billing';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';

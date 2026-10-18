@@ -7,23 +7,18 @@
 
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
-<script setup lang="ts">
+<script setup lang="ts" generic="View extends string">
 // The one tab row of a page (C2). The open tab is the route query ?view= (usePageView);
 // the page reads the same composable to choose what to show under the header.
 import { computed } from 'vue';
 
+import type { PageTab } from '@/components/layout/pageTab';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePageView } from '@/composables/usePageView';
 
-export interface PageTab {
-  value: string;
-  label: string;
-  count?: number;
-}
+const props = defineProps<{ tabs: readonly PageTab<View>[] }>();
 
-const props = defineProps<{ tabs: readonly PageTab[] }>();
-
-const values = computed<string[]>(() => props.tabs.map((tab: PageTab) => tab.value));
+const values = computed(() => props.tabs.map((tab) => tab.value));
 const view = usePageView(values);
 </script>
 

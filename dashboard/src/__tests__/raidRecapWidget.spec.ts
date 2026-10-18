@@ -95,7 +95,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  wrappers.splice(0).forEach((w: VueWrapper) => w.unmount());
+  wrappers.splice(0).forEach((w) => w.unmount());
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });

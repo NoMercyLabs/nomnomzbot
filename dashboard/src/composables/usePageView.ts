@@ -14,23 +14,38 @@ import { useRoute, useRouter } from 'vue-router';
 // The open tab of a page lives in the route query (?view=), so a link opens a tab and Back returns to the last one.
 // A missing or unknown value falls back to the first tab; the query stays clean until a person picks another tab.
 // A second tab row on the same page (the phone board) keeps its own query key.
-export function usePageView(
-  values: MaybeRefOrGetter<readonly string[]>,
+// A fixed list of tabs (a non-empty tuple, usually keysOf(TABLE)) gives back the union of its names. A page that
+// hides tabs from some people passes the tabs they may open as `shown`; the first of those is the fallback.
+// A list built at run time by a component (tab strip, board panels) is typed by its own generic and can be empty, so
+// its view is `View | undefined`; no signature hands back a bare string.
+export function usePageView<const View extends string>(
+  views: readonly [View, ...View[]],
+  key?: string,
+  shown?: MaybeRefOrGetter<readonly View[]>,
+): WritableComputedRef<View>;
+
+export function usePageView<View extends string>(
+  views: MaybeRefOrGetter<readonly View[]>,
+  key?: string,
+): WritableComputedRef<View | undefined>;
+
+export function usePageView<View extends string>(
+  views: MaybeRefOrGetter<readonly View[]>,
   key = 'view',
-): WritableComputedRef<string> {
+  shown?: MaybeRefOrGetter<readonly View[]>,
+): WritableComputedRef<View | undefined> {
   const route = useRoute();
   const router = useRouter();
 
-  return computed<string>({
-    get: (): string => {
-      const known = toValue(values);
-      const asked = route.query[key];
+  return computed<View | undefined>({
+    get: () => {
+      const known = toValue(shown ?? views);
 
-      return typeof asked === 'string' && known.includes(asked)
-        ? asked
-        : (known[0] ?? '');
+      return known.find((view) => view === route.query[key]) ?? known[0] ?? toValue(views)[0];
     },
-    set: (view: string): void => {
+    set: (view): void => {
+      if (view === undefined) return;
+
       void router.push({ query: { ...route.query, [key]: view } });
     },
   });

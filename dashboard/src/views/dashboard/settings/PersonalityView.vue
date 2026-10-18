@@ -38,7 +38,7 @@ const state = usePanelState(personality);
 
 // A tone this dashboard has no words for yet still shows, under its own token, so it can be picked.
 const choices = computed<ToneChoice[]>(
-  () => (personality.data.value?.available ?? []).map((value: string) => ({
+  () => (personality.data.value?.available ?? []).map((value) => ({
     value,
     label: te(`dashboard.settings.personality.tones.${value}.title`)
       ? t(`dashboard.settings.personality.tones.${value}.title`)

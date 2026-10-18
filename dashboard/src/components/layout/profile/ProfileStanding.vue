@@ -36,8 +36,7 @@ const standing = useStanding(channelId, () =>
   canRead.value
     ? props.userId
     : null);
-const readState = usePanelState(standing, () =>
-  false);
+const readState = usePanelState(standing, () => false);
 const state = computed(() =>
   canRead.value
     ? readState.value

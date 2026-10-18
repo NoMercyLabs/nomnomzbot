@@ -18,6 +18,7 @@ import type { components } from './schema';
 import { merge, type KeyParts } from '@/lib/array';
 
 export type AdminTenantErrorBudget = components['schemas']['AdminTenantErrorBudget'];
+
 export type AdminTenantErrorBudgetPage =
   components['schemas']['PaginatedResponseOfAdminTenantErrorBudget'];
 

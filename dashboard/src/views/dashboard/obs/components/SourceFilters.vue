@@ -18,8 +18,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 const props = defineProps<{ sourceName: string }>();
 
 const { channelId } = useCurrentChannel();
-const filters = useObsSourceFilters(channelId, () =>
-  props.sourceName);
+const filters = useObsSourceFilters(channelId, () => props.sourceName);
 const setEnabled = useObsFilterEnabled(channelId);
 
 function toggle(filter: ObsFilter, enabled: boolean): void {

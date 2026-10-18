@@ -19,10 +19,12 @@ import { useI18n } from 'vue-i18n';
 import { usePublicProfile, type PublicProfile } from '@/api/viewer';
 import DateTime from '@/components/layout/DateTime.vue';
 import EmoteText from '@/components/layout/EmoteText.vue';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ProfileEmoteGroups from '@/components/layout/profile/ProfileEmoteGroups.vue';
 import { tierNumber } from '@/components/layout/profile/profileRoles';
+import { type ProfileTab, PUBLIC_TABS } from '@/components/layout/profile/profileTabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,17 +36,14 @@ import { useTime } from '@/composables/useTime';
 
 const props = defineProps<{ userId: string }>();
 
-const tab = defineModel<string>('tab', { default: 'overview' });
-
-const TABS = ['overview', 'chat', 'emotes'] as const;
+const tab = defineModel<ProfileTab>('tab', { default: 'overview' });
 
 const { t, te } = useI18n();
 const time = useTime();
 const { channelId } = useCurrentChannel();
 const inDialog = injectDialogRootContext(null) !== null;
 
-const profile = usePublicProfile(channelId, () =>
-  props.userId);
+const profile = usePublicProfile(channelId, () => props.userId);
 
 const title = computed<string>(() =>
   profile.data.value?.displayName ?? t('profile.title'));
@@ -139,7 +138,7 @@ function factsOf(person: PublicProfile): KeyValueItem[] {
       <Tabs v-model="tab" class="flex min-w-0 flex-1 flex-col gap-0">
         <div class="flex-none px-6">
           <TabsList>
-            <TabsTrigger v-for="name in TABS" :key="name" :value="name">{{
+            <TabsTrigger v-for="name in PUBLIC_TABS" :key="name" :value="name">{{
               $t(`profile.tabs.${name}`)
             }}</TabsTrigger>
           </TabsList>

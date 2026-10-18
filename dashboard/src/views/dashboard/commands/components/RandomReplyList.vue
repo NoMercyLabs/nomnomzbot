@@ -18,7 +18,7 @@ import TemplateField from '@/components/layout/TemplateField.vue';
 const replies = defineModel<string[]>({ required: true });
 
 function set(index: number, text: string | number): void {
-  replies.value = replies.value.map((reply: string, at: number): string =>
+  replies.value = replies.value.map((reply, at): string =>
     at === index
       ? String(text)
       : reply,
@@ -30,7 +30,7 @@ function add(): void {
 }
 
 function remove(index: number): void {
-  replies.value = replies.value.filter((_reply: string, at: number): boolean => at !== index);
+  replies.value = replies.value.filter((_reply, at): boolean => at !== index);
 }
 </script>
 

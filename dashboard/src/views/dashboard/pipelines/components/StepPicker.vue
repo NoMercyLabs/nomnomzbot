@@ -23,7 +23,6 @@ import {
   usePipelineOptions,
   type OptionContext,
   type PickerKind,
-  type PipelineOption,
 } from '@/api/pipelines';
 import CommandSearch from '@/components/layout/CommandSearch.vue';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
@@ -67,7 +66,7 @@ const list = computed(() =>
 const items = computed(() =>
   list.value?.items ?? []);
 const listed = computed(() =>
-  items.value.find((option: PipelineOption) =>
+  items.value.find((option) =>
     option.value === props.value));
 // A saved choice beyond the first page: the bot looks up that one item, so the button shows its name.
 const named = usePipelineOption(channelId, () =>
@@ -82,7 +81,7 @@ const chosen = computed(() =>
 const noMatch = computed(() =>
   asked.value.trim() !== '' && !options.isFetching.value && items.value.length === 0);
 const typedIsOption = computed(() =>
-  items.value.some((option: PipelineOption) =>
+  items.value.some((option) =>
     option.value === search.value || option.label === search.value));
 
 // A chosen script opens in the script editor. The address carries this page, with its open step, as the way

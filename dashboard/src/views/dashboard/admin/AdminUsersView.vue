@@ -18,7 +18,8 @@ import ChevronRight from '~icons/nnz/chevron-right';
 
 import { useAdminUsers, type AdminUser, type AdminUsersParams } from '@/api/adminUsers';
 import { ApiError } from '@/api/errors';
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
+import FilterBar from '@/components/layout/FilterBar.vue';
+import type { FilterOption } from '@/components/layout/filterOption';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
@@ -57,10 +58,10 @@ const total = computed(() => Number(users.data.value?.total ?? 0));
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 
 const roleOptions = computed<FilterOption[]>(() =>
-  ['all', 'admin', 'user'].map((value: string): FilterOption => ({
+  ['all', 'admin', 'user'].map((value) => ({
     value,
     label: t(`dashboard.admin.users.filters.role.${value}`),
-  })),
+  }) as const satisfies FilterOption),
 );
 
 const panelState = usePanelState(users, (data) =>

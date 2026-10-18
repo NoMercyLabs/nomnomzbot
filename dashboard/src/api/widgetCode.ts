@@ -154,7 +154,7 @@ export async function fetchWidgetVersions(
     throw refusal('widget versions', error, response.status);
 
   return {
-    versions: (data?.data ?? []).map((entry: components['schemas']['WidgetVersionSummary']) => ({
+    versions: (data?.data ?? []).map((entry) => ({
       id: entry.id,
       version: numberOrNull(entry.versionNumber) ?? 0,
       validationStatus: entry.buildStatus,

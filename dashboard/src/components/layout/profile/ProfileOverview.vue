@@ -15,7 +15,8 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PersonProfile } from '@/api/people';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import { tierNumber } from '@/components/layout/profile/profileRoles';
 import { shortDate } from '@/lib/time';
 
@@ -34,8 +35,8 @@ function present(item: KeyValueItem): boolean {
 // The other platforms this person signed in with, by name and link date: "Kick: name, linked May 6, 2026".
 function linked(identities: readonly LinkedIdentity[]): string | null {
   const names = identities
-    .filter((identity: LinkedIdentity) => identity.provider.toLowerCase() !== 'twitch')
-    .map((identity: LinkedIdentity) => t('profile.facts.linkedOn', {
+    .filter((identity) => identity.provider.toLowerCase() !== 'twitch')
+    .map((identity) => t('profile.facts.linkedOn', {
       provider: identity.provider,
       name: identity.providerDisplayName ?? identity.providerUsername,
       date: shortDate(identity.linkedAtUtc, locale.value),

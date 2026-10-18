@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { PipelineStep } from '@/api/pipelines';
 import { i18n } from '@/i18n';
+import { lookup } from '@/lib/array';
 
 import en from '../i18n/en.json';
 import { buildStepTree, findNode, type StepLane, type StepNode } from '../components/stepTree';
@@ -33,7 +34,7 @@ function step(over: Partial<PipelineStep>): PipelineStep {
 }
 
 function numbers(nodes: StepNode[]): string[] {
-  return nodes.flatMap((node: StepNode) =>
+  return nodes.flatMap((node) =>
     [`${node.number} ${node.step.id}`, ...node.lanes.flatMap((lane) =>
       numbers(lane.nodes))]);
 }
@@ -182,10 +183,10 @@ describe('the step tree', () => {
       ],
     };
 
-    const labels: Record<string, string> = { 'pipelineField.user_id': 'Viewer' };
+    const labels = { 'pipelineField.user_id': 'Viewer' } as const satisfies Record<string, string>;
     const words = {
       t: (key: string) =>
-        labels[key] ?? key,
+        lookup(labels, key) ?? key,
       te: (key: string) =>
         key in labels,
     };

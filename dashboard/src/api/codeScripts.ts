@@ -118,7 +118,7 @@ export function useSetScriptEnabled(): UseMutationReturnType<
       current: CodeScriptSummary[] | undefined,
       { id, isEnabled }: EnabledChange,
     ): CodeScriptSummary[] =>
-      (current ?? []).map((script: CodeScriptSummary): CodeScriptSummary =>
+      (current ?? []).map((script): CodeScriptSummary =>
         script.id === id
           ? { ...script, isEnabled }
           : script,
@@ -214,12 +214,12 @@ export function toTestRunResult(dto: components['schemas']['TestRunResult']): Te
     error: dto.error ?? null,
     chatOutput: dto.chatOutput ?? null,
     variablesSet: dto.variablesSet ?? null,
-    timeline: (dto.timeline ?? []).map((entry: components['schemas']['TimelineEntry']) => ({
+    timeline: (dto.timeline ?? []).map((entry) => ({
       ...entry,
       seq: Number(entry.seq),
     })),
     console: dto.console ?? null,
-    effects: dto.capturedEffects.map((effect: components['schemas']['CapturedEffect']) => ({
+    effects: dto.capturedEffects.map((effect) => ({
       name: effect.name,
       argsPreview: effect.argsPreview,
     })),
@@ -283,13 +283,13 @@ export async function fetchTestTriggers(): Promise<TestTrigger[]> {
   if (error !== undefined)
     throw refusal('test triggers', error, response.status);
 
-  return (data?.data ?? []).map((sample: components['schemas']['TestTrigger']): TestTrigger => ({
+  return (data?.data ?? []).map((sample) => ({
     id: sample.id,
     label: sample.userDisplayName
       ? `${sample.responseKey} (${sample.userDisplayName})`
       : sample.responseKey,
     variables: sample.variables,
-  }));
+  }) as const satisfies TestTrigger);
 }
 
 // One page of a script's saved versions; `currentVersionId` marks the published one.
@@ -306,7 +306,7 @@ export async function fetchScriptVersions(
     throw refusal('script versions', error, response.status);
 
   return {
-    versions: (data?.data ?? []).map((entry: components['schemas']['CodeScriptVersion']) => ({
+    versions: (data?.data ?? []).map((entry) => ({
       id: entry.id,
       version: Number(entry.version),
       validationStatus: entry.validationStatus,

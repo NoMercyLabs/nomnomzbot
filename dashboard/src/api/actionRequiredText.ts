@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { lookup, oneOf } from '@/lib/array';
 import { clockTime } from '@/lib/time';
 
 import type { ActionRequiredItem } from './actionRequired';
@@ -31,11 +32,11 @@ export interface AttentionTranslator {
 const WORDS = 'frame.inbox.attention.';
 
 // These titles come in a one and a many form, picked by the item count.
-const COUNTED_TITLES: readonly string[] = [
+const COUNTED_TITLES = [
   'attention_held_title',
   'attention_unmanaged_rewards_title',
   'attention_song_lost_title',
-];
+] as const satisfies readonly string[];
 
 // The dashboard pages (router children of /app) an attention item can send the reader to.
 export const attentionPages = [
@@ -50,30 +51,32 @@ export const attentionPages = [
   'tts',
 ] as const;
 
-const PROVIDER_NAMES: Record<string, string> = {
+const PROVIDER_NAMES = {
   spotify: 'Spotify',
   youtube: 'YouTube',
   discord: 'Discord',
   kick: 'Kick',
   kick_bot: 'Kick',
-};
+} as const satisfies Record<string, string>;
 
 const SOURCE_NAMES = {
   unban_requests: 'attention_source_name_unban_requests',
 } as const satisfies Record<string, string>;
 
 function providerName(provider: string): string {
-  return PROVIDER_NAMES[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
+  return lookup(PROVIDER_NAMES, provider) ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
 function titleKeyOf(item: ActionRequiredItem): string {
-  if (!COUNTED_TITLES.includes(item.titleKey)) {
+  const counted = oneOf(COUNTED_TITLES, item.titleKey);
+
+  if (counted === undefined) {
     return item.titleKey;
   }
 
   return Number(item.count) > 1
-    ? `${item.titleKey}_many`
-    : `${item.titleKey}_one`;
+    ? `${counted}_many`
+    : `${counted}_one`;
 }
 
 function messageKeyOf(item: ActionRequiredItem): string {
@@ -92,8 +95,7 @@ function titleNamed(
   now: Date,
 ): Record<string, string | number> {
   const { provider = '', source = '', until } = item.parameters;
-  const sourceKey =
-    SOURCE_NAMES[source as keyof typeof SOURCE_NAMES] ?? 'attention_source_name_unknown';
+  const sourceKey = lookup(SOURCE_NAMES, source) ?? 'attention_source_name_unknown';
 
   return {
     ...item.parameters,

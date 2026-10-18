@@ -114,7 +114,7 @@ const overall = computed<HealthDot>(() => {
   return worstDot([
     connectionHealth(summary.value, unreachable.value).dot,
     bridgeHealth(summary.value, bridge.data.value).dot,
-    ...sources.map((widget: Widget) => overlayHealth(widget)),
+    ...sources.map((widget) => overlayHealth(widget)),
   ]);
 });
 

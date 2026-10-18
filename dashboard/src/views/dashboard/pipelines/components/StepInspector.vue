@@ -17,7 +17,7 @@ import Trash from '~icons/nnz/trash';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import type { PipelineActionDescriptor, PipelineActionField, PipelineStep } from '@/api/pipelines';
+import type { PipelineActionDescriptor, PipelineStep } from '@/api/pipelines';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
@@ -95,7 +95,7 @@ function change(row: FieldRow, value: JsonValue | undefined): void {
 }
 
 const declares = computed(() =>
-  (props.descriptor?.fields ?? []).some((field: PipelineActionField) => field.declaresVariable),
+  (props.descriptor?.fields ?? []).some((field) => field.declaresVariable),
 );
 
 const condition = computed(() =>

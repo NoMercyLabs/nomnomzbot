@@ -155,7 +155,7 @@ describe('OutputsPanel', () => {
     await press('[data-output="recording"] [data-act="split"]');
     await press('[data-output="recording"] [data-act="stop"]');
 
-    expect(posts.map((post: Post) => post.body)).toEqual([
+    expect(posts.map((post) => post.body)).toEqual([
       { action: 3 },
       { action: 5 },
       { action: 1 },
@@ -219,7 +219,7 @@ describe('OutputsPanel rows', () => {
 
     const rows = [...document.body.querySelectorAll<HTMLElement>('[data-output-row]')];
 
-    expect(rows.map((row: HTMLElement) => row.dataset.output)).toEqual([
+    expect(rows.map((row) => row.dataset.output)).toEqual([
       'streaming',
       'recording',
       'replay-buffer',

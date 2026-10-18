@@ -117,10 +117,10 @@ export function itemText(item: JsonValue | undefined): string {
 
 // The step's closed choices that are set (provider = youtube): what a picker's list can narrow by.
 export function choiceContext(rows: FieldRow[]): Record<string, string> {
-  const set = rows.filter((row: FieldRow) =>
+  const set = rows.filter((row) =>
     row.control === 'choice' && typeof row.value === 'string' && row.value !== '');
 
-  return Object.fromEntries(set.map((row: FieldRow) =>
+  return Object.fromEntries(set.map((row) =>
     [row.name, String(row.value)]));
 }
 
@@ -150,7 +150,7 @@ export function actionRows(
   descriptor: PipelineActionDescriptor | undefined,
   words: Words & { text: TextOf },
 ): FieldRow[] {
-  return (descriptor?.fields ?? []).map((field: PipelineActionField) => {
+  return (descriptor?.fields ?? []).map((field) => {
     const control = controlOf(field);
     const saved = step.action[field.name];
 
@@ -163,7 +163,7 @@ export function actionRows(
         ? saved === true
         : saved,
       help: fieldHelp(step.action.type, field, words.text),
-      choices: (field.options ?? []).map((option: string) =>
+      choices: (field.options ?? []).map((option) =>
         ({ value: option, label: humanize(option) })),
       required: field.required,
       templated: field.templated,
@@ -241,7 +241,7 @@ function choiceLabel(name: string, value: string, { t }: Words): string {
 export function blockRows(step: PipelineStep, words: Words): FieldRow[] {
   const config = step.block_config ?? {};
 
-  return blockFields(step).map((field: BlockField) =>
+  return blockFields(step).map((field) =>
     ({
       name: field.name,
       label: words.t(`${page}.blockField.${field.name}.label`),
@@ -249,7 +249,7 @@ export function blockRows(step: PipelineStep, words: Words): FieldRow[] {
       control: field.control,
       value: config[field.name] ?? field.fallback,
       help: words.t(`${page}.blockField.${field.name}.help`),
-      choices: (field.choices ?? []).map((value: string) =>
+      choices: (field.choices ?? []).map((value) =>
         ({ value, label: choiceLabel(field.name, value, words) })),
       required: false,
       templated: field.name === 'value',

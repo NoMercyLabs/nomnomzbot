@@ -29,15 +29,18 @@ import { useCommunityList, type CommunityPage, type CommunityRow } from '@/api/p
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
 import type { ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
 import ProfileView from '@/components/layout/profile/ProfileView.vue';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { oneOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
 import PersonRow from './components/PersonRow.vue';
@@ -54,8 +57,10 @@ type Seed = {
 const SEARCH_PAUSE_MS = 250;
 const NEW_WINDOW_DAYS = 90;
 const ROW_HEIGHT = 56;
-const TAB_VALUES: readonly string[] = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new'];
-const UNLISTED: readonly string[] = ['subscriber', 'regular'];
+const TAB_VALUES = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new'] as const;
+
+type PeopleTab = (typeof TAB_VALUES)[number];
+const UNLISTED = ['subscriber', 'regular'] as const satisfies readonly PeopleTab[];
 
 const { t } = useI18n();
 const route = useRoute();
@@ -85,7 +90,7 @@ function totalOf(query: typeof everyone): number | undefined {
   return query.data.value?.pages[0]?.total ?? undefined;
 }
 
-const tabs = computed<PageTab[]>(() => [
+const tabs = computed<PageTab<PeopleTab>[]>(() => [
   {
     value: 'all',
     label: t('dashboard.people.tabs.all'),
@@ -107,7 +112,7 @@ const tabs = computed<PageTab[]>(() => [
 ]);
 
 const activeQuery = computed<typeof everyone | null>(() => {
-  if (UNLISTED.includes(view.value))
+  if (oneOf(UNLISTED, view.value))
     return null;
 
   if (view.value === 'moderator')
@@ -215,10 +220,10 @@ const loadedRow = computed<CommunityRow | null>(() => {
     return null;
 
   const loaded: CommunityRow[] = [everyone, moderators, vips].flatMap(
-    (query: typeof everyone) => rowsOf(query) ?? [],
+    (query) => rowsOf(query) ?? [],
   );
 
-  return loaded.find((row: CommunityRow) => row.username.toLowerCase() === login) ?? null;
+  return loaded.find((row) => row.username.toLowerCase() === login) ?? null;
 });
 
 // A seeded person that is not in a loaded list: the full record is asked for only now, never while typing.

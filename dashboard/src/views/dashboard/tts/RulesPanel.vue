@@ -12,7 +12,8 @@
 // Each switch saves at once; the bits box saves when it loses focus or Enter is pressed.
 import { computed, ref, watch } from 'vue';
 
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';

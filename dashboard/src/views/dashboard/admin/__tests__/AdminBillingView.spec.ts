@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
+import { keysOf } from '@/lib/array';
 
 import AdminBillingView from '../AdminBillingView.vue';
 import en from '../i18n/en.json';
@@ -52,7 +53,7 @@ const invoice = {
   amountRefundedCents: 0,
 };
 
-const reads: Record<string, unknown> = {
+const reads = {
   '/tiers': [tier],
   '/invites': [{
     id: 'v1',
@@ -71,10 +72,10 @@ const reads: Record<string, unknown> = {
   '/invoices': [invoice],
   '/grants': [],
   '/preview': { affectedTenantCount: 7, sampleChannelNames: ['Quiet_One'] },
-};
+} as const satisfies Record<string, unknown>;
 
 const answer = (path: string): unknown => {
-  const suffix = Object.keys(reads).find((key) => path.endsWith(key))!;
+  const suffix = keysOf(reads).find((key) => path.endsWith(key))!;
 
   return { data: { data: reads[suffix] }, response: { status: 200, ok: true } };
 };

@@ -12,7 +12,7 @@
 // code usable in this channel shows as that emote, the way chat showed it; every other word stays plain text.
 import { computed } from 'vue';
 
-import { useChatEmotes, type ChatEmoteEntry } from '@/api/chat';
+import { useChatEmotes } from '@/api/chat';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { emoteFrames, smallestUrl } from '@/lib/assetCards';
 
@@ -24,12 +24,12 @@ const { channelId } = useCurrentChannel();
 const emotes = useChatEmotes(channelId);
 
 const byCode = computed(() =>
-  new Map((emotes.data.value ?? []).map((emote: ChatEmoteEntry) =>
+  new Map((emotes.data.value ?? []).map((emote) =>
     [emote.code, emote])));
 
 const parts = computed<Part[]>(() =>
-  props.text.split(/(\s+)/u).filter((word: string) =>
-    word !== '').map((word: string) => {
+  props.text.split(/(\s+)/u).filter((word) =>
+    word !== '').map((word) => {
     const emote = byCode.value.get(word);
 
     return {

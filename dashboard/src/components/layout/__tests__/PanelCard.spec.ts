@@ -11,7 +11,8 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import { i18n } from '@/i18n';
 
 beforeEach(() => {
@@ -110,7 +111,7 @@ describe('the panel card states', () => {
   it('keeps the same head and body frame in every state', () => {
     const states: PanelState[] = ['ready', 'loading', 'empty', 'error'];
 
-    states.forEach((state: PanelState) => {
+    states.forEach((state) => {
       const wrapper = panel(state);
 
       expect(wrapper.find('h2').text()).toBe('Chat');

@@ -21,7 +21,8 @@ import {
   useObsSetInputVolume,
   type ObsInput,
 } from '@/api/obs';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -46,7 +47,7 @@ const setVolume = useObsSetInputVolume(channelId);
 const queryState = usePanelState(inputs);
 
 const mixer = computed<ObsInput[]>(() =>
-  (inputs.data.value ?? []).filter((input: ObsInput) => input.volumeDb != null));
+  (inputs.data.value ?? []).filter((input) => input.volumeDb != null));
 
 const panel = computed<PanelState>(() => {
   if (props.offline)

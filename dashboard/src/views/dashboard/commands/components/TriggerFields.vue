@@ -28,10 +28,10 @@ const matchPattern = defineModel<string>('matchPattern', { required: true });
 const { t } = useI18n();
 
 const prefixOptions = computed<{ value: PrefixMode; label: string }[]>(() =>
-  prefixModes.map((mode: PrefixMode) => ({ value: mode, label: t(`dashboard.commands.trigger.prefix.${mode}`) })),
+  prefixModes.map((mode) => ({ value: mode, label: t(`dashboard.commands.trigger.prefix.${mode}`) })),
 );
 const matchOptions = computed<{ value: MatchMode; label: string }[]>(() =>
-  matchModes.map((mode: MatchMode) => ({ value: mode, label: t(`dashboard.commands.trigger.match.${mode}`) })),
+  matchModes.map((mode) => ({ value: mode, label: t(`dashboard.commands.trigger.match.${mode}`) })),
 );
 </script>
 

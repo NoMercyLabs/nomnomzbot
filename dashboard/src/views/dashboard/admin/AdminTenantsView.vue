@@ -17,7 +17,8 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useAdminTenant, useAdminTenants, type AdminTenant, type AdminTenantsParams } from '@/api/admin';
 import DetailPane from '@/components/layout/DetailPane.vue';
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import KeyValueList from '@/components/layout/KeyValueList.vue';
+import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';

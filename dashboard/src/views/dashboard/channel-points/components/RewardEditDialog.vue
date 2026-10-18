@@ -156,7 +156,7 @@ function isActive(key: LimitKey): boolean {
 const limitsSummary = computed(() => {
   const parts = limitKeys
     .filter(isActive)
-    .map((key: LimitKey): string => t(`dashboard.channelPoints.rewards.dialog.${summaryKeys[key]}`, { count: numberOf(key) }));
+    .map((key): string => t(`dashboard.channelPoints.rewards.dialog.${summaryKeys[key]}`, { count: numberOf(key) }));
 
   if (flags.value.isPaused) {
     parts.push(t('dashboard.channelPoints.rewards.dialog.limitPaused'));

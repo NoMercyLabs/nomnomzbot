@@ -47,12 +47,9 @@ const emit = defineEmits<{ saved: [] }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
-const create = useCreateNotifyRole(channelId, () =>
-  props.connectionId);
-const save = useSaveNotifyRole(channelId, () =>
-  props.connectionId);
-const postButton = usePostRoleButton(channelId, () =>
-  props.connectionId);
+const create = useCreateNotifyRole(channelId, () => props.connectionId);
+const save = useSaveNotifyRole(channelId, () => props.connectionId);
+const postButton = usePostRoleButton(channelId, () => props.connectionId);
 
 const discordRoleId = ref<string>(props.role?.discordRoleId ?? '');
 const roleName = ref<string>(props.role?.roleName ?? '');
@@ -80,7 +77,7 @@ function pickRole(id: AcceptableValue): void {
   discordRoleId.value = String(id);
 
   if (roleName.value === '') {
-    roleName.value = props.guildRoles.find((role: DiscordRole) => role.id === id)?.name ?? '';
+    roleName.value = props.guildRoles.find((role) => role.id === id)?.name ?? '';
   }
 }
 

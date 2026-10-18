@@ -23,7 +23,8 @@ import { useBanUser, useTimeoutUser, useUnbanUser, type ChatLine } from '@/api/c
 import { useCommunityMember } from '@/api/community';
 import { useCurrencyConfig } from '@/api/economy';
 import { useViewerProfile } from '@/api/people';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import ProfileHeader from '@/components/layout/profile/ProfileHeader.vue';
 import { canSanction, roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -84,7 +85,7 @@ const failed = ref(false);
 const person = computed(() => member.data.value ?? null);
 
 const theirs = computed<ChatLine[]>(() =>
-  props.lines.filter((line: ChatLine) => line.userId === props.userId));
+  props.lines.filter((line) => line.userId === props.userId));
 const latest = computed<ChatLine[]>(() =>
   theirs.value.slice(-LATEST).reverse());
 const name = computed<string>(() =>

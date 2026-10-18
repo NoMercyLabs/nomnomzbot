@@ -56,7 +56,7 @@ function laneOf(step: Pick<PipelineStep, 'parent_step_id' | 'branch'>): string {
 // 0, and the bot then runs the lane in list order, so the list position breaks a tie.
 export function numberLanes(steps: PipelineStep[]): PipelineStep[] {
   const ranked = steps
-    .map((step: PipelineStep, index: number) =>
+    .map((step, index) =>
       ({ step, index }))
     .sort((left, right) =>
       left.step.order - right.step.order || left.index - right.index);
@@ -70,19 +70,19 @@ export function numberLanes(steps: PipelineStep[]): PipelineStep[] {
     next.set(laneOf(step), order + 1);
   }
 
-  return steps.map((step: PipelineStep, index: number) =>
+  return steps.map((step, index) =>
     ({ ...step, order: orders.get(index) ?? step.order }));
 }
 
 export function withIds(steps: PipelineStep[], mint: MintId): PipelineStep[] {
-  return steps.map((step: PipelineStep) =>
+  return steps.map((step) =>
     step.id === null
       ? { ...step, id: mint() }
       : step);
 }
 
 export function removeStep(steps: PipelineStep[], id: string): PipelineStep[] {
-  const target = steps.find((step: PipelineStep) =>
+  const target = steps.find((step) =>
     step.id === id);
 
   if (!target)
@@ -91,9 +91,9 @@ export function removeStep(steps: PipelineStep[], id: string): PipelineStep[] {
   const gone = subtreeIds(steps, id);
 
   return steps
-    .filter((step: PipelineStep) =>
+    .filter((step) =>
       !gone.has(step.id ?? ''))
-    .map((step: PipelineStep) =>
+    .map((step) =>
       sameLane(step, target) && step.order > target.order
         ? { ...step, order: step.order - 1 }
         : step);
@@ -107,9 +107,9 @@ export function laneEnd(
 ): Spot {
   const lane = laneOf({ parent_step_id: parentId, branch });
   const orders = steps
-    .filter((step: PipelineStep) =>
+    .filter((step) =>
       laneOf(step) === lane)
-    .map((step: PipelineStep) =>
+    .map((step) =>
       step.order);
 
   return {
@@ -137,7 +137,7 @@ export function insertSteps(
     branch: spot.branch,
     order: spot.order,
   };
-  const shifted = steps.map((step: PipelineStep) =>
+  const shifted = steps.map((step) =>
     sameLane(step, placed) && step.order >= spot.order
       ? { ...step, order: step.order + 1 }
       : step);
@@ -176,7 +176,7 @@ function patched(step: PipelineStep, patch: StepPatch): PipelineStep {
 }
 
 export function patchStep(steps: PipelineStep[], id: string, patch: StepPatch): PipelineStep[] {
-  return steps.map((step: PipelineStep) =>
+  return steps.map((step) =>
     step.id === id
       ? patched(step, patch)
       : step);
@@ -201,22 +201,22 @@ function copyOf(step: PipelineStep, target: PipelineStep, ids: Map<string, strin
 
 // A copy of the step, inner steps included, placed right after it under new ids.
 export function duplicateStep(steps: PipelineStep[], id: string, mint: MintId): PipelineStep[] {
-  const target = steps.find((step: PipelineStep) =>
+  const target = steps.find((step) =>
     step.id === id);
 
   if (!target)
     return steps;
 
   const copied = subtreeIds(steps, id);
-  const inside = steps.filter((step: PipelineStep) =>
+  const inside = steps.filter((step) =>
     copied.has(step.id ?? ''));
-  const ids = new Map(inside.map((step: PipelineStep) =>
+  const ids = new Map(inside.map((step) =>
     [step.id ?? '', mint()]));
-  const shifted = steps.map((step: PipelineStep) =>
+  const shifted = steps.map((step) =>
     sameLane(step, target) && step.order > target.order
       ? { ...step, order: step.order + 1 }
       : step);
-  const copies = inside.map((step: PipelineStep) =>
+  const copies = inside.map((step) =>
     copyOf(step, target, ids));
 
   return [...merge(shifted, copies)];

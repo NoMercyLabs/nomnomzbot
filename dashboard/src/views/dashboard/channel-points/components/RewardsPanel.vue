@@ -14,7 +14,7 @@ import { computed, ref } from 'vue';
 import Gem from '~icons/nnz/gem';
 
 import { useChannelAccess } from '@/api/access';
-import { usePipelines, type PipelineListItem } from '@/api/pipelines';
+import { usePipelines } from '@/api/pipelines';
 import { useRewardAvailability, useRewards, useUpdateReward, type Reward } from '@/api/rewards';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
@@ -43,7 +43,7 @@ const state = usePanelState(query, (rows: Reward[]): boolean =>
   rows.length === 0);
 
 const pipelineNames = computed(() =>
-  new Map((pipelines.data.value ?? []).map((item: PipelineListItem) =>
+  new Map((pipelines.data.value ?? []).map((item) =>
     [item.id, item.name] as const)));
 
 // A reward runs its pipeline, or else answers in chat, or else only lands in the queue.

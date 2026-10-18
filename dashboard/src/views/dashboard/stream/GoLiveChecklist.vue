@@ -13,7 +13,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useBotStatus } from '@/api/home';
-import { useRewardAvailability, useRewards, type Reward } from '@/api/rewards';
+import { useRewardAvailability, useRewards } from '@/api/rewards';
 import { useShieldMode } from '@/api/shield';
 import { useStreamInfo, type StreamInfo } from '@/api/stream';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -105,7 +105,7 @@ const checks = computed<Check[]>(() => {
     });
   } else if (rewardsQuery.data.value !== undefined) {
     const rewards = rewardsQuery.data.value;
-    const off = rewards.filter((reward: Reward) => !reward.isEnabled || reward.isPaused);
+    const off = rewards.filter((reward) => !reward.isEnabled || reward.isPaused);
     const counts = { n: rewards.length - off.length, m: rewards.length } as const satisfies {
       n: number;
       m: number;
@@ -121,7 +121,7 @@ const checks = computed<Check[]>(() => {
         ? t('dashboard.stream.checklist.rewardsAllOn', counts)
         : t('dashboard.stream.checklist.rewardsOff', {
             ...counts,
-            titles: off.map((reward: Reward) => reward.title).join(', '),
+            titles: off.map((reward) => reward.title).join(', '),
           }),
     });
   }

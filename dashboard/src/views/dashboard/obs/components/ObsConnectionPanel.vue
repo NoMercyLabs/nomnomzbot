@@ -14,7 +14,8 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { ObsBridgeStatus, ObsConnection, ObsState } from '@/api/obs';
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCan } from '@/composables/useCan';
 

@@ -41,11 +41,13 @@ export const musicQueueKey = (channelId: string | null): KeyParts => [
   channelId,
   'music-queue',
 ];
+
 export const musicConfigKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'music-config',
 ];
+
 export const blockedTracksKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -126,6 +128,7 @@ async function readConfig(id: string): Promise<MusicConfig | null> {
 
 export const musicQueueOptions = (id: string) => channelOptions(musicQueueKey, readQueue, id);
 export const musicConfigOptions = (id: string) => channelOptions(musicConfigKey, readConfig, id);
+
 export const blockedTracksOptions = (id: string) =>
   channelOptions(blockedTracksKey, readBlocked, id);
 
@@ -145,11 +148,11 @@ type RowMutation<TInput = { position: number }> = UseMutationReturnType<
 
 // Rows keep the position numbers the bot handed out, in order, so the next call names the row on screen.
 function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
-  return rows.map((row: QueueItem, index: number): QueueItem => ({
+  return rows.map((row, index) => ({
     ...row,
     position: original[index]?.position ?? row.position,
     number: original[index]?.number ?? row.number,
-  }));
+  }) as const satisfies QueueItem);
 }
 
 function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): MusicQueue {
@@ -291,12 +294,12 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
         queue: [],
         requestsOpen: true,
       };
-      const moved = base.queue.find((item: QueueItem) => item.position === position);
+      const moved = base.queue.find((item) => item.position === position);
 
       if (moved === undefined)
         return base;
 
-      const rest = base.queue.filter((item: QueueItem) => item.position !== position);
+      const rest = base.queue.filter((item) => item.position !== position);
 
       return { ...base, queue: renumbered(base.queue, [moved, ...rest]) };
     },
@@ -345,13 +348,13 @@ export function useMoveQueueItem(
         queue: [],
         requestsOpen: true,
       };
-      const from = base.queue.findIndex((item: QueueItem) => item.position === position);
-      const to = base.queue.findIndex((item: QueueItem) => item.position === toPosition);
+      const from = base.queue.findIndex((item) => item.position === position);
+      const to = base.queue.findIndex((item) => item.position === toPosition);
 
       if (from < 0 || to < 0)
         return base;
 
-      const rows = base.queue.filter((_: QueueItem, index: number) => index !== from);
+      const rows = base.queue.filter((_, index) => index !== from);
 
       rows.splice(to, 0, base.queue[from]!);
 
@@ -366,7 +369,7 @@ function leavesQueue(current: MusicQueue | undefined, position: number): MusicQu
     queue: [],
     requestsOpen: true,
   };
-  const rest = base.queue.filter((item: QueueItem) => item.position !== position);
+  const rest = base.queue.filter((item) => item.position !== position);
 
   return { ...base, queue: renumbered(base.queue, rest) };
 }
@@ -413,7 +416,7 @@ function withoutRequester(current: MusicQueue | undefined, name: string): MusicQ
     requestsOpen: true,
   };
   const rest = base.queue.filter(
-    (item: QueueItem): boolean => item.requestedBy?.toLowerCase() !== name.toLowerCase(),
+    (item): boolean => item.requestedBy?.toLowerCase() !== name.toLowerCase(),
   );
 
   return { ...base, queue: renumbered(base.queue, rest) };
@@ -546,7 +549,7 @@ export function useUnblockTrack(
       current: BlockedTrack[] | undefined,
       { blockedTrackId }: { blockedTrackId: string },
     ): BlockedTrack[] =>
-      (current ?? []).filter((track: BlockedTrack) => track.id !== blockedTrackId),
+      (current ?? []).filter((track) => track.id !== blockedTrackId),
   });
 }
 
@@ -631,6 +634,7 @@ export const musicHistoryKey = (channelId: string | null): KeyParts => [
   channelId,
   'music-history',
 ];
+
 export const musicTopRequestersKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -678,5 +682,6 @@ export function useMusicTopRequesters(
 }
 
 export const musicHistoryOptions = (id: string) => channelOptions(musicHistoryKey, readHistory, id);
+
 export const musicTopRequestersOptions = (id: string) =>
   channelOptions(musicTopRequestersKey, readTopRequesters, id);

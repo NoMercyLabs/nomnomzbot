@@ -17,7 +17,6 @@ import { useChannelAccess } from '@/api/access';
 import {
   useModerationHistory,
   type ModerationHistoryEntry,
-  type ModerationHistoryPage,
 } from '@/api/moderation';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,7 @@ const history = useModerationHistory(channelId, () =>
     ? props.internalUserId
     : null);
 const entries = computed(() =>
-  (history.data.value?.pages ?? []).flatMap((page: ModerationHistoryPage) =>
+  (history.data.value?.pages ?? []).flatMap((page) =>
     page.entries));
 const listState = usePanelState(history, () =>
   entries.value.length === 0);

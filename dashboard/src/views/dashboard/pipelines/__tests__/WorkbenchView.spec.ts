@@ -270,7 +270,7 @@ vi.mock('@/api/pipelines', async (original) => ({
       kind() === 'voice'
         ? (botSearch('')
             .items.concat(ava)
-            .find((option: PipelineOption) => option.value === value()) ?? null)
+            .find((option) => option.value === value()) ?? null)
         : null,
     ),
   }),
@@ -283,7 +283,7 @@ function botSearch(search: string): PipelineOptionList {
   if (term === '')
     return voices;
 
-  const items = [...voices.items, ava].filter((option: PipelineOption) =>
+  const items = [...voices.items, ava].filter((option) =>
     option.label.toLowerCase().includes(term),
   );
 
@@ -475,13 +475,13 @@ describe('the workbench canvas', () => {
   it('numbers the steps as the engine walks them, with the check lanes inside', async () => {
     await open();
 
-    expect(cards().map((item: HTMLElement) => item.dataset.stepNumber)).toEqual(['1', '1.1', '2']);
+    expect(cards().map((item) => item.dataset.stepNumber)).toEqual(['1', '1.1', '2']);
     expect(titleOf('check')).toBe('If, otherwise');
     expect(titleOf('hi')).toBe('Send message');
 
     const lanes = [...card('check').querySelectorAll<HTMLElement>('[data-step-lane]')];
 
-    expect(lanes.map((lane: HTMLElement) => lane.dataset.laneKind)).toEqual(['yes', 'no']);
+    expect(lanes.map((lane) => lane.dataset.laneKind)).toEqual(['yes', 'no']);
     expect(lanes[0]?.querySelector('[data-step-id="hi"]')).not.toBeNull();
     expect(lanes[1]?.textContent).toContain('Nothing extra. Goes on to the next step.');
   });
@@ -538,7 +538,7 @@ describe('the step inspector', () => {
   });
 
   it('opens a step the bot saved without an id, as it saves every plain step', async () => {
-    const saved = steps.map((item: PipelineStep) => ({ ...item }));
+    const saved = steps.map((item) => ({ ...item }));
 
     steps.splice(0, steps.length, step({ action: { type: 'send_message', message: 'no id' } }));
     await open();
@@ -621,7 +621,7 @@ async function find(text: string): Promise<void> {
 const saveButton = (): HTMLButtonElement =>
   document.body.querySelector<HTMLButtonElement>('[data-workbench-save]')!;
 const numbers = (): (string | undefined)[] =>
-  cards().map((item: HTMLElement) => item.dataset.stepNumber);
+  cards().map((item) => item.dataset.stepNumber);
 
 describe('changing the steps', () => {
   it('has nothing to undo right after the pipeline loads', async () => {
@@ -689,7 +689,7 @@ describe('changing the steps', () => {
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines/p1');
 
     const leave = [...document.body.querySelectorAll<HTMLButtonElement>('button')].find(
-      (button: HTMLButtonElement) => button.textContent?.trim() === 'Leave without saving',
+      (button) => button.textContent?.trim() === 'Leave without saving',
     );
 
     leave!.click();
@@ -727,7 +727,7 @@ describe('changing the steps', () => {
 
     expect(
       [...added.querySelectorAll<HTMLElement>('[data-step-lane]')].map(
-        (lane: HTMLElement) => lane.dataset.laneKind,
+        (lane) => lane.dataset.laneKind,
       ),
     ).toEqual(['path', 'path']);
   });
@@ -767,7 +767,7 @@ describe('changing the steps', () => {
     await press('[data-workbench-add]');
 
     const groups = [...document.body.querySelectorAll<HTMLElement>('[data-palette-group]')].map(
-      (group: HTMLElement) => group.dataset.paletteGroup,
+      (group) => group.dataset.paletteGroup,
     );
 
     expect(groups).toEqual(['blocks', 'pipeline.category.chat', 'pipeline.category.flow']);
@@ -820,7 +820,7 @@ describe('changing the steps', () => {
     await press('[data-palette-block="loop"]');
 
     const names = [...document.body.querySelectorAll<HTMLElement>('[data-step-field]')].map(
-      (item: HTMLElement) => item.dataset.stepField,
+      (item) => item.dataset.stepField,
     );
 
     expect(names).toEqual([
@@ -1075,7 +1075,7 @@ describe('the Runs view', () => {
     expect(document.body.querySelector('[data-workbench-canvas]')).not.toBeNull();
     expect(stored.asked).toContain('p1');
 
-    const rows = runRows().map((row: HTMLElement) => row.textContent?.replace(/\s+/g, ' ').trim());
+    const rows = runRows().map((row) => row.textContent?.replace(/\s+/g, ' ').trim());
 
     expect(rows[0]).toContain('Failed');
     expect(rows[0]).toContain('took 1.3 sec');
@@ -1088,7 +1088,7 @@ describe('the Runs view', () => {
     await openRuns();
 
     const marked = runRows().map(
-      (row: HTMLElement) => row.querySelector('[data-run-test]')?.textContent?.trim() ?? null,
+      (row) => row.querySelector('[data-run-test]')?.textContent?.trim() ?? null,
     );
 
     expect(marked).toEqual([null, 'Test run']);
@@ -1101,7 +1101,7 @@ describe('the Runs view', () => {
     await flushPromises();
 
     const steps = [...document.body.querySelectorAll<HTMLElement>('[data-run-step]')].map(
-      (step: HTMLElement) => step.textContent?.replace(/\s+/g, ' ').trim(),
+      (step) => step.textContent?.replace(/\s+/g, ' ').trim(),
     );
 
     expect(steps).toHaveLength(2);
