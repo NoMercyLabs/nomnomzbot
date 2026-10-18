@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { ObsBridgeStatus, ObsConnectionStatus } from '@/api/obs';
+import type { Widget } from '@/api/widgets';
 import type { HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
 
 // The connection as far as the viewer may see it: the status always, the last error only with the configuration.
@@ -72,4 +73,19 @@ export function bridgeHealth(
   return bridge.hasLeader
     ? { dot: 'ok', reason: 'bridge.leader' }
     : { dot: 'warn', reason: 'bridge.noLeader' };
+}
+
+// The i18n key of the words for one browser source: switched off, failed, loaded in OBS or not.
+export function sourceReasonKey(
+  widget: Pick<Widget, 'isEnabled' | 'lastRuntimeError' | 'isAttached'>,
+): string {
+  if (!widget.isEnabled)
+    return 'dashboard.obs.sources.off';
+
+  if (widget.lastRuntimeError)
+    return 'dashboard.obs.sources.failed';
+
+  return widget.isAttached
+    ? 'dashboard.obs.sources.loaded'
+    : 'dashboard.obs.sources.notLoaded';
 }

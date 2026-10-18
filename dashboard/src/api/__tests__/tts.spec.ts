@@ -15,11 +15,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ttsConfigKey,
-  ttsOverlayKey,
   useTtsConfig,
-  useTtsOverlay,
   type TtsConfig,
-  type TtsOverlay,
 } from '../tts';
 
 type Answer = {
@@ -114,27 +111,5 @@ describe('useTtsConfig', () => {
 
     expect(http.GET).not.toHaveBeenCalled();
     expect(hook.fetchStatus.value).toBe('idle');
-  });
-});
-
-describe('useTtsOverlay', () => {
-  it('keeps the last run time null when the overlay never ran', async () => {
-    const overlay = {
-      overlayUrl: 'https://bot.test/overlay/tts/abc',
-      lastRanAt: null,
-    } as const satisfies TtsOverlay;
-
-    http.GET.mockResolvedValue({ data: { data: overlay }, response: { ok: true, status: 200 } });
-
-    const { queries, hook } = mount('c1', useTtsOverlay);
-
-    await flushPromises();
-
-    expect(http.GET).toHaveBeenCalledWith('/api/v{version}/channels/{channelId}/tts/overlay', {
-      params: { path: { version: '1', channelId: 'c1' } },
-    });
-
-    expect(hook.data.value).toEqual(overlay);
-    expect(queries.getQueryData(ttsOverlayKey('c1'))).toEqual(overlay);
   });
 });

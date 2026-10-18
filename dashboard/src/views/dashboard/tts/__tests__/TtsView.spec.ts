@@ -86,7 +86,6 @@ beforeEach(() => {
 
   answers = {
     '/tts/config': () => ok(config),
-    '/tts/overlay': () => ok({ overlayUrl: 'https://bot.test/overlay/tts/abc', lastRanAt: null }),
   };
 
   pinia = createPinia();
@@ -100,7 +99,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-async function open(query: string = ''): Promise<void> {
+async function open(query: string = ''): Promise<Router> {
   const blank = { template: '<div />' };
   const router: Router = createRouter({
     history: createMemoryHistory(),
@@ -108,6 +107,11 @@ async function open(query: string = ''): Promise<void> {
       {
         path: '/app/tts',
         name: 'dashboard-tts',
+        component: blank,
+      },
+      {
+        path: '/app/obs',
+        name: 'dashboard-obs',
         component: blank,
       },
     ],
@@ -133,6 +137,8 @@ async function open(query: string = ''): Promise<void> {
   await flushPromises();
   await new Promise((done) => setTimeout(done, 0));
   await flushPromises();
+
+  return router;
 }
 
 const text = (): string => document.body.textContent ?? '';
@@ -196,19 +202,17 @@ describe('TtsView overview', () => {
     expect(rowOf('Voice').textContent).toContain('Follows the platform voice');
   });
 
-  it('shows "Never used" for an overlay that never ran and the time when it did', async () => {
-    await open();
-    expect(rowOf('Speaker overlay').textContent).toContain('Never used');
+  it('sends the speaker overlay row to the Required overlays panel on the OBS page', async () => {
+    const router = await open();
 
-    mounted?.unmount();
-    document.body.innerHTML = '';
+    expect(rowOf('Speaker overlay').textContent).toContain('Required overlays on the OBS page');
+    expect(calls.some((path) => path.endsWith('/tts/overlay'))).toBe(false);
 
-    answers['/tts/overlay'] = () =>
-      ok({ overlayUrl: 'https://bot.test/overlay/tts/abc', lastRanAt: '2026-10-13T09:00:00Z' });
+    rowOf('Speaker overlay').click();
+    await flushPromises();
 
-    await open();
-    expect(rowOf('Speaker overlay').textContent).toContain('Last used');
-    expect(rowOf('Speaker overlay').textContent).not.toContain('Never used');
+    expect(router.currentRoute.value.name).toBe('dashboard-obs');
+    expect(router.currentRoute.value.hash).toBe('#required-overlays');
   });
 
   it('gives the empty spoken history its reason instead of a made-up list', async () => {

@@ -38,9 +38,9 @@ import { pipelinesOptions } from './pipelines';
 import { redemptionsOptions, rewardsOptions } from './rewards';
 import { streamHistoryOptions, streamInfoOptions } from './stream';
 import { supporterEventsOptions } from './supporters';
-import { ttsConfigOptions, ttsOverlayOptions } from './tts';
+import { ttsConfigOptions } from './tts';
 import { vtsConnectionOptions } from './vts';
-import { widgetsOptions } from './widgets';
+import { requiredOverlaysOptions, widgetsOptions } from './widgets';
 
 // A prefetched entry counts as fresh for this long, so the page that opens next does not ask again at once.
 // An options object that sets its own staleTime (the chat history never goes stale) keeps it.
@@ -136,9 +136,9 @@ const routeWarmers: Record<string, Warm> = {
     read(homeStatsOptions),
   ),
   'dashboard-discord': reads(read(discordConnectionsOptions)),
-  'dashboard-tts': reads(read(ttsConfigOptions), read(ttsOverlayOptions)),
-  'dashboard-overlays': reads(read(widgetsOptions)),
-  'dashboard-obs': reads(read(obsConnectionOptions), read(obsBridgeOptions), read(widgetsOptions)),
+  'dashboard-tts': reads(read(ttsConfigOptions)),
+  'dashboard-overlays': reads(read(widgetsOptions), read(requiredOverlaysOptions)),
+  'dashboard-obs': reads(read(obsConnectionOptions), read(obsBridgeOptions), read(widgetsOptions), read(requiredOverlaysOptions)),
   'dashboard-vtube-studio': reads(read(vtsConnectionOptions)),
   'dashboard-polls': reads(read(pollHistoryOptions)),
   'dashboard-pipelines': reads(read(pipelinesOptions)),

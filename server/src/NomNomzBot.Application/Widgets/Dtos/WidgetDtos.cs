@@ -47,6 +47,13 @@ public sealed record WidgetDetail(
 );
 
 /// <summary>
+/// One channel-owned system surface (widgets-overlays.md §1.2) for the OBS page's Required overlays panel.
+/// <see cref="Key"/> is the surface's stable catalogue key (<c>audio</c>, <c>alerts</c>, ...) so the client can
+/// name and describe it in the viewer's language; <see cref="Widget"/> is the provisioned widget.
+/// </summary>
+public sealed record RequiredOverlayDto(string Key, WidgetDetail Widget);
+
+/// <summary>
 /// Result of rotating one widget's overlay token (audit B5). <see cref="PreviousUrl"/> stays live until
 /// <see cref="GraceExpiresAt"/> — the dashboard shows both so the streamer can re-copy <see cref="NewUrl"/> into
 /// OBS before the old one stops working, instead of the source going blank with no warning.

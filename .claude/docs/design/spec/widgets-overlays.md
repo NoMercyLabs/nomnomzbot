@@ -69,7 +69,7 @@ Event bindings are the `domain.action` names of `widget-sdk.md` §2.1 (one name 
 
 ### 1.2 System surfaces (channel-owned, auto-provisioned — not gallery items)
 
-A **system surface** is a channel-owned page that is never installed from the gallery: it is provisioned for every channel at channel creation (and on first use if missing), served like a widget (own SPA, own per-widget `Widget.OverlayToken`, see §1 Adjacent), configured from the page that owns it, and cannot be uninstalled — only disabled. Three ship:
+A **system surface** is a channel-owned page that is never installed from the gallery: it is provisioned for every channel at channel creation (and on first use if missing), served like a widget (own SPA, own per-widget `Widget.OverlayToken`, see §1 Adjacent), configured from the page that owns it, and cannot be uninstalled — only disabled. The OBS page's **Required overlays** panel (`GET channels/{channelId}/overlays/required`, anchor `#required-overlays`) is the one place these surfaces are added to OBS; the Overlays list and the OBS browser-sources panel leave them out, and the owner pages link to the panel (Stoney: "we need one place for the mandatory overlays and not spread them all over, lets keep the user choice overlays at the overlay browser section and have the mandatory one on an easy to reach place that can be shown in an onboarding flow guide"). Three ship:
 
 | Surface | Owner page | Behavior | Config |
 |---|---|---|---|

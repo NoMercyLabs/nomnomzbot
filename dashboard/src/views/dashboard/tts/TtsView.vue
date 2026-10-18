@@ -10,8 +10,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
-import { useTtsConfig, useTtsOverlay, type TtsConfig } from '@/api/tts';
+import { useTtsConfig, type TtsConfig } from '@/api/tts';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
@@ -32,12 +33,12 @@ import LexiconPanel from './LexiconPanel.vue';
 import RulesPanel from './RulesPanel.vue';
 import VoicesTab from './VoicesTab.vue';
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
+const router = useRouter();
 const providerName = useProviderName();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const config = useTtsConfig(channelId);
-const overlay = useTtsOverlay(channelId);
 
 // Each tab needs the read key of the endpoint it shows.
 const tabKeys = {
@@ -107,23 +108,6 @@ const wordsDetail = computed<string>(() =>
       : 'dashboard.tts.settings.words.uncensored',
   ),
 );
-
-const overlayDetail = computed<string>(() => {
-  if (overlay.isError.value)
-    return t('dashboard.tts.settings.overlay.error');
-
-  const ranAt = overlay.data.value?.lastRanAt;
-
-  if (overlay.data.value === undefined || overlay.data.value === null)
-    return '';
-
-  if (!ranAt)
-    return t('dashboard.tts.settings.overlay.never');
-
-  return t('dashboard.tts.settings.overlay.lastUsed', {
-    time: new Date(ranAt).toLocaleString(locale.value),
-  });
-});
 
 const overviewPanels = computed(
   () =>
@@ -212,8 +196,11 @@ const rulesPanels = computed<BoardPanel[]>(() => {
           />
           <SummaryRow
             data-settings-row
+            data-required-overlays-link
+            pick
             :title="$t('dashboard.tts.settings.overlay.title')"
-            :detail="overlayDetail"
+            :detail="$t('dashboard.tts.settings.overlay.detail')"
+            @click="router.push({ name: 'dashboard-obs', hash: '#required-overlays' })"
           />
         </RowGroup>
       </PanelCard>

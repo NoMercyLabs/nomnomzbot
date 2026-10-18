@@ -42,6 +42,7 @@ const SECRET = 'SECRET123';
 
 const calls: Call[] = [];
 let widgets: Record<string, unknown>[] = [];
+let required: Record<string, unknown>[] = [];
 let listFails: boolean = false;
 
 const widget = (
@@ -101,6 +102,9 @@ vi.mock('@/api/client', () => ({
       if (listFails)
         return { error: { status: 'error' }, response: { status: 500, ok: false } };
 
+      if (path.endsWith('/overlays/required'))
+        return { data: { data: required }, response: { status: 200, ok: true } };
+
       return {
         data: {
           data: widgets,
@@ -148,6 +152,7 @@ beforeEach(() => {
   written.length = 0;
   listFails = false;
   widgets = fixtures();
+  required = [];
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -295,6 +300,14 @@ describe('OverlaysView', () => {
     await router.push('/app/overlays?view=problem');
     await settle();
     expect(rowNames()).toEqual(['Feather Alert']);
+  });
+
+  it('leaves the required overlays out of the list; they live on the OBS page', async () => {
+    required = [{ key: 'audio', widget: widgets.find((row) => row.id === 'w3') }];
+    await open();
+
+    expect(rowNames()).toEqual(['Spotify NowPlaying', 'Feather Alert', 'Chat Box']);
+    expect(tabCount('All')).toBe('3');
   });
 
   it('filters the list by the name typed in the search box', async () => {

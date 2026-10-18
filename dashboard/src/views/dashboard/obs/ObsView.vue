@@ -22,7 +22,7 @@ import {
   useObsState,
 } from '@/api/obs';
 import { useObsStats, useObsVirtualCam } from '@/api/obsOutputs';
-import { useWidgets, type Widget } from '@/api/widgets';
+import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -35,6 +35,7 @@ import ObsConnectionPanel from './components/ObsConnectionPanel.vue';
 import ObsHotkeysPanel from './components/ObsHotkeysPanel.vue';
 import ObsScreenshotPanel from './components/ObsScreenshotPanel.vue';
 import OutputsPanel from './components/OutputsPanel.vue';
+import RequiredOverlaysPanel from './components/RequiredOverlaysPanel.vue';
 import ScenesPanel from './components/ScenesPanel.vue';
 import SourcesPanel from './components/SourcesPanel.vue';
 import StudioPanel from './components/StudioPanel.vue';
@@ -59,7 +60,17 @@ const summary = computed(() => connection.data.value ?? status.data.value);
 const enabled = computed<boolean>(() => summary.value?.isEnabled === true);
 const state = useObsState(channelId, enabled);
 const scenes = useObsScenes(channelId, enabled);
+const canSeeSources = computed<boolean>(() => access.can('widget:read'));
 const widgets = useWidgets(channelId);
+const required = useRequiredOverlays(channelId, canSeeSources);
+const requiredPanel = usePanelState(required);
+
+// The required overlays have their own panel; the browser sources are the user's own.
+const ownSources = computed<Widget[] | undefined>(() =>
+  widgets.data.value
+    ? withoutRequired(widgets.data.value, required.data.value)
+    : undefined,
+);
 
 // The stats poll runs only while this tab is on screen.
 const visibility = useDocumentVisibility();
@@ -76,6 +87,7 @@ const scenesPanel = usePanelState(scenes);
 const refused = computed<boolean>(() => state.isError.value || scenes.isError.value);
 const unreachable = computed<boolean>(() => enabled.value && refused.value);
 
+// The full widget list already holds the required overlays, so the header dot covers both panels.
 const overall = computed<HealthDot>(() => {
   const sources: readonly Widget[] = widgets.data.value ?? [];
 
@@ -108,6 +120,13 @@ function retry(): void {
   </PageHeader>
   <PageBody>
     <div data-page-inset class="grid gap-4 @container lg:grid-cols-2">
+      <RequiredOverlaysPanel
+        v-if="canSeeSources"
+        class="lg:col-span-2"
+        :overlays="required.data.value"
+        :panel-state="requiredPanel"
+        @retry="required.refetch()"
+      />
       <ObsConnectionPanel
         v-if="canSeeConnection"
         :connection="connection.data.value"
@@ -148,7 +167,7 @@ function retry(): void {
       <BrowserSourcesPanel
         v-if="access.can('widget:read')"
         class="lg:col-span-2"
-        :widgets="widgets.data.value"
+        :widgets="ownSources"
         :panel-state="sourcesPanel"
         @retry="widgets.refetch()"
       />

@@ -40,9 +40,7 @@
         },
         "overlay": {
           "title": "Speaker overlay",
-          "never": "Never used",
-          "lastUsed": "Last used {time}",
-          "error": "The overlay status could not be loaded."
+          "detail": "Added to OBS from the Required overlays on the OBS page."
         }
       },
       "voices": {

@@ -26,6 +26,7 @@ import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
 export type Widget = components['schemas']['WidgetDetail'];
+export type RequiredOverlay = components['schemas']['RequiredOverlayDto'];
 export type WidgetSettingsSchema = components['schemas']['WidgetSettingsSchema'];
 export type WidgetSettingsField = components['schemas']['WidgetSettingsField'];
 export type WidgetSettings = Widget['settings'];
@@ -80,6 +81,51 @@ export function useWidgets(
 }
 
 export const widgetsOptions = (id: string) => channelOptions(widgetsKey, readWidgets, id);
+
+// Under the widgets key, so every widget change refreshes the required overlays too.
+export const requiredOverlaysKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'widgets',
+  'required',
+];
+
+// The system surfaces (alerts, audio, ...) the bot makes for every channel. The OBS page is their one place.
+async function readRequiredOverlays(channelId: string): Promise<RequiredOverlay[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/overlays/required',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined)
+    throw failed('required overlays', response.status, error);
+
+  return data?.data ?? [];
+}
+
+export const requiredOverlaysOptions = (id: string) =>
+  channelOptions(requiredOverlaysKey, readRequiredOverlays, id);
+
+export function useRequiredOverlays(
+  channelId: MaybeRefOrGetter<string | null>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+): UseQueryReturnType<RequiredOverlay[], Error> {
+  return useQuery({
+    queryKey: computed(() => requiredOverlaysKey(toValue(channelId))),
+    queryFn: () => readRequiredOverlays(toValue(channelId) as string),
+    enabled: computed(() => toValue(channelId) !== null && toValue(enabled)),
+  });
+}
+
+// The user's own overlays: the list without the required ones, which only the OBS page shows.
+export function withoutRequired(
+  widgets: readonly Widget[],
+  required: readonly RequiredOverlay[] | undefined,
+): Widget[] {
+  const ids = new Set((required ?? []).map((overlay: RequiredOverlay) => overlay.widget.id));
+
+  return widgets.filter((widget: Widget) => !ids.has(widget.id));
+}
 
 // The schema is read per widget; a widget without one returns an empty field list.
 export function useWidgetSchema(

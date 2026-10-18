@@ -18,6 +18,8 @@ import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { overlayHealth } from '@/views/dashboard/overlays/components/overlayHealth';
 
+import { sourceReasonKey } from '../obsHealth';
+
 const props = defineProps<{ widgets: readonly Widget[] | undefined; panelState: PanelState }>();
 
 defineEmits<{ retry: [] }>();
@@ -25,15 +27,7 @@ defineEmits<{ retry: [] }>();
 const { t } = useI18n();
 
 function reasonOf(widget: Widget): string {
-  if (!widget.isEnabled)
-    return t('dashboard.obs.sources.off');
-
-  if (widget.lastRuntimeError)
-    return t('dashboard.obs.sources.failed');
-
-  return t(widget.isAttached
-    ? 'dashboard.obs.sources.loaded'
-    : 'dashboard.obs.sources.notLoaded');
+  return t(sourceReasonKey(widget));
 }
 
 const state = computed<PanelState>(() =>

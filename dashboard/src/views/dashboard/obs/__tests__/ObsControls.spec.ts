@@ -43,6 +43,9 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => {
+      if (path.endsWith('/overlays/required'))
+        return { data: { data: [] }, response: { status: 200, ok: true } };
+
       if (path.endsWith('/widgets'))
         return {
           data: {

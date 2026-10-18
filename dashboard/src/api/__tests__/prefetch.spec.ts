@@ -32,8 +32,8 @@ import { prefetchProfile, prefetchRouteData } from '@/api/prefetch';
 import { redemptionsKey, rewardsKey } from '@/api/rewards';
 import { streamHistoryKey, streamInfoKey } from '@/api/stream';
 import { supporterEventsKey } from '@/api/supporters';
-import { ttsConfigKey, ttsOverlayKey } from '@/api/tts';
-import { widgetsKey } from '@/api/widgets';
+import { ttsConfigKey } from '@/api/tts';
+import { requiredOverlaysKey, widgetsKey } from '@/api/widgets';
 import type { KeyParts } from '@/lib/array';
 
 type Answer = {
@@ -85,9 +85,9 @@ const pages: ReadonlyArray<readonly [string, readonly KeyParts[]]> = [
   ['dashboard-channel-points', [rewardsKey('c1'), redemptionsKey('c1'), pipelinesKey('c1')]],
   ['dashboard-supporters', [supporterEventsKey('c1'), supporterActivityKey('c1'), homeStatsKey('c1')]],
   ['dashboard-discord', [discordConnectionsKey('c1')]],
-  ['dashboard-tts', [ttsConfigKey('c1'), ttsOverlayKey('c1')]],
-  ['dashboard-overlays', [widgetsKey('c1')]],
-  ['dashboard-obs', [obsConnectionKey('c1'), obsBridgeKey('c1'), widgetsKey('c1')]],
+  ['dashboard-tts', [ttsConfigKey('c1')]],
+  ['dashboard-overlays', [widgetsKey('c1'), requiredOverlaysKey('c1')]],
+  ['dashboard-obs', [obsConnectionKey('c1'), obsBridgeKey('c1'), widgetsKey('c1'), requiredOverlaysKey('c1')]],
   ['dashboard-polls', [pollHistoryKey('c1')]],
   ['dashboard-pipelines', [pipelinesKey('c1')]],
   ['dashboard-scripts', [codeScriptsKey]],

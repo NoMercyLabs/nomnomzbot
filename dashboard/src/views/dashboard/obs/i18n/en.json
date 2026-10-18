@@ -33,6 +33,32 @@
         "notStreaming": "Not streaming",
         "recording": "Recording"
       },
+      "required": {
+        "title": "Required overlays",
+        "description": "Add each of these to OBS once as a browser source. The bot needs them to show alerts and play sound.",
+        "copy": "Copy address",
+        "copied": "Copied",
+        "empty": "This channel has no required overlays yet.",
+        "loadError": "The required overlays could not load.",
+        "surfaces": {
+          "audio": {
+            "name": "Audio",
+            "detail": "Plays every sound clip, song and spoken message."
+          },
+          "alerts": {
+            "name": "Alerts",
+            "detail": "Shows follows, subs, raids and other alerts, one at a time."
+          },
+          "tts_caption": {
+            "name": "TTS caption",
+            "detail": "Shows who is speaking and the words, while the bot reads a message aloud."
+          },
+          "raid_recap": {
+            "name": "Raid recap",
+            "detail": "Shows the stream recap as the closing scene of a raid."
+          }
+        }
+      },
       "sources": {
         "title": "Browser sources",
         "count": "{count} overlays",

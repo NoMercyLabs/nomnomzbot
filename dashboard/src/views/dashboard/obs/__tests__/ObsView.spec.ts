@@ -29,6 +29,7 @@ type Answer = {
 const calls: string[] = [];
 let connection: Record<string, unknown> = {};
 let widgets: Record<string, unknown>[] = [];
+let required: Record<string, unknown>[] = [];
 let liveFails: boolean = false;
 let bridgeCount: number = 1;
 
@@ -66,6 +67,9 @@ vi.mock('@/api/client', () => ({
 
       if (refusedWithoutConfig && !held.includes('obs:config:read'))
         return { error: { status: 'error' }, response: { status: 403, ok: false } };
+
+      if (path.endsWith('/overlays/required'))
+        return { data: { data: required }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/widgets'))
         return {
@@ -137,6 +141,7 @@ beforeEach(() => {
   held = ['obs:control', 'obs:config:read', 'widget:read'];
   liveFails = false;
   bridgeCount = 1;
+  required = [];
 
   connection = {
     isEnabled: true,
@@ -316,6 +321,27 @@ describe('ObsView', () => {
     expect(document.body.textContent).not.toContain(en.dashboard.obs.scenes.offline);
     expect(paths).toContainEqual(expect.stringContaining('/obs/state'));
     expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(2);
+  });
+
+  it('shows a required overlay only in the Required overlays panel, never in the browser sources', async () => {
+    required = [{ key: 'audio', widget: widgets[3] }];
+    await open();
+
+    const panelRows = Array.from(document.querySelectorAll('[data-required-overlay]'));
+    const sourceRows = Array.from(document.querySelectorAll('[data-obs-source]'));
+
+    expect(panelRows.map((row) => row.getAttribute('data-required-overlay'))).toEqual(['audio']);
+    expect(sourceRows).toHaveLength(3);
+    expect(sourceRows.map((row) => row.textContent).join(' ')).not.toContain('Audio');
+  });
+
+  it('hides the Required overlays panel and never reads the list without widget:read', async () => {
+    held = ['obs:control', 'obs:config:read'];
+    required = [{ key: 'audio', widget: widgets[3] }];
+    await open();
+
+    expect(document.querySelector('#required-overlays')).toBeNull();
+    expect(calls.some((path) => path.endsWith('/overlays/required'))).toBe(false);
   });
 
   it('shows the connection panel to a person who holds the configuration key', async () => {

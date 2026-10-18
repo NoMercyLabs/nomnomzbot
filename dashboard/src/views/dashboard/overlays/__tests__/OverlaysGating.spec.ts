@@ -57,12 +57,14 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ({
-      data: {
-        data: [widget],
-        hasMore: false,
-        nextPage: null,
-      },
+    GET: async (path: string) => ({
+      data: path.endsWith('/overlays/required')
+        ? { data: [] }
+        : {
+            data: [widget],
+            hasMore: false,
+            nextPage: null,
+          },
       response: { status: 200, ok: true },
     }),
   },

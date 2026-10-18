@@ -166,6 +166,9 @@ vi.mock('@/api/client', () => ({
         body: undefined,
       });
 
+      if (path.endsWith('/overlays/required'))
+        return { data: { data: [] }, response: { status: 200, ok: true } };
+
       if (path.endsWith('/settings-schema')) {
         const id = String(options?.params?.path?.widgetId);
 

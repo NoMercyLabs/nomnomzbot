@@ -22,6 +22,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Infrastructure.Content.Widgets;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -140,6 +141,34 @@ public class WidgetsController : BaseController
     {
         IReadOnlyList<WidgetTemplate> templates = _widgetService.GetTemplates();
         return Ok(new StatusResponseDto<IReadOnlyList<WidgetTemplate>> { Data = templates });
+    }
+
+    /// <summary>
+    /// The channel's required (system) overlays (widgets-overlays.md §1.2): get-or-creates every system surface
+    /// and returns each with its OBS browser-source URL and live state, for the one Required overlays panel on the
+    /// OBS page. Never a gallery browse/install.
+    /// </summary>
+    [RequireAction("widget:read")]
+    [HttpGet("~/api/v{version:apiVersion}/channels/{channelId}/overlays/required")]
+    [ProducesResponseType<StatusResponseDto<List<RequiredOverlayDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRequiredOverlays(string channelId, CancellationToken ct)
+    {
+        List<RequiredOverlayDto> overlays = [];
+
+        foreach (string key in FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys)
+        {
+            Result<WidgetDetail> result = await _widgetService.EnsureSystemWidgetAsync(
+                channelId,
+                key,
+                ct
+            );
+            if (result.IsFailure)
+                return ResultResponse(result);
+
+            overlays.Add(new(key, WithOverlayOrigin(result.Value)));
+        }
+
+        return Ok(new StatusResponseDto<List<RequiredOverlayDto>> { Data = overlays });
     }
 
     /// <summary>Get a single overlay widget's configuration.</summary>

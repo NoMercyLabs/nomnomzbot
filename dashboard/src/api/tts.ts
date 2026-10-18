@@ -27,7 +27,6 @@ import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
 export type TtsConfig = components['schemas']['TtsConfig'];
-export type TtsOverlay = components['schemas']['TtsOverlay'];
 export type TtsVoice = components['schemas']['TtsVoice'];
 export type TtsSampleResult = components['schemas']['TtsTestResult'];
 export type TtsVoiceFilters = { q: string };
@@ -55,11 +54,6 @@ export const ttsConfigKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'tts-config',
-];
-export const ttsOverlayKey = (channelId: string | null): KeyParts => [
-  'channels',
-  channelId,
-  'tts-overlay',
 ];
 export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters): KeyParts => [
   'channels',
@@ -97,28 +91,7 @@ async function readTtsConfig(id: string): Promise<TtsConfig | null> {
   return data?.data ?? null;
 }
 
-export function useTtsOverlay(
-  channelId: MaybeRefOrGetter<string | null>,
-): UseQueryReturnType<TtsOverlay | null, Error> {
-  return channelQuery(channelId, ttsOverlayKey, readTtsOverlay);
-}
-
-async function readTtsOverlay(id: string): Promise<TtsOverlay | null> {
-  const { data, error, response } = await client.GET(
-    '/api/v{version}/channels/{channelId}/tts/overlay',
-    {
-      params: { path: { version, channelId: id } },
-    },
-  );
-
-  if (error !== undefined)
-    throw failed('tts overlay', response.status, error);
-
-  return data?.data ?? null;
-}
-
 export const ttsConfigOptions = (id: string) => channelOptions(ttsConfigKey, readTtsConfig, id);
-export const ttsOverlayOptions = (id: string) => channelOptions(ttsOverlayKey, readTtsOverlay, id);
 
 async function readVoicePage(channelId: string, q: string, page: number): Promise<TtsVoicePage> {
   const { data, error, response } = await client.GET(

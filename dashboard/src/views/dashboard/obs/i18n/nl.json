@@ -33,6 +33,32 @@
         "notStreaming": "Niet aan het streamen",
         "recording": "Neemt op"
       },
+      "required": {
+        "title": "Verplichte overlays",
+        "description": "Voeg elk hiervan één keer toe aan OBS als browserbron. De bot heeft ze nodig voor meldingen en geluid.",
+        "copy": "Adres kopiëren",
+        "copied": "Gekopieerd",
+        "empty": "Dit kanaal heeft nog geen verplichte overlays.",
+        "loadError": "De verplichte overlays konden niet laden.",
+        "surfaces": {
+          "audio": {
+            "name": "Audio",
+            "detail": "Speelt elke geluidsclip, elk nummer en elk uitgesproken bericht af."
+          },
+          "alerts": {
+            "name": "Meldingen",
+            "detail": "Toont volgers, subs, raids en andere meldingen, één per keer."
+          },
+          "tts_caption": {
+            "name": "TTS-ondertitel",
+            "detail": "Toont wie er spreekt en de woorden, terwijl de bot een bericht voorleest."
+          },
+          "raid_recap": {
+            "name": "Raid-terugblik",
+            "detail": "Toont de terugblik op de stream als slotscène van een raid."
+          }
+        }
+      },
       "sources": {
         "title": "Browserbronnen",
         "count": "{count} overlays",

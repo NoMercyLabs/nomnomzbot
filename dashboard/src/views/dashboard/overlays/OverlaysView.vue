@@ -16,7 +16,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { useWidgets, type Widget } from '@/api/widgets';
+import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
@@ -42,7 +42,14 @@ const widgets = useWidgets(channelId);
 const view = usePageView(TAB_VALUES);
 const search = ref('');
 
-const loaded = computed(() => widgets.data.value);
+const required = useRequiredOverlays(channelId);
+
+// The required overlays are shown only on the OBS page; this list is the user's own choices.
+const loaded = computed(() =>
+  widgets.data.value
+    ? withoutRequired(widgets.data.value, required.data.value)
+    : undefined,
+);
 
 const FILTERS: Readonly<Record<string, (widget: Widget) => boolean>> = {
   all: () => true,
