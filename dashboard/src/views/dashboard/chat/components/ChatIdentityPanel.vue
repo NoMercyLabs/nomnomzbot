@@ -14,6 +14,7 @@
 import { useQuery } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 
+import { useChannelAccess } from '@/api/access';
 import { deviceApprovalQuery } from '@/api/signIn';
 import {
   useChatIdentity,
@@ -25,7 +26,14 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const { channelId } = useCurrentChannel();
-const identityQuery = useChatIdentity(channelId);
+// The identity and its color both check chat:read; the scope re-grant checks twitch:diagnostics:read.
+const access = useChannelAccess(channelId);
+const canRead = computed<boolean>(() => access.can('chat:read'));
+const canRegrant = computed<boolean>(() => access.can('twitch:diagnostics:read'));
+const identityQuery = useChatIdentity(() =>
+  canRead.value
+    ? channelId.value
+    : null);
 const setColor = useSetChatColor(channelId);
 const regrant = useStartScopeRegrant();
 
@@ -67,7 +75,10 @@ function badgeImage(urls: Record<string, string>): string | undefined {
       <h2 class="text-base font-semibold">{{ $t('dashboard.chat.identity.title') }}</h2>
       <p class="text-sm text-muted-foreground">{{ $t('dashboard.chat.identity.description') }}</p>
     </header>
-    <p v-if="identityQuery.isPending.value" class="text-sm text-muted-foreground">
+    <p v-if="!canRead" data-test="no-access" class="text-sm text-muted-foreground">
+      {{ $t('dashboard.chat.identity.noAccess') }}
+    </p>
+    <p v-else-if="identityQuery.isPending.value" class="text-sm text-muted-foreground">
       {{ $t('dashboard.chat.identity.loading') }}
     </p>
     <p v-else-if="identityQuery.isError.value || !identity" class="text-sm text-destructive">
@@ -113,7 +124,7 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             {{ regrant.error.value?.detail ?? $t('dashboard.chat.identity.regrantFailed') }}
           </p>
           <Button
-            v-if="!regrantCode"
+            v-if="!regrantCode && canRegrant"
             class="self-start"
             :disabled="regrant.isPending.value"
             data-test="regrant"

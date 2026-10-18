@@ -54,7 +54,17 @@ let sendOk: boolean = true;
 // Who is signed in; the channel belongs to stoney_eagle.
 let signedInAs: string = 'stoney_eagle';
 // The actions the bot says the signed-in person holds in this channel.
-const moderatorKeys = ['moderation:chat:settings:read'];
+const moderatorKeys = [
+  'moderation:chat:settings:read',
+  'chat:read',
+  'chat:send',
+  'community:read',
+  'moderation:ban',
+  'moderation:unban',
+  'moderation:delete_message',
+  'economy:config:read',
+  'twitch:diagnostics:read',
+];
 let heldKeys: string[] = moderatorKeys;
 // The search answer per `before` cursor; the first page has no cursor. A cursor with no page fails.
 let searchPages: Record<string, SearchPage> = {};

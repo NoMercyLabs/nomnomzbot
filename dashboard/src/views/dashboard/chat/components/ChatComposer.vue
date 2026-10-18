@@ -26,6 +26,7 @@ import { useI18n } from 'vue-i18n';
 import Cross from '~icons/nnz/cross';
 import EmailReply from '~icons/nnz/email-reply';
 
+import { useChannelAccess } from '@/api/access';
 import {
   chatMessageMaxLength,
   useChatEmotes,
@@ -58,6 +59,20 @@ const props = defineProps<{
 const replyTo = defineModel<ChatLine | null>('replyTo', { default: null });
 
 const { t } = useI18n();
+const access = useChannelAccess(() => props.channelId);
+// The box exists for the key that sends; the emotes it suggests are read with the matching read key.
+const canSendChat = computed<boolean>(() =>
+  access.can(props.viewer
+    ? 'chat:viewer:send'
+    : 'chat:send'));
+const canReadEmotes = computed<boolean>(() =>
+  access.can(props.viewer
+    ? 'chat:viewer:read'
+    : 'chat:read'));
+const emoteChannel = (): string | null =>
+  canReadEmotes.value
+    ? props.channelId
+    : null;
 const sender = props.viewer
   ? useSendViewerChat(() => props.channelId)
   : useSendChat(() => props.channelId);
@@ -68,8 +83,8 @@ const caret = ref(0);
 const failed = ref(false);
 
 const emotes = props.viewer
-  ? useViewerChatEmotes(() => props.channelId)
-  : useChatEmotes(() => props.channelId);
+  ? useViewerChatEmotes(emoteChannel)
+  : useChatEmotes(emoteChannel);
 const list = useComposerSuggestions(text, caret, () => emotes.data.value ?? [], () =>
   props.chatters);
 const listOpen = computed(() => list.suggestions.value.length > 0);
@@ -308,7 +323,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <form class="flex w-full flex-col gap-2" @submit.prevent="submit">
+  <form v-if="canSendChat" class="flex w-full flex-col gap-2" @submit.prevent="submit">
     <div
       v-if="replyTo"
       data-reply-banner

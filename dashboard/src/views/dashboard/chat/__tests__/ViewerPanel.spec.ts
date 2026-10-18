@@ -91,6 +91,8 @@ function bodyFor(path: string): unknown {
   return member;
 }
 
+vi.mock('@/api/access', () => ({ useChannelAccess: () => ({ can: () => true }) }));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,

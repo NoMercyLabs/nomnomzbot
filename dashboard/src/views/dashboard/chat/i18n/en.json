@@ -26,6 +26,7 @@
         "description": "How you look in Twitch chat: your name color and the badges you wear.",
         "loading": "Loading your chat identity...",
         "loadFailed": "Your chat identity could not be loaded.",
+        "noAccess": "Your role does not include your chat identity.",
         "preview": "Preview",
         "sample": ": This is how your messages look.",
         "color": "Name color",

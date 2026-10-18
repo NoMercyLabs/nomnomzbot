@@ -17,6 +17,7 @@ import Check from '~icons/nnz/check';
 import Clock from '~icons/nnz/clock';
 import StopSign from '~icons/nnz/stop-sign';
 
+import { useChannelAccess } from '@/api/access';
 import { useCurrentUser } from '@/api/auth';
 import { useBanUser, useTimeoutUser, useUnbanUser, type ChatLine } from '@/api/chat';
 import { useCommunityMember } from '@/api/community';
@@ -52,12 +53,22 @@ const timeouts = useTimeoutUser(() => props.channelId);
 const banner = useBanUser(() => props.channelId);
 const unbanner = useUnbanUser(() => props.channelId);
 
+// Each read and action needs the key its endpoint checks: the member and the wallet read community:read,
+// the currency name economy:config:read, Timeout and Ban act through moderation:ban, the undo through
+// moderation:unban.
+const access = useChannelAccess(() => props.channelId);
+const canReadMember = computed<boolean>(() => access.can('community:read'));
+const mayBan = computed<boolean>(() => access.can('moderation:ban'));
+const canUnban = computed<boolean>(() => access.can('moderation:unban'));
+
 const member = useCommunityMember(() => props.channelId, () =>
-  props.userId);
+  canReadMember.value
+    ? props.userId
+    : null);
 const wallet = useViewerProfile(() => props.channelId, () =>
   member.data.value?.internalUserId ?? null);
 const currency = useCurrencyConfig(() =>
-  props.userId === null
+  props.userId === null || !access.can('economy:config:read')
     ? null
     : props.channelId);
 
@@ -78,7 +89,7 @@ const name = computed<string>(() =>
   person.value?.displayName ?? theirs.value.at(-1)?.displayName ?? '');
 
 const state = computed<PanelState>(() => {
-  if (props.userId === null)
+  if (props.userId === null || !canReadMember.value)
     return 'empty';
 
   if (member.isPending.value)
@@ -98,6 +109,7 @@ const roles = computed<RoleKey[]>(() =>
 // Twitch refuses Timeout and Ban on yourself, the broadcaster, and a moderator (unless you own it).
 const sanctionable = computed<boolean>(() =>
   person.value !== null &&
+  mayBan.value &&
   canSanction(me.value, props.channelLogin, {
     username: person.value.username,
     roles: roles.value,
@@ -200,7 +212,7 @@ async function undo(): Promise<void> {
   >
     <template #actions>
       <Button
-        v-if="userId !== null"
+        v-if="userId !== null && canReadMember"
         data-viewer-profile
         variant="ghost"
         size="sm"
@@ -283,7 +295,7 @@ async function undo(): Promise<void> {
         <div v-else class="flex-1" />
 
         <template v-if="step === 'done' && done">
-          <Button variant="outline" size="sm" @click="undo">
+          <Button v-if="canUnban" variant="outline" size="sm" @click="undo">
             {{ done.undo === 'ban' ? $t('dashboard.chat.viewer.unban') : $t('dashboard.chat.viewer.undo') }}
           </Button>
         </template>

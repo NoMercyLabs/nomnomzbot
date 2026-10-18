@@ -21,6 +21,7 @@ import StopSign from '~icons/nnz/stop-sign';
 import Trash from '~icons/nnz/trash';
 import UserCircle from '~icons/nnz/user-circle';
 
+import { useChannelAccess } from '@/api/access';
 import { useDeleteChatMessage, useTimeoutUser, type ChatLine } from '@/api/chat';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import UserName from '@/components/layout/UserName.vue';
@@ -77,6 +78,7 @@ const { t, te, locale } = useI18n();
 const timeouts = useTimeoutUser(() => props.channelId);
 const deletes = useDeleteChatMessage(() => props.channelId);
 const profile = useProfileDialogStore();
+const access = useChannelAccess(() => props.channelId);
 
 const time = computed<string>(() =>
   new Date(props.line.timestamp).toLocaleTimeString(locale.value, {
@@ -176,6 +178,22 @@ const canSanctionLine = computed<boolean>(() => {
 
   return canSanction(props.me, props.channelLogin, { username: props.line.username, roles });
 });
+
+// Each action needs the key its endpoint checks: Reply sends (a participant sends through the viewer
+// endpoint), Timeout and Ban act through moderation:ban, Delete through moderation:delete_message, and
+// Profile reads the community member.
+const canReply = computed<boolean>(() =>
+  access.can(props.viewer
+    ? 'chat:viewer:send'
+    : 'chat:send'));
+const canTimeout = computed<boolean>(() =>
+  !props.viewer && canSanctionLine.value && access.can('moderation:ban'));
+const canDelete = computed<boolean>(() =>
+  !props.viewer && access.can('moderation:delete_message'));
+const canOpenProfile = computed<boolean>(() =>
+  !props.viewer && access.can('community:read'));
+const hasActions = computed<boolean>(() =>
+  canReply.value || canTimeout.value || canDelete.value || canOpenProfile.value);
 
 // A badge the server could not resolve has no image, so it is left out rather than shown broken.
 const badges = computed(() =>
@@ -456,14 +474,14 @@ function pick(event: MouseEvent): void {
            so the hover holds on the way up (owner 2026-10-13 and 2026-10-14). Its own layer and `invisible`
            when hidden: a fast sweep left half-painted trays over the row above (owner 2026-10-14). -->
       <div
-        v-if="!line.removed"
+        v-if="!line.removed && hasActions"
         :class="compact ? 'right-1' : 'right-3'"
         class="absolute bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 invisible opacity-0 will-change-[opacity] group-hover/line:visible group-hover/line:opacity-100 group-focus-within/line:visible group-focus-within/line:opacity-100 has-aria-expanded:visible has-aria-expanded:opacity-100"
         data-tray
         role="group"
         :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"
       >
-        <Tooltip>
+        <Tooltip v-if="canReply">
           <TooltipTrigger as-child>
             <Button
               data-line-action="reply"
@@ -477,7 +495,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.reply.tip') }}</TooltipContent>
         </Tooltip>
-        <DropdownMenu v-if="!viewer && canSanctionLine">
+        <DropdownMenu v-if="canTimeout">
           <Tooltip>
             <TooltipTrigger as-child>
               <DropdownMenuTrigger as-child>
@@ -505,7 +523,7 @@ function pick(event: MouseEvent): void {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Tooltip v-if="!viewer">
+        <Tooltip v-if="canDelete">
           <TooltipTrigger as-child>
             <Button
               data-line-action="delete"
@@ -519,7 +537,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.delete.label') }}</TooltipContent>
         </Tooltip>
-        <Tooltip v-if="!viewer && canSanctionLine">
+        <Tooltip v-if="canTimeout">
           <TooltipTrigger as-child>
             <Button
               data-line-action="ban"
@@ -533,7 +551,7 @@ function pick(event: MouseEvent): void {
           </TooltipTrigger>
           <TooltipContent>{{ $t('dashboard.chat.ban.tip') }}</TooltipContent>
         </Tooltip>
-        <Tooltip v-if="!viewer">
+        <Tooltip v-if="canOpenProfile">
           <TooltipTrigger as-child>
             <Button
               data-line-action="profile"

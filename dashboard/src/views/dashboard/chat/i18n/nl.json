@@ -17,6 +17,7 @@
         "description": "Hoe je eruitziet in de Twitch-chat: je naamkleur en de badges die je draagt.",
         "loading": "Je chat-identiteit wordt geladen...",
         "loadFailed": "Je chat-identiteit kon niet worden geladen.",
+        "noAccess": "Je rol omvat je chat-identiteit niet.",
         "preview": "Voorbeeld",
         "sample": ": Zo zien je berichten eruit.",
         "color": "Naamkleur",

@@ -99,6 +99,14 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+// A participant holds the viewer chat keys and no moderation key.
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: { value: true },
+    can: (key: string): boolean => key.startsWith('chat:viewer:'),
+  }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
     channelId: ref('c1'),

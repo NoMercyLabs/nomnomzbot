@@ -33,6 +33,7 @@ const http = vi.hoisted(() => ({
 }));
 
 vi.mock('@/api/client', () => ({ client: http }));
+vi.mock('@/api/access', () => ({ useChannelAccess: () => ({ can: () => true }) }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: computed(() => 'c1') }),
