@@ -58,7 +58,8 @@ namespace NomNomzBot.Infrastructure.Music;
 public sealed class YouTubeMusicProvider
     : IMusicProvider,
         IMusicProviderManageApi,
-        IMusicProviderPlayNow
+        IMusicProviderPlayNow,
+        IMusicProviderPlayerGate
 {
     private const string ProviderName = "youtube";
     private const string YouTubeApiBase = "https://www.googleapis.com/youtube/v3";
@@ -160,6 +161,11 @@ public sealed class YouTubeMusicProvider
         if (!handedOver)
             await _players.StopAsync(broadcasterId, cancellationToken);
     }
+
+    public async Task<bool> HasPlayerAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    ) => (await _players.FindPlayersAsync(broadcasterId, cancellationToken)).Count > 0;
 
     public async Task<bool> PlayNowAsync(
         Guid broadcasterId,

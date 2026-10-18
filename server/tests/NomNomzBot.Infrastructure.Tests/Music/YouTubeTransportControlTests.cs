@@ -292,7 +292,7 @@ public sealed class YouTubeTransportControlTests
     }
 
     [Fact]
-    public async Task A_request_waits_without_audio_and_is_handed_over_when_audio_attaches()
+    public async Task A_request_with_no_open_player_is_refused_with_its_own_reason_and_queues_nothing()
     {
         Rig rig = await BuildAsync(playerOpen: false);
         Result queued = await rig.Music.AddToQueueAsync(
@@ -301,16 +301,34 @@ public sealed class YouTubeTransportControlTests
             "viewer1"
         );
 
-        queued.IsSuccess.Should().BeTrue();
-        QueuedUris(rig).Should().ContainSingle().Which.Should().Be(Watch(First));
+        queued.IsSuccess.Should().BeFalse();
+        queued.ErrorCode.Should().Be("NO_OVERLAY_PLAYER");
+        QueuedUris(rig).Should().BeEmpty();
         rig.Notifier.Sent.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_request_queued_while_the_player_was_open_is_handed_over_when_audio_attaches_again()
+    {
+        Rig rig = await BuildAsync();
+        (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(First), "viewer1"))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(Second), "viewer2"))
+            .IsSuccess.Should()
+            .BeTrue();
+        rig.Presence.GetAudioWidgetId(Broadcaster).Returns((Guid?)null);
+        await ReportAsync(rig, First, "ended");
+        rig.Notifier.PlayedVideoIds.Should().Equal(First);
 
         rig.Presence.GetAudioWidgetId(Broadcaster).Returns(OwnerWidget);
-        (await rig.Players.HandOverNextAsync(Broadcaster)).Should().BeTrue();
+        // The head kept its place in the fair queue while no player was open, so the dispatcher's own
+        // slot is empty; the service's hand-over is what pushes it once audio attaches.
+        QueuedUris(rig).Should().ContainSingle().Which.Should().Be(Watch(Second));
         await rig.Music.HandOverNextAsync(Broadcaster.ToString());
 
-        rig.Notifier.PlayedVideoIds.Should().Equal(First);
-        rig.Notifier.Sent.Should().ContainSingle().Which.Widget.Should().Be(OwnerWidget);
+        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
+        rig.Notifier.Sent.Last().Widget.Should().Be(OwnerWidget);
     }
 
     /// <summary>music-sr.md AUTH STANCE: YouTube search and the overlay queue ride the app-level Data API
@@ -440,13 +458,15 @@ public sealed class YouTubeTransportControlTests
     [Fact]
     public async Task Skip_with_a_request_waiting_but_no_open_player_fails_as_no_player_and_keeps_the_queue()
     {
-        Rig rig = await BuildAsync(playerOpen: false);
+        Rig rig = await BuildAsync();
         (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(First), "viewer1"))
             .IsSuccess.Should()
             .BeTrue();
         (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(Second), "viewer2"))
             .IsSuccess.Should()
             .BeTrue();
+        rig.Presence.GetAudioWidgetId(Broadcaster).Returns((Guid?)null);
+        rig.Notifier.Sent.Clear();
 
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
 

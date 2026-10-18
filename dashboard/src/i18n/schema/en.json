@@ -920,6 +920,10 @@
           "description": "The song cannot be queued because nothing plays on any device.",
           "label": "Nothing is playing"
         },
+        "nooverlayplayer": {
+          "description": "A YouTube song cannot play because the audio overlay is not open in OBS.",
+          "label": "Audio overlay closed"
+        },
         "noproviderbroadcaster": {
           "description": "The streamer asks for a song but no music service is connected.",
           "label": "No music connected (streamer)"
@@ -987,6 +991,10 @@
         "revoked": {
           "description": "A person who banned 10 or more songs asks for a song.",
           "label": "Requests revoked"
+        },
+        "sourcenotallowed": {
+          "description": "A viewer pasted a link for a music service this channel has switched off.",
+          "label": "Music service off"
         },
         "trackblocked": {
           "description": "The requested song is on the block list.",

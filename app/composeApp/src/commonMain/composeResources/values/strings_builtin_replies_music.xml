@@ -93,6 +93,8 @@
     <string name="builtin_reply_sr_trackblocked_description">The requested song is on the block list.</string>
     <string name="builtin_reply_sr_noactivedevice_label">Nothing is playing</string>
     <string name="builtin_reply_sr_noactivedevice_description">The song cannot be queued because nothing plays on any device.</string>
+    <string name="builtin_reply_sr_nooverlayplayer_label">Audio overlay closed</string>
+    <string name="builtin_reply_sr_nooverlayplayer_description">A YouTube song cannot play because the audio overlay is not open in OBS.</string>
     <string name="builtin_reply_sr_premiumrequired_label">Premium needed</string>
     <string name="builtin_reply_sr_premiumrequired_description">The music service needs a Premium account for this request.</string>
     <string name="builtin_reply_sr_authfailed_label">Music login expired</string>
@@ -161,6 +163,8 @@
     <string name="builtin_reply_bansong_strikerevoked_description">Added after a ban when that person has banned 11 or more songs.</string>
     <string name="builtin_reply_sr_revoked_label">Requests revoked</string>
     <string name="builtin_reply_sr_revoked_description">A person who banned 10 or more songs asks for a song.</string>
+    <string name="builtin_reply_sr_sourcenotallowed_label">Music service off</string>
+    <string name="builtin_reply_sr_sourcenotallowed_description">A viewer pasted a link for a music service this channel has switched off.</string>
     <string name="builtin_reply_banger_nothing_label">Nothing playing</string>
     <string name="builtin_reply_banger_nothing_description">Nothing plays, so there is no song to add to the bangers playlist.</string>
     <string name="builtin_reply_banger_added_label">Banger added</string>

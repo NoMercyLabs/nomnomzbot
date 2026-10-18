@@ -243,6 +243,30 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.NoOverlayPlayer,
+            variables: ["track.name"],
+            informative:
+            [
+                "Couldn't queue \"{track.name}\" — the audio overlay is not open. Open it in OBS to play YouTube requests.",
+            ],
+            friendly:
+            [
+                "I couldn't queue \"{track.name}\" because the audio overlay isn't open. Open it in OBS to play YouTube requests!",
+            ],
+            sassy:
+            [
+                "\"{track.name}\" is YouTube, and the audio overlay is closed. Open it in OBS first.",
+            ],
+            hype: ["THE AUDIO OVERLAY IS CLOSED. OPEN IT IN OBS, THEN TRY \"{track.name}\" AGAIN."],
+            chill:
+            [
+                "the audio overlay isn't open, so \"{track.name}\" did not queue. open it in obs for youtube requests.",
+            ]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.PremiumRequired,
             variables: ["track.name"],
             informative:
@@ -679,6 +703,24 @@ public static partial class ToneTemplateCatalog
             [
                 "can't use that link. send a song name or a link for this channel's music service.",
             ]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.SourceNotAllowed,
+            variables: [],
+            informative:
+            [
+                "This channel does not take song requests from that music service. Send a song name instead.",
+            ],
+            friendly:
+            [
+                "This channel doesn't take requests from that music service, sorry! Send a song name instead.",
+            ],
+            sassy: ["Not that music service. This channel has it switched off. Send a song name."],
+            hype: ["THAT MUSIC SERVICE IS OFF IN THIS CHANNEL! SEND A SONG NAME INSTEAD."],
+            chill: ["that music service is off here. send a song name instead."]
         );
 
         Add(

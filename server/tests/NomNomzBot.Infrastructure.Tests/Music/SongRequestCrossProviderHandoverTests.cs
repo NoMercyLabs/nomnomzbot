@@ -64,6 +64,8 @@ public sealed class SongRequestCrossProviderHandoverTests
             TrackUri = uri,
             Provider = "x",
             IsPlaying = isPlaying,
+            DurationMs = 200_000,
+            ProgressMs = 196_000,
         };
 
     private static SongRequestEntry Entry(string uri) =>

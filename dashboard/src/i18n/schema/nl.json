@@ -920,6 +920,10 @@
           "description": "Het nummer kan niet in de wachtrij omdat er op geen enkel apparaat iets speelt.",
           "label": "Er speelt niets"
         },
+        "nooverlayplayer": {
+          "description": "Een YouTube-nummer kan niet spelen omdat de audio-overlay niet open staat in OBS.",
+          "label": "Audio-overlay dicht"
+        },
         "noproviderbroadcaster": {
           "description": "De streamer vraagt een nummer maar er is geen muziekdienst verbonden.",
           "label": "Geen muziek verbonden (streamer)"
@@ -987,6 +991,10 @@
         "revoked": {
           "description": "Iemand die 10 of meer nummers heeft geband vraagt een nummer aan.",
           "label": "Verzoeken ingetrokken"
+        },
+        "sourcenotallowed": {
+          "description": "Een kijker plakte een link voor een muziekdienst die dit kanaal heeft uitgezet.",
+          "label": "Muziekdienst uit"
         },
         "trackblocked": {
           "description": "Het gevraagde nummer staat op de blokkeerlijst.",

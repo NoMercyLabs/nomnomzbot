@@ -187,6 +187,13 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 trackName,
                 ct
             ),
+            "NO_OVERLAY_PLAYER" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NoOverlayPlayer,
+                "Couldn't queue \"{track.name}\" — the audio overlay is not open. Open it in OBS to play YouTube requests.",
+                trackName,
+                ct
+            ),
             "PREMIUM_REQUIRED" => TrackReplyAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.PremiumRequired,
@@ -276,6 +283,14 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 context,
                 BuiltinResponseSlots.SongRequest.UnsupportedLink,
                 "That link can't be used here. Send a song name, or a link for the music service this channel uses.",
+                null,
+                ct
+            ),
+            // A link for a music service the channel switched off (YouTube not allowed).
+            "PROVIDER_NOT_ALLOWED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.SourceNotAllowed,
+                "This channel does not take song requests from that music service. Send a song name instead.",
                 null,
                 ct
             ),

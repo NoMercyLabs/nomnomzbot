@@ -536,6 +536,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (config is { RequestsOpen: false })
             return Result.Failure(RequestsClosedMessage, RequestsClosedCode);
 
+        Result? notAllowed = await RefuseIfSourceNotAllowedAsync(
+            tenantId,
+            config,
+            ChatLinkText.Normalize(trackUri),
+            cancellationToken
+        );
+        if (notAllowed is not null)
+            return notAllowed;
+
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
             return NoProvider();
@@ -640,6 +649,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "Stop requesting songs, your permission has been revoked",
                 "SR_REVOKED"
             );
+
+        Result? notAllowed = await RefuseIfSourceNotAllowedAsync(
+            tenantId,
+            config,
+            ChatLinkText.Normalize(query),
+            cancellationToken
+        );
+        if (notAllowed is not null)
+            return Result.Failure<MusicTrack>(notAllowed.ErrorMessage!, notAllowed.ErrorCode);
 
         // A link goes to the provider that owns it, so a YouTube link is played on YouTube even when
         // Spotify is the active provider. A search phrase goes to the active provider.
@@ -1201,6 +1219,16 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     {
         if (_queueStore.GetInFlight(broadcasterId) is not null)
             return null;
+        // No overlay player attached: nothing could play, so the request is refused with a reason and
+        // no other engine is silenced for it.
+        if (!await HasPlayerIfGatedAsync(provider, tenantId, cancellationToken))
+            return await RollBackAsync(
+                broadcasterId,
+                queue,
+                entry,
+                NoOverlayPlayerOnQueue(trackName),
+                cancellationToken
+            );
         // Another engine still busy: the request waits its turn and the next hand-over starts it.
         if (!await SilenceOtherEnginesAsync(tenantId, broadcasterId, provider, cancellationToken))
             return null;
@@ -1792,6 +1820,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — nothing is playing on any device right now. Start playback and try again.",
             "NO_ACTIVE_DEVICE",
+            errorData: new MusicRequestRefusal(trackName)
+        );
+
+    private static Result NoOverlayPlayerOnQueue(string trackName) =>
+        Result.Failure(
+            $"Couldn't queue \"{trackName}\" — the audio overlay is not open. Open it in OBS to play YouTube requests.",
+            "NO_OVERLAY_PLAYER",
             errorData: new MusicRequestRefusal(trackName)
         );
 
@@ -2594,6 +2629,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null)
             return;
 
+        // The head keeps its place until the overlay player attaches; Spotify is left playing meanwhile.
+        if (!await HasPlayerIfGatedAsync(provider, tenantId, cancellationToken))
+            return;
+
         if (!await SilenceOtherEnginesAsync(tenantId, broadcasterId, provider, cancellationToken))
             return;
 
@@ -2640,6 +2679,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             if (current is not { IsPlaying: true })
                 continue;
             if (IsSameTrack(current.TrackUri, playingRequest?.TrackUri))
+                return false;
+            // A song is playing: a request never cuts it off. The request waits until that song is about
+            // to end, then pauses the engine so the request, not the next track of the playlist, follows.
+            if (
+                current.DurationMs <= 0
+                || current.DurationMs - current.ProgressMs > NearEndWindowMs
+            )
                 return false;
 
             using IDisposable sanction = _sanctions.Begin(
@@ -2704,6 +2750,48 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             }
         }
         _queueStore.SetLastEngine(broadcasterId, spotify.Provider);
+    }
+
+    /// <summary>
+    /// How close to its end a playing song must be for a waiting request to take over. The playback poller
+    /// ticks at least every 5 s while a song plays (MusicStatePollingService.PlayingSafetyPollInterval),
+    /// so a window of 6 s always holds a tick and the request never misses a whole song.
+    /// </summary>
+    private const int NearEndWindowMs = 6_000;
+
+    /// <summary>False when the provider needs an attached player (the YouTube overlay) and none is there.</summary>
+    private static async Task<bool> HasPlayerIfGatedAsync(
+        IMusicProvider provider,
+        Guid tenantId,
+        CancellationToken cancellationToken
+    ) =>
+        provider is not IMusicProviderPlayerGate gate
+        || await gate.HasPlayerAsync(tenantId, cancellationToken);
+
+    /// <summary>
+    /// A link the channel's sources do not allow (YouTube off) is refused outright, never rerouted to the
+    /// active provider. Null when the link is fine or owned by no registered provider.
+    /// </summary>
+    private async Task<Result?> RefuseIfSourceNotAllowedAsync(
+        Guid tenantId,
+        MusicConfigDto? config,
+        string linkText,
+        CancellationToken cancellationToken
+    )
+    {
+        IReadOnlyList<IMusicProvider> usable = await UsableMusicProviders.ForChannelAsync(
+            _db,
+            _providers,
+            tenantId,
+            cancellationToken
+        );
+        IMusicProvider? owner = usable.FirstOrDefault(p => p.OwnsTrackUri(linkText));
+        return owner is not null && !IsAllowed(owner.Provider, config)
+            ? Result.Failure(
+                $"{owner.Provider} song requests are not allowed in this channel.",
+                "PROVIDER_NOT_ALLOWED"
+            )
+            : null;
     }
 
     private bool IsEngineSwitch(string broadcasterId, IMusicProvider incoming) =>

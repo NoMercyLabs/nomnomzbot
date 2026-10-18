@@ -86,6 +86,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>Nothing plays on any device, so the track could not be queued; <c>{track.name}</c> is set.</summary>
         public const string NoActiveDevice = "noactivedevice";
 
+        /// <summary>A YouTube track cannot play because the audio overlay is not open in OBS; <c>{track.name}</c> is set.</summary>
+        public const string NoOverlayPlayer = "nooverlayplayer";
+
         /// <summary>The music service needs a Premium account for this; <c>{track.name}</c> is set.</summary>
         public const string PremiumRequired = "premiumrequired";
 
@@ -162,6 +165,9 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The link belongs to another site and its title could not be read — no variables.</summary>
         public const string UnsupportedLink = "unsupportedlink";
+
+        /// <summary>The link belongs to a music service this channel has switched off — no variables.</summary>
+        public const string SourceNotAllowed = "sourcenotallowed";
 
         /// <summary>The track cannot play in the streamer's country — no variables.</summary>
         public const string NotPlayable = "notplayable";

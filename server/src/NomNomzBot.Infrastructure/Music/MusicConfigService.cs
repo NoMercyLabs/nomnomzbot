@@ -186,7 +186,7 @@ public class MusicConfigService : IMusicConfigService
         public int MaxSongSeconds { get; set; } = 360;
         public bool AllowExplicit { get; set; } = true;
         public int? PerStreamLimit { get; set; }
-        public bool AllowYouTube { get; set; } = true;
+        public bool AllowYouTube { get; set; } = false;
         public bool AllowSpotify { get; set; } = true;
         public string MinTrustLevel { get; set; } = "everyone";
         public string? BangerPlaylistId { get; set; }

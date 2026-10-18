@@ -54,7 +54,19 @@ internal sealed class YouTubeSongRequestIntake
         );
         db.SaveChanges();
 
-        Provider = YouTubeProviderFactory.Create("test-key", Http, db, time: time);
+        // The streamer's audio overlay is open, so a YouTube request has a player to play in.
+        IYouTubePlayerDispatcher openPlayer = Substitute.For<IYouTubePlayerDispatcher>();
+        openPlayer
+            .FindPlayersAsync(ChannelId, Arg.Any<CancellationToken>())
+            .Returns([Guid.NewGuid()]);
+        openPlayer.HandOverNextAsync(ChannelId, Arg.Any<CancellationToken>()).Returns(true);
+        Provider = YouTubeProviderFactory.Create(
+            "test-key",
+            Http,
+            db,
+            players: openPlayer,
+            time: time
+        );
         Music = new MusicService(
             [Provider],
             db,

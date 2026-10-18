@@ -93,6 +93,8 @@
     <string name="builtin_reply_sr_trackblocked_description">Het gevraagde nummer staat op de blokkeerlijst.</string>
     <string name="builtin_reply_sr_noactivedevice_label">Er speelt niets</string>
     <string name="builtin_reply_sr_noactivedevice_description">Het nummer kan niet in de wachtrij omdat er op geen enkel apparaat iets speelt.</string>
+    <string name="builtin_reply_sr_nooverlayplayer_label">Audio-overlay dicht</string>
+    <string name="builtin_reply_sr_nooverlayplayer_description">Een YouTube-nummer kan niet spelen omdat de audio-overlay niet open staat in OBS.</string>
     <string name="builtin_reply_sr_premiumrequired_label">Premium nodig</string>
     <string name="builtin_reply_sr_premiumrequired_description">De muziekdienst heeft hiervoor een Premium-account nodig.</string>
     <string name="builtin_reply_sr_authfailed_label">Muziekinlog verlopen</string>
@@ -161,6 +163,8 @@
     <string name="builtin_reply_bansong_strikerevoked_description">Komt na een ban als die persoon 11 of meer nummers heeft geband.</string>
     <string name="builtin_reply_sr_revoked_label">Verzoeken ingetrokken</string>
     <string name="builtin_reply_sr_revoked_description">Iemand die 10 of meer nummers heeft geband vraagt een nummer aan.</string>
+    <string name="builtin_reply_sr_sourcenotallowed_label">Muziekdienst uit</string>
+    <string name="builtin_reply_sr_sourcenotallowed_description">Een kijker plakte een link voor een muziekdienst die dit kanaal heeft uitgezet.</string>
     <string name="builtin_reply_banger_nothing_label">Niets aan het spelen</string>
     <string name="builtin_reply_banger_nothing_description">Er speelt niets, dus er is geen nummer om aan de bangers-afspeellijst toe te voegen.</string>
     <string name="builtin_reply_banger_added_label">Banger toegevoegd</string>
