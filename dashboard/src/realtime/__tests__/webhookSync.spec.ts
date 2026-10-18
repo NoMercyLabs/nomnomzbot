@@ -56,7 +56,11 @@ describe('outbound webhooks live sync', () => {
     queries.setQueryData(outboundWebhooksKey('c1'), []);
     queries.setQueryData(commandsKey('c1'), []);
 
-    connection.receive(method, payload);
+    connection.receive('ChannelEvent', {
+      type: method,
+      broadcasterId: 'c1',
+      data: payload,
+    });
 
     expect(queries.getQueryState(outboundWebhooksKey('c1'))?.isInvalidated).toBe(true);
     expect(queries.getQueryState(commandsKey('c1'))?.isInvalidated).toBe(false);

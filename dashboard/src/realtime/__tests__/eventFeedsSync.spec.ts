@@ -37,7 +37,11 @@ describe('custom event feeds live sync', () => {
     queries.setQueryData(eventFeedsKey('c1'), []);
     queries.setQueryData(commandsKey('c1'), []);
 
-    connection.receive('CustomDataSourceChanged', { sourceName: 'heartrate', change: 'received' });
+    connection.receive('ChannelEvent', {
+      type: 'CustomDataSourceChanged',
+      broadcasterId: 'c1',
+      data: { sourceName: 'heartrate', change: 'received' },
+    });
 
     expect(queries.getQueryState(eventFeedsKey('c1'))?.isInvalidated).toBe(true);
     expect(queries.getQueryState(commandsKey('c1'))?.isInvalidated).toBe(false);

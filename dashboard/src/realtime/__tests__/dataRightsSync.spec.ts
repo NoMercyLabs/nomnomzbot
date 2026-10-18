@@ -38,7 +38,11 @@ describe('data rights live sync', () => {
     queries.setQueryData(consentsKey(), []);
     queries.setQueryData(commandsKey('c1'), []);
 
-    connection.receive('DataRightsChanged', { change: 'completed' });
+    connection.receive('ChannelEvent', {
+      type: 'DataRightsChanged',
+      broadcasterId: 'c1',
+      data: { change: 'completed' },
+    });
 
     expect(queries.getQueryState(dataRequestsKey())?.isInvalidated).toBe(true);
     expect(queries.getQueryState(consentsKey())?.isInvalidated).toBe(true);

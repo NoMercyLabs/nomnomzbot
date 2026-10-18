@@ -383,8 +383,8 @@ export type DataRightsChangedPayload = {
   change: string;
 };
 
-// AlertDtos.cs: WebhookDeliveryAttemptFailedAlertDto. The hub method is webhook_delivery_failed for a retryable
-// failure and webhook_delivery_dead_letter once the retries run out.
+// AlertDtos.cs: WebhookDeliveryAttemptFailedAlertDto. The data of a ChannelEvent with type
+// webhook_delivery_failed for a retryable failure and webhook_delivery_dead_letter once the retries run out.
 export type WebhookDeliveryFailedPayload = {
   outboundEndpointId: string;
   webhookMessageId: string;
@@ -423,10 +423,4 @@ export type DashboardHubEvents = {
   VtsStatusChanged: VtsStatusPayload;
   ChannelSuspensionChanged: ChannelSuspensionChangedPayload;
   ObsStateChanged: ObsStateChangedPayload;
-  webhook_delivery_failed: WebhookDeliveryFailedPayload;
-  webhook_delivery_dead_letter: WebhookDeliveryFailedPayload;
-  webhook_endpoint_auto_disabled: WebhookEndpointAutoDisabledPayload;
-  CustomDataSourceChanged: CustomDataSourceChangedPayload;
-  DataRightsChanged: DataRightsChangedPayload;
-  FederationOptInChanged: FederationOptInChangedPayload;
 };

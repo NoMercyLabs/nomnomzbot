@@ -96,12 +96,6 @@ const eventHandlers = [
   ),
   refreshing('ObsBridgeStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
-  refreshing('CustomDataSourceChanged', [eventFeedsKey]),
-  refreshing('webhook_delivery_failed', [outboundWebhooksKey]),
-  refreshing('webhook_delivery_dead_letter', [outboundWebhooksKey]),
-  refreshing('webhook_endpoint_auto_disabled', [outboundWebhooksKey]),
-  refreshing('DataRightsChanged', [dataRequestsKey, consentsKey]),
-  refreshing('FederationOptInChanged', [federationOptInsKey]),
   refreshing('VtsStatusChanged', [connectionsKey, botStatusKey, vtsConnectionKey, vtsInventoryKey]),
   // The channel list carries the suspension, so the frame enters or leaves the suspended view on its refetch.
   refreshing('ChannelSuspensionChanged', [myChannelsKey]),
@@ -110,7 +104,7 @@ const eventHandlers = [
 // The server sends every Twitch poll and prediction step, and every bot chat poll change, as a ChannelEvent.
 // Each one lands in the history list (the journal row is written before the event), so the list and the
 // running poll or prediction refetch.
-const pollEventKeys = [
+const channelEventKeys = [
   { prefix: 'poll_', keys: [pollsKey, pollHistoryKey] },
   { prefix: 'prediction_', keys: [predictionsKey, pollHistoryKey] },
   { prefix: 'ChatPollChanged', keys: [pollHistoryKey] },
@@ -118,12 +112,16 @@ const pollEventKeys = [
   { prefix: 'media_share_', keys: [mediaShareQueueKey] },
   // The server sends every queue change as a ChannelEvent of this type, never as a hub method of its own.
   { prefix: 'sr_queue_changed', keys: musicKeys },
+  { prefix: 'CustomDataSourceChanged', keys: [eventFeedsKey] },
+  { prefix: 'webhook_', keys: [outboundWebhooksKey] },
+  { prefix: 'DataRightsChanged', keys: [dataRequestsKey, consentsKey] },
+  { prefix: 'FederationOptInChanged', keys: [federationOptInsKey] },
 ] as const;
 
-const pollEventsChanged = {
+const channelEventsChanged = {
   event: 'ChannelEvent',
   handle: ({ queries, channelId }, event) => {
-    const match = pollEventKeys.find((entry) => event.type.startsWith(entry.prefix));
+    const match = channelEventKeys.find((entry) => event.type.startsWith(entry.prefix));
 
     if (!match) return;
 
@@ -160,7 +158,7 @@ const configChanged = {
 export const liveHandlers = merge(eventHandlers, [
   redemptionRedeemed,
   redemptionStatusChanged,
-  pollEventsChanged,
+  channelEventsChanged,
   permissionChanged,
   configChanged,
 ]);

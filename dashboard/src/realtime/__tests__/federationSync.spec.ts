@@ -37,11 +37,15 @@ describe('federation live sync', () => {
     queries.setQueryData(federationOptInsKey('c1'), []);
     queries.setQueryData(commandsKey('c1'), []);
 
-    connection.receive('FederationOptInChanged', {
-      peerId: null,
-      optInType: 'shared_ban_list',
-      direction: 'both',
-      isEnabled: true,
+    connection.receive('ChannelEvent', {
+      type: 'FederationOptInChanged',
+      broadcasterId: 'c1',
+      data: {
+        peerId: null,
+        optInType: 'shared_ban_list',
+        direction: 'both',
+        isEnabled: true,
+      },
     });
 
     expect(queries.getQueryState(federationOptInsKey('c1'))?.isInvalidated).toBe(true);
