@@ -256,6 +256,55 @@ public sealed class TwitchEventSubReconnectTests
     }
 
     [Fact]
+    public async Task A_channel_suspended_and_unsuspended_gets_its_topics_back_on_the_same_rows()
+    {
+        // Suspend retires every row (revoked, disabled, soft-deleted). The unique index on (broadcaster,
+        // provider, type, version) ignores DeletedAt, so the unsuspend re-subscribe must revive the retired
+        // row: inserting a second one violates the index (Postgres 23505) and the channel stays deaf.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new(startSessionId: "sess-current");
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        Seed(db, tenant, "channel.chat.message", "1", "enabled", "sub-chat", "sess-old");
+        Seed(db, tenant, "channel.follow", "2", "enabled", "sub-follow", "sess-old");
+        Dictionary<string, Guid> idsBefore = db.EventSubSubscriptions.ToDictionary(
+            s => s.EventType,
+            s => s.Id
+        );
+
+        Result suspended = await service.UnsubscribeAllAsync(tenant);
+        suspended.IsSuccess.Should().BeTrue();
+        db.ChangeTracker.Clear();
+        (await db.EventSubSubscriptions.IgnoreQueryFilters().ToListAsync())
+            .Should()
+            .OnlyContain(s => s.DeletedAt != null && s.Status == "revoked" && !s.Enabled);
+
+        Result<EventSubSubscriptionDto> chat = await service.SubscribeAsync(
+            tenant,
+            "channel.chat.message"
+        );
+        Result<EventSubSubscriptionDto> follow = await service.SubscribeAsync(
+            tenant,
+            "channel.follow"
+        );
+
+        chat.IsSuccess.Should().BeTrue(chat.ErrorMessage);
+        follow.IsSuccess.Should().BeTrue(follow.ErrorMessage);
+        db.ChangeTracker.Clear();
+        List<EventSubSubscription> rows = await db
+            .EventSubSubscriptions.IgnoreQueryFilters()
+            .ToListAsync();
+        rows.Should().HaveCount(2, "the retired rows are revived, never duplicated");
+        rows.Should().OnlyContain(s => s.DeletedAt == null && s.DeletedBy == null && s.Enabled);
+        rows.Should().OnlyContain(s => s.Status == "enabled" && s.SessionId == "sess-current");
+        rows.ToDictionary(s => s.EventType, s => s.Id).Should().BeEquivalentTo(idsBefore);
+        rows.Should()
+            .OnlyContain(s =>
+                s.TwitchSubscriptionId != "sub-chat" && s.TwitchSubscriptionId != "sub-follow"
+            );
+        transport.CreatedTypes.Should().BeEquivalentTo("channel.chat.message", "channel.follow");
+    }
+
+    [Fact]
     public async Task Stale_cleanup_racing_a_successful_create_keeps_the_new_id_and_session()
     {
         // The production 409 storm: a fresh welcome's stale-session cleanup loads the owner's rows on the dead

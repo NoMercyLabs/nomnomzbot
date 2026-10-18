@@ -1329,14 +1329,21 @@ public sealed class TwitchEventSubHostedService
         string version = _conditionBuilder.GetVersion(eventType);
         EventSubTokenOwnerKind tokenOwner = TokenOwnerFor(eventType);
 
-        EventSubSubscription? row = await db.EventSubSubscriptions.FirstOrDefaultAsync(
-            s =>
-                s.BroadcasterId == broadcasterId
-                && s.Provider == "twitch"
-                && s.EventType == eventType
-                && s.Version == version,
-            ct
-        );
+        // IgnoreQueryFilters: a row retired by UnsubscribeAllAsync (suspend) is soft-deleted but still holds its
+        // key in the unique index, which ignores DeletedAt. Missing it here would INSERT a duplicate (23505).
+        // The explicit BroadcasterId match keeps the lookup tenant-bound without the filter.
+        EventSubSubscription? row = await db
+            .EventSubSubscriptions.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                s =>
+                    s.BroadcasterId == broadcasterId
+                    && s.Provider == "twitch"
+                    && s.EventType == eventType
+                    && s.Version == version,
+                ct
+            );
+        if (row is { DeletedAt: not null })
+            ReviveRetiredRow(row);
 
         // Checked BEFORE the session is ensured: a held topic must neither re-POST nor (re)open its owner's
         // session. A session opened only for refused topics carries nothing, Twitch closes it (4003), and a
@@ -1973,6 +1980,23 @@ public sealed class TwitchEventSubHostedService
             "No platform bot identity for a platform-plane subscription.",
             "NOT_FOUND"
         );
+
+    /// <summary>
+    /// Brings a soft-deleted registry row back to a fresh <c>pending</c> state so the normal create path re-homes
+    /// it. Everything that bound it to a dead Twitch subscription or session is dropped; the row keeps its Id.
+    /// </summary>
+    private static void ReviveRetiredRow(EventSubSubscription row)
+    {
+        row.DeletedAt = null;
+        row.DeletedBy = null;
+        row.Status = "pending";
+        row.Enabled = true;
+        row.TwitchSubscriptionId = null;
+        row.SessionId = null;
+        row.ConduitId = null;
+        row.ShardId = null;
+        row.LastError = null;
+    }
 
     /// <summary>Idempotent upsert of the registry row on (BroadcasterId, Provider, EventType, Version).</summary>
     private async Task<EventSubSubscription> UpsertRowAsync(

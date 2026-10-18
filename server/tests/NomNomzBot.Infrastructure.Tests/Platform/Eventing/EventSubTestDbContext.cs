@@ -117,6 +117,17 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
             // Dictionary<string,string> has no default relational mapping (production uses a jsonb value converter); the
             // tests never assert on it, so drop it from the model.
             e.Ignore(x => x.Condition);
+            // Production behavior the revive path depends on: the soft-delete filter hides a retired row, while
+            // the unique index (which ignores DeletedAt) still holds its key.
+            e.HasQueryFilter(x => x.DeletedAt == null);
+            e.HasIndex(x => new
+                {
+                    x.BroadcasterId,
+                    x.Provider,
+                    x.EventType,
+                    x.Version,
+                })
+                .IsUnique();
         });
 
         b.Entity<IntegrationConnection>(e =>
