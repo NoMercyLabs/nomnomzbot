@@ -88258,6 +88258,7 @@ export interface components {
             grantedAt: string;
             /** Format: date-time */
             lastSyncedAt?: null | string;
+            isOwner: boolean;
         };
         /** @description A channel's own name and the way TTS says it, or null when TTS reads the name as written. */
         ChannelNamePronunciation: {

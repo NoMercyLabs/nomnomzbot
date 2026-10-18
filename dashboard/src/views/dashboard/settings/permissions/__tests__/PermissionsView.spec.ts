@@ -47,12 +47,21 @@ const members = [
     userId: 'u-mod',
     username: 'modmary',
     role: 0,
+    isOwner: false,
   },
   {
     id: 'm2',
     userId: 'u-owner',
     username: 'ownerolly',
     role: 3,
+    isOwner: true,
+  },
+  {
+    id: 'm3',
+    userId: 'u-stale',
+    username: 'stalesam',
+    role: 3,
+    isOwner: false,
   },
 ];
 
@@ -223,6 +232,14 @@ describe('Permissions', () => {
     expect(q('[data-member="ownerolly"]').textContent).not.toMatch(/\d/);
     expect(q('[data-member="ownerolly"] [data-member-remove]').hasAttribute('disabled')).toBe(true);
     expect(q('[data-member="modmary"] [data-member-remove]').hasAttribute('disabled')).toBe(false);
+  });
+
+  it('locks only the real owner: a stored Broadcaster label on someone else stays editable', async () => {
+    const wrapper = await open();
+
+    expect(q('[data-member="stalesam"] [data-member-remove]').hasAttribute('disabled')).toBe(false);
+    expect(selectLabeled(wrapper, 'Role of stalesam').props('disabled')).toBe(false);
+    expect(selectLabeled(wrapper, 'Role of ownerolly').props('disabled')).toBe(true);
   });
 
   it('changes a role with a PUT of the person and the role index, then reloads the team', async () => {

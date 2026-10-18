@@ -77,7 +77,8 @@ public sealed class RolesControllerTests
             MembershipSource.BotGrant,
             Caller,
             default,
-            null
+            null,
+            false
         );
         service
             .SetManagementRoleAsync(
@@ -132,7 +133,8 @@ public sealed class RolesControllerTests
             MembershipSource.BotGrant,
             Caller,
             default,
-            null
+            null,
+            false
         );
         service
             .ListMembershipsAsync(Channel, 1, 100, Arg.Any<CancellationToken>())

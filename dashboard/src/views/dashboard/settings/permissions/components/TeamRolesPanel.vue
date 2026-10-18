@@ -106,7 +106,7 @@ async function add(): Promise<void> {
             :label="$t('dashboard.settings.permissions.team.roleOf', { name: member.username ?? member.userId })"
             :model-value="teamRoleOf(member.role)"
             :options="rowOptions"
-            :disabled="!canManage || teamRoleOf(member.role) === 'Broadcaster'"
+            :disabled="!canManage || member.isOwner"
             @update:model-value="changeRole(member.userId, $event as TeamRole)"
           />
           <Button
@@ -114,7 +114,7 @@ async function add(): Promise<void> {
             variant="ghost"
             size="icon"
             data-member-remove
-            :disabled="teamRoleOf(member.role) === 'Broadcaster'"
+            :disabled="member.isOwner"
             :aria-label="$t('dashboard.settings.permissions.team.remove', { name: member.username ?? member.userId })"
             @click="run(remove.mutateAsync(member.userId))"
           >

@@ -47,6 +47,20 @@ public sealed class MembershipService(
         CancellationToken cancellationToken = default
     )
     {
+        // Broadcaster is not a grantable role: only the real owner (Channels.OwnerUserId) is the broadcaster,
+        // and the owner's standing is computed, never edited.
+        if (await IsChannelOwnerAsync(broadcasterId, userId, cancellationToken))
+            return Result.Failure<ChannelMembershipDto>(
+                "The channel owner's role cannot be changed.",
+                "VALIDATION_FAILED"
+            );
+
+        if (role == ManagementRole.Broadcaster)
+            return Result.Failure<ChannelMembershipDto>(
+                "Broadcaster is reserved for the channel owner.",
+                "VALIDATION_FAILED"
+            );
+
         if (grantedByUserId is { } grantor)
         {
             Result<int> grantorLevel = await roleResolver.ResolveEffectiveLevelAsync(
@@ -119,8 +133,27 @@ public sealed class MembershipService(
         );
 
         string? username = await LookupUsernameAsync(userId, cancellationToken);
-        return Result.Success(ToDto(existing, username));
+        return Result.Success(ToDto(existing, username, false));
     }
+
+    private async Task<bool> IsChannelOwnerAsync(
+        Guid broadcasterId,
+        Guid userId,
+        CancellationToken ct
+    ) =>
+        await db
+            .Channels.IgnoreQueryFilters()
+            .AnyAsync(
+                c => c.Id == broadcasterId && c.OwnerUserId == userId && c.DeletedAt == null,
+                ct
+            );
+
+    private async Task<Guid?> OwnerUserIdAsync(Guid broadcasterId, CancellationToken ct) =>
+        await db
+            .Channels.IgnoreQueryFilters()
+            .Where(c => c.Id == broadcasterId && c.DeletedAt == null)
+            .Select(c => (Guid?)c.OwnerUserId)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<Result> RemoveManagementRoleAsync(
         Guid broadcasterId,
@@ -133,7 +166,10 @@ public sealed class MembershipService(
         if (existing is null)
             return Result.Success();
 
-        if (existing.Source == MembershipSource.Owner)
+        if (
+            existing.Source == MembershipSource.Owner
+            || await IsChannelOwnerAsync(broadcasterId, userId, cancellationToken)
+        )
             return Result.Failure(
                 "The channel owner's membership cannot be removed.",
                 "VALIDATION_FAILED"
@@ -282,6 +318,7 @@ public sealed class MembershipService(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        Guid? ownerUserId = await OwnerUserIdAsync(broadcasterId, cancellationToken);
         List<Guid> userIds = [.. rows.Select(m => m.UserId)];
         Dictionary<Guid, string> usernames = await db
             .Users.Where(u => userIds.Contains(u.Id))
@@ -290,7 +327,11 @@ public sealed class MembershipService(
         List<ChannelMembershipDto> dtos =
         [
             .. rows.Select(m =>
-                ToDto(m, usernames.TryGetValue(m.UserId, out string? name) ? name : null)
+                ToDto(
+                    m,
+                    usernames.TryGetValue(m.UserId, out string? name) ? name : null,
+                    m.UserId == ownerUserId
+                )
             ),
         ];
         return Result.Success(new PagedList<ChannelMembershipDto>(dtos, page, pageSize, total));
@@ -339,7 +380,11 @@ public sealed class MembershipService(
             ct
         );
 
-    private static ChannelMembershipDto ToDto(ChannelMembership m, string? username) =>
+    private static ChannelMembershipDto ToDto(
+        ChannelMembership m,
+        string? username,
+        bool isOwner
+    ) =>
         new(
             m.Id,
             m.UserId,
@@ -349,6 +394,7 @@ public sealed class MembershipService(
             m.Source,
             m.GrantedByUserId,
             m.GrantedAt,
-            m.LastSyncedAt
+            m.LastSyncedAt,
+            isOwner
         );
 }

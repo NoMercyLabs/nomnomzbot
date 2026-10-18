@@ -106698,7 +106698,8 @@
           "role",
           "levelValue",
           "source",
-          "grantedAt"
+          "grantedAt",
+          "isOwner"
         ],
         "type": "object",
         "properties": {
@@ -106750,6 +106751,9 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "isOwner": {
+            "type": "boolean"
           }
         },
         "description": "A channel-management membership row for the dashboard roles screen (roles-permissions §4)."

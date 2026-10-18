@@ -165,6 +165,146 @@ public sealed class MembershipServiceTests
             .BeTrue();
     }
 
+    private static void SeedChannelOwnedBy(AuthDbContext db, Guid ownerUserId) =>
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                OwnerUserId = ownerUserId,
+                TwitchChannelId = "tw-owned",
+                Name = "owned",
+                NameNormalized = "owned",
+            }
+        );
+
+    [Fact]
+    public async Task Set_refuses_to_change_the_real_owners_role()
+    {
+        (MembershipService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        SeedChannelOwnedBy(db, Target);
+        SeedMembership(db, Target, ManagementRole.Editor, MembershipSource.BotGrant);
+        await db.SaveChangesAsync();
+
+        Result<ChannelMembershipDto> result = await sut.SetManagementRoleAsync(
+            Channel,
+            Target,
+            ManagementRole.Moderator,
+            MembershipSource.BotGrant,
+            grantedByUserId: null
+        );
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        ChannelMembership row = await db.ChannelMemberships.SingleAsync(m => m.UserId == Target);
+        row.ManagementRole.Should().Be(ManagementRole.Editor);
+        row.LevelValue.Should().Be(30);
+        bus.Published.OfType<ManagementRoleChangedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Set_refuses_the_broadcaster_role_for_anyone_but_the_owner()
+    {
+        (MembershipService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        SeedChannelOwnedBy(db, Grantor);
+        await db.SaveChangesAsync();
+
+        Result<ChannelMembershipDto> result = await sut.SetManagementRoleAsync(
+            Channel,
+            Target,
+            ManagementRole.Broadcaster,
+            MembershipSource.BotGrant,
+            grantedByUserId: Grantor
+        );
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.ChannelMemberships.AnyAsync(m => m.UserId == Target)).Should().BeFalse();
+        bus.Published.OfType<ManagementRoleChangedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Set_lets_the_owner_demote_a_non_owner_who_holds_a_stored_broadcaster_label()
+    {
+        (MembershipService sut, AuthDbContext db, _) = Build();
+        SeedChannelOwnedBy(db, Grantor);
+        SeedMembership(db, Target, ManagementRole.Broadcaster, MembershipSource.BotGrant);
+        await db.SaveChangesAsync();
+
+        Result<ChannelMembershipDto> result = await sut.SetManagementRoleAsync(
+            Channel,
+            Target,
+            ManagementRole.LeadModerator,
+            MembershipSource.BotGrant,
+            grantedByUserId: Grantor
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Role.Should().Be(ManagementRole.LeadModerator);
+        result.Value.LevelValue.Should().Be(20);
+        result.Value.IsOwner.Should().BeFalse();
+        (await db.ChannelMemberships.SingleAsync(m => m.UserId == Target))
+            .LevelValue.Should()
+            .Be(20);
+    }
+
+    [Fact]
+    public async Task Remove_refuses_the_real_owner_even_with_a_bot_grant_row()
+    {
+        (MembershipService sut, AuthDbContext db, _) = Build();
+        SeedChannelOwnedBy(db, Target);
+        SeedMembership(db, Target, ManagementRole.Editor, MembershipSource.BotGrant);
+        await db.SaveChangesAsync();
+
+        Result result = await sut.RemoveManagementRoleAsync(Channel, Target, removedByUserId: null);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.ChannelMemberships.AnyAsync(m => m.UserId == Target && m.DeletedAt == null))
+            .Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task List_flags_only_the_real_owner_as_owner()
+    {
+        (MembershipService sut, AuthDbContext db, _) = Build();
+        SeedChannelOwnedBy(db, Grantor);
+        SeedMembership(db, Grantor, ManagementRole.Editor, MembershipSource.BotGrant);
+        SeedMembership(db, Target, ManagementRole.Broadcaster, MembershipSource.BotGrant);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<ChannelMembershipDto>> result = await sut.ListMembershipsAsync(
+            Channel,
+            1,
+            50
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Single(m => m.UserId == Grantor).IsOwner.Should().BeTrue();
+        result.Value.Items.Single(m => m.UserId == Target).IsOwner.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_stored_broadcaster_row_on_a_non_owner_resolves_to_the_editor_ceiling()
+    {
+        (_, AuthDbContext db, _) = Build();
+        FakeTimeProvider clock = new(Now);
+        RoleResolver resolver = new(
+            db,
+            clock,
+            Substitute.For<IActAsMembershipOverlay>(),
+            Substitute.For<NomNomzBot.Application.Abstractions.Auth.IViewAsScope>()
+        );
+        SeedChannelOwnedBy(db, Grantor);
+        SeedMembership(db, Target, ManagementRole.Broadcaster, MembershipSource.BotGrant);
+        await db.SaveChangesAsync();
+
+        Result<int> level = await resolver.ResolveEffectiveLevelAsync(Target, Channel);
+
+        level.Value.Should().Be(30);
+        (await resolver.ResolveEffectiveLevelAsync(Grantor, Channel)).Value.Should().Be(40);
+    }
+
     [Fact]
     public async Task Sync_adds_new_prunes_stale_and_leaves_owner_and_bot_grant_untouched()
     {

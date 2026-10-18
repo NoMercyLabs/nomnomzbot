@@ -193,12 +193,20 @@ public sealed class RoleResolver(
         // The channel owner IS the Broadcaster on their own channel — no membership row needed (schema A.2:
         // one channel per owner). This is what lets a fresh self-host streamer use their own dashboard out of
         // the box, instead of being a role-less user on the channel they own.
+        // Broadcaster is never a grantable role. A stored Broadcaster row on someone who is not the owner (written
+        // before the grant was refused) counts for no more than the highest grantable role, Editor, until changed.
+        bool staleBroadcasterRow =
+            membership?.ManagementRole == ManagementRole.Broadcaster && !isChannelOwner;
+        ManagementRole? storedRole = staleBroadcasterRow
+            ? ManagementRole.Editor
+            : membership?.ManagementRole;
+        int storedLevel = staleBroadcasterRow
+            ? ManagementRole.Editor.ToLevel()
+            : membership?.LevelValue ?? 0;
         ManagementRole? managementRole =
-            membership?.ManagementRole
-            ?? actingRole
-            ?? (isChannelOwner ? ManagementRole.Broadcaster : null);
+            storedRole ?? actingRole ?? (isChannelOwner ? ManagementRole.Broadcaster : null);
         int managementLevel = Math.Max(
-            membership?.LevelValue ?? actingRole?.ToLevel() ?? 0,
+            membership is null ? actingRole?.ToLevel() ?? 0 : storedLevel,
             isChannelOwner ? BroadcasterLevel : 0
         );
 

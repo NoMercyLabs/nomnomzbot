@@ -327,6 +327,7 @@ data class ChannelMembership(
     val grantedByUserId: String? = null,
     val grantedAt: String = "",
     val lastSyncedAt: String? = null,
+    val isOwner: Boolean = false,
 ) {
     val managementRole: ManagementRole
         get() = ManagementRole.fromWire(role)

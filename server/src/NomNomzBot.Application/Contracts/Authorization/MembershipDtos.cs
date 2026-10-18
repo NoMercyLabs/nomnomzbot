@@ -22,7 +22,8 @@ public sealed record ChannelMembershipDto(
     MembershipSource Source,
     Guid? GrantedByUserId,
     DateTime GrantedAt,
-    DateTime? LastSyncedAt
+    DateTime? LastSyncedAt,
+    bool IsOwner
 );
 
 /// <summary>
