@@ -104,7 +104,7 @@ export function laneEnd(
   steps: PipelineStep[],
   parentId: string | null,
   branch: string | null,
-): Spot {
+) {
   const lane = laneOf({ parent_step_id: parentId, branch });
   const orders = steps
     .filter((step) =>
@@ -116,7 +116,7 @@ export function laneEnd(
     parentId,
     branch,
     order: Math.max(-1, ...orders) + 1,
-  };
+  } as const satisfies Spot;
 }
 
 // New steps placed at the spot: the first is the step itself, the rest sit inside it. The later steps of the
@@ -164,7 +164,7 @@ function withSettings<T extends object>(current: T, change: JsonObject): T {
   return next as T;
 }
 
-function patched(step: PipelineStep, patch: StepPatch): PipelineStep {
+function patched(step: PipelineStep, patch: StepPatch) {
   return {
     ...step,
     action: withSettings(step.action, patch.action ?? {}),
@@ -172,7 +172,7 @@ function patched(step: PipelineStep, patch: StepPatch): PipelineStep {
       ? withSettings(step.block_config ?? {}, patch.block_config)
       : step.block_config,
     continue_on_error: patch.continue_on_error ?? step.continue_on_error,
-  };
+  } as const satisfies PipelineStep;
 }
 
 export function patchStep(steps: PipelineStep[], id: string, patch: StepPatch): PipelineStep[] {
@@ -184,7 +184,7 @@ export function patchStep(steps: PipelineStep[], id: string, patch: StepPatch): 
 
 // A step is plain JSON; a JSON copy also reads through the reactive proxy the draft holds it in, which
 // structuredClone refuses.
-function copyOf(step: PipelineStep, target: PipelineStep, ids: Map<string, string>): PipelineStep {
+function copyOf(step: PipelineStep, target: PipelineStep, ids: Map<string, string>) {
   const root = step.id === target.id;
 
   return {
@@ -196,7 +196,7 @@ function copyOf(step: PipelineStep, target: PipelineStep, ids: Map<string, strin
     order: root
       ? target.order + 1
       : step.order,
-  };
+  } as const satisfies PipelineStep;
 }
 
 // A copy of the step, inner steps included, placed right after it under new ids.

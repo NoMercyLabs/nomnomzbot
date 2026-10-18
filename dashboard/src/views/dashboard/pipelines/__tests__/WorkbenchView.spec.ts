@@ -177,17 +177,17 @@ const radius = {
   eventResponseEventTypes: [],
 } as PipelineBlastRadius;
 
-function query<T>(data: T): {
-  data: Ref<T>;
-  isPending: Ref<boolean>;
-  isError: Ref<boolean>;
-  refetch: () => void;
-} {
+function query<T>(data: T) {
   return {
     data: ref(data) as Ref<T>,
     isPending: ref(false),
     isError: ref(false),
     refetch: vi.fn<() => void>(),
+  } as const satisfies {
+    data: Ref<T>;
+    isPending: Ref<boolean>;
+    isError: Ref<boolean>;
+    refetch: () => void;
   };
 }
 
@@ -277,7 +277,7 @@ vi.mock('@/api/pipelines', async (original) => ({
 }));
 
 // The bot lists its first page and searches the rest: Ava is only on a later page.
-function botSearch(search: string): PipelineOptionList {
+function botSearch(search: string) {
   const term = search.toLowerCase();
 
   if (term === '')
@@ -291,7 +291,7 @@ function botSearch(search: string): PipelineOptionList {
     ...voices,
     items,
     totalCount: items.length,
-  };
+  } as const satisfies PipelineOptionList;
 }
 
 const voices: PipelineOptionList = {

@@ -37,7 +37,7 @@ const skipped: StepRun = {
   changes: [],
 };
 
-function stepRun(row: PipelineTraceStep): StepRun {
+function stepRun(row: PipelineTraceStep) {
   return {
     state: row.error
       ? 'failed'
@@ -49,7 +49,7 @@ function stepRun(row: PipelineTraceStep): StepRun {
       ? null
       : Number(row.iterations),
     changes: row.variableChanges ?? [],
-  };
+  } as const satisfies StepRun;
 }
 
 // A step inside a repeat runs once per round; its last round is what the canvas shows.
@@ -66,12 +66,12 @@ export function runOf(marks: RunMarks, stepId: string | null): StepRun {
 
 export type RunSummary = { ran: number; failed: number };
 
-export function runSummary(run: PipelineTestRun): RunSummary {
+export function runSummary(run: PipelineTestRun) {
   const marks = [...runMarks(run).values()];
 
   return {
     ran: marks.length,
     failed: marks.filter((mark) =>
       mark.state === 'failed').length,
-  };
+  } as const satisfies RunSummary;
 }

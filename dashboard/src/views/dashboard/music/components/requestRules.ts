@@ -27,10 +27,13 @@ export function playlistValue(provider: string, id: string): string {
   return `${provider}${playlistSeparator}${id}`;
 }
 
-function splitPlaylist(value: string): { provider: string; id: string } {
+function splitPlaylist(value: string) {
   const at = value.indexOf(playlistSeparator);
 
-  return { provider: value.slice(0, at), id: value.slice(at + 1) };
+  return {
+    provider: value.slice(0, at),
+    id: value.slice(at + 1),
+  } as const satisfies { provider: string; id: string };
 }
 
 type RoleCap = string | number;
@@ -52,7 +55,7 @@ export type RuleDraft = {
   roleCaps: Record<MusicRoleRung, RoleCap>;
 };
 
-export function draftOf(config: MusicConfig): RuleDraft {
+export function draftOf(config: MusicConfig) {
   const stored = config.maxRequestsPerRole ?? {};
 
   return {
@@ -78,7 +81,7 @@ export function draftOf(config: MusicConfig): RuleDraft {
           : String(stored[rung]),
       ] as const satisfies readonly [MusicRoleRung, string]),
     ) as Record<MusicRoleRung, string>,
-  };
+  } as const satisfies RuleDraft;
 }
 
 function inRange(value: number, min: number, max: number): boolean {

@@ -133,17 +133,17 @@ const dashboardPages: RouteRecordRaw[] = import.meta.env.DEV
 
 const dashboardLayout = () => import('@/layouts/DashboardLayout.vue');
 
-export const dashboardRoutes: RouteRecordRaw = {
+export const dashboardRoutes = {
   path: '/app',
   component: dashboardLayout,
   meta: { requiresAuth: true },
   children: dashboardPages,
-};
+} as const satisfies RouteRecordRaw;
 
 // The same pages for one named channel: /app/u/<channelName>/<page>.
-export const dashboardChannelRoutes: RouteRecordRaw = {
+export const dashboardChannelRoutes = {
   path: '/app/u/:channelName',
   component: dashboardLayout,
   meta: { requiresAuth: true },
   children: channelVariants(dashboardPages),
-};
+} as const satisfies RouteRecordRaw;

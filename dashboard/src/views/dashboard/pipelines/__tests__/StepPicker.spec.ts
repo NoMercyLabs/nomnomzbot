@@ -241,7 +241,7 @@ describe('the script and playlist pickers', () => {
       unavailableReason: 'No music provider is connected.',
       items: [],
       totalCount: 0,
-    } satisfies PipelineOptionList;
+    } as const satisfies PipelineOptionList;
 
     await openPicker('music_playlist');
 
@@ -259,7 +259,7 @@ describe('the step form for script and playlist settings', () => {
     text: (_text: unknown, fallback: string) =>
       fallback,
   };
-  const field = (name: string, kind: string): Record<string, unknown> => ({
+  const field = (name: string, kind: string) => ({
     name,
     kind,
     required: true,
@@ -267,7 +267,7 @@ describe('the step form for script and playlist settings', () => {
     description: null,
     templated: false,
     declaresVariable: false,
-  });
+  }) as const satisfies Record<string, unknown>;
 
   it('gives a script id and a playlist id the picker control instead of a text box', () => {
     const rows = actionRows(

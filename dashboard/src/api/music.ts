@@ -155,7 +155,7 @@ function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
   }) as const satisfies QueueItem);
 }
 
-function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): MusicQueue {
+function withPlaying(current: MusicQueue | undefined, isPlaying: boolean) {
   const base: MusicQueue = current ?? {
     nowPlaying: null,
     queue: [],
@@ -167,7 +167,7 @@ function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): Music
     nowPlaying: base.nowPlaying === null
       ? null
       : { ...base.nowPlaying, isPlaying },
-  };
+  } as const satisfies MusicQueue;
 }
 
 function transportKey(isPlaying: boolean | null): 'skipSong' | 'resumeSong' | 'pauseSong' {
@@ -245,14 +245,14 @@ export function useSetRequestsOpen(
 
       return readQueue(id);
     },
-    apply: (current: MusicQueue | undefined, { open }: { open: boolean }): MusicQueue => ({
+    apply: (current: MusicQueue | undefined, { open }: { open: boolean }) => ({
       ...(current ?? {
         nowPlaying: null,
         queue: [],
         requestsOpen: true,
       }),
       requestsOpen: open,
-    }),
+    }) as const satisfies MusicQueue,
   });
 }
 
@@ -288,7 +288,7 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
 
       return readQueue(id);
     },
-    apply: (current: MusicQueue | undefined, { position }: { position: number }): MusicQueue => {
+    apply: (current: MusicQueue | undefined, { position }: { position: number }) => {
       const base: MusicQueue = current ?? {
         nowPlaying: null,
         queue: [],
@@ -301,7 +301,10 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
 
       const rest = base.queue.filter((item) => item.position !== position);
 
-      return { ...base, queue: renumbered(base.queue, [moved, ...rest]) };
+      return {
+        ...base,
+        queue: renumbered(base.queue, [moved, ...rest]),
+      } as const satisfies MusicQueue;
     },
   });
 }
@@ -342,7 +345,7 @@ export function useMoveQueueItem(
 
       return readQueue(id);
     },
-    apply: (current: MusicQueue | undefined, { position, toPosition }: QueueMove): MusicQueue => {
+    apply: (current: MusicQueue | undefined, { position, toPosition }: QueueMove) => {
       const base: MusicQueue = current ?? {
         nowPlaying: null,
         queue: [],
@@ -358,12 +361,12 @@ export function useMoveQueueItem(
 
       rows.splice(to, 0, base.queue[from]!);
 
-      return { ...base, queue: renumbered(base.queue, rows) };
+      return { ...base, queue: renumbered(base.queue, rows) } as const satisfies MusicQueue;
     },
   });
 }
 
-function leavesQueue(current: MusicQueue | undefined, position: number): MusicQueue {
+function leavesQueue(current: MusicQueue | undefined, position: number) {
   const base: MusicQueue = current ?? {
     nowPlaying: null,
     queue: [],
@@ -371,7 +374,7 @@ function leavesQueue(current: MusicQueue | undefined, position: number): MusicQu
   };
   const rest = base.queue.filter((item) => item.position !== position);
 
-  return { ...base, queue: renumbered(base.queue, rest) };
+  return { ...base, queue: renumbered(base.queue, rest) } as const satisfies MusicQueue;
 }
 
 // A removed song leaves the queue at once; a refused remove puts it back and reaches the error inbox.
@@ -409,7 +412,7 @@ export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): 
 
 export type RequesterRemoval = { name: string };
 
-function withoutRequester(current: MusicQueue | undefined, name: string): MusicQueue {
+function withoutRequester(current: MusicQueue | undefined, name: string) {
   const base: MusicQueue = current ?? {
     nowPlaying: null,
     queue: [],
@@ -419,7 +422,7 @@ function withoutRequester(current: MusicQueue | undefined, name: string): MusicQ
     (item): boolean => item.requestedBy?.toLowerCase() !== name.toLowerCase(),
   );
 
-  return { ...base, queue: renumbered(base.queue, rest) };
+  return { ...base, queue: renumbered(base.queue, rest) } as const satisfies MusicQueue;
 }
 
 // Every queued song of one requester leaves at once; the playing track stays. A refusal puts them back.
@@ -584,9 +587,9 @@ export function useSaveMusicConfig(
     apply: (
       current: MusicConfig | null | undefined,
       change: MusicConfigChange,
-    ): MusicConfig | null =>
+    ) =>
       current
-        ? { ...current, ...definedOnly(change) }
+        ? { ...current, ...definedOnly(change) } as const satisfies MusicConfig
         : null,
   });
 }

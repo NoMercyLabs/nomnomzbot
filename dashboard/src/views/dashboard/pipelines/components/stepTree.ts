@@ -78,8 +78,8 @@ function childrenOf(step: PipelineStep, groups: Siblings): PipelineStep[] {
 }
 
 // The prefix the steps of one lane of a node continue from.
-function laneStart(place: Place, lane: number): Place {
-  return { number: `${place.number}.`, key: `${place.key}:${lane}.` };
+function laneStart(place: Place, lane: number) {
+  return { number: `${place.number}.`, key: `${place.key}:${lane}.` } as const satisfies Place;
 }
 
 function nodesOf(steps: PipelineStep[], groups: Siblings, start: Place): StepNode[] {
@@ -136,12 +136,12 @@ function lanesOf(step: PipelineStep, groups: Siblings, place: Place): StepLane[]
   return [];
 }
 
-function nodeOf(step: PipelineStep, groups: Siblings, place: Place): StepNode {
+function nodeOf(step: PipelineStep, groups: Siblings, place: Place) {
   return {
     step,
     ...place,
     lanes: lanesOf(step, groups, place),
-  };
+  } as const satisfies StepNode;
 }
 
 export function buildStepTree(steps: PipelineStep[]): StepNode[] {

@@ -93,13 +93,13 @@ watch(
   { immediate: true },
 );
 
-const change = computed<MusicConfigChange>(() => {
+const change = computed(() => {
   const config = configQuery.data.value;
   const edits = draft.value;
 
   return config && edits
     ? changeOf(config, edits)
-    : {};
+    : {} as const satisfies MusicConfigChange;
 });
 const valid = computed<boolean>(() => draft.value === null || draftValid(draft.value));
 const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0);

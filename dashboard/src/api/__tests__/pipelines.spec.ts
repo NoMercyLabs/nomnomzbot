@@ -121,7 +121,7 @@ const storedSteps = [
   }),
 ];
 
-function dto(steps: PipelineStep[]): Record<string, unknown> {
+function dto(steps: PipelineStep[]) {
   return {
     id: 'p1',
     channelId: channel,
@@ -132,7 +132,7 @@ function dto(steps: PipelineStep[]): Record<string, unknown> {
     triggerCount: '4',
     createdAt: '2026-10-01T00:00:00Z',
     updatedAt: '2026-10-02T00:00:00Z',
-  };
+  } as const satisfies Record<string, unknown>;
 }
 
 beforeEach(() => {

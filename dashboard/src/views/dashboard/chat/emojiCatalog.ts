@@ -22,7 +22,7 @@ export type EmojiEntry = {
 
 let loading: Promise<EmojiEntry[]> | null = null;
 
-async function readCatalog(): Promise<EmojiEntry[]> {
+async function readCatalog() {
   const [compact, github] = await Promise.all([
     import('emojibase-data/en/compact.json'),
     import('emojibase-data/en/shortcodes/github.json'),
@@ -44,7 +44,7 @@ async function readCatalog(): Promise<EmojiEntry[]> {
       tags: emoji.tags ?? [],
       skins: emoji.skins?.map((skin) =>
         skin.unicode) ?? [],
-    }];
+    } as const satisfies EmojiEntry];
   });
 }
 

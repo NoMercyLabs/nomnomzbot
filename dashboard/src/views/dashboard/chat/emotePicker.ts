@@ -44,7 +44,7 @@ export type PickerContext = {
 export const recentLimit = 24;
 
 // The source the server stores a starred emoji under.
-export const emojiProvider = 'Emoji';
+export const emojiProvider = 'Emoji' as const;
 
 // The id a star is kept under: the emote's id, or its code when the source sent none.
 export function starId(emote: ChatEmoteEntry): string {
@@ -151,13 +151,13 @@ function favoriteSection(
   emotes: readonly ChatEmoteEntry[],
   emoji: readonly EmojiEntry[],
   favorites: readonly string[],
-): PickerSection[] {
+) {
   const starredEmotes = emotes.map((emote) =>
     [favoriteKey(emote.provider, starId(emote)), emoteSuggestion(emote)] as const);
   // An emoji is starred under the Emoji source, by its glyph.
   const starredEmoji = emoji.map((entry) =>
     [favoriteKey(emojiProvider, entry.glyph), emojiSuggestion(entry)] as const);
-  const byKey = new Map(merge(starredEmotes, starredEmoji));
+  const byKey = new Map<string, Suggestion>(merge(starredEmotes, starredEmoji));
   const items = favorites.flatMap((key) => {
     const item = byKey.get(key);
 
@@ -167,7 +167,7 @@ function favoriteSection(
   });
 
   return items.length > 0
-    ? [{ id: 'favorites', items }]
+    ? [{ id: 'favorites', items } as const satisfies PickerSection]
     : [];
 }
 
@@ -177,7 +177,7 @@ const emojiGroups = [
 ] as const satisfies readonly string[];
 const componentGroup = 2;
 
-function emojiSections(emoji: readonly EmojiEntry[]): PickerSection[] {
+function emojiSections(emoji: readonly EmojiEntry[]) {
   const groups = new Map<number, Suggestion[]>();
 
   for (const entry of emoji) {
@@ -189,7 +189,10 @@ function emojiSections(emoji: readonly EmojiEntry[]): PickerSection[] {
     groups.set(entry.group, items);
   }
 
-  return [...groups].map(([group, items]) => ({ id: `emoji-${emojiGroups[group]}`, items }));
+  return [...groups].map(([group, items]) => ({
+    id: `emoji-${emojiGroups[group]}`,
+    items,
+  } as const satisfies PickerSection));
 }
 
 // The recent picks that still exist, newest first.

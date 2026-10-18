@@ -130,7 +130,7 @@ export const pipelineKey = (channelId: string | null, id: string | null): KeyPar
 type WireStep = Partial<PipelineStep> & { action?: PipelineAction; order?: number | string };
 
 // The API leaves nulls out, so every optional part of a step is filled back in here.
-function parseStep(step: WireStep): PipelineStep {
+function parseStep(step: WireStep) {
   return {
     id: step.id ?? null,
     parent_step_id: step.parent_step_id ?? null,
@@ -141,21 +141,21 @@ function parseStep(step: WireStep): PipelineStep {
     action: step.action ?? { type: '' },
     condition: step.condition ?? null,
     continue_on_error: step.continue_on_error ?? false,
-  };
+  } as const satisfies PipelineStep;
 }
 
-function parseGraph(graph: components['schemas']['Pipeline']['graph']): PipelineGraph {
+function parseGraph(graph: components['schemas']['Pipeline']['graph']) {
   const steps = (graph as { steps?: WireStep[] } | null)?.steps ?? [];
 
-  return { steps: steps.map(parseStep) };
+  return { steps: steps.map(parseStep) } as const satisfies PipelineGraph;
 }
 
-function parsePipeline(dto: components['schemas']['Pipeline']): Pipeline {
+function parsePipeline(dto: components['schemas']['Pipeline']) {
   return {
     ...dto,
     triggerCount: Number(dto.triggerCount),
     graph: parseGraph(dto.graph),
-  };
+  } as const satisfies Pipeline;
 }
 
 async function readPipeline(channelId: string, id: string): Promise<Pipeline> {
@@ -260,8 +260,8 @@ export function useSavePipeline(
       return saved;
     },
     // The workbench saves only a pipeline it has loaded, so the cached one is always there.
-    apply: (current: Pipeline | undefined, change: PipelineChange): Pipeline =>
-      ({ ...(current as Pipeline), ...change }),
+    apply: (current: Pipeline | undefined, change: PipelineChange) =>
+      ({ ...(current as Pipeline), ...change }) as const satisfies Pipeline,
   });
 }
 

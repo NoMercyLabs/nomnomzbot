@@ -48,7 +48,7 @@ export type StepDraft = {
 const mint = (): string =>
   crypto.randomUUID();
 
-export function useStepDraft(saved: Ref<Pipeline | undefined>): StepDraft {
+export function useStepDraft(saved: Ref<Pipeline | undefined>) {
   // Vue's deep unwrap of the recursive JSON value type is unbounded, so the ref is typed as the list it holds.
   const steps = ref([]) as Ref<PipelineStep[]>;
   const baseline = ref('[]');
@@ -92,5 +92,5 @@ export function useStepDraft(saved: Ref<Pipeline | undefined>): StepDraft {
 
       return added[0]?.id ?? null;
     },
-  };
+  } as const satisfies StepDraft;
 }

@@ -54,7 +54,7 @@ const playlists: Record<string, unknown>[] = [
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const baseConfig = (): Record<string, unknown> => ({
+const baseConfig = () => ({
   isEnabled: true,
   preferredProvider: 'spotify',
   maxQueueSize: 20,
@@ -68,9 +68,9 @@ const baseConfig = (): Record<string, unknown> => ({
   allowExplicit: true,
   maxSongSeconds: 360,
   perStreamLimit: null,
-});
+}) as const satisfies Record<string, unknown>;
 
-const blockedRow = (id: string, title: string): Record<string, unknown> => ({
+const blockedRow = (id: string, title: string) => ({
   id,
   provider: 'spotify',
   trackUri: `spotify:track:${id}`,
@@ -78,7 +78,7 @@ const blockedRow = (id: string, title: string): Record<string, unknown> => ({
   reason: null,
   blockedByUserId: null,
   createdAt: '2026-10-01T10:00:00Z',
-});
+}) as const satisfies Record<string, unknown>;
 
 function write(method: string, path: string, options?: Options): Answer {
   calls.push({

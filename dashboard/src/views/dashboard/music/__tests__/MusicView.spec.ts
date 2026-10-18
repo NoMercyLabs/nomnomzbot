@@ -51,7 +51,7 @@ const track = (
   trackName: string,
   artist: string,
   requestedBy: string,
-): Record<string, unknown> => ({
+) => ({
   position,
   number: position,
   trackName,
@@ -60,9 +60,9 @@ const track = (
   durationMs: 200000,
   requestedBy,
   cost: 0,
-});
+}) as const satisfies Record<string, unknown>;
 
-const playing = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+const playing = (overrides: Record<string, unknown> = {}) => ({
   trackName: 'Midnight City',
   artist: 'M83',
   album: 'Hurry Up',
@@ -83,9 +83,9 @@ const playing = (overrides: Record<string, unknown> = {}): Record<string, unknow
   canPause: true,
   canResume: true,
   ...overrides,
-});
+}) as const satisfies Record<string, unknown>;
 
-function freshAnswers(): Record<string, () => Answer> {
+function freshAnswers() {
   return {
     '/roles/effective/me': () => ok({ heldActionKeys }),
     '/music/queue': () =>
@@ -140,7 +140,7 @@ function freshAnswers(): Record<string, () => Answer> {
           loginOnly: false,
         },
       ]),
-  };
+  } as const satisfies Record<string, () => Answer>;
 }
 
 function read(path: string): Answer {
