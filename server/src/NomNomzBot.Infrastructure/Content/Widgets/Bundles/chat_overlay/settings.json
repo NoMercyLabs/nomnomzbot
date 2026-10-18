@@ -1,0 +1,84 @@
+{
+  "fields": [
+    {
+      "key": "maxMessages",
+      "label": "Messages on screen",
+      "type": "number",
+      "default": 4,
+      "group": "Messages",
+      "help": "The most chat lines shown at one time.",
+      "min": 1,
+      "step": 1
+    },
+    {
+      "key": "chatShowDuration",
+      "label": "Message stays (seconds)",
+      "type": "number",
+      "default": 30,
+      "group": "Messages",
+      "help": "How long a chat line stays before it fades away.",
+      "min": 1,
+      "step": 1
+    },
+    {
+      "key": "chatAnimationDuration",
+      "label": "Slide time (seconds)",
+      "type": "number",
+      "default": 0.75,
+      "group": "Messages",
+      "help": "How long a line takes to slide in or out.",
+      "min": 0.05,
+      "step": 0.05
+    },
+    {
+      "key": "hideCommands",
+      "label": "Hide chat commands",
+      "type": "bool",
+      "default": true,
+      "group": "Messages",
+      "help": "Does not show lines that start a command, such as !sr."
+    },
+    {
+      "key": "width",
+      "label": "Width (pixels)",
+      "type": "number",
+      "default": 520,
+      "group": "Size",
+      "min": 1,
+      "step": 10
+    },
+    {
+      "key": "height",
+      "label": "Height (pixels)",
+      "type": "number",
+      "default": 800,
+      "group": "Size",
+      "min": 1,
+      "step": 10
+    },
+    {
+      "key": "defaultColor",
+      "label": "Default color",
+      "type": "color",
+      "default": "#f72264",
+      "group": "Look",
+      "help": "The color for viewers who have no chat color."
+    },
+    {
+      "key": "animations",
+      "label": "Animation timing and easing",
+      "type": "json",
+      "default": "{}",
+      "group": "Look",
+      "help": "Delays, durations and easing of each part of a chat line. This is a group of values; it is shown here but is edited in the code editor."
+    },
+    {
+      "key": "features",
+      "label": "Chat line features",
+      "type": "json",
+      "default": "{}",
+      "group": "Look",
+      "help": "Switches for badges, pronouns, colors, shine, link previews and emotes. This is a group of values; it is shown here but is edited in the code editor."
+    }
+  ]
+}

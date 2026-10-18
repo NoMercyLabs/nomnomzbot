@@ -41,7 +41,7 @@ export function returnPath(asked: LocationQueryValue | LocationQueryValue[] | un
     : '/app';
 }
 
-export async function signInGuard(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
+export async function signInGuard(to: RouteLocationNormalized) {
   if (to.matched.some((record) => record.meta.guestOnly))
     return guestGuard(to);
 
@@ -51,7 +51,10 @@ export async function signInGuard(to: RouteLocationNormalized): Promise<true | R
   if (await restoreSession())
     return withoutToken(to);
 
-  return { name: loginRoute.name, query: { return_to: to.fullPath } };
+  return {
+    name: loginRoute.name,
+    query: { return_to: to.fullPath }
+  } as const satisfies RouteLocationRaw;
 }
 
 // A visitor with a valid session skips the login page and goes where the login was asked for.

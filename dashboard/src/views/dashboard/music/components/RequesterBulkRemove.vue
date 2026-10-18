@@ -55,7 +55,7 @@ function confirmRemove(): void {
   <div
     v-if="requesters.length > 0 && can('music:queue:moderate')"
     data-requester-remove
-    class="flex items-center gap-2 px-4 py-3"
+    class="flex items-center gap-2 px-4 py-3 sticky -top-2 -mt-2 bg-card z-10"
   >
     <Select v-model="picked">
       <SelectTrigger class="min-w-0 flex-1" :aria-label="$t('dashboard.music.queue.pickRequester')">

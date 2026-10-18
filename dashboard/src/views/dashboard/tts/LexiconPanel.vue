@@ -168,13 +168,13 @@ function remove(entry: TtsLexiconEntry): void {
         class="flex items-center gap-2 px-3 py-2"
         data-lexicon-row
       >
-        <span class="min-w-0 flex-1 text-sm">
+        <span class="min-w-0 flex flex-1 text-sm gap-1 items-center">
           <span class="font-medium">{{ entry.phrase }}</span>
           <span class="text-muted-foreground">
             {{ $t("dashboard.tts.lexicon.saysAs") }}
           </span>
           <span>{{ entry.replacement }}</span>
-          <span class="block text-xs text-muted-foreground">
+          <span class="block text-xs text-muted-foreground leading-none">
             {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}
           </span>
         </span>

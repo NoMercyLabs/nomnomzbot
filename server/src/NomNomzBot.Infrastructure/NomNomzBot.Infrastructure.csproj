@@ -51,6 +51,17 @@
     <EmbeddedResource Include="Content\Widgets\Assets\*.vue" />
   </ItemGroup>
 
+  <!-- Multi-file first-party widget bundles (index.vue, components/, settings.json). The gallery row holds one
+       source file, so a bundle is read by FirstPartyWidgetBundles and built with WidgetBuildInput, not seeded as
+       a catalogue entry. LogicalName keeps the folder structure: Bundles/<key>/<relative path>. -->
+  <ItemGroup>
+    <None Remove="Content\Widgets\Bundles\**" />
+    <EmbeddedResource
+      Include="Content\Widgets\Bundles\**"
+      LogicalName="NomNomzBot.Infrastructure.Content.Widgets.Bundles/%(RecursiveDir)%(Filename)%(Extension)"
+    />
+  </ItemGroup>
+
   <!-- The curated spam seed corpus (skeletons + malicious domains), embedded so SpamCorpusSeeder reads it at seed
        time with no filesystem dependency. LogicalName pins a stable manifest name (the default derivation mangles
        the hyphens in the file name). -->
