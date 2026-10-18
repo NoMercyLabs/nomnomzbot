@@ -1,0 +1,15 @@
+{
+  "dashboard": {
+    "settings": {
+      "features": {
+        "title": "Functies",
+        "description": "Zet de onderdelen van NomNomzBot aan die je kanaal gebruikt. Elke schakelaar werkt meteen.",
+        "loadFailed": "De functies konden niet worden geladen.",
+        "empty": "Er zijn geen functies beschikbaar voor dit kanaal.",
+        "upgrade": "Hoger abonnement",
+        "scopes": "Heeft deze Twitch-rechten nodig: {scopes}",
+        "since": "Aan sinds {date}"
+      }
+    }
+  }
+}

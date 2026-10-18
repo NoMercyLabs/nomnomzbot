@@ -382,6 +382,8 @@ function isRecord(value: unknown): value is JsonObject {
 
 function textOf(body: JsonObject, key: string): string | undefined {
   const value = body[key];
+  'channel features': 'settings',
+  'toggle feature': 'settings',
 
   return typeof value === 'string' && value !== ''
     ? value
