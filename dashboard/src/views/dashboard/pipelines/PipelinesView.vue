@@ -53,9 +53,9 @@ const rows = computed(() => {
 
   return (pipelines.data.value ?? [])
     .filter((row: PipelineListItem) =>
-      `${row.name} ${row.description ?? ''}`.toLowerCase().includes(needle))
-    .sort((left: PipelineListItem, right: PipelineListItem) =>
-      left.name.localeCompare(right.name));
+      `${row.name} ${row.description ?? ''}`.toLowerCase().includes(needle),
+    )
+    .sort((left: PipelineListItem, right: PipelineListItem) => left.name.localeCompare(right.name));
 });
 
 function detailOf(row: PipelineListItem): string {
@@ -84,21 +84,21 @@ const creating = ref(false);
   <PageHeader :title="$t('dashboard.pipelines.title')" :crumb="$t('dashboard.pipelines.crumb')">
     <template #actions>
       <Button
+        v-if="canWrite"
         data-pipelines-new
         type="button"
         variant="outline"
         size="sm"
-        :disabled="!canWrite"
-        :title="canWrite ? undefined : $t('dashboard.pipelines.noWrite')"
         @click="creating = true"
       >
         <Plus aria-hidden="true" />
-        {{ $t('dashboard.pipelines.new') }}
+        {{ $t("dashboard.pipelines.new") }}
       </Button>
     </template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:pt-3 max-md:pb-0">
     <PanelCard
+      v-if="access.can('pipelines:read')"
       :title="$t('dashboard.pipelines.list.title')"
       :state="state"
       :error-text="$t('dashboard.pipelines.list.error')"
@@ -117,13 +117,13 @@ const creating = ref(false);
         data-slot="panel-empty"
         class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
       >
-        {{ $t('dashboard.pipelines.list.empty') }}
+        {{ $t("dashboard.pipelines.list.empty") }}
         <Button v-if="canWrite" type="button" size="sm" @click="creating = true">
-          {{ $t('dashboard.pipelines.list.makeFirst') }}
+          {{ $t("dashboard.pipelines.list.makeFirst") }}
         </Button>
       </div>
       <p v-else-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-        {{ $t('dashboard.pipelines.list.noMatch') }}
+        {{ $t("dashboard.pipelines.list.noMatch") }}
       </p>
       <SummaryRow
         v-for="row in rows"
@@ -139,13 +139,17 @@ const creating = ref(false);
         <template #end>
           <span class="flex items-center gap-2">
             <Badge v-if="row.hasPlatformDefault" variant="secondary">
-              {{ $t('dashboard.pipelines.list.readyMade') }}
+              {{ $t("dashboard.pipelines.list.readyMade") }}
             </Badge>
-            <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.pipelines.list.off')" />
+            <StatusBadge
+              v-if="!row.isEnabled"
+              tone="off"
+              :label="$t('dashboard.pipelines.list.off')"
+            />
           </span>
         </template>
       </SummaryRow>
     </PanelCard>
   </div>
-  <NewPipelineDialog v-model:open="creating" @created="open" />
+  <NewPipelineDialog v-if="canWrite" v-model:open="creating" @created="open" />
 </template>

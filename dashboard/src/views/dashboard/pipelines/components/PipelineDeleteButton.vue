@@ -38,7 +38,11 @@ const deleting = ref(false);
 
 const consequences = computed(() =>
   props.sources.map((source: StartSource) =>
-    t(`${page}.delete.consequence`, { source: t(`${page}.starts.${source.kind}`, { name: source.name }) })));
+    t(`${page}.delete.consequence`, {
+      source: t(`${page}.starts.${source.kind}`, { name: source.name }),
+    }),
+  ),
+);
 
 async function remove(): Promise<void> {
   const { id, name } = props.pipeline;
@@ -58,11 +62,11 @@ async function remove(): Promise<void> {
 
 <template>
   <Button
+    v-if="canWrite"
     data-workbench-delete
     type="button"
     variant="outline"
     size="sm"
-    :disabled="!canWrite"
     @click="deleting = true"
   >
     <Trash2 aria-hidden="true" />

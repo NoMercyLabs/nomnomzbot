@@ -226,6 +226,8 @@
         },
         "power": {
           "label": "Enabled",
+          "on": "On",
+          "off": "Off",
           "help": "Off: nothing starts this pipeline until you turn it on.",
           "turnedOff": "{name} is off. Nothing starts it until you turn it on.",
           "turnedOn": "{name} is on."

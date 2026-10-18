@@ -95,19 +95,25 @@ const state = usePanelState(pipeline);
 const tree = computed(() => buildStepTree(draft.steps.value));
 const stepCount = computed(() => draft.steps.value.length);
 
-const descriptors = computed(() =>
-  new Map((catalog.data.value?.actions ?? []).map((action: PipelineActionDescriptor) =>
-    [action.type, action])));
+const descriptors = computed(
+  () =>
+    new Map(
+      (catalog.data.value?.actions ?? []).map((action: PipelineActionDescriptor) => [
+        action.type,
+        action,
+      ]),
+    ),
+);
 
-const sources = computed(() =>
-  startSources(radius.data.value));
+const sources = computed(() => startSources(radius.data.value));
 
 const starts = computed(() => {
   if (sources.value.length === 0)
     return t('dashboard.pipelines.workbench.starts.none');
 
   const named = sources.value.map((source: StartSource) =>
-    t(`dashboard.pipelines.workbench.starts.${source.kind}`, { name: source.name }));
+    t(`dashboard.pipelines.workbench.starts.${source.kind}`, { name: source.name }),
+  );
 
   return t('dashboard.pipelines.workbench.starts.sentence', { sources: named.join(', ') });
 });
@@ -116,7 +122,8 @@ const selectedKey = ref<string | null>(null);
 const selected = computed(() =>
   selectedKey.value === null
     ? undefined
-    : findNode(tree.value, selectedKey.value));
+    : findNode(tree.value, selectedKey.value),
+);
 
 // The drawer closes by back, a tap outside or Escape; closing it lets go of the step.
 const inspecting = computed<boolean>({
@@ -212,16 +219,14 @@ function added(id: string | null): void {
 }
 
 function addAction(type: string): void {
-  const make = (mint: MintId): PipelineStep[] =>
-    newAction(type, mint);
+  const make = (mint: MintId): PipelineStep[] => newAction(type, mint);
   const id = draft.add(make, spot());
 
   added(id);
 }
 
 function addBlock(kind: AddableBlock): void {
-  const make = (mint: MintId): PipelineStep[] =>
-    newBlock(kind, mint);
+  const make = (mint: MintId): PipelineStep[] => newBlock(kind, mint);
   const id = draft.add(make, spot());
 
   added(id);
@@ -288,41 +293,53 @@ async function save(): Promise<void> {
   }
 }
 
-useShortcut({
-  key: 'z',
-  mod: true,
-  label: `${page}.shortcuts.undo`,
-}, (event: KeyboardEvent) => {
-  if (event.shiftKey) {
-    draft.redo();
-  } else {
-    draft.undo();
-  }
-});
+useShortcut(
+  {
+    key: 'z',
+    mod: true,
+    label: `${page}.shortcuts.undo`,
+  },
+  (event: KeyboardEvent) => {
+    if (event.shiftKey) {
+      draft.redo();
+    } else {
+      draft.undo();
+    }
+  },
+);
 
-useShortcut({
-  key: 'y',
-  mod: true,
-  label: `${page}.shortcuts.redo`,
-}, draft.redo);
+useShortcut(
+  {
+    key: 'y',
+    mod: true,
+    label: `${page}.shortcuts.redo`,
+  },
+  draft.redo,
+);
 
-useShortcut({
-  key: 'a',
-  label: `${page}.shortcuts.add`,
-}, () => {
-  if (canWrite.value) {
-    void openPalette();
-  }
-});
+useShortcut(
+  {
+    key: 'a',
+    label: `${page}.shortcuts.add`,
+  },
+  () => {
+    if (canWrite.value) {
+      void openPalette();
+    }
+  },
+);
 
-useShortcut({
-  key: 's',
-  mod: true,
-  label: `${page}.shortcuts.save`,
-  inFields: true,
-}, () => {
-  void save();
-});
+useShortcut(
+  {
+    key: 's',
+    mod: true,
+    label: `${page}.shortcuts.save`,
+    inFields: true,
+  },
+  () => {
+    void save();
+  },
+);
 
 // Unsaved changes hold the way out until the person says to leave without them.
 const leavingTo = ref<string | null>(null);
@@ -365,7 +382,10 @@ const leaveOpen = computed<boolean>({
 </script>
 
 <template>
-  <PageHeader :title="pipeline.data.value?.name ?? $t('dashboard.pipelines.title')" :crumb="$t('dashboard.pipelines.title')">
+  <PageHeader
+    :title="pipeline.data.value?.name ?? $t('dashboard.pipelines.title')"
+    :crumb="$t('dashboard.pipelines.title')"
+  >
     <template v-if="pipeline.data.value && !pipeline.data.value.isEnabled" #status>
       <StatusBadge tone="off" :label="$t('dashboard.pipelines.workbench.off')" />
     </template>
@@ -378,12 +398,13 @@ const leaveOpen = computed<boolean>({
         @click="router.push({ name: 'dashboard-pipelines' })"
       >
         <ArrowLeft aria-hidden="true" />
-        {{ $t('dashboard.pipelines.back') }}
+        {{ $t("dashboard.pipelines.back") }}
       </Button>
     </template>
     <!-- The editing controls act on the steps, so they sit in the bar beside the tabs, not in the title row. -->
     <template #bar>
       <Button
+        v-if="access.can('pipelines:read')"
         data-workbench-runs
         type="button"
         variant="ghost"
@@ -395,9 +416,9 @@ const leaveOpen = computed<boolean>({
         {{ $t(`${page}.views.runs`) }}
       </Button>
       <span
+        v-if="canWrite"
         data-workbench-controls
         class="ml-auto flex shrink-0 items-center gap-1"
-        :title="canWrite ? undefined : $t('dashboard.pipelines.noWrite')"
       >
         <Button
           data-workbench-undo
@@ -441,13 +462,14 @@ const leaveOpen = computed<boolean>({
           :disabled="!canWrite || !draft.dirty.value || saving.isPending.value"
           @click="save"
         >
-          {{ $t('dashboard.pipelines.workbench.save') }}
+          {{ $t("dashboard.pipelines.workbench.save") }}
         </Button>
       </span>
     </template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 flex-1 gap-3 p-6 max-md:py-0">
     <SidePanel
+      v-if="canWrite"
       v-model:open="paletteOpen"
       side="left"
       pinned
@@ -465,6 +487,7 @@ const leaveOpen = computed<boolean>({
       />
     </SidePanel>
     <PanelCard
+      v-if="access.can('pipelines:read')"
       class="min-w-0 flex-1"
       :title="$t('dashboard.pipelines.workbench.steps', { count: stepCount }, stepCount)"
       :state="state"
@@ -481,6 +504,7 @@ const leaveOpen = computed<boolean>({
           />
           <TestRunInput v-model="runInput" />
           <Button
+            v-if="canWrite"
             data-run-again
             type="button"
             variant="ghost"
@@ -500,7 +524,10 @@ const leaveOpen = computed<boolean>({
         />
       </template>
       <div data-workbench-canvas class="mx-auto flex w-full max-w-3xl flex-col gap-3 p-4">
-        <p data-workbench-start class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm">
+        <p
+          data-workbench-start
+          class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm"
+        >
           <Lightning class="size-4 shrink-0" aria-hidden="true" />
           {{ starts }}
         </p>
@@ -518,24 +545,23 @@ const leaveOpen = computed<boolean>({
           />
         </ol>
         <p v-else class="text-sm text-muted-foreground">
-          {{ $t('dashboard.pipelines.workbench.empty') }}
+          {{ $t("dashboard.pipelines.workbench.empty") }}
         </p>
         <Button
+          v-if="canWrite"
           data-workbench-add
           type="button"
           variant="outline"
           size="sm"
           class="w-fit"
-          :disabled="!canWrite"
-          :title="canWrite ? undefined : $t('dashboard.pipelines.noWrite')"
           @click="openPalette"
         >
           <Add aria-hidden="true" />
-          {{ $t('dashboard.pipelines.workbench.palette.addEnd') }}
+          {{ $t("dashboard.pipelines.workbench.palette.addEnd") }}
         </Button>
         <p class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm">
           <Flag class="size-4 shrink-0" aria-hidden="true" />
-          {{ $t('dashboard.pipelines.workbench.end') }}
+          {{ $t("dashboard.pipelines.workbench.end") }}
         </p>
       </div>
       <template v-if="pipeline.data.value" #footer>
@@ -548,7 +574,10 @@ const leaveOpen = computed<boolean>({
         />
       </template>
     </PanelCard>
-    <SidePanel v-model:open="inspecting" :label="$t('dashboard.pipelines.workbench.inspector.label')">
+    <SidePanel
+      v-model:open="inspecting"
+      :label="$t('dashboard.pipelines.workbench.inspector.label')"
+    >
       <StepInspector
         v-if="selected"
         :step="selected.step"
@@ -560,7 +589,11 @@ const leaveOpen = computed<boolean>({
         @patch="patch"
       />
     </SidePanel>
-    <SidePanel v-model:open="runsOpen" :label="$t(`${page}.runs.title`)">
+    <SidePanel
+      v-if="access.can('pipelines:read')"
+      v-model:open="runsOpen"
+      :label="$t(`${page}.runs.title`)"
+    >
       <RunsPanel :channel-id="channelId" :pipeline-id="id" />
     </SidePanel>
   </div>

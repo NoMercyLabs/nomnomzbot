@@ -29,6 +29,7 @@ import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueLis
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 import { humanize } from '@/lib/text';
@@ -44,13 +45,12 @@ const props = defineProps<{ widget: Widget }>();
 const { t } = useI18n();
 const text = useLocalizedText();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const schema = useWidgetSchema(channelId, () =>
   props.widget.id);
 const save = useSaveWidgetSettings(channelId);
 
-const fields = computed<WidgetSettingsField[]>(
-  () => schema.data.value?.fields ?? [],
-);
+const fields = computed<WidgetSettingsField[]>(() => schema.data.value?.fields ?? []);
 const saved = computed<Values>(() => (props.widget.settings ?? {}) as Values);
 
 function savedValue(field: WidgetSettingsField): JsonValue | undefined {
@@ -177,7 +177,7 @@ function submit(): void {
     :error-text="$t('dashboard.overlays.detail.settings.error')"
     @retry="schema.refetch()"
   >
-    <div v-if="fields.length > 0" class="grid gap-4">
+    <fieldset v-if="fields.length > 0" :disabled="!can('widget:write')" class="grid gap-4">
       <section v-for="group in groups" :key="group.name" class="grid gap-2">
         <h3 class="px-1 text-sm font-medium text-muted-foreground">{{ group.name }}</h3>
         <RowGroup>
@@ -192,15 +192,15 @@ function submit(): void {
           />
         </RowGroup>
       </section>
-    </div>
+    </fieldset>
     <div v-else class="grid gap-2 p-2">
       <p class="text-sm text-muted-foreground">
-        {{ $t('dashboard.overlays.detail.settings.raw') }}
+        {{ $t("dashboard.overlays.detail.settings.raw") }}
       </p>
       <KeyValueList :items="rawKeys" />
     </div>
 
-    <template v-if="state === 'ready' && fields.length > 0" #footer>
+    <template v-if="state === 'ready' && fields.length > 0 && can('widget:write')" #footer>
       <span
         class="min-w-0 flex-1 text-sm"
         :class="result === 'failed' ? 'text-destructive' : 'text-muted-foreground'"
@@ -215,7 +215,7 @@ function submit(): void {
         @click="submit"
       >
         <Save aria-hidden="true" />
-        {{ $t('dashboard.overlays.detail.settings.save') }}
+        {{ $t("dashboard.overlays.detail.settings.save") }}
       </Button>
     </template>
   </PanelCard>

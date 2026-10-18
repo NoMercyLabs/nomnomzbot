@@ -24,13 +24,7 @@ import { useLocalizedText } from '@/composables/useLocalizedText';
 import { actionIcon, blockIcon } from './stepIcons';
 import { runOf, type RunMarks, type StepRunState } from './stepRun';
 import type { StepLane, StepNode } from './stepTree';
-import {
-  conditionSentence,
-  laneTitle,
-  missingFields,
-  stepSentence,
-  stepTitle,
-} from './stepWords';
+import { conditionSentence, laneTitle, missingFields, stepSentence, stepTitle } from './stepWords';
 
 const props = defineProps<{
   node: StepNode;
@@ -52,19 +46,22 @@ const isBlock = computed(() => step.value.block_kind !== null);
 const descriptor = computed(() =>
   isBlock.value
     ? undefined
-    : props.descriptors.get(step.value.action.type));
+    : props.descriptors.get(step.value.action.type),
+);
 
 const icon = computed(() =>
   step.value.block_kind === null
     ? actionIcon(descriptor.value?.category.key)
-    : blockIcon(step.value.block_kind));
+    : blockIcon(step.value.block_kind),
+);
 
 const title = computed(() => stepTitle(step.value, { t, te }));
 const sentence = computed(() => stepSentence(descriptor.value, text));
 const condition = computed(() =>
   step.value.condition
     ? conditionSentence(step.value.condition, { t, te })
-    : null);
+    : null,
+);
 const missing = computed(() => missingFields(step.value, descriptor.value, { t, te }));
 const selected = computed(() => props.node.key === props.selectedKey);
 
@@ -80,8 +77,9 @@ const runTone = {
 
 // The lane a check took in the run, in the words of that lane.
 const taken = computed(() => {
-  const index = props.node.lanes.findIndex((lane: StepLane) =>
-    lane.branch !== null && lane.branch === run.value?.branch);
+  const index = props.node.lanes.findIndex(
+    (lane: StepLane) => lane.branch !== null && lane.branch === run.value?.branch,
+  );
 
   return index === -1
     ? null
@@ -93,10 +91,14 @@ function laneName(lane: StepLane, index: number): string {
 }
 
 function addTo(lane: StepLane, index: number): void {
-  emit('addTo', lane, t('dashboard.pipelines.workbench.palette.target', {
-    lane: laneName(lane, index),
-    number: props.node.number,
-  }));
+  emit(
+    'addTo',
+    lane,
+    t('dashboard.pipelines.workbench.palette.target', {
+      lane: laneName(lane, index),
+      number: props.node.number,
+    }),
+  );
 }
 </script>
 
@@ -116,9 +118,7 @@ function addTo(lane: StepLane, index: number): void {
     >
       <span
         class="grid size-8 shrink-0 place-items-center bg-muted"
-        :class="isBlock
-          ? 'rotate-45 rounded-sm'
-          : 'rounded-full'"
+        :class="isBlock ? 'rotate-45 rounded-sm' : 'rounded-full'"
         aria-hidden="true"
       >
         <component :is="icon" class="size-4" :class="isBlock && '-rotate-45'" />
@@ -132,17 +132,41 @@ function addTo(lane: StepLane, index: number): void {
         <span v-if="condition" data-step-condition class="text-xs text-muted-foreground">
           {{ condition }}
         </span>
-        <span v-if="missing.length > 0" data-step-missing class="text-xs font-medium text-destructive">
-          {{ $t('dashboard.pipelines.workbench.notSetUp', { fields: missing.join(', ') }, missing.length) }}
+        <span
+          v-if="missing.length > 0"
+          data-step-missing
+          class="text-xs font-medium text-destructive"
+        >
+          {{
+            $t(
+              "dashboard.pipelines.workbench.notSetUp",
+              { fields: missing.join(", ") },
+              missing.length,
+            )
+          }}
         </span>
         <template v-if="run">
-          <span v-if="run.error" data-run-error class="text-xs wrap-break-word text-destructive">{{ run.error }}</span>
-          <span v-else-if="run.output" data-run-output class="text-xs wrap-break-word">{{ run.output }}</span>
+          <span v-if="run.error" data-run-error class="text-xs wrap-break-word text-destructive">{{
+            run.error
+          }}</span>
+          <span v-else-if="run.output" data-run-output class="text-xs wrap-break-word">{{
+            run.output
+          }}</span>
           <span v-if="taken" data-run-taken class="text-xs text-muted-foreground">
-            {{ $t('dashboard.pipelines.workbench.run.took', { lane: taken }) }}
+            {{ $t("dashboard.pipelines.workbench.run.took", { lane: taken }) }}
           </span>
-          <span v-if="run.iterations !== null" data-run-rounds class="text-xs text-muted-foreground">
-            {{ $t('dashboard.pipelines.workbench.run.rounds', { count: run.iterations }, run.iterations) }}
+          <span
+            v-if="run.iterations !== null"
+            data-run-rounds
+            class="text-xs text-muted-foreground"
+          >
+            {{
+              $t(
+                "dashboard.pipelines.workbench.run.rounds",
+                { count: run.iterations },
+                run.iterations,
+              )
+            }}
           </span>
         </template>
       </span>
@@ -180,19 +204,19 @@ function addTo(lane: StepLane, index: number): void {
       </ol>
       <p v-else class="flex items-center gap-2 text-xs text-muted-foreground">
         <CornerDownRight class="size-4" aria-hidden="true" />
-        {{ $t('dashboard.pipelines.workbench.lane.empty') }}
+        {{ $t("dashboard.pipelines.workbench.lane.empty") }}
       </p>
       <Button
+        v-if="!readOnly"
         data-lane-add
         type="button"
         variant="ghost"
         size="sm"
         class="w-fit"
-        :disabled="readOnly"
         @click="addTo(lane, index)"
       >
         <Add aria-hidden="true" />
-        {{ $t('dashboard.pipelines.workbench.palette.addTo', { lane: laneName(lane, index) }) }}
+        {{ $t("dashboard.pipelines.workbench.palette.addTo", { lane: laneName(lane, index) }) }}
       </Button>
     </div>
   </li>

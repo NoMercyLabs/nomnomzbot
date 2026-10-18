@@ -22,6 +22,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
@@ -35,6 +36,7 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const widgets = useWidgets(channelId);
 const view = usePageView(TAB_VALUES);
@@ -114,7 +116,8 @@ const phone = useMediaQuery('(max-width: 767px)');
 const selectedId = computed<string>(() =>
   phone.value && asked.value === ''
     ? ''
-    : selected.value?.id ?? '');
+    : (selected.value?.id ?? ''),
+);
 
 function pick(widget: Widget): void {
   void router.push({ query: { ...route.query, id: widget.id } });
@@ -131,12 +134,13 @@ function back(): void {
 <template>
   <PageHeader :title="$t('dashboard.overlays.title')" :crumb="$t('dashboard.overlays.crumb')">
     <template #bar>
-      <PageTabs :tabs="tabs" />
+      <PageTabs v-if="can('widget:read')" :tabs="tabs" />
     </template>
   </PageHeader>
   <ListDetail :show-detail="asked !== ''">
     <template #list>
       <PanelCard
+        v-if="can('widget:read')"
         class="min-h-80 flex-1"
         :title="$t('dashboard.overlays.list.title')"
         :description="count === undefined ? hint : `${count} · ${hint}`"
@@ -163,7 +167,7 @@ function back(): void {
       </PanelCard>
     </template>
     <template #detail>
-      <OverlayDetail v-if="selected" :widget="selected" @back="back" />
+      <OverlayDetail v-if="selected && can('widget:read')" :widget="selected" @back="back" />
       <PanelCard
         v-else
         class="flex-1"

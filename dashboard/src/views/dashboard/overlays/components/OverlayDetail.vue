@@ -35,6 +35,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 import { numberOrNull } from '@/lib/number';
@@ -50,6 +51,7 @@ defineEmits<{ back: [] }>();
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const setEnabled = useSetWidgetEnabled(channelId);
 
 const kind = computed<OverlayKind>(() => overlayKind(props.widget.eventSubscriptions));
@@ -214,19 +216,22 @@ const module = computed<KeyValueItem[]>(() => {
           <div class="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{{ $t(`dashboard.overlays.kinds.${kind.key}`) }}</Badge>
             <Badge v-if="builtIn" variant="outline">{{
-              $t('dashboard.overlays.detail.builtIn')
+              $t("dashboard.overlays.detail.builtIn")
             }}</Badge>
             <Badge v-if="widget.isCustomized" variant="outline">{{
-              $t('dashboard.overlays.detail.edited')
+              $t("dashboard.overlays.detail.edited")
             }}</Badge>
             <span class="text-sm text-muted-foreground">{{ widget.framework }}</span>
           </div>
         </div>
         <div class="ml-auto flex flex-wrap items-center gap-3">
-          <label class="flex items-center gap-2 text-sm text-muted-foreground">
+          <label
+            v-if="can('widget:write')"
+            class="flex items-center gap-2 text-sm text-muted-foreground"
+          >
             {{
               $t(
-                widget.isEnabled ? 'dashboard.overlays.detail.on' : 'dashboard.overlays.detail.off',
+                widget.isEnabled ? "dashboard.overlays.detail.on" : "dashboard.overlays.detail.off",
               )
             }}
             <Switch
@@ -235,15 +240,18 @@ const module = computed<KeyValueItem[]>(() => {
               @update:model-value="toggle(Boolean($event))"
             />
           </label>
+          <Badge v-else data-overlay-state variant="outline">{{
+            $t(widget.isEnabled ? "dashboard.overlays.detail.on" : "dashboard.overlays.detail.off")
+          }}</Badge>
           <div class="grid justify-items-end gap-1">
             <Button :disabled="!widget.overlayUrl" @click="copyAddress">
               <component :is="copied ? Check : Copy" aria-hidden="true" />
               {{
-                $t(copied ? 'dashboard.overlays.detail.copied' : 'dashboard.overlays.detail.copy')
+                $t(copied ? "dashboard.overlays.detail.copied" : "dashboard.overlays.detail.copy")
               }}
             </Button>
             <span v-if="!widget.overlayUrl" class="text-sm text-muted-foreground">{{
-              $t('dashboard.overlays.detail.noAddress')
+              $t("dashboard.overlays.detail.noAddress")
             }}</span>
           </div>
         </div>
@@ -270,7 +278,7 @@ const module = computed<KeyValueItem[]>(() => {
         <PanelCard tier="quiet" pad :title="$t('dashboard.overlays.detail.preview.title')">
           <div data-slot="overlay-preview" class="flex flex-wrap items-center gap-2 text-sm">
             <p class="min-w-0 flex-1 text-muted-foreground">
-              {{ $t('dashboard.overlays.detail.preview.unavailable') }}
+              {{ $t("dashboard.overlays.detail.preview.unavailable") }}
             </p>
             <Badge v-if="size !== null" variant="outline" class="tabular-nums">{{ size }}</Badge>
           </div>
@@ -295,6 +303,7 @@ const module = computed<KeyValueItem[]>(() => {
             >
               <template #end>
                 <InlineFlow
+                  v-if="can('widget:write')"
                   kind="run"
                   right
                   :label="
@@ -306,7 +315,7 @@ const module = computed<KeyValueItem[]>(() => {
                 >
                   <Button data-test variant="outline" size="sm">
                     <Play aria-hidden="true" />
-                    {{ $t('dashboard.overlays.detail.events.test') }}
+                    {{ $t("dashboard.overlays.detail.events.test") }}
                   </Button>
                 </InlineFlow>
               </template>

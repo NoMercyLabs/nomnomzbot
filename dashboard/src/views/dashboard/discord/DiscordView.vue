@@ -36,6 +36,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
@@ -46,6 +47,7 @@ import { discordTriggers } from './triggers';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const connectionsQuery = useDiscordConnections(channelId);
 const connection = computed<DiscordConnection | null>(
@@ -157,6 +159,7 @@ function ruleSummary(rule: DiscordRule | null): string {
 
     <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
       <PanelCard
+        v-if="can('discord:connection:read')"
         :title="t('dashboard.discord.connection.title')"
         :state="connectionState"
         pad
@@ -173,7 +176,7 @@ function ruleSummary(rule: DiscordRule | null): string {
       </PanelCard>
 
       <PanelCard
-        v-if="connection"
+        v-if="connection && can('discord:config:read')"
         tier="lead"
         :title="t('dashboard.discord.rules.title')"
         :description="t('dashboard.discord.rules.subtitle')"
@@ -186,12 +189,17 @@ function ruleSummary(rule: DiscordRule | null): string {
             <SummaryRow :title="triggerLabel(trigger)" :detail="ruleSummary(ruleOf(trigger))">
               <template #trailing>
                 <Button
+                  v-if="can('discord:config:write')"
                   variant="outline"
                   size="sm"
                   :data-edit="trigger"
                   @click="editing = trigger"
                 >
-                  {{ ruleOf(trigger) ? t('dashboard.discord.rules.edit') : t('dashboard.discord.rules.setUp') }}
+                  {{
+                    ruleOf(trigger)
+                      ? t("dashboard.discord.rules.edit")
+                      : t("dashboard.discord.rules.setUp")
+                  }}
                 </Button>
               </template>
             </SummaryRow>
@@ -200,7 +208,7 @@ function ruleSummary(rule: DiscordRule | null): string {
       </PanelCard>
 
       <PanelCard
-        v-if="connection"
+        v-if="connection && can('discord:role:read')"
         :title="t('dashboard.discord.roles.title')"
         :description="t('dashboard.discord.roles.subtitle')"
         :state="notifyRolesState"
@@ -209,8 +217,14 @@ function ruleSummary(rule: DiscordRule | null): string {
         @retry="notifyRolesQuery.refetch()"
       >
         <template #actions>
-          <Button variant="outline" size="sm" data-add-role @click="editingRole = 'new'">
-            {{ t('dashboard.discord.roles.add') }}
+          <Button
+            v-if="can('discord:role:write')"
+            variant="outline"
+            size="sm"
+            data-add-role
+            @click="editingRole = 'new'"
+          >
+            {{ t("dashboard.discord.roles.add") }}
           </Button>
         </template>
         <ul>
@@ -221,12 +235,13 @@ function ruleSummary(rule: DiscordRule | null): string {
             >
               <template #trailing>
                 <Button
+                  v-if="can('discord:role:write')"
                   variant="outline"
                   size="sm"
                   :data-edit-role="role.id"
                   @click="editingRole = role.id"
                 >
-                  {{ t('dashboard.discord.rules.edit') }}
+                  {{ t("dashboard.discord.rules.edit") }}
                 </Button>
               </template>
             </SummaryRow>
@@ -237,7 +252,7 @@ function ruleSummary(rule: DiscordRule | null): string {
 
     <Sheet v-model:open="roleOpen">
       <SheetContent
-        v-if="editingRole !== null && connectionId !== null"
+        v-if="editingRole !== null && connectionId !== null && can('discord:role:write')"
         class="overflow-y-auto"
         :show-close-button="false"
       >
@@ -252,8 +267,10 @@ function ruleSummary(rule: DiscordRule | null): string {
           </Button>
         </SheetClose>
         <SheetHeader>
-          <SheetTitle>{{ roleBeingEdited?.roleName ?? t('dashboard.discord.roles.new') }}</SheetTitle>
-          <SheetDescription>{{ t('dashboard.discord.roles.description') }}</SheetDescription>
+          <SheetTitle>{{
+            roleBeingEdited?.roleName ?? t("dashboard.discord.roles.new")
+          }}</SheetTitle>
+          <SheetDescription>{{ t("dashboard.discord.roles.description") }}</SheetDescription>
         </SheetHeader>
         <div class="p-4">
           <NotifyRoleEditor
@@ -270,7 +287,7 @@ function ruleSummary(rule: DiscordRule | null): string {
 
     <Sheet v-model:open="open">
       <SheetContent
-        v-if="editing !== null && connectionId !== null"
+        v-if="editing !== null && connectionId !== null && can('discord:config:write')"
         class="overflow-y-auto"
         :show-close-button="false"
       >
@@ -286,7 +303,7 @@ function ruleSummary(rule: DiscordRule | null): string {
         </SheetClose>
         <SheetHeader>
           <SheetTitle>{{ triggerLabel(editing) }}</SheetTitle>
-          <SheetDescription>{{ t('dashboard.discord.editor.description') }}</SheetDescription>
+          <SheetDescription>{{ t("dashboard.discord.editor.description") }}</SheetDescription>
         </SheetHeader>
         <div class="p-4">
           <RuleEditor

@@ -14,7 +14,14 @@ import { ref } from 'vue';
 import { useVtsControl, type VtsModelInventory } from '@/api/vts';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { toastVtsError } from '../vtsToast';
@@ -28,17 +35,24 @@ defineProps<{
 defineEmits<{ retry: [] }>();
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const control = useVtsControl(channelId);
 
 const modelId = ref<string>('');
 const hotkeyId = ref<string>('');
 
 function loadModel(): void {
-  control.mutate({ requestType: 'ModelLoadRequest', payload: { modelID: modelId.value } }, { onError: toastVtsError });
+  control.mutate(
+    { requestType: 'ModelLoadRequest', payload: { modelID: modelId.value } },
+    { onError: toastVtsError },
+  );
 }
 
 function trigger(): void {
-  control.mutate({ requestType: 'HotkeyTriggerRequest', payload: { hotkeyID: hotkeyId.value } }, { onError: toastVtsError });
+  control.mutate(
+    { requestType: 'HotkeyTriggerRequest', payload: { hotkeyID: hotkeyId.value } },
+    { onError: toastVtsError },
+  );
 }
 </script>
 
@@ -52,10 +66,14 @@ function trigger(): void {
   >
     <div class="grid gap-3 p-3">
       <div class="grid gap-1 text-sm text-muted-foreground">
-        {{ $t('dashboard.vts.hotkeys.model') }}
+        {{ $t("dashboard.vts.hotkeys.model") }}
         <div class="flex gap-2">
           <Select v-model="modelId">
-            <SelectTrigger data-vts-model :aria-label="$t('dashboard.vts.hotkeys.model')" class="w-full">
+            <SelectTrigger
+              data-vts-model
+              :aria-label="$t('dashboard.vts.hotkeys.model')"
+              class="w-full"
+            >
               <SelectValue :placeholder="$t('dashboard.vts.hotkeys.pickModel')" />
             </SelectTrigger>
             <SelectContent>
@@ -65,21 +83,26 @@ function trigger(): void {
             </SelectContent>
           </Select>
           <Button
+            v-if="can('vts:control')"
             data-vts-load-model
             type="button"
             variant="outline"
             :disabled="modelId === '' || control.isPending.value"
             @click="loadModel"
           >
-            {{ $t('dashboard.vts.hotkeys.load') }}
+            {{ $t("dashboard.vts.hotkeys.load") }}
           </Button>
         </div>
       </div>
       <div class="grid gap-1 text-sm text-muted-foreground">
-        {{ $t('dashboard.vts.hotkeys.hotkey') }}
+        {{ $t("dashboard.vts.hotkeys.hotkey") }}
         <div class="flex gap-2">
           <Select v-model="hotkeyId">
-            <SelectTrigger data-vts-hotkey :aria-label="$t('dashboard.vts.hotkeys.hotkey')" class="w-full">
+            <SelectTrigger
+              data-vts-hotkey
+              :aria-label="$t('dashboard.vts.hotkeys.hotkey')"
+              class="w-full"
+            >
               <SelectValue :placeholder="$t('dashboard.vts.hotkeys.pickHotkey')" />
             </SelectTrigger>
             <SelectContent>
@@ -89,12 +112,13 @@ function trigger(): void {
             </SelectContent>
           </Select>
           <Button
+            v-if="can('vts:control')"
             data-vts-trigger
             type="button"
             :disabled="hotkeyId === '' || control.isPending.value"
             @click="trigger"
           >
-            {{ $t('dashboard.vts.hotkeys.trigger') }}
+            {{ $t("dashboard.vts.hotkeys.trigger") }}
           </Button>
         </div>
       </div>

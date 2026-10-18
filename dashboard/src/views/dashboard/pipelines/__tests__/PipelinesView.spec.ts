@@ -72,7 +72,7 @@ let router: Router;
 
 beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
-  held.value = ['pipelines:write'];
+  held.value = ['pipelines:read', 'pipelines:write'];
   create.mutateAsync.mockReset();
 });
 
@@ -107,8 +107,9 @@ async function open(): Promise<void> {
 }
 
 const listed = (): string[] =>
-  [...document.body.querySelectorAll<HTMLElement>('[data-pipeline-row]')].map((row: HTMLElement) =>
-    row.dataset.pipelineId ?? '');
+  [...document.body.querySelectorAll<HTMLElement>('[data-pipeline-row]')].map(
+    (row: HTMLElement) => row.dataset.pipelineId ?? '',
+  );
 const newButton = (): HTMLButtonElement =>
   document.body.querySelector<HTMLButtonElement>('[data-pipelines-new]')!;
 
@@ -122,7 +123,10 @@ describe('the pipelines list', () => {
 
     expect(shoutout.textContent).toContain('Ready-made');
     expect(shoutout.textContent).toContain('Off');
-    expect(document.body.querySelector('[data-pipeline-id="p1"]')?.textContent).toContain('Roasts a viewer');
+
+    expect(document.body.querySelector('[data-pipeline-id="p1"]')?.textContent).toContain(
+      'Roasts a viewer',
+    );
   });
 
   it('filters by name and description as the person types', async () => {
@@ -140,12 +144,11 @@ describe('the pipelines list', () => {
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines/p1');
   });
 
-  it('keeps New off for a role that cannot change pipelines', async () => {
-    held.value = [];
+  it('hides New for a role that cannot change pipelines', async () => {
+    held.value = ['pipelines:read'];
     await open();
 
-    expect(newButton().disabled).toBe(true);
-    expect(newButton().title).toBe('Your role cannot change pipelines.');
+    expect(document.body.querySelector('[data-pipelines-new]')).toBeNull();
   });
 
   it('makes a pipeline from the typed name and opens its workbench', async () => {
@@ -161,8 +164,7 @@ describe('the pipelines list', () => {
     await flushPromises();
 
     [...document.body.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button: HTMLButtonElement) =>
-        button.textContent?.trim() === 'Make pipeline')!
+      .find((button: HTMLButtonElement) => button.textContent?.trim() === 'Make pipeline')!
       .click();
 
     await flushPromises();
@@ -185,14 +187,14 @@ describe('the pipelines list', () => {
     await flushPromises();
 
     [...document.body.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button: HTMLButtonElement) =>
-        button.textContent?.trim() === 'Make pipeline')!
+      .find((button: HTMLButtonElement) => button.textContent?.trim() === 'Make pipeline')!
       .click();
 
     await flushPromises();
 
-    expect(document.body.querySelector('[data-pipelines-new-dialog]')?.textContent)
-      .toContain('A pipeline with this name already exists.');
+    expect(document.body.querySelector('[data-pipelines-new-dialog]')?.textContent).toContain(
+      'A pipeline with this name already exists.',
+    );
 
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines');
   });

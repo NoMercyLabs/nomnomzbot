@@ -44,16 +44,18 @@ const storedRole = {
 
 function answer(path: string): unknown {
   if (path.endsWith('/discord/connections'))
-    return ok([{
-      id: 'conn1',
-      broadcasterId: 'c1',
-      guildId: 'g1',
-      guildName: 'Stoney Guild',
-      botInstalled: true,
-      serverConsentStatus: 'approved',
-      streamerEnabled: true,
-      isLinkActive: true,
-    }]);
+    return ok([
+      {
+        id: 'conn1',
+        broadcasterId: 'c1',
+        guildId: 'g1',
+        guildName: 'Stoney Guild',
+        botInstalled: true,
+        serverConsentStatus: 'approved',
+        streamerEnabled: true,
+        isLinkActive: true,
+      },
+    ]);
 
   if (path.endsWith('/connections/{connectionId}/roles'))
     return ok([storedRole]);
@@ -84,6 +86,10 @@ vi.mock('@/api/client', () => ({
       return ok(storedRole);
     },
   },
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
@@ -127,22 +133,26 @@ async function editor(role: typeof storedRole | null): Promise<void> {
     props: {
       role: role as never,
       connectionId: 'conn1',
-      guildRoles: [{
-        id: 'dr9',
-        name: 'Hype',
-        color: 0,
-        position: 1,
-        managed: false,
-        mentionable: true,
-        permissions: '0',
-      }],
-      channels: [{
-        id: 'ch1',
-        name: 'roles',
-        type: 0,
-        position: 0,
-        canPost: true,
-      }],
+      guildRoles: [
+        {
+          id: 'dr9',
+          name: 'Hype',
+          color: 0,
+          position: 1,
+          managed: false,
+          mentionable: true,
+          permissions: '0',
+        },
+      ],
+      channels: [
+        {
+          id: 'ch1',
+          name: 'roles',
+          type: 0,
+          position: 0,
+          canPost: true,
+        },
+      ],
     },
     global: { plugins: plugins() },
   });

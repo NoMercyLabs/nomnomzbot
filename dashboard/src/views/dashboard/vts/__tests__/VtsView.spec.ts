@@ -43,19 +43,25 @@ vi.mock('@/api/client', () => ({
         return { data: { data: connection }, response: { status: 200, ok: true } };
 
       return {
-        data: { data: {
-          models: [{
-            id: 'm1',
-            name: 'Hiyori',
-            isLoaded: true,
-          }],
-          hotkeys: [{
-            id: 'h1',
-            name: 'Wave',
-            type: 'TriggerAnimation',
-          }],
-          expressions: ['smile.exp3.json'],
-        } },
+        data: {
+          data: {
+            models: [
+              {
+                id: 'm1',
+                name: 'Hiyori',
+                isLoaded: true,
+              },
+            ],
+            hotkeys: [
+              {
+                id: 'h1',
+                name: 'Wave',
+                type: 'TriggerAnimation',
+              },
+            ],
+            expressions: ['smile.exp3.json'],
+          },
+        },
         response: { status: 200, ok: true },
       };
     },
@@ -78,6 +84,10 @@ vi.mock('@/api/client', () => ({
       return { data: { data: { ok: true } }, response: { status: 200, ok: true } };
     },
   },
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({

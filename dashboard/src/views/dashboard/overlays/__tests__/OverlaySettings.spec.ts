@@ -232,6 +232,10 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
@@ -569,10 +573,7 @@ describe('the preview', () => {
     listButton('badgeTexts', 'remove', 0).click();
     await settle();
 
-    expect(listRows('badgeTexts').map((box) => box.value)).toEqual([
-      'Fillz',
-      'https://nomercy.tv',
-    ]);
+    expect(listRows('badgeTexts').map((box) => box.value)).toEqual(['Fillz', 'https://nomercy.tv']);
 
     expect(changed('badgeTexts')).toBe(true);
 
@@ -594,7 +595,9 @@ describe('the preview', () => {
     await open();
 
     const open10 = row('timing').querySelector('[data-group-key="open"] input') as HTMLInputElement;
-    const loop = row('timing').querySelector('[data-group-key="loop"] [role="switch"]') as HTMLElement;
+    const loop = row('timing').querySelector(
+      '[data-group-key="loop"] [role="switch"]',
+    ) as HTMLElement;
     const depth = row('timing').querySelector(
       '[data-group-key="inner"] [data-group-key="depth"] input',
     ) as HTMLInputElement;

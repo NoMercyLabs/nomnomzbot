@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useSavePipeline, type Pipeline } from '@/api/pipelines';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import { Badge } from '@/components/ui/badge';
 
 const props = defineProps<{
   channelId: string | null;
@@ -32,21 +33,31 @@ function setPower(isEnabled: boolean): void {
     ? 'turnedOn'
     : 'turnedOff';
 
-  saving.mutate({ id, isEnabled }, {
-    onSuccess: () => {
-      toast.success(t(`${page}.power.${done}`, { name }));
+  saving.mutate(
+    { id, isEnabled },
+    {
+      onSuccess: () => {
+        toast.success(t(`${page}.power.${done}`, { name }));
+      },
     },
-  });
+  );
 }
 </script>
 
 <template>
   <LabeledSwitch
+    v-if="canWrite"
     data-workbench-power
     :label="$t(`${page}.power.label`)"
     :help="$t(`${page}.power.help`)"
-    :disabled="!canWrite"
     :model-value="pipeline.isEnabled"
     @update:model-value="setPower"
   />
+  <Badge v-else data-workbench-power-state variant="outline">{{
+    $t(
+      pipeline.isEnabled
+        ? "dashboard.pipelines.workbench.power.on"
+        : "dashboard.pipelines.workbench.power.off",
+    )
+  }}</Badge>
 </template>

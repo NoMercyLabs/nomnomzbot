@@ -14,7 +14,14 @@ import { ref } from 'vue';
 import { useVtsControl, type VtsModelInventory } from '@/api/vts';
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { toastVtsError } from '../vtsToast';
@@ -28,12 +35,16 @@ defineProps<{
 defineEmits<{ retry: [] }>();
 
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 const control = useVtsControl(channelId);
 const expression = ref<string>('');
 
 function set(active: boolean): void {
   control.mutate(
-    { requestType: 'ExpressionActivationRequest', payload: { expressionFile: expression.value, active } },
+    {
+      requestType: 'ExpressionActivationRequest',
+      payload: { expressionFile: expression.value, active },
+    },
     { onError: toastVtsError },
   );
 }
@@ -48,10 +59,14 @@ function set(active: boolean): void {
     @retry="$emit('retry')"
   >
     <div class="grid gap-1 p-3 text-sm text-muted-foreground">
-      {{ $t('dashboard.vts.expressions.expression') }}
+      {{ $t("dashboard.vts.expressions.expression") }}
       <div class="flex gap-2">
         <Select v-model="expression">
-          <SelectTrigger data-vts-expression :aria-label="$t('dashboard.vts.expressions.expression')" class="w-full">
+          <SelectTrigger
+            data-vts-expression
+            :aria-label="$t('dashboard.vts.expressions.expression')"
+            class="w-full"
+          >
             <SelectValue :placeholder="$t('dashboard.vts.expressions.pick')" />
           </SelectTrigger>
           <SelectContent>
@@ -61,21 +76,23 @@ function set(active: boolean): void {
           </SelectContent>
         </Select>
         <Button
+          v-if="can('vts:control')"
           data-vts-deactivate
           type="button"
           variant="outline"
           :disabled="expression === '' || control.isPending.value"
           @click="set(false)"
         >
-          {{ $t('dashboard.vts.expressions.deactivate') }}
+          {{ $t("dashboard.vts.expressions.deactivate") }}
         </Button>
         <Button
+          v-if="can('vts:control')"
           data-vts-activate
           type="button"
           :disabled="expression === '' || control.isPending.value"
           @click="set(true)"
         >
-          {{ $t('dashboard.vts.expressions.activate') }}
+          {{ $t("dashboard.vts.expressions.activate") }}
         </Button>
       </div>
     </div>

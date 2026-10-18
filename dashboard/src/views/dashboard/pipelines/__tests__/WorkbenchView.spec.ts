@@ -255,25 +255,25 @@ vi.mock('@/api/pipelines', async (original) => ({
   }),
   useDeletePipeline: () => ({ mutateAsync: removing.mutateAsync, isPending: ref(false) }),
   useTestRunPipeline: () => ({ mutateAsync: testing.mutateAsync, isPending: ref(false) }),
-  usePipelineOptions: (_channel: unknown, kind: () => string, search: Ref<string>) =>
-    ({
-      ...query(null),
-      data: computed(() =>
-        kind() === 'voice'
-          ? botSearch(search.value)
-          : discordDown),
-      isFetching: ref(false),
-    }),
+  usePipelineOptions: (_channel: unknown, kind: () => string, search: Ref<string>) => ({
+    ...query(null),
+    data: computed(() =>
+      kind() === 'voice'
+        ? botSearch(search.value)
+        : discordDown),
+    isFetching: ref(false),
+  }),
   // The bot finds the one item a saved value names, also beyond its first page.
-  usePipelineOption: (_channel: unknown, kind: () => string, value: () => string | null) =>
-    ({
-      ...query(null),
-      data: computed(() =>
-        kind() === 'voice'
-          ? botSearch('').items.concat(ava).find((option: PipelineOption) =>
-            option.value === value()) ?? null
-          : null),
-    }),
+  usePipelineOption: (_channel: unknown, kind: () => string, value: () => string | null) => ({
+    ...query(null),
+    data: computed(() =>
+      kind() === 'voice'
+        ? (botSearch('')
+            .items.concat(ava)
+            .find((option: PipelineOption) => option.value === value()) ?? null)
+        : null,
+    ),
+  }),
 }));
 
 // The bot lists its first page and searches the rest: Ava is only on a later page.
@@ -284,7 +284,8 @@ function botSearch(search: string): PipelineOptionList {
     return voices;
 
   const items = [...voices.items, ava].filter((option: PipelineOption) =>
-    option.label.toLowerCase().includes(term));
+    option.label.toLowerCase().includes(term),
+  );
 
   return {
     ...voices,
@@ -373,11 +374,15 @@ vi.mock('@/api/pipelineRuns', () => ({
     stored.asked.push(pipelineId());
 
     return {
-      data: ref({ pages: [{
-        runs: stored.runs,
-        hasMore: false,
-        nextPage: null,
-      }] }),
+      data: ref({
+        pages: [
+          {
+            runs: stored.runs,
+            hasMore: false,
+            nextPage: null,
+          },
+        ],
+      }),
       isPending: ref(false),
       isError: ref(false),
       hasNextPage: ref(false),
@@ -390,7 +395,8 @@ vi.mock('@/api/pipelineRuns', () => ({
     data: computed(() =>
       id() === '7'
         ? { ...stored.runs[0], stepLogs: stored.steps }
-        : undefined),
+        : undefined,
+    ),
     isPending: ref(false),
     isError: ref(false),
   }),
@@ -412,7 +418,7 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   i18n.global.mergeLocaleMessage('en', schemaEn);
-  held.value = ['pipelines:write'];
+  held.value = ['pipelines:read', 'pipelines:write'];
   save.mutateAsync.mockReset();
   save.mutateAsync.mockResolvedValue({});
   save.mutate.mockReset();
@@ -455,12 +461,13 @@ async function open(): Promise<void> {
   await flushPromises();
 }
 
-const cards = (): HTMLElement[] =>
-  [...document.body.querySelectorAll<HTMLElement>('[data-step]')];
+const cards = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-step]')];
 const card = (id: string): HTMLElement =>
   document.body.querySelector<HTMLElement>(`[data-step-id="${id}"]`)!;
 const fieldInput = (name: string): HTMLInputElement =>
-  document.body.querySelector<HTMLInputElement>(`[data-step-field="${name}"] input, [data-step-field="${name}"] textarea`)!;
+  document.body.querySelector<HTMLInputElement>(
+    `[data-step-field="${name}"] input, [data-step-field="${name}"] textarea`,
+  )!;
 const titleOf = (id: string): string | undefined =>
   card(id).querySelector('[data-step-title]')?.textContent?.trim();
 
@@ -482,14 +489,17 @@ describe('the workbench canvas', () => {
   it('says what starts the pipeline from its blast radius', async () => {
     await open();
 
-    expect(document.body.querySelector('[data-workbench-start]')?.textContent).toContain('someone types !roast');
+    expect(document.body.querySelector('[data-workbench-start]')?.textContent).toContain(
+      'someone types !roast',
+    );
   });
 
   it('writes the check rule in plain words', async () => {
     await open();
 
-    expect(card('check').querySelector('[data-step-condition]')?.textContent?.trim())
-      .toBe('Only if {args.count} is more than 2');
+    expect(card('check').querySelector('[data-step-condition]')?.textContent?.trim()).toBe(
+      'Only if {args.count} is more than 2',
+    );
   });
 
   it('offers a way back to the pipelines list', async () => {
@@ -506,8 +516,9 @@ describe('the workbench canvas', () => {
   it('marks a step whose required field is empty as not set up', async () => {
     await open();
 
-    expect(card('pause').querySelector('[data-step-missing]')?.textContent?.trim())
-      .toBe('Not set up yet: Seconds is empty.');
+    expect(card('pause').querySelector('[data-step-missing]')?.textContent?.trim()).toBe(
+      'Not set up yet: Seconds is empty.',
+    );
 
     expect(card('hi').querySelector('[data-step-missing]')).toBeNull();
   });
@@ -527,8 +538,7 @@ describe('the step inspector', () => {
   });
 
   it('opens a step the bot saved without an id, as it saves every plain step', async () => {
-    const saved = steps.map((item: PipelineStep) =>
-      ({ ...item }));
+    const saved = steps.map((item: PipelineStep) => ({ ...item }));
 
     steps.splice(0, steps.length, step({ action: { type: 'send_message', message: 'no id' } }));
     await open();
@@ -577,13 +587,14 @@ async function typeInto(selector: string, value: string): Promise<void> {
 
 // Searches in the open picker and waits past its pause, so the bot is asked.
 async function find(text: string): Promise<void> {
-  const search = document.body.querySelector<HTMLInputElement>('[data-slot="popover-content"] input')!;
+  const search = document.body.querySelector<HTMLInputElement>(
+    '[data-slot="popover-content"] input',
+  )!;
 
   search.value = text;
   search.dispatchEvent(new Event('input'));
 
-  await new Promise<void>((done: () => void) =>
-    setTimeout(done, 300));
+  await new Promise<void>((done: () => void) => setTimeout(done, 300));
 
   await flushPromises();
 }
@@ -591,20 +602,24 @@ async function find(text: string): Promise<void> {
 const saveButton = (): HTMLButtonElement =>
   document.body.querySelector<HTMLButtonElement>('[data-workbench-save]')!;
 const numbers = (): (string | undefined)[] =>
-  cards().map((item: HTMLElement) =>
-    item.dataset.stepNumber);
+  cards().map((item: HTMLElement) => item.dataset.stepNumber);
 
 describe('changing the steps', () => {
   it('has nothing to undo right after the pipeline loads', async () => {
     await open();
 
-    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(true);
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(
+      true,
+    );
 
     await press('[data-step-id="pause"] button');
     await press('[data-step-remove]');
     await press('[data-workbench-undo]');
 
-    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(true);
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(
+      true,
+    );
+
     expect(numbers()).toEqual(['1', '1.1', '2']);
   });
 
@@ -642,8 +657,7 @@ describe('changing the steps', () => {
 
     expect(sent?.id).toBe('p1');
 
-    expect(sent?.graph?.steps.map((item: PipelineStep) =>
-      item.id)).toEqual(['check', 'hi']);
+    expect(sent?.graph?.steps.map((item: PipelineStep) => item.id)).toEqual(['check', 'hi']);
   });
 
   it('holds the way out while changes are unsaved, until the person leaves without them', async () => {
@@ -655,9 +669,9 @@ describe('changing the steps', () => {
 
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines/p1');
 
-    const leave = [...document.body.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button: HTMLButtonElement) =>
-        button.textContent?.trim() === 'Leave without saving');
+    const leave = [...document.body.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button: HTMLButtonElement) => button.textContent?.trim() === 'Leave without saving',
+    );
 
     leave!.click();
     await flushPromises();
@@ -692,16 +706,20 @@ describe('changing the steps', () => {
 
     expect(added.dataset.stepNumber).toBe('3');
 
-    expect([...added.querySelectorAll<HTMLElement>('[data-step-lane]')].map((lane: HTMLElement) =>
-      lane.dataset.laneKind)).toEqual(['path', 'path']);
+    expect(
+      [...added.querySelectorAll<HTMLElement>('[data-step-lane]')].map(
+        (lane: HTMLElement) => lane.dataset.laneKind,
+      ),
+    ).toEqual(['path', 'path']);
   });
 
   it('adds a step into the lane the person picked, and says where it goes', async () => {
     await open();
     await press('[data-step-id="check"] [data-lane-kind="no"] [data-lane-add]');
 
-    expect(document.body.querySelector('[data-palette-target]')?.textContent?.trim())
-      .toBe('Adds to No of step 1');
+    expect(document.body.querySelector('[data-palette-target]')?.textContent?.trim()).toBe(
+      'Adds to No of step 1',
+    );
 
     await press('[data-palette-action="wait"]');
 
@@ -729,9 +747,9 @@ describe('changing the steps', () => {
     await open();
     await press('[data-workbench-add]');
 
-    const groups = [...document.body.querySelectorAll<HTMLElement>('[data-palette-group]')]
-      .map((group: HTMLElement) =>
-        group.dataset.paletteGroup);
+    const groups = [...document.body.querySelectorAll<HTMLElement>('[data-palette-group]')].map(
+      (group: HTMLElement) => group.dataset.paletteGroup,
+    );
 
     expect(groups).toEqual(['blocks', 'pipeline.category.chat', 'pipeline.category.flow']);
   });
@@ -746,8 +764,10 @@ describe('changing the steps', () => {
 
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[2]?.action)
-      .toEqual({ type: 'wait', seconds: 5 });
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[2]?.action).toEqual({
+      type: 'wait',
+      seconds: 5,
+    });
 
     await press('[data-workbench-undo]');
 
@@ -761,7 +781,9 @@ describe('changing the steps', () => {
     await type('message', '  ');
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[1]?.action).toEqual({ type: 'send_message' });
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[1]?.action).toEqual({
+      type: 'send_message',
+    });
   });
 
   it('lets a step keep the pipeline going when it fails', async () => {
@@ -778,18 +800,27 @@ describe('changing the steps', () => {
     await press('[data-workbench-add]');
     await press('[data-palette-block="loop"]');
 
-    const names = [...document.body.querySelectorAll<HTMLElement>('[data-step-field]')]
-      .map((item: HTMLElement) =>
-        item.dataset.stepField);
+    const names = [...document.body.querySelectorAll<HTMLElement>('[data-step-field]')].map(
+      (item: HTMLElement) => item.dataset.stepField,
+    );
 
-    expect(names).toEqual(['mode', 'count', 'max_iterations', 'max_loop_runtime_seconds', 'continue_on_error']);
+    expect(names).toEqual([
+      'mode',
+      'count',
+      'max_iterations',
+      'max_loop_runtime_seconds',
+      'continue_on_error',
+    ]);
+
     expect(fieldInput('count').value).toBe('1');
 
     await type('count', '3');
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.block_config)
-      .toEqual({ mode: 'repeat', count: 3 });
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.block_config).toEqual({
+      mode: 'repeat',
+      count: 3,
+    });
   });
 
   it('builds a list setting item by item, keeps a JSON object whole, and removes one item', async () => {
@@ -803,14 +834,18 @@ describe('changing the steps', () => {
     await typeInto('[data-step-field="args"] [data-list-item]:nth-child(3) input', '{"level": 2}');
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action)
-      .toEqual({ type: 'run_pipeline', args: ['{user}', { level: 2 }] });
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({
+      type: 'run_pipeline',
+      args: ['{user}', { level: 2 }],
+    });
 
     await press('[data-step-field="args"] [data-list-remove]');
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[1]?.[0].graph?.steps[3]?.action)
-      .toEqual({ type: 'run_pipeline', args: [{ level: 2 }] });
+    expect(save.mutateAsync.mock.calls[1]?.[0].graph?.steps[3]?.action).toEqual({
+      type: 'run_pipeline',
+      args: [{ level: 2 }],
+    });
   });
 
   it('saves names with values, and holds a name used twice until it is changed', async () => {
@@ -828,14 +863,18 @@ describe('changing the steps', () => {
     await typeInto('[data-map-row]:nth-child(2) [data-map-value]', 'loud');
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action)
-      .toEqual({ type: 'run_pipeline', named_args: { who: '{user}' } });
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({
+      type: 'run_pipeline',
+      named_args: { who: '{user}' },
+    });
 
     await typeInto('[data-map-row]:nth-child(2) [data-map-name]', 'mood');
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[1]?.[0].graph?.steps[3]?.action)
-      .toEqual({ type: 'run_pipeline', named_args: { who: '{user}', mood: 'loud' } });
+    expect(save.mutateAsync.mock.calls[1]?.[0].graph?.steps[3]?.action).toEqual({
+      type: 'run_pipeline',
+      named_args: { who: '{user}', mood: 'loud' },
+    });
   });
 
   it('picks a voice the bot lists, and says why one it cannot use is off', async () => {
@@ -851,11 +890,16 @@ describe('changing the steps', () => {
 
     await press('[data-picker-option="guy"]');
 
-    expect(document.body.querySelector('[data-step-field="voice"] button')?.textContent).toContain('Guy');
+    expect(document.body.querySelector('[data-step-field="voice"] button')?.textContent).toContain(
+      'Guy',
+    );
 
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({ type: 'speak', voice: 'guy' });
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({
+      type: 'speak',
+      voice: 'guy',
+    });
   });
 
   it('shows what the bot finds beyond its first page, and says so only when it finds nothing', async () => {
@@ -885,12 +929,13 @@ describe('changing the steps', () => {
     await press('[data-picker-option="ava"]');
 
     // The search clears on a choice, so the list falls back to the first page, where Ava is not.
-    await new Promise((resolve) =>
-      setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     await flushPromises();
 
-    expect(document.body.querySelector('[data-step-field="voice"] button')?.textContent?.trim()).toBe('Ava');
+    expect(
+      document.body.querySelector('[data-step-field="voice"] button')?.textContent?.trim(),
+    ).toBe('Ava');
   });
 
   it('keeps typed words as the setting, so it can fill in from the run', async () => {
@@ -899,7 +944,9 @@ describe('changing the steps', () => {
     await press('[data-palette-action="speak"]');
     await press('[data-step-field="voice"] button');
 
-    const search = document.body.querySelector<HTMLInputElement>('[data-slot="popover-content"] input')!;
+    const search = document.body.querySelector<HTMLInputElement>(
+      '[data-slot="popover-content"] input',
+    )!;
 
     search.value = '{user.voice}';
     search.dispatchEvent(new Event('input'));
@@ -907,8 +954,10 @@ describe('changing the steps', () => {
     await press('[data-picker-typed]');
     await press('[data-workbench-save]');
 
-    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action)
-      .toEqual({ type: 'speak', voice: '{user.voice}' });
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({
+      type: 'speak',
+      voice: '{user.voice}',
+    });
   });
 
   it('says why a list the bot cannot reach is empty', async () => {
@@ -917,21 +966,19 @@ describe('changing the steps', () => {
     await press('[data-palette-action="speak"]');
     await press('[data-step-field="channel_id"] button');
 
-    expect(document.body.querySelector('[data-picker-unavailable]')?.textContent?.trim())
-      .toBe('Discord is not connected.');
+    expect(document.body.querySelector('[data-picker-unavailable]')?.textContent?.trim()).toBe(
+      'Discord is not connected.',
+    );
   });
 
-  it('locks every change for a role that cannot change pipelines', async () => {
-    held.value = [];
+  it('hides every change for a role that cannot change pipelines', async () => {
+    held.value = ['pipelines:read'];
     await open();
     await press('[data-step-id="hi"] button');
 
-    expect(saveButton().disabled).toBe(true);
-
-    expect(document.body.querySelector<HTMLButtonElement>('[data-step-remove]')?.closest('fieldset')?.disabled)
-      .toBe(true);
-
-    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-add]')?.disabled).toBe(true);
+    expect(document.body.querySelector('[data-workbench-save]')).toBeNull();
+    expect(document.body.querySelector('[data-step-remove]')).toBeNull();
+    expect(document.body.querySelector('[data-workbench-add]')).toBeNull();
     expect(fieldInput('message').closest('fieldset')?.disabled).toBe(true);
   });
 });
@@ -976,12 +1023,17 @@ describe('the pipeline actions in the bar', () => {
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines');
   });
 
-  it('cannot be used by a role that cannot change pipelines', async () => {
-    held.value = [];
+  it('shows only the state to a role that cannot change pipelines', async () => {
+    held.value = ['pipelines:read'];
     await open();
 
-    expect(powerSwitch().disabled).toBe(true);
-    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-delete]')!.disabled).toBe(true);
+    expect(document.body.querySelector('[data-workbench-power]')).toBeNull();
+
+    expect(document.body.querySelector('[data-workbench-power-state]')?.textContent?.trim()).toBe(
+      'On',
+    );
+
+    expect(document.body.querySelector('[data-workbench-delete]')).toBeNull();
   });
 });
 
@@ -992,7 +1044,9 @@ describe('the Runs view', () => {
     await press('[data-workbench-runs]');
   }
 
-  const runRows = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-run]')];
+  const runRows = (): HTMLElement[] => [
+    ...document.body.querySelectorAll<HTMLElement>('[data-run]'),
+  ];
 
   it('opens beside the steps and lists the stored runs of this pipeline, with outcome, age, length and error', async () => {
     stored.asked.length = 0;
@@ -1014,7 +1068,9 @@ describe('the Runs view', () => {
   it('marks a test run, and only a test run', async () => {
     await openRuns();
 
-    const marked = runRows().map((row: HTMLElement) => row.querySelector('[data-run-test]')?.textContent?.trim() ?? null);
+    const marked = runRows().map(
+      (row: HTMLElement) => row.querySelector('[data-run-test]')?.textContent?.trim() ?? null,
+    );
 
     expect(marked).toEqual([null, 'Test run']);
   });
@@ -1025,12 +1081,16 @@ describe('the Runs view', () => {
     runRows()[0]!.querySelector<HTMLElement>('button')!.click();
     await flushPromises();
 
-    const steps = [...document.body.querySelectorAll<HTMLElement>('[data-run-step]')]
-      .map((step: HTMLElement) => step.textContent?.replace(/\s+/g, ' ').trim());
+    const steps = [...document.body.querySelectorAll<HTMLElement>('[data-run-step]')].map(
+      (step: HTMLElement) => step.textContent?.replace(/\s+/g, ' ').trim(),
+    );
 
     expect(steps).toHaveLength(2);
     expect(steps[0]).toMatch(/^Step 1: Wait\s*300 ms\s*Done$/);
-    expect(steps[1]).toMatch(/^Step 2: Send message\s*900 ms\s*Failed\s*Twitch refused the message$/);
+
+    expect(steps[1]).toMatch(
+      /^Step 2: Send message\s*900 ms\s*Failed\s*Twitch refused the message$/,
+    );
   });
 });
 
@@ -1044,28 +1104,35 @@ describe('a test run', () => {
     expect(ask?.id).toBe('p1');
     expect(ask?.variables).toEqual({});
 
-    expect(ask?.graph.steps.map((item: PipelineStep) =>
-      item.id)).toEqual(['check', 'hi', 'pause']);
+    expect(ask?.graph.steps.map((item: PipelineStep) => item.id)).toEqual(['check', 'hi', 'pause']);
 
-    expect([stateOf('check'), stateOf('hi'), stateOf('pause')]).toEqual(['done', 'done', 'skipped']);
+    expect([stateOf('check'), stateOf('hi'), stateOf('pause')]).toEqual([
+      'done',
+      'done',
+      'skipped',
+    ]);
+
     expect(mark('check', 'taken')).toBe('This run: Yes');
     expect(mark('hi', 'output')).toBe('Would say: hi there');
     expect(card('pause').querySelector(':scope > button')?.className).toContain('border-dashed');
 
-    expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim())
-      .toContain('Test run 1: 2 steps ran.');
+    expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim()).toContain(
+      'Test run 1: 2 steps ran.',
+    );
   });
 
   it('says a failed step failed, with the reason', async () => {
     testing.mutateAsync.mockResolvedValue({
       ...ran,
       success: false,
-      trace: [{
-        stepId: 'pause',
-        stepType: 'wait',
-        variableChanges: [],
-        error: 'No seconds set.',
-      }],
+      trace: [
+        {
+          stepId: 'pause',
+          stepType: 'wait',
+          variableChanges: [],
+          error: 'No seconds set.',
+        },
+      ],
     } as unknown as PipelineTestRun);
 
     await open();
@@ -1097,7 +1164,8 @@ describe('a test run', () => {
 
     expect(testing.mutateAsync).toHaveBeenCalledTimes(2);
 
-    expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim())
-      .toContain('Test run 2: 2 steps ran.');
+    expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim()).toContain(
+      'Test run 2: 2 steps ran.',
+    );
   });
 });

@@ -226,6 +226,8 @@
         },
         "power": {
           "label": "Ingeschakeld",
+          "on": "Aan",
+          "off": "Uit",
           "help": "Uit: niets start deze pipeline tot je hem aanzet.",
           "turnedOff": "{name} staat uit. Niets start hem tot je hem aanzet.",
           "turnedOn": "{name} staat aan."

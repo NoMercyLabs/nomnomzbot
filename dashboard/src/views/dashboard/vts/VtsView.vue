@@ -17,6 +17,7 @@ import { useVtsConnection, useVtsInventory } from '@/api/vts';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
@@ -28,11 +29,13 @@ import { vtsHealth, vtsReady } from './vtsHealth';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const VIEWS = ['connection', 'hotkeys', 'expressions'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
 const tabs = computed<PageTab[]>(() =>
-  VIEWS.map((value) => ({ value, label: t(`dashboard.vts.tabs.${value}`) })));
+  VIEWS.map((value) => ({ value, label: t(`dashboard.vts.tabs.${value}`) })),
+);
 
 const connection = useVtsConnection(channelId);
 const ready = computed<boolean>(() => vtsReady(connection.data.value));
@@ -51,15 +54,19 @@ function retry(): void {
 <template>
   <PageHeader :title="$t('dashboard.vts.title')" :crumb="$t('dashboard.vts.crumb')">
     <template #status>
-      <span data-vts-overall class="inline-flex items-center gap-2 text-sm text-muted-foreground">
+      <span
+        v-if="can('vts:config:read')"
+        data-vts-overall
+        class="inline-flex items-center gap-2 text-sm text-muted-foreground"
+      >
         <span class="dot" :class="health.dot" aria-hidden="true" />
         {{ $t(`dashboard.vts.status.${health.reason}`) }}
       </span>
     </template>
-    <template #bar><PageTabs :tabs="tabs" /></template>
+    <template #bar><PageTabs v-if="can('vts:config:read')" :tabs="tabs" /></template>
   </PageHeader>
   <PageBody>
-    <div data-page-inset class="grid gap-4 @container">
+    <div v-if="can('vts:config:read')" data-page-inset class="grid gap-4 @container">
       <VtsHotkeysPanel
         v-if="view === 'hotkeys'"
         :inventory="inventory.data.value"

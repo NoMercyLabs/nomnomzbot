@@ -49,9 +49,12 @@ const page = 'dashboard.pipelines.workbench';
 
 const tab = ref('settings');
 
-watch(() => props.step.id, () => {
-  tab.value = 'settings';
-});
+watch(
+  () => props.step.id,
+  () => {
+    tab.value = 'settings';
+  },
+);
 
 const title = computed(() => stepTitle(props.step, { t, te }));
 
@@ -62,41 +65,46 @@ const fields = computed(() =>
         te,
         text,
       })
-    : blockRows(props.step, { t, te }));
+    : blockRows(props.step, { t, te }),
+);
 
-const keepGoing = computed<FieldRow>(() =>
-  ({
-    name: 'continue_on_error',
-    label: t(`${page}.inspector.keepGoing`),
-    kind: 'boolean',
-    control: 'switch',
-    value: props.step.continue_on_error,
-    help: t(`${page}.inspector.keepGoingHelp`),
-    choices: [],
-    required: false,
-    templated: false,
-    target: 'step',
-  }));
+const keepGoing = computed<FieldRow>(() => ({
+  name: 'continue_on_error',
+  label: t(`${page}.inspector.keepGoing`),
+  kind: 'boolean',
+  control: 'switch',
+  value: props.step.continue_on_error,
+  help: t(`${page}.inspector.keepGoingHelp`),
+  choices: [],
+  required: false,
+  templated: false,
+  target: 'step',
+}));
 
 function change(row: FieldRow, value: JsonValue | undefined): void {
-  emit('patch', row.target === 'step'
-    ? { continue_on_error: value === true }
-    : { [row.target]: { [row.name]: value } });
+  emit(
+    'patch',
+    row.target === 'step'
+      ? { continue_on_error: value === true }
+      : { [row.target]: { [row.name]: value } },
+  );
 }
 
 const declares = computed(() =>
-  (props.descriptor?.fields ?? []).some((field: PipelineActionField) =>
-    field.declaresVariable));
+  (props.descriptor?.fields ?? []).some((field: PipelineActionField) => field.declaresVariable),
+);
 
 const condition = computed(() =>
   props.step.condition
     ? conditionSentence(props.step.condition, { t, te })
-    : t(`${page}.inspector.always`));
+    : t(`${page}.inspector.always`),
+);
 
 const plainOnError = computed(() =>
   props.step.continue_on_error
     ? t(`${page}.inspector.plainGoesOn`)
-    : t(`${page}.inspector.plainStops`));
+    : t(`${page}.inspector.plainStops`),
+);
 
 const sentence = computed(() => stepSentence(props.descriptor, text));
 </script>
@@ -105,20 +113,23 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
   <section data-step-inspector class="flex min-h-0 flex-col gap-3 rounded-xl border bg-card p-4">
     <header class="flex flex-col gap-0.5">
       <span class="text-xs text-muted-foreground">
-        {{ $t('dashboard.pipelines.workbench.inspector.number', { number }) }}
+        {{ $t("dashboard.pipelines.workbench.inspector.number", { number }) }}
       </span>
       <h2 class="font-semibold">{{ title }}</h2>
     </header>
     <Tabs v-model="tab" class="flex min-h-0 flex-1 flex-col">
       <TabsList class="w-full">
         <TabsTrigger value="settings" data-inspector-tab="settings">
-          {{ $t('dashboard.pipelines.workbench.inspector.settings') }}
+          {{ $t("dashboard.pipelines.workbench.inspector.settings") }}
         </TabsTrigger>
         <TabsTrigger value="plain" data-inspector-tab="plain">
-          {{ $t('dashboard.pipelines.workbench.inspector.plain') }}
+          {{ $t("dashboard.pipelines.workbench.inspector.plain") }}
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="settings" class="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pt-2 pb-1">
+      <TabsContent
+        value="settings"
+        class="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pt-2 pb-1"
+      >
         <ReadOnlyScope :read-only="readOnly" :reason="$t('dashboard.pipelines.noWrite')">
           <FieldGroup data-inspector-fields class="gap-4">
             <StepField
@@ -128,13 +139,19 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
               @change="change(row, $event)"
             />
             <p v-if="fields.length === 0" class="text-sm text-muted-foreground">
-              {{ $t('dashboard.pipelines.workbench.inspector.noFields') }}
+              {{ $t("dashboard.pipelines.workbench.inspector.noFields") }}
             </p>
-            <StepField :key="`${step.id}:keep-going`" :row="keepGoing" @change="change(keepGoing, $event)" />
+            <StepField
+              :key="`${step.id}:keep-going`"
+              :row="keepGoing"
+              @change="change(keepGoing, $event)"
+            />
           </FieldGroup>
         </ReadOnlyScope>
         <KeyValueList
-          :items="[{ label: $t('dashboard.pipelines.workbench.inspector.condition'), value: condition }]"
+          :items="[
+            { label: $t('dashboard.pipelines.workbench.inspector.condition'), value: condition },
+          ]"
         />
       </TabsContent>
       <TabsContent value="plain" data-inspector-plain class="flex flex-col gap-2 pt-2 text-sm">
@@ -142,33 +159,34 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
         <p>{{ condition }}</p>
         <p>{{ plainOnError }}</p>
         <p v-if="declares" class="text-muted-foreground">
-          {{ $t('dashboard.pipelines.workbench.inspector.declares') }}
+          {{ $t("dashboard.pipelines.workbench.inspector.declares") }}
         </p>
       </TabsContent>
     </Tabs>
     <ReadOnlyScope
+      v-if="!readOnly"
       :read-only="readOnly"
       :reason="$t('dashboard.pipelines.noWrite')"
       class="flex flex-wrap gap-2 border-t pt-3"
     >
-      <Button data-step-duplicate
-              type="button"
-              variant="outline"
-              size="sm"
-              @click="$emit('duplicate')"
-      >
-        <FileCopy aria-hidden="true" />
-        {{ $t('dashboard.pipelines.workbench.inspector.duplicate') }}
-      </Button>
       <Button
-        data-step-remove
+        data-step-duplicate
         type="button"
         variant="outline"
         size="sm"
-        @click="$emit('remove')"
+        @click="$emit('duplicate')"
+      >
+        <FileCopy aria-hidden="true" />
+        {{ $t("dashboard.pipelines.workbench.inspector.duplicate") }}
+      </Button>
+      <Button data-step-remove
+              type="button"
+              variant="outline"
+              size="sm"
+              @click="$emit('remove')"
       >
         <Trash aria-hidden="true" />
-        {{ $t('dashboard.pipelines.workbench.inspector.remove') }}
+        {{ $t("dashboard.pipelines.workbench.inspector.remove") }}
       </Button>
     </ReadOnlyScope>
   </section>

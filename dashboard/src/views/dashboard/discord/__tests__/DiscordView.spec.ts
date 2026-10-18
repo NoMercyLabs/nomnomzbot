@@ -49,11 +49,16 @@ const goLive = {
   targetChannelId: 'ch1',
   pingRoleId: null,
   messageTemplate: '{channel.name} is live',
-  embedConfig: { title: 'Live now', fields: [{
-    name: 'Game',
-    value: '{channel.game}',
-    inline: false,
-  }] },
+  embedConfig: {
+    title: 'Live now',
+    fields: [
+      {
+        name: 'Game',
+        value: '{channel.game}',
+        inline: false,
+      },
+    ],
+  },
   milestoneType: null,
   milestoneThreshold: null,
 };
@@ -73,13 +78,15 @@ function answer(path: string): unknown {
     });
 
   if (path.endsWith('/guild/channels/postable'))
-    return ok([{
-      id: 'ch1',
-      name: 'live',
-      type: 0,
-      position: 0,
-      canPost: true,
-    }]);
+    return ok([
+      {
+        id: 'ch1',
+        name: 'live',
+        type: 0,
+        position: 0,
+        canPost: true,
+      },
+    ]);
 
   return ok([]);
 }
@@ -107,6 +114,10 @@ vi.mock('@/api/client', () => ({
       return ok(goLive);
     },
   },
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
@@ -152,7 +163,11 @@ describe('the Discord page', () => {
     const rows = [...document.body.querySelectorAll('[data-rule-row]')];
 
     expect(document.body.querySelector('[data-connection]')?.textContent).toContain('Stoney Guild');
-    expect(document.body.querySelector('[data-connection]')?.textContent).toContain('Linked and ready');
+
+    expect(document.body.querySelector('[data-connection]')?.textContent).toContain(
+      'Linked and ready',
+    );
+
     expect(rows).toHaveLength(9);
     expect(rows[0]?.textContent).toContain('Stream goes live');
     expect(rows[0]?.textContent).toContain('On');
@@ -168,13 +183,15 @@ describe('the rule editor', () => {
         trigger: 'stream.online',
         rule: goLive as never,
         connectionId: 'conn1',
-        channels: [{
-          id: 'ch1',
-          name: 'live',
-          type: 0,
-          position: 0,
-          canPost: true,
-        }],
+        channels: [
+          {
+            id: 'ch1',
+            name: 'live',
+            type: 0,
+            position: 0,
+            canPost: true,
+          },
+        ],
         roles: [],
       },
       global: { plugins: plugins() },
@@ -202,11 +219,16 @@ describe('the rule editor', () => {
       targetChannelId: 'ch1',
       pingRoleId: null,
       messageTemplate: '{channel.name} is live',
-      embedConfig: { title: 'We are live', fields: [{
-        name: 'Game',
-        value: '{channel.game}',
-        inline: false,
-      }] },
+      embedConfig: {
+        title: 'We are live',
+        fields: [
+          {
+            name: 'Game',
+            value: '{channel.game}',
+            inline: false,
+          },
+        ],
+      },
     });
   });
 
