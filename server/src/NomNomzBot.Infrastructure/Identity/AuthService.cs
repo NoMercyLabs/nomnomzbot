@@ -1287,12 +1287,39 @@ public sealed class AuthService : IAuthService
                 a => a.BroadcasterId == broadcasterId && a.IsActive && a.DeletedAt == null,
                 cancellationToken
             );
-        if (authorization is null)
-            return Result.Success(new BotStatusDto(false, null, null, null));
+        // No own bot: the shared system bot speaks here, but only in a channel it actually serves.
+        bool usesSharedBot = authorization is null;
+        if (usesSharedBot)
+        {
+            bool served = await _db
+                .Channels.IgnoreQueryFilters()
+                .AnyAsync(
+                    c =>
+                        c.Id == broadcasterId
+                        && c.DeletedAt == null
+                        && c.Enabled
+                        && c.IsOnboarded
+                        && c.Status == AuthEnums.ChannelStatus.Active,
+                    cancellationToken
+                );
+            if (!served)
+                return Result.Success(new BotStatusDto(false, null, null, null));
+        }
 
-        BotAccount? bot = await _db
-            .BotAccounts.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(b => b.Id == authorization.BotAccountId, cancellationToken);
+        BotAccount? bot = usesSharedBot
+            ? await _db
+                .BotAccounts.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(
+                    b =>
+                        b.IdentityType == AuthEnums.BotIdentityType.Shared
+                        && b.Platform == AuthEnums.Platform.Twitch
+                        && b.IsActive
+                        && b.DeletedAt == null,
+                    cancellationToken
+                )
+            : await _db
+                .BotAccounts.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(b => b.Id == authorization!.BotAccountId, cancellationToken);
         if (bot?.ConnectionId is null)
             return Result.Success(new BotStatusDto(false, null, null, null));
 
