@@ -1,0 +1,38 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "eventJournal": {
+        "file": {
+          "title": "Journal file",
+          "description": "The journal is the record of everything that happened in your channel. Save a copy, or load one you saved before. Loading adds only what is missing.",
+          "export": "Export journal",
+          "import": "Import journal",
+          "exported": "Saved {count} events to the file.",
+          "imported": "Read {total} lines. {imported} new, {duplicate} already there, {upcast} upgraded to the current format."
+        },
+        "readModels": {
+          "title": "Pages built from the journal",
+          "description": "Viewer profiles, analytics and the event log are built from the journal. Run these after an import so the new events show up.",
+          "replay": "Replay imported events",
+          "replayHelp": "Runs the imported events through the bot again, so triggers and replies fire for them.",
+          "replayed": "Applied {count} events.",
+          "rebuild": "Rebuild pages",
+          "rebuildHelp": "Clears the pages built from the journal and builds them again from the first event.",
+          "rebuilt": "{name}: {count} events applied",
+          "confirmTitle": "Rebuild the pages built from the journal?",
+          "confirmDescription": "The journal itself stays as it is. Only the pages built from it are cleared and filled again.",
+          "confirmEffect": "Viewer profiles and analytics show partial numbers until the rebuild ends.",
+          "confirmAction": "Rebuild pages"
+        },
+        "legacy": {
+          "title": "History from the old bot",
+          "description": "Copies the channel history of the old NoMercy bot into the journal. Running it again adds nothing twice.",
+          "import": "Import old history",
+          "imported": "Read {total} rows. {imported} imported, {duplicate} already there, {unmapped} not recognized. The journal grew from {before} to {after}.",
+          "skippedType": "{type}: {count} not recognized"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "eventJournal": {
+        "file": {
+          "title": "Journaalbestand",
+          "description": "Het journaal is het verslag van alles wat in je kanaal gebeurde. Bewaar een kopie, of laad er een die je eerder bewaarde. Laden voegt alleen toe wat ontbreekt.",
+          "export": "Journaal exporteren",
+          "import": "Journaal importeren",
+          "exported": "{count} events in het bestand bewaard.",
+          "imported": "{total} regels gelezen. {imported} nieuw, {duplicate} al aanwezig, {upcast} omgezet naar het huidige formaat."
+        },
+        "readModels": {
+          "title": "Pagina's gebouwd uit het journaal",
+          "description": "Kijkersprofielen, statistieken en het eventlogboek worden uit het journaal gebouwd. Draai dit na een import, zodat de nieuwe events verschijnen.",
+          "replay": "Geïmporteerde events afspelen",
+          "replayHelp": "Laat de geïmporteerde events opnieuw door de bot lopen, zodat triggers en antwoorden afgaan.",
+          "replayed": "{count} events toegepast.",
+          "rebuild": "Pagina's opnieuw bouwen",
+          "rebuildHelp": "Wist de pagina's die uit het journaal komen en bouwt ze opnieuw op vanaf het eerste event.",
+          "rebuilt": "{name}: {count} events toegepast",
+          "confirmTitle": "De pagina's uit het journaal opnieuw bouwen?",
+          "confirmDescription": "Het journaal zelf blijft zoals het is. Alleen de pagina's die ervan zijn gebouwd worden gewist en opnieuw gevuld.",
+          "confirmEffect": "Kijkersprofielen en statistieken tonen deels getallen tot de herbouw klaar is.",
+          "confirmAction": "Pagina's opnieuw bouwen"
+        },
+        "legacy": {
+          "title": "Geschiedenis van de oude bot",
+          "description": "Kopieert de kanaalgeschiedenis van de oude NoMercy-bot naar het journaal. Opnieuw draaien voegt niets dubbel toe.",
+          "import": "Oude geschiedenis importeren",
+          "imported": "{total} rijen gelezen. {imported} geïmporteerd, {duplicate} al aanwezig, {unmapped} niet herkend. Het journaal groeide van {before} naar {after}.",
+          "skippedType": "{type}: {count} niet herkend"
+        }
+      }
+    }
+  }
+}
