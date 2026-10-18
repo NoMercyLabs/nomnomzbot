@@ -159,7 +159,8 @@ public class MusicController : BaseController
                 queue.CurrentTrack.CanPause,
                 queue.CurrentTrack.CanResume,
                 RequesterOf(requesters, queue.CurrentTrack.RequestedBy)?.UserId,
-                RequesterOf(requesters, queue.CurrentTrack.RequestedBy)?.Color
+                RequesterOf(requesters, queue.CurrentTrack.RequestedBy)?.Color,
+                queue.CurrentTrack.TrackUri
             );
 
         List<QueueItemDto> items =

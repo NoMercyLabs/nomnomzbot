@@ -77,7 +77,8 @@ public sealed record NowPlayingDto(
     bool CanPause = true,
     bool CanResume = true,
     string? RequesterId = null,
-    string? RequesterColor = null
+    string? RequesterColor = null,
+    string? TrackUri = null
 );
 
 /// <summary>Full music queue including now playing and upcoming tracks.</summary>

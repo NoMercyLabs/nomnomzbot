@@ -100201,6 +100201,247 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/actions/run": {
+      "post": {
+        "tags": [
+          "Actions"
+        ],
+        "summary": "Run one action. A run that starts and fails is a 200 with `success: false`; an unknown\r\n    action type is a 404 and a caller without the permission a 403.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelActionRunRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelActionRunRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelActionRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfChannelActionRunResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/player-buttons": {
+      "get": {
+        "tags": [
+          "Music"
+        ],
+        "summary": "The channel's pinned player buttons, in display order.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfIReadOnlyListOfPlayerButton"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Music"
+        ],
+        "summary": "Replace the channel's pinned player buttons.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlayerButton"
+                }
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlayerButton"
+                }
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlayerButton"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfIReadOnlyListOfPlayerButton"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/widgets/preview-action": {
       "post": {
         "tags": [
@@ -118086,6 +118327,12 @@
             ]
           },
           "requesterColor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trackUri": {
             "type": [
               "null",
               "string"
@@ -142685,6 +142932,165 @@
               "string"
             ],
             "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "ChannelActionRunRequest": {
+        "required": [
+          "actionType"
+        ],
+        "type": "object",
+        "properties": {
+          "actionType": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": { }
+          },
+          "variables": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "An action to run: its type, its parameters and the variables that seed its context (for example\r\n`target.id` and `target.name` for a user, `song.name` for a track)."
+      },
+      "ChannelActionRunResponse": {
+        "required": [
+          "success",
+          "variables"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "What the action did: whether it succeeded, its output text, its error and the variables it set."
+      },
+      "PlayerButton": {
+        "required": [
+          "id",
+          "label",
+          "icon",
+          "actionType",
+          "parameters"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "actionType": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": { }
+          }
+        },
+        "description": "One button the streamer pinned to the Now playing panel."
+      },
+      "StatusResponseOfChannelActionRunResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChannelActionRunResponse"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseOfIReadOnlyListOfPlayerButton": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PlayerButton"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "args": {
             "type": [

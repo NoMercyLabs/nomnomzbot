@@ -284,6 +284,10 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IChannelService, ChannelService>();
+        services.AddScoped<
+            NomNomzBot.Application.Music.Services.IPlayerButtonService,
+            NomNomzBot.Infrastructure.Music.PlayerButtonService
+        >();
         services.AddScoped<IChannelAccessService, ChannelAccessService>();
         services.AddScoped<IRoleResolver, RoleResolver>();
         services.AddScoped<IActAsMembershipOverlay, ActAsMembershipOverlay>();

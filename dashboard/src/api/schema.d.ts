@@ -84700,6 +84700,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/actions/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run one action. A run that starts and fails is a 200 with `success: false`; an unknown
+         *     action type is a 404 and a caller without the permission a 403.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChannelActionRunRequest"];
+                    "text/json": components["schemas"]["ChannelActionRunRequest"];
+                    "application/*+json": components["schemas"]["ChannelActionRunRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfChannelActionRunResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/music/player-buttons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The channel's pinned player buttons, in display order. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPlayerButton"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        /** Replace the channel's pinned player buttons. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlayerButton"][];
+                    "text/json": components["schemas"]["PlayerButton"][];
+                    "application/*+json": components["schemas"]["PlayerButton"][];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPlayerButton"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/widgets/preview-action": {
         parameters: {
             query?: never;
@@ -92223,6 +92411,7 @@ export interface components {
             canResume: boolean;
             requesterId?: null | string;
             requesterColor?: null | string;
+            trackUri?: null | string;
         };
         /** @description OAuth callback data received from the Twitch redirect. */
         OAuthCallback: {
@@ -100591,6 +100780,50 @@ export interface components {
              *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
              *     generic error toast) reads this field.
              */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        /** @description An action to run: its type, its parameters and the variables that seed its context (for example
+         *     `target.id` and `target.name` for a user, `song.name` for a track). */
+        ChannelActionRunRequest: {
+            actionType: string;
+            parameters?: null | {
+                [key: string]: unknown;
+            };
+            variables?: null | {
+                [key: string]: string;
+            };
+        };
+        /** @description What the action did: whether it succeeded, its output text, its error and the variables it set. */
+        ChannelActionRunResponse: {
+            success: boolean;
+            output?: null | string;
+            error?: null | string;
+            variables: {
+                [key: string]: string;
+            };
+        };
+        /** @description One button the streamer pinned to the Now playing panel. */
+        PlayerButton: {
+            id: string;
+            label: string;
+            icon: string;
+            actionType: string;
+            parameters: {
+                [key: string]: unknown;
+            };
+        };
+        StatusResponseOfChannelActionRunResponse: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelActionRunResponse"];
+            message?: null | string;
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfIReadOnlyListOfPlayerButton: {
+            status?: string;
+            data?: null | components["schemas"]["PlayerButton"][];
+            message?: null | string;
             code?: null | string;
             args?: null | unknown[];
         };
