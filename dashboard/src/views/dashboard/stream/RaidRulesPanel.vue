@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import CategoryPicker from '@/views/dashboard/stream/CategoryPicker.vue';
 import Plus from '~icons/nnz/add';
 import Cross from '~icons/nnz/cross';
 
@@ -113,8 +114,8 @@ function submit(): void {
     <div v-if="draft" :inert="!canEdit" class="flex flex-col gap-6">
       <section class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t('dashboard.stream.raids.preferredCategories') }}</span>
-        <div v-for="(rule, index) in draft.preferredCategories" :key="index" class="flex items-center gap-2" data-category-rule>
-          <Input v-model="rule.name" :aria-label="t('dashboard.stream.raids.name')" :placeholder="t('dashboard.stream.raids.name')" />
+        <div v-for="(rule, index) in draft.preferredCategories" :key="index" class="flex items-start gap-2" data-category-rule>
+          <CategoryPicker v-model="rule.name" class="min-w-0 flex-1" :channel-id="channelId" :recent="[]" />
           <Input v-model.number="rule.weight" type="number" class="w-24" :aria-label="t('dashboard.stream.raids.weight')" />
           <Input v-model="rule.label" :aria-label="t('dashboard.stream.raids.label')" :placeholder="t('dashboard.stream.raids.label')" />
           <Button v-if="canEdit"

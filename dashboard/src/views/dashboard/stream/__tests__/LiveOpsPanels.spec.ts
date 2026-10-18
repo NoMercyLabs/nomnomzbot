@@ -21,12 +21,14 @@ import en from '../i18n/en.json';
 import RaidRulesPanel from '../RaidRulesPanel.vue';
 import SchedulePanel from '../SchedulePanel.vue';
 
-type Options = { params?: { path?: Record<string, unknown> }; body?: unknown };
+type Params = { path?: Record<string, unknown>; query?: Record<string, unknown> };
+type Options = { params?: Params; body?: unknown };
 type Call = {
   method: string;
   path: string;
   body: unknown;
   pathParams: unknown;
+  query: unknown;
 };
 
 const calls: Call[] = [];
@@ -73,6 +75,7 @@ function answer(method: string, path: string, options?: Options): object {
     path,
     body: options?.body,
     pathParams: options?.params?.path,
+    query: options?.params?.query,
   });
 
   if (method === 'GET' && path.endsWith('/live-ops/schedule'))
@@ -87,6 +90,13 @@ function answer(method: string, path: string, options?: Options): object {
 
   if (method === 'PUT' && path.endsWith('/scoring-rules'))
     return ok(options?.body);
+
+  if (method === 'GET' && path.endsWith('/stream/categories'))
+    return ok([{
+      id: '2',
+      name: 'Software and Game Development',
+      boxArtUrl: '',
+    }]);
 
   return ok(null);
 }
@@ -218,6 +228,27 @@ describe('the raid rules panel', () => {
     await press('[data-raid-rules-save]');
 
     expect(sent('PUT')[0]?.body).toEqual({ ...rules, followedWeight: 9 });
+  });
+
+  // Owner 2026-10-18: "no autocomplete search? we know all the options up front".
+  it('picks a preferred category from the Twitch search, not free text', async () => {
+    await show(RaidRulesPanel);
+
+    await typeInto('[data-category-rule] input', 'soft');
+    await new Promise((done) => setTimeout(done, 400));
+    await settle();
+
+    const search = calls.find((call) => call.path.endsWith('/stream/categories'));
+
+    expect(search?.query).toEqual({ query: 'soft' });
+
+    await press('[data-category-rule] [data-category-result]');
+    await press('[data-raid-rules-save]');
+
+    expect(sent('PUT')[0]?.body).toEqual({
+      ...rules,
+      preferredCategories: [{ ...rules.preferredCategories[0], name: 'Software and Game Development' }],
+    });
   });
 });
 
