@@ -105,23 +105,17 @@ public sealed class TwitchAuthServiceRefreshOutcomeTests
     }
 
     [Fact]
-    public async Task Invalid_refresh_token_counts_toward_reauth_and_the_third_marks_it()
+    public async Task Invalid_refresh_token_marks_needs_reauth_at_once()
     {
         ScriptedTokenHandler wire = new();
-        for (int i = 0; i < 3; i++)
-            wire.Enqueue(HttpStatusCode.BadRequest, InvalidRefreshToken);
+        wire.Enqueue(HttpStatusCode.BadRequest, InvalidRefreshToken);
         Harness harness = await Harness.BuildAsync(wire);
 
         await harness.RefreshAsync();
-        await harness.RefreshAsync();
-        IntegrationConnection afterTwo = await harness.ConnectionAsync();
-        afterTwo.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
-        afterTwo.ConsecutiveFailureCount.Should().Be(2);
 
-        await harness.RefreshAsync();
-        IntegrationConnection afterThree = await harness.ConnectionAsync();
-        afterThree.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
-        afterThree.ConsecutiveFailureCount.Should().Be(3);
+        IntegrationConnection afterOne = await harness.ConnectionAsync();
+        afterOne.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
+        afterOne.ConsecutiveFailureCount.Should().Be(1);
         harness
             .Bus.Published.OfType<IntegrationNeedsReauthEvent>()
             .Should()

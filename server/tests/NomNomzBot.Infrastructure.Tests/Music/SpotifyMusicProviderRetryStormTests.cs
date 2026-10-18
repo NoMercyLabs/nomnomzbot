@@ -143,7 +143,7 @@ public sealed class SpotifyMusicProviderRetryStormTests
     }
 
     [Fact]
-    public async Task Invalid_grant_three_times_marks_needs_reauth_and_stops_the_calls()
+    public async Task Invalid_grant_marks_needs_reauth_at_once_and_stops_the_calls()
     {
         FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
         string dbName = Guid.NewGuid().ToString();
@@ -163,10 +163,10 @@ public sealed class SpotifyMusicProviderRetryStormTests
             clock.Advance(TimeSpan.FromMinutes(11));
         }
 
-        wire.RefreshCallCount.Should().Be(3, "the third dead-grant answer ends the retries");
+        wire.RefreshCallCount.Should().Be(1, "the first dead-grant answer ends the retries");
         IntegrationConnection connection = await ReadConnectionAsync(dbName, connectionId);
         connection.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
-        connection.ConsecutiveFailureCount.Should().Be(3);
+        connection.ConsecutiveFailureCount.Should().Be(1);
     }
 
     private const string InvalidGrant =
