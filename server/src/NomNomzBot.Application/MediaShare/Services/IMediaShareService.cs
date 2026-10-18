@@ -63,6 +63,13 @@ public interface IMediaShareService
         CancellationToken ct = default
     );
 
+    /// <summary>Put a played or skipped item back at the front of the queue → approved. Returns the updated request.</summary>
+    Task<Result<MediaShareRequestDto>> ReplayAsync(
+        Guid broadcasterId,
+        Guid requestId,
+        CancellationToken ct = default
+    );
+
     Task<Result<PagedList<MediaShareRequestDto>>> GetQueueAsync(
         Guid broadcasterId,
         MediaShareFilter filter,

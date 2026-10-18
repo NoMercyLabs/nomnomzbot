@@ -414,6 +414,10 @@ public static class DependencyInjection
         // The overlay YouTube player's own reports, the video pushed to it and the one waiting behind it:
         // singleton, because the scoped provider and the scoped report service must see the same state.
         services.AddSingleton<IYouTubePlayerStateStore, YouTubePlayerStateStore>();
+        services.AddSingleton<
+            MediaShare.Playback.IMediaPlayerStateStore,
+            MediaShare.Playback.MediaPlayerStateStore
+        >();
         // The Data API quota belongs to the one app key, so its cooldown outlives the scoped provider.
         services.AddSingleton<IYouTubeQuotaCooldown, YouTubeQuotaCooldown>();
         services.AddSingleton<IYouTubeVideoCache, YouTubeVideoCache>();

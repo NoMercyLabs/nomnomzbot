@@ -5735,6 +5735,9 @@
     <string name="pipeline_stop_description">Stop the pipeline immediately</string>
     <string name="pipeline_stop_sound_description">Stop currently playing sound clips</string>
     <string name="pipeline_submit_media_description">Submit a media item for the media-share queue</string>
+    <string name="pipeline_media_playback_description">Control the media-share player</string>
+    <string name="pipeline_media_playback_command_help">What the media-share player does: play, pause, stop, skip, seek, volume, replay or play_now.</string>
+    <string name="pipeline_media_playback_value_help">The number for seek (seconds) or volume (0 to 100), or the item id for play_now and replay. Supports template variables.</string>
     <string name="pipeline_timeout_description">Time out a viewer in chat</string>
     <string name="pipeline_tts_synthesize_description">Synthesize text-to-speech audio without playing it</string>
     <string name="pipeline_unpermit_description">Revoke a viewer&apos;s active permit</string>

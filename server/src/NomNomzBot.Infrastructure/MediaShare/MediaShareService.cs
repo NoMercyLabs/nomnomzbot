@@ -327,6 +327,30 @@ public sealed class MediaShareService : IMediaShareService
         return Result.Success(await ToDtoAsync(target, ct));
     }
 
+    public async Task<Result<MediaShareRequestDto>> ReplayAsync(
+        Guid broadcasterId,
+        Guid requestId,
+        CancellationToken ct = default
+    )
+    {
+        MediaShareRequest? entity = await FindAsync(broadcasterId, requestId, ct);
+        if (entity is null)
+            return Result.Failure<MediaShareRequestDto>("Media request not found.", "NOT_FOUND");
+        if (entity.Status is not (MediaShareStatus.Played or MediaShareStatus.Skipped))
+            return Result.Failure<MediaShareRequestDto>(
+                "Only a played or skipped item can be replayed.",
+                "VALIDATION_FAILED"
+            );
+
+        DateTime now = _clock.GetUtcNow().UtcDateTime;
+        entity.Status = MediaShareStatus.Approved;
+        entity.QueuePosition = null;
+        await _db.SaveChangesAsync(ct);
+
+        await PublishPlaybackAsync(broadcasterId, entity.Id, MediaShareStatus.Approved, now, ct);
+        return await ReorderAsync(broadcasterId, entity.Id, 1, ct);
+    }
+
     public async Task<Result<PagedList<MediaShareRequestDto>>> GetQueueAsync(
         Guid broadcasterId,
         MediaShareFilter filter,

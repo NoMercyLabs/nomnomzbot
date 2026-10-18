@@ -30,6 +30,8 @@ interface NnzChatMessageReceived {
   isSubscriber: boolean;
   /** True when the viewer is a VIP of the channel. */
   isVip: boolean;
+  /** True when Twitch's artist-badge is on the message: the channel named the chatter an artist. */
+  isArtist: boolean;
   /** True when the viewer is a moderator of the channel. */
   isModerator: boolean;
   /** True when the viewer is the channel owner. */
@@ -218,6 +220,7 @@ interface NnzDashboardChatMessageDto {
   pronouns?: string | null;
   provider: string;
   paint?: NnzChatPaintDto | null;
+  isArtist: boolean;
 }
 
 interface NnzChatClearedDto {
@@ -624,6 +627,8 @@ interface NnzChatBadge {
   id: string;
   /** Extra text for the badge, such as the exact subscribed months. Null when there is none. */
   info?: string | null;
+  /** Whether this badge is Twitch's artist badge. */
+  isArtist: boolean;
 }
 
 /** The window of one stream: its id, start, end, title and game. */
@@ -1059,8 +1064,13 @@ interface NnzActionParams {
     jar_id: string;
     amount: number;
   };
+  'media_playback': {
+    command: 'play' | 'pause' | 'stop' | 'skip' | 'seek' | 'volume' | 'replay' | 'play_now';
+    value?: string;
+  };
   'music_add_to_playlist': {
     playlistId: string;
+    provider?: 'spotify' | 'youtube';
   };
   'music_cycle_repeat': {
   };
@@ -1078,6 +1088,7 @@ interface NnzActionParams {
   };
   'music_remove_from_playlist': {
     playlistId: string;
+    provider?: 'spotify' | 'youtube';
   };
   'music_save_track': {
   };
@@ -1221,6 +1232,7 @@ interface NnzActionParams {
   };
   'playlist_add': {
     playlist_id: string;
+    provider?: 'spotify' | 'youtube';
     track_uri?: string;
     message?: string;
     already_message?: string;

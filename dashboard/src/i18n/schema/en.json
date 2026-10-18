@@ -1730,6 +1730,15 @@
         "help": "Which savings jar receives the contribution."
       }
     },
+    "media_playback": {
+      "command": {
+        "help": "What the media-share player does: play, pause, stop, skip, seek, volume, replay or play_now."
+      },
+      "description": "Control the media-share player",
+      "value": {
+        "help": "The number for seek (seconds) or volume (0 to 100), or the item id for play_now and replay. Supports template variables."
+      }
+    },
     "music_add_to_playlist": {
       "description": "Add the currently playing track to a chosen playlist",
       "playlistId": {

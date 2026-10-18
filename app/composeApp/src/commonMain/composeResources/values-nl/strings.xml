@@ -5719,6 +5719,9 @@
     <string name="pipeline_stop_description">Stop de pipeline onmiddellijk</string>
     <string name="pipeline_stop_sound_description">Stop momenteel afspelende geluidsclips</string>
     <string name="pipeline_submit_media_description">Dien een media-item in voor de media-deelwachtrij</string>
+    <string name="pipeline_media_playback_description">Bestuur de media-deelspeler</string>
+    <string name="pipeline_media_playback_command_help">Wat de media-speler doet: play, pause, stop, skip, seek, volume, replay of play_now.</string>
+    <string name="pipeline_media_playback_value_help">Het getal voor seek (seconden) of volume (0 tot 100), of het item-id voor play_now en replay. Ondersteunt sjabloonvariabelen.</string>
     <string name="pipeline_timeout_description">Zet een kijker tijdelijk in de timeout</string>
     <string name="pipeline_tts_synthesize_description">Synthetiseer tekst-naar-spraak-audio zonder het af te spelen</string>
     <string name="pipeline_unpermit_description">Trek de actieve toestemming van een kijker in</string>
