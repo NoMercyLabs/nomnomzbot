@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -35,14 +36,20 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
     private readonly ISongRequestHandover _handover;
     private readonly ISongRequestQueuePersistence _queuePersistence;
     private readonly IEventBus _eventBus;
+    private readonly ILogger<SongRequestQueueReconciler> _logger;
+
+    /// <summary>A song change normally removes the sent song and, in a crossfade, the one after it.</summary>
+    private const int MaxExpectedRemovalsPerSongChange = 2;
 
     public SongRequestQueueReconciler(
         ISongRequestQueueStore queueStore,
         ISongRequestHandover handover,
         ISongRequestQueuePersistence queuePersistence,
-        IEventBus eventBus
+        IEventBus eventBus,
+        ILogger<SongRequestQueueReconciler> logger
     )
     {
+        _logger = logger;
         _queueStore = queueStore;
         _handover = handover;
         _queuePersistence = queuePersistence;
@@ -74,6 +81,43 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
             _queueStore.SetPlayingRequest(broadcasterId, null);
     }
 
+    /// <summary>
+    /// Removes the playing song, and the songs above it only when it is the in-flight (sent) request or the
+    /// one directly after it. With nothing in flight the head counts as the sent song.
+    /// </summary>
+    private int RemovePlayedHead(
+        FairQueue<SongRequestEntry> queue,
+        string broadcasterId,
+        string playingTrackUri
+    )
+    {
+        List<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot =
+        [
+            .. queue.GetSnapshot(),
+        ];
+        int matchIndex = snapshot.FindIndex(e =>
+            string.Equals(e.Item.TrackUri, playingTrackUri, StringComparison.OrdinalIgnoreCase)
+        );
+        if (matchIndex < 0)
+            return 0;
+
+        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
+        int sentIndex = inFlight is null
+            ? 0
+            : snapshot.FindIndex(e => ReferenceEquals(e.Item, inFlight));
+        bool sentOrNext = sentIndex >= 0 && matchIndex >= sentIndex && matchIndex <= sentIndex + 1;
+        if (sentOrNext)
+            return queue.RemoveThrough(e =>
+                string.Equals(e.TrackUri, playingTrackUri, StringComparison.OrdinalIgnoreCase)
+            );
+
+        return queue.RemoveFirst(e =>
+            string.Equals(e.TrackUri, playingTrackUri, StringComparison.OrdinalIgnoreCase)
+        )
+            ? 1
+            : 0;
+    }
+
     public async Task HandleAsync(
         PlaybackStateChangedEvent @event,
         CancellationToken cancellationToken = default
@@ -88,13 +132,13 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         if (queue is null)
             return;
 
-        // Everything up to and including the now-playing track has stopped being pending. Dropping the
-        // whole head — not just the exact match — absorbs Spotify's client-side crossfade (0–12s, set per
-        // client), where one track starts while the previous is still audible and the 1s poller can see
-        // the pair in either order, and a viewer skipping several tracks between ticks.
-        int dropped = queue.RemoveThrough(e =>
-            string.Equals(e.TrackUri, @event.TrackUri, StringComparison.OrdinalIgnoreCase)
-        );
+        // The playing song always leaves. The songs above it leave too only when it is the request we sent
+        // to the provider or the one right after it: that absorbs Spotify's client-side crossfade (0–12s,
+        // set per client), where one track starts while the previous is still audible and the 1s poller
+        // can see the pair in either order. A song deeper in the queue that starts early (picked in the
+        // Spotify app, or left in Spotify's own queue after a failed YouTube item) never played the songs
+        // above it — live 2026-10-18, the 16th request starting emptied all 16 rows.
+        int dropped = RemovePlayedHead(queue, broadcasterId, @event.TrackUri);
 
         // RemoveThrough stops at the FIRST match, so a second copy of the very track that just started
         // survives and returns to the head — the track then plays again, and again. That is the
@@ -125,6 +169,14 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
 
         if (dropped == 0)
             return;
+
+        if (dropped > MaxExpectedRemovalsPerSongChange)
+            _logger.LogWarning(
+                "One song change removed {Dropped} queue rows for {BroadcasterId} (playing {TrackUri}).",
+                dropped,
+                broadcasterId,
+                @event.TrackUri
+            );
 
         await _queuePersistence.SyncAsync(
             broadcasterId,

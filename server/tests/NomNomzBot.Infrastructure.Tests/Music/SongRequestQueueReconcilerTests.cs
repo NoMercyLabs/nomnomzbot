@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Music;
@@ -54,7 +55,8 @@ public sealed class SongRequestQueueReconcilerTests
             store,
             new RecordingHandover(),
             new NoOpSongRequestQueuePersistence(),
-            bus
+            bus,
+            NullLogger<SongRequestQueueReconciler>.Instance
         );
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a"));
@@ -170,7 +172,7 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
-    public async Task A_crossfade_or_multi_skip_that_lands_further_down_drops_everything_it_passed()
+    public async Task A_crossfade_that_starts_the_song_after_the_sent_one_drops_both()
     {
         (
             SongRequestQueueReconciler sut,
@@ -181,15 +183,84 @@ public sealed class SongRequestQueueReconcilerTests
         ) = Build("a", "b", "c");
         HandOver(store, queue, "a");
 
-        // Playback is observed on "c" without "a" or "b" ever being seen as current — a 12s crossfade
-        // overlapping the poll cadence, or a viewer skipping twice between ticks.
-        await sut.HandleAsync(PlaybackOf("spotify:track:c"));
+        // Playback is observed on "b" without "a" ever being seen as current — a 12s crossfade
+        // overlapping the poll cadence.
+        await sut.HandleAsync(PlaybackOf("spotify:track:b"));
 
-        Titles(queue).Should().BeEmpty();
-        // The provider is free again. The hand-over is asked once so a dry queue lets Spotify play on; with
-        // nothing left pending it pushes nothing, so no track that already played is re-pushed.
+        Titles(queue).Should().Equal("Track c");
         store.GetInFlight(ChannelId.ToString()).Should().BeNull();
         handover.Calls.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task A_song_deep_in_the_queue_that_starts_removes_only_itself()
+    {
+        (
+            SongRequestQueueReconciler sut,
+            FairQueue<SongRequestEntry> queue,
+            RecordingEventBus bus,
+            SongRequestQueueStore store,
+            _
+        ) = Build("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p");
+        HandOver(store, queue, "a");
+        RecordingPersistence persistence = new();
+        SongRequestQueueReconciler withPersistence = new(
+            store,
+            new RecordingHandover(),
+            persistence,
+            bus,
+            NullLogger<SongRequestQueueReconciler>.Instance
+        );
+
+        // The 16th request starts in Spotify while the first is still the one we sent.
+        await withPersistence.HandleAsync(PlaybackOf("spotify:track:p"));
+
+        string[] expected = [.. "abcdefghijklmno".Select(c => $"Track {c}")];
+        Titles(queue).Should().Equal(expected);
+        persistence.Synced.Select(e => e.Item.TrackName).Should().Equal(expected);
+        bus.Published.OfType<SongRequestQueueChangedEvent>()
+            .Single()
+            .Items.Select(i => i.Title)
+            .Should()
+            .Equal(expected.Take(10));
+        store.GetInFlight(ChannelId.ToString())!.TrackName.Should().Be("Track a");
+    }
+
+    [Fact]
+    public async Task A_failed_youtube_item_leaves_alone_and_the_spotify_song_that_then_starts_removes_only_itself()
+    {
+        SongRequestQueueStore store = new();
+        FairQueue<SongRequestEntry> queue = store.GetOrCreate(ChannelId.ToString());
+        queue.Enqueue("viewer-y", Entry("https://www.youtube.com/watch?v=bad", "Broken video"));
+        foreach (char id in "bcdefghijklmnop")
+            queue.Enqueue($"viewer-{id}", Entry($"spotify:track:{id}", $"Track {id}"));
+        store.SetInFlight(ChannelId.ToString(), queue.GetSnapshot()[0].Item);
+        RecordingEventBus bus = new();
+        RecordingHandover handover = new();
+        RecordingPersistence persistence = new();
+        SongRequestQueueReconciler sut = new(
+            store,
+            handover,
+            persistence,
+            bus,
+            NullLogger<SongRequestQueueReconciler>.Instance
+        );
+
+        // The overlay player reports Error for the video: only that request leaves, the next is handed over.
+        await sut.HandleAsync(
+            PlaybackOf("https://www.youtube.com/watch?v=bad", "youtube", isPlaying: false)
+        );
+
+        Titles(queue).Should().Equal("bcdefghijklmnop".Select(c => $"Track {c}"));
+        handover.Calls.Should().ContainSingle();
+        store.GetInFlight(ChannelId.ToString()).Should().BeNull();
+
+        // Spotify then starts its own queue head, which is the last request (nothing is in flight yet).
+        store.SetInFlight(ChannelId.ToString(), queue.GetSnapshot()[0].Item);
+        await sut.HandleAsync(PlaybackOf("spotify:track:p"));
+
+        Titles(queue).Should().Equal("bcdefghijklmno".Select(c => $"Track {c}"));
+        persistence.Synced.Should().HaveCount(14);
     }
 
     [Fact]
@@ -241,16 +312,49 @@ public sealed class SongRequestQueueReconcilerTests
         handover.Calls.Should().ContainSingle();
     }
 
-    private static PlaybackStateChangedEvent PlaybackOf(string trackUri) =>
+    private static PlaybackStateChangedEvent PlaybackOf(
+        string trackUri,
+        string provider = "spotify",
+        bool isPlaying = true
+    ) =>
         new()
         {
             BroadcasterId = ChannelId,
-            IsPlaying = true,
+            IsPlaying = isPlaying,
             TrackUri = trackUri,
             TrackName = trackUri,
-            Provider = "spotify",
+            Provider = provider,
             ObservedAt = DateTimeOffset.UtcNow,
         };
+
+    private static SongRequestEntry Entry(string trackUri, string trackName) =>
+        new(trackUri, trackName, "Artist", null, 200000, "viewer", 0, null, "");
+
+    /// <summary>Keeps the last snapshot the reconciler wrote, i.e. the rows the table would hold.</summary>
+    private sealed class RecordingPersistence : ISongRequestQueuePersistence
+    {
+        public IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> Synced
+        {
+            get;
+            private set;
+        } = [];
+
+        public Task SyncAsync(
+            string broadcasterId,
+            IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot,
+            CancellationToken cancellationToken,
+            SongRequestEntry? inFlight = null
+        )
+        {
+            Synced = snapshot;
+            return Task.CompletedTask;
+        }
+
+        public Task<SongRequestQueueRestoreResult> LoadForRestoreAsync(
+            TimeSpan freshnessWindow,
+            CancellationToken cancellationToken
+        ) => Task.FromResult(new SongRequestQueueRestoreResult([], []));
+    }
 
     private static IEnumerable<string> Titles(FairQueue<SongRequestEntry> queue) =>
         queue.GetSnapshot().Select(e => e.Item.TrackName);
@@ -312,7 +416,13 @@ public sealed class SongRequestQueueReconcilerTests
         RecordingEventBus bus = new();
         RecordingHandover handover = new();
         return (
-            new(store, handover, new NoOpSongRequestQueuePersistence(), bus),
+            new(
+                store,
+                handover,
+                new NoOpSongRequestQueuePersistence(),
+                bus,
+                NullLogger<SongRequestQueueReconciler>.Instance
+            ),
             queue,
             bus,
             store,

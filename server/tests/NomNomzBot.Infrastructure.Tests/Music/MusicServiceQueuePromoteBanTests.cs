@@ -83,7 +83,8 @@ public sealed class MusicServiceQueuePromoteBanTests
             store,
             sut,
             new NoOpSongRequestQueuePersistence(),
-            bus
+            bus,
+            NullLogger<SongRequestQueueReconciler>.Instance
         );
         await reconciler.HandleAsync(
             new()

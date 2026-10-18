@@ -186,7 +186,8 @@ public sealed class YouTubeEndedAdvancesQueueTests
             queues,
             music,
             new NoOpSongRequestQueuePersistence(),
-            bus
+            bus,
+            NullLogger<SongRequestQueueReconciler>.Instance
         );
         return new(music, provider, reports, reconciler, queues, notifier, bus);
     }

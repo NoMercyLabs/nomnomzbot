@@ -196,7 +196,8 @@ public sealed class YouTubeTransportControlTests
             queues,
             music,
             new NoOpSongRequestQueuePersistence(),
-            bus
+            bus,
+            NullLogger<SongRequestQueueReconciler>.Instance
         );
         PlayOnceResumeHandler resumeHandler = new(
             resumeTracker,
