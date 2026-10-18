@@ -11,6 +11,8 @@
 import type { ObsState } from '@/api/obs';
 import type { ObsStats } from '@/api/obsOutputs';
 
+import { numberOrNull } from '@/lib/number';
+
 import { wholeSeconds } from './outputFormat';
 
 export type StreamState = 'live' | 'reconnecting' | 'off';
@@ -29,11 +31,11 @@ export type ObsStatusFacts = {
   streamKbps: number | null;
   dropped: FrameShare;
   render: FrameShare;
-  cpu: number;
-  fps: number;
-  targetFps: number;
-  memory: number;
-  congestion: number;
+  cpu: number | null;
+  fps: number | null;
+  targetFps: number | null;
+  memory: number | null;
+  congestion: number | null;
 };
 
 // The stream byte counter at one moment, kept by the page to turn two reads into a bitrate.
@@ -111,11 +113,11 @@ export function obsStatusFacts(
     streamKbps: bitrate(stats, previous, at),
     dropped: share(stats.streamSkippedFrames, stats.streamTotalFrames),
     render: share(stats.renderSkippedFrames, stats.renderTotalFrames),
-    cpu: Number(stats.cpuUsage),
-    fps: Number(stats.activeFps),
-    targetFps: Number(stats.targetFps),
-    memory: Number(stats.memoryUsage),
-    congestion: Number(stats.streamCongestion),
+    cpu: numberOrNull(stats.cpuUsage),
+    fps: numberOrNull(stats.activeFps),
+    targetFps: numberOrNull(stats.targetFps),
+    memory: numberOrNull(stats.memoryUsage),
+    congestion: numberOrNull(stats.streamCongestion),
   } as const satisfies ObsStatusFacts;
 }
 

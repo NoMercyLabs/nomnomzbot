@@ -58,7 +58,13 @@ watch(
   { immediate: true },
 );
 
-function percent(fraction: number): string {
+// A figure OBS did not measure has no number to format; its cell shows a dash.
+const none = '-';
+
+function percent(fraction: number | null): string {
+  if (fraction === null)
+    return none;
+
   return n(fraction, {
     style: 'percent',
     minimumFractionDigits: 1,
@@ -66,8 +72,18 @@ function percent(fraction: number): string {
   });
 }
 
-function one(value: number): string {
+function one(value: number | null): string {
+  if (value === null)
+    return none;
+
   return n(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function megabytes(memory: number | null): string {
+  if (memory === null)
+    return none;
+
+  return t('dashboard.obs.stats.megabytes', { value: n(Math.round(memory)) });
 }
 
 type Cell = {
@@ -110,7 +126,12 @@ function cells(current: ObsStatusFacts): Cell[] {
         share: percent(current.render.fraction),
       }),
     },
-    { key: 'cpu', value: `${one(current.cpu)}%` },
+    {
+      key: 'cpu',
+      value: current.cpu === null
+        ? none
+        : `${one(current.cpu)}%`,
+    },
     {
       key: 'fps',
       value: t('dashboard.obs.stats.fpsValue', {
@@ -118,7 +139,7 @@ function cells(current: ObsStatusFacts): Cell[] {
         target: one(current.targetFps),
       }),
     },
-    { key: 'memory', value: t('dashboard.obs.stats.megabytes', { value: n(Math.round(current.memory)) }) },
+    { key: 'memory', value: megabytes(current.memory) },
     { key: 'congestion', value: percent(current.congestion) },
   ];
 }
