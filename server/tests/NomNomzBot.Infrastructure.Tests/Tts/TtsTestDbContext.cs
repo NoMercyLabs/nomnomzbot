@@ -117,6 +117,12 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(i => i.Connection); // no IntegrationConnections / Users tables in this focused context
             e.Ignore(i => i.User);
         });
+        b.Entity<Pronoun>(e => e.HasKey(p => p.Id));
+        b.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.Ignore(u => u.Channel); // no Channels table in this focused context
+        });
         b.Entity<TtsUsageRecord>(e => e.HasKey(r => r.Id));
         b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));
         b.Entity<TtsApprovalQueueEntry>(e =>
@@ -146,6 +152,8 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
         typeof(TtsConfig),
         typeof(TtsLexiconEntry),
         typeof(UserIdentity),
+        typeof(User),
+        typeof(Pronoun),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -166,7 +174,7 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
     public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         throw new NotSupportedException();
@@ -313,7 +321,7 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
-    public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
+    public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
         throw new NotSupportedException();

@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Events;
@@ -54,6 +55,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly IBillingTierService _tiers;
     private readonly ITtsChannelSerializer _serializer;
     private readonly TimeProvider _clock;
+    private readonly Random _random;
     private readonly ILogger<TtsDispatchService> _logger;
 
     public TtsDispatchService(
@@ -70,7 +72,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
         IBillingTierService tiers,
         ITtsChannelSerializer serializer,
         TimeProvider clock,
-        ILogger<TtsDispatchService> logger
+        ILogger<TtsDispatchService> logger,
+        Random? random = null
     )
     {
         _tts = tts;
@@ -87,6 +90,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _serializer = serializer;
         _clock = clock;
         _logger = logger;
+        _random = random ?? Random.Shared;
     }
 
     public async Task<Result<TtsDispatchOutcome>> RequestSpeakAsync(
@@ -1031,7 +1035,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
             if (assignVoiceIfMissing)
             {
-                string? assigned = await AssignRandomEnglishVoiceAsync(
+                string? assigned = await AssignFirstVoiceAsync(
                     broadcasterId,
                     requestedByTwitchUserId,
                     config.DefaultProvider,
@@ -1050,12 +1054,13 @@ public sealed class TtsDispatchService : ITtsDispatchService
     }
 
     /// <summary>
-    /// A viewer with no saved voice gets a random English voice of the channel's provider, and it is saved as
-    /// theirs so every later line sounds the same (the old bot did this). Null when the catalogue holds no
-    /// English voice for the provider: the channel default speaks and nothing is saved. When two lines race,
-    /// the unique (channel, viewer) index lets one row win and both lines use the winner.
+    /// A viewer with no saved voice gets a random English or multilingual voice of the channel's provider,
+    /// preferring one that fits their pronouns (<see cref="TtsFirstVoicePicker"/>), and it is saved as theirs
+    /// so every later line sounds the same (the old bot did this). Null when the catalogue holds no eligible
+    /// voice for the provider: the channel default speaks and nothing is saved. When two lines race, the
+    /// unique (channel, viewer) index lets one row win and both lines use the winner.
     /// </summary>
-    private async Task<string?> AssignRandomEnglishVoiceAsync(
+    private async Task<string?> AssignFirstVoiceAsync(
         Guid broadcasterId,
         string requestedByTwitchUserId,
         string provider,
@@ -1063,16 +1068,23 @@ public sealed class TtsDispatchService : ITtsDispatchService
     )
     {
         string providerLower = provider.ToLower();
-        List<string> englishVoiceIds = await _db
-            .TtsVoices.Where(v =>
-                v.Provider.ToLower() == providerLower && v.Locale.StartsWith("en-")
-            )
-            .Select(v => v.Id)
+        List<TtsVoice> catalogue = await _db
+            .TtsVoices.Where(v => v.Provider.ToLower() == providerLower)
             .ToListAsync(ct);
-        if (englishVoiceIds.Count == 0)
+        User? viewer = await _db
+            .Users.Include(u => u.Pronoun)
+            .Include(u => u.AltPronoun)
+            .FirstOrDefaultAsync(u => u.TwitchUserId == requestedByTwitchUserId, ct);
+
+        string? chosen = TtsFirstVoicePicker.Pick(
+            catalogue,
+            viewer?.Pronoun,
+            viewer?.AltPronoun,
+            _random
+        );
+        if (chosen is null)
             return null;
 
-        string chosen = englishVoiceIds[Random.Shared.Next(englishVoiceIds.Count)];
         UserTtsVoice row = new()
         {
             BroadcasterId = broadcasterId,

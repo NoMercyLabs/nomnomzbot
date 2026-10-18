@@ -18,6 +18,7 @@ using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Events;
@@ -66,7 +67,8 @@ public sealed class TtsDispatchServiceTests
         string mode = "self_host",
         string minPermission = "everyone",
         string defaultProvider = "edge",
-        Application.Contracts.Billing.IBillingTierService? tiers = null
+        Application.Contracts.Billing.IBillingTierService? tiers = null,
+        Random? random = null
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -167,7 +169,8 @@ public sealed class TtsDispatchServiceTests
             tiers ?? Billing.TestTiers.Unlimited(),
             new TtsChannelSerializer(),
             new FakeTimeProvider(new(T0)),
-            NullLogger<TtsDispatchService>.Instance
+            NullLogger<TtsDispatchService>.Instance,
+            random
         );
         return new()
         {
@@ -1586,6 +1589,145 @@ public sealed class TtsDispatchServiceTests
         await AssertSynthVoiceAsync(h, "my words", "en-GB-SoniaNeural");
         List<UserTtsVoice> rows = await h.Db.UserTtsVoices.ToListAsync();
         rows.Should().ContainSingle().Which.UserId.Should().Be(Viewer);
+    }
+
+    /// <summary>Always picks the last index, so a test proves the pool filter and not a lucky draw.</summary>
+    private sealed class LastIndexRandom : Random
+    {
+        public override int Next(int maxValue) => maxValue - 1;
+    }
+
+    private static TtsVoice GenderedVoice(string id, string locale, string gender) =>
+        new()
+        {
+            Id = id,
+            Name = id,
+            DisplayName = id,
+            Locale = locale,
+            Gender = gender,
+            Provider = "edge",
+        };
+
+    private static Pronoun PronounOf(string subject, string objectForm) =>
+        new()
+        {
+            Name = $"{subject}/{objectForm}",
+            Subject = subject,
+            Object = objectForm,
+            Possessive = objectForm,
+            GenderedTerm = "person",
+            Singular = true,
+        };
+
+    private static async Task<Harness> BuildWithMixedCatalogueAsync(Pronoun? pronoun)
+    {
+        Harness h = Build(defaultVoice: "channel-voice", random: new LastIndexRandom());
+        h.Db.TtsVoices.AddRange(
+            GenderedVoice("en-US-GuyNeural", "en-US", "Male"),
+            GenderedVoice("en-US-AriaNeural", "en-US", "Female"),
+            GenderedVoice("de-DE-FlorianMultilingualNeural", "de-DE", "Male"),
+            GenderedVoice("fr-FR-VivienneMultilingualNeural", "fr-FR", "Female"),
+            GenderedVoice("zz-KatjaNeural", "de-DE", "Female"),
+            GenderedVoice("en-GB-RyanNeural", "en-GB", "Male")
+        );
+        if (pronoun is not null)
+        {
+            h.Db.Users.Add(
+                new User
+                {
+                    TwitchUserId = Viewer,
+                    Username = "viewer",
+                    UsernameNormalized = "viewer",
+                    DisplayName = "Viewer",
+                    Pronoun = pronoun,
+                }
+            );
+        }
+
+        await h.Db.SaveChangesAsync();
+        return h;
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_FirstVoice_HeHim_IsAMaleEnglishOrMultilingualVoice_AndSaved()
+    {
+        Harness h = await BuildWithMixedCatalogueAsync(PronounOf("he", "him"));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(SpeakAsViewer("hi"));
+
+        result
+            .Value.VoiceId.Should()
+            .BeOneOf("en-US-GuyNeural", "en-GB-RyanNeural", "de-DE-FlorianMultilingualNeural");
+        (await h.Db.UserTtsVoices.SingleAsync()).VoiceId.Should().Be(result.Value.VoiceId);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_FirstVoice_SheHer_IsAFemaleEnglishOrMultilingualVoice()
+    {
+        Harness h = await BuildWithMixedCatalogueAsync(PronounOf("she", "her"));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(SpeakAsViewer("hi"));
+
+        // The last female eligible voice; the female German non-multilingual voice is never in the pool.
+        result.Value.VoiceId.Should().Be("fr-FR-VivienneMultilingualNeural");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_FirstVoice_MultilingualVoicesAreEligible()
+    {
+        Harness h = Build(defaultVoice: "channel-voice", random: new LastIndexRandom());
+        h.Db.TtsVoices.AddRange(
+            GenderedVoice("en-US-GuyNeural", "en-US", "Male"),
+            GenderedVoice("zz-HenriMultilingualNeural", "fr-FR", "Male")
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(SpeakAsViewer("hi"));
+
+        result.Value.VoiceId.Should().Be("zz-HenriMultilingualNeural");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RequestSpeakAsync_FirstVoice_TheyThemOrUnknown_PicksFromTheWholePool(
+        bool hasPronoun
+    )
+    {
+        Harness h = await BuildWithMixedCatalogueAsync(
+            hasPronoun ? PronounOf("they", "them") : null
+        );
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(SpeakAsViewer("hi"));
+
+        // Last eligible voice by id: the female multilingual one, so a male filter is not applied either.
+        result.Value.VoiceId.Should().Be("fr-FR-VivienneMultilingualNeural");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_FirstVoice_NoVoiceOfThePreferredGender_FallsBackToTheWholePool()
+    {
+        Harness h = Build(defaultVoice: "channel-voice", random: new LastIndexRandom());
+        h.Db.TtsVoices.AddRange(
+            GenderedVoice("en-US-GuyNeural", "en-US", "Male"),
+            GenderedVoice("en-GB-RyanNeural", "en-GB", "Male")
+        );
+        h.Db.Users.Add(
+            new User
+            {
+                TwitchUserId = Viewer,
+                Username = "viewer",
+                UsernameNormalized = "viewer",
+                DisplayName = "Viewer",
+                Pronoun = PronounOf("she", "her"),
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(SpeakAsViewer("hi"));
+
+        result.Value.VoiceId.Should().Be("en-US-GuyNeural");
+        (await h.Db.UserTtsVoices.SingleAsync()).VoiceId.Should().Be("en-US-GuyNeural");
     }
 
     [Theory]
