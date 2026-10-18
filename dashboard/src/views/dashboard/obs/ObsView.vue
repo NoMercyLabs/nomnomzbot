@@ -152,7 +152,7 @@ function retry(): void {
       <div
         ref="live"
         data-obs-board
-        class="grid items-start gap-3"
+        class="board-lanes items-start gap-3"
         :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
       >
         <OutputsPanel
@@ -192,7 +192,7 @@ function retry(): void {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div
-            class="mt-2 grid items-start gap-3"
+            class="board-lanes mt-2 items-start gap-3"
             :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
           >
             <ObsConnectionPanel

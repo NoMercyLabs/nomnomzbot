@@ -20,6 +20,16 @@
 /* A phone: narrow AND touch. A narrow desktop window (the chat popout dock) keeps the desktop layout. */
 @custom-variant phone (@media (max-width: 767px) and (pointer: coarse));
 
+/* A board of panels: the columns come from the page (grid-template-columns). Browsers with CSS grid lanes
+   pack each panel under the one above it with no gap beneath a short panel; the rest keep the plain grid. */
+@utility board-lanes {
+  display: grid;
+
+  @supports (display: grid-lanes) {
+    display: grid-lanes;
+  }
+}
+
 /* Colors and fonts map to the tokens. Radii and text sizes share Tailwind's variable
    names (--radius-sm, --text-sm), so the :root values in tokens.css override them directly. */
 @theme inline {
