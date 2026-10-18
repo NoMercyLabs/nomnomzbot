@@ -41,7 +41,7 @@ fun eventGroupOf(eventType: String): EventGroup? =
         eventType.startsWith("channel.ad_break.") -> EventGroup.Ads
         eventType == "channel.ban" || eventType == "channel.unban" || eventType.startsWith("channel.moderator.") ->
             EventGroup.Moderation
-        eventType.startsWith("engagement.") -> EventGroup.Engagement
+        eventType.startsWith("engagement.") || eventType.startsWith("channel.hype_train.") -> EventGroup.Engagement
         eventType.startsWith("supporter.") -> EventGroup.Supporters
         eventType.startsWith("obs.") || eventType.startsWith("vts.") -> EventGroup.ObsAndVtubeStudio
         else -> null
