@@ -101,6 +101,15 @@ export type AdminErrorBudgetPayload = {
   status: string;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveBillingChanged (AdminBillingBroadcastHandler). An operator changed a tier, an
+// invite code, a grant, an invoice or a priced unit; area names which, targetBroadcasterId the channel it touched.
+export type AdminBillingPayload = {
+  area: string;
+  action: string;
+  subjectId: string;
+  targetBroadcasterId?: string | null;
+};
+
 // Hubs/Clients/IDashboardClient.cs: ChatMessage carries DashboardChatMessageDto, the same record the history call returns.
 export type ChatMessagePayload = components['schemas']['DashboardChatMessage'];
 

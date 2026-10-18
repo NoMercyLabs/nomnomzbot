@@ -16,11 +16,13 @@ import {
   type AdminTenantDetail,
   type AdminTenantsPage,
 } from '@/api/admin';
+import { billingPrefix } from '@/api/adminBilling';
 import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type {
+  AdminBillingPayload,
   AdminChannelRegistryPayload,
   AdminErrorBudgetPayload,
   AdminSystemStatusPayload,
@@ -88,6 +90,7 @@ export const adminHandlers: [
   HubEventHandler<AdminChannelRegistryPayload>,
   HubEventHandler<AdminTrustSafetyPayload>,
   HubEventHandler<AdminErrorBudgetPayload>,
+  HubEventHandler<AdminBillingPayload>,
 ] = [
   {
     event: 'ReceiveSystemStatus',
@@ -111,6 +114,13 @@ export const adminHandlers: [
     event: 'ReceiveErrorBudgetChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: adminErrorBudgetPrefix });
+    },
+  },
+  {
+    // Another operator changed billing: tiers, invites, invoices, grants and priced units reload.
+    event: 'ReceiveBillingChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: billingPrefix });
     },
   },
 ];

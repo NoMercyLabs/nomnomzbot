@@ -489,6 +489,71 @@
           "forbidden": "Je mag de foutbudgetten niet zien."
         }
       },
+      "billing": {
+        "title": "Facturatie",
+        "restricted": "Tenants voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Zelf hosten is altijd gratis.",
+        "tiers": {
+          "title": "Niveaus",
+          "empty": "Er bestaan nog geen niveaus.",
+          "error": "De niveaus konden niet laden.",
+          "new": "Nieuw niveau",
+          "edit": "Bewerken",
+          "continue": "Doorgaan",
+          "key": "Sleutel",
+          "name": "Naam",
+          "priceCents": "Prijs in centen",
+          "limits": "Limieten, een per regel: sleutel=waarde",
+          "public": "Zichtbaar op de openbare prijspagina",
+          "private": "Privé",
+          "confirmTitle": "Dit niveau opslaan?",
+          "affected": "{count} kanalen zitten op dit niveau en krijgen de wijziging.",
+          "save": "Niveau opslaan"
+        },
+        "invites": {
+          "title": "Uitnodigingscodes",
+          "empty": "Er bestaan nog geen uitnodigingscodes.",
+          "redemptions": "{used} van {max} gebruikt",
+          "error": "De uitnodigingscodes konden niet laden.",
+          "new": "Nieuwe uitnodiging",
+          "create": "Uitnodiging maken",
+          "max": "Maximaal aantal inwisselingen",
+          "noTier": "Geen niveau",
+          "founder": "Founders-badge",
+          "revoke": "Intrekken",
+          "revokeTitle": "{code} intrekken?"
+        },
+        "channel": {
+          "title": "Kanaalfacturatie",
+          "id": "Kanaal-id",
+          "pick": "Vul een kanaal-id in om facturen en toekenningen te zien.",
+          "noInvoices": "Dit kanaal heeft geen facturen.",
+          "error": "De kanaalfacturatie kon niet laden.",
+          "refund": "Terugbetalen",
+          "refundTitle": "{amount} terugbetalen?",
+          "pickTier": "Kies een niveau",
+          "grantTier": "Niveau toekennen",
+          "comp": "Niveau cadeau geven",
+          "founder": "Founders-badge toekennen",
+          "reason": "Reden",
+          "expires": "Verloopt op",
+          "founderTitle": "Founders-badge toekennen aan {channel}?",
+          "tierTitle": "{channel} het niveau {tier} geven?",
+          "changed": "{count} limieten veranderen.",
+          "confirm": "Bevestigen"
+        },
+        "units": {
+          "title": "Geprijsde eenheden",
+          "empty": "Er zijn nog geen eenheden geprijsd.",
+          "error": "De geprijsde eenheden konden niet laden.",
+          "new": "Eenheid prijzen",
+          "save": "Prijs opslaan",
+          "key": "Eenheidssleutel",
+          "currency": "Valuta",
+          "priceInput": "Prijs per batch in kleinste eenheden",
+          "batch": "Batchgrootte",
+          "price": "{price} {currency} per {batch}"
+        }
+      },
       "tenantUsage": {
         "title": "Gebruik per tenant",
         "count": "{count} tenants",

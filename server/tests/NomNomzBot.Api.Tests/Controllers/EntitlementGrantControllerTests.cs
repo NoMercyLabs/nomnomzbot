@@ -20,6 +20,7 @@ using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Billing;
 using NSubstitute;
 
@@ -55,7 +56,8 @@ public sealed class EntitlementGrantControllerTests
             Substitute.For<IBillingTierAdminService>(),
             grantService,
             Substitute.For<IPricedUnitAdminService>(),
-            currentUser
+            currentUser,
+            Substitute.For<IEventBus>()
         );
     }
 

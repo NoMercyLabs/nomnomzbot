@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
 using NSubstitute;
@@ -58,7 +59,8 @@ public sealed class AdminBillingTierEditingTests
             tierAdmin,
             Substitute.For<IEntitlementGrantService>(),
             Substitute.For<IPricedUnitAdminService>(),
-            currentUser
+            currentUser,
+            Substitute.For<IEventBus>()
         );
     }
 

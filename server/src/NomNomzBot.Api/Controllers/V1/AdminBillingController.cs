@@ -19,7 +19,9 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
+using NomNomzBot.Domain.Billing.Events;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -42,7 +44,8 @@ public class AdminBillingController(
     IBillingTierAdminService tiers,
     IEntitlementGrantService grants,
     IPricedUnitAdminService pricedUnits,
-    ICurrentUserService currentUser
+    ICurrentUserService currentUser,
+    IEventBus eventBus
 ) : BaseController
 {
     /// <summary>List every tier — public and internal — for the admin tier editor.</summary>
@@ -72,7 +75,19 @@ public class AdminBillingController(
     public async Task<IActionResult> CreateTier(
         [FromBody] CreateTierRequest request,
         CancellationToken ct
-    ) => ResultResponse(await tiers.CreateTierAsync(request, Caller(), ct));
+    )
+    {
+        Result<TierDto> created = await tiers.CreateTierAsync(request, Caller(), ct);
+        await PublishChangeAsync(
+            created,
+            "tier",
+            "created",
+            created.IsSuccess ? created.Value.Id : Guid.Empty,
+            null,
+            ct
+        );
+        return ResultResponse(created);
+    }
 
     /// <summary>
     /// Edit an existing tier's price, feature flags and limits. Fails closed (<c>PREVIEW_STALE</c>, 409) if
@@ -86,7 +101,12 @@ public class AdminBillingController(
         Guid tierId,
         [FromBody] UpdateTierRequest request,
         CancellationToken ct
-    ) => ResultResponse(await tiers.UpdateTierAsync(tierId, request, Caller(), ct));
+    )
+    {
+        Result<TierDto> updated = await tiers.UpdateTierAsync(tierId, request, Caller(), ct);
+        await PublishChangeAsync(updated, "tier", "updated", tierId, null, ct);
+        return ResultResponse(updated);
+    }
 
     private Guid? Caller() => Guid.TryParse(currentUser.UserId, out Guid id) ? id : null;
 
@@ -116,13 +136,29 @@ public class AdminBillingController(
     public async Task<IActionResult> CreateInvite(
         [FromBody] CreateInviteCodeRequest request,
         CancellationToken ct
-    ) => ResultResponse(await invites.CreateInviteCodeAsync(request, ct));
+    )
+    {
+        Result<InviteCodeDto> created = await invites.CreateInviteCodeAsync(request, ct);
+        await PublishChangeAsync(
+            created,
+            "invite",
+            "created",
+            created.IsSuccess ? created.Value.Id : Guid.Empty,
+            null,
+            ct
+        );
+        return ResultResponse(created);
+    }
 
     /// <summary>Revoke an invite code, blocking further redemptions.</summary>
     [HttpPost("invites/{inviteCodeId:guid}/revoke")]
     [Authorize(Policy = IamPermissionKeys.BillingWrite)]
-    public async Task<IActionResult> RevokeInvite(Guid inviteCodeId, CancellationToken ct) =>
-        ResultResponse(await invites.RevokeInviteCodeAsync(inviteCodeId, ct));
+    public async Task<IActionResult> RevokeInvite(Guid inviteCodeId, CancellationToken ct)
+    {
+        Result revoked = await invites.RevokeInviteCodeAsync(inviteCodeId, ct);
+        await PublishChangeAsync(revoked, "invite", "revoked", inviteCodeId, null, ct);
+        return ResultResponse(revoked);
+    }
 
     /// <summary>Manually grant a channel a tier without Stripe, optionally marked as an invite-only grant.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-tier")]
@@ -132,22 +168,35 @@ public class AdminBillingController(
         Guid broadcasterId,
         [FromBody] GrantTierRequest request,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await subscriptions.GrantTierAsync(
-                broadcasterId,
-                request.TierId,
-                request.IsInviteOnlyGrant,
-                ct
-            )
+    )
+    {
+        Result<SubscriptionDto> granted = await subscriptions.GrantTierAsync(
+            broadcasterId,
+            request.TierId,
+            request.IsInviteOnlyGrant,
+            ct
         );
+        await PublishChangeAsync(
+            granted,
+            "tier-grant",
+            "granted",
+            request.TierId,
+            broadcasterId,
+            ct
+        );
+        return ResultResponse(granted);
+    }
 
     /// <summary>Grant a channel the founders badge directly.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-founder")]
     [Authorize(Policy = IamPermissionKeys.BillingWrite)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
-    public async Task<IActionResult> GrantFounder(Guid broadcasterId, CancellationToken ct) =>
-        ResultResponse(await invites.GrantFoundersBadgeAsync(broadcasterId, ct));
+    public async Task<IActionResult> GrantFounder(Guid broadcasterId, CancellationToken ct)
+    {
+        Result<FoundersBadgeDto> granted = await invites.GrantFoundersBadgeAsync(broadcasterId, ct);
+        await PublishChangeAsync(granted, "founder", "granted", broadcasterId, broadcasterId, ct);
+        return ResultResponse(granted);
+    }
 
     /// <summary>Every invoice for a channel, platform-wide, newest first — amounts, currency, status,
     /// issued/paid timestamps and the live dunning state.</summary>
@@ -164,8 +213,16 @@ public class AdminBillingController(
     [HttpPost("invoices/{invoiceId:guid}/refund")]
     [Authorize(Policy = IamPermissionKeys.BillingRefund)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
-    public async Task<IActionResult> RefundInvoice(Guid invoiceId, CancellationToken ct) =>
-        ResultResponse(await subscriptions.RefundInvoiceAsync(invoiceId, Caller(), ct));
+    public async Task<IActionResult> RefundInvoice(Guid invoiceId, CancellationToken ct)
+    {
+        Result<InvoiceDto> refunded = await subscriptions.RefundInvoiceAsync(
+            invoiceId,
+            Caller(),
+            ct
+        );
+        await PublishChangeAsync(refunded, "invoice", "refunded", invoiceId, null, ct);
+        return ResultResponse(refunded);
+    }
 
     /// <summary>Every LIVE comp/entitlement grant (S-ADMIN-4b) for a channel, newest first.</summary>
     [HttpGet("channels/{broadcasterId:guid}/grants")]
@@ -204,7 +261,24 @@ public class AdminBillingController(
         Guid broadcasterId,
         [FromBody] IssueEntitlementGrantRequest request,
         CancellationToken ct
-    ) => ResultResponse(await grants.IssueGrantAsync(broadcasterId, request, Caller(), ct));
+    )
+    {
+        Result<EntitlementGrantDto> issued = await grants.IssueGrantAsync(
+            broadcasterId,
+            request,
+            Caller(),
+            ct
+        );
+        await PublishChangeAsync(
+            issued,
+            "grant",
+            "granted",
+            issued.IsSuccess ? issued.Value.Id : Guid.Empty,
+            broadcasterId,
+            ct
+        );
+        return ResultResponse(issued);
+    }
 
     /// <summary>
     /// Every priced unit (S-ADMIN-4d), ordered by unit key. Ships EMPTY until the owner authors a price — a
@@ -227,5 +301,47 @@ public class AdminBillingController(
     public async Task<IActionResult> AuthorPricedUnit(
         [FromBody] AuthorPricedUnitRequest request,
         CancellationToken ct
-    ) => ResultResponse(await pricedUnits.AuthorPricedUnitAsync(request, Caller(), ct));
+    )
+    {
+        Result<PricedUnitDto> authored = await pricedUnits.AuthorPricedUnitAsync(
+            request,
+            Caller(),
+            ct
+        );
+        await PublishChangeAsync(
+            authored,
+            "priced-unit",
+            "updated",
+            authored.IsSuccess ? authored.Value.Id : Guid.Empty,
+            null,
+            ct
+        );
+        return ResultResponse(authored);
+    }
+
+    /// <summary>Tells the open operator desks a change landed; a failed write changed nothing, so it says nothing.</summary>
+    private async Task PublishChangeAsync(
+        Result outcome,
+        string area,
+        string action,
+        Guid subjectId,
+        Guid? targetBroadcasterId,
+        CancellationToken ct
+    )
+    {
+        if (outcome.IsFailure)
+            return;
+
+        await eventBus.PublishAsync(
+            new BillingChangedEvent
+            {
+                BroadcasterId = Guid.Empty,
+                Area = area,
+                Action = action,
+                SubjectId = subjectId,
+                TargetBroadcasterId = targetBroadcasterId,
+            },
+            ct
+        );
+    }
 }

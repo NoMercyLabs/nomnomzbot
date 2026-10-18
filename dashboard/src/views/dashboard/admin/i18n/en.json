@@ -489,6 +489,71 @@
           "forbidden": "You may not see the error budgets."
         }
       },
+      "billing": {
+        "title": "Billing",
+        "restricted": "Hosting tenants for third parties is a restricted option: running NomNomzBot as a hosted service is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+        "tiers": {
+          "title": "Tiers",
+          "empty": "No tiers exist yet.",
+          "error": "The tiers could not load.",
+          "new": "New tier",
+          "edit": "Edit",
+          "continue": "Continue",
+          "key": "Key",
+          "name": "Name",
+          "priceCents": "Price in cents",
+          "limits": "Limits, one per line: key=value",
+          "public": "Shown on the public pricing page",
+          "private": "Private",
+          "confirmTitle": "Save this tier?",
+          "affected": "{count} channels are on this tier and get the change.",
+          "save": "Save tier"
+        },
+        "invites": {
+          "title": "Invite codes",
+          "empty": "No invite codes exist yet.",
+          "redemptions": "{used} of {max} used",
+          "error": "The invite codes could not load.",
+          "new": "New invite",
+          "create": "Create invite",
+          "max": "Maximum redemptions",
+          "noTier": "No tier",
+          "founder": "Founders badge",
+          "revoke": "Revoke",
+          "revokeTitle": "Revoke {code}?"
+        },
+        "channel": {
+          "title": "Channel billing",
+          "id": "Channel id",
+          "pick": "Enter a channel id to see its invoices and grants.",
+          "noInvoices": "This channel has no invoices.",
+          "error": "The channel billing could not load.",
+          "refund": "Refund",
+          "refundTitle": "Refund {amount}?",
+          "pickTier": "Pick a tier",
+          "grantTier": "Grant tier",
+          "comp": "Comp a tier",
+          "founder": "Grant founders badge",
+          "reason": "Reason",
+          "expires": "Expires on",
+          "founderTitle": "Grant the founders badge to {channel}?",
+          "tierTitle": "Give {channel} the {tier} tier?",
+          "changed": "{count} limits change.",
+          "confirm": "Confirm"
+        },
+        "units": {
+          "title": "Priced units",
+          "empty": "No units are priced yet.",
+          "error": "The priced units could not load.",
+          "new": "Price a unit",
+          "save": "Save price",
+          "key": "Unit key",
+          "currency": "Currency",
+          "priceInput": "Price per batch in minor units",
+          "batch": "Batch size",
+          "price": "{price} {currency} per {batch}"
+        }
+      },
       "tenantUsage": {
         "title": "Tenant usage",
         "count": "{count} tenants",
