@@ -15,15 +15,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 name: "BotModeratorRemovedAt",
                 table: "Channels",
                 type: "TEXT",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "BotModeratorRemovedAt",
-                table: "Channels");
+            migrationBuilder.DropColumn(name: "BotModeratorRemovedAt", table: "Channels");
         }
     }
 }

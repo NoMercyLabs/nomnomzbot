@@ -15,15 +15,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "BotModeratorRemovedAt",
                 table: "Channels",
                 type: "timestamp with time zone",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "BotModeratorRemovedAt",
-                table: "Channels");
+            migrationBuilder.DropColumn(name: "BotModeratorRemovedAt", table: "Channels");
         }
     }
 }
