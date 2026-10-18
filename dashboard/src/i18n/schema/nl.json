@@ -2892,6 +2892,10 @@
         "description": "Toont wie de Lucky Feather vasthoudt en kondigt elke diefstal aan.",
         "name": "Lucky Feather"
       },
+      "media_share": {
+        "description": "Speelt de goedgekeurde Twitch-clips en YouTube-filmpjes die kijkers delen af op de stream. De server stuurt de opdrachten laden, afspelen, pauzeren, stoppen, spoelen en volume, en deze overlay meldt de status van de speler terug, zodat een afgelopen item de wachtrij laat doorschuiven. Verborgen zolang er niets speelt.",
+        "name": "Media delen"
+      },
       "now_playing": {
         "description": "Een vaste weergave van het huidige nummer, in pil- of kaartweergave, met optioneel albumhoes en een geanimeerde voortgangsbalk. Het verbergt zichzelf verbergt als er niets speelt. Past zich aan de actieve aanbieder aan: bij Spotify wordt het ook een echt Spotify Connect-apparaat en speelt het audio af via deze OBS-bron (Premium en de streaming-scope vereist, pagina Integraties); bij YouTube kan het optioneel de echte video tonen in plaats van de compacte kaart.",
         "name": "Nu aan het spelen"
@@ -3015,6 +3019,14 @@
       "stolenTemplate": {
         "help": "Gebruik {'{'}thief{'}'} en {'{'}victim{'}'}. Leeg gebruikt de ingebouwde tekst.",
         "label": "Tekst van de steelbanner"
+      }
+    },
+    "media_share": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "showTitle": {
+        "label": "Titel tonen"
       }
     },
     "now_playing": {

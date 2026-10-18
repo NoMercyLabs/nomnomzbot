@@ -2892,6 +2892,10 @@
         "description": "Shows who holds the Lucky Feather and announces every steal.",
         "name": "Lucky Feather"
       },
+      "media_share": {
+        "description": "Plays the approved viewer-shared Twitch clips and YouTube videos on stream. The server sends load, play, pause, stop, seek and volume commands and this overlay reports its player state back, so an ended item moves the queue on. Hidden while nothing plays.",
+        "name": "Media Share"
+      },
       "now_playing": {
         "description": "A standing display of the current track, in a pill or card layout, with optional album art and an animated progress sweep. It hides itself while nothing plays. Adapts to whichever provider is playing: for Spotify it also becomes a real Spotify Connect device and streams audio through this OBS source (Premium + the streaming scope required, Integrations page); for YouTube it can optionally render the actual video instead of the compact card.",
         "name": "Now Playing"
@@ -3015,6 +3019,14 @@
       "stolenTemplate": {
         "help": "Use {'{'}thief{'}'} and {'{'}victim{'}'}. Blank uses the built-in text.",
         "label": "Steal banner text"
+      }
+    },
+    "media_share": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "showTitle": {
+        "label": "Show title"
       }
     },
     "now_playing": {
