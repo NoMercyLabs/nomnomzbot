@@ -213,7 +213,7 @@ afterEach(() => {
 });
 
 describe('BuiltinEditor', () => {
-  it('shows every setting with the catalogue defaults, view-only, before Customize', async () => {
+  it('shows every setting with the catalog defaults, view-only, before Customize', async () => {
     await open();
 
     expect(input('Chat cooldown (seconds)').value).toBe('5');

@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The detail of one built-in command. It opens view-only with the catalogue defaults; Customize is the
+// The detail of one built-in command. It opens view-only with the catalog defaults; Customize is the
 // one opt-in that makes the fields the channel's own. Each field then says it overrides the default and
 // has its own way back. A draft is sent by Save; a way back is sent at once. A command with overrides
 // already saved opens customized. A reserved (data-rights) command stays locked, and so does a locked reply.
