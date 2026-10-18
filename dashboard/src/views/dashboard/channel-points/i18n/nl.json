@@ -3,6 +3,7 @@
     "channelPoints": {
       "title": "Kanaalpunten",
       "crumb": "Betrekken",
+      "unavailable": "Kanaalpunten hebben Twitch Affiliate of Partner nodig. Deze beloningen staan hier opgeslagen en gaan live op Twitch zodra het kanaal affiliate is.",
       "rewards": {
         "title": "Beloningen",
         "count": "{count} beloningen",
@@ -10,6 +11,7 @@
         "error": "De beloningen konden niet laden.",
         "runsNothing": "Komt alleen in de wachtrij",
         "paused": "Gepauzeerd",
+        "notOnTwitch": "Niet op Twitch",
         "enabled": "{title} aan of uit zetten",
         "costValue": "{count} punt | {count} punten",
         "edit": "{title} bewerken",

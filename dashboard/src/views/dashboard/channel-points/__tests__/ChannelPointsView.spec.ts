@@ -43,11 +43,13 @@ const baseReward = {
   isEnabled: true,
   isManageable: true,
   isPaused: false,
+  isOnTwitch: true,
   pipelineId: 'p1',
   response: null,
 };
 
 let reward: Record<string, unknown> = { ...baseReward };
+let channelPointsAvailable = true;
 
 const redemption = (id: string, status: string): Record<string, unknown> => ({
   redemptionId: id,
@@ -63,6 +65,15 @@ const redemption = (id: string, status: string): Record<string, unknown> => ({
 function read(path: string): unknown {
   if (path.endsWith('/roles/effective/me'))
     return ok({ heldActionKeys: held });
+
+  if (path.endsWith('/rewards/availability')) {
+    return ok({
+      channelPointsAvailable,
+      broadcasterType: channelPointsAvailable
+        ? 'affiliate'
+        : '',
+    });
+  }
 
   if (path.endsWith('/rewards/redemptions'))
     return ok([redemption('d1', 'unfulfilled'), redemption('d2', 'fulfilled')]);
@@ -131,6 +142,7 @@ async function open(): Promise<VueWrapper> {
 beforeEach(() => {
   calls.length = 0;
   reward = { ...baseReward };
+  channelPointsAvailable = true;
   held = ['reward:read', 'reward:manage'];
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
@@ -149,6 +161,43 @@ afterEach(() => {
 });
 
 describe('ChannelPointsView', () => {
+  describe('a channel that cannot have channel points', () => {
+    beforeEach(() => {
+      channelPointsAvailable = false;
+
+      reward = {
+        ...baseReward,
+        isOnTwitch: false,
+        isPaused: true,
+      };
+    });
+
+    it('says why at the top and turns the pending panel off', async () => {
+      const view = await open();
+      const notice = view.get('[data-channel-points-unavailable]').text();
+
+      expect(notice).toBe(en.dashboard.channelPoints.unavailable);
+      expect(view.find('[data-redemption-item]').exists()).toBe(false);
+      expect(view.text()).not.toContain(en.dashboard.channelPoints.redemptions.title);
+    });
+
+    it('shows a reward with no Twitch id as Not on Twitch, not Paused, with its switch off', async () => {
+      const view = await open();
+      const row = view.get('[data-reward-item]').element.parentElement!;
+
+      expect(row.textContent).toContain('Not on Twitch');
+      expect(row.textContent).not.toContain('Paused');
+      expect(row.querySelector('[data-reward-enabled]')?.hasAttribute('disabled')).toBe(true);
+    });
+  });
+
+  it('shows no notice and keeps the pending panel for an affiliate channel', async () => {
+    const view = await open();
+
+    expect(view.find('[data-channel-points-unavailable]').exists()).toBe(false);
+    expect(view.findAll('[data-redemption-item]')).toHaveLength(1);
+  });
+
   it('shows each reward with its cost, state and the pipeline it runs', async () => {
     const view = await open();
     const row = view.get('[data-reward-item]').element.parentElement!;

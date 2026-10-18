@@ -1048,6 +1048,7 @@ public sealed class ScriptHostBridgeTests
             IsManageable: manageable,
             IsUserInputRequired: false,
             IsPaused: false,
+            IsOnTwitch: true,
             IsMigrationPending: false,
             BackgroundColor: null,
             ImageUrl: null,

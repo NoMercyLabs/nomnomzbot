@@ -60,6 +60,12 @@ public interface IRewardService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>Whether the channel owner is a Twitch Affiliate or Partner, which channel points need.</summary>
+    Task<Result<RewardAvailability>> GetAvailabilityAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>List all rewards for a channel with pagination.</summary>
     Task<Result<PagedList<RewardDetail>>> ListAsync(
         string broadcasterId,

@@ -3,6 +3,7 @@
     "channelPoints": {
       "title": "Channel points",
       "crumb": "Engage",
+      "unavailable": "Channel points need Twitch Affiliate or Partner. These rewards are saved here and go live on Twitch when the channel is affiliate.",
       "rewards": {
         "title": "Rewards",
         "count": "{count} rewards",
@@ -10,6 +11,7 @@
         "error": "The rewards could not load.",
         "runsNothing": "Only lands in the queue",
         "paused": "Paused",
+        "notOnTwitch": "Not on Twitch",
         "enabled": "Turn {title} on or off",
         "costValue": "{count} point | {count} points",
         "edit": "Edit {title}",

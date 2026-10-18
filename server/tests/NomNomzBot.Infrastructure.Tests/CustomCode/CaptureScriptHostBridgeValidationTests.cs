@@ -155,6 +155,7 @@ public sealed class CaptureScriptHostBridgeValidationTests
             IsManageable: isManageable,
             IsUserInputRequired: false,
             IsPaused: false,
+            IsOnTwitch: true,
             IsMigrationPending: false,
             BackgroundColor: null,
             ImageUrl: null,

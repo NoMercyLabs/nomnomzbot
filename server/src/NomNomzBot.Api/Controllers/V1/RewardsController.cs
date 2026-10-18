@@ -80,6 +80,19 @@ public class RewardsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Whether this channel can have channel points (Twitch Affiliate or Partner).</summary>
+    [RequireAction("reward:read")]
+    [HttpGet("availability")]
+    [ProducesResponseType<StatusResponseDto<RewardAvailability>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAvailability(string channelId, CancellationToken ct)
+    {
+        Result<RewardAvailability> result = await _rewardService.GetAvailabilityAsync(
+            channelId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     /// <summary>The channel-points redemption queue (newest first); pass ?status=unfulfilled for the pending lane.</summary>
     [RequireAction("reward:read")]
     [HttpGet("redemptions")]

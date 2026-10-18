@@ -15,7 +15,7 @@ import Gem from '~icons/nnz/gem';
 
 import { useChannelAccess } from '@/api/access';
 import { usePipelines, type PipelineListItem } from '@/api/pipelines';
-import { useRewards, useUpdateReward, type Reward } from '@/api/rewards';
+import { useRewardAvailability, useRewards, useUpdateReward, type Reward } from '@/api/rewards';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -33,6 +33,10 @@ const access = useChannelAccess(channelId);
 const query = useRewards(channelId);
 const pipelines = usePipelines(channelId);
 const update = useUpdateReward(channelId);
+
+const availability = useRewardAvailability(channelId);
+const unavailable = computed(() =>
+  availability.data.value?.channelPointsAvailable === false);
 
 const canManage = computed(() => access.can('reward:manage'));
 const state = usePanelState(query, (rows: Reward[]): boolean =>
@@ -113,7 +117,13 @@ function toggle(reward: Reward, enabled: boolean): void {
         </template>
         <template #end>
           <StatusBadge
-            v-if="reward.isPaused"
+            v-if="!reward.isOnTwitch"
+            tone="off"
+            :label="$t('dashboard.channelPoints.rewards.notOnTwitch')"
+            data-reward-not-on-twitch
+          />
+          <StatusBadge
+            v-else-if="reward.isPaused"
             tone="off"
             :label="$t('dashboard.channelPoints.rewards.paused')"
           />
@@ -124,7 +134,7 @@ function toggle(reward: Reward, enabled: boolean): void {
           </span>
           <Switch
             :model-value="reward.isEnabled"
-            :disabled="!reward.isManageable"
+            :disabled="!reward.isManageable || unavailable"
             :aria-label="$t('dashboard.channelPoints.rewards.enabled', { title: reward.title })"
             data-reward-enabled
             @update:model-value="(value) => toggle(reward, value === true)"

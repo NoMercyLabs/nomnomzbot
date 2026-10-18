@@ -19,6 +19,7 @@ import { chunk, type KeyParts } from '@/lib/array';
 
 export type Reward = components['schemas']['RewardDetail'];
 export type Redemption = components['schemas']['RedemptionListItem'];
+export type RewardAvailability = components['schemas']['RewardAvailability'];
 export type RewardChange = components['schemas']['UpdateRewardRequest'];
 
 const version = '1';
@@ -28,6 +29,13 @@ export const rewardsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'rewards',
+];
+
+export const availabilityKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'rewards',
+  'availability',
 ];
 
 // The redemption queue sits under the rewards key, so one refresh of the rewards marks both stale.
@@ -64,6 +72,25 @@ async function readRedemptions(channelId: string): Promise<Redemption[]> {
     throw failed('redemptions', response.status, error);
 
   return [...(data?.data ?? [])];
+}
+
+async function readAvailability(channelId: string): Promise<RewardAvailability> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/rewards/availability',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw failed('rewards', response.status, error);
+
+  return data.data;
+}
+
+// Twitch gives channel points to Affiliates and Partners only; the page says so when the channel is neither.
+export function useRewardAvailability(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<RewardAvailability, Error> {
+  return channelQuery(channelId, availabilityKey, readAvailability);
 }
 
 export function useRewards(

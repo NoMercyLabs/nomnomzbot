@@ -144,6 +144,7 @@ public sealed partial class SdkHostJsonDriftTests
             IsManageable: true,
             IsUserInputRequired: false,
             IsPaused: false,
+            IsOnTwitch: true,
             IsMigrationPending: false,
             BackgroundColor: null,
             ImageUrl: null,

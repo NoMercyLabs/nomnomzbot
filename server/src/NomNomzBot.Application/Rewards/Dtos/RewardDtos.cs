@@ -41,6 +41,9 @@ public sealed record RedemptionListItem(
     string? UserColor = null
 );
 
+/// <summary>Whether the channel can have channel points: Twitch gives them to Affiliates and Partners only.</summary>
+public sealed record RewardAvailability(bool ChannelPointsAvailable, string BroadcasterType);
+
 public sealed record RewardDetail(
     string Id,
     string Title,
@@ -54,6 +57,8 @@ public sealed record RewardDetail(
     bool IsManageable,
     bool IsUserInputRequired,
     bool IsPaused,
+    // False while the row has no Twitch reward id: it is saved here but does not exist at Twitch.
+    bool IsOnTwitch,
     // Set once "take control" hit Twitch's title-uniqueness conflict and is waiting on the operator to
     // rename/delete the external reward on Twitch; the dashboard swaps the action to "Finalize migration".
     bool IsMigrationPending,

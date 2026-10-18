@@ -464,6 +464,30 @@ public class RewardService : IRewardService
         return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
     }
 
+    public async Task<Result<RewardAvailability>> GetAvailabilityAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<RewardAvailability>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        string? broadcasterType = await _db
+            .Channels.Where(c => c.Id == broadcaster)
+            .Join(_db.Users, c => c.OwnerUserId, u => u.Id, (_, u) => u.BroadcasterType)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (broadcasterType is null)
+            return Errors.ChannelNotFound<RewardAvailability>(broadcasterId);
+
+        bool available = broadcasterType == "affiliate" || broadcasterType == "partner";
+
+        return Result.Success(new RewardAvailability(available, broadcasterType));
+    }
+
     public async Task<Result<PagedList<RewardDetail>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
@@ -1351,6 +1375,7 @@ public class RewardService : IRewardService
             r.IsManageable,
             r.IsUserInputRequired,
             r.IsPaused,
+            r.TwitchRewardId is not null,
             r.PendingMigrationRequestedAt.HasValue,
             r.BackgroundColor,
             null,
