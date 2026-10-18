@@ -552,6 +552,15 @@ describe('ChannelPointsView', () => {
 
     expect(view.find('[data-redemption-complete]').exists()).toBe(false);
     expect(view.find('[data-redemption-reject]').exists()).toBe(false);
-    expect(view.get('[data-reward-edit]').element.closest('fieldset')?.disabled).toBe(true);
+    expect(view.find('[data-reward-edit]').exists()).toBe(false);
+    expect(view.find('[data-reward-enabled]').exists()).toBe(false);
+    expect(view.find('[data-reward-item]').exists()).toBe(true);
+  });
+
+  it('shows the reward edit button and enabled switch with reward:manage', async () => {
+    const view = await open();
+
+    expect(view.find('[data-reward-edit]').exists()).toBe(true);
+    expect(view.find('[data-reward-enabled]').exists()).toBe(true);
   });
 });

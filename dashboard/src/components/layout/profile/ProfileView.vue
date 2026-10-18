@@ -136,6 +136,8 @@ const canUnban = computed(() => access.can('moderation:unban'));
 const canVip = computed(() => access.can('moderation:vip'));
 const canShoutout = computed(() => access.can('moderation:shoutout'));
 const canWarn = computed(() => access.can('moderation:warn'));
+const hasActions = computed(() =>
+  canShoutout.value || canVip.value || canWarn.value || canBan.value || canUnban.value);
 
 // Twitch answers per person; null means Twitch could not be asked, so the view says unknown instead of guessing.
 const isVip = computed<boolean | null>(() => person.value?.isVip ?? null);
@@ -221,12 +223,6 @@ function toggleVip(): void {
   if (isVip.value === null) return;
 
   vipChange.mutate({ userId: props.userId, vip: !isVip.value });
-}
-
-function lockedTip(allowed: boolean): string | undefined {
-  return allowed
-    ? undefined
-    : t('common.readOnly');
 }
 
 async function timeoutFor(seconds: number): Promise<void> {
@@ -380,23 +376,22 @@ async function banNow(): Promise<void> {
 
     <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): the quiet ones are
            ghost buttons on the left, so Ban stays the one strong button in the row. -->
-    <div v-if="person && !member.isPending.value && !isOwner" class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4">
+    <div v-if="person && !member.isPending.value && !isOwner && hasActions" class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4">
       <Button
+        v-if="canShoutout"
         data-profile-shoutout
         type="button"
         variant="ghost"
-        :disabled="!canShoutout"
-        :title="lockedTip(canShoutout)"
         @click="shoutOut"
       >
         {{ $t('profile.shoutout.button') }}
       </Button>
       <Button
+        v-if="canVip"
         data-profile-vip
         type="button"
         variant="ghost"
-        :disabled="isVip === null || !canVip"
-        :title="lockedTip(canVip)"
+        :disabled="isVip === null"
         @click="toggleVip"
       >
         {{ vipLabel }}
@@ -407,27 +402,24 @@ async function banNow(): Promise<void> {
              "ban timeout and warn are mod actions so why is one of them a link button?"). -->
       <div class="ml-auto flex items-center gap-2">
         <Button
-          v-if="sanctionable && !person.isBanned"
+          v-if="sanctionable && !person.isBanned && canWarn"
           data-profile-warn
           type="button"
           variant="outline"
-          :disabled="!canWarn"
-          :title="lockedTip(canWarn)"
           @click="warnOpen = true"
         >
           {{ $t('profile.warn.button') }}
         </Button>
         <Button
-          v-if="person.isBanned"
+          v-if="person.isBanned && canUnban"
           data-profile-unban
           type="button"
-          :disabled="!canUnban || unban.isPending.value"
-          :title="lockedTip(canUnban)"
+          :disabled="unban.isPending.value"
           @click="liftBan"
         >
           {{ $t('profile.unban.button') }}
         </Button>
-        <template v-else-if="sanctionable">
+        <template v-if="!person.isBanned && sanctionable && canBan">
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button
@@ -435,8 +427,6 @@ async function banNow(): Promise<void> {
                 type="button"
                 variant="outline"
                 class="group"
-                :disabled="!canBan"
-                :title="lockedTip(canBan)"
               >
                 {{ $t('profile.timeout.button') }}
                 <ChevronDown
@@ -461,8 +451,6 @@ async function banNow(): Promise<void> {
             data-profile-ban
             type="button"
             variant="destructive"
-            :disabled="!canBan"
-            :title="lockedTip(canBan)"
             @click="confirmBan = true"
           >
             {{ $t('profile.ban.button') }}

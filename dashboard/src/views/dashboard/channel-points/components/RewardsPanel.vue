@@ -133,6 +133,7 @@ function toggle(reward: Reward, enabled: boolean): void {
             {{ $t('dashboard.channelPoints.rewards.costValue', { count: Number(reward.cost) }) }}
           </span>
           <Switch
+            v-if="canManage"
             :model-value="reward.isEnabled"
             :disabled="!reward.isManageable || unavailable"
             :aria-label="$t('dashboard.channelPoints.rewards.enabled', { title: reward.title })"
@@ -140,6 +141,7 @@ function toggle(reward: Reward, enabled: boolean): void {
             @update:model-value="(value) => toggle(reward, value === true)"
           />
           <Button
+            v-if="canManage"
             variant="outline"
             size="sm"
             :aria-label="$t('dashboard.channelPoints.rewards.edit', { title: reward.title })"

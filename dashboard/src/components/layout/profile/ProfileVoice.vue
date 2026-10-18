@@ -82,12 +82,11 @@ const editOpen = ref(false);
       </div>
       <PlaySampleButton v-if="voice" :voice-id="voice.voiceId" compact />
       <Button
+        v-if="canWrite"
         data-profile-voice-change
         type="button"
         variant="outline"
         size="sm"
-        :disabled="!canWrite"
-        :title="canWrite ? undefined : $t('profile.voice.noWrite')"
         @click="editOpen = true"
       >
         {{ $t('profile.voice.change') }}

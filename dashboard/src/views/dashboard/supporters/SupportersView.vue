@@ -23,6 +23,7 @@ import StatStrip from '@/components/layout/StatStrip.vue';
 import StatTile from '@/components/layout/StatTile.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -41,6 +42,7 @@ import {
 
 const { t, n, locale } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const stats = useHomeStats(channelId);
 const activity = useSupporterActivity(channelId);
@@ -104,7 +106,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
 <template>
   <PageHeader :title="t('dashboard.supporters.title')" />
   <PageBody>
-    <StatStrip>
+    <StatStrip v-if="can('dashboard:read')">
       <StatTile
         :label="t('dashboard.supporters.stats.subscribers')"
         :value="subscriberCount"
@@ -123,6 +125,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
     </StatStrip>
     <div class="grid gap-4 lg:grid-cols-2">
       <PanelCard
+        v-if="can('dashboard:read')"
         tier="lead"
         :title="t('dashboard.supporters.subs.title')"
         :state="subscriptionsState"
@@ -162,6 +165,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
         </RowGroup>
       </PanelCard>
       <PanelCard
+        v-if="can('dashboard:read')"
         :title="t('dashboard.supporters.cheers.title')"
         :state="cheersState"
         :empty-text="t('dashboard.supporters.cheers.empty')"
@@ -189,6 +193,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
         </RowGroup>
       </PanelCard>
       <PanelCard
+        v-if="can('dashboard:read')"
         :title="t('dashboard.supporters.top.title')"
         :description="t('dashboard.supporters.top.note')"
         :state="topState"
@@ -238,6 +243,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
         </RowGroup>
       </PanelCard>
       <PanelCard
+        v-if="can('supporters:read')"
         :title="t('dashboard.supporters.tips.title')"
         :state="eventsState"
         :empty-text="t('dashboard.supporters.tips.empty')"

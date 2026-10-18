@@ -35,6 +35,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
@@ -53,6 +54,7 @@ import { actionsFor, focusGiveaway, statusTone } from './giveawayStatus';
 
 const { t, te, n } = useI18n();
 const { channelId } = useCurrentChannel();
+const { can } = useCan();
 
 const giveaways = useGiveaways(channelId);
 const focus = computed(() => focusGiveaway(giveaways.data.value ?? []));
@@ -183,7 +185,8 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
 <template>
   <PageHeader :title="t('dashboard.giveaways.title')">
     <template #actions>
-      <Button type="button"
+      <Button v-if="can('giveaways:write')"
+              type="button"
               variant="outline"
               size="sm"
               data-giveaway-new
@@ -200,6 +203,7 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
     </p>
     <p v-if="deleteError" role="alert" class="text-sm text-destructive">{{ deleteError }}</p>
     <PanelCard
+      v-if="can('giveaways:read')"
       tier="lead"
       :title="t('dashboard.giveaways.listTitle')"
       :state="listState"
@@ -219,7 +223,7 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
             <span class="text-sm text-muted-foreground tabular-nums">{{ summary(item) }}</span>
           </div>
           <StatusBadge :tone="statusTone(item.status)" :label="statusLabel(item.status)" />
-          <div class="flex items-center gap-2">
+          <div v-if="can('giveaways:write')" class="flex items-center gap-2">
             <Button
               v-for="action in actionsFor(item.status)"
               :key="action"
@@ -258,7 +262,7 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
       </ul>
     </PanelCard>
     <PanelCard
-      v-if="focus"
+      v-if="focus && can('giveaways:read')"
       :title="t('dashboard.giveaways.winnersTitle', { title: focus.title })"
       :state="winnersState"
       :empty-text="t('dashboard.giveaways.winnersEmpty')"
@@ -279,6 +283,7 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
           }}</span>
           <StatusBadge tone="off" :label="winnerStatus(winner)" />
           <Button
+            v-if="can('giveaways:write')"
             variant="ghost"
             size="icon"
             data-winner-redraw
@@ -293,7 +298,7 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
       </ul>
     </PanelCard>
     <PanelCard
-      v-if="focus"
+      v-if="focus && can('giveaways:read')"
       :title="t('dashboard.giveaways.entryList.title', { title: focus.title })"
       :state="entriesState"
       :empty-text="t('dashboard.giveaways.entryList.empty')"
@@ -319,6 +324,7 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
       </ul>
     </PanelCard>
     <PanelCard
+      v-if="can('giveaways:codes:write')"
       :title="t('dashboard.giveaways.pools.title')"
       :state="poolsState"
       :empty-text="t('dashboard.giveaways.pools.empty')"

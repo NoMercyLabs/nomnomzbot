@@ -1243,15 +1243,13 @@ describe('the profile dialog', () => {
     expect(document.body.querySelector('[data-profile-warn-reason]')).toBeNull();
   });
 
-  it('locks Warn for a caller without the warn right', async () => {
+  it('hides Warn from a caller without the warn right, and keeps Ban', async () => {
     held = MODERATOR_KEYS.filter((key: string) => key !== 'moderation:warn');
     await openPage();
     await openUser('u1');
 
-    const warn = document.body.querySelector<HTMLButtonElement>('[data-profile-warn]')!;
-
-    expect(warn.disabled).toBe(true);
-    expect(warn.getAttribute('title')).toBe(i18n.global.t('common.readOnly'));
+    expect(document.body.querySelector('[data-profile-warn]')).toBeNull();
+    expect(button('[data-profile-ban]').disabled).toBe(false);
   });
 
   // Owner 2026-10-15: "ban timeout and warn are mod actions so why is one of them a link button?"
@@ -1312,17 +1310,13 @@ describe('the profile dialog', () => {
     expect(box.value).toBe('');
   });
 
-  it('locks Ban and Timeout, and offers no write, when the caller may not ban here', async () => {
+  it('hides Ban and Timeout when the caller may not ban here, and keeps VIP', async () => {
     held = held.filter((key: string) => key !== 'moderation:ban');
     await openPage();
     await openUser('u1');
 
-    expect(button('[data-profile-ban]').disabled).toBe(true);
-    expect(button('[data-profile-timeout]').disabled).toBe(true);
-
-    expect(button('[data-profile-ban]').title).toBe(
-      'You can view this, but your role cannot change it.',
-    );
+    expect(document.body.querySelector('[data-profile-ban]')).toBeNull();
+    expect(document.body.querySelector('[data-profile-timeout]')).toBeNull();
 
     expect(((await vipItem()) as HTMLButtonElement).disabled).toBe(false);
   });
@@ -1994,15 +1988,13 @@ describe('the TTS voice panel', () => {
     expect(panel().querySelector('[data-profile-voice-name]')!.textContent).toBe('Channel voice');
   });
 
-  it('locks the voice change for a caller without the voice right', async () => {
+  it('hides the voice change from a caller without the voice right, and still shows the voice', async () => {
     held = held.filter((key: string) => key !== 'tts:uservoice:write');
     await openPage();
     await openUser('u1');
 
-    const change = button('[data-profile-voice-change]');
-
-    expect(change.disabled).toBe(true);
-    expect(change.title).toBe('Your role cannot change a person\'s TTS voice.');
+    expect(document.body.querySelector('[data-profile-voice-change]')).toBeNull();
+    expect(document.body.querySelector('[data-profile-voice-name]')).not.toBeNull();
   });
 
   it('does not ask for the voice when the caller may not see the voices', async () => {

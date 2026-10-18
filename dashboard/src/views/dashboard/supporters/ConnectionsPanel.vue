@@ -27,12 +27,14 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const selectClass =
   'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 const { t } = useI18n();
+const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const connections = useSupporterConnections(channelId);
 const integrations = useConnections(channelId);
@@ -85,6 +87,7 @@ function submit(): void {
 
 <template>
   <PanelCard
+    v-if="can('supporters:config:write')"
     data-view="supporter-connections"
     pad
     :title="t('dashboard.supporters.connections.title')"
