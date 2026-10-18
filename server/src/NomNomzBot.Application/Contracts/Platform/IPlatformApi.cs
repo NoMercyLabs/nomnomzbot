@@ -42,11 +42,17 @@ public interface IPlatformApi : IPlatformChannelApi
     string Provider { get; }
 }
 
-/// <summary>The requested change — null fields are left untouched.</summary>
+/// <summary>
+/// The requested change — null fields are left untouched. <c>ContentLabels</c> is the FULL set of content
+/// label ids that should be on (an empty list turns every editable label off); <c>IsBrandedContent</c> is
+/// the paid-promotion flag.
+/// </summary>
 public sealed record PlatformStreamInfoUpdate(
     string? Title = null,
     string? CategoryName = null,
-    IReadOnlyList<string>? Tags = null
+    IReadOnlyList<string>? Tags = null,
+    IReadOnlyList<string>? ContentLabels = null,
+    bool? IsBrandedContent = null
 );
 
 /// <summary>What the platform actually applied (canonicalized where the platform does so).</summary>

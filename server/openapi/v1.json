@@ -118767,7 +118767,17 @@
           "renderTotalFrames",
           "renderSkippedFrames",
           "outputTotalFrames",
-          "outputSkippedFrames"
+          "outputSkippedFrames",
+          "streamActive",
+          "streamReconnecting",
+          "streamCongestion",
+          "streamBytes",
+          "streamTotalFrames",
+          "streamSkippedFrames",
+          "recordActive",
+          "recordPaused",
+          "recordBytes",
+          "targetFps"
         ],
         "type": "object",
         "properties": {
@@ -118826,6 +118836,78 @@
               "string"
             ],
             "format": "int32"
+          },
+          "streamActive": {
+            "type": "boolean"
+          },
+          "streamReconnecting": {
+            "type": "boolean"
+          },
+          "streamCongestion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "streamBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "streamTotalFrames": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "streamSkippedFrames": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "streamTimecode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recordActive": {
+            "type": "boolean"
+          },
+          "recordPaused": {
+            "type": "boolean"
+          },
+          "recordBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "recordTimecode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetFps": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         },
         "description": "OBS performance stats (obs-websocket v5 `GetStats`) — CPU/memory load and the\r\n            render-thread vs. output-thread frame counters used to detect dropped frames."
@@ -143005,6 +143087,18 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "contentLabels": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "isBrandedContent": {
+            "type": "boolean"
           }
         }
       },
@@ -148281,6 +148375,21 @@
             "items": {
               "type": "string"
             }
+          },
+          "contentLabels": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "isBrandedContent": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },

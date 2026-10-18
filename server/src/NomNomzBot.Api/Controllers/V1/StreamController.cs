@@ -68,10 +68,20 @@ public class StreamController : BaseController
         int ViewerCount,
         DateTime? StartedAt,
         string? Language,
-        DateTime? LastStreamedAt = null
+        DateTime? LastStreamedAt = null,
+        List<string>? ContentLabels = null,
+        bool IsBrandedContent = false
     );
 
-    public record UpdateStreamRequest(string? Title, string? GameName, List<string>? Tags);
+    // ContentLabels is the full set of content label ids that should be on (an empty list turns all editable
+    // labels off, null leaves them alone). MatureGame may ride along and is ignored: Twitch sets it from the category.
+    public record UpdateStreamRequest(
+        string? Title,
+        string? GameName,
+        List<string>? Tags,
+        List<string>? ContentLabels = null,
+        bool? IsBrandedContent = null
+    );
 
     public record UpdateTitleRequest(string Title);
 
@@ -110,6 +120,8 @@ public class StreamController : BaseController
             // tenant Guid → Twitch id internally; offline / missing-scope degrades to the unenriched values.
             int viewerCount = 0;
             List<string> tags = [];
+            List<string> contentLabels = [];
+            bool isBrandedContent = false;
             string? language = null;
 
             if (ctx.IsLive)
@@ -127,6 +139,8 @@ public class StreamController : BaseController
             if (channelInfo is not null)
             {
                 tags = [.. channelInfo.Tags];
+                contentLabels = [.. channelInfo.ContentClassificationLabels];
+                isBrandedContent = channelInfo.IsBrandedContent;
                 language = channelInfo.BroadcasterLanguage;
             }
 
@@ -149,7 +163,9 @@ public class StreamController : BaseController
                 viewerCount,
                 ctx.WentLiveAt?.UtcDateTime,
                 language,
-                lastStreamedAt
+                lastStreamedAt,
+                contentLabels,
+                isBrandedContent
             );
 
             return Ok(new StatusResponseDto<StreamInfoDto> { Data = info });
@@ -187,7 +203,9 @@ public class StreamController : BaseController
             channel.ViewerCount ?? 0,
             null,
             twitchChannel?.BroadcasterLanguage ?? channel.Language,
-            lastStreamedAtFallback
+            lastStreamedAtFallback,
+            twitchChannel is not null ? [.. twitchChannel.ContentClassificationLabels] : [],
+            twitchChannel?.IsBrandedContent ?? false
         );
 
         return Ok(new StatusResponseDto<StreamInfoDto> { Data = fallback });
@@ -222,7 +240,13 @@ public class StreamController : BaseController
         // scope) rather than swallowing it.
         Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new(Title: request.Title, CategoryName: request.GameName, Tags: request.Tags),
+            new(
+                Title: request.Title,
+                CategoryName: request.GameName,
+                Tags: request.Tags,
+                ContentLabels: request.ContentLabels,
+                IsBrandedContent: request.IsBrandedContent
+            ),
             ct
         );
         if (update.IsFailure)
@@ -247,7 +271,9 @@ public class StreamController : BaseController
             channel.IsLive,
             channel.ViewerCount ?? 0,
             null,
-            null
+            null,
+            ContentLabels: request.ContentLabels ?? [],
+            IsBrandedContent: request.IsBrandedContent ?? false
         );
 
         return Ok(new StatusResponseDto<StreamInfoDto> { Data = info });

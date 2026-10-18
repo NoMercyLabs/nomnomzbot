@@ -118,6 +118,13 @@ public sealed class YouTubePlatformApiTests
         withCategory.ErrorCode.Should().Be("VALIDATION_FAILED");
         withTags.IsFailure.Should().BeTrue();
         withTags.ErrorCode.Should().Be("VALIDATION_FAILED");
+
+        Result<PlatformStreamInfoApplied> withLabels = await api.UpdateStreamInfoAsync(
+            Tenant,
+            new(Title: "t", ContentLabels: ["Gambling"])
+        );
+        withLabels.IsFailure.Should().BeTrue();
+        withLabels.ErrorCode.Should().Be("VALIDATION_FAILED");
         await client
             .DidNotReceiveWithAnyArgs()
             .UpdateActiveBroadcastTitleAsync(default!, default!, Arg.Any<CancellationToken>());

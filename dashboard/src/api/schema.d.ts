@@ -92477,6 +92477,24 @@ export interface components {
             outputTotalFrames: number | string;
             /** Format: int32 */
             outputSkippedFrames: number | string;
+            streamActive: boolean;
+            streamReconnecting: boolean;
+            /** Format: double */
+            streamCongestion: number | string;
+            /** Format: int64 */
+            streamBytes: number | string;
+            /** Format: int32 */
+            streamTotalFrames: number | string;
+            /** Format: int32 */
+            streamSkippedFrames: number | string;
+            streamTimecode?: null | string;
+            recordActive: boolean;
+            recordPaused: boolean;
+            /** Format: int64 */
+            recordBytes: number | string;
+            recordTimecode?: null | string;
+            /** Format: double */
+            targetFps: number | string;
         };
         /** @description REST body for the studio-mode route: turn studio mode on or off. */
         ObsStudioModeRequest: {
@@ -100696,6 +100714,8 @@ export interface components {
             language?: null | string;
             /** Format: date-time */
             lastStreamedAt?: null | string;
+            contentLabels?: null | string[];
+            isBrandedContent?: boolean;
         };
         /** @description One stream in the channel's history list, newest first — the per-stream entry point. */
         StreamListItem: {
@@ -102380,6 +102400,8 @@ export interface components {
             title?: null | string;
             gameName?: null | string;
             tags?: null | string[];
+            contentLabels?: null | string[];
+            isBrandedContent?: boolean | null;
         };
         UpdateTagsRequest: {
             tags: string[];

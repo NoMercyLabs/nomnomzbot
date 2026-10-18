@@ -57,6 +57,8 @@ const streamInfo = {
   startedAt: null,
   language: 'en',
   lastStreamedAt: '2026-10-10T20:00:00Z',
+  contentLabels: ['Gambling', 'MatureGame'],
+  isBrandedContent: false,
 };
 
 const pastStream = (id: string, title: string, game: string): Record<string, unknown> => ({
@@ -338,6 +340,8 @@ describe('the stream info form', () => {
       title: 'Fixing the stream page',
       gameName: 'Software and Game Development',
       tags: ['coding', 'English'],
+      contentLabels: ['Gambling', 'MatureGame'],
+      isBrandedContent: false,
     });
 
     expect(titleBox().value).toBe('Fixing the stream page');
@@ -413,6 +417,8 @@ describe('the stream info form', () => {
       title: 'Building the bot',
       gameName: 'Just Chatting',
       tags: ['coding', 'English'],
+      contentLabels: ['Gambling', 'MatureGame'],
+      isBrandedContent: false,
     });
   });
 
@@ -450,21 +456,68 @@ describe('the stream info form', () => {
     expect(text()).toContain('10 of 10 tags');
   });
 
-  it('shows the content labels as switches that cannot be changed yet', async () => {
+  const labelRow = (title: string): HTMLElement | undefined =>
+    [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')].find((row) =>
+      row.textContent?.includes(title),
+    );
+  const labelSwitch = (title: string): HTMLButtonElement | null | undefined =>
+    labelRow(title)?.querySelector<HTMLButtonElement>('[role="switch"]');
+
+  it('shows the content labels as working switches that follow what Twitch has', async () => {
     await open();
 
-    const labels: HTMLElement[] = [
-      ...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]'),
-    ];
+    expect(labelSwitch('Gambling')?.getAttribute('aria-checked')).toBe('true');
+    expect(labelSwitch('Strong language')?.getAttribute('aria-checked')).toBe('false');
+    expect(labelSwitch('Paid promotion')?.getAttribute('aria-checked')).toBe('false');
+    expect(labelSwitch('Gambling')?.disabled).toBe(false);
+  });
 
-    expect(labels).toHaveLength(7);
+  it('shows the label Twitch sets from the category as a badge, never a switch', async () => {
+    await open();
 
-    expect(
-      labels.every(
-        (row) =>
-          row.querySelector('[role="switch"][disabled], [role="switch"][data-disabled]') !== null,
-      ),
-    ).toBe(true);
+    const row = labelRow('Mature-rated game');
+
+    expect(row?.textContent).toContain('Twitch sets this from your category.');
+    expect(row?.querySelector('[role="switch"]')).toBeNull();
+  });
+
+  it('marks the form changed when a label is switched and sends it with Save', async () => {
+    await open();
+
+    labelSwitch('Strong language')?.click();
+    await settle();
+    expect(button('Save changes')?.disabled).toBe(false);
+
+    labelSwitch('Gambling')?.click();
+    labelSwitch('Paid promotion')?.click();
+    await settle();
+    button('Save changes')?.click();
+    await settle();
+
+    const body = puts()[0]!.body as { contentLabels: string[]; isBrandedContent: boolean };
+
+    expect([...body.contentLabels].sort()).toEqual(['MatureGame', 'ProfanityVulgarity']);
+    expect(body.isBrandedContent).toBe(true);
+    expect(button('Save changes')?.disabled).toBe(true);
+  });
+
+  it('is clean again when a switched label is switched back', async () => {
+    await open();
+
+    labelSwitch('Strong language')?.click();
+    await settle();
+    labelSwitch('Strong language')?.click();
+    await settle();
+
+    expect(button('Save changes')?.disabled).toBe(true);
+  });
+
+  it('shows the labels as badges without the title write key', async () => {
+    access.held = ['stream:read'];
+    await open();
+
+    expect(labelRow('Gambling')?.querySelector('[role="switch"]')).toBeNull();
+    expect(labelRow('Gambling')?.textContent).toContain('On');
   });
 });
 

@@ -14,6 +14,8 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  CATEGORY_CONTENT_LABEL,
+  EDITABLE_CONTENT_LABELS,
   useSaveStreamInfo,
   useStreamHistory,
   useStreamInfo,
@@ -36,15 +38,6 @@ import TagInput from './TagInput.vue';
 // Twitch cuts a title at 140 characters.
 const TITLE_MAX: number = 140;
 const RECENT_TITLES: number = 5;
-const CONTENT_LABELS: readonly string[] = [
-  'mature',
-  'language',
-  'violence',
-  'gambling',
-  'drugs',
-  'sexual',
-  'promotion',
-];
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -63,14 +56,25 @@ const form = computed<StreamInfoDraft>(() => ({
   title: draft.value.title ?? info.value?.title ?? '',
   gameName: draft.value.gameName ?? info.value?.gameName ?? '',
   tags: draft.value.tags ?? [...(info.value?.tags ?? [])],
+  contentLabels: draft.value.contentLabels ?? [...(info.value?.contentLabels ?? [])],
+  isBrandedContent: draft.value.isBrandedContent ?? info.value?.isBrandedContent ?? false,
 }));
+
+const sameList = (a: string[], b: string[]): boolean =>
+  JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
 const dirty = computed<boolean>(
   () =>
     form.value.title !== (info.value?.title ?? '') ||
     form.value.gameName !== (info.value?.gameName ?? '') ||
-    JSON.stringify(form.value.tags) !== JSON.stringify(info.value?.tags ?? []),
+    JSON.stringify(form.value.tags) !== JSON.stringify(info.value?.tags ?? []) ||
+    !sameList(form.value.contentLabels, [...(info.value?.contentLabels ?? [])]) ||
+    form.value.isBrandedContent !== (info.value?.isBrandedContent ?? false),
 );
+
+// Twitch sets this one from the category, so it is shown and never switched.
+const categoryLabelOn = computed<boolean>(() =>
+  form.value.contentLabels.includes(CATEGORY_CONTENT_LABEL));
 
 const history = computed<PastStream[]>(() => historyQuery.data.value ?? []);
 
@@ -107,6 +111,21 @@ function setGame(value: string): void {
 
 function setTags(value: string[]): void {
   draft.value = { ...draft.value, tags: value };
+}
+
+function setLabel(id: string, on: boolean): void {
+  const others = form.value.contentLabels.filter((label: string) => label !== id);
+
+  draft.value = {
+    ...draft.value,
+    contentLabels: on
+      ? [...others, id]
+      : others,
+  };
+}
+
+function setBranded(on: boolean): void {
+  draft.value = { ...draft.value, isBrandedContent: on };
 }
 
 function submit(): void {
@@ -204,10 +223,26 @@ function submit(): void {
         <p class="text-sm text-muted-foreground">{{ t('dashboard.stream.info.labelsHint') }}</p>
         <RowGroup>
           <SettingRow
-            v-for="label in CONTENT_LABELS"
+            v-for="label in EDITABLE_CONTENT_LABELS"
             :key="label"
             :title="t(`dashboard.stream.info.label.${label}`)"
-            disabled
+            :readonly="!canEdit"
+            :model-value="form.contentLabels.includes(label)"
+            @update:model-value="setLabel(label, $event)"
+          />
+          <SettingRow
+            :title="t('dashboard.stream.info.label.branded')"
+            :description="t('dashboard.stream.info.label.brandedHint')"
+            :readonly="!canEdit"
+            :model-value="form.isBrandedContent"
+            @update:model-value="setBranded"
+          />
+          <SettingRow
+            v-if="categoryLabelOn"
+            :title="t('dashboard.stream.info.label.MatureGame')"
+            :description="t('dashboard.stream.info.label.MatureGameHint')"
+            readonly
+            :model-value="true"
           />
         </RowGroup>
       </div>

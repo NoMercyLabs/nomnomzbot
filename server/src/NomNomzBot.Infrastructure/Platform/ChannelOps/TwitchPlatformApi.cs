@@ -67,7 +67,13 @@ public sealed class TwitchPlatformApi : IPlatformApi
 
         Result applied = await _channels.ModifyChannelInformationAsync(
             broadcasterId,
-            new(Title: update.Title, GameId: gameId, Tags: update.Tags),
+            new(
+                Title: update.Title,
+                GameId: gameId,
+                Tags: update.Tags,
+                ContentClassificationLabels: ToLabelChoices(update.ContentLabels),
+                IsBrandedContent: update.IsBrandedContent
+            ),
             cancellationToken
         );
         if (applied.IsFailure)
@@ -80,5 +86,22 @@ public sealed class TwitchPlatformApi : IPlatformApi
         return Result.Success(
             new PlatformStreamInfoApplied(update.Title, resolvedCategory, update.Tags)
         );
+    }
+
+    // Twitch turns a label off only when it is sent with is_enabled false, so every editable label goes out.
+    private static List<TwitchContentClassificationLabelChoice>? ToLabelChoices(
+        IReadOnlyList<string>? enabled
+    )
+    {
+        if (enabled is null)
+            return null;
+
+        return
+        [
+            .. TwitchContentLabels.Editable.Select(id => new TwitchContentClassificationLabelChoice(
+                id,
+                enabled.Contains(id)
+            )),
+        ];
     }
 }

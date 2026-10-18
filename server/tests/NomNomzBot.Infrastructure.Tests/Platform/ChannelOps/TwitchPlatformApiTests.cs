@@ -129,6 +129,72 @@ public sealed class TwitchPlatformApiTests
     }
 
     [Fact]
+    public async Task Content_labels_go_to_helix_as_one_toggle_per_editable_label_and_the_category_label_is_never_sent()
+    {
+        (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();
+
+        Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
+            Tenant,
+            new(ContentLabels: ["Gambling", "MatureGame"], IsBrandedContent: true)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await channels
+            .Received(1)
+            .ModifyChannelInformationAsync(
+                Tenant,
+                Arg.Is<ModifyChannelInformationRequest>(r =>
+                    r.IsBrandedContent == true
+                    && r.Title == null
+                    && r.ContentClassificationLabels != null
+                    && r.ContentClassificationLabels.Count == 6
+                    && r.ContentClassificationLabels.All(l => l.Id != "MatureGame")
+                    && r.ContentClassificationLabels.Single(l => l.Id == "Gambling").IsEnabled
+                    && r.ContentClassificationLabels.Count(l => l.IsEnabled) == 1
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task An_empty_label_list_turns_every_editable_label_off()
+    {
+        (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();
+
+        await api.UpdateStreamInfoAsync(Tenant, new(ContentLabels: []));
+
+        await channels
+            .Received(1)
+            .ModifyChannelInformationAsync(
+                Tenant,
+                Arg.Is<ModifyChannelInformationRequest>(r =>
+                    r.ContentClassificationLabels != null
+                    && r.ContentClassificationLabels.Count == 6
+                    && r.ContentClassificationLabels.All(l => !l.IsEnabled)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_title_only_update_sends_no_content_labels()
+    {
+        (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();
+
+        await api.UpdateStreamInfoAsync(Tenant, new(Title: "t"));
+
+        await channels
+            .Received(1)
+            .ModifyChannelInformationAsync(
+                Tenant,
+                Arg.Is<ModifyChannelInformationRequest>(r =>
+                    r.ContentClassificationLabels == null && r.IsBrandedContent == null
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_helix_failure_surfaces_with_its_code()
     {
         (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();

@@ -53,6 +53,11 @@ public sealed class YouTubePlatformApi : IPlatformApi
                 "YouTube live streams have no category or tags to set — only the title can be changed.",
                 "VALIDATION_FAILED"
             );
+        if (update.ContentLabels is not null || update.IsBrandedContent is not null)
+            return Result.Failure<PlatformStreamInfoApplied>(
+                "YouTube live streams have no Twitch-style content labels to set.",
+                "VALIDATION_FAILED"
+            );
         if (update.Title is null)
             return Result.Failure<PlatformStreamInfoApplied>(
                 "Nothing to update.",

@@ -27,12 +27,27 @@ import type { KeyParts } from '@/lib/array';
 export type StreamInfo = components['schemas']['StreamInfo'];
 export type AdSchedule = components['schemas']['TwitchAdSchedule'];
 
-// What the form edits and sends: the same three fields as UpdateStreamRequest, never empty-as-null.
+// What the form edits and sends: the same fields as UpdateStreamRequest, never empty-as-null.
+// contentLabels is the full set of label ids that are on, as Twitch names them.
 export type StreamInfoDraft = {
   title: string;
   gameName: string;
   tags: string[];
+  contentLabels: string[];
+  isBrandedContent: boolean;
 };
+
+// The labels Twitch lets a streamer switch. MatureGame is not here: Twitch sets it from the category.
+export const EDITABLE_CONTENT_LABELS = [
+  'DebatedSocialIssuesAndPolitics',
+  'ProfanityVulgarity',
+  'ViolentGraphic',
+  'Gambling',
+  'DrugsIntoxication',
+  'SexualThemes',
+] as const;
+
+export const CATEGORY_CONTENT_LABEL = 'MatureGame';
 export type Category = components['schemas']['Category'];
 export type PastStream = components['schemas']['StreamListItem'];
 

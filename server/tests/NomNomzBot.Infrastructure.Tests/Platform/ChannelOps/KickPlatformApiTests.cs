@@ -68,6 +68,21 @@ public sealed class KickPlatformApiTests
     }
 
     [Fact]
+    public async Task Content_labels_are_rejected_and_nothing_is_patched()
+    {
+        (KickPlatformApi api, _, FakeKickChannelStore store) = Build();
+
+        Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
+            BroadcasterId,
+            new PlatformStreamInfoUpdate(Title: "t", IsBrandedContent: true)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        store.PatchCallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Updating_the_title_actually_changes_what_a_subsequent_read_returns()
     {
         (KickPlatformApi api, IKickApiClient client, FakeKickChannelStore store) = Build();
