@@ -81,6 +81,7 @@ export default defineConfigWithVueTs(
         localeDir: [
           { pattern: './src/i18n/locales/*.json', localeKey: 'file' },
           { pattern: './src/views/*/*/i18n/*.json', localeKey: 'file' },
+          { pattern: './src/views/*/*/*/i18n/*.json', localeKey: 'file' },
         ],
         messageSyntaxVersion: '^11.0.0',
       },
@@ -104,6 +105,7 @@ export default defineConfigWithVueTs(
         localeDir: [
           { pattern: './src/i18n/locales/*.json', localeKey: 'file' },
           { pattern: './src/views/*/*/i18n/*.json', localeKey: 'file' },
+          { pattern: './src/views/*/*/*/i18n/*.json', localeKey: 'file' },
         ],
         messageSyntaxVersion: '^11.0.0',
       },
