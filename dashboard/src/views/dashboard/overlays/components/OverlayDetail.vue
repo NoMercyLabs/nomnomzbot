@@ -13,10 +13,13 @@
 // The address holds a secret token. Copy sends the full address to the clipboard; the page only ever shows it cut.
 import ArrowLeft from '~icons/nnz/arrow-left';
 import Check from '~icons/nnz/check';
+import Code from '~icons/nnz/code';
 import Copy from '~icons/nnz/file-copy';
 import Play from '~icons/nnz/play';
 import { useTimeAgoIntl, useTimeoutFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
+
+import type { JsonObject } from '@/lib/json';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -25,6 +28,7 @@ import {
   type Widget,
   type WidgetTestResult,
 } from '@/api/widgets';
+import CodeEditor from '@/components/layout/CodeEditor.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
@@ -42,6 +46,7 @@ import { numberOrNull } from '@/lib/number';
 
 import OverlaySettings from './OverlaySettings.vue';
 import { maskedAddress, overlayKind, plainEvent, type OverlayKind } from './overlayKind';
+import { useOverlayEditor } from './useOverlayEditor';
 
 const COPIED_MS = 2000;
 
@@ -53,9 +58,16 @@ const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const setEnabled = useSetWidgetEnabled(channelId);
+const editor = useOverlayEditor(() => props.widget);
 
 const kind = computed<OverlayKind>(() => overlayKind(props.widget.eventSubscriptions));
 const builtIn = computed<boolean>(() => props.widget.source === 'first_party');
+// The editor's preview reads the widget's saved settings; the API types them as a free-form object.
+const editorWidget = computed(() => ({
+  id: props.widget.id,
+  name: props.widget.name,
+  settings: (props.widget.settings ?? {}) as JsonObject,
+}));
 const ago = useTimeAgoIntl(() => props.widget.lastRanAt ?? new Date(0), { locale: locale.value });
 
 const copied = ref(false);
@@ -243,6 +255,20 @@ const module = computed<KeyValueItem[]>(() => {
           <Badge v-else data-overlay-state variant="outline">{{
             $t(widget.isEnabled ? "dashboard.overlays.detail.on" : "dashboard.overlays.detail.off")
           }}</Badge>
+          <div v-if="can('widget:write')" class="grid justify-items-end gap-1">
+            <Button
+              data-edit-code
+              variant="outline"
+              :disabled="editor.opening.value"
+              @click="editor.open"
+            >
+              <Code aria-hidden="true" />
+              {{ $t("dashboard.overlays.detail.editCode") }}
+            </Button>
+            <span v-if="editor.failure.value" role="alert" class="text-sm text-destructive">{{
+              editor.failure.value
+            }}</span>
+          </div>
           <div class="grid justify-items-end gap-1">
             <Button :disabled="!widget.overlayUrl" @click="copyAddress">
               <component :is="copied ? Check : Copy" aria-hidden="true" />
@@ -331,5 +357,23 @@ const module = computed<KeyValueItem[]>(() => {
         </PanelCard>
       </div>
     </div>
+    <CodeEditor
+      v-if="editor.session.value"
+      :title="widget.name"
+      :files="editor.session.value.project.files"
+      :entry="editor.session.value.project.manifest.entry"
+      :language="widget.framework"
+      :sdk-types="editor.session.value.sdkTypes ?? ''"
+      :sdk-types-unavailable="editor.session.value.sdkTypes === null"
+      :widget="editorWidget"
+      :fire-samples="editor.session.value.samples"
+      :fire-samples-error="editor.session.value.samplesError"
+      :event-subscriptions="widget.eventSubscriptions"
+      :initial-history="editor.session.value.versions"
+      :history="editor.history"
+      :save="editor.save"
+      :preview-action="editor.previewAction"
+      @close="editor.close"
+    />
   </DetailPane>
 </template>

@@ -32,6 +32,7 @@ import {
 } from '@/composables/useEditorBridge';
 import { useBackLayer } from '@/composables/useBackCloses';
 import { useEditorLabels } from '@/composables/useEditorLabels';
+import type { JsonObject } from '@/lib/json';
 
 const props = withDefaults(
   defineProps<{
@@ -43,6 +44,11 @@ const props = withDefaults(
     sdkTypes?: string;
     sdkTypesUnavailable?: boolean;
     testTriggers?: TestTrigger[];
+    // A widget's preview: the sample event payloads, the events it listens to and its identity and settings.
+    widget?: EditorOpenPayload['widget'];
+    fireSamples?: JsonObject;
+    fireSamplesError?: string;
+    eventSubscriptions?: string[];
     save: (files: EditorFiles) => Promise<CompileFeedback>;
     // The first page of saved versions; with history, it makes the page show its History view.
     initialHistory?: VersionsPage;
@@ -78,6 +84,19 @@ const payload = computed<EditorOpenPayload>(() => ({
   testTriggers: props.testTriggers,
   history: props.initialHistory,
   labels: labels.value,
+  // An absent key keeps the bridge's default; a key set to undefined would replace it.
+  ...(props.widget
+    ? { widget: props.widget }
+    : {}),
+  ...(props.fireSamples
+    ? { fireSamples: props.fireSamples }
+    : {}),
+  ...(props.fireSamplesError
+    ? { fireSamplesError: props.fireSamplesError }
+    : {}),
+  ...(props.eventSubscriptions
+    ? { eventSubscriptions: props.eventSubscriptions }
+    : {}),
 }));
 
 const bridge = useEditorBridge({

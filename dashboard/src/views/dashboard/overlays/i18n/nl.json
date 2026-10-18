@@ -7,6 +7,11 @@
       "count": "{count} overlays",
       "noMatch": "Geen overlay past bij \"{query}\".",
       "back": "Terug naar de lijst",
+      "editor": {
+        "compiled": "Opgeslagen en gecompileerd. De overlay draait nu deze versie.",
+        "samplesFailed": "De voorbeeldgebeurtenissen konden niet worden geladen, dus de vuurbalk verstuurt niets.",
+        "deleteUnavailable": "Een opgeslagen versie van een overlay kan niet worden verwijderd."
+      },
       "tabs": {
         "all": "Alles",
         "on": "Aan",
@@ -48,6 +53,7 @@
         "off": "Uit",
         "copy": "Kopieer browserbron-adres",
         "copied": "Adres gekopieerd",
+        "editCode": "Code bewerken",
         "noAddress": "Deze overlay heeft nog geen adres.",
         "health": {
           "title": "Gezondheid",

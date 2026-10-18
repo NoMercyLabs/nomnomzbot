@@ -7,6 +7,11 @@
       "count": "{count} overlays",
       "noMatch": "No overlay matches \"{query}\".",
       "back": "Back to the list",
+      "editor": {
+        "compiled": "Saved and compiled. The overlay now runs this version.",
+        "samplesFailed": "The sample events could not be loaded, so the fire bar sends nothing.",
+        "deleteUnavailable": "A saved version of an overlay cannot be deleted."
+      },
       "tabs": {
         "all": "All",
         "on": "On",
@@ -48,6 +53,7 @@
         "off": "Off",
         "copy": "Copy browser source address",
         "copied": "Address copied",
+        "editCode": "Edit code",
         "noAddress": "This overlay has no address yet.",
         "health": {
           "title": "Health",
