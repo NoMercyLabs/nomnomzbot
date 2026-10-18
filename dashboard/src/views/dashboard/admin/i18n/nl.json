@@ -772,6 +772,50 @@
           "error": "De telling kon niet laden, dus opnieuw proberen is geblokkeerd."
         }
       },
+      "system": {
+        "title": "Systeem",
+        "status": {
+          "healthy": "Gezond",
+          "degraded": "Verminderd",
+          "unhealthy": "Ongezond"
+        },
+        "health": {
+          "title": "Gezondheid van de services",
+          "description": "Gelezen van de draaiende bot. Een nieuwe status komt vanzelf binnen.",
+          "overall": "Totaal",
+          "latency": "{ms} ms",
+          "empty": "Geen enkele service meldde een status.",
+          "error": "De systeemstatus kon niet laden."
+        },
+        "process": {
+          "title": "Draaiende bot",
+          "description": "Het proces dat deze installatie bedient.",
+          "version": "Versie",
+          "uptime": "Draaitijd",
+          "uptimeValue": "{days}d {hours}u {minutes}m",
+          "memory": "Geheugen",
+          "memoryValue": "{mb} MB",
+          "cpu": "Processor",
+          "cpuValue": "{percent}%",
+          "events": "Events vandaag"
+        },
+        "rotation": {
+          "title": "Versleutelingssleutel",
+          "description": "Verpakt elke opgeslagen datasleutel opnieuw van de vorige versleutelingssleutel naar de nieuwe. Een tweede keer verandert niets.",
+          "open": "Versleutelingssleutel roteren",
+          "failed": "De rotatie is mislukt. Er is niets gewijzigd.",
+          "missing": "Vul beide sleutels in.",
+          "outcome": "{rewrapped} opnieuw verpakt, {current} al actueel, {failed} mislukt.",
+          "failures": "Datasleutels die niet opnieuw verpakt konden worden",
+          "dialog": {
+            "title": "De versleutelingssleutel roteren",
+            "description": "Dit verpakt elke opgeslagen datasleutel opnieuw. Zet eerst de nieuwe sleutel op de server. Draait de server een andere sleutel dan de nieuwe, dan worden bot-tokens ongeldig en moet de bot opnieuw inloggen. Een datasleutel die geen van beide sleutels opent, wordt gemeld en blijft zoals hij was.",
+            "action": "Sleutel roteren",
+            "previous": "Vorige sleutel",
+            "current": "Nieuwe sleutel"
+          }
+        }
+      },
       "eventReplay": {
         "title": "Events opnieuw afspelen",
         "failed": "Het opnieuw afspelen is mislukt. Er is niets gewijzigd.",

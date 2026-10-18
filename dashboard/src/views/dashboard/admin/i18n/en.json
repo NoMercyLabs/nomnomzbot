@@ -772,6 +772,50 @@
           "error": "The count could not load, so the retry is blocked."
         }
       },
+      "system": {
+        "title": "System",
+        "status": {
+          "healthy": "Healthy",
+          "degraded": "Degraded",
+          "unhealthy": "Unhealthy"
+        },
+        "health": {
+          "title": "Service health",
+          "description": "Read from the running bot. A new status arrives by itself.",
+          "overall": "Overall",
+          "latency": "{ms} ms",
+          "empty": "No service reported a status.",
+          "error": "The system status could not load."
+        },
+        "process": {
+          "title": "Running bot",
+          "description": "The process that serves this deployment.",
+          "version": "Version",
+          "uptime": "Uptime",
+          "uptimeValue": "{days}d {hours}h {minutes}m",
+          "memory": "Memory",
+          "memoryValue": "{mb} MB",
+          "cpu": "Processor",
+          "cpuValue": "{percent}%",
+          "events": "Events today"
+        },
+        "rotation": {
+          "title": "Encryption key",
+          "description": "Re-wraps every stored data key from the previous encryption key to the new one. A second run changes nothing.",
+          "open": "Rotate encryption key",
+          "failed": "The rotation failed. Nothing was changed.",
+          "missing": "Enter both keys.",
+          "outcome": "{rewrapped} re-wrapped, {current} already current, {failed} failed.",
+          "failures": "Data keys that could not be re-wrapped",
+          "dialog": {
+            "title": "Rotate the encryption key",
+            "description": "This re-wraps every stored data key. Set the new key on the server first. If the server runs a different key than the new one, bot tokens become invalid and the bot must re-authorize. A data key that neither key can open is reported and left as it was.",
+            "action": "Rotate key",
+            "previous": "Previous key",
+            "current": "New key"
+          }
+        }
+      },
       "eventReplay": {
         "title": "Event replay",
         "failed": "The replay failed. Nothing was changed.",

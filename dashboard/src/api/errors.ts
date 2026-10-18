@@ -103,6 +103,8 @@ export const apiOperations = {
   'event replay history': 'admin',
   'event replay preview': 'admin',
   'event replay execute': 'admin',
+  'admin system': 'admin',
+  'admin key rotation': 'admin',
   'platform bot': 'admin',
   'platform bot preview': 'admin',
   'platform bot reconnect': 'admin',
