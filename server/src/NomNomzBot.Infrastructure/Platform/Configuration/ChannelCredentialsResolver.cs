@@ -52,7 +52,7 @@ public sealed class ChannelCredentialsResolver(
         // "Development Mode" apps are capped at ~25 allow-listed users unless Spotify grants Extended
         // Quota Mode, so one shared app cannot scale across many streamers the way Discord/Kick apps can.
         // Every channel MUST register and use its own Spotify app; there is no app-level fallback.
-        if (string.Equals(provider, "spotify", StringComparison.OrdinalIgnoreCase))
+        if (!FallsBackToSharedApp(provider))
         {
             return Result.Failure<SystemAppCredentials>(
                 "Spotify app credentials are not configured for this channel. Add the channel's own "
@@ -116,6 +116,11 @@ public sealed class ChannelCredentialsResolver(
 
         return new(clientId, clientSecret);
     }
+
+    /// <summary>Whether a channel without its own app of <paramref name="provider"/> falls back to the
+    /// platform's app. False for Spotify (the carve-out above); true for every other provider.</summary>
+    public static bool FallsBackToSharedApp(string provider) =>
+        !string.Equals(provider, "spotify", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The channel-scoped AAD: subject <c>"channel:{channelId}"</c> — never <c>"system"</c> — so a
     /// sealed channel secret can never be opened under the system provider's context, or another channel's.</summary>

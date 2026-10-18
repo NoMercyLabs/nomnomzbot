@@ -87704,10 +87704,15 @@ export interface components {
             login: string;
             thumbnailUrl?: null | string;
         };
-        /** @description Read-model for a channel's Spotify BYOC state — never carries the secret. */
+        /**
+         * @description Read-model for a channel's Spotify BYOC state — never carries the secret. HasSharedApp is
+         *     true only when a platform-level Spotify app exists for the channel to fall back on, so the dashboard offers
+         *     "use the shared app" only when there is one.
+         */
         ChannelSpotifyCredentials: {
             clientId?: null | string;
             hasClientSecret: boolean;
+            hasSharedApp: boolean;
         };
         /**
          * @description Lightweight channel info for lists and dropdowns. `Provider` is the streaming platform this channel

@@ -106127,7 +106127,8 @@
       },
       "ChannelSpotifyCredentials": {
         "required": [
-          "hasClientSecret"
+          "hasClientSecret",
+          "hasSharedApp"
         ],
         "type": "object",
         "properties": {
@@ -106139,9 +106140,12 @@
           },
           "hasClientSecret": {
             "type": "boolean"
+          },
+          "hasSharedApp": {
+            "type": "boolean"
           }
         },
-        "description": "Read-model for a channel's Spotify BYOC state — never carries the secret."
+        "description": "Read-model for a channel's Spotify BYOC state — never carries the secret. HasSharedApp is true only when a platform-level Spotify app exists to fall back on."
       },
       "ChannelSummary": {
         "required": [

@@ -107,6 +107,7 @@ data class IntegrationStatus(
 data class ChannelSpotifyCredentials(
     val clientId: String? = null,
     val hasClientSecret: Boolean = false,
+    val hasSharedApp: Boolean = false,
 )
 
 /** The write body for a channel's own Spotify BYOC credentials (`SetChannelSpotifyCredentialsDto`). */

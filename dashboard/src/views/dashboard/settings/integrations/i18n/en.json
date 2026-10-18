@@ -27,15 +27,18 @@
         },
         "spotify": {
           "title": "Your own Spotify app",
-          "description": "Use your own Spotify app instead of the shared one. The secret is stored sealed and never shown again.",
+          "description": "Add your own Spotify app to connect Spotify. The secret is stored sealed and never shown again.",
+          "descriptionShared": "Use your own Spotify app instead of the shared one. The secret is stored sealed and never shown again.",
           "loadFailed": "Your Spotify app settings could not be loaded.",
           "clientId": "Client ID",
           "clientSecret": "Client secret",
           "secretKept": "A secret is stored. Type a new one to replace it.",
           "save": "Save",
-          "clear": "Use the shared app",
+          "clear": "Remove my app",
+          "clearShared": "Use the shared app",
           "saved": "Your Spotify app is saved.",
-          "cleared": "Back on the shared Spotify app."
+          "cleared": "Your Spotify app is removed.",
+          "clearedShared": "Back on the shared Spotify app."
         }
       }
     }

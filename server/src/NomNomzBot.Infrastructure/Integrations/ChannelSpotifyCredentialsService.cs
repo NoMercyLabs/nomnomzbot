@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Integrations.Services;
@@ -26,7 +27,8 @@ namespace NomNomzBot.Infrastructure.Integrations;
 /// </summary>
 public sealed class ChannelSpotifyCredentialsService(
     IApplicationDbContext db,
-    ITokenProtector protector
+    ITokenProtector protector,
+    ISystemCredentialsProvider systemCredentials
 ) : IChannelSpotifyCredentialsService
 {
     private const string Provider = "spotify";
@@ -42,7 +44,13 @@ public sealed class ChannelSpotifyCredentialsService(
         string? clientId = rows.FirstOrDefault(r => r.Key == ClientIdKey)?.Value;
         bool hasSecret =
             rows.FirstOrDefault(r => r.Key == ClientSecretKey)?.SecureValue is not null;
-        return Result.Success(new ChannelSpotifyCredentialsDto(clientId, hasSecret));
+        return Result.Success(
+            new ChannelSpotifyCredentialsDto(
+                clientId,
+                hasSecret,
+                await HasSharedAppAsync(cancellationToken)
+            )
+        );
     }
 
     public async Task<Result<ChannelSpotifyCredentialsDto>> SetAsync(
@@ -83,7 +91,13 @@ public sealed class ChannelSpotifyCredentialsService(
         );
 
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(new ChannelSpotifyCredentialsDto(idRow.Value, true));
+        return Result.Success(
+            new ChannelSpotifyCredentialsDto(
+                idRow.Value,
+                true,
+                await HasSharedAppAsync(cancellationToken)
+            )
+        );
     }
 
     public async Task<Result<ChannelSpotifyCredentialsDto>> ClearAsync(
@@ -92,13 +106,26 @@ public sealed class ChannelSpotifyCredentialsService(
     )
     {
         List<ConfigEntity> rows = await LoadRowsAsync(channelId, cancellationToken);
-        if (rows.Count == 0)
-            return Result.Success(new ChannelSpotifyCredentialsDto(null, false));
+        if (rows.Count > 0)
+        {
+            db.Configurations.RemoveRange(rows);
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
-        db.Configurations.RemoveRange(rows);
-        await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(new ChannelSpotifyCredentialsDto(null, false));
+        return Result.Success(
+            new ChannelSpotifyCredentialsDto(
+                null,
+                false,
+                await HasSharedAppAsync(cancellationToken)
+            )
+        );
     }
+
+    /// <summary>True only when a channel without its own app would fall back to a configured platform app —
+    /// the same rule <see cref="ChannelCredentialsResolver"/> applies when it resolves credentials.</summary>
+    private async Task<bool> HasSharedAppAsync(CancellationToken cancellationToken) =>
+        ChannelCredentialsResolver.FallsBackToSharedApp(Provider)
+        && await systemCredentials.GetAsync(Provider, cancellationToken) is not null;
 
     private async Task<List<ConfigEntity>> LoadRowsAsync(
         Guid channelId,

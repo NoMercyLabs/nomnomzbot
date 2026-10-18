@@ -42,8 +42,12 @@ public interface IChannelSpotifyCredentialsService
     );
 }
 
-/// <summary>Read-model for a channel's Spotify BYOC state — never carries the secret.</summary>
-public sealed record ChannelSpotifyCredentialsDto(string? ClientId, bool HasClientSecret);
+/// <summary>Read-model for a channel's Spotify BYOC state — never carries the secret. <c>HasSharedApp</c> is true only when a platform-level Spotify app exists to fall back on.</summary>
+public sealed record ChannelSpotifyCredentialsDto(
+    string? ClientId,
+    bool HasClientSecret,
+    bool HasSharedApp
+);
 
 /// <summary>Request body to store a channel's own Spotify app credentials.</summary>
 public sealed record SetChannelSpotifyCredentialsDto(string ClientId, string ClientSecret);

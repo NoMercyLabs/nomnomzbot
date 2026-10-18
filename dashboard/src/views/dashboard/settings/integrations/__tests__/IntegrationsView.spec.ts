@@ -48,14 +48,22 @@ const base = '/api/v{version}/channels/{channelId}/integrations';
 const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, status: 200 } });
 
 let mounted: VueWrapper | null = null;
-let spotifyStored = { clientId: 'abc', hasClientSecret: true };
+let spotifyStored = {
+  clientId: 'abc',
+  hasClientSecret: true,
+  hasSharedApp: false,
+};
 
 beforeEach(() => {
   for (const verb of [http.GET, http.POST, http.PUT, http.DELETE]) {
     verb.mockReset();
   }
 
-  spotifyStored = { clientId: 'abc', hasClientSecret: true };
+  spotifyStored = {
+    clientId: 'abc',
+    hasClientSecret: true,
+    hasSharedApp: false,
+  };
 
   http.GET.mockImplementation(async (path) => {
     if (path === `${base}/status`) {
@@ -136,7 +144,11 @@ beforeEach(() => {
   http.PUT.mockImplementation(async (_path, init) => {
     const body = (init as Call['init']).body as { clientId: string };
 
-    spotifyStored = { clientId: body.clientId, hasClientSecret: true };
+    spotifyStored = {
+      ...spotifyStored,
+      clientId: body.clientId,
+      hasClientSecret: true,
+    };
 
     return ok(spotifyStored);
   });
@@ -329,6 +341,37 @@ describe('Spotify own app', () => {
     );
 
     expect((document.body.querySelector('input[name="clientSecret"]') as HTMLInputElement).value).toBe('');
+  });
+
+  it('offers no shared app when the server reports none', async () => {
+    await open();
+
+    const clear = document.body.querySelector('[data-action="clear-spotify"]');
+    const panel = document.body.querySelector('[data-view="spotify-credentials"]');
+
+    const words = en.dashboard.settings.integrations.spotify;
+
+    expect(panel?.textContent).not.toContain(words.clearShared);
+    expect(panel?.textContent).not.toContain(words.descriptionShared);
+    expect(clear?.textContent).toContain(words.clear);
+  });
+
+  it('offers the shared app when the server reports one', async () => {
+    spotifyStored = {
+      clientId: 'abc',
+      hasClientSecret: true,
+      hasSharedApp: true,
+    };
+
+    await open();
+
+    const clear = document.body.querySelector('[data-action="clear-spotify"]');
+    const panel = document.body.querySelector('[data-view="spotify-credentials"]');
+
+    const words = en.dashboard.settings.integrations.spotify;
+
+    expect(clear?.textContent).toContain(words.clearShared);
+    expect(panel?.textContent).toContain(words.descriptionShared);
   });
 
   it('clears the stored app with a DELETE', async () => {

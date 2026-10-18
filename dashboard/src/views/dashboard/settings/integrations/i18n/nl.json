@@ -27,15 +27,18 @@
         },
         "spotify": {
           "title": "Je eigen Spotify-app",
-          "description": "Gebruik je eigen Spotify-app in plaats van de gedeelde. Het geheim wordt versleuteld opgeslagen en nooit meer getoond.",
+          "description": "Voeg je eigen Spotify-app toe om Spotify te koppelen. Het geheim wordt versleuteld opgeslagen en nooit meer getoond.",
+          "descriptionShared": "Gebruik je eigen Spotify-app in plaats van de gedeelde. Het geheim wordt versleuteld opgeslagen en nooit meer getoond.",
           "loadFailed": "De instellingen van je Spotify-app konden niet worden geladen.",
           "clientId": "Client-ID",
           "clientSecret": "Client-geheim",
           "secretKept": "Er is een geheim opgeslagen. Typ een nieuw om het te vervangen.",
           "save": "Opslaan",
-          "clear": "Gedeelde app gebruiken",
+          "clear": "Mijn app verwijderen",
+          "clearShared": "Gedeelde app gebruiken",
           "saved": "Je Spotify-app is opgeslagen.",
-          "cleared": "Terug op de gedeelde Spotify-app."
+          "cleared": "Je Spotify-app is verwijderd.",
+          "clearedShared": "Terug op de gedeelde Spotify-app."
         }
       }
     }

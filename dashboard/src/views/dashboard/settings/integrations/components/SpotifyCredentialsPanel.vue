@@ -9,7 +9,8 @@
 -->
 <script setup lang="ts">
 // The channel's own Spotify app (client id and secret). The bot never sends the secret back: the page only
-// learns that one is stored. Saving replaces both values; clearing falls back to the shared Spotify app.
+// learns that one is stored. Saving replaces both values; clearing falls back to the shared Spotify app only
+// when the server reports one (hasSharedApp), and otherwise just removes the channel's own app.
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
@@ -33,6 +34,8 @@ const clientSecret = ref('');
 const error = ref<string | undefined>(undefined);
 
 const stored = computed(() => credentials.data.value ?? null);
+// The server says whether a shared app exists to fall back on. Without one, nothing offers it.
+const hasSharedApp = computed(() => stored.value?.hasSharedApp === true);
 const canSave = computed(() => clientId.value.trim() !== '' && clientSecret.value !== '' && !save.isPending.value);
 
 const state = computed<PanelState>(() => {
@@ -66,7 +69,10 @@ async function remove(): Promise<void> {
   try {
     await clear.mutateAsync();
     clientSecret.value = '';
-    toast.success(t('dashboard.settings.integrations.spotify.cleared'));
+
+    toast.success(t(hasSharedApp.value
+      ? 'dashboard.settings.integrations.spotify.clearedShared'
+      : 'dashboard.settings.integrations.spotify.cleared'));
   } catch (failure) {
     error.value = errorText(failure, t);
   }
@@ -78,7 +84,9 @@ async function remove(): Promise<void> {
     data-view="spotify-credentials"
     pad
     :title="$t('dashboard.settings.integrations.spotify.title')"
-    :description="$t('dashboard.settings.integrations.spotify.description')"
+    :description="hasSharedApp
+      ? $t('dashboard.settings.integrations.spotify.descriptionShared')
+      : $t('dashboard.settings.integrations.spotify.description')"
     :state="state"
     :error-text="$t('dashboard.settings.integrations.spotify.loadFailed')"
     @retry="credentials.refetch()"
@@ -110,7 +118,9 @@ async function remove(): Promise<void> {
             :disabled="clear.isPending.value"
             @click="remove"
           >
-            {{ $t('dashboard.settings.integrations.spotify.clear') }}
+            {{ hasSharedApp
+              ? $t('dashboard.settings.integrations.spotify.clearShared')
+              : $t('dashboard.settings.integrations.spotify.clear') }}
           </Button>
           <Button type="submit" size="sm" data-action="save-spotify" :disabled="!canSave">
             {{ $t('dashboard.settings.integrations.spotify.save') }}
