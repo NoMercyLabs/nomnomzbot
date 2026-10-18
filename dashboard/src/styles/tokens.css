@@ -50,6 +50,9 @@
   /* Twitch's own chat-badge colors, so a role reads as the badge people know (owner 2026-10-14). */
   --role-broadcaster: #e91916;
   --role-vip: #e005b9;
+  --role-moderator: #00ad03;
+  --role-subscriber: #9146ff;
+  --role-artist: #1f69ff;
   /* Button look from the NomNomz Figma kit (Y3uHgP9au3Gm9piJ68fR0s, owner 2026-10-14); sizes stay shadcn. */
   --kit-pill-from: #ffffff;
   --kit-pill-to: #edebff;

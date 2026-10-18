@@ -32,6 +32,9 @@
   --color-primary: var(--primary);
   --color-role-broadcaster: var(--role-broadcaster);
   --color-role-vip: var(--role-vip);
+  --color-role-moderator: var(--role-moderator);
+  --color-role-subscriber: var(--role-subscriber);
+  --color-role-artist: var(--role-artist);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
