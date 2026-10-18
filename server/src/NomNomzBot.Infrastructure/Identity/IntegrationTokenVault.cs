@@ -253,10 +253,23 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         CancellationToken cancellationToken = default
     ) => await GetTokenAsync(connectionId, AuthEnums.TokenType.Refresh, cancellationToken);
 
-    public async Task<Result> MarkRefreshFailureAsync(
+    public Task<Result> MarkRefreshFailureAsync(
         Guid connectionId,
         string error,
         CancellationToken cancellationToken = default
+    ) => RecordRefreshFailureAsync(connectionId, error, refusedForGood: false, cancellationToken);
+
+    public Task<Result> MarkRefreshRefusedAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    ) => RecordRefreshFailureAsync(connectionId, error, refusedForGood: true, cancellationToken);
+
+    private async Task<Result> RecordRefreshFailureAsync(
+        Guid connectionId,
+        string error,
+        bool refusedForGood,
+        CancellationToken cancellationToken
     )
     {
         IntegrationConnection? connection = await _db
@@ -265,10 +278,16 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         if (connection is null)
             return Result.Failure("No such connection.", "NOT_FOUND");
 
+        // A refusal on a connection already waiting for the owner changes nothing: a fresh LastErrorAt
+        // would mint a new inbox key and bring back a prompt the owner dismissed.
+        if (refusedForGood && connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
+            return Result.Success();
+
         connection.ConsecutiveFailureCount++;
         connection.LastErrorAt = _timeProvider.GetUtcNow().UtcDateTime;
 
-        bool crossedThreshold = connection.ConsecutiveFailureCount >= NeedsReauthThreshold;
+        bool crossedThreshold =
+            refusedForGood || connection.ConsecutiveFailureCount >= NeedsReauthThreshold;
         if (crossedThreshold)
             connection.Status = AuthEnums.IntegrationStatus.NeedsReauth;
 

@@ -221,7 +221,7 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
             );
             if (!response.IsSuccessStatusCode)
             {
-                await OAuthRefreshRejection.RecordAsync(
+                RefreshRejection rejection = await OAuthRefreshRejection.RecordAsync(
                     _vault,
                     connectionId,
                     response,
@@ -229,9 +229,11 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
                     cancellationToken
                 );
                 _logger.LogWarning(
-                    "YouTube token refresh failed for {BroadcasterId}: {Status}",
+                    "YouTube token refresh failed for {BroadcasterId}: {Status} ({RejectionKind}, OAuth error {OAuthError})",
                     broadcasterId,
-                    response.StatusCode
+                    response.StatusCode,
+                    rejection.Kind,
+                    rejection.ErrorCode ?? "none"
                 );
                 return null;
             }

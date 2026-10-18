@@ -71,6 +71,18 @@ public interface IIntegrationTokenVault
     );
 
     /// <summary>
+    /// Records a refresh the provider refused for good (a dead grant, a rejected client): sets
+    /// <c>Status=needs_reauth</c> at once, bumps the failure count, and emits <c>IntegrationNeedsReauthEvent</c>
+    /// so the owner gets one reconnect prompt. A connection that is already <c>needs_reauth</c> is left as it
+    /// is, so repeated refusals never mint a second prompt.
+    /// </summary>
+    Task<Result> MarkRefreshRefusedAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Records a refresh attempt that failed for a reason saying nothing about the grant (5xx, 429, a timeout,
     /// a network error): stamps <c>LastErrorAt</c> so the refresher backs off, and never touches the failure
     /// count or the status.

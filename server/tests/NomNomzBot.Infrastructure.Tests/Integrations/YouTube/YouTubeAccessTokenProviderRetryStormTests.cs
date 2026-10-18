@@ -18,11 +18,14 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.Integrations.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
+using NomNomzBot.Infrastructure.Notifications.Sources;
 using NomNomzBot.Infrastructure.Tests.Gdpr;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Music;
@@ -74,7 +77,7 @@ public sealed class YouTubeAccessTokenProviderRetryStormTests
     }
 
     [Fact]
-    public async Task Invalid_grant_three_times_marks_needs_reauth_and_stops_the_calls()
+    public async Task Invalid_grant_marks_needs_reauth_at_once_and_stops_the_calls()
     {
         FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
         CountingGoogleHandler wire = new() { FailWith = HttpStatusCode.BadRequest };
@@ -86,11 +89,100 @@ public sealed class YouTubeAccessTokenProviderRetryStormTests
             clock.Advance(TimeSpan.FromMinutes(11));
         }
 
-        wire.CallCount.Should().Be(3);
-        IntegrationConnection connection = await harness
-            .Db.IntegrationConnections.AsNoTracking()
-            .SingleAsync(c => c.Id == harness.ConnectionId);
+        wire.CallCount.Should().Be(1);
+        IntegrationConnection connection = await harness.ReadConnectionAsync();
         connection.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
+    }
+
+    [Fact]
+    public async Task A_401_invalid_client_refresh_marks_needs_reauth_and_puts_one_reconnect_item_in_the_inbox()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        CountingGoogleHandler wire = new()
+        {
+            FailWith = HttpStatusCode.Unauthorized,
+            Body =
+                """{"error":"invalid_client","error_description":"The OAuth client was not found."}""",
+        };
+        Harness harness = await Harness.BuildAsync(wire, clock);
+
+        for (int i = 0; i < 4; i++)
+        {
+            (await harness.Provider.GetAccessTokenAsync(Broadcaster)).Should().BeNull();
+            clock.Advance(TimeSpan.FromMinutes(15));
+        }
+
+        IntegrationConnection connection = await harness.ReadConnectionAsync();
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
+        wire.CallCount.Should().Be(1, "a refused grant stops the retry");
+        harness.Bus.Published.OfType<IntegrationNeedsReauthEvent>().Should().ContainSingle();
+        List<ActionRequiredItemDto> items = await harness.InboxItemsAsync();
+        items.Should().ContainSingle();
+        items[0].Kind.Should().Be("integration_token_dead");
+        items[0].DeepLinkRoute.Should().Be("integrations");
+    }
+
+    [Fact]
+    public async Task A_503_refresh_is_transient_and_asks_the_owner_for_nothing()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        CountingGoogleHandler wire = new()
+        {
+            FailWith = HttpStatusCode.ServiceUnavailable,
+            Body = "<html>unavailable</html>",
+        };
+        Harness harness = await Harness.BuildAsync(wire, clock);
+
+        for (int i = 0; i < 5; i++)
+        {
+            await harness.Provider.GetAccessTokenAsync(Broadcaster);
+            clock.Advance(TimeSpan.FromMinutes(15));
+        }
+
+        wire.CallCount.Should().Be(5, "a transient failure keeps retrying");
+        IntegrationConnection connection = await harness.ReadConnectionAsync();
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        connection.ConsecutiveFailureCount.Should().Be(0);
+        connection.LastErrorAt.Should().NotBeNull();
+        (await harness.InboxItemsAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Repeated_401s_without_a_reason_count_up_to_needs_reauth_with_one_inbox_item()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        CountingGoogleHandler wire = new() { FailWith = HttpStatusCode.Unauthorized, Body = "" };
+        Harness harness = await Harness.BuildAsync(wire, clock);
+
+        for (int i = 0; i < 6; i++)
+        {
+            await harness.Provider.GetAccessTokenAsync(Broadcaster);
+            clock.Advance(TimeSpan.FromMinutes(15));
+        }
+
+        IntegrationConnection connection = await harness.ReadConnectionAsync();
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
+        connection.ConsecutiveFailureCount.Should().Be(3);
+        wire.CallCount.Should().Be(3);
+        harness.Bus.Published.OfType<IntegrationNeedsReauthEvent>().Should().ContainSingle();
+        (await harness.InboxItemsAsync()).Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_second_refusal_does_not_mint_a_second_inbox_item()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        Harness harness = await Harness.BuildAsync(new CountingGoogleHandler(), clock);
+
+        await harness.Vault.MarkRefreshRefusedAsync(harness.ConnectionId, "invalid_client");
+        string firstKey = (await harness.InboxItemsAsync()).Single().Id;
+        clock.Advance(TimeSpan.FromMinutes(15));
+        await harness.Vault.MarkRefreshRefusedAsync(harness.ConnectionId, "invalid_client");
+
+        List<ActionRequiredItemDto> items = await harness.InboxItemsAsync();
+        items.Should().ContainSingle();
+        items[0].Id.Should().Be(firstKey, "a dismissed prompt must not come back under a new key");
+        harness.Bus.Published.OfType<IntegrationNeedsReauthEvent>().Should().ContainSingle();
     }
 
     private sealed class Harness
@@ -98,7 +190,19 @@ public sealed class YouTubeAccessTokenProviderRetryStormTests
         public required YouTubeAccessTokenProvider Provider { get; init; }
         public required IntegrationTokenVault Vault { get; init; }
         public required AuthDbContext Db { get; init; }
+        public required RecordingEventBus Bus { get; init; }
         public required Guid ConnectionId { get; init; }
+
+        public Task<IntegrationConnection> ReadConnectionAsync() =>
+            Db.IntegrationConnections.AsNoTracking().SingleAsync(c => c.Id == ConnectionId);
+
+        public async Task<List<ActionRequiredItemDto>> InboxItemsAsync()
+        {
+            Result<List<ActionRequiredItemDto>> result = await new DeadIntegrationTokenSource(
+                Db
+            ).GetItemsAsync(Broadcaster, new HashSet<string>());
+            return result.Value;
+        }
 
         public static async Task<Harness> BuildAsync(
             CountingGoogleHandler wire,
@@ -110,12 +214,13 @@ public sealed class YouTubeAccessTokenProviderRetryStormTests
                 db,
                 out ISubjectKeyService keys
             );
+            RecordingEventBus bus = new();
             IntegrationTokenVault vault = new(
                 db,
                 protector,
                 keys,
                 new NoopScopeGrantService(),
-                new RecordingEventBus(),
+                bus,
                 clock,
                 NullLogger<IntegrationTokenVault>.Instance
             );
@@ -156,6 +261,7 @@ public sealed class YouTubeAccessTokenProviderRetryStormTests
                 Provider = provider,
                 Vault = vault,
                 Db = db,
+                Bus = bus,
                 ConnectionId = upsert.Value.Id,
             };
         }
@@ -191,6 +297,8 @@ public sealed class YouTubeAccessTokenProviderRetryStormTests
         private int _callCount;
 
         public HttpStatusCode FailWith { get; init; } = HttpStatusCode.BadRequest;
+        public string Body { get; init; } =
+            """{"error":"invalid_grant","error_description":"Token has been expired or revoked."}""";
         public int CallCount => _callCount;
 
         protected override Task<HttpResponseMessage> SendAsync(
@@ -202,11 +310,7 @@ public sealed class YouTubeAccessTokenProviderRetryStormTests
             return Task.FromResult(
                 new HttpResponseMessage(FailWith)
                 {
-                    Content = new StringContent(
-                        """{"error":"invalid_grant","error_description":"Token has been expired or revoked."}""",
-                        Encoding.UTF8,
-                        "application/json"
-                    ),
+                    Content = new StringContent(Body, Encoding.UTF8, "application/json"),
                 }
             );
         }

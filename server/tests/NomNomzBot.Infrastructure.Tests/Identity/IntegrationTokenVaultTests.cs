@@ -353,6 +353,28 @@ public sealed class IntegrationTokenVaultTests
     }
 
     [Fact]
+    public async Task MarkRefreshRefused_FlipsToNeedsReauthAtOnce_AndRepeatsAddNothing()
+    {
+        (IntegrationTokenVault vault, AuthDbContext db, RecordingEventBus bus) = Build();
+        Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+
+        await vault.MarkRefreshRefusedAsync(connectionId, "YouTube refresh failed (401)");
+        IntegrationConnection first = await db.IntegrationConnections.AsNoTracking().SingleAsync();
+        await vault.MarkRefreshRefusedAsync(connectionId, "YouTube refresh failed (401)");
+        IntegrationConnection second = await db.IntegrationConnections.AsNoTracking().SingleAsync();
+
+        first.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
+        first.ConsecutiveFailureCount.Should().Be(1);
+        second.ConsecutiveFailureCount.Should().Be(1);
+        second.LastErrorAt.Should().Be(first.LastErrorAt);
+        IntegrationNeedsReauthEvent reauth = bus
+            .Published.OfType<IntegrationNeedsReauthEvent>()
+            .Single();
+        reauth.ConnectionId.Should().Be(connectionId);
+        bus.Published.OfType<IntegrationErrorEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task MarkTransientRefreshFailure_RaisesIntegrationError_WithProviderChannelAndTheErrorText()
     {
         (IntegrationTokenVault vault, AuthDbContext db, RecordingEventBus bus) = Build();

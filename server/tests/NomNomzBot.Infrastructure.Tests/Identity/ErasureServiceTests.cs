@@ -131,6 +131,12 @@ public sealed class ErasureServiceTests
             CancellationToken cancellationToken = default
         ) => inner.MarkRefreshFailureAsync(connectionId, error, cancellationToken);
 
+        public Task<Result> MarkRefreshRefusedAsync(
+            Guid connectionId,
+            string error,
+            CancellationToken cancellationToken = default
+        ) => inner.MarkRefreshRefusedAsync(connectionId, error, cancellationToken);
+
         public Task<Result> MarkTransientRefreshFailureAsync(
             Guid connectionId,
             string error,

@@ -23,41 +23,76 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 public sealed class OAuthRefreshRejectionTests
 {
     [Theory]
+    [InlineData(HttpStatusCode.BadRequest, """{"error":"invalid_grant"}""", "invalid_grant")]
+    [InlineData(HttpStatusCode.Unauthorized, """{"error":"invalid_grant"}""", "invalid_grant")]
+    [InlineData(HttpStatusCode.Unauthorized, """{"error":"invalid_client"}""", "invalid_client")]
     [InlineData(
         HttpStatusCode.BadRequest,
-        """{"error":"invalid_grant","error_description":"Refresh token revoked"}"""
+        """{"error":"unauthorized_client"}""",
+        "unauthorized_client"
     )]
     [InlineData(
         HttpStatusCode.BadRequest,
-        """{"error":"invalid_grant","error_description":"Token has been expired or revoked."}"""
+        """{"status":400,"message":"Invalid refresh token"}""",
+        null
     )]
-    [InlineData(HttpStatusCode.BadRequest, """{"status":400,"message":"Invalid refresh token"}""")]
-    [InlineData(HttpStatusCode.Unauthorized, """{"error":"invalid_grant"}""")]
-    public async Task A_dead_grant_answer_is_recognised(HttpStatusCode status, string body)
+    public async Task A_refusal_for_good_is_recognised_and_carries_the_oauth_error_code(
+        HttpStatusCode status,
+        string body,
+        string? code
+    )
     {
-        bool dead = await OAuthRefreshRejection.IsDeadGrantAsync(
+        RefreshRejection rejection = await OAuthRefreshRejection.ClassifyAsync(
             Response(status, body),
             CancellationToken.None
         );
 
-        dead.Should().BeTrue();
+        rejection.Kind.Should().Be(RefreshRejectionKind.Refused);
+        rejection.ErrorCode.Should().Be(code);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "")]
+    [InlineData(HttpStatusCode.Unauthorized, "<html>denied</html>")]
+    [InlineData(HttpStatusCode.Unauthorized, """{"error":"access_denied"}""")]
+    public async Task Any_other_401_counts_toward_needs_reauth(HttpStatusCode status, string body)
+    {
+        RefreshRejection rejection = await OAuthRefreshRejection.ClassifyAsync(
+            Response(status, body),
+            CancellationToken.None
+        );
+
+        rejection.Kind.Should().Be(RefreshRejectionKind.Counted);
     }
 
     [Theory]
     [InlineData(HttpStatusCode.ServiceUnavailable, """{"error":"invalid_grant"}""")]
     [InlineData(HttpStatusCode.TooManyRequests, """{"error":"invalid_grant"}""")]
     [InlineData(HttpStatusCode.InternalServerError, "<html>bad gateway</html>")]
-    [InlineData(HttpStatusCode.BadRequest, """{"error":"invalid_client"}""")]
-    [InlineData(HttpStatusCode.Unauthorized, "")]
+    [InlineData(HttpStatusCode.BadRequest, """{"error":"invalid_request"}""")]
     [InlineData(HttpStatusCode.BadRequest, """["invalid_grant"]""")]
-    public async Task Any_other_answer_is_not_a_dead_grant(HttpStatusCode status, string body)
+    public async Task Server_errors_and_odd_400s_are_transient(HttpStatusCode status, string body)
     {
-        bool dead = await OAuthRefreshRejection.IsDeadGrantAsync(
+        RefreshRejection rejection = await OAuthRefreshRejection.ClassifyAsync(
             Response(status, body),
             CancellationToken.None
         );
 
-        dead.Should().BeFalse();
+        rejection.Kind.Should().Be(RefreshRejectionKind.Transient);
+    }
+
+    [Fact]
+    public async Task An_error_field_that_is_not_an_oauth_code_is_never_returned_for_logging()
+    {
+        RefreshRejection rejection = await OAuthRefreshRejection.ClassifyAsync(
+            Response(
+                HttpStatusCode.Unauthorized,
+                """{"error":"ya29.A0ARrdaM-secret-looking value"}"""
+            ),
+            CancellationToken.None
+        );
+
+        rejection.ErrorCode.Should().BeNull();
     }
 
     private static HttpResponseMessage Response(HttpStatusCode status, string body) =>

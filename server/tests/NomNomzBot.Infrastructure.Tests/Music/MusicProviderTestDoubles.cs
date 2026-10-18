@@ -283,6 +283,12 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         return Result.Success();
     }
 
+    public Task<Result> MarkRefreshRefusedAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    ) => MarkRefreshFailureAsync(connectionId, error, cancellationToken);
+
     public async Task<Result> MarkTransientRefreshFailureAsync(
         Guid connectionId,
         string error,
