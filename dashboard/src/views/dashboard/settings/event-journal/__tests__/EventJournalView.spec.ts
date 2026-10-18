@@ -13,6 +13,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
+import { eventJournalKey } from '@/api/eventJournal';
 import { i18n } from '@/i18n';
 import { dashboardSettingsRoutes } from '../../route';
 import EventJournalView from '../EventJournalView.vue';
@@ -32,6 +33,32 @@ type Call = {
 const calls: Call[] = [];
 const saved: { name: string; body: string }[] = [];
 const refused = { path: '' };
+
+const journalPage = {
+  items: [
+    {
+      eventId: 'e2',
+      streamPosition: 42,
+      eventType: 'chat.message',
+      source: 'twitch',
+      occurredAt: '2026-10-01T10:00:00Z',
+      recordedAt: '2026-10-01T10:00:01Z',
+    },
+    {
+      eventId: 'e1',
+      streamPosition: 41,
+      eventType: 'channel.follow',
+      source: 'kick',
+      occurredAt: '2026-10-01T09:00:00Z',
+      recordedAt: '2026-10-01T09:00:01Z',
+    },
+  ],
+  page: 1,
+  pageSize: 25,
+  totalCount: 60,
+  hasMore: true,
+  headPosition: 42,
+};
 
 const answers: Record<string, unknown> = {
   '/export': '{"id":1}\n{"id":2}\n',
@@ -66,6 +93,18 @@ const answers: Record<string, unknown> = {
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
+    GET: async (path: string, options: Call['options']) => {
+      calls.push({
+        method: 'GET',
+        path,
+        options,
+      });
+
+      return {
+        data: { data: journalPage },
+        response: { status: 200, ok: true },
+      };
+    },
     POST: async (path: string, options: Call['options']) => {
       calls.push({
         method: 'POST',
@@ -236,6 +275,73 @@ describe('Event journal page', () => {
 
     expect(q('[role="alert"]').textContent).toContain('Owner only.');
     expect(document.body.querySelector('[data-replay-result]')).toBeNull();
+  });
+});
+
+describe('Event journal list', () => {
+  const journalCalls = (): Call[] => calls.filter((call) => call.method === 'GET');
+
+  it('lists the events newest first with their position, type and source', async () => {
+    window.localStorage.clear();
+    await open();
+
+    const rows = document.body.querySelectorAll('[data-journal-row]');
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain('42');
+    expect(rows[0]!.textContent).toContain('chat.message');
+    expect(rows[0]!.textContent).toContain('twitch');
+    expect(rows[1]!.textContent).toContain('channel.follow');
+
+    expect(journalCalls()[0]!.options).toMatchObject({
+      params: { path: { channelId: 'c1' }, query: { Page: 1, Take: 25 } },
+    });
+  });
+
+  it('sends the typed filters to the bot and returns to page 1', async () => {
+    window.localStorage.clear();
+    await open();
+    await click(q('[data-next]'));
+
+    expect(journalCalls().at(-1)!.options.params).toMatchObject({ query: { Page: 2 } });
+
+    const type = q('[data-filter-type]') as HTMLInputElement;
+
+    type.value = 'channel.follow';
+    type.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((done) => setTimeout(done, 400));
+    await settle();
+
+    expect(journalCalls().at(-1)!.options.params).toMatchObject({
+      query: { Page: 1, eventType: 'channel.follow' },
+    });
+  });
+
+  it('keeps a filter after the page is opened again', async () => {
+    window.localStorage.clear();
+    await open();
+
+    const source = q('[data-filter-source]') as HTMLInputElement;
+
+    source.value = 'kick';
+    source.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    mounted?.unmount();
+    await open();
+
+    expect((q('[data-filter-source]') as HTMLInputElement).value).toBe('kick');
+  });
+
+  it('reads the list again when the channel journal changes', async () => {
+    window.localStorage.clear();
+    await open();
+
+    const before = journalCalls().length;
+
+    await queries.invalidateQueries({ queryKey: eventJournalKey('c1') });
+    await settle();
+
+    expect(journalCalls().length).toBeGreaterThan(before);
   });
 });
 

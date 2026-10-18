@@ -13,6 +13,7 @@ import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 
 import JournalFilePanel from './components/JournalFilePanel.vue';
+import JournalListPanel from './components/JournalListPanel.vue';
 import LegacyHistoryPanel from './components/LegacyHistoryPanel.vue';
 import ReadModelsPanel from './components/ReadModelsPanel.vue';
 </script>
@@ -21,6 +22,7 @@ import ReadModelsPanel from './components/ReadModelsPanel.vue';
   <PageHeader :title="$t('frame.nav.settingsPages.eventJournal')" :crumb="$t('dashboard.settings.crumb')" />
 
   <PageBody>
+    <JournalListPanel />
     <JournalFilePanel />
     <ReadModelsPanel />
     <LegacyHistoryPanel />

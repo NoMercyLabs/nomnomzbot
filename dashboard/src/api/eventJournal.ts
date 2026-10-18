@@ -10,14 +10,37 @@
 
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   type UseMutationReturnType,
+  type UseQueryReturnType,
 } from '@tanstack/vue-query';
-import { toValue, type MaybeRefOrGetter } from 'vue';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
+
+import { merge, type KeyParts } from '@/lib/array';
 
 import { refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
+
+export type JournalEntry = components['schemas']['EventJournalEntry'];
+export type JournalPage = components['schemas']['EventJournalPage'];
+
+export type JournalFilters = {
+  eventType: string;
+  source: string;
+  from: string;
+  to: string;
+  page: number;
+  take: number;
+};
+
+// Every cached page of a channel's journal starts with this, whatever its filters.
+export const eventJournalKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'event-journal',
+];
 
 export type JournalImportSummary = components['schemas']['EventJournalImportSummary'];
 export type LegacyImportResult = components['schemas']['LegacyImportResult'];
@@ -157,5 +180,60 @@ export function useRebuildProjections(
       return [...rows];
     },
     onSuccess: refresh,
+  });
+}
+
+function journalQuery(filters: JournalFilters): Record<string, string | number> {
+  const query: Record<string, string | number> = { Page: filters.page, Take: filters.take };
+
+  if (filters.eventType) {
+    query.eventType = filters.eventType;
+  }
+
+  if (filters.source) {
+    query.source = filters.source;
+  }
+
+  if (filters.from) {
+    query.from = filters.from;
+  }
+
+  if (filters.to) {
+    query.to = filters.to;
+  }
+
+  return query;
+}
+
+// One page of the channel's journal, newest first. A new event on the channel makes every cached page stale.
+export function useJournalPage(
+  channelId: ChannelId,
+  filters: MaybeRefOrGetter<JournalFilters>,
+): UseQueryReturnType<JournalPage, Error> {
+  return useQuery({
+    queryKey: computed(() => {
+      const prefix = eventJournalKey(toValue(channelId));
+
+      return merge(prefix, [toValue(filters)]);
+    }),
+    queryFn: async (): Promise<JournalPage> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/event-store/channels/{channelId}/journal',
+        {
+          params: {
+            path: { version, channelId: toValue(channelId) as string },
+            query: journalQuery(toValue(filters)),
+          },
+        },
+      );
+
+      const page = data?.data;
+
+      if (error !== undefined || page === undefined || page === null)
+        throw refusal('read event journal', error, response.status);
+
+      return page;
+    },
+    enabled: computed(() => toValue(channelId) !== null),
   });
 }

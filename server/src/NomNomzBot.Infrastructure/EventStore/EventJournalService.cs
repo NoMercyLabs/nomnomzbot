@@ -33,16 +33,21 @@ public sealed class EventJournalService : IEventJournal
     private readonly TimeProvider _clock;
     private readonly IEventPayloadProtector _payloadProtector;
     private readonly ICurrentUserService _currentUser;
+    private readonly IEventJournalChangeNotifier _changeNotifier;
 
+    // changeNotifier is optional only so a bare construction (a test, a tool) needs no hub; the host always
+    // registers one, and DI supplies it.
     public EventJournalService(
         IApplicationDbContext db,
         ITenantSequenceAllocator sequences,
         IUnitOfWork unitOfWork,
         TimeProvider clock,
         IEventPayloadProtector payloadProtector,
-        ICurrentUserService currentUser
+        ICurrentUserService currentUser,
+        IEventJournalChangeNotifier? changeNotifier = null
     )
     {
+        _changeNotifier = changeNotifier ?? new NullEventJournalChangeNotifier();
         _db = db;
         _sequences = sequences;
         _unitOfWork = unitOfWork;
@@ -73,7 +78,7 @@ public sealed class EventJournalService : IEventJournal
         // is idempotent by EventId, so a retried attempt returns the already-stored record.
         try
         {
-            return await _unitOfWork.ExecuteInTransactionAsync(
+            Result<EventRecord> single = await _unitOfWork.ExecuteInTransactionAsync(
                 async token =>
                 {
                     Result<EventJournal> appended = await AppendOneAsync(
@@ -94,6 +99,10 @@ public sealed class EventJournalService : IEventJournal
                 cancellationToken,
                 shouldCommit: record => record.IsSuccess
             );
+
+            if (single.IsSuccess && request.BroadcasterId is { } tenant)
+                _changeNotifier.NotifyChanged(tenant);
+            return single;
         }
         catch (Exception ex)
         {
@@ -155,7 +164,7 @@ public sealed class EventJournalService : IEventJournal
         {
             // Retriable unit — see AppendAsync. A retry re-reserves positions and re-inserts, which is
             // safe: nothing outside the transaction observed the rolled-back attempt.
-            return await _unitOfWork.ExecuteInTransactionAsync(
+            Result<IReadOnlyList<EventRecord>> batch = await _unitOfWork.ExecuteInTransactionAsync(
                 async token =>
                 {
                     DateTime now = _clock.GetUtcNow().UtcDateTime;
@@ -221,6 +230,11 @@ public sealed class EventJournalService : IEventJournal
                 cancellationToken,
                 shouldCommit: records => records.IsSuccess
             );
+
+            if (batch.IsSuccess)
+                foreach (Guid tenant in newByTenant.Keys)
+                    _changeNotifier.NotifyChanged(tenant);
+            return batch;
         }
         catch (Exception ex)
         {
@@ -428,6 +442,7 @@ public sealed class EventJournalService : IEventJournal
             .Where(e =>
                 (query.BroadcasterId == null || e.BroadcasterId == query.BroadcasterId)
                 && (query.EventType == null || e.EventType == query.EventType)
+                && (query.Source == null || e.Source == query.Source)
                 && (query.FromUtc == null || e.OccurredAt >= query.FromUtc)
                 && (query.ToUtc == null || e.OccurredAt <= query.ToUtc)
                 && (query.ActorUserId == null || e.ActorUserId == query.ActorUserId)

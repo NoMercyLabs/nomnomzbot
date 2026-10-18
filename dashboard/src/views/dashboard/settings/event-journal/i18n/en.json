@@ -3,6 +3,26 @@
     "settings": {
       "crumb": "Setup",
       "eventJournal": {
+        "list": {
+          "title": "Journal",
+          "description": "{count} events match. The journal ends at position {head}.",
+          "empty": "No events match these filters.",
+          "error": "The journal could not be loaded.",
+          "eventType": "Event type",
+          "source": "Source",
+          "from": "From date",
+          "to": "To date",
+          "clear": "Clear filters",
+          "page": "Page {page} of {pages}",
+          "previous": "Previous",
+          "next": "Next",
+          "columns": {
+            "position": "Position",
+            "eventType": "Event type",
+            "source": "Source",
+            "occurredAt": "When"
+          }
+        },
         "file": {
           "title": "Journal file",
           "description": "The journal is the record of everything that happened in your channel. Save a copy, or load one you saved before. Loading adds only what is missing.",

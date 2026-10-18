@@ -224,6 +224,10 @@ try
         NomNomzBot.Application.Notifications.Services.IActionRequiredChangeNotifier,
         ActionRequiredChangeNotifier
     >();
+    builder.Services.AddSingleton<
+        NomNomzBot.Application.Contracts.EventStore.IEventJournalChangeNotifier,
+        EventJournalChangeNotifier
+    >();
     builder.Services.AddScoped<
         NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
         SoundClipOverlayNotifierAdapter

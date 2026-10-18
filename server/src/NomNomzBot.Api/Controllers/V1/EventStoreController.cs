@@ -35,6 +35,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("EventStore")]
 public class EventStoreController : BaseController
 {
+    private readonly IEventJournal _journal;
     private readonly IEventJournalPortabilityService _portability;
     private readonly ILegacyChannelImportService _legacyImport;
     private readonly IProjectionRunner _projectionRunner;
@@ -42,6 +43,7 @@ public class EventStoreController : BaseController
     private readonly TimeProvider _clock;
 
     public EventStoreController(
+        IEventJournal journal,
         IEventJournalPortabilityService portability,
         ILegacyChannelImportService legacyImport,
         IProjectionRunner projectionRunner,
@@ -49,11 +51,57 @@ public class EventStoreController : BaseController
         TimeProvider clock
     )
     {
+        _journal = journal;
         _portability = portability;
         _legacyImport = legacyImport;
         _projectionRunner = projectionRunner;
         _tenant = tenant;
         _clock = clock;
+    }
+
+    /// <summary>
+    /// Reads one page of the channel's journal, newest first, with the channel's head position. Filters are
+    /// optional: <c>eventType</c> and <c>source</c> match exactly, <c>from</c> and <c>to</c> bound the time the
+    /// event happened. Rows carry no payload (it can hold sealed personal data). Only the resolved channel's own
+    /// stream is read.
+    /// </summary>
+    [RequireAction("eventstore:journal:read")]
+    [HttpGet("journal")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [ProducesResponseType<StatusResponseDto<EventJournalPageDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReadJournal(
+        string channelId,
+        [FromQuery] string? eventType,
+        [FromQuery] string? source,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        if (_tenant.BroadcasterId is not { } broadcasterId)
+            return UnauthenticatedResponse("No channel resolved for the caller.");
+
+        Result<PagedList<EventRecord>> page = await _journal.QueryAsync(
+            new(broadcasterId, eventType, from, to, null, request.Page, request.Take, source),
+            ct
+        );
+        if (page.IsFailure)
+            return ResultResponse(page);
+
+        Result<long> head = await _journal.GetHeadPositionAsync(broadcasterId, ct);
+        if (head.IsFailure)
+            return ResultResponse(head);
+
+        EventJournalPageDto body = new(
+            [.. page.Value.Items.Select(EventJournalEntryDto.From)],
+            page.Value.Page,
+            page.Value.PageSize,
+            page.Value.TotalCount,
+            page.Value.HasNextPage,
+            head.Value
+        );
+        return Ok(new StatusResponseDto<EventJournalPageDto> { Status = "ok", Data = body });
     }
 
     /// <summary>

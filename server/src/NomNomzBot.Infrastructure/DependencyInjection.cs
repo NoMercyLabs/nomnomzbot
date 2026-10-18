@@ -1975,6 +1975,11 @@ public static class DependencyInjection
             Application.Contracts.EventStore.IEventJournal,
             EventStore.EventJournalService
         >();
+        // No-op fallback; the API host replaces it with the hub-backed EventJournalChangeNotifier.
+        services.AddSingleton<
+            Application.Contracts.EventStore.IEventJournalChangeNotifier,
+            EventStore.NullEventJournalChangeNotifier
+        >();
         // Journal payload-encryption seam (gdpr-crypto §3.4): seals PII-bearing payloads under the subject DEK on
         // append, opens them on read. Scoped — composes the scoped ISubjectKeyService (DbContext-backed registry).
         services.AddScoped<

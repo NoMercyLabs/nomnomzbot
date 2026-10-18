@@ -3,6 +3,26 @@
     "settings": {
       "crumb": "Setup",
       "eventJournal": {
+        "list": {
+          "title": "Journaal",
+          "description": "{count} gebeurtenissen komen overeen. Het journaal eindigt op positie {head}.",
+          "empty": "Geen gebeurtenissen voor deze filters.",
+          "error": "Het journaal kon niet worden geladen.",
+          "eventType": "Soort gebeurtenis",
+          "source": "Bron",
+          "from": "Vanaf datum",
+          "to": "Tot datum",
+          "clear": "Filters wissen",
+          "page": "Pagina {page} van {pages}",
+          "previous": "Vorige",
+          "next": "Volgende",
+          "columns": {
+            "position": "Positie",
+            "eventType": "Soort gebeurtenis",
+            "source": "Bron",
+            "occurredAt": "Wanneer"
+          }
+        },
         "file": {
           "title": "Journaalbestand",
           "description": "Het journaal is het verslag van alles wat in je kanaal gebeurde. Bewaar een kopie, of laad er een die je eerder bewaarde. Laden voegt alleen toe wat ontbreekt.",

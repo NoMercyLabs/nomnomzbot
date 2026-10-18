@@ -12,6 +12,7 @@ import { actionRequiredKey } from '@/api/actionRequired';
 import { builtinsKey, commandsKey } from '@/api/commands';
 import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
 import { engagementConfigKey } from '@/api/engagement';
+import { eventJournalKey } from '@/api/eventJournal';
 import { featuresKey } from '@/api/features';
 import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
 import { integrationsKey, spotifyCredentialsKey } from '@/api/integrations';
@@ -66,6 +67,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'earning-rules': [earningRulesKey],
   'savings-jar': [savingsJarsKey],
   permissions: [membersKey, actionMatrixKey],
+  'event-journal': [eventJournalKey],
 };
 
 // A domain with no page key of its own (catalog, quotes, picklists, or a

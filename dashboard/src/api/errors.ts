@@ -433,6 +433,7 @@ export const apiOperations = {
   'check invite code': 'settings',
   'redeem invite code': 'settings',
   'export event journal': 'settings',
+  'read event journal': 'settings',
   'import event journal': 'settings',
   'replay imported events': 'settings',
   'import legacy history': 'settings',

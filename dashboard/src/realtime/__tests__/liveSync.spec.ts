@@ -12,6 +12,7 @@ import { QueryClient } from '@tanstack/vue-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { actionRequiredKey } from '@/api/actionRequired';
+import { eventJournalKey } from '@/api/eventJournal';
 import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
 import { giveawaysKey } from '@/api/giveaways';
 import { pollHistoryKey, pollsKey, predictionsKey, timersKey } from '@/api/liveOps';
@@ -94,6 +95,7 @@ const everyKey: Keys[] = [
   actionMatrixKey,
   membersKey,
   personGrantsKey,
+  eventJournalKey,
 ];
 
 // Each hub event with the keys it must mark stale for the joined channel.
@@ -320,6 +322,7 @@ const domainKeys: [string, Keys[]][] = [
   ['economy-config', [currencyConfigKey]],
   ['earning-rules', [earningRulesKey]],
   ['savings-jar', [savingsJarsKey]],
+  ['event-journal', [eventJournalKey]],
 ];
 
 describe('a saved or removed shoutout message refreshes the open profiles', () => {

@@ -32840,6 +32840,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/event-store/channels/{channelId}/journal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one page of the channel's journal, newest first, with the channel's head position. Filters are
+         *     optional: <c>eventType</c> and <c>source</c> match exactly, <c>from</c> and <c>to</c> bound the time the
+         *     event happened. Rows carry no payload (it can hold sealed personal data). Only the resolved channel's own
+         *     stream is read.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    eventType?: string;
+                    source?: string;
+                    from?: string;
+                    to?: string;
+                    Page?: number | string;
+                    Take?: number | string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfEventJournalPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/event-store/channels/{channelId}/export": {
         parameters: {
             query?: never;
@@ -89913,6 +90018,23 @@ export interface components {
              */
             samplePayloadJson?: null | string;
         };
+        /** @description One journal row as the dashboard lists it. The payload is deliberately absent: it can hold sealed personal data, and the list only needs to show what happened, when, where it came from and who did it. */
+        EventJournalEntry: {
+            /** Format: ulid */
+            eventId: string;
+            /** Format: int64 */
+            streamPosition: number | string;
+            eventType: string;
+            source: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: ulid */
+            actorUserId?: null | string;
+            actorExternalUserId?: null | string;
+            actorProvider?: null | string;
+        };
         /**
          * @description The outcome of an import: how many lines the file held, how many events were newly appended, how many were
          *     skipped as already-present duplicates (idempotency), and how many were upcast from a stale shape on the way in.
@@ -89926,6 +90048,22 @@ export interface components {
             skippedDuplicate: number | string;
             /** Format: int64 */
             upcast: number | string;
+        };
+        /**
+         * @description One page of a channel's journal, newest first, with the figures the journal page shows beside the list:
+         *     how many rows match the filters and where the channel's stream currently ends.
+         */
+        EventJournalPage: {
+            items: components["schemas"]["EventJournalEntry"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            hasMore: boolean;
+            /** Format: int64 */
+            headPosition: number | string;
         };
         /**
          * @description An event response configuration, as the runtime performs it: while FollowsPlatformDefault
@@ -96177,6 +96315,19 @@ export interface components {
         StatusResponseOfEventJournalImportSummary: {
             status?: string;
             data?: null | components["schemas"]["EventJournalImportSummary"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfEventJournalPage: {
+            status?: string;
+            data?: null | components["schemas"]["EventJournalPage"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on

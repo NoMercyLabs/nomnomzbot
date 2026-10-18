@@ -72,7 +72,8 @@ public sealed record EventJournalQuery(
     DateTime? ToUtc,
     Guid? ActorUserId,
     int Page,
-    int PageSize
+    int PageSize,
+    string? Source = null
 );
 
 // ---- Projections ----
