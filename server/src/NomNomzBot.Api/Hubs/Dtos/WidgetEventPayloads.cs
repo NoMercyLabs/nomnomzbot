@@ -58,6 +58,23 @@ public record ChatMessageEnrichedWidgetPayload(
 /// <summary><c>sr_queue</c>: the whole song-request queue, in play order.</summary>
 public record SrQueueWidgetPayload(IReadOnlyList<SongRequestQueueSnapshotItem> Items);
 
+/// <summary>
+/// <c>media_share_command</c>: what the server tells the media-share player to do. <c>Command</c> is one of
+/// load | play | pause | stop | seek | volume; the item fields (<c>RequestId</c> … <c>DurationSeconds</c>) are set only
+/// for <c>load</c>, <c>PositionSeconds</c> for <c>seek</c>, <c>Volume</c> for <c>volume</c> (0-100).
+/// </summary>
+public record MediaShareCommandWidgetPayload(
+    string Command,
+    Guid? RequestId,
+    string? SourceType,
+    string? MediaRef,
+    string? SourceUrl,
+    string? Title,
+    int? DurationSeconds,
+    int? PositionSeconds,
+    int? Volume
+);
+
 /// <summary><c>ad_schedule</c>: the channel's ad schedule, sent on every poll while live (times are UTC, null when none).</summary>
 public record AdScheduleWidgetPayload(
     DateTimeOffset? NextAdAt,

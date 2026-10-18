@@ -107,6 +107,7 @@ public sealed class WidgetTestSamplesCompletenessTests
             { "shoutout_sent", typeof(ShoutoutSentAlertDto) },
             { "shoutout_received", typeof(ShoutoutReceivedAlertDto) },
             { "sr_queue", typeof(SrQueueWidgetPayload) },
+            { "media_share_command", typeof(MediaShareCommandWidgetPayload) },
             { "now_playing", typeof(NowPlayingWidgetPayload) },
             { "ad_schedule", typeof(AdScheduleWidgetPayload) },
             { "ad_upcoming", typeof(AdUpcomingWidgetPayload) },

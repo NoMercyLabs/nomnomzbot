@@ -256,6 +256,17 @@ internal static class WidgetTestSamples
             new SongRequestQueueSnapshotItem("Sandstorm", "AnotherViewer", 225, 2, "B2XR"),
             new SongRequestQueueSnapshotItem("Bohemian Rhapsody", "ThirdViewer", 355, 3, "M9TD"),
         ]),
+        ["media_share_command"] = _ => new MediaShareCommandWidgetPayload(
+            "load",
+            Guid.Parse("0190c0de-0000-7000-8000-000000000001"),
+            "youtube",
+            "dQw4w9WgXcQ",
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "Never Gonna Give You Up",
+            213,
+            null,
+            null
+        ),
         ["now_playing"] = now => new NowPlayingWidgetPayload(
             true,
             "Test Track",

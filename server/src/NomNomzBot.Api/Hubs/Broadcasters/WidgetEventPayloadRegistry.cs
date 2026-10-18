@@ -78,6 +78,7 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("shoutout_sent", typeof(ShoutoutSentAlertDto)),
         new("shoutout_received", typeof(ShoutoutReceivedAlertDto)),
         new("sr_queue", typeof(SrQueueWidgetPayload)),
+        new("media_share_command", typeof(MediaShareCommandWidgetPayload)),
         new("now_playing", typeof(NowPlayingWidgetPayload)),
         new("ad_schedule", typeof(AdScheduleWidgetPayload)),
         new("ad_upcoming", typeof(AdUpcomingWidgetPayload)),

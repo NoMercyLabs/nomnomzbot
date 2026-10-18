@@ -380,6 +380,19 @@ interface NnzSrQueueWidgetPayload {
   items: NnzSongRequestQueueSnapshotItem[];
 }
 
+/** media_share_command: what the server tells the media-share player to do. Command is one of load | play | pause | stop | seek | volume; the item fields (RequestId … DurationSeconds) are set only for load, PositionSeconds for seek, Volume for volume (0-100). */
+interface NnzMediaShareCommandWidgetPayload {
+  command: string;
+  requestId?: string | null;
+  sourceType?: string | null;
+  mediaRef?: string | null;
+  sourceUrl?: string | null;
+  title?: string | null;
+  durationSeconds?: number | null;
+  positionSeconds?: number | null;
+  volume?: number | null;
+}
+
 /** now_playing: the standing music snapshot. RequestedBy is null when the streamer started the track themselves. */
 interface NnzNowPlayingWidgetPayload {
   isPlaying: boolean;
@@ -1454,6 +1467,7 @@ interface NnzWidgetEventMap {
   'shoutout_sent': NnzShoutoutSentAlertDto;
   'shoutout_received': NnzShoutoutReceivedAlertDto;
   'sr_queue': NnzSrQueueWidgetPayload;
+  'media_share_command': NnzMediaShareCommandWidgetPayload;
   'now_playing': NnzNowPlayingWidgetPayload;
   'ad_schedule': NnzAdScheduleWidgetPayload;
   'ad_upcoming': NnzAdUpcomingWidgetPayload;
@@ -1515,6 +1529,7 @@ type NnzWidgetAnyEvent =
   | [eventType: 'shoutout_sent', data: NnzShoutoutSentAlertDto]
   | [eventType: 'shoutout_received', data: NnzShoutoutReceivedAlertDto]
   | [eventType: 'sr_queue', data: NnzSrQueueWidgetPayload]
+  | [eventType: 'media_share_command', data: NnzMediaShareCommandWidgetPayload]
   | [eventType: 'now_playing', data: NnzNowPlayingWidgetPayload]
   | [eventType: 'ad_schedule', data: NnzAdScheduleWidgetPayload]
   | [eventType: 'ad_upcoming', data: NnzAdUpcomingWidgetPayload]
