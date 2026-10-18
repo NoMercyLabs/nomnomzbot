@@ -249,12 +249,14 @@ public sealed class DirectVtsTransport : IVtsTransport, IAsyncDisposable, IDispo
                 {
                     config.Status = "error";
                     await db.SaveChangesAsync(CancellationToken.None);
+                    await PublishStatusAsync(broadcasterId, config.Status);
                     return connected;
                 }
                 _sessions[broadcasterId] = connected.Value;
                 config.Status = "connected";
                 config.LastConnectedAt = _clock.GetUtcNow().UtcDateTime;
                 await db.SaveChangesAsync(ct);
+                await PublishStatusAsync(broadcasterId, config.Status);
                 return connected;
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
@@ -266,6 +268,7 @@ public sealed class DirectVtsTransport : IVtsTransport, IAsyncDisposable, IDispo
                 );
                 config.Status = "error";
                 await db.SaveChangesAsync(CancellationToken.None);
+                await PublishStatusAsync(broadcasterId, config.Status);
                 return Result.Failure<VtsSession>(
                     "Could not connect to VTube Studio at the configured endpoint.",
                     "VTS_NOT_CONNECTED"
@@ -277,6 +280,16 @@ public sealed class DirectVtsTransport : IVtsTransport, IAsyncDisposable, IDispo
             gate.Release();
         }
     }
+
+    private Task PublishStatusAsync(Guid broadcasterId, string status) =>
+        _eventBus.PublishAsync(
+            new VtsStatusChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = _clock.GetUtcNow(),
+                Status = status,
+            }
+        );
 
     private async Task<Result<VtsSession>> ConnectAuthenticateSubscribeAsync(
         Guid broadcasterId,

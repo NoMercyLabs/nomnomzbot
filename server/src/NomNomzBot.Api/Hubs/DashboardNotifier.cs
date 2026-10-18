@@ -101,6 +101,7 @@ public interface IDashboardNotifier
         ObsStateChangedDto dto,
         CancellationToken ct = default
     );
+    Task SendVtsStatusAsync(string broadcasterId, VtsStatusDto dto, CancellationToken ct = default);
 }
 
 public class DashboardNotifier : IDashboardNotifier
@@ -267,6 +268,12 @@ public class DashboardNotifier : IDashboardNotifier
         ObsStateChangedDto dto,
         CancellationToken ct = default
     ) => BaseGroup(broadcasterId).ObsStateChanged(dto);
+
+    public Task SendVtsStatusAsync(
+        string broadcasterId,
+        VtsStatusDto dto,
+        CancellationToken ct = default
+    ) => BaseGroup(broadcasterId).VtsStatusChanged(dto);
 
     private IDashboardClient BaseGroup(string broadcasterId) =>
         _hub.Clients.Group(DashboardEventClasses.BaseGroup(broadcasterId));

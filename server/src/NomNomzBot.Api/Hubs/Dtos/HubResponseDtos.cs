@@ -206,6 +206,12 @@ public record ObsLiveStateDto(
 );
 
 /// <summary>
+/// Pushed to the channel's dashboards when the direct VTube Studio connection changes state, so the
+/// VTS page shows the new <paramref name="Status"/> (<c>connected</c> or <c>error</c>) live.
+/// </summary>
+public record VtsStatusDto(string BroadcasterId, string Status, string Timestamp);
+
+/// <summary>
 /// Pushed to the channel's dashboards when one piece of live OBS state changes, carrying the new value so
 /// the OBS page patches in place without a refetch. <paramref name="Kind"/> names the piece; only its fields are set.
 /// </summary>

@@ -229,6 +229,43 @@ public sealed class VtsTransportTests
     }
 
     [Fact]
+    public async Task A_connection_that_authenticates_publishes_the_connected_status()
+    {
+        Harness h = Build();
+
+        Task<Result<string>> send = h.Transport.RequestAsync(Channel, "StatisticsRequest", "{}");
+        await h.Socket.ReplyToAsync(
+            "AuthenticationRequest",
+            "AuthenticationResponse",
+            """{ "authenticated": true }"""
+        );
+        await h.Socket.ReplyToAsync("StatisticsRequest", "StatisticsResponse", "{}");
+        await send.WaitAsync(TimeSpan.FromSeconds(5));
+
+        VtsStatusChangedEvent changed = h.Bus.Published.OfType<VtsStatusChangedEvent>().Single();
+        changed.BroadcasterId.Should().Be(Channel);
+        changed.Status.Should().Be("connected");
+    }
+
+    [Fact]
+    public async Task A_rejected_token_publishes_the_error_status()
+    {
+        Harness h = Build();
+
+        Task<Result<string>> send = h.Transport.RequestAsync(Channel, "ModelLoadRequest", "{}");
+        await h.Socket.ReplyToAsync(
+            "AuthenticationRequest",
+            "AuthenticationResponse",
+            """{ "authenticated": false, "reason": "token revoked" }"""
+        );
+        await send.WaitAsync(TimeSpan.FromSeconds(5));
+
+        VtsStatusChangedEvent changed = h.Bus.Published.OfType<VtsStatusChangedEvent>().Single();
+        changed.BroadcasterId.Should().Be(Channel);
+        changed.Status.Should().Be("error");
+    }
+
+    [Fact]
     public async Task No_stored_token_is_VTS_UNAUTHORIZED_without_dialing()
     {
         Harness h = Build(withToken: false);

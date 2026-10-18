@@ -24,3 +24,13 @@ public sealed class VtsEventReceived : DomainEventBase
     /// <summary>The raw VTS event <c>data</c> JSON (may be empty).</summary>
     public required string PayloadJson { get; init; }
 }
+
+/// <summary>
+/// The channel's direct VTube Studio connection changed state (<c>connected</c> or <c>error</c>) —
+/// feeds the dashboard's live VTS status chip.
+/// </summary>
+public sealed class VtsStatusChangedEvent : DomainEventBase
+{
+    /// <summary>The new connection status, as stored on the connection row.</summary>
+    public required string Status { get; init; }
+}
