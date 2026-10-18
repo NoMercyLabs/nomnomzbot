@@ -13,6 +13,7 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.MediaShare.Dtos;
 using NomNomzBot.Application.Raids;
 using NomNomzBot.Application.Widgets.Dtos;
 
@@ -53,6 +54,18 @@ public sealed class SchemaDtoStringShapeTests
         {
             nameof(WidgetSettingsField.Key),
             nameof(WidgetSettingsField.Type),
+            // Names a pipeline resource-picker kind the dashboard switches on, never rendered.
+            nameof(WidgetSettingsField.Picker),
+        },
+        // The live media-share player state: `State` is the wire state the overlay and dashboard switch on;
+        // Title, SharerName and ThumbnailUrl are the viewer's submission as the media source returned it, runtime
+        // data and not developer-authored prose.
+        [typeof(MediaPlayerStateDto)] = new HashSet<string>
+        {
+            nameof(MediaPlayerStateDto.State),
+            nameof(MediaPlayerStateDto.Title),
+            nameof(MediaPlayerStateDto.SharerName),
+            nameof(MediaPlayerStateDto.ThumbnailUrl),
         },
         [typeof(WidgetSettingsFieldOption)] = new HashSet<string>
         {

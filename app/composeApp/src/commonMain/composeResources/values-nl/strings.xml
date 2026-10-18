@@ -5161,6 +5161,8 @@
     <string name="widget_sr_queue_showRequester_label">Aanvrager tonen</string>
     <string name="widget_sr_queue_showDuration_label">Duur tonen</string>
     <string name="widget_sr_queue_accentColor_label">Accentkleur</string>
+    <string name="widget_media_share_showTitle_label">Titel tonen</string>
+    <string name="widget_media_share_accentColor_label">Accentkleur</string>
     <string name="widget_audio_showIndicator_label">Spreekindicator tonen (alleen instellen)</string>
     <string name="widget_audio_accentColor_label">Accentkleur</string>
     <string name="widget_audio_enableAudio_label">Audio op deze pagina afspelen</string>
@@ -6227,6 +6229,8 @@
     <string name="widget_gallery_top_cheerers_description">Een gerangschikt bord van de grootste cheerers van de sessie op bits. Het is het volledige klassement waar de labels-widget met zijn ene topcheerer alleen naar hint, met instelbare diepte en titel.</string>
     <string name="widget_gallery_lucky_feather_name">Lucky Feather</string>
     <string name="widget_gallery_lucky_feather_description">Toont wie de Lucky Feather vasthoudt en kondigt elke diefstal aan.</string>
+    <string name="widget_gallery_media_share_name">Media delen</string>
+    <string name="widget_gallery_media_share_description">Speelt de goedgekeurde Twitch-clips en YouTube-filmpjes die kijkers delen af op de stream. De server stuurt de opdrachten laden, afspelen, pauzeren, stoppen, spoelen en volume, en deze overlay meldt de status van de speler terug, zodat een afgelopen item de wachtrij laat doorschuiven. Verborgen zolang er niets speelt.</string>
     <string name="widget_gallery_raid_recap_name">Raid-terugblik</string>
     <string name="widget_gallery_raid_recap_description">De terugblik op de stream als eindscène. Blokken zonder gegevens vallen weg en de rest groeit mee. Blijft een ingestelde tijd staan en vervaagt dan.</string>
 
