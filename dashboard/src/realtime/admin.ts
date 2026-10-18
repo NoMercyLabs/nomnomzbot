@@ -21,6 +21,7 @@ import { billingPrefix } from '@/api/adminBilling';
 import { accessPrefix } from '@/api/adminAccess';
 import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { contentPrefix } from '@/api/adminContent';
+import { dataRequestsPrefix } from '@/api/adminDataRequests';
 import { platformBotPrefix } from '@/api/adminPlatformBot';
 import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
@@ -31,6 +32,7 @@ import type {
   AdminBillingPayload,
   AdminChannelRegistryPayload,
   AdminContentPayload,
+  AdminDataRequestsPayload,
   AdminErrorBudgetPayload,
   AdminPlatformBotPayload,
   AdminSystemStatusPayload,
@@ -100,6 +102,7 @@ export const adminHandlers: [
   HubEventHandler<AdminErrorBudgetPayload>,
   HubEventHandler<AdminContentPayload>,
   HubEventHandler<AdminAccessPayload>,
+  HubEventHandler<AdminDataRequestsPayload>,
   HubEventHandler<AdminBillingPayload>,
   HubEventHandler<AdminPlatformBotPayload>,
   HubEventHandler<AdminAuditPayload>,
@@ -140,6 +143,13 @@ export const adminHandlers: [
     event: 'ReceiveAccessChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: accessPrefix });
+    },
+  },
+  {
+    // A data request changed state: the ledger and its counts reload.
+    event: 'ReceiveDataRequestsChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: dataRequestsPrefix });
     },
   },
   {

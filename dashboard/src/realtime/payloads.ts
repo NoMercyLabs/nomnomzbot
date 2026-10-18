@@ -132,6 +132,13 @@ export type AdminAccessPayload = {
   assignmentId: string | null;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveDataRequestsChanged (AdminDataRequestsBroadcastHandler). A data request was
+// requested, completed, failed or exported. It names the request, never the subject.
+export type AdminDataRequestsPayload = {
+  change: string;
+  erasureRequestId: string;
+};
+
 // Hubs/Clients/IAdminClient.cs: ReceiveBillingChanged (AdminBillingBroadcastHandler). An operator changed a tier, an
 // invite code, a grant, an invoice or a priced unit; area names which, targetBroadcasterId the channel it touched.
 export type AdminBillingPayload = {

@@ -725,6 +725,53 @@
           "forbidden": "Je mag de auditlog niet lezen."
         }
       },
+      "dataRequests": {
+        "title": "Gegevensverzoeken",
+        "failed": "Opnieuw proberen is mislukt. Er is niets gewist.",
+        "filters": {
+          "status": "Status",
+          "type": "Soort"
+        },
+        "status": {
+          "all": "Alle statussen",
+          "pending": "In afwachting",
+          "running": "Bezig",
+          "completed": "Voltooid",
+          "failed": "Mislukt",
+          "canceled": "Geannuleerd"
+        },
+        "type": {
+          "all": "Alle soorten",
+          "erasure": "Wissen",
+          "export": "Export",
+          "opt_out": "Afmelding"
+        },
+        "summary": {
+          "title": "Register",
+          "description": "Elk verzoek geteld per status, uit het echte register.",
+          "total": "Totaal"
+        },
+        "list": {
+          "title": "Verzoeken",
+          "description": "Nieuwste eerst. Een persoon staat als hash, nooit met naam. Een wijziging verschijnt vanzelf.",
+          "empty": "Geen gegevensverzoek past.",
+          "error": "De gegevensverzoeken konden niet laden.",
+          "subject": "Persoon {hash}",
+          "by": "Aangevraagd door {by}",
+          "rows": "{count} rijen gewijzigd",
+          "requested": "Aangevraagd {when}",
+          "completed": "Voltooid {when}"
+        },
+        "retry": {
+          "action": "Opnieuw",
+          "title": "Wissen opnieuw proberen voor persoon {hash}",
+          "confirm": "Wissen opnieuw proberen",
+          "consequence": "Dit wist {rows} rijen in {categories} categorieen. Dit kan niet ongedaan.",
+          "nothing": "Er is niets meer te wissen voor deze persoon.",
+          "loading": "Tellen wat dit wist...",
+          "error": "De telling kon niet laden, dus opnieuw proberen is geblokkeerd."
+        }
+      },
       "access": {
         "title": "Toegang",
         "hideInactive": "Verberg inactieve principals",

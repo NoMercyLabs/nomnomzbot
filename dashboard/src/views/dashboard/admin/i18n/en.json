@@ -725,6 +725,53 @@
           "forbidden": "You may not read the audit log."
         }
       },
+      "dataRequests": {
+        "title": "Data requests",
+        "failed": "The retry failed. Nothing was erased.",
+        "filters": {
+          "status": "Status",
+          "type": "Type"
+        },
+        "status": {
+          "all": "All statuses",
+          "pending": "Pending",
+          "running": "Running",
+          "completed": "Completed",
+          "failed": "Failed",
+          "canceled": "Canceled"
+        },
+        "type": {
+          "all": "All types",
+          "erasure": "Erasure",
+          "export": "Export",
+          "opt_out": "Opt-out"
+        },
+        "summary": {
+          "title": "Ledger",
+          "description": "Every request counted by status, from the real ledger.",
+          "total": "Total"
+        },
+        "list": {
+          "title": "Requests",
+          "description": "Newest first. A subject shows as a hash, never by name. A change appears by itself.",
+          "empty": "No data request matches.",
+          "error": "The data requests could not load.",
+          "subject": "Subject {hash}",
+          "by": "Requested by {by}",
+          "rows": "{count} rows changed",
+          "requested": "Requested {when}",
+          "completed": "Completed {when}"
+        },
+        "retry": {
+          "action": "Retry",
+          "title": "Retry erasure for subject {hash}",
+          "confirm": "Retry erasure",
+          "consequence": "This erases {rows} rows in {categories} categories. It cannot be undone.",
+          "nothing": "Nothing remains to erase for this subject.",
+          "loading": "Counting what this erases...",
+          "error": "The count could not load, so the retry is blocked."
+        }
+      },
       "access": {
         "title": "Access",
         "hideInactive": "Hide inactive principals",

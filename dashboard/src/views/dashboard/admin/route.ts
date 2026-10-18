@@ -155,6 +155,18 @@ export const dashboardAdminSupportRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
+export const dashboardAdminDataRequestsRoute = {
+  path: 'admin/data-requests',
+  name: 'dashboard-admin-data-requests',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminDataRequestsView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;
+
 export const dashboardAdminTrustSafetyRoute = {
   path: 'admin/trust-safety',
   name: 'dashboard-admin-trust-safety',
