@@ -16,4 +16,5 @@ public interface IAdminClient
     Task ReceiveLog(object logEntry);
     Task ReceiveChannelRegistryUpdate(object registryData);
     Task ReceiveTrustSafetyChanged(object change);
+    Task ReceiveErrorBudgetChanged(object change);
 }

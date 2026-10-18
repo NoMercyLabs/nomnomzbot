@@ -24,6 +24,7 @@ import {
   dashboardAdminSpamDefaultsRoute,
   dashboardAdminSupportRoute,
   dashboardAdminTenantsRoute,
+  dashboardAdminErrorBudgetRoute,
   dashboardAdminTenantUsageRoute,
   dashboardAdminTrustSafetyRoute,
   dashboardAdminUsersRoute,
@@ -95,6 +96,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardAdminSupportRoute,
   dashboardAdminTrustSafetyRoute,
   dashboardAdminTenantUsageRoute,
+  dashboardAdminErrorBudgetRoute,
 ];
 
 // Every other planned page of every sidebar opens the empty "coming soon" page.

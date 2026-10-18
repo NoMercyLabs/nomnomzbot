@@ -178,3 +178,15 @@ export const dashboardAdminTenantUsageRoute = {
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
+
+export const dashboardAdminErrorBudgetRoute = {
+  path: 'admin/error-budget',
+  name: 'dashboard-admin-error-budget',
+  meta: { navMode: 'admin' },
+  beforeEnter: adminOnly,
+  component: () =>
+    loadPage(
+      () => import('./AdminErrorBudgetView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;

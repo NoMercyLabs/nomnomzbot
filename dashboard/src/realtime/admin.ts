@@ -16,11 +16,13 @@ import {
   type AdminTenantDetail,
   type AdminTenantsPage,
 } from '@/api/admin';
+import { adminErrorBudgetPrefix } from '@/api/adminErrorBudget';
 import { trustSafetyPrefix } from '@/api/adminTrustSafety';
 
 import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type {
   AdminChannelRegistryPayload,
+  AdminErrorBudgetPayload,
   AdminSystemStatusPayload,
   AdminTrustSafetyPayload,
 } from './payloads';
@@ -85,6 +87,7 @@ export const adminHandlers: [
   HubEventHandler<AdminSystemStatusPayload>,
   HubEventHandler<AdminChannelRegistryPayload>,
   HubEventHandler<AdminTrustSafetyPayload>,
+  HubEventHandler<AdminErrorBudgetPayload>,
 ] = [
   {
     event: 'ReceiveSystemStatus',
@@ -101,6 +104,13 @@ export const adminHandlers: [
     event: 'ReceiveTrustSafetyChanged',
     handle: ({ queries }) => {
       void queries.invalidateQueries({ queryKey: trustSafetyPrefix });
+    },
+  },
+  {
+    // A webhook attempt resolved, so one tenant's budget moved: the pages reload from the server.
+    event: 'ReceiveErrorBudgetChanged',
+    handle: ({ queries }) => {
+      void queries.invalidateQueries({ queryKey: adminErrorBudgetPrefix });
     },
   },
 ];

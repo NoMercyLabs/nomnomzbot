@@ -467,6 +467,28 @@
           "forbidden": "Je mag de geplande taken niet bekijken."
         }
       },
+      "errorBudget": {
+        "title": "Foutbudget",
+        "count": "{count} tenants",
+        "restricted": "Tenants voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "noAttempts": "Geen pogingen",
+        "exhausted": "Budget op",
+        "left": "{share} over",
+        "columns": {
+          "channel": "Kanaal",
+          "attempts": "Pogingen",
+          "errors": "Fouten",
+          "rate": "Foutpercentage",
+          "budget": "Budget over"
+        },
+        "list": {
+          "title": "Webhook-levering per tenant",
+          "window": "Laatste 24 uur. Doel voor succespercentage: {target}.",
+          "empty": "In de laatste 24 uur is geen webhook-levering afgerond.",
+          "error": "De foutbudgetten konden niet laden.",
+          "forbidden": "Je mag de foutbudgetten niet zien."
+        }
+      },
       "tenantUsage": {
         "title": "Gebruik per tenant",
         "count": "{count} tenants",

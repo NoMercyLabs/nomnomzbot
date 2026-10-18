@@ -69,6 +69,7 @@ export const apiOperations = {
   'admin jobs': 'admin',
   'admin job retry': 'admin',
   'admin usage': 'admin',
+  'admin error budget': 'admin',
   'trust safety review queue': 'admin',
   'trust safety signals': 'admin',
   'trust safety network blocks': 'admin',

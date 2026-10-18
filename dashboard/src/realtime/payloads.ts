@@ -94,6 +94,13 @@ export type AdminTrustSafetyPayload = {
   subjectId: string;
 };
 
+// Hubs/Clients/IAdminClient.cs: ReceiveErrorBudgetChanged (AdminErrorBudgetBroadcastHandler). One outbound webhook
+// attempt resolved for this tenant; status is Delivered, Failed or DeadLetter.
+export type AdminErrorBudgetPayload = {
+  broadcasterId: string;
+  status: string;
+};
+
 // Hubs/Clients/IDashboardClient.cs: ChatMessage carries DashboardChatMessageDto, the same record the history call returns.
 export type ChatMessagePayload = components['schemas']['DashboardChatMessage'];
 

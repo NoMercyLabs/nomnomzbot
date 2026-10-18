@@ -14,6 +14,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Webhooks.Enums;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -85,6 +86,54 @@ public sealed class AdminBroadcastHandlersTests
         t.GetProperty("Area")!.GetValue(payload).Should().Be("network-block");
         t.GetProperty("Action")!.GetValue(payload).Should().Be("lifted");
         t.GetProperty("SubjectId")!.GetValue(payload).Should().Be(Channel);
+    }
+
+    [Theory]
+    [InlineData(WebhookDeliveryStatus.Delivered)]
+    [InlineData(WebhookDeliveryStatus.Failed)]
+    [InlineData(WebhookDeliveryStatus.DeadLetter)]
+    public async Task Resolved_webhook_attempt_tells_every_open_desk_which_tenant_budget_moved(
+        WebhookDeliveryStatus status
+    )
+    {
+        (IHubContext<AdminHub, IAdminClient> hub, IAdminClient all) = HubWithRecorder();
+        object? payload = null;
+        all.ReceiveErrorBudgetChanged(Arg.Do<object>(p => payload = p)).Returns(Task.CompletedTask);
+
+        await new AdminErrorBudgetBroadcastHandler(hub).HandleAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                OutboundEndpointId = Guid.NewGuid(),
+                WebhookMessageId = Guid.NewGuid(),
+                Attempt = 1,
+                Status = status,
+            }
+        );
+
+        payload.Should().NotBeNull();
+        Type t = payload!.GetType();
+        t.GetProperty("BroadcasterId")!.GetValue(payload).Should().Be(Channel);
+        t.GetProperty("Status")!.GetValue(payload).Should().Be(status.ToString());
+    }
+
+    [Fact]
+    public async Task Pending_webhook_attempt_does_not_move_a_budget_so_nothing_is_pushed()
+    {
+        (IHubContext<AdminHub, IAdminClient> hub, IAdminClient all) = HubWithRecorder();
+
+        await new AdminErrorBudgetBroadcastHandler(hub).HandleAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                OutboundEndpointId = Guid.NewGuid(),
+                WebhookMessageId = Guid.NewGuid(),
+                Attempt = 1,
+                Status = WebhookDeliveryStatus.Pending,
+            }
+        );
+
+        await all.DidNotReceive().ReceiveErrorBudgetChanged(Arg.Any<object>());
     }
 
     [Fact]
