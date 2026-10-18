@@ -7,10 +7,8 @@
         "description": "Kies wat dit kanaal deelt met, of aanneemt van, andere vertrouwde NomNomzBot-installaties. Alles staat uit tot je het aanzet.",
         "loadFailed": "De deelkeuzes konden niet worden geladen.",
         "choice": {
-          "off": "Uit",
           "accept": "Aannemen",
-          "share": "Delen",
-          "both": "Beide"
+          "share": "Delen"
         },
         "type": {
           "shared_chat_bans": {

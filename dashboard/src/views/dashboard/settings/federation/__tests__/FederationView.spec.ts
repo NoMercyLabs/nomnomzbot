@@ -128,10 +128,18 @@ async function open(): Promise<void> {
 const q = <T extends Element>(selector: string): T => document.body.querySelector<T>(selector) as T;
 const row = (type: string): HTMLElement => q(`[data-opt-in="${type}"]`);
 
-function segment(type: string, label: string): HTMLButtonElement {
-  const buttons = Array.from(row(type).querySelectorAll<HTMLButtonElement>('[data-segment]'));
+function labeled(type: string, label: string): HTMLElement {
+  const all = Array.from(row(type).querySelectorAll<HTMLElement>('[data-labeled-switch]'));
 
-  return buttons.find((button) => button.textContent?.trim() === label) as HTMLButtonElement;
+  return all.find((el) => el.textContent?.trim().startsWith(label)) as HTMLElement;
+}
+
+function toggle(type: string, label: string): HTMLButtonElement {
+  return labeled(type, label).querySelector('button') as HTMLButtonElement;
+}
+
+function isOn(type: string, label: string): boolean {
+  return toggle(type, label).getAttribute('data-state') === 'checked';
 }
 
 async function click(el: HTMLElement): Promise<void> {
@@ -142,36 +150,58 @@ async function click(el: HTMLElement): Promise<void> {
 const callTo = (method: string): Call | undefined => calls.find((call) => call.method === method);
 
 describe('Federation', () => {
-  it('shows every kind with its saved way, and a kind with no row or a disabled row as off', async () => {
+  it('shows an accept and a share switch per kind; a kind with no row or a disabled row has both off', async () => {
     await open();
 
-    expect(segment('shared_ban_list', 'Accept').getAttribute('data-state')).toBe('on');
-    expect(segment('shared_trust_list', 'Off').getAttribute('data-state')).toBe('on');
-    expect(segment('shared_chat_bans', 'Off').getAttribute('data-state')).toBe('on');
+    expect([isOn('shared_ban_list', 'Accept'), isOn('shared_ban_list', 'Share')]).toEqual([true, false]);
+    expect([isOn('shared_trust_list', 'Accept'), isOn('shared_trust_list', 'Share')]).toEqual([false, false]);
+    expect([isOn('shared_chat_bans', 'Accept'), isOn('shared_chat_bans', 'Share')]).toEqual([false, false]);
+    expect(row('shared_chat_bans').querySelector('[data-segment]')).toBeNull();
     expect(document.body.querySelectorAll('[data-opt-in]').length).toBe(4);
   });
 
-  it('turns a kind on for any trusted peer with a PUT of the chosen way', async () => {
+  it('sends accept when Accept is switched on from off', async () => {
     await open();
-    await click(segment('shared_chat_bans', 'Share'));
+    await click(toggle('shared_chat_bans', 'Accept'));
 
     expect(callTo('PUT')?.params).toEqual({ path: { version: '1', channelId: 'c1' } });
 
     expect(callTo('PUT')?.body).toEqual({
       peerId: null,
       optInType: 'shared_chat_bans',
+      direction: 'accept',
+      isEnabled: true,
+    });
+  });
+
+  it('sends both when Share is switched on while Accept is on', async () => {
+    await open();
+    await click(toggle('shared_ban_list', 'Share'));
+
+    expect(callTo('PUT')?.body).toEqual({
+      peerId: null,
+      optInType: 'shared_ban_list',
+      direction: 'both',
+      isEnabled: true,
+    });
+  });
+
+  it('keeps the other way when one of two is switched off', async () => {
+    optIns = [optIn('o1', 'shared_ban_list', { direction: 'both' })];
+    await open();
+    await click(toggle('shared_ban_list', 'Accept'));
+
+    expect(callTo('PUT')?.body).toEqual({
+      peerId: null,
+      optInType: 'shared_ban_list',
       direction: 'share',
       isEnabled: true,
     });
   });
 
-  it('turns a kind off by saving the same way with it disabled, and sends nothing for a kind that was never on', async () => {
+  it('saves the same way disabled when the last switch goes off', async () => {
     await open();
-    await click(segment('shared_chat_bans', 'Off'));
-
-    expect(callTo('PUT')).toBeUndefined();
-
-    await click(segment('shared_ban_list', 'Off'));
+    await click(toggle('shared_ban_list', 'Accept'));
 
     expect(callTo('PUT')?.body).toEqual({
       peerId: null,
@@ -202,12 +232,11 @@ describe('Federation', () => {
     held = ['federation:optin:read'];
     await open();
 
-    expect(segment('shared_ban_list', 'Accept').getAttribute('data-state')).toBe('on');
-    expect(segment('shared_chat_bans', 'Share').disabled).toBe(true);
+    expect(row('shared_ban_list').querySelector('button[role="switch"]')).toBeNull();
+    expect(labeled('shared_ban_list', 'Accept').querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state')).toBe('on');
+    expect(labeled('shared_ban_list', 'Share').querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state')).toBe('off');
     expect(document.body.querySelector('[data-peer-opt-in="o3"]')).not.toBeNull();
     expect(document.body.querySelector('[data-peer-opt-in-disable]')).toBeNull();
-
-    await click(segment('shared_chat_bans', 'Share'));
 
     expect(callTo('PUT')).toBeUndefined();
   });
@@ -216,7 +245,7 @@ describe('Federation', () => {
     held = ['federation:optin:read', 'federation:optin:write'];
     await open();
 
-    expect(segment('shared_chat_bans', 'Share').disabled).toBe(false);
+    expect(toggle('shared_chat_bans', 'Share').disabled).toBe(false);
     expect(document.body.querySelector('[data-peer-opt-in-disable]')).toBeNull();
   });
 
@@ -230,7 +259,7 @@ describe('Federation', () => {
       response: { status: 403, ok: false },
     } as never);
 
-    await click(segment('shared_chat_bans', 'Both'));
+    await click(toggle('shared_chat_bans', 'Share'));
 
     expect(q('[role="alert"]').textContent).toContain('Not allowed.');
   });

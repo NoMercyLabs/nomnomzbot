@@ -9,16 +9,12 @@
 -->
 <script setup lang="ts">
 // One kind of data a channel can share with, or accept from, other bot instances: its name, what it does, and
-// one choice: off, accept, share or both. Off is the default; nothing leaves or enters until a choice is on.
+// two independent switches. Accept takes data in, share sends it out. The bot stores one way per kind, so the
+// pair maps to it: neither is off, both is both. Nothing leaves or enters until a switch is on.
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import {
-  federationDirections,
-  type FederationDirection,
-  type FederationOptInType,
-} from '@/api/federation';
-import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import { type FederationDirection, type FederationOptInType } from '@/api/federation';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 
 export type FederationChoice = 'off' | FederationDirection;
 
@@ -28,17 +24,31 @@ const props = defineProps<{
   busy: boolean;
 }>();
 
-defineEmits<{ choose: [choice: FederationChoice] }>();
-
-const { t } = useI18n();
+const emit = defineEmits<{ choose: [choice: FederationChoice] }>();
 
 const base = computed(() => `dashboard.settings.federation.type.${props.type}`);
 
-const options = computed(() =>
-  (['off', ...federationDirections] as const).map((value) => ({
-    value,
-    label: t(`dashboard.settings.federation.choice.${value}`),
-  })));
+function choiceOf(accept: boolean, share: boolean): FederationChoice {
+  if (accept && share)
+    return 'both';
+
+  if (accept)
+    return 'accept';
+
+  return share
+    ? 'share'
+    : 'off';
+}
+
+const accepts = computed({
+  get: () => props.choice === 'accept' || props.choice === 'both',
+  set: (on) => emit('choose', choiceOf(on, shares.value)),
+});
+
+const shares = computed({
+  get: () => props.choice === 'share' || props.choice === 'both',
+  set: (on) => emit('choose', choiceOf(accepts.value, on)),
+});
 </script>
 
 <template>
@@ -47,12 +57,19 @@ const options = computed(() =>
       <span class="block text-sm font-medium wrap-break-word">{{ $t(`${base}.title`) }}</span>
       <span class="block text-sm text-muted-foreground">{{ $t(`${base}.description`) }}</span>
     </div>
-    <SegmentedControl
-      :label="$t(`${base}.title`)"
-      :options="options"
-      :disabled="busy"
-      :model-value="choice"
-      @update:model-value="$emit('choose', $event)"
-    />
+    <div class="flex items-center gap-4">
+      <LabeledSwitch
+        v-model="accepts"
+        action="federation:optin:write"
+        :label="$t('dashboard.settings.federation.choice.accept')"
+        :disabled="busy"
+      />
+      <LabeledSwitch
+        v-model="shares"
+        action="federation:optin:write"
+        :label="$t('dashboard.settings.federation.choice.share')"
+        :disabled="busy"
+      />
+    </div>
   </div>
 </template>
