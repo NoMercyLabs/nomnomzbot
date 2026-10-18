@@ -124,7 +124,7 @@ import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareQueueScreen
 import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareSettingsScreen
 import bot.nomnomz.dashboard.feature.mydata.ui.MyDataScreen
 import bot.nomnomz.dashboard.feature.bundles.ui.BundlesScreen
-import bot.nomnomz.dashboard.feature.gallery.ui.TemplatesScreen
+import bot.nomnomz.dashboard.feature.bundles.ui.TemplatesScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.chatpolls.ui.StreamInteractionsScreen

@@ -35,7 +35,7 @@ import kotlin.test.Test
  * Cell/Caption), toggling the `selected` row state, and firing `onClick` on a row.
  */
 @OptIn(ExperimentalTestApi::class)
-class NewPrimitivesS051dTest {
+class ScrollAreaTableTest {
 
     @Test
     fun scroll_area_vertical_reaches_content_below_the_viewport() = runComposeUiTest {

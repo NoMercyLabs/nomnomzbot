@@ -32,7 +32,7 @@ import kotlin.test.Test
  * state transitions and selection behavior, not just that they render.
  */
 @OptIn(ExperimentalTestApi::class)
-class NewPrimitivesS051cTest {
+class PopoverSelectComboboxTest {
 
     private enum class Platform { Twitch, Kick, Youtube }
 

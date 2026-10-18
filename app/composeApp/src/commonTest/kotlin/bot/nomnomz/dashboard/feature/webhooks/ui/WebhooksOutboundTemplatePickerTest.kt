@@ -62,7 +62,7 @@ import kotlinx.coroutines.runBlocking
  * inserts its real token into the body-template field's STATE — not just that the dialog renders.
  */
 @OptIn(ExperimentalTestApi::class)
-class WebhooksOutboundTemplatePickerS_OWN16Test {
+class WebhooksOutboundTemplatePickerTest {
 
     @Test
     fun selecting_a_helper_in_the_outbound_edit_dialog_inserts_its_token_into_the_body_template_field() =

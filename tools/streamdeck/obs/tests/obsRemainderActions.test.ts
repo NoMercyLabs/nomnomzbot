@@ -14,7 +14,7 @@ import type { IncomingMessage } from "node:http";
 import type { KeyDownEvent } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 
-// S-STREAMDECK-OBS-REMAINDER: same proof as obsInstantiatedActions.test.ts / obsInstantiatedActions2.test.ts
+// S-STREAMDECK-OBS-REMAINDER: same proof as obsInstantiatedActions.test.ts / obsSceneStreamRecordActions.test.ts
 // (which cover the original 6 obs_* action types already wired to the plugin), extended to all 13 obs_*
 // pipeline action types the backend implements — including obs_request_batch, wired up once
 // PipelineEngine.ResolveTemplatedFieldsAsync stopped always re-wrapping a resolved Templated Text

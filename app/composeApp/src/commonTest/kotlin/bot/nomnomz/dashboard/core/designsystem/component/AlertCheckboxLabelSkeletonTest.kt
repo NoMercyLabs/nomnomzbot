@@ -26,7 +26,7 @@ import kotlin.test.Test
  * rows for Alert/Checkbox/Label/Skeleton).
  */
 @OptIn(ExperimentalTestApi::class)
-class NewPrimitivesS051aTest {
+class AlertCheckboxLabelSkeletonTest {
 
     @Test
     fun alert_renders_default_and_destructive_variants_with_title_and_description() = runComposeUiTest {

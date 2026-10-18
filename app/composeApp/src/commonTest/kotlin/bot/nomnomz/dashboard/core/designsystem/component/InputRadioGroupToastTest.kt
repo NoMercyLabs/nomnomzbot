@@ -26,7 +26,7 @@ import kotlin.test.Test
  * (`frontend-design-system.catalogue.md` rows for Input/RadioGroup/Toast).
  */
 @OptIn(ExperimentalTestApi::class)
-class NewPrimitivesS051bTest {
+class InputRadioGroupToastTest {
 
     @Test
     fun input_renders_all_sizes_with_error_and_disabled_states() = runComposeUiTest {
