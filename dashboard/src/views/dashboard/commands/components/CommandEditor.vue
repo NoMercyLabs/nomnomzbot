@@ -50,7 +50,7 @@ import {
   type CommandDraft,
   type ReplyKind,
 } from './commandDraft';
-import { permissionLevels } from './permissionLevels';
+import { rungNames } from '@/api/permissions';
 import RandomReplyDialog, { type ReplySet } from './RandomReplyDialog.vue';
 import TriggerFields from './TriggerFields.vue';
 
@@ -201,7 +201,7 @@ function remove(): void {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="level in permissionLevels" :key="level" :value="level">
+              <SelectItem v-for="level in rungNames" :key="level" :value="level">
                 {{ $t(`dashboard.commands.roles.${level}`) }}
               </SelectItem>
             </SelectContent>

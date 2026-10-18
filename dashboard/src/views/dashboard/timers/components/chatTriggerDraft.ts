@@ -13,18 +13,6 @@ import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
 
 export const matchTypes = ['contains', 'exact', 'starts_with', 'regex'] as const;
 
-// The role rungs a trigger can ask for, lowest first.
-export const roles = [
-  'Everyone',
-  'Subscriber',
-  'Vip',
-  'Artist',
-  'Moderator',
-  'LeadModerator',
-  'Editor',
-  'Broadcaster',
-] as const;
-
 // What the editor form holds.
 export interface ChatTriggerDraft {
   pattern: string;

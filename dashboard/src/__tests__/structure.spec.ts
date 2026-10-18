@@ -12,6 +12,15 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { rungNames } from '../api/permissions';
+import {
+  emoteProviders,
+  musicProviders,
+  musicRoleRungs,
+  musicTrustLevels,
+  streamPlatforms,
+  trustTiers,
+} from '../api/vocabulary';
 import { merge } from '../lib/array';
 import * as utils from '../lib/utils';
 
@@ -571,5 +580,75 @@ describe('room checks', () => {
     const stale = ownRoomCheckAllowlist.filter((path) => !ownsRoomCheck(path));
 
     expect(stale).toEqual([]);
+  });
+});
+
+// Stoney 2026-10-18: "things like these are also used everywhere... i expect you to make tools like this for
+// repeatables". A role ladder, a platform list, a provider list or a trust list is spelled once, in
+// api/vocabulary.ts (or the ladder in api/permissions.ts). A view imports it; a list of three or more of its
+// words written anywhere else is a copy that drifts.
+const vocabularyLists: Record<string, readonly string[]> = {
+  roleLadder: rungNames,
+  streamPlatforms,
+  emoteProviders,
+  musicProviders,
+  musicTrustLevels,
+  musicRoleRungs,
+  trustTiers,
+};
+const vocabularyHomes: readonly string[] = ['api/vocabulary.ts', 'api/permissions.ts'];
+// Two lists that only look like a ladder: the people page's filter tabs, and the three personas a visitor
+// picks on the login page. Neither is a role the bot ranks.
+const vocabularyLookalikes: readonly string[] = [
+  'views/dashboard/people/PeopleView.vue',
+  'views/site/login/LoginView.vue',
+];
+const quotedList = /\[\s*((?:'[^'\n]+'\s*,\s*)+'[^'\n]+'\s*,?)\s*\]/g;
+
+// The names of the vocabulary lists a text copies: a list with at least min(3, its length) of one list's words.
+function copiedVocabulary(text: string): string[] {
+  const written: string[][] = [...text.matchAll(quotedList)].map((match) =>
+    [...(match[1] ?? '').matchAll(/'([^']+)'/g)].map((word) => (word[1] ?? '').toLowerCase()));
+
+  return Object.entries(vocabularyLists)
+    .filter(([, words]) => {
+      const lowered = words.map((word) => word.toLowerCase());
+      const need = Math.min(3, lowered.length);
+
+      return written.some((list) => list.filter((word) => lowered.includes(word)).length >= need);
+    })
+    .map(([name]) => name);
+}
+
+function copiedIn(path: string): string[] {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return copiedVocabulary(text);
+}
+
+function vocabularySourceFiles(): string[] {
+  return timeSourceFiles()
+    .filter((path) => !vocabularyHomes.includes(path))
+    .filter((path) => !vocabularyLookalikes.includes(path))
+    .filter((path) => !path.startsWith('i18n/') && !path.startsWith('components/ui/'));
+}
+
+describe('domain vocabulary', () => {
+  it('spots a role ladder, a platform list and a provider list written by hand', () => {
+    expect(copiedVocabulary('const levels = [\'everyone\', \'vip\', \'moderators\', \'broadcaster\'];'))
+      .toEqual(['roleLadder', 'musicTrustLevels']);
+
+    expect(copiedVocabulary('const p = [\'twitch\',\n  \'kick\',\n  \'youtube\'];')).toEqual(['streamPlatforms']);
+    expect(copiedVocabulary('const p = [\'Twitch\', \'SevenTv\', \'Bttv\'];')).toEqual(['emoteProviders']);
+    expect(copiedVocabulary('const sizes = [\'small\', \'medium\', \'large\'];')).toEqual([]);
+  });
+
+  it('writes no vocabulary list outside api/vocabulary.ts and api/permissions.ts', () => {
+    const offenders = vocabularySourceFiles()
+      .map((path) => [path, copiedIn(path)] as const)
+      .filter(([, names]) => names.length > 0)
+      .map(([path, names]) => `${path}: ${names.join(', ')}`);
+
+    expect(offenders).toEqual([]);
   });
 });

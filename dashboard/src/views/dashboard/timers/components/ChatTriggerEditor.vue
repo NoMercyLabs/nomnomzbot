@@ -33,7 +33,8 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
-import { changeOf, draftOf, matchTypes, roles, type ChatTriggerDraft } from './chatTriggerDraft';
+import { rungNames } from '@/api/permissions';
+import { changeOf, draftOf, matchTypes, type ChatTriggerDraft } from './chatTriggerDraft';
 
 const props = defineProps<{ row: ChatTrigger }>();
 const emit = defineEmits<{ remove: [row: ChatTrigger] }>();
@@ -168,7 +169,7 @@ function remove(): void {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="level in roles" :key="level" :value="level">
+              <SelectItem v-for="level in rungNames" :key="level" :value="level">
                 {{ $t(`dashboard.timers.triggers.roles.${level}`) }}
               </SelectItem>
             </SelectContent>

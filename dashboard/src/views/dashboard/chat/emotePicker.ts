@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { ChatEmoteEntry } from '@/api/chat';
+import { emoteProviders, type EmoteProvider } from '@/api/vocabulary';
 import { merge } from '@/lib/array';
 
 import {
@@ -42,8 +43,6 @@ export type PickerContext = {
 
 export const recentLimit = 24;
 
-const providerOrder = ['Twitch', 'SevenTv', 'Bttv', 'Ffz'] as const satisfies readonly string[];
-
 // The source the server stores a starred emoji under.
 export const emojiProvider = 'Emoji';
 
@@ -57,7 +56,7 @@ export function favoriteKey(provider: string, emoteId: string): string {
 }
 
 function providerRank(emote: ChatEmoteEntry): number {
-  return providerOrder.indexOf(emote.provider as typeof providerOrder[number]);
+  return emoteProviders.indexOf(emote.provider as EmoteProvider);
 }
 
 // The server says whose an emote is (own, channel, other or global); another channel's emotes group by it.
@@ -83,7 +82,7 @@ function sectionOf(emote: ChatEmoteEntry): string {
 }
 
 const bySource = (prefix: string): string[] =>
-  providerOrder.map((provider) =>
+  emoteProviders.map((provider) =>
     `${prefix}-${provider}`);
 
 function ownerSections(

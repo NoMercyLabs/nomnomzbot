@@ -17,7 +17,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { i18n } from '@/i18n';
 
-import { permissionLevels } from '../components/permissionLevels';
+import { rungNames } from '@/api/permissions';
 import CommandsView from '../CommandsView.vue';
 import en from '../i18n/en.json';
 
@@ -800,7 +800,7 @@ describe('CommandsView editor', () => {
   });
 
   it('has no Followers rung in the role list', () => {
-    expect(permissionLevels).toEqual([
+    expect(rungNames).toEqual([
       'Everyone',
       'Subscriber',
       'Vip',

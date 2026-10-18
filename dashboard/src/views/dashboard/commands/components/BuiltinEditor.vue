@@ -44,7 +44,7 @@ import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 
-import { permissionLevels } from './permissionLevels';
+import { rungNames } from '@/api/permissions';
 
 const props = defineProps<{ builtin: BuiltinCommand }>();
 
@@ -101,8 +101,8 @@ const savedKey = computed<string>(() => JSON.stringify(saved.value));
 
 const locked = computed<boolean>(() => props.builtin.isReserved);
 const editable = computed<boolean>(() => customized.value && !locked.value);
-const floor = computed<number>(() => Math.max(0, permissionLevels.indexOf(defaults.value.level)));
-const levels = computed<readonly string[]>(() => permissionLevels.slice(floor.value));
+const floor = computed<number>(() => Math.max(0, rungNames.indexOf(defaults.value.level)));
+const levels = computed<readonly string[]>(() => rungNames.slice(floor.value));
 
 const settingsDirty = computed<boolean>(
   () =>

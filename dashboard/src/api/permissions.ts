@@ -40,6 +40,9 @@ export const rungs = [
 
 export type RungName = (typeof rungs)[number]['name'];
 
+// The rung names alone, lowest first: what a select of "who may use this" lists.
+export const rungNames: readonly string[] = rungs.map((rung) => rung.name);
+
 // The roles a person can be given on the team. The order is the bot's role order.
 export const teamRoles = ['Moderator', 'LeadModerator', 'Editor', 'Broadcaster'] as const;
 

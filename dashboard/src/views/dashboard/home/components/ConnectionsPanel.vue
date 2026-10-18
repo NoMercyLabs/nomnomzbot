@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useBotStatus, useConnections, useHomeStats, type IntegrationStatus } from '@/api/home';
 import { useConnectIntegration } from '@/api/stream';
+import { platformScopeSets, streamPlatforms } from '@/api/vocabulary';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -26,14 +27,6 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
-
-const PLATFORMS = ['twitch', 'kick', 'youtube'] as const;
-
-// The scope set each platform needs to manage a stream (server OAuthProviderRegistry).
-const SCOPE_SETS = {
-  kick: 'kick.chat',
-  youtube: 'youtube.manage',
-} as const satisfies Record<string, string>;
 
 const dotClass = {
   ok: 'bg-success',
@@ -57,7 +50,7 @@ const allConnections = computed(() => connectionsQuery.data.value ?? []);
 const livePlatforms = computed(() => statsQuery.data.value?.platformsLive ?? []);
 const services = computed(() =>
   allConnections.value.filter(
-    (connection) => !(PLATFORMS as readonly string[]).includes(connection.provider),
+    (connection) => !(streamPlatforms as readonly string[]).includes(connection.provider),
   ),
 );
 
@@ -102,7 +95,7 @@ function platformLine(provider: string): string {
 }
 
 function scopeSetOf(provider: string): string | undefined {
-  return (SCOPE_SETS as Record<string, string>)[provider];
+  return (platformScopeSets as Record<string, string>)[provider];
 }
 
 async function open(provider: string): Promise<void> {
@@ -141,7 +134,7 @@ function connectionLabel(connection: IntegrationStatus): string {
   >
     <div class="flex flex-col gap-4">
       <RowGroup data-connections-group="platforms">
-        <div v-for="provider in PLATFORMS" :key="provider" :data-connection="provider">
+        <div v-for="provider in streamPlatforms" :key="provider" :data-connection="provider">
           <SummaryRow :title="platformName(provider)" :detail="platformLine(provider)">
             <template #leading>
               <span

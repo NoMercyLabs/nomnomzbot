@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useConnections, type IntegrationStatus } from '@/api/home';
 import { useConnectIntegration } from '@/api/stream';
+import { platformScopeSets } from '@/api/vocabulary';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -24,11 +25,9 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
-// The scope set each platform needs to manage a stream (server OAuthProviderRegistry).
-const CONNECTABLE: readonly { provider: string; scopeSetKey: string }[] = [
-  { provider: 'kick', scopeSetKey: 'kick.chat' },
-  { provider: 'youtube', scopeSetKey: 'youtube.manage' },
-];
+const CONNECTABLE: readonly { provider: string; scopeSetKey: string }[] = Object.entries(
+  platformScopeSets,
+).map(([provider, scopeSetKey]) => ({ provider, scopeSetKey }));
 
 const { t } = useI18n();
 const { channelId, current } = useCurrentChannel();

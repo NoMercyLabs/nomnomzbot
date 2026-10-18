@@ -13,6 +13,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { teamRoles } from '@/api/permissions';
 import type { PersonProfile } from '@/api/people';
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
 import ProfileShoutoutLine from '@/components/layout/profile/ProfileShoutoutLine.vue';
@@ -23,7 +24,6 @@ type Permit = PersonProfile['permits']['activePermits'][number];
 
 // This DTO sends its enums as numbers, in the server's order (AuthorizationEnums.cs): grant type Role is 0.
 const ROLE_GRANT = 0;
-const ROLES = ['moderator', 'leadmoderator', 'editor', 'broadcaster'] as const;
 
 const props = defineProps<{
   profile: PersonProfile;
@@ -64,7 +64,7 @@ const consent = computed<KeyValueItem[]>(() => {
 // What a permit grants, in words: a role by its name, a single action by its key, and when it ends.
 function permitText(permit: Permit): string {
   const role = permit.grantType === ROLE_GRANT && permit.grantedRole !== null
-    ? ROLES[Number(permit.grantedRole)]
+    ? teamRoles[Number(permit.grantedRole)]?.toLowerCase()
     : undefined;
   const what = role
     ? t('profile.data.permitRole', { role: t(`profile.manager.${role}`) })

@@ -14,6 +14,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PersonEmote } from '@/api/community';
+import { emoteProviders } from '@/api/vocabulary';
 import AssetCardPopover from '@/components/layout/AssetCard.vue';
 import {
   catalogEmoteCard,
@@ -28,8 +29,6 @@ const props = defineProps<{
   // True when the bot has read the account and it is no affiliate or partner: it has no Twitch emotes.
   noTwitchEmotes: boolean;
 }>();
-
-const PROVIDERS = ['Twitch', 'SevenTv', 'Bttv', 'Ffz'] as const;
 
 type ShownEmote = {
   code: string;
@@ -49,7 +48,7 @@ const { t } = useI18n();
 const regular = computed(() =>
   props.noTwitchEmotes);
 const providers = computed(() =>
-  PROVIDERS.filter((provider) =>
+  emoteProviders.filter((provider) =>
     !regular.value || provider !== 'Twitch'));
 
 const groups = computed(() =>

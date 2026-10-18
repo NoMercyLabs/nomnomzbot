@@ -12,7 +12,7 @@ import type { CommandChange, CommandListItem } from '@/api/commands';
 
 import type { ReplyMode } from '@/components/layout/replyMode';
 
-import { permissionLevels } from './permissionLevels';
+import { rungNames } from '@/api/permissions';
 
 export const prefixModes = ['Default', 'Custom', 'None'] as const;
 export const matchModes = ['StartsWith', 'Exact', 'Contains', 'Regex'] as const;
@@ -52,7 +52,7 @@ export interface CommandDraft {
 // The bot may send the level in any letter case; the form keeps the matching rung of the list.
 function canonicalLevel(level: string): string {
   return (
-    permissionLevels.find((rung: string): boolean => rung.toLowerCase() === level.toLowerCase()) ??
+    rungNames.find((rung: string): boolean => rung.toLowerCase() === level.toLowerCase()) ??
     level
   );
 }

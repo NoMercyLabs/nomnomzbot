@@ -41,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { musicProviders, musicRoleRungs, musicTrustLevels } from '@/api/vocabulary';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { useCan } from '@/composables/useCan';
@@ -55,22 +56,12 @@ import {
   noPlaylist,
   perStreamLimits,
   playlistValue,
-  providers,
   queueLimits,
   requestLimits,
-  roleRungs,
   songSecondsLimits,
   type RuleDraft,
 } from './requestRules';
 
-// The values the bot accepts for minTrustLevel (MusicService.ParseMinTrustLevel); anything else means everyone.
-const trustLevels: readonly string[] = [
-  'everyone',
-  'subscribers',
-  'vip',
-  'moderators',
-  'broadcaster',
-];
 const perPersonId = useId();
 const queueSizeId = useId();
 const songSecondsId = useId();
@@ -211,7 +202,7 @@ const missing = computed<KeyValueItem[]>(() =>
           <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
           <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
             <label
-              v-for="level in trustLevels"
+              v-for="level in musicTrustLevels"
               :key="level"
               class="flex items-center gap-2 text-sm"
             >
@@ -298,7 +289,7 @@ const missing = computed<KeyValueItem[]>(() =>
             <GatedSwitch v-model="draft.allowExplicit" action="music:config:write" data-setting="allow-explicit" />
           </label>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.perRoleHelp") }}</p>
-          <label v-for="rung in roleRungs" :key="rung" class="flex items-center gap-3 text-sm">
+          <label v-for="rung in musicRoleRungs" :key="rung" class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t(`dashboard.music.rules.roles.${rung}`) }}</span>
             <Input
               v-model="draft.roleCaps[rung]"
@@ -326,7 +317,7 @@ const missing = computed<KeyValueItem[]>(() =>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
           <RadioGroup v-model="draft.preferredProvider" class="gap-2">
             <label
-              v-for="provider in providers"
+              v-for="provider in musicProviders"
               :key="provider"
               class="flex items-center gap-2 text-sm"
             >

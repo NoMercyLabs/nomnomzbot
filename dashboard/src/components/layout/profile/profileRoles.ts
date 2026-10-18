@@ -14,6 +14,7 @@ import Diamond from '~icons/nnz/diamond';
 
 import type { CommunityMember } from '@/api/community';
 import type { PersonProfile } from '@/api/people';
+import { trustTiers, type TrustTier } from '@/api/vocabulary';
 
 export type RoleKey = 'broadcaster' | 'moderator' | 'vip' | 'subscriber';
 
@@ -114,20 +115,6 @@ export function twitchStanding(profile: PersonProfile | null): TwitchStanding | 
 export function hasNoTwitchEmotes(profile: PersonProfile | null): boolean {
   return profile?.identity.accountCreatedAtUtc != null && twitchStanding(profile) === null;
 }
-
-// The bot's own trust tier names, in ladder order. "Regular" is one of them, earned in this channel;
-// it has nothing to do with Twitch's account type.
-export const trustTiers = [
-  'Untrusted',
-  'Newcomer',
-  'Known',
-  'Regular',
-  'SemiTrusted',
-  'Trusted',
-  'Established',
-] as const;
-
-export type TrustTier = (typeof trustTiers)[number];
 
 // The tier the bot resolved for this person, or null when it could not say or sent a name we do not know.
 export function trustTier(profile: PersonProfile | null): TrustTier | null {

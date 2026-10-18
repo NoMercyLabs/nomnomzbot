@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
-import { permissionLevels } from '@/views/dashboard/commands/components/permissionLevels';
+import { rungNames } from '@/api/permissions';
 
 const noPipeline = 'none';
 
@@ -225,7 +225,7 @@ async function submit(): Promise<void> {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem v-for="level in permissionLevels" :key="level" :value="level">
+            <SelectItem v-for="level in rungNames" :key="level" :value="level">
               {{ level }}
             </SelectItem>
           </SelectContent>

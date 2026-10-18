@@ -9,10 +9,8 @@
 // -----------------------------------------------------------------------------
 
 import type { MusicConfig, MusicConfigChange } from '@/api/music';
+import { musicRoleRungs, type MusicRoleRung } from '@/api/vocabulary';
 
-// The rungs the bot knows for a per-role cap, in the order they rank (MusicService role map).
-export const roleRungs = ['viewer', 'subscriber', 'vip', 'moderator', 'broadcaster'] as const;
-export const providers = ['auto', 'spotify', 'youtube'] as const;
 export const queueLimits = { min: 1, max: 500 } as const;
 export const requestLimits = { min: 1, max: 50 } as const;
 export const songSecondsLimits = { min: 10, max: 3600 } as const;
@@ -35,7 +33,6 @@ function splitPlaylist(value: string): { provider: string; id: string } {
   return { provider: value.slice(0, at), id: value.slice(at + 1) };
 }
 
-export type RoleRung = (typeof roleRungs)[number];
 type RoleCap = string | number;
 
 // A blank role box means "use the per-person cap", so the role boxes hold text.
@@ -52,7 +49,7 @@ export type RuleDraft = {
   perStreamLimit: number;
   bangerAutoCreate: boolean;
   bangerPlaylist: string;
-  roleCaps: Record<RoleRung, RoleCap>;
+  roleCaps: Record<MusicRoleRung, RoleCap>;
 };
 
 export function draftOf(config: MusicConfig): RuleDraft {
@@ -74,13 +71,13 @@ export function draftOf(config: MusicConfig): RuleDraft {
       ? playlistValue(config.bangerPlaylistProvider ?? '', config.bangerPlaylistId)
       : noPlaylist,
     roleCaps: Object.fromEntries(
-      roleRungs.map((rung: RoleRung): [RoleRung, string] => [
+      musicRoleRungs.map((rung: MusicRoleRung): [MusicRoleRung, string] => [
         rung,
         stored[rung] === undefined
           ? ''
           : String(stored[rung]),
       ]),
-    ) as Record<RoleRung, string>,
+    ) as Record<MusicRoleRung, string>,
   };
 }
 
@@ -110,9 +107,9 @@ export function draftValid(draft: RuleDraft): boolean {
 }
 
 // Blank rungs drop out of the map; the bot replaces the stored map whole.
-function roleMapOf(caps: Record<RoleRung, RoleCap>): Record<string, number> {
-  const filled = roleRungs.filter((rung: RoleRung): boolean => !isBlank(caps[rung]));
-  const entries = filled.map((rung: RoleRung): [string, number] => [rung, Number(caps[rung])]);
+function roleMapOf(caps: Record<MusicRoleRung, RoleCap>): Record<string, number> {
+  const filled = musicRoleRungs.filter((rung: MusicRoleRung): boolean => !isBlank(caps[rung]));
+  const entries = filled.map((rung: MusicRoleRung): [string, number] => [rung, Number(caps[rung])]);
 
   return Object.fromEntries(entries);
 }

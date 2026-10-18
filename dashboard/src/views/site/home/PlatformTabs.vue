@@ -11,12 +11,14 @@
 // One command, answered the same way on each platform.
 import { useI18n } from 'vue-i18n';
 
+import { streamPlatforms } from '@/api/vocabulary';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { merge } from '@/lib/array';
 
-const platforms: string[] = ['twitch', 'kick', 'youtube', 'x'];
+const platforms: readonly string[] = merge(streamPlatforms, ['x']);
 const { t } = useI18n();
 </script>
 
