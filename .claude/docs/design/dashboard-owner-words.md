@@ -76,3 +76,4 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 2026-10-17: "menu's that open and close MUST contain an indication like a chevron"
 
 2026-10-18: "you can't offer what's not there... and every tab and pannel and button and page needs to have proper permission checks before being shown"
+2026-10-18: "we need one place for the mandatory overlays and not spread them all over, lets keep the user choice overlays at the overlay browser section and have the mandatory one on an easy to reach place that can be shown in an onboarding flow guide"
