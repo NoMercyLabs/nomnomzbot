@@ -221,7 +221,7 @@ export type MusicStatePayload = {
   currentTrack: MusicTrackPayload | null;
 };
 
-// WidgetEventPayloads.cs: SrQueueWidgetPayload, sent under the method sr_queue_changed (SrQueueBroadcastHandler.cs).
+// WidgetEventPayloads.cs: SrQueueWidgetPayload, the data of the ChannelEvent with type "sr_queue_changed" (SrQueueBroadcastHandler.cs).
 export type SrQueueChangedPayload = {
   items: {
     title: string;
@@ -401,8 +401,8 @@ export type WebhookEndpointAutoDisabledPayload = {
   reason: string;
 };
 
-// Every event the dashboard hub sends to a joined channel (Hubs/Clients/IDashboardClient.cs, plus the sr_queue_changed
-// method the notifier sends by name), keyed by the method name. A handler is typed from this map by its event name.
+// Every event the dashboard hub sends to a joined channel (Hubs/Clients/IDashboardClient.cs, plus the methods the
+// notifier sends by name), keyed by the method name. A handler is typed from this map by its event name.
 export type DashboardHubEvents = {
   ChatMessage: ChatMessagePayload;
   ChannelEvent: ChannelEventPayload;
@@ -426,7 +426,6 @@ export type DashboardHubEvents = {
   webhook_delivery_failed: WebhookDeliveryFailedPayload;
   webhook_delivery_dead_letter: WebhookDeliveryFailedPayload;
   webhook_endpoint_auto_disabled: WebhookEndpointAutoDisabledPayload;
-  sr_queue_changed: SrQueueChangedPayload;
   CustomDataSourceChanged: CustomDataSourceChangedPayload;
   DataRightsChanged: DataRightsChangedPayload;
   FederationOptInChanged: FederationOptInChangedPayload;

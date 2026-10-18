@@ -108,7 +108,12 @@ const eventKeys: (readonly [string, unknown, readonly Keys[]])[] = [
     [musicQueueKey, musicHistoryKey, musicTopRequestersKey],
   ],
   // Owner 2026-10-14: "i queued a song and it took too long to show up, why is this not socket based?"
-  ['sr_queue_changed', { items: [] }, [musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
+  // The server sends the queue change as a ChannelEvent (DashboardNotifier.NotifyChannelAsync), not as a hub method.
+  ['ChannelEvent', {
+    type: 'sr_queue_changed',
+    broadcasterId: 'x',
+    data: { items: [] },
+  }, [homeStatsKey, activityKey, musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
   ['RewardRedeemed', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
   ['RedemptionStatusChanged', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
   ['RewardChanged', { broadcasterId: 'x', action: 'updated' }, [rewardsKey]],

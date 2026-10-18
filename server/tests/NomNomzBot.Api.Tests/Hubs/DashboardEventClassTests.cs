@@ -285,6 +285,19 @@ public sealed class DashboardEventClassTests
     }
 
     [Fact]
+    public async Task The_song_request_queue_change_routes_to_the_music_class_and_the_viewer_group()
+    {
+        (DashboardNotifier notifier, IHubClients<IDashboardClient> clients) = BuildNotifier();
+        string id = Channel.ToString();
+
+        await notifier.NotifyChannelAsync(id, "sr_queue_changed", new { });
+
+        clients.Received(1).Group($"channel-{id}:music");
+        clients.Received(1).Group($"viewer-music:{id}");
+        clients.DidNotReceive().Group($"channel-{id}:activity");
+    }
+
+    [Fact]
     public async Task Core_pushes_stay_always_on_in_the_base_group()
     {
         (DashboardNotifier notifier, IHubClients<IDashboardClient> clients) = BuildNotifier();

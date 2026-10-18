@@ -9,19 +9,21 @@
 // -----------------------------------------------------------------------------
 
 import type { HubEventHandler } from './hubEvent';
-import type { SrQueueChangedPayload } from './payloads';
+import type { ChannelEventPayload } from './payloads';
 
 // A viewer page has no joined management channel, so its keys are matched by shape: the channel lookup
 // (open or closed) and the viewer's own queue.
 const queueChanged = {
-  event: 'sr_queue_changed',
-  handle: ({ queries }) => {
+  event: 'ChannelEvent',
+  handle: ({ queries }, event) => {
+    if (event.type !== 'sr_queue_changed') return;
+
     void queries.invalidateQueries({
       predicate: ({ queryKey }) =>
         (queryKey[0] === 'viewer' && queryKey[1] === 'channel') ||
         (queryKey[0] === 'channels' && queryKey[2] === 'viewer'),
     });
   },
-} as const satisfies HubEventHandler<SrQueueChangedPayload>;
+} as const satisfies HubEventHandler<ChannelEventPayload>;
 
 export const viewerHandlers = [queueChanged] as const;

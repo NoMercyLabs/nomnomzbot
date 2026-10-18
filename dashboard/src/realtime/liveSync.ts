@@ -86,7 +86,6 @@ const eventHandlers = [
   refreshing('StreamStatusChanged', merge(homeKeys, [botStatusKey, adScheduleKey])),
   refreshing('StreamInfoChanged', [homeStatsKey]),
   refreshing('MusicStateChanged', musicKeys),
-  refreshing('sr_queue_changed', musicKeys),
   // The redemption queue itself is written from the event (redemptionQueue.ts), so it is not refetched.
   refreshing('RewardRedeemed', homeKeys),
   refreshing('RedemptionStatusChanged', homeKeys),
@@ -117,6 +116,8 @@ const pollEventKeys = [
   { prefix: 'ChatPollChanged', keys: [pollHistoryKey] },
   { prefix: 'GiveawayChanged', keys: [giveawaysKey] },
   { prefix: 'media_share_', keys: [mediaShareQueueKey] },
+  // The server sends every queue change as a ChannelEvent of this type, never as a hub method of its own.
+  { prefix: 'sr_queue_changed', keys: musicKeys },
 ] as const;
 
 const pollEventsChanged = {

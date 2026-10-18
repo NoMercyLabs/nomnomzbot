@@ -63,7 +63,7 @@ public static class DashboardEventClasses
 
     /// <summary>
     /// Routes a generic <c>ChannelEvent</c> method key to its class: the live-ops surfaces
-    /// (polls/predictions/hype train/ad breaks) and moderation transitions have their own classes;
+    /// (polls/predictions/hype train/ad breaks), the song-request queue and moderation transitions have their own classes;
     /// everything else (follows/subs/cheers/raids/shoutouts/role changes/…) is activity-feed traffic.
     /// </summary>
     public static string ClassForChannelEvent(string method)
@@ -75,6 +75,10 @@ public static class DashboardEventClasses
             || method.StartsWith("ad_break_", StringComparison.Ordinal)
         )
             return LiveOps;
+
+        // The queue snapshot is music-page data, read with the same right as the queue itself.
+        if (IsViewerMusicEvent(method))
+            return Music;
 
         if (
             method is "chat_cleared" or "message_deleted"

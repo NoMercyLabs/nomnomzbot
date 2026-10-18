@@ -253,7 +253,12 @@ describe('the viewer music group', () => {
 
     queries.setQueryData(viewerChannelKey('stoney_eagle'), { isAcceptingRequests: true });
     queries.setQueryData(viewerQueueKey('c1'), { queueLength: 0, songs: [] });
-    connection.receive('sr_queue_changed', { items: [] });
+
+    connection.receive('ChannelEvent', {
+      type: 'sr_queue_changed',
+      broadcasterId: 'c1',
+      data: { items: [] },
+    });
 
     expect(queries.getQueryState(viewerChannelKey('stoney_eagle'))?.isInvalidated).toBe(true);
     expect(queries.getQueryState(viewerQueueKey('c1'))?.isInvalidated).toBe(true);
