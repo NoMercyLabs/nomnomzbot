@@ -152,7 +152,8 @@ function reportYouTubeError(player: YouTubePlayerHandle, code: number): void {
 
 async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undefined): Promise<void> {
   const videoId: string = d?.videoId || ''
-  if (!videoId) return
+  // Without the audio opt-in the page may not load the YouTube player (its CSP forbids it): stay quiet.
+  if (!videoId || !cfg.enableAudio) return
   ytRequestedVideoId = videoId
   ytLoading = true
   ytPendingSeekSeconds = null

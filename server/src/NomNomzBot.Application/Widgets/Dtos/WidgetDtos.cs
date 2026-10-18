@@ -117,6 +117,8 @@ public sealed record OverlayManifest(
 /// One widget in the overlay manifest. <see cref="TrustTier"/> (first_party | verified_community | unverified) is
 /// derived from the widget's <c>Source</c> and drives the render-time CSP tier — a self-authored (custom) widget is
 /// always <c>unverified</c> (fail-closed).
+/// <see cref="GalleryKey"/> is the natural key of the gallery item the widget was made from (null for a widget with
+/// none); it is how the host page recognises the system Audio widget without trusting a user setting.
 /// </summary>
 public sealed record OverlayWidgetEntry(
     Guid WidgetId,
@@ -126,7 +128,8 @@ public sealed record OverlayWidgetEntry(
     string BundleUrl,
     string ContentHash,
     List<string> EventSubscriptions,
-    Dictionary<string, object?> Settings
+    Dictionary<string, object?> Settings,
+    string? GalleryKey = null
 );
 
 /// <summary>A widget's compiled bundle, served to the overlay host page. <see cref="Framework"/> picks the MIME type.</summary>

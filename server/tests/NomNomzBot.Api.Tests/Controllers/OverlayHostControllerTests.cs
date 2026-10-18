@@ -40,7 +40,10 @@ public sealed class OverlayHostControllerTests
         return new(service);
     }
 
-    private static OverlayWidgetEntry VueEntry(Dictionary<string, object?> settings) =>
+    private static OverlayWidgetEntry VueEntry(
+        Dictionary<string, object?> settings,
+        string? galleryKey = null
+    ) =>
         new(
             WidgetId,
             "Chat Box",
@@ -49,7 +52,8 @@ public sealed class OverlayHostControllerTests
             $"/api/v1/overlay/bundle/{WidgetId}",
             "hash123",
             ["twitch.chat.message"],
-            settings
+            settings,
+            galleryKey
         );
 
     private static async Task<string> BodyOf(IActionResult result)
@@ -120,6 +124,43 @@ public sealed class OverlayHostControllerTests
         html.Should()
             .MatchRegex("script-src [^;]*https://www\\.youtube\\.com")
             .And.MatchRegex("frame-src [^;]*https://www\\.youtube\\.com");
+    }
+
+    [Theory]
+    [InlineData("audio")]
+    [InlineData("tts_audio")]
+    public async Task The_system_audio_widget_gets_the_player_csp_without_enableAudio(
+        string galleryKey
+    )
+    {
+        // Stoney, 2026-10-18: the system TTS Audio widget has no enableAudio setting, so YouTube never played.
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?> { ["showIndicator"] = true }, galleryKey)
+        );
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        html.Should()
+            .MatchRegex("script-src [^;]*https://www\\.youtube\\.com")
+            .And.MatchRegex("script-src [^;]*https://sdk\\.scdn\\.co")
+            .And.MatchRegex("frame-src [^;]*https://www\\.youtube\\.com")
+            .And.MatchRegex("frame-src [^;]*https://sdk\\.scdn\\.co");
+    }
+
+    [Fact]
+    public async Task A_plain_user_widget_with_another_gallery_key_keeps_the_players_out()
+    {
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?>(), "chat_box")
+        );
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        html.Should().NotContain("youtube.com").And.NotContain("sdk.scdn.co");
     }
 
     [Fact]

@@ -159,13 +159,15 @@ public sealed partial class OverlayHostController : ControllerBase
         + "base-uri 'none'; object-src 'none'; "
         + $"frame-src {(allowSpotifyPlayback ? AudioPlayerOrigins : "'none'")}; form-action 'none'";
 
-    /// <summary>Widget settings declare a truthy <c>enableAudio</c> flag (the OBS playback widget's opt-in) — the
-    /// only trigger for relaxing the CSP to admit Spotify's SDK, so every other widget keeps the strict default.
+    /// <summary>The system Audio widget (by its gallery key, never a user setting) always plays the bot's YouTube and
+    /// Spotify audio, so it always gets the player CSP. Any other widget opts in with a truthy <c>enableAudio</c>
+    /// setting (the OBS playback widget's opt-in); every other widget keeps the strict default.
     /// <c>Settings</c> values are plain CLR by the time they reach here (Widget.Settings' [VC:JSON] read side
     /// normalizes Newtonsoft JTokens to plain bool/string/etc — see JsonValueConverter.PlainObjectConverter), so
     /// this is a direct <c>bool</c> check, never a JToken/JsonElement one.</summary>
     private static bool WantsSpotifyPlayback(OverlayWidgetEntry entry) =>
-        entry.Settings.TryGetValue("enableAudio", out object? value) && value is true;
+        WidgetKeyAliases.Canonical(entry.GalleryKey) == WidgetKeyAliases.Audio
+        || (entry.Settings.TryGetValue("enableAudio", out object? value) && value is true);
 
     /// <summary>A framework (vue/react/…) widget: config + runtime + SDK, then the self-mounting bundle into #app.</summary>
     private static string RenderFrameworkPage(OverlayWidgetEntry entry, string token)

@@ -1336,6 +1336,16 @@ public class WidgetService : IWidgetService
             .Where(v => activeVersionIds.Contains(v.Id))
             .ToDictionaryAsync(v => v.Id, cancellationToken);
 
+        List<Guid> galleryItemIds =
+        [
+            .. widgets.Where(w => w.GalleryItemId != null).Select(w => w.GalleryItemId!.Value),
+        ];
+        Dictionary<Guid, string?> galleryKeys = await _db
+            .WidgetGalleryItems.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(i => galleryItemIds.Contains(i.Id))
+            .ToDictionaryAsync(i => i.Id, i => i.NaturalKey, cancellationToken);
+
         List<OverlayWidgetEntry> entries = [];
         foreach (Widget widget in widgets)
         {
@@ -1356,7 +1366,10 @@ public class WidgetService : IWidgetService
                     version.ContentHash,
                     widget.EventSubscriptions,
                     WithDeclaredDefaults(widget.Settings, version.FilesJson)
-                        .ToDictionary(k => k.Key, v => (object?)v.Value)
+                        .ToDictionary(k => k.Key, v => (object?)v.Value),
+                    widget.GalleryItemId is Guid galleryItemId
+                        ? galleryKeys.GetValueOrDefault(galleryItemId)
+                        : null
                 )
             );
         }

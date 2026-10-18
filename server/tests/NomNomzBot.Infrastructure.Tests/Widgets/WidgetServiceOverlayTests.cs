@@ -163,6 +163,38 @@ public sealed class WidgetServiceOverlayTests
     }
 
     [Fact]
+    public async Task Manifest_carries_the_gallery_key_of_a_widget_made_from_a_gallery_item()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        Guid fromGallery = Guid.CreateVersion7();
+        Guid plain = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedWidgetAsync(database, channel, fromGallery);
+        await SeedWidgetAsync(database, channel, plain);
+        await using (WidgetTestDbContext seed = database.NewContext())
+        {
+            WidgetGalleryItem item = new() { Name = "Audio", NaturalKey = "audio" };
+            seed.WidgetGalleryItems.Add(item);
+            Widget widget = await seed
+                .Widgets.IgnoreQueryFilters()
+                .SingleAsync(w => w.Id == fromGallery);
+            widget.GalleryItemId = item.Id;
+            await seed.SaveChangesAsync();
+        }
+        await ActivateAsync(database, channel, fromGallery);
+        await ActivateAsync(database, channel, plain);
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, BuildReturning("x", "y"));
+        Result<OverlayManifest> result = await service.GetOverlayManifestAsync("tok");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Widgets.Single(w => w.WidgetId == fromGallery).GalleryKey.Should().Be("audio");
+        result.Value.Widgets.Single(w => w.WidgetId == plain).GalleryKey.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Script_storage_value_resolves_the_channel_by_overlay_token_and_reads_the_key()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
