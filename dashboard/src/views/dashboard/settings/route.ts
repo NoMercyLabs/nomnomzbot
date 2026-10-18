@@ -16,6 +16,7 @@ import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
 
 import { settingsApiDevicesRoute } from './api-devices/route';
 import { settingsFeaturesRoute } from './features/route';
+import { settingsIntegrationsRoute } from './integrations/route';
 import { settingsResourceLimitsRoute } from './resource-limits/route';
 import { settingsWhiteLabelBotRoute } from './white-label-bot/route';
 
@@ -82,6 +83,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   supporterSourcesRoute,
   settingsWhiteLabelBotRoute,
   settingsFeaturesRoute,
+  settingsIntegrationsRoute,
   settingsApiDevicesRoute,
   settingsResourceLimitsRoute,
 ];

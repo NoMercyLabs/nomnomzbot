@@ -14,6 +14,7 @@ import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/econom
 import { engagementConfigKey } from '@/api/engagement';
 import { featuresKey } from '@/api/features';
 import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
+import { integrationsKey, spotifyCredentialsKey } from '@/api/integrations';
 import { timersKey } from '@/api/liveOps';
 import { musicConfigKey, musicQueueKey } from '@/api/music';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
@@ -49,9 +50,10 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'music-config': [musicConfigKey, musicQueueKey],
   'sr-config': [musicConfigKey, musicQueueKey],
   engagement: [engagementConfigKey],
-  'channel-settings': [botStatusKey, connectionsKey, personalityKey, basicsKey],
+  'channel-settings': [botStatusKey, connectionsKey, integrationsKey, personalityKey, basicsKey],
   features: [botStatusKey, featuresKey],
-  webhooks: [connectionsKey],
+  webhooks: [connectionsKey, integrationsKey],
+  integrations: [connectionsKey, integrationsKey, spotifyCredentialsKey],
   'moderation-history': [reviewQueueKey, communityListsKey],
   'suspicious-users': [reviewQueueKey, communityListsKey],
   'unban-requests': [reviewQueueKey, communityListsKey],

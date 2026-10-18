@@ -1,0 +1,43 @@
+{
+  "dashboard": {
+    "settings": {
+      "integrations": {
+        "title": "Connected services",
+        "description": "The outside services your channel uses. Connect one through its own sign-in page. Disconnect shows first what stops working.",
+        "loadFailed": "The services could not be loaded.",
+        "empty": "No services are available for this channel.",
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "needsReauth": "Sign in again",
+        "decryptFailed": "Sign in again (the saved login is unreadable)",
+        "loginOnly": "Signed in only",
+        "account": "Connected as {account}",
+        "lastSync": "Last sync {date}",
+        "scopeSets": "Permission sets: {sets}",
+        "capabilities": "Can do: {list}",
+        "connect": "Connect",
+        "reconnect": "Reconnect",
+        "disconnect": "Disconnect",
+        "shopDomain": "Shop name",
+        "atLeast": "at least {count}",
+        "disconnected": "{name} is disconnected.",
+        "confirm": {
+          "title": "Disconnect {name}?",
+          "description": "These parts of your channel stop working until you connect it again."
+        },
+        "spotify": {
+          "title": "Your own Spotify app",
+          "description": "Use your own Spotify app instead of the shared one. The secret is stored sealed and never shown again.",
+          "loadFailed": "Your Spotify app settings could not be loaded.",
+          "clientId": "Client ID",
+          "clientSecret": "Client secret",
+          "secretKept": "A secret is stored. Type a new one to replace it.",
+          "save": "Save",
+          "clear": "Use the shared app",
+          "saved": "Your Spotify app is saved.",
+          "cleared": "Back on the shared Spotify app."
+        }
+      }
+    }
+  }
+}

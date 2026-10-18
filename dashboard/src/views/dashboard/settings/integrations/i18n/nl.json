@@ -1,0 +1,43 @@
+{
+  "dashboard": {
+    "settings": {
+      "integrations": {
+        "title": "Gekoppelde diensten",
+        "description": "De externe diensten die je kanaal gebruikt. Koppel een dienst via zijn eigen inlogpagina. Bij ontkoppelen zie je eerst wat stopt met werken.",
+        "loadFailed": "De diensten konden niet worden geladen.",
+        "empty": "Er zijn geen diensten beschikbaar voor dit kanaal.",
+        "connected": "Gekoppeld",
+        "notConnected": "Niet gekoppeld",
+        "needsReauth": "Log opnieuw in",
+        "decryptFailed": "Log opnieuw in (de opgeslagen login is onleesbaar)",
+        "loginOnly": "Alleen ingelogd",
+        "account": "Gekoppeld als {account}",
+        "lastSync": "Laatst gesynchroniseerd {date}",
+        "scopeSets": "Rechtensets: {sets}",
+        "capabilities": "Kan: {list}",
+        "connect": "Koppelen",
+        "reconnect": "Opnieuw koppelen",
+        "disconnect": "Ontkoppelen",
+        "shopDomain": "Winkelnaam",
+        "atLeast": "minstens {count}",
+        "disconnected": "{name} is ontkoppeld.",
+        "confirm": {
+          "title": "{name} ontkoppelen?",
+          "description": "Deze onderdelen van je kanaal werken niet meer tot je opnieuw koppelt."
+        },
+        "spotify": {
+          "title": "Je eigen Spotify-app",
+          "description": "Gebruik je eigen Spotify-app in plaats van de gedeelde. Het geheim wordt versleuteld opgeslagen en nooit meer getoond.",
+          "loadFailed": "De instellingen van je Spotify-app konden niet worden geladen.",
+          "clientId": "Client-ID",
+          "clientSecret": "Client-geheim",
+          "secretKept": "Er is een geheim opgeslagen. Typ een nieuw om het te vervangen.",
+          "save": "Opslaan",
+          "clear": "Gedeelde app gebruiken",
+          "saved": "Je Spotify-app is opgeslagen.",
+          "cleared": "Terug op de gedeelde Spotify-app."
+        }
+      }
+    }
+  }
+}
