@@ -296,6 +296,49 @@ function isConstantObject(
   return references.every((reference) => isNamedRead(reference.identifier, toTsType));
 }
 
+function isModuleScope(node: TSESTree.VariableDeclarator): boolean {
+  const statement = node.parent.parent;
+
+  if (statement?.type === 'ExportNamedDeclaration')
+    return statement.parent.type === 'Program';
+
+  return statement?.type === 'Program';
+}
+
+// A constant list (`const likelyNext: readonly Route[] = [ ... ]`) states its type as
+// `[ ... ] as const satisfies readonly Route[]` (owner 2026-10-13). A mutable `T[]` stays: `as const`
+// freezes the list, so code that pushes to it would break.
+function isConstantList(
+  init: TSESTree.Expression,
+  declared: ts.Type,
+  checker: ts.TypeChecker,
+  node: TSESTree.VariableDeclarator,
+): boolean {
+  if (init.type !== 'ArrayExpression' || init.elements.length === 0 || !isModuleScope(node))
+    return false;
+
+  if (!checker.isArrayType(declared) || declared.symbol.name !== 'ReadonlyArray')
+    return false;
+
+  const element = checker.getIndexTypeOfType(declared, ts.IndexKind.Number);
+
+  return element !== undefined && !isLoose(element) && !isWidenedForReading(element, checker);
+}
+
+// `readonly string[]` exists so `.includes(someString)` compiles, and a row that holds a list
+// (`entries: NavEntry[]`) turns into a union of different tuples that `.flatMap()` cannot read.
+function isWidenedForReading(element: ts.Type, checker: ts.TypeChecker): boolean {
+  if ((element.flags & primitiveFlags) !== 0)
+    return true;
+
+  if (element.isUnion())
+    return element.types.some((member) => isWidenedForReading(member, checker));
+
+  return element
+    .getProperties()
+    .some((field) => checker.isArrayType(checker.getTypeOfSymbol(field)));
+}
+
 export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
   meta: {
     type: 'suggestion',
@@ -305,6 +348,7 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
       redundant:
         'The value already has this type. Drop the annotation; keep one only to widen or narrow, through the generic (ref<T>(), computed<T>()).',
       table: 'A constant object states its type as `{ ... } as const satisfies T`.',
+      list: 'A constant list states its type as `[ ... ] as const satisfies readonly T[]`.',
     },
   },
   defaultOptions: [],
@@ -334,6 +378,21 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
           context.report({
             node: annotation,
             messageId: 'table',
+            fix: (fixer) => [
+              fixer.remove(annotation),
+              fixer.insertTextAfter(init, ` as const satisfies ${typeText}`),
+            ],
+          });
+
+          return;
+        }
+
+        if (isConstantList(init, declared, checker, node)) {
+          const typeText = context.sourceCode.getText(annotation.typeAnnotation);
+
+          context.report({
+            node: annotation,
+            messageId: 'list',
             fix: (fixer) => [
               fixer.remove(annotation),
               fixer.insertTextAfter(init, ` as const satisfies ${typeText}`),

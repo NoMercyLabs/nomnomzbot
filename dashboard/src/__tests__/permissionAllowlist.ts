@@ -20,7 +20,7 @@ export interface AllowlistGroup {
   files: Readonly<Record<string, number>>;
 }
 
-export const permissionAllowlist: readonly AllowlistGroup[] = [
+export const permissionAllowlist = [
   {
     reason: 'Local-only UI that changes no stored data: pager, back, close, retry, copy link, panel toggle, display preference, row pick, lookup, dev-only catalog page.',
     files: {
@@ -78,4 +78,4 @@ export const permissionAllowlist: readonly AllowlistGroup[] = [
       'settings/your-data/components/ExportPanel.vue': 1,
     },
   },
-];
+] as const satisfies readonly AllowlistGroup[];

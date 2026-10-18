@@ -17,10 +17,10 @@ import { prefetchProfile, prefetchRouteData } from '@/api/prefetch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 // The pages a person most likely opens next from anywhere; they load while the browser is quiet.
-const likelyNext: readonly RouteLocationRaw[] = [
+const likelyNext = [
   { name: 'dashboard-chat' },
   { name: 'dashboard-people' },
-];
+] as const satisfies readonly RouteLocationRaw[];
 const idleDelayMs = 2_500;
 const intentEvents = ['pointerover', 'focusin', 'touchstart'];
 

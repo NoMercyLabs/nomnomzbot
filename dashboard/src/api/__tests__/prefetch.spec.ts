@@ -69,7 +69,7 @@ function answer(path: string): Promise<Answer> {
   });
 }
 
-const pages: ReadonlyArray<readonly [string, readonly KeyParts[]]> = [
+const pages = [
   ['dashboard-commands', [commandsKey('c1'), builtinsKey('c1'), pipelinesKey('c1')]],
   [
     'dashboard-music',
@@ -92,7 +92,7 @@ const pages: ReadonlyArray<readonly [string, readonly KeyParts[]]> = [
   ['dashboard-pipelines', [pipelinesKey('c1')]],
   ['dashboard-scripts', [codeScriptsKey]],
   ['dashboard-stream', [streamInfoKey('c1'), streamHistoryKey('c1'), botStatusKey('c1'), rewardsKey('c1')]],
-];
+] as const satisfies ReadonlyArray<readonly [string, readonly KeyParts[]]>;
 
 let queries: QueryClient;
 

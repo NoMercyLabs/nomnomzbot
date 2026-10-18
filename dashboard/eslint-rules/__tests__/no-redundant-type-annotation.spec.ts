@@ -48,6 +48,13 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     // `as const` would reject the write or freeze the list.
     'const counter: { seen: number } = { seen: 0 }; counter.seen++',
     'const bucket: { seen: string[] } = { seen: [] }',
+    // ScriptsView FILTERS: read by a computed string key, `as const` would reject `FILTERS[tab]`.
+    'type Script = { on: boolean }; declare const tab: string; const FILTERS: Readonly<Record<string, (script: Script) => boolean>> = { all: () => true, on: (script: Script) => script.on }; FILTERS[tab]',
+    // A mutable list and a list inside a function keep their annotation.
+    'const names: string[] = [\'a\']; names.push(\'b\')',
+    'const events: readonly string[] = [\'a\', \'b\']; declare const name: string; events.includes(name)',
+    'type Group = { entries: readonly string[] }; const groups: readonly Group[] = [{ entries: [\'a\'] }]',
+    'function run() { const rows: readonly number[] = [1, 2]; return rows }',
   ],
   invalid: [
     {
@@ -78,6 +85,23 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
       output:
         'const sizes = { sm: { px: 14 } } as const satisfies Record<string, { px: number }>; for (const [name, size] of Object.entries(sizes)) console.log(name, size.px, sizes.sm, sizes[\'sm\'])',
       errors: [{ messageId: 'table' }],
+    },
+    {
+      code: 'type Script = { on: boolean }; const FILTERS: Readonly<Record<string, (script: Script) => boolean>> = { all: () => true, on: (script: Script) => script.on }; FILTERS.all',
+      output:
+        'type Script = { on: boolean }; const FILTERS = { all: () => true, on: (script: Script) => script.on } as const satisfies Readonly<Record<string, (script: Script) => boolean>>; FILTERS.all',
+      errors: [{ messageId: 'table' }],
+    },
+    {
+      code: 'type Route = { name: string }; const likelyNext: readonly Route[] = [{ name: \'chat\' }, { name: \'people\' }]',
+      output:
+        'type Route = { name: string }; const likelyNext = [{ name: \'chat\' }, { name: \'people\' }] as const satisfies readonly Route[]',
+      errors: [{ messageId: 'list' }],
+    },
+    {
+      code: 'export const steps: ReadonlyArray<{ id: number }> = [{ id: 1 }]',
+      output: 'export const steps = [{ id: 1 }] as const satisfies ReadonlyArray<{ id: number }>',
+      errors: [{ messageId: 'list' }],
     },
   ],
 });

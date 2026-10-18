@@ -80,8 +80,8 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
 
 // A domain with no page key of its own (catalog, picklists, or a
 // new one) marks everything the channel owns as stale: every query of a channel starts with one of these three.
-export const channelPrefixes: readonly QueryKeyBuilder[] = [
+export const channelPrefixes = [
   (channelId) => ['channels', channelId],
   (channelId) => ['community', channelId],
   (channelId) => ['dashboard', channelId],
-];
+] as const satisfies readonly QueryKeyBuilder[];

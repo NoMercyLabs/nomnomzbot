@@ -90,7 +90,7 @@ export function nameOf(eventType: string): string {
 }
 
 // The icon comes from the kind of event; the first rule that matches the event type wins.
-const iconRules: readonly (readonly [RegExp, Component])[] = [
+const iconRules = [
   [/gift/, GiftCard],
   [/subscri|resub/, Star],
   [/follow/, UserAdd],
@@ -99,7 +99,7 @@ const iconRules: readonly (readonly [RegExp, Component])[] = [
   [/redemption|reward/, Ticket],
   [/ban|timeout/, ShieldAlert],
   [/ad_break|shoutout/, Megaphone],
-];
+] as const satisfies readonly (readonly [RegExp, Component])[];
 
 export function iconOf(eventType: string): Component {
   const rule = iconRules.find(([pattern]) => pattern.test(eventType));
