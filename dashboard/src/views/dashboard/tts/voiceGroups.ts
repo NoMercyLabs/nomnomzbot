@@ -10,7 +10,9 @@
 
 import { voiceFamily, voiceFamilyOrder, type TtsVoice } from '@/api/tts';
 
-export type VoiceListItem =
+export type GroupableVoice = { id: string; locale: string };
+
+export type VoiceListItem<V extends GroupableVoice = TtsVoice> =
   | {
     kind: 'heading';
     key: string;
@@ -19,7 +21,7 @@ export type VoiceListItem =
   {
     kind: 'voice';
     key: string;
-    voice: TtsVoice;
+    voice: V;
   };
 
 const FIRST_LOCALE = 'en-US';
@@ -52,8 +54,11 @@ function localeOrder(a: string, b: string): number {
 }
 
 // Voices grouped by locale: language families in the chip order, the United States first, then by locale.
-export function groupVoices(voices: readonly TtsVoice[], language: string): VoiceListItem[] {
-  const byLocale = new Map<string, TtsVoice[]>();
+export function groupVoices<V extends GroupableVoice>(
+  voices: readonly V[],
+  language: string,
+): VoiceListItem<V>[] {
+  const byLocale = new Map<string, V[]>();
 
   for (const voice of voices) {
     byLocale.set(voice.locale, [...(byLocale.get(voice.locale) ?? []), voice]);
@@ -65,13 +70,13 @@ export function groupVoices(voices: readonly TtsVoice[], language: string): Voic
       localeOrder(a, b),
   );
 
-  return locales.flatMap((locale: string): VoiceListItem[] => [
+  return locales.flatMap((locale: string): VoiceListItem<V>[] => [
     {
       kind: 'heading',
       key: `group:${locale}`,
       label: localeLabel(locale, language),
     },
-    ...(byLocale.get(locale) ?? []).map((voice: TtsVoice): VoiceListItem => ({
+    ...(byLocale.get(locale) ?? []).map((voice: V): VoiceListItem<V> => ({
       kind: 'voice',
       key: voice.id,
       voice,

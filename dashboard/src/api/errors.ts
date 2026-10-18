@@ -88,6 +88,7 @@ export const apiOperations = {
   'platform defaults actions': 'admin',
   'platform defaults replies': 'admin',
   'platform defaults events': 'admin',
+  'platform defaults voice': 'admin',
   'admin usage': 'admin',
   'admin error budget': 'admin',
   'access principals': 'admin',

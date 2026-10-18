@@ -97,6 +97,29 @@ const events = [
   },
 ];
 
+const voiceDefault = {
+  voiceId: 'en-US-Aria',
+  displayName: 'Aria',
+  locale: 'en-US',
+  provider: 'azure',
+  channelsFollowing: 7,
+  channelsWithOwnVoice: 2,
+};
+
+const candidate = (voiceId: string, locale: string): Record<string, unknown> => ({
+  voiceId,
+  displayName: voiceId.split('-').at(-1),
+  locale,
+  gender: 'Female',
+  isDefault: voiceId === voiceDefault.voiceId,
+});
+
+const candidates = [
+  candidate('nl-NL-Colette', 'nl-NL'),
+  candidate('en-US-Aria', 'en-US'),
+  candidate('en-US-Guy', 'en-US'),
+];
+
 const posts: { path: string; body: Record<string, unknown> }[] = [];
 
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -131,7 +154,12 @@ vi.mock('@/api/client', () => ({
         };
       }
 
+      if (path.endsWith('/tts-voice')) {
+        return { data: { status: 'ok', data: voiceDefault }, response: { status: 200, ok: true } };
+      }
+
       const lists: Record<string, unknown[]> = {
+        candidates,
         'builtin-replies': builtins,
         'event-responses': events,
       };
@@ -487,6 +515,67 @@ describe('AdminPlatformDefaultsView', () => {
           speakWithTts: true,
           confirmedChannelsAffected: 7,
         },
+      });
+    });
+  });
+
+  describe('text-to-speech voice', () => {
+    const voiceRow = (id: string): HTMLElement =>
+      document.body.querySelector<HTMLElement>(`[data-voice-id="${id}"]`)!;
+
+    async function openVoiceEditor(): Promise<void> {
+      await open();
+
+      document.body
+        .querySelector<HTMLElement>('[data-section="tts-voice"] [data-edit]')!
+        .click();
+
+      await settle();
+    }
+
+    it('shows the current voice with how many channels follow it and how many picked their own', async () => {
+      await open();
+
+      const card = document.body.querySelector('[data-section="tts-voice"]')!.textContent;
+
+      expect(card).toContain('Aria');
+      expect(card).toContain('7 channels follow this');
+      expect(card).toContain('2 channels use their own');
+    });
+
+    it('groups the candidate voices by language, each with a play button', async () => {
+      await openVoiceEditor();
+
+      const headings = Array.from(document.body.querySelectorAll('[data-voice-group]')).map(
+        (heading) => heading.textContent?.trim(),
+      );
+
+      expect(headings).toEqual(['English (United States)', 'Dutch (Netherlands)']);
+      expect(document.body.querySelectorAll('[data-voice-row]')).toHaveLength(3);
+      expect(voiceRow('en-US-Guy').parentElement?.querySelector('[data-voice-play]')).not.toBeNull();
+    });
+
+    it('previews the picked voice, keeps Apply off until the count arrived, then sends that count', async () => {
+      await openVoiceEditor();
+      expect(applyButton().disabled).toBe(true);
+
+      voiceRow('en-US-Guy').click();
+      await settle();
+
+      expect(posts.at(-1)).toMatchObject({
+        path: '/api/v{version}/admin/platform-defaults/tts-voice/blast-radius',
+        body: { voiceId: 'en-US-Guy' },
+      });
+
+      expect(preview()?.textContent).toContain('12 channels');
+      expect(applyButton().disabled).toBe(false);
+
+      applyButton().click();
+      await settle();
+
+      expect(puts[0]).toMatchObject({
+        path: '/api/v{version}/admin/platform-defaults/tts-voice',
+        body: { voiceId: 'en-US-Guy', confirmedChannelsAffected: 12 },
       });
     });
   });

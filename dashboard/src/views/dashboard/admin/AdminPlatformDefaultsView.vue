@@ -17,6 +17,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PlatformActionDefaults from './components/PlatformActionDefaults.vue';
 import PlatformBuiltinReplyDefaults from './components/PlatformBuiltinReplyDefaults.vue';
 import PlatformEventResponseDefaults from './components/PlatformEventResponseDefaults.vue';
+import PlatformTtsVoiceDefault from './components/PlatformTtsVoiceDefault.vue';
 </script>
 
 <template>
@@ -31,5 +32,6 @@ import PlatformEventResponseDefaults from './components/PlatformEventResponseDef
     <PlatformActionDefaults />
     <PlatformBuiltinReplyDefaults />
     <PlatformEventResponseDefaults />
+    <PlatformTtsVoiceDefault />
   </PageBody>
 </template>

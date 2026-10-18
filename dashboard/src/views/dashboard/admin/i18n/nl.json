@@ -987,6 +987,24 @@
             "variables": "Je kunt gebruiken: {names}",
             "speak": "Spreek het ook uit met tekst-naar-spraak"
           }
+        },
+        "voice": {
+          "title": "Tekst-naar-spraak-stem",
+          "description": "De stem die een kanaal gebruikt tot het zelf een stem kiest.",
+          "empty": "Er is geen platformstem ingesteld.",
+          "detail": "{language}, {provider}",
+          "following": "{n} kanaal volgt dit | {n} kanalen volgen dit",
+          "overrides": "{n} kanaal gebruikt een eigen stem | {n} kanalen gebruiken een eigen stem",
+          "edit": "Stem wijzigen",
+          "saved": "De platformstem is opgeslagen.",
+          "saveError": "De platformstem is niet opgeslagen: {reason}",
+          "dialog": {
+            "title": "Platformstem",
+            "description": "Kies een stem en speel hem af. Controleer daarna welke kanalen dit raakt voordat je toepast.",
+            "list": "Stemmen",
+            "loading": "De stemmen worden geladen...",
+            "loadError": "De stemmen konden niet worden geladen."
+          }
         }
       },
       "featureFlags": {

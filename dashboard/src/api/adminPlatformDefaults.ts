@@ -15,6 +15,8 @@ import {
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
 
+import type { Ref } from 'vue';
+
 import { client } from './client';
 import { problemError } from './errors';
 import type { components } from './schema';
@@ -233,6 +235,87 @@ export function useSaveEventResponseDefault() {
 
       if (error !== undefined)
         throw problemError('platform defaults events', response.status, error);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: adminPlatformDefaultsKey }),
+  });
+}
+
+export type TtsVoiceDefault = components['schemas']['TtsVoiceDefault'];
+export type TtsVoiceCandidate = components['schemas']['TtsVoiceCandidate'];
+
+export const adminTtsVoiceDefaultKey: KeyParts = [...adminPlatformDefaultsKey, 'tts-voice'];
+
+export const adminTtsVoiceCandidatesKey: KeyParts = [...adminTtsVoiceDefaultKey, 'candidates'];
+
+// The voice every channel without its own pick speaks with, and how many channels follow it.
+export function useAdminTtsVoiceDefault(): UseQueryReturnType<TtsVoiceDefault | undefined, Error> {
+  return useQuery({
+    queryKey: adminTtsVoiceDefaultKey,
+    queryFn: async (): Promise<TtsVoiceDefault | undefined> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/admin/platform-defaults/tts-voice',
+        { params: { path: { version } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform defaults voice', response.status, error);
+
+      return data?.data ?? undefined;
+    },
+  });
+}
+
+// Every voice the platform could make its default; read when the editor opens.
+export function useAdminTtsVoiceCandidates(
+  enabled: Ref<boolean>,
+): UseQueryReturnType<TtsVoiceCandidate[], Error> {
+  return useQuery({
+    queryKey: adminTtsVoiceCandidatesKey,
+    enabled,
+    queryFn: async (): Promise<TtsVoiceCandidate[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/admin/platform-defaults/tts-voice/candidates',
+        { params: { path: { version } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform defaults voice', response.status, error);
+
+      return [...(data?.data ?? [])];
+    },
+  });
+}
+
+// The counted blast radius of making a voice the platform default.
+export async function previewTtsVoiceDefault(voiceId: string): Promise<PlatformDefaultBlastRadius> {
+  const { data, error, response } = await client.POST(
+    '/api/v{version}/admin/platform-defaults/tts-voice/blast-radius',
+    { params: { path: { version } }, body: { voiceId } },
+  );
+
+  if (error !== undefined)
+    throw problemError('platform defaults voice', response.status, error);
+
+  if (!data?.data)
+    throw problemError('platform defaults voice', response.status, { message: 'empty' });
+
+  return data.data;
+}
+
+export type SaveTtsVoiceDefault = components['schemas']['SetTtsVoiceDefaultRequest'];
+
+export function useSaveTtsVoiceDefault() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: SaveTtsVoiceDefault): Promise<void> => {
+      const { error, response } = await client.PUT(
+        '/api/v{version}/admin/platform-defaults/tts-voice',
+        { params: { path: { version } }, body },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform defaults voice', response.status, error);
     },
     onSuccess: () => queries.invalidateQueries({ queryKey: adminPlatformDefaultsKey }),
   });

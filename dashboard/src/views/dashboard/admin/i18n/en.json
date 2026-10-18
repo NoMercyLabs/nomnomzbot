@@ -987,6 +987,24 @@
             "variables": "You can use: {names}",
             "speak": "Also speak it with text to speech"
           }
+        },
+        "voice": {
+          "title": "Text-to-speech voice",
+          "description": "The voice a channel speaks with until it picks its own.",
+          "empty": "No platform voice is set.",
+          "detail": "{language}, {provider}",
+          "following": "{n} channel follows this | {n} channels follow this",
+          "overrides": "{n} channel uses its own | {n} channels use their own",
+          "edit": "Change voice",
+          "saved": "The platform voice was saved.",
+          "saveError": "The platform voice was not saved: {reason}",
+          "dialog": {
+            "title": "Platform voice",
+            "description": "Pick a voice and play it, then check which channels this reaches before you apply it.",
+            "list": "Voices",
+            "loading": "Loading the voices...",
+            "loadError": "The voices could not load."
+          }
         }
       },
       "featureFlags": {
