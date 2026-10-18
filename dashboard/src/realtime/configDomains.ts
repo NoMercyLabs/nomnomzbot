@@ -23,6 +23,7 @@ import { pipelinesKey } from '@/api/pipelines';
 import { basicsKey } from '@/api/settings';
 import { ttsConfigKey } from '@/api/tts';
 import { voiceTriggersKey } from '@/api/voiceTriggers';
+import { inboundWebhooksKey, outboundWebhooksKey } from '@/api/webhooks';
 import { widgetsKey } from '@/api/widgets';
 
 import type { QueryKeyBuilder } from './hubEvent';
@@ -52,7 +53,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   engagement: [engagementConfigKey],
   'channel-settings': [botStatusKey, connectionsKey, integrationsKey, personalityKey, basicsKey],
   features: [botStatusKey, featuresKey],
-  webhooks: [connectionsKey, integrationsKey],
+  webhooks: [connectionsKey, integrationsKey, outboundWebhooksKey, inboundWebhooksKey],
   integrations: [connectionsKey, integrationsKey, spotifyCredentialsKey],
   'moderation-history': [reviewQueueKey, communityListsKey],
   'suspicious-users': [reviewQueueKey, communityListsKey],

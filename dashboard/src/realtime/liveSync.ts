@@ -32,6 +32,7 @@ import { actionMatrixKey, membersKey, personGrantsKey } from '@/api/permissions'
 import { rewardsKey } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
 import { vtsConnectionKey, vtsInventoryKey } from '@/api/vts';
+import { outboundWebhooksKey } from '@/api/webhooks';
 import { widgetsKey } from '@/api/widgets';
 import { consentsKey, dataRequestsKey } from '@/api/yourData';
 import { merge } from '@/lib/array';
@@ -97,6 +98,9 @@ const eventHandlers = [
   refreshing('ObsBridgeStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('ObsLiveStateChanged', merge([connectionsKey, botStatusKey], obsKeys)),
   refreshing('CustomDataSourceChanged', [eventFeedsKey]),
+  refreshing('webhook_delivery_failed', [outboundWebhooksKey]),
+  refreshing('webhook_delivery_dead_letter', [outboundWebhooksKey]),
+  refreshing('webhook_endpoint_auto_disabled', [outboundWebhooksKey]),
   refreshing('DataRightsChanged', [dataRequestsKey, consentsKey]),
   refreshing('FederationOptInChanged', [federationOptInsKey]),
   refreshing('VtsStatusChanged', [connectionsKey, botStatusKey, vtsConnectionKey, vtsInventoryKey]),

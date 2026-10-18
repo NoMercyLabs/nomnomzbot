@@ -1,0 +1,55 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "webhooks": {
+        "outbound": {
+          "title": "Uitgaande webhooks",
+          "description": "Stuur de events van je kanaal naar een adres dat jij beheert, zoals een eigen server of een automatiseringsdienst.",
+          "empty": "Nog geen uitgaande webhook. Voeg er een toe om events te versturen.",
+          "loadFailed": "De uitgaande webhooks konden niet worden geladen.",
+          "new": "Nieuwe webhook",
+          "events": "{count} events",
+          "lastDelivery": "Laatste levering {when}",
+          "neverDelivered": "Nog niets geleverd",
+          "switchedOff": "Uitgezet na herhaalde fouten. {reason}",
+          "reenable": "Weer aanzetten",
+          "edit": "{name} bewerken",
+          "delete": "{name} verwijderen",
+          "createTitle": "Nieuwe uitgaande webhook",
+          "editTitle": "Uitgaande webhook bewerken",
+          "formDescription": "Het adres moet op je lijst met goedgekeurde hosts staan.",
+          "create": "Webhook maken",
+          "save": "Webhook opslaan",
+          "name": "Naam",
+          "host": "Host",
+          "hostHelp": "Alleen de hostnaam, zonder https://.",
+          "path": "Pad",
+          "eventsTitle": "Events om te versturen"
+        },
+        "inbound": {
+          "title": "Inkomende webhooks",
+          "description": "Links waar een externe dienst naartoe post. Elke aanroep kan een pipeline of event starten.",
+          "empty": "Nog geen inkomende webhook.",
+          "loadFailed": "De inkomende webhooks konden niet worden geladen.",
+          "lastReceived": "{count} aanroepen, de laatste {when}",
+          "neverReceived": "Nog niets ontvangen",
+          "copyLink": "Link kopieren",
+          "delete": "{name} verwijderen"
+        },
+        "delete": {
+          "title": "{name} verwijderen?",
+          "description": "De webhook wordt verwijderd en kan niet worden hersteld.",
+          "action": "Webhook verwijderen",
+          "line": "{count} {what} gebruiken deze webhook",
+          "nothing": "Niets gebruikt deze webhook.",
+          "outboundStops": "Leveringen naar dit adres stoppen direct.",
+          "category": {
+            "pipelines": "pipelines",
+            "event_responses": "event responses"
+          }
+        }
+      }
+    }
+  }
+}

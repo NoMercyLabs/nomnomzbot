@@ -375,6 +375,24 @@ export type VtsStatusPayload = {
   timestamp: string;
 };
 
+// AlertDtos.cs: WebhookDeliveryAttemptFailedAlertDto. The hub method is webhook_delivery_failed for a retryable
+// failure and webhook_delivery_dead_letter once the retries run out.
+export type WebhookDeliveryFailedPayload = {
+  outboundEndpointId: string;
+  webhookMessageId: string;
+  attempt: number;
+  status: string;
+  responseCode: number | null;
+  nextRetryAt: string | null;
+};
+
+// AlertDtos.cs: WebhookEndpointAutoDisabledAlertDto
+export type WebhookEndpointAutoDisabledPayload = {
+  outboundEndpointId: string;
+  consecutiveFailureCount: number;
+  reason: string;
+};
+
 // Every event the dashboard hub sends to a joined channel (Hubs/Clients/IDashboardClient.cs, plus the sr_queue_changed
 // method the notifier sends by name), keyed by the method name. A handler is typed from this map by its event name.
 export type DashboardHubEvents = {
@@ -397,6 +415,9 @@ export type DashboardHubEvents = {
   VtsStatusChanged: VtsStatusPayload;
   ChannelSuspensionChanged: ChannelSuspensionChangedPayload;
   ObsStateChanged: ObsStateChangedPayload;
+  webhook_delivery_failed: WebhookDeliveryFailedPayload;
+  webhook_delivery_dead_letter: WebhookDeliveryFailedPayload;
+  webhook_endpoint_auto_disabled: WebhookEndpointAutoDisabledPayload;
   sr_queue_changed: SrQueueChangedPayload;
   VtsStatusChanged: VtsStatusPayload;
   CustomDataSourceChanged: CustomDataSourceChangedPayload;

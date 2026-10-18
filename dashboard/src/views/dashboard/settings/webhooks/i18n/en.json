@@ -1,0 +1,55 @@
+{
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup",
+      "webhooks": {
+        "outbound": {
+          "title": "Outbound webhooks",
+          "description": "Post your channel's events to an address you control, such as a home server or an automation service.",
+          "empty": "No outbound webhook yet. Add one to send events out.",
+          "loadFailed": "The outbound webhooks could not be loaded.",
+          "new": "New webhook",
+          "events": "{count} events",
+          "lastDelivery": "Last delivery {when}",
+          "neverDelivered": "Nothing delivered yet",
+          "switchedOff": "Switched off after repeated failures. {reason}",
+          "reenable": "Turn back on",
+          "edit": "Edit {name}",
+          "delete": "Delete {name}",
+          "createTitle": "New outbound webhook",
+          "editTitle": "Edit outbound webhook",
+          "formDescription": "The address must be on your approved hosts list.",
+          "create": "Create webhook",
+          "save": "Save webhook",
+          "name": "Name",
+          "host": "Host",
+          "hostHelp": "Only the host name, without https://.",
+          "path": "Path",
+          "eventsTitle": "Events to send"
+        },
+        "inbound": {
+          "title": "Inbound webhooks",
+          "description": "Links an outside provider posts to. Each call can start a pipeline or an event.",
+          "empty": "No inbound webhook yet.",
+          "loadFailed": "The inbound webhooks could not be loaded.",
+          "lastReceived": "{count} calls, the last one {when}",
+          "neverReceived": "Nothing received yet",
+          "copyLink": "Copy link",
+          "delete": "Delete {name}"
+        },
+        "delete": {
+          "title": "Delete {name}?",
+          "description": "The webhook is removed and cannot be restored.",
+          "action": "Delete webhook",
+          "line": "{count} {what} use this webhook",
+          "nothing": "Nothing uses this webhook.",
+          "outboundStops": "Deliveries to this address stop at once.",
+          "category": {
+            "pipelines": "pipelines",
+            "event_responses": "event responses"
+          }
+        }
+      }
+    }
+  }
+}

@@ -22,6 +22,7 @@ import { settingsFederationRoute } from './federation/route';
 import { settingsIntegrationsRoute } from './integrations/route';
 import { settingsPermissionsRoute } from './permissions/route';
 import { settingsResourceLimitsRoute } from './resource-limits/route';
+import { settingsWebhooksRoute } from './webhooks/route';
 import { settingsYourDataRoute } from './your-data/route';
 import { settingsWhiteLabelBotRoute } from './white-label-bot/route';
 
@@ -93,6 +94,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsResourceLimitsRoute,
   settingsBillingRoute,
   settingsCustomEventFeedsRoute,
+  settingsWebhooksRoute,
   settingsYourDataRoute,
   settingsFederationRoute,
   settingsPermissionsRoute,
