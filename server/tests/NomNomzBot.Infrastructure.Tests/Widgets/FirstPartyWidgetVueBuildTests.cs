@@ -60,6 +60,7 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
     [InlineData("chat_box")]
     [InlineData("now_playing")]
     [InlineData("sr_queue")]
+    [InlineData("media_share")]
     [InlineData("tts_caption")]
     [InlineData("poll_prediction")]
     [InlineData("redemption_alert")]

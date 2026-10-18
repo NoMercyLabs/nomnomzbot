@@ -44,6 +44,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "chat_box",
         "now_playing",
         "sr_queue",
+        "media_share",
         "audio",
         "tts_caption",
         "poll_prediction",

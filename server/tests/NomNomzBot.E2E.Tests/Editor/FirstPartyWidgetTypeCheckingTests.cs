@@ -47,6 +47,7 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
         ["redemption_alert"] = "Redemption Alert",
         ["socials"] = "Socials",
         ["sr_queue"] = "SR Queue",
+        ["media_share"] = "Media Share",
         ["sub_train"] = "Sub Train",
         ["top_cheerers"] = "Top Cheerers",
     };

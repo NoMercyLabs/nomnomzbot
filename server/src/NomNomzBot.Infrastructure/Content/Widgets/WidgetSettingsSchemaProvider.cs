@@ -187,6 +187,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showDuration", Content),
                 Accent(d),
             ],
+            "media_share" => [Bool(d, "showTitle", Content), Accent(d)],
             WidgetKeyAliases.Audio =>
             [
                 Bool(d, "showIndicator", Content),
