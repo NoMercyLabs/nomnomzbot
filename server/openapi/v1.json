@@ -105410,6 +105410,10 @@
               "null",
               "string"
             ]
+          },
+          "usesSharedBot": {
+            "type": "boolean",
+            "description": "True when the bot that speaks in the channel is the platform's shared system bot rather than an account the channel registered itself."
           }
         },
         "description": "DTO describing the connected bot account."

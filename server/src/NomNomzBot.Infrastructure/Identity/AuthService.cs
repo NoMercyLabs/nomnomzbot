@@ -1184,13 +1184,37 @@ public sealed class AuthService : IAuthService
     /// channel reaching it overwrites the bot every other channel speaks through (the 2026-09-04 incident).
     /// </para>
     /// </summary>
-    private async Task<Result<BotStatusDto>> EstablishChannelBotAsync(
+    internal async Task<Result<BotStatusDto>> EstablishChannelBotAsync(
         Guid broadcasterId,
         TwitchUserInfo botUser,
         TokenResult tokens,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken = default
     )
     {
+        // The system bot is a platform identity. Upserting by Twitch user id would find its shared BotAccount,
+        // bind this channel to it and re-point the shared account at this channel's connection.
+        bool isSystemBot = await _db
+            .BotAccounts.IgnoreQueryFilters()
+            .AnyAsync(
+                b =>
+                    b.BotUserId == botUser.Id
+                    && b.Platform == AuthEnums.Platform.Twitch
+                    && b.IdentityType == AuthEnums.BotIdentityType.Shared,
+                cancellationToken
+            );
+        if (isSystemBot)
+        {
+            _logger.LogWarning(
+                "Refused to register the system bot {BotLogin} as the own bot of channel {ChannelId}",
+                botUser.Login,
+                broadcasterId
+            );
+            return Result.Failure<BotStatusDto>(
+                $"{botUser.Login} is the shared system bot and cannot be a channel's own bot. Sign in with a different Twitch account, or keep using the shared bot.",
+                "SYSTEM_BOT_NOT_ALLOWED"
+            );
+        }
+
         BotAccount bot = await UpsertBotAccountAsync(
             AuthEnums.BotIdentityType.Custom,
             botUser,
@@ -1281,12 +1305,20 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
+        // Only a CUSTOM bot is a channel's own. An authorization that points at the shared system account
+        // (written by the old connect flow) reads exactly like no authorization at all.
         ChannelBotAuthorization? authorization = await _db
             .ChannelBotAuthorizations.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(
-                a => a.BroadcasterId == broadcasterId && a.IsActive && a.DeletedAt == null,
-                cancellationToken
-            );
+            .Where(a => a.BroadcasterId == broadcasterId && a.IsActive && a.DeletedAt == null)
+            .Join(
+                _db.BotAccounts.IgnoreQueryFilters(),
+                a => a.BotAccountId,
+                b => b.Id,
+                (a, b) => new { Authorization = a, Bot = b }
+            )
+            .Where(x => x.Bot.IdentityType == AuthEnums.BotIdentityType.Custom)
+            .Select(x => x.Authorization)
+            .FirstOrDefaultAsync(cancellationToken);
         // No own bot: the shared system bot speaks here, but only in a channel it actually serves.
         bool usesSharedBot = authorization is null;
         if (usesSharedBot)
@@ -1303,7 +1335,9 @@ public sealed class AuthService : IAuthService
                     cancellationToken
                 );
             if (!served)
-                return Result.Success(new BotStatusDto(false, null, null, null));
+                return Result.Success(
+                    new BotStatusDto(false, null, null, null, UsesSharedBot: true)
+                );
         }
 
         BotAccount? bot = usesSharedBot
@@ -1321,16 +1355,28 @@ public sealed class AuthService : IAuthService
                 .BotAccounts.IgnoreQueryFilters()
                 .FirstOrDefaultAsync(b => b.Id == authorization!.BotAccountId, cancellationToken);
         if (bot?.ConnectionId is null)
-            return Result.Success(new BotStatusDto(false, null, null, null));
+            return Result.Success(
+                new BotStatusDto(false, null, null, null, UsesSharedBot: usesSharedBot)
+            );
 
         Result<DecryptedTokenDto> access = await _vault.GetAccessTokenAsync(
             bot.ConnectionId.Value,
             cancellationToken
         );
         if (access.IsFailure)
-            return Result.Success(new BotStatusDto(false, null, null, null));
+            return Result.Success(
+                new BotStatusDto(false, null, null, null, UsesSharedBot: usesSharedBot)
+            );
 
-        return Result.Success(new BotStatusDto(true, bot.BotUsername, bot.BotUsername, null));
+        return Result.Success(
+            new BotStatusDto(
+                true,
+                bot.BotUsername,
+                bot.BotUsername,
+                null,
+                UsesSharedBot: usesSharedBot
+            )
+        );
     }
 
     public async Task<Result> DisconnectChannelBotAsync(

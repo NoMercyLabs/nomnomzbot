@@ -14,12 +14,13 @@
         "browserFailed": "De Twitch-aanmelding kon niet worden gestart.",
         "shared": {
           "title": "Gedeelde bot",
+          "titleNamed": "Je kanaal gebruikt de gedeelde bot {login}",
           "description": "Je kanaal gebruikt het gedeelde NomNomzBot-account."
         },
         "connect": {
-          "title": "Koppel een botaccount",
-          "description": "Meld je op Twitch aan met het account dat voor je kanaal moet praten.",
-          "action": "Botaccount koppelen"
+          "title": "Koppel je eigen bot",
+          "description": "Meld je op Twitch aan met je eigen botaccount. De gedeelde systeembot kan hiervoor niet gebruikt worden.",
+          "action": "Koppel je eigen bot"
         },
         "replace": {
           "title": "Gebruik een ander account",

@@ -162,7 +162,13 @@ public sealed class PlatformBotAdminService(
         int withOwnBot = await db
             .ChannelBotAuthorizations.IgnoreQueryFilters()
             .Where(a => a.IsActive && a.DeletedAt == null)
-            .Select(a => a.BroadcasterId)
+            .Join(
+                db.BotAccounts.IgnoreQueryFilters()
+                    .Where(b => b.IdentityType == AuthEnums.BotIdentityType.Custom),
+                a => a.BotAccountId,
+                b => b.Id,
+                (a, _) => a.BroadcasterId
+            )
             .Distinct()
             .CountAsync(cancellationToken);
         return Math.Max(0, total - withOwnBot);

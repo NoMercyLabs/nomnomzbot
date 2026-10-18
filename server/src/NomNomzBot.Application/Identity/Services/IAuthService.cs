@@ -197,10 +197,14 @@ public interface IAuthService
     );
 }
 
-/// <summary>DTO describing the connected bot account.</summary>
+/// <summary>
+/// DTO describing the bot that speaks in a channel. <paramref name="UsesSharedBot"/> is true when that bot is
+/// the platform's shared system bot rather than an account the channel registered itself.
+/// </summary>
 public record BotStatusDto(
     bool Connected,
     string? Login,
     string? DisplayName,
-    string? ProfileImageUrl
+    string? ProfileImageUrl,
+    bool UsesSharedBot = false
 );

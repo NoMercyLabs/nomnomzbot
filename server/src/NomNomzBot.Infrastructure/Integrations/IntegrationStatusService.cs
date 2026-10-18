@@ -96,26 +96,19 @@ public sealed class IntegrationStatusService : IIntegrationStatusService
             .FirstOrDefaultAsync(cancellationToken);
         bool twitchConnected = channel is not null;
 
-        // White-label custom bot is per-channel (BroadcasterId=broadcasterId, Name="twitch_bot").
-        var customBotService = await _db
-            .Services.Where(s =>
-                s.Name == "twitch_bot"
-                && s.BroadcasterId == broadcasterId
-                && s.Enabled
-                && s.AccessToken != null
+        // The channel's own bot: an active authorization to a CUSTOM bot account. The shared system bot
+        // is never one, so a channel on the shared bot reads as not connected here.
+        string? customBotLogin = await _db
+            .ChannelBotAuthorizations.IgnoreQueryFilters()
+            .Where(a => a.BroadcasterId == broadcasterId && a.IsActive && a.DeletedAt == null)
+            .Join(
+                _db.BotAccounts.IgnoreQueryFilters()
+                    .Where(b => b.IdentityType == AuthEnums.BotIdentityType.Custom),
+                a => a.BotAccountId,
+                b => b.Id,
+                (_, b) => b.BotUsername
             )
-            .Select(s => new { s.UserId })
             .FirstOrDefaultAsync(cancellationToken);
-
-        // Service.UserId holds the Twitch user string id — join on User.TwitchUserId.
-        string? customBotLogin = null;
-        if (customBotService?.UserId is not null)
-        {
-            customBotLogin = await _db
-                .Users.Where(u => u.TwitchUserId == customBotService.UserId)
-                .Select(u => u.Username)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
 
         // S003 — only Spotify observes/reports a live auth status today; other providers surface null
         // until they wire the same classification. Skipped entirely when Spotify isn't connected —
@@ -137,7 +130,7 @@ public sealed class IntegrationStatusService : IIntegrationStatusService
                 bool isConnected = id switch
                 {
                     "twitch" => twitchConnected,
-                    "custom_bot" => customBotService is not null,
+                    "custom_bot" => customBotLogin is not null,
                     _ => connectedServiceNames.Contains(id),
                 };
 

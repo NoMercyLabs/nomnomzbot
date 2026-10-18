@@ -118,7 +118,7 @@ describe('White-label bot page', () => {
     expect(document.body.textContent).toContain('@nomnomz_helper');
     expect(button('Disconnect')).toBeUndefined();
     expect(button('Open Twitch')).toBeUndefined();
-    expect(button('Connect bot account')).toBeUndefined();
+    expect(button('Connect your own bot')).toBeUndefined();
   });
 
   it('offers disconnect only with the disconnect key', async () => {
@@ -139,8 +139,23 @@ describe('White-label bot page', () => {
     await open({ connected: false });
 
     expect(document.body.textContent).toContain('Your channel uses the shared NomNomzBot account.');
-    expect(button('Connect bot account')).toBeDefined();
+    expect(button('Connect your own bot')).toBeDefined();
     expect(button('Disconnect')).toBeUndefined();
+  });
+
+  it('reads a channel on the shared system bot as the shared bot: named, with Connect your own bot and no Disconnect', async () => {
+    await open({
+      connected: true,
+      login: 'nomz_bot',
+      displayName: 'nomz_bot',
+      usesSharedBot: true,
+    });
+
+    expect(document.body.textContent).toContain('Your channel uses the shared bot nomz_bot');
+    expect(document.body.textContent).not.toContain('Connected');
+    expect(button('Connect your own bot')).toBeDefined();
+    expect(button('Disconnect')).toBeUndefined();
+    expect(button('Change account')).toBeUndefined();
   });
 
   it('disconnect sends DELETE for this channel after the confirm and goes back to the shared bot', async () => {
@@ -191,7 +206,7 @@ describe('White-label bot page', () => {
 
     await open({ connected: false });
 
-    button('Connect bot account')!.click();
+    button('Connect your own bot')!.click();
     await flushPromises();
 
     expect(document.body.textContent).toContain('ABCD-EFGH');
@@ -223,7 +238,7 @@ describe('White-label bot page', () => {
 
     await open({ connected: false });
 
-    button('Connect bot account')!.click();
+    button('Connect your own bot')!.click();
     await flushPromises();
     await vi.advanceTimersByTimeAsync(1100);
     await flushPromises();

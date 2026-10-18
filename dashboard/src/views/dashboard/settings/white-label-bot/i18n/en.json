@@ -14,12 +14,13 @@
         "browserFailed": "The Twitch sign-in could not be started.",
         "shared": {
           "title": "Shared bot",
+          "titleNamed": "Your channel uses the shared bot {login}",
           "description": "Your channel uses the shared NomNomzBot account."
         },
         "connect": {
-          "title": "Connect a bot account",
-          "description": "Sign in on Twitch as the account that should speak for your channel.",
-          "action": "Connect bot account"
+          "title": "Connect your own bot",
+          "description": "Sign in on Twitch as your own bot account. The shared system bot cannot be used for this.",
+          "action": "Connect your own bot"
         },
         "replace": {
           "title": "Use another account",

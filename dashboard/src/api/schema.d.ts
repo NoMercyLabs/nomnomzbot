@@ -87799,6 +87799,8 @@ export interface components {
             login?: null | string;
             displayName?: null | string;
             profileImageUrl?: null | string;
+            /** @description True when the bot that speaks in the channel is the platform's shared system bot rather than an account the channel registered itself. */
+            usesSharedBot?: boolean;
         };
         /** @description A built-in command as one channel sees it. */
         BuiltinCommand: {

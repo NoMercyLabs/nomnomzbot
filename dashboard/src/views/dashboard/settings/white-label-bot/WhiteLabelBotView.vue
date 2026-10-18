@@ -43,9 +43,16 @@ const loggingIn = ref(false);
 const confirming = ref(false);
 
 const bot = computed(() => status.data.value ?? null);
-const connected = computed(() => bot.value?.connected === true);
+const usesSharedBot = computed(() => bot.value?.usesSharedBot === true);
+// "Connected" means the channel's OWN bot account; the shared system bot is never one.
+const connected = computed(() => bot.value?.connected === true && !usesSharedBot.value);
 const canLogIn = computed(() => can('channelbot:connect') && can('integration:write'));
 const name = computed(() => bot.value?.displayName ?? bot.value?.login ?? '');
+
+const sharedTitle = computed(() =>
+  bot.value?.login
+    ? t('dashboard.settings.whiteLabelBot.shared.titleNamed', { login: bot.value.login })
+    : t('dashboard.settings.whiteLabelBot.shared.title'));
 
 const state = computed<PanelState>(() => {
   if (status.isError.value)
@@ -114,7 +121,7 @@ function openBrowserLogin(): void {
               <span v-if="bot?.login" class="block text-sm text-muted-foreground">{{ $t('dashboard.settings.whiteLabelBot.handle', { login: bot.login }) }}</span>
             </template>
             <template v-else>
-              <span class="block text-sm font-medium">{{ $t('dashboard.settings.whiteLabelBot.shared.title') }}</span>
+              <span class="block text-sm font-medium">{{ sharedTitle }}</span>
               <span class="block text-sm text-muted-foreground">{{ $t('dashboard.settings.whiteLabelBot.shared.description') }}</span>
             </template>
           </div>
