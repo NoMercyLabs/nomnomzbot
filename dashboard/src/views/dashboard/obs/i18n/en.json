@@ -161,12 +161,30 @@
         "level": "Level of {name}",
         "decibels": "{value} dB"
       },
+      "setup": {
+        "show": "Setup: connection, required overlays, browser sources",
+        "hide": "Hide setup"
+      },
       "stats": {
-        "title": "OBS load",
+        "title": "OBS status",
+        "stream": "Stream",
+        "record": "Recording",
+        "live": "Live",
+        "reconnecting": "Reconnecting",
+        "off": "Off",
+        "recording": "Recording",
+        "paused": "Paused",
+        "bitrate": "Bitrate",
+        "kbps": "{value} kbps",
+        "dropped": "Dropped frames",
+        "droppedValue": "{count} ({share})",
+        "render": "Skipped (render)",
         "cpu": "CPU",
         "fps": "FPS",
-        "render": "Skipped (render)",
-        "dropped": "Dropped (output)"
+        "fpsValue": "{current} / {target}",
+        "memory": "Memory",
+        "megabytes": "{value} MB",
+        "congestion": "Congestion"
       }
     }
   }

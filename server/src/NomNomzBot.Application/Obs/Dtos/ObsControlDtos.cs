@@ -112,7 +112,10 @@ public sealed record ObsFilterDto(string Name, string Kind, bool Enabled, int In
 public sealed record ObsStudioModeStatusDto(bool Enabled);
 
 /// <summary>OBS performance stats (obs-websocket v5 <c>GetStats</c>) — CPU/memory load and the
-/// render-thread vs. output-thread frame counters used to detect dropped frames.</summary>
+/// render-thread vs. output-thread frame counters, plus what OBS's own status bar adds from
+/// <c>GetStreamStatus</c> / <c>GetRecordStatus</c> / <c>GetVideoSettings</c>: the stream output's own
+/// skipped/total frames (OBS's "Dropped Frames"), byte counters (bitrate = delta between two reads),
+/// timecodes, congestion, and the target FPS.</summary>
 public sealed record ObsStatsDto(
     double CpuUsage,
     double MemoryUsage,
@@ -120,7 +123,19 @@ public sealed record ObsStatsDto(
     int RenderTotalFrames,
     int RenderSkippedFrames,
     int OutputTotalFrames,
-    int OutputSkippedFrames
+    int OutputSkippedFrames,
+    bool StreamActive = false,
+    bool StreamReconnecting = false,
+    double StreamCongestion = 0,
+    long StreamBytes = 0,
+    int StreamTotalFrames = 0,
+    int StreamSkippedFrames = 0,
+    string? StreamTimecode = null,
+    bool RecordActive = false,
+    bool RecordPaused = false,
+    long RecordBytes = 0,
+    string? RecordTimecode = null,
+    double TargetFps = 0
 );
 
 /// <summary>REST body for the scene-switch route.</summary>

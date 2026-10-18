@@ -714,17 +714,40 @@ public class ObsControlService : IObsControlService
         CancellationToken ct = default
     )
     {
-        Result<ObsResponse> response = await _transport.SendAsync(
+        Result<IReadOnlyList<ObsResponse>> batch = await _transport.SendBatchAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new("GetStats", null),
+            new([
+                new("GetStats", null),
+                new("GetStreamStatus", null),
+                new("GetRecordStatus", null),
+                new("GetVideoSettings", null),
+            ]),
             ct
         );
-        Result status = ToStatus(response);
-        if (status.IsFailure)
-            return Result.Failure<ObsStatsDto>(status.ErrorMessage!, status.ErrorCode!);
+        if (batch.IsFailure)
+            return Result.Failure<ObsStatsDto>(batch.ErrorMessage!, batch.ErrorCode!);
 
-        IReadOnlyDictionary<string, object?>? data = response.Value.ResponseData;
+        ObsResponse? stats = batch.Value.ElementAtOrDefault(0);
+        if (stats?.Ok != true)
+            return Result.Failure<ObsStatsDto>(
+                stats?.Error ?? "OBS rejected the request.",
+                "OBS_ERROR"
+            );
+
+        // The status reads are best-effort: a missing answer reads as inactive, zero, never a failure.
+        IReadOnlyDictionary<string, object?>? data = stats.ResponseData;
+        IReadOnlyDictionary<string, object?>? stream = batch
+            .Value.ElementAtOrDefault(1)
+            ?.ResponseData;
+        IReadOnlyDictionary<string, object?>? record = batch
+            .Value.ElementAtOrDefault(2)
+            ?.ResponseData;
+        IReadOnlyDictionary<string, object?>? video = batch
+            .Value.ElementAtOrDefault(3)
+            ?.ResponseData;
+        double fpsDenominator = GetDouble(video, "fpsDenominator");
+
         return Result.Success(
             new ObsStatsDto(
                 GetDouble(data, "cpuUsage"),
@@ -733,7 +756,19 @@ public class ObsControlService : IObsControlService
                 GetInt(data, "renderTotalFrames"),
                 GetInt(data, "renderSkippedFrames"),
                 GetInt(data, "outputTotalFrames"),
-                GetInt(data, "outputSkippedFrames")
+                GetInt(data, "outputSkippedFrames"),
+                GetBool(stream, "outputActive"),
+                GetBool(stream, "outputReconnecting"),
+                GetDouble(stream, "outputCongestion"),
+                GetLong(stream, "outputBytes"),
+                GetInt(stream, "outputTotalFrames"),
+                GetInt(stream, "outputSkippedFrames"),
+                GetString(stream, "outputTimecode"),
+                GetBool(record, "outputActive"),
+                GetBool(record, "outputPaused"),
+                GetLong(record, "outputBytes"),
+                GetString(record, "outputTimecode"),
+                fpsDenominator > 0 ? GetDouble(video, "fpsNumerator") / fpsDenominator : 0
             )
         );
     }
@@ -984,6 +1019,15 @@ public class ObsControlService : IObsControlService
 
     private static bool GetBool(ObsResponse? response, string key) =>
         response?.ResponseData?.GetValueOrDefault(key) is bool and true;
+
+    private static bool GetBool(IReadOnlyDictionary<string, object?>? data, string key) =>
+        data?.GetValueOrDefault(key) is bool and true;
+
+    private static string? GetString(IReadOnlyDictionary<string, object?>? data, string key) =>
+        data?.GetValueOrDefault(key) as string;
+
+    private static long GetLong(IReadOnlyDictionary<string, object?>? data, string key) =>
+        data?.GetValueOrDefault(key) is double value ? (long)value : 0;
 
     // GetStats fields arrive as JSON numbers, which DirectObsTransport always boxes as double
     // (see ParseRequestResponse) — these two read that common shape, one as-is and one narrowed to

@@ -137,6 +137,7 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
+  localStorage.setItem('nnz.obs.setup', 'true');
   calls.length = 0;
   held = ['obs:control', 'obs:config:read', 'widget:read'];
   liveFails = false;
@@ -349,5 +350,21 @@ describe('ObsView', () => {
     await open();
 
     expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
+  });
+
+  it('keeps the setup panels folded until the streamer opens them, and remembers the choice', async () => {
+    localStorage.removeItem('nnz.obs.setup');
+    await open();
+
+    expect(document.querySelector('[data-obs-connection]')).toBeNull();
+    expect(document.querySelector('[data-obs-board]')).not.toBeNull();
+
+    const toggle = document.querySelector<HTMLButtonElement>('[data-obs-setup] button');
+
+    toggle?.click();
+    await flushPromises();
+
+    expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
+    expect(localStorage.getItem('nnz.obs.setup')).toBe('true');
   });
 });

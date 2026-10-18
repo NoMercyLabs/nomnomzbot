@@ -161,12 +161,30 @@
         "level": "Niveau van {name}",
         "decibels": "{value} dB"
       },
+      "setup": {
+        "show": "Instellen: verbinding, vereiste overlays, browserbronnen",
+        "hide": "Instellen verbergen"
+      },
       "stats": {
-        "title": "OBS-belasting",
+        "title": "OBS-status",
+        "stream": "Stream",
+        "record": "Opname",
+        "live": "Live",
+        "reconnecting": "Opnieuw verbinden",
+        "off": "Uit",
+        "recording": "Neemt op",
+        "paused": "Gepauzeerd",
+        "bitrate": "Bitrate",
+        "kbps": "{value} kbps",
+        "dropped": "Gedropte frames",
+        "droppedValue": "{count} ({share})",
+        "render": "Overgeslagen (render)",
         "cpu": "CPU",
         "fps": "FPS",
-        "render": "Overgeslagen (render)",
-        "dropped": "Gedropt (uitvoer)"
+        "fpsValue": "{current} / {target}",
+        "memory": "Geheugen",
+        "megabytes": "{value} MB",
+        "congestion": "Congestie"
       }
     }
   }

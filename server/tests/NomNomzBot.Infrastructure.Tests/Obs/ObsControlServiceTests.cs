@@ -501,6 +501,82 @@ public sealed class ObsControlServiceTests
     }
 
     [Fact]
+    public async Task Get_stats_adds_the_stream_and_record_status_and_the_target_fps()
+    {
+        Harness h = Build(request =>
+            request.RequestType switch
+            {
+                "GetStats" => new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["cpuUsage"] = 1.5d,
+                        ["memoryUsage"] = 512d,
+                        ["activeFps"] = 30d,
+                        ["renderTotalFrames"] = 200000d,
+                        ["renderSkippedFrames"] = 57d,
+                        ["outputTotalFrames"] = 200000d,
+                        ["outputSkippedFrames"] = 55d,
+                    },
+                    null
+                ),
+                "GetStreamStatus" => new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["outputActive"] = true,
+                        ["outputReconnecting"] = false,
+                        ["outputTimecode"] = "01:55:40.123",
+                        ["outputCongestion"] = 0.25d,
+                        ["outputBytes"] = 7_000_000_000d,
+                        ["outputSkippedFrames"] = 0d,
+                        ["outputTotalFrames"] = 207_000d,
+                    },
+                    null
+                ),
+                "GetRecordStatus" => new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["outputActive"] = true,
+                        ["outputPaused"] = false,
+                        ["outputTimecode"] = "01:55:40.456",
+                        ["outputBytes"] = 9_000_000_000d,
+                    },
+                    null
+                ),
+                "GetVideoSettings" => new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["fpsNumerator"] = 30d,
+                        ["fpsDenominator"] = 1d,
+                    },
+                    null
+                ),
+                _ => new ObsResponse(true, null, null),
+            }
+        );
+
+        Result<ObsStatsDto> result = await h.Service.GetStatsAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        ObsStatsDto stats = result.Value;
+        stats.OutputSkippedFrames.Should().Be(55);
+        stats.StreamActive.Should().BeTrue();
+        stats.StreamSkippedFrames.Should().Be(0);
+        stats.StreamTotalFrames.Should().Be(207_000);
+        stats.StreamBytes.Should().Be(7_000_000_000L);
+        stats.StreamCongestion.Should().Be(0.25);
+        stats.StreamTimecode.Should().Be("01:55:40.123");
+        stats.RecordActive.Should().BeTrue();
+        stats.RecordPaused.Should().BeFalse();
+        stats.RecordBytes.Should().Be(9_000_000_000L);
+        stats.RecordTimecode.Should().Be("01:55:40.456");
+        stats.TargetFps.Should().Be(30);
+    }
+
+    [Fact]
     public async Task Get_stats_surfaces_an_obs_error_as_a_failure()
     {
         Harness h = Build(_ => new(false, null, "obs not ready"));
