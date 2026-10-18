@@ -480,6 +480,46 @@ function timeSourceFiles(): string[] {
     .filter((path) => path !== 'lib/time.ts' && path !== 'components/layout/DateTime.vue');
 }
 
+// Stoney 2026-10-18: "i expect you to make tools like this for repeatables". A switch that falls back to an
+// on/off badge for a person who may not change it is <GatedSwitch>; a view never pairs a Switch with an
+// EnabledState by hand. These files still do; the sweep removes them from the list (none left today).
+const handGatedSwitchAllowlist: readonly string[] = [];
+
+function pairsSwitchWithBadge(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return /<Switch\b/.test(text) && /<EnabledState\b/.test(text);
+}
+
+function viewFiles(): string[] {
+  return allPaths(src)
+    .filter((path) => path.endsWith('.vue'))
+    .map((path) => relative(src, path).replace(/\\/g, '/'))
+    .filter((path) => path.startsWith('views/'));
+}
+
+describe('gated switches', () => {
+  it('spots a Switch paired with an EnabledState', () => {
+    const textual = '<Switch v-if="can(\'a\')" /><EnabledState v-else :enabled="on" />';
+
+    expect(/<Switch\b/.test(textual) && /<EnabledState\b/.test(textual)).toBe(true);
+  });
+
+  it('pairs no Switch with an EnabledState in a view, except the files on the sweep list', () => {
+    const offenders = viewFiles()
+      .filter((path) => pairsSwitchWithBadge(path))
+      .filter((path) => !handGatedSwitchAllowlist.includes(path));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps no clean file on the sweep list', () => {
+    const stale = handGatedSwitchAllowlist.filter((path) => !pairsSwitchWithBadge(path));
+
+    expect(stale).toEqual([]);
+  });
+});
+
 describe('time formatting', () => {
   it('builds no date formatter outside lib/time.ts, except the files on the sweep list', () => {
     const offenders = timeSourceFiles()

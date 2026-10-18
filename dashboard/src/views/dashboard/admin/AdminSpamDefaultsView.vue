@@ -26,11 +26,10 @@ import {
 } from '@/api/adminSpamDefaults';
 import { ApiError } from '@/api/errors';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import EnabledState from '@/components/layout/EnabledState.vue';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
@@ -280,12 +279,10 @@ function submit(): void {
               :inactive-reason="inactiveReasonOf(setting)"
               :invalid-text="invalidTextOf(setting)"
             >
-              <EnabledState
-                v-if="isToggleValue(setting) && !can('featureflag:write')"
-                :enabled="draft[camel(setting.key)] === true"
-              />
-              <Switch
-                v-else-if="isToggleValue(setting)"
+              <GatedSwitch
+                v-if="isToggleValue(setting)"
+                action="featureflag:write"
+                platform
                 :model-value="draft[camel(setting.key)] === true"
                 :aria-label="labelOf(setting)"
                 @update:model-value="(on: boolean) => (draft[camel(setting.key)] = on)"

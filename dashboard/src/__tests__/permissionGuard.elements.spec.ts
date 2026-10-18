@@ -8,6 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { permissionAllowlist } from './permissionAllowlist';
@@ -62,6 +65,15 @@ describe('every action control in a dashboard view carries a permission check', 
       .map(([file, count]) => `${file}: lists ${count}, has ${ungated.get(file)?.length ?? 0}`);
 
     expect(stale).toEqual([]);
+  });
+
+  // GatedSwitch is not in the scan's control tags on purpose: it carries its own check, so a view that
+  // mounts it holds a gated switch without a v-if. If it ever drops the check, this fails.
+  it('counts GatedSwitch as gated because it checks the permission itself', () => {
+    const source = readFileSync(join(__dirname, '..', 'components', 'layout', 'GatedSwitch.vue'), 'utf8');
+
+    expect(source).toMatch(/can\(action\)/);
+    expect(controls.some((control) => control.tag === 'GatedSwitch')).toBe(false);
   });
 
   it('gives every allowlist group a reason and lists no file twice', () => {

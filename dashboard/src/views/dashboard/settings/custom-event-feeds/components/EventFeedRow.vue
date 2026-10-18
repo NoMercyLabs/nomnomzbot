@@ -17,10 +17,9 @@ import { computed } from 'vue';
 
 import type { EventFeed } from '@/api/customEventFeeds';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
-import EnabledState from '@/components/layout/EnabledState.vue';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useFormattedTime } from '@/composables/useTime';
 
@@ -97,13 +96,12 @@ const lastReceived = useFormattedTime(() => props.feed.lastReceivedAt, 'dateTime
         <Trash class="size-5" />
       </Button>
     </div>
-    <Switch
-      v-if="can('customdata:write')"
+    <GatedSwitch
+      action="customdata:write"
       :model-value="feed.isEnabled"
       :disabled="busy"
       :aria-labelledby="`feed-${feed.name}`"
       @update:model-value="$emit('toggle')"
     />
-    <EnabledState v-else :enabled="feed.isEnabled" />
   </div>
 </template>

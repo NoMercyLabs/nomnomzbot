@@ -24,10 +24,9 @@ import {
 } from '@/api/economy';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import EnabledState from '@/components/layout/EnabledState.vue';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -128,13 +127,12 @@ async function confirmDelete(): Promise<void> {
         :data-rule-name="row.source"
         class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
       >
-        <Switch
-          v-if="can('economy:earning-rules:write')"
+        <GatedSwitch
+          action="economy:earning-rules:write"
           :model-value="row.isEnabled"
           :aria-label="$t('dashboard.economy.rules.toggle', { source: sourceName(row.source) })"
           @update:model-value="toggle(row)"
         />
-        <EnabledState v-else :enabled="row.isEnabled" />
         <span class="min-w-0 flex-1">
           <span class="block text-sm font-medium">{{ sourceName(row.source) }}</span>
           <span class="block text-xs text-muted-foreground">{{ detailOf(row) }}</span>

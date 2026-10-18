@@ -15,10 +15,9 @@ import Trash from '~icons/nnz/trash';
 import { computed } from 'vue';
 
 import type { OutboundWebhook } from '@/api/webhooks';
-import EnabledState from '@/components/layout/EnabledState.vue';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useTime } from '@/composables/useTime';
 
@@ -95,13 +94,12 @@ const lastDelivery = computed(() =>
         <Trash class="size-5" />
       </Button>
     </div>
-    <Switch
-      v-if="can('webhooks:outbound:write')"
+    <GatedSwitch
+      action="webhooks:outbound:write"
       :model-value="endpoint.isEnabled"
       :disabled="busy"
       :aria-labelledby="`outbound-${endpoint.id}`"
       @update:model-value="$emit('toggle')"
     />
-    <EnabledState v-else :enabled="endpoint.isEnabled" />
   </div>
 </template>

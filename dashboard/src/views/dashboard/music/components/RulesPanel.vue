@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
@@ -191,7 +191,7 @@ const missing = computed<KeyValueItem[]>(() =>
           <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.open") }}</span>
-            <Switch v-model="draft.requestsOpen" data-setting="requests-open" />
+            <GatedSwitch v-model="draft.requestsOpen" action="music:config:write" data-setting="requests-open" />
           </label>
           <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
             <label
@@ -279,7 +279,7 @@ const missing = computed<KeyValueItem[]>(() =>
           </div>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowExplicit") }}</span>
-            <Switch v-model="draft.allowExplicit" data-setting="allow-explicit" />
+            <GatedSwitch v-model="draft.allowExplicit" action="music:config:write" data-setting="allow-explicit" />
           </label>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.perRoleHelp") }}</p>
           <label v-for="rung in roleRungs" :key="rung" class="flex items-center gap-3 text-sm">
@@ -301,11 +301,11 @@ const missing = computed<KeyValueItem[]>(() =>
           <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.sources") }}</h3>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowSpotify") }}</span>
-            <Switch v-model="draft.allowSpotify" data-setting="allow-spotify" />
+            <GatedSwitch v-model="draft.allowSpotify" action="music:config:write" data-setting="allow-spotify" />
           </label>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowYouTube") }}</span>
-            <Switch v-model="draft.allowYouTube" data-setting="allow-youtube" />
+            <GatedSwitch v-model="draft.allowYouTube" action="music:config:write" data-setting="allow-youtube" />
           </label>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
           <RadioGroup v-model="draft.preferredProvider" class="gap-2">
@@ -345,7 +345,7 @@ const missing = computed<KeyValueItem[]>(() =>
           </Select>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.bangerAutoCreate") }}</span>
-            <Switch v-model="draft.bangerAutoCreate" data-setting="banger-auto-create" />
+            <GatedSwitch v-model="draft.bangerAutoCreate" action="music:config:write" data-setting="banger-auto-create" />
           </label>
         </section>
       </fieldset>

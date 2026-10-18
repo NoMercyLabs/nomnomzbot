@@ -14,10 +14,9 @@ import Trash from '~icons/nnz/trash';
 
 import type { InboundWebhook } from '@/api/webhooks';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
-import EnabledState from '@/components/layout/EnabledState.vue';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useFormattedTime } from '@/composables/useTime';
 
@@ -64,13 +63,12 @@ const lastReceived = useFormattedTime(() => props.endpoint.lastReceivedAt, 'date
     >
       <Trash class="size-5" />
     </Button>
-    <Switch
-      v-if="can('webhooks:inbound:write')"
+    <GatedSwitch
+      action="webhooks:inbound:write"
       :model-value="endpoint.isEnabled"
       :disabled="busy"
       :aria-labelledby="`inbound-${endpoint.id}`"
       @update:model-value="$emit('toggle')"
     />
-    <EnabledState v-else :enabled="endpoint.isEnabled" />
   </div>
 </template>
