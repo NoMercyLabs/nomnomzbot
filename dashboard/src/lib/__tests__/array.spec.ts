@@ -10,7 +10,7 @@
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { keysOf, merge } from '../array';
+import { evenSteps, keysOf, merge } from '../array';
 
 describe('merge', () => {
   it('joins the lists in order and keeps each position typed, read-only', () => {
@@ -54,5 +54,25 @@ describe('keysOf', () => {
 
     expect(keys).toEqual(['sm', 'md', 'lg']);
     expectTypeOf(keys).toEqualTypeOf<('sm' | 'md' | 'lg')[]>();
+  });
+});
+
+describe('evenSteps', () => {
+  it('keeps every position when there are few enough', () => {
+    expect(evenSteps(5, 8)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('thins 90 positions to at most 8 evenly spaced ones', () => {
+    const ticks = evenSteps(90, 8);
+
+    expect(ticks.length).toBeLessThanOrEqual(8);
+    expect(ticks[0]).toBe(0);
+    const gaps = ticks.slice(1).map((tick: number, at: number) => tick - (ticks[at] ?? 0));
+
+    expect(new Set(gaps).size).toBe(1);
+  });
+
+  it('gives nothing for an empty list', () => {
+    expect(evenSteps(0, 8)).toEqual([]);
   });
 });

@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { VisArea, VisGroupedBar, VisLine, VisStackedBar } from '@unovis/vue';
+import { VisArea, VisAxis, VisGroupedBar, VisLine, VisStackedBar } from '@unovis/vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
@@ -103,6 +103,21 @@ describe('the chart panel', () => {
       expect(given.color).toEqual(['var(--color-seen)', 'var(--color-fresh)']);
     },
   );
+
+  it('labels a 90 bar chart on at most 8 evenly spaced bars and names the first and each step', () => {
+    const many: ChartRow[] = Array.from({ length: 90 }, (_unused: unknown, at: number) => ({
+      day: new Date(2026, 6, 21 + at),
+      seen: at,
+      fresh: 0,
+    }));
+    const wrapper = chart('bar', { data: many });
+    const axis = wrapper.findAllComponents(VisAxis).find((one) => one.props('type') === 'x');
+    const ticks = axis?.props('tickValues') as number[];
+
+    expect(ticks.length).toBeLessThanOrEqual(8);
+    expect(ticks[0]).toBe(0);
+    expect(ticks.every((tick: number) => Number.isInteger(tick) && tick < 90)).toBe(true);
+  });
 
   it('hides the drawing from screen readers', () => {
     expect(chart('line').find('[data-slot="chart"]').attributes('aria-hidden')).toBe('true');

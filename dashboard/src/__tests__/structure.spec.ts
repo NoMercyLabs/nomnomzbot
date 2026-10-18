@@ -529,6 +529,29 @@ describe('gated switches', () => {
   });
 });
 
+// Stoney 2026-10-18: "90 days is crooked". Every chart axis (one slot per day, thinned labels) is drawn by
+// <ChartPanel>; a view never builds its own Unovis axis.
+const ownChartAxis = /<VisAxis\b|<VisXYContainer\b/;
+
+describe('chart axes', () => {
+  it('spots a hand-written chart axis', () => {
+    expect(ownChartAxis.test('<VisAxis type="x" />')).toBe(true);
+    expect(ownChartAxis.test('<ChartPanel kind="bar" />')).toBe(false);
+  });
+
+  it('draws no axis outside components/layout/ChartPanel.vue', () => {
+    const drawsAxis = (path: string): boolean => {
+      const text: string = readFileSync(join(src, path), 'utf8');
+
+      return ownChartAxis.test(text);
+    };
+
+    const offenders = viewFiles().filter(drawsAxis);
+
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe('time formatting', () => {
   it('builds no date formatter outside lib/time.ts, except the files on the sweep list', () => {
     const offenders = timeSourceFiles()

@@ -8,7 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { AnalyticsDay, AnalyticsRange, StreamRow } from '@/api/analytics';
+import { getLocalTimeZone, parseDate, type CalendarDate } from '@internationalized/date';
+
+import {
+  ANALYTICS_RANGES,
+  rangeDates,
+  type AnalyticsDay,
+  type AnalyticsRange,
+  type StreamRow,
+} from '@/api/analytics';
 import type { ChartRow } from '@/components/layout/ChartPanel.vue';
 import { formatTime } from '@/lib/time';
 
@@ -58,27 +66,55 @@ export function topCategory(rows: readonly StreamRow[]): TopCategory | null {
   return longest[0] ?? null;
 }
 
-// One bar per day; a year is too many bars, so 12 months shows one bar per month.
+type Slot = {
+  at: Date;
+  total: number;
+};
+
+// Every calendar day of the range, oldest first.
+function calendarDays(range: AnalyticsRange): CalendarDate[] {
+  const first = parseDate(rangeDates(range).from);
+
+  return Array.from(Array(ANALYTICS_RANGES[range]).keys(), (at: number) =>
+    first.add({ days: at }));
+}
+
+// One slot per calendar day of the range. A day without a row counts as 0, so every series lines up by date.
+// A year is too many bars, so 12 months shows one slot per month.
 export function perPeriod(
   days: readonly AnalyticsDay[],
   range: AnalyticsRange,
   value: (day: AnalyticsDay) => number,
   locale: string,
 ): ChartRow[] {
+  const byDate = new Map<string, number>();
+
+  for (const day of days) {
+    const key = day.activityDate.slice(0, 10);
+
+    byDate.set(key, (byDate.get(key) ?? 0) + value(day));
+  }
+
+  const zone = getLocalTimeZone();
+  const slots = calendarDays(range).map((date: CalendarDate): Slot => ({
+    at: date.toDate(zone),
+    total: byDate.get(date.toString()) ?? 0,
+  }));
+
   if (range !== 'r365') {
-    return days.map((day: AnalyticsDay) => ({
-      period: new Date(`${day.activityDate}T00:00:00`),
-      value: value(day),
+    return slots.map((slot: Slot) => ({
+      period: slot.at,
+      value: slot.total,
     }));
   }
 
-  const totals = new Map<string, number>();
+  const months = new Map<string, number>();
 
-  for (const day of days) {
-    const month = formatTime(`${day.activityDate}T00:00:00`, 'monthYearShort', locale);
+  for (const slot of slots) {
+    const month = formatTime(slot.at, 'monthYearShort', locale);
 
-    totals.set(month, (totals.get(month) ?? 0) + value(day));
+    months.set(month, (months.get(month) ?? 0) + slot.total);
   }
 
-  return [...totals].map(([period, total]: [string, number]) => ({ period, value: total }));
+  return [...months].map(([period, total]: [string, number]) => ({ period, value: total }));
 }

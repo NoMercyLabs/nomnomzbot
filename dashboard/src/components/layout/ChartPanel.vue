@@ -26,6 +26,7 @@ import { useI18n } from 'vue-i18n';
 
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
 import { useTime } from '@/composables/useTime';
+import { evenSteps } from '@/lib/array';
 import {
   ChartContainer,
   ChartCrosshair,
@@ -96,6 +97,13 @@ const isTime = computed(
     (props.kind === 'line' || props.kind === 'area') && props.data[0]?.[props.x] instanceof Date,
 );
 const isBar = computed(() => props.kind === 'bar' || props.kind === 'groupedBar');
+
+// A bar chart has one slot per row. Labeling every slot crushes the text together, so only an even few are named.
+const MOST_BAR_LABELS = 8;
+const barTicks = computed<number[] | undefined>(() =>
+  isBar.value
+    ? evenSteps(props.data.length, MOST_BAR_LABELS)
+    : undefined);
 
 function label(value: string | number | Date | undefined, format: (value: Date) => string): string {
   return value instanceof Date
@@ -224,7 +232,8 @@ const yDomain = computed<[number | undefined, number | undefined]>(() =>
           <VisAxis
             type="x"
             :tick-format="xTick"
-            :num-ticks="isBar ? data.length : 6"
+            :tick-values="barTicks"
+            :num-ticks="6"
             :grid-line="false"
             :domain-line="false"
           />

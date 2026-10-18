@@ -49,6 +49,16 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
   return runs;
 }
 
+// The positions to label on an axis of `count` slots: every `step`-th one from the first, at most `most` of them.
+export function evenSteps(count: number, most: number): number[] {
+  const step = Math.max(1, Math.ceil(count / most));
+
+  const slots = Math.ceil(count / step);
+
+  return Array.from(Array(slots).keys(), (at: number) =>
+    at * step);
+}
+
 // A copy of the list with the item at `from` moved to `to`; an index outside the list leaves it as it was.
 export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
   const moved = [...items];
