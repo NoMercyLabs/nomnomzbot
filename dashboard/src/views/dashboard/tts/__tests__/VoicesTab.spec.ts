@@ -323,11 +323,12 @@ describe('VoicesTab', () => {
 
   // The bot may keep saying hasMore on the last page; once the loaded voices reach the total, nothing is left to load.
   it('hides Load more and drops "loaded" when the loaded voices reach the total', async () => {
-    answers['GET /tts/voices'] = () => ok(catalog, {
-      hasMore: true,
-      nextPage: 2,
-      total: catalog.length,
-    });
+    answers['GET /tts/voices'] = () =>
+      ok(catalog, {
+        hasMore: true,
+        nextPage: 2,
+        total: catalog.length,
+      });
 
     await open();
 
@@ -480,8 +481,7 @@ describe('VoicesTab', () => {
 
   // A-tts defect 4: "Dutch 0+" next to "All 200+" reads as a count of zero. A language with no loaded voice shows no count.
   it('shows no count on a language chip that has no loaded voice while pages are missing', async () => {
-    answers['GET /tts/voices'] = () =>
-      ok([catalog[0], catalog[3]], { hasMore: true, nextPage: 2 });
+    answers['GET /tts/voices'] = () => ok([catalog[0], catalog[3]], { hasMore: true, nextPage: 2 });
 
     await open();
 
@@ -568,6 +568,16 @@ describe('VoicesTab', () => {
 
     expect(list).not.toBeNull();
     expect(body?.className).not.toContain('overflow-y-auto');
+  });
+
+  it('gives the voice list room for at least four rows of 56 px under a group heading', async () => {
+    await open();
+
+    const list = document.body.querySelector('[data-virtual-scroll]')?.parentElement;
+    const steps = [...(list?.className ?? '').matchAll(/(?:^|\s)min-h-(\d+)(?=\s|$)/g)];
+    const minHeight = Math.max(...steps.map((step) => Number(step[1]) * 4));
+
+    expect(minHeight).toBeGreaterThanOrEqual(4 * 56 + 40);
   });
 
   it('offers no language detection panel, the bot has none', async () => {
