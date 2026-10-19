@@ -413,10 +413,10 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
-    public async Task An_audio_page_becoming_ready_tells_the_director_the_output_is_attached()
+    public async Task A_music_page_becoming_ready_tells_the_director_the_output_is_attached()
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Guid audioWidget = await SeedWidgetAsync(db, "music_player");
         Joined page = await ConnectedPageAsync(db, "audio-conn");
         await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
         IPlaybackInputSink requests = Substitute.For<IPlaybackInputSink>();
@@ -433,10 +433,10 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
-    public async Task An_audio_page_resuming_a_track_gets_it_back_and_pushes_nothing_itself()
+    public async Task A_music_page_resuming_a_track_gets_it_back_and_pushes_nothing_itself()
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Guid audioWidget = await SeedWidgetAsync(db, "music_player");
         Joined page = await ConnectedPageAsync(db, "audio-conn");
         await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
         IPlaybackInputSink requests = Substitute.For<IPlaybackInputSink>();
@@ -453,10 +453,10 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
-    public async Task A_new_audio_page_silences_the_old_player_before_taking_over()
+    public async Task A_new_music_page_silences_the_old_player_before_taking_over()
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Guid audioWidget = await SeedWidgetAsync(db, "music_player");
         Joined first = await ConnectedPageAsync(db, "first-audio");
         await first.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
         Joined second = await ConnectedPageAsync(
@@ -469,7 +469,7 @@ public sealed class OverlayAudioRoutingTests
 
         await second.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
 
-        second.Registry.GetAudioTarget(Broadcaster).Should().Be("second-audio");
+        second.Registry.GetMusicTarget(Broadcaster).Should().Be("second-audio");
         WidgetEventDto stop = first
             .Caller.ReceivedCalls()
             .Where(c => c.GetMethodInfo().Name == nameof(IOverlayClient.WidgetEvent))
@@ -493,10 +493,10 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
-    public async Task An_audio_page_that_reported_its_video_playing_is_not_made_to_reload_it()
+    public async Task A_music_page_that_reported_its_video_playing_is_not_made_to_reload_it()
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Guid audioWidget = await SeedWidgetAsync(db, "music_player");
         Joined page = await ConnectedPageAsync(db, "audio-conn");
         await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
         IYouTubePlayerReportService reports = Substitute.For<IYouTubePlayerReportService>();

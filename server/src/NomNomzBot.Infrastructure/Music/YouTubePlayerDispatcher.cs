@@ -109,7 +109,7 @@ public sealed class YouTubePlayerDispatcher(
         CancellationToken cancellationToken = default
     )
     {
-        Guid? audioWidgetId = presence.GetAudioWidgetId(broadcasterId);
+        Guid? audioWidgetId = presence.GetMusicWidgetId(broadcasterId);
         if (audioWidgetId is null)
             return [];
         bool enabled = await db

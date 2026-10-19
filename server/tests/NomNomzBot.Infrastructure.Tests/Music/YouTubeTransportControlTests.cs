@@ -138,7 +138,7 @@ public sealed class YouTubeTransportControlTests
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsWidgetAttached(Broadcaster, OwnerWidget).Returns(playerOpen);
         presence.IsWidgetAttached(Broadcaster, OtherWidget).Returns(playerOpen);
-        presence.GetAudioWidgetId(Broadcaster).Returns(playerOpen ? OwnerWidget : null);
+        presence.GetMusicWidgetId(Broadcaster).Returns(playerOpen ? OwnerWidget : null);
 
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));
         RecordingWidgetEventNotifier notifier = new();
@@ -340,11 +340,11 @@ public sealed class YouTubeTransportControlTests
         (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(Second), "viewer2"))
             .IsSuccess.Should()
             .BeTrue();
-        rig.Presence.GetAudioWidgetId(Broadcaster).Returns((Guid?)null);
+        rig.Presence.GetMusicWidgetId(Broadcaster).Returns((Guid?)null);
         await ReportAsync(rig, First, "ended");
         rig.Notifier.PlayedVideoIds.Should().Equal(First);
 
-        rig.Presence.GetAudioWidgetId(Broadcaster).Returns(OwnerWidget);
+        rig.Presence.GetMusicWidgetId(Broadcaster).Returns(OwnerWidget);
         // Queue ownership (S-PD-3): the ended report is only forwarded; the director (S-PD-4) drops
         // the head, so the adapter leaves both rows alone. The legacy hand-over that re-pushed the head
         // when audio attached is gone (S-PD-4c2b B2); the director is the only way a head starts.
@@ -492,7 +492,7 @@ public sealed class YouTubeTransportControlTests
     public async Task Skip_with_a_request_waiting_but_no_open_player_fails_as_no_player_and_keeps_the_queue()
     {
         Rig rig = await PlayingFirstWithSecondQueuedAsync();
-        rig.Presence.GetAudioWidgetId(Broadcaster).Returns((Guid?)null);
+        rig.Presence.GetMusicWidgetId(Broadcaster).Returns((Guid?)null);
         rig.Notifier.Sent.Clear();
 
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");

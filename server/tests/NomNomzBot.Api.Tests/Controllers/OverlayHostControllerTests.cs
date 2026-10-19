@@ -129,7 +129,8 @@ public sealed class OverlayHostControllerTests
     [Theory]
     [InlineData("audio")]
     [InlineData("tts_audio")]
-    public async Task The_system_audio_widget_gets_the_player_csp_without_enableAudio(
+    [InlineData("music_player")]
+    public async Task The_system_audio_and_music_widgets_get_the_player_csp_without_enableAudio(
         string galleryKey
     )
     {

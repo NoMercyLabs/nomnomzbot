@@ -92,7 +92,7 @@ public sealed class YouTubePlayerHandOverTests
 
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsWidgetAttached(Broadcaster, PlayerWidget).Returns(pageAttached);
-        presence.GetAudioWidgetId(Broadcaster).Returns(pageAttached ? PlayerWidget : null);
+        presence.GetMusicWidgetId(Broadcaster).Returns(pageAttached ? PlayerWidget : null);
 
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));
         RecordingWidgetEventNotifier notifier = new();

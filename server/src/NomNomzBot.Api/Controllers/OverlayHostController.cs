@@ -166,8 +166,9 @@ public sealed partial class OverlayHostController : ControllerBase
     /// normalizes Newtonsoft JTokens to plain bool/string/etc — see JsonValueConverter.PlainObjectConverter), so
     /// this is a direct <c>bool</c> check, never a JToken/JsonElement one.</summary>
     private static bool WantsSpotifyPlayback(OverlayWidgetEntry entry) =>
-        WidgetKeyAliases.Canonical(entry.GalleryKey) == WidgetKeyAliases.Audio
-        || entry.GalleryKey == WidgetKeyAliases.MusicPlayer
+        WidgetKeyAliases.Canonical(entry.GalleryKey)
+            is WidgetKeyAliases.Audio
+                or WidgetKeyAliases.MusicPlayer
         || (entry.Settings.TryGetValue("enableAudio", out object? value) && value is true);
 
     /// <summary>A framework (vue/react/…) widget: config + runtime + SDK, then the self-mounting bundle into #app.</summary>

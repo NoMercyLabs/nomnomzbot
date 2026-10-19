@@ -214,6 +214,32 @@ public class OverlayHub : Hub<IOverlayClient>
             }
             _inbox.NotifyChanged(broadcasterId);
         }
+        else if (WidgetKeyAliases.Canonical(naturalKey) == WidgetKeyAliases.MusicPlayer)
+        {
+            (string ConnectionId, Guid? WidgetId)? displaced = _presence.MarkMusicSource(
+                Context.ConnectionId,
+                widget!.Id
+            );
+            if (displaced is { WidgetId: not null } previous)
+            {
+                _logger.LogWarning(
+                    "duplicate_output: a second Music Player page joined channel {B}; {C} replaces {P}",
+                    broadcasterId,
+                    Context.ConnectionId,
+                    previous.ConnectionId
+                );
+                await Clients
+                    .Client(previous.ConnectionId)
+                    .WidgetEvent(
+                        new WidgetEventDto(
+                            previous.WidgetId.Value.ToString(),
+                            "youtube.stop",
+                            new { handoff = true }
+                        )
+                    );
+            }
+            _inbox.NotifyChanged(broadcasterId);
+        }
 
         // A real browser source just (re)connected — proof the widget is alive right now, so a fault stamped
         // by a past session (S-PL1: e.g. a one-off autoplay block on first load) must not keep painting the
@@ -365,8 +391,8 @@ public class OverlayHub : Hub<IOverlayClient>
         if (!MayActFor(widgetId) || !Guid.TryParse(widgetId, out Guid parsedWidgetId))
             return false;
         if (
-            _presence.GetAudioTarget(broadcasterId) != Context.ConnectionId
-            || _presence.GetAudioWidgetId(broadcasterId) != parsedWidgetId
+            _presence.GetMusicTarget(broadcasterId) != Context.ConnectionId
+            || _presence.GetMusicWidgetId(broadcasterId) != parsedWidgetId
         )
             return false;
 
@@ -471,8 +497,8 @@ public class OverlayHub : Hub<IOverlayClient>
             Context.Items["BroadcasterId"] is not Guid broadcasterId
             || !MayActFor(widgetId)
             || !Guid.TryParse(widgetId, out Guid parsedWidgetId)
-            || _presence.GetAudioTarget(broadcasterId) != Context.ConnectionId
-            || _presence.GetAudioWidgetId(broadcasterId) != parsedWidgetId
+            || _presence.GetMusicTarget(broadcasterId) != Context.ConnectionId
+            || _presence.GetMusicWidgetId(broadcasterId) != parsedWidgetId
         )
             return;
 

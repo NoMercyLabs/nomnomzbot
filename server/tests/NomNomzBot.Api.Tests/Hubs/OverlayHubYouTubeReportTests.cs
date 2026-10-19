@@ -46,7 +46,7 @@ public sealed class OverlayHubYouTubeReportTests
     private static async Task<Rig> ConnectedAsync()
     {
         WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid own = await SeedWidgetAsync(db, Broadcaster, "audio");
+        Guid own = await SeedWidgetAsync(db, Broadcaster, "music_player");
         Guid foreign = await SeedWidgetAsync(db, OtherChannel, "foreign");
 
         FakeTimeProvider time = new();

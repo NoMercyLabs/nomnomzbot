@@ -111,7 +111,7 @@ public sealed class YouTubePlayerOwnerTests
             .IsWidgetAttached(Broadcaster, Arg.Any<Guid>())
             .Returns(call => attached.Contains(call.ArgAt<Guid>(1)));
         presence
-            .GetAudioWidgetId(Broadcaster)
+            .GetMusicWidgetId(Broadcaster)
             .Returns(_ => attached.Contains(Audio) ? Audio : null);
 
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));

@@ -129,7 +129,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsWidgetAttached(Broadcaster, PlayerWidget).Returns(true);
-        presence.GetAudioWidgetId(Broadcaster).Returns(PlayerWidget);
+        presence.GetMusicWidgetId(Broadcaster).Returns(PlayerWidget);
 
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));
         RecordingWidgetEventNotifier notifier = new();

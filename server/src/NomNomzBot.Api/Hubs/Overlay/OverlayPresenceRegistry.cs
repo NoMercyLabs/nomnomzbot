@@ -66,7 +66,10 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
 
     private readonly object _audioLock = new();
     private readonly Dictionary<string, OverlayConnection> _overlays = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, MusicConnection> _music = new(StringComparer.Ordinal);
     private long _order;
+
+    private sealed record MusicConnection(Guid BroadcasterId, long Order, Guid WidgetId);
 
     /// <summary>Records a new overlay connection, in join order, for audio routing.</summary>
     public void RegisterOverlay(string connectionId, Guid broadcasterId)
@@ -115,17 +118,54 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
             return _overlays.Values.Any(o => o.BroadcasterId == broadcasterId && o.IsAudioSource);
     }
 
-    public string? GetMusicTarget(Guid broadcasterId) => null;
+    public string? GetMusicTarget(Guid broadcasterId)
+    {
+        lock (_audioLock)
+            return _music
+                .Where(m => m.Value.BroadcasterId == broadcasterId)
+                .OrderByDescending(m => m.Value.Order)
+                .Select(m => m.Key)
+                .FirstOrDefault();
+    }
 
-    public Guid? GetMusicWidgetId(Guid broadcasterId) => null;
+    public Guid? GetMusicWidgetId(Guid broadcasterId)
+    {
+        lock (_audioLock)
+            return _music
+                .Values.Where(m => m.BroadcasterId == broadcasterId)
+                .OrderByDescending(m => m.Order)
+                .Select(m => (Guid?)m.WidgetId)
+                .FirstOrDefault();
+    }
 
-    public bool IsMusicSourceConnected(Guid broadcasterId) => false;
+    public bool IsMusicSourceConnected(Guid broadcasterId)
+    {
+        lock (_audioLock)
+            return _music.Values.Any(m => m.BroadcasterId == broadcasterId);
+    }
 
-    /// <summary>Marks a connection as the Music Player page; returns the music connection it displaced, if any.</summary>
+    /// <summary>
+    /// Marks a connection as the Music Player page; it becomes the newest one. Returns the music connection it
+    /// displaced, or null when no other connection held the role.
+    /// </summary>
     public (string ConnectionId, Guid? WidgetId)? MarkMusicSource(
         string connectionId,
         Guid widgetId
-    ) => null;
+    )
+    {
+        lock (_audioLock)
+        {
+            if (!_overlays.TryGetValue(connectionId, out OverlayConnection? current))
+                return null;
+            KeyValuePair<string, MusicConnection>? newestOther = _music
+                .Where(m => m.Value.BroadcasterId == current.BroadcasterId && m.Key != connectionId)
+                .OrderByDescending(m => m.Value.Order)
+                .Select(m => (KeyValuePair<string, MusicConnection>?)m)
+                .FirstOrDefault();
+            _music[connectionId] = new(current.BroadcasterId, ++_order, widgetId);
+            return newestOther is { } other ? (other.Key, other.Value.WidgetId) : null;
+        }
+    }
 
     /// <summary>Records the group on the connection; true only when it was not already held.</summary>
     public bool Attach(string connectionId, string groupName) =>
@@ -142,7 +182,10 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     public IReadOnlyCollection<string> Drop(string connectionId)
     {
         lock (_audioLock)
+        {
             _overlays.Remove(connectionId);
+            _music.Remove(connectionId);
+        }
         _bound.TryRemove(connectionId, out _);
         return _connectionWidgets.TryRemove(
             connectionId,
