@@ -48,7 +48,23 @@
           "revoke": "Take the capability from {name}",
           "person": "Person to give a capability",
           "capability": "Capability",
-          "add": "Give capability"
+          "add": "Give capability",
+          "confirmTitle": "Give {name} {capability}?",
+          "confirm": "Give it",
+          "known": {
+            "obsControl": {
+              "name": "OBS control",
+              "detail": "Critical. One person runs your OBS for you.",
+              "can": "They can switch scenes and turn sources on and off in your OBS.",
+              "cannot": "They cannot start or stop your broadcast, and they cannot see your OBS password."
+            },
+            "botManager": {
+              "name": "Bot manager",
+              "detail": "Critical. One person builds the bot for you, with no power over chat or your channel.",
+              "can": "They can create and edit commands, timers, pipelines, event responses, triggers, widgets, sounds, quotes, and voice and music setup.",
+              "cannot": "They cannot moderate chat, change channel settings, control OBS, or manage roles."
+            }
+          }
         }
       }
     }

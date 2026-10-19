@@ -90,9 +90,12 @@ async function readMembers(channelId: string): Promise<Membership[]> {
   const rows: Membership[] = [];
 
   for (let page = 1; page <= maxPages; page += 1) {
-    const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/roles', {
-      params: { path: { version, channelId }, query: { page, pageSize } },
-    });
+    const { data, error, response } = await client.GET(
+      '/api/v{version}/channels/{channelId}/roles',
+      {
+        params: { path: { version, channelId }, query: { page, pageSize } },
+      },
+    );
 
     if (error !== undefined)
       throw failed('management roles', response.status, error);
@@ -182,13 +185,18 @@ export function useRemoveMember(
 
   return useMutation<void, Error, string, undefined>({
     mutationFn: async (userId: string): Promise<void> => {
-      const { error, response } = await client.DELETE('/api/v{version}/channels/{channelId}/roles/{userId}', {
-        params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          userId,
-        } },
-      });
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/roles/{userId}',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              userId,
+            },
+          },
+        },
+      );
 
       if (error !== undefined)
         throw refusal('remove management role', error, response.status);
@@ -212,11 +220,13 @@ export function useSetActionLevel(
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/action-permissions/{actionKey}',
         {
-          params: { path: {
-            version,
-            channelId: toValue(channelId) as string,
-            actionKey,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              actionKey,
+            },
+          },
           body: { level: levelOf(rung) },
         },
       );
@@ -239,11 +249,15 @@ export function useResetActionLevel(
     mutationFn: async (actionKey: string): Promise<void> => {
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/action-permissions/{actionKey}',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          actionKey,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              actionKey,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -255,6 +269,16 @@ export function useResetActionLevel(
   });
 }
 
+// The personal grants that carry a plain name and a consequence text (the translation slug under
+// dashboard.settings.permissions.grants.known). OBS control and the Bot manager role are both Critical.
+export const namedGrants = {
+  'obs:control': 'obsControl',
+  'bot:manager:author': 'botManager',
+} as const satisfies Record<string, string>;
+
+export const namedGrantSlug = (key: string): string | undefined =>
+  (namedGrants as Record<string, string | undefined>)[key];
+
 export type GrantCapability = { userId: string; permission: string };
 
 export function useGrantCapability(
@@ -264,10 +288,13 @@ export function useGrantCapability(
 
   return useMutation<void, Error, GrantCapability, undefined>({
     mutationFn: async (grant: GrantCapability): Promise<void> => {
-      const { error, response } = await client.POST('/api/v{version}/channels/{channelId}/permissions', {
-        params: { path: { version, channelId: toValue(channelId) as string } },
-        body: grant,
-      });
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/permissions',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: grant,
+        },
+      );
 
       if (error !== undefined)
         throw refusal('grant person capability', error, response.status);

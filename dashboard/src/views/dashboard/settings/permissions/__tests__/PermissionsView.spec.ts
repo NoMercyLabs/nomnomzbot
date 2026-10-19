@@ -86,9 +86,29 @@ const matrix = [
     overrideLevel: null,
     effectiveLevel: 10,
   },
+  {
+    actionKey: 'obs:control',
+    plane: 1,
+    description: 'Control OBS',
+    floorLevel: 30,
+    floorTier: 3,
+    isGrantableViaPermit: true,
+    overrideLevel: null,
+    effectiveLevel: 30,
+  },
+  {
+    actionKey: 'bot:manager:author',
+    plane: 1,
+    description: 'Bot manager',
+    floorLevel: 40,
+    floorTier: 3,
+    isGrantableViaPermit: true,
+    overrideLevel: null,
+    effectiveLevel: 40,
+  },
 ];
 
-const grants = [
+const grants: Record<string, unknown>[] = [
   {
     id: 1,
     subjectType: 'user',
@@ -100,12 +120,14 @@ const grants = [
   },
 ];
 
-const found = [{
-  id: 'u-new',
-  label: 'newbie',
-  subLabel: 'seen in chat',
-  inChannel: true,
-}];
+const found = [
+  {
+    id: 'u-new',
+    label: 'newbie',
+    subLabel: 'seen in chat',
+    inChannel: true,
+  },
+];
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({ known: ref(true), can: () => true }),
@@ -121,7 +143,7 @@ vi.mock('@/api/client', () => ({
         return page(matrix);
 
       if (path.endsWith('/permissions'))
-        return page(grants);
+        return page(structuredClone(grants));
 
       if (path.endsWith('/community/search'))
         return page(found);
@@ -135,6 +157,18 @@ vi.mock('@/api/client', () => ({
         body: options.body,
         params: options.params,
       });
+
+      if (path.endsWith('/permissions')) {
+        grants.push({
+          id: grants.length + 1,
+          subjectType: 'user',
+          subjectId: options.body?.userId,
+          subjectName: 'newbie',
+          resourceType: 'action',
+          resourceId: options.body?.permission,
+          permissionValue: 'allow',
+        });
+      }
 
       return { response: { status: 200, ok: true } };
     },
@@ -155,6 +189,13 @@ vi.mock('@/api/client', () => ({
         params: options.params,
       });
 
+      const query = options.params?.query as Body | undefined;
+      const at = grants.findIndex((row) => row.resourceId === query?.permission);
+
+      if (path.endsWith('/permissions/{userId}') && at >= 0) {
+        grants.splice(at, 1);
+      }
+
       return { response: { status: 204, ok: true } };
     },
   },
@@ -168,6 +209,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
+  grants.splice(1);
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -216,7 +258,9 @@ const countOf = (method: string, suffix: string): number =>
   calls.filter((call) => call.method === method && call.path.endsWith(suffix)).length;
 
 function selectLabeled(wrapper: VueWrapper, label: string) {
-  const found = wrapper.findAllComponents(OptionSelect).find((select) => select.props('label') === label);
+  const found = wrapper
+    .findAllComponents(OptionSelect)
+    .find((select) => select.props('label') === label);
 
   expect(found, `no select labeled ${label}`).toBeDefined();
 
@@ -259,17 +303,25 @@ describe('Permissions', () => {
     await open();
     await click(q('[data-member="modmary"] [data-member-remove]'));
 
-    expect(callTo('DELETE', '/roles/{userId}')?.params).toMatchObject({ path: { userId: 'u-mod' } });
+    expect(callTo('DELETE', '/roles/{userId}')?.params).toMatchObject({
+      path: { userId: 'u-mod' },
+    });
   });
 
   it('sends the ladder value of the picked role and offers nothing below the floor', async () => {
     const wrapper = await open();
-    const options: readonly Option[] = selectLabeled(wrapper, 'Lowest role for chat.timeout').props('options');
+    const options: readonly Option[] = selectLabeled(wrapper, 'Lowest role for chat.timeout').props(
+      'options',
+    );
 
     expect(options.find((option) => option.value === 'Everyone')?.disabled).toBe(true);
     expect(options.find((option) => option.value === 'Moderator')?.disabled).toBe(false);
 
-    selectLabeled(wrapper, 'Lowest role for chat.permit-link').vm.$emit('update:modelValue', 'LeadModerator');
+    selectLabeled(wrapper, 'Lowest role for chat.permit-link').vm.$emit(
+      'update:modelValue',
+      'LeadModerator',
+    );
+
     await settle();
 
     const sent = callTo('PUT', '/action-permissions/{actionKey}');
@@ -281,8 +333,13 @@ describe('Permissions', () => {
   it('resets only an action that has an override, with a DELETE of its key', async () => {
     await open();
 
-    expect(document.body.querySelector('[data-action="chat.permit-link"] [data-action-reset]')).toBeNull();
-    expect(document.body.querySelector('[data-action="chat.timeout"] [data-action-reset]')).not.toBeNull();
+    expect(
+      document.body.querySelector('[data-action="chat.permit-link"] [data-action-reset]'),
+    ).toBeNull();
+
+    expect(
+      document.body.querySelector('[data-action="chat.timeout"] [data-action-reset]'),
+    ).not.toBeNull();
 
     await click(q('[data-action="chat.timeout"] [data-action-reset]'));
 
@@ -296,17 +353,129 @@ describe('Permissions', () => {
     const panel = q('[data-panel="person-grants"]');
     const capability: readonly Option[] = selectLabeled(wrapper, 'Capability').props('options');
 
-    expect(capability.map((option) => option.value)).toEqual(['chat.permit-link']);
+    expect(capability.map((option) => option.value)).toEqual([
+      'chat.permit-link',
+      'obs:control',
+      'bot:manager:author',
+    ]);
+
     expect(panel.querySelector('[data-grant-add]')?.hasAttribute('disabled')).toBe(true);
 
-    await type(panel.querySelector<HTMLInputElement>('[data-person-search]') as HTMLInputElement, 'newb');
+    await type(
+      panel.querySelector<HTMLInputElement>('[data-person-search]') as HTMLInputElement,
+      'newb',
+    );
+
     await click(q('[data-panel="person-grants"] [data-person-option]'));
 
     selectLabeled(wrapper, 'Capability').vm.$emit('update:modelValue', 'chat.permit-link');
     await settle();
     await click(q('[data-panel="person-grants"] [data-grant-add]'));
 
-    expect(callTo('POST', '/permissions')?.body).toEqual({ userId: 'u-new', permission: 'chat.permit-link' });
+    expect(callTo('POST', '/permissions')?.body).toEqual({
+      userId: 'u-new',
+      permission: 'chat.permit-link',
+    });
+  });
+
+  it('names the two sensitive grants in plain words in the picker, never the raw key', async () => {
+    const wrapper = await open();
+    const capability: readonly Option[] = selectLabeled(wrapper, 'Capability').props('options');
+    const labels = Object.fromEntries(capability.map((option) => [option.value, option.label]));
+
+    expect(labels['obs:control']).toBe('OBS control');
+    expect(labels['bot:manager:author']).toBe('Bot manager');
+  });
+
+  async function pick(wrapper: VueWrapper, permission: string): Promise<void> {
+    await type(q<HTMLInputElement>('[data-panel="person-grants"] [data-person-search]'), 'newb');
+    await click(q('[data-panel="person-grants"] [data-person-option]'));
+    selectLabeled(wrapper, 'Capability').vm.$emit('update:modelValue', permission);
+    await settle();
+    await click(q('[data-panel="person-grants"] [data-grant-add]'));
+  }
+
+  it('shows what OBS control lets the person do and sends nothing until confirmed', async () => {
+    const wrapper = await open();
+
+    await pick(wrapper, 'obs:control');
+
+    expect(callTo('POST', '/permissions')).toBeUndefined();
+    expect(document.body.textContent).toContain('switch scenes');
+
+    await click(q('[data-confirm-action]'));
+
+    expect(callTo('POST', '/permissions')?.body).toEqual({
+      userId: 'u-new',
+      permission: 'obs:control',
+    });
+
+    expect(q('[data-grant="u-new:obs:control"]').textContent).toContain('newbie');
+  });
+
+  it('sends nothing when the OBS control confirm is canceled', async () => {
+    const wrapper = await open();
+
+    await pick(wrapper, 'obs:control');
+    await click(q('[role="alertdialog"] button:not([data-confirm-action])'));
+
+    expect(callTo('POST', '/permissions')).toBeUndefined();
+  });
+
+  it('makes a person a Bot manager after a confirm that says what the role cannot do', async () => {
+    const wrapper = await open();
+
+    await pick(wrapper, 'bot:manager:author');
+
+    expect(callTo('POST', '/permissions')).toBeUndefined();
+    expect(document.body.textContent).toContain('cannot moderate');
+
+    await click(q('[data-confirm-action]'));
+
+    expect(callTo('POST', '/permissions')?.body).toEqual({
+      userId: 'u-new',
+      permission: 'bot:manager:author',
+    });
+
+    expect(q('[data-grant="u-new:bot:manager:author"]').textContent).toContain('Bot manager');
+  });
+
+  it('revokes OBS control and the Bot manager role with the key in the query and drops the row', async () => {
+    grants.push(
+      {
+        id: 8,
+        subjectType: 'user',
+        subjectId: 'u-obs',
+        subjectName: 'obsollie',
+        resourceType: 'action',
+        resourceId: 'obs:control',
+        permissionValue: 'allow',
+      },
+      {
+        id: 9,
+        subjectType: 'user',
+        subjectId: 'u-bm',
+        subjectName: 'bammy',
+        resourceType: 'action',
+        resourceId: 'bot:manager:author',
+        permissionValue: 'allow',
+      },
+    );
+
+    await open();
+    await click(q('[data-grant="u-obs:obs:control"] [data-grant-revoke]'));
+
+    expect(callTo('DELETE', '/permissions/{userId}')?.params).toMatchObject({
+      path: { userId: 'u-obs' },
+      query: { permission: 'obs:control' },
+    });
+
+    expect(document.body.querySelector('[data-grant="u-obs:obs:control"]')).toBeNull();
+    expect(q('[data-grant="u-bm:bot:manager:author"]').textContent).toContain('Bot manager');
+
+    await click(q('[data-grant="u-bm:bot:manager:author"] [data-grant-revoke]'));
+
+    expect(document.body.querySelector('[data-grant="u-bm:bot:manager:author"]')).toBeNull();
   });
 
   it('takes a capability away with the permission in the query', async () => {
@@ -327,7 +496,9 @@ describe('Permissions route', () => {
     const entry = settingsNav
       .flatMap((group) => group.entries)
       .find((item) => item.route === 'dashboard-settings-permissions');
-    const record = dashboardSettingsRoutes.find((route) => route.name === 'dashboard-settings-permissions');
+    const record = dashboardSettingsRoutes.find(
+      (route) => route.name === 'dashboard-settings-permissions',
+    );
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [{ ...record!, path: `/app/${record!.path}` }],
@@ -335,7 +506,11 @@ describe('Permissions route', () => {
     const loaded = await (record!.component as () => Promise<{ default: unknown }>)();
 
     expect(entry).toBeDefined();
-    expect(router.resolve({ name: 'dashboard-settings-permissions' }).path).toBe('/app/settings/permissions');
+
+    expect(router.resolve({ name: 'dashboard-settings-permissions' }).path).toBe(
+      '/app/settings/permissions',
+    );
+
     expect(record?.meta).toEqual({ navMode: 'settings', action: 'roles:read' });
     expect(loaded.default).toBe(PermissionsView);
   });

@@ -20,9 +20,11 @@ import {
   useActionMatrix,
   useGrantCapability,
   usePersonGrants,
+  namedGrantSlug,
   useRevokeCapability,
   type PersonGrant,
 } from '@/api/permissions';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -48,13 +50,50 @@ const picked = ref<ViewerOption | null>(null);
 const capability = ref<string | undefined>(undefined);
 const error = ref<string | undefined>(undefined);
 
-const isAllowed = (row: PersonGrant): boolean => row.permissionValue === 'allow' || row.permissionValue === '1';
+const isAllowed = (row: PersonGrant): boolean =>
+  row.permissionValue === 'allow' || row.permissionValue === '1';
 const rows = computed(() => (grants.data.value ?? []).filter(isAllowed));
+
+const knownText = (key: string, part: string): string =>
+  t(`dashboard.settings.permissions.grants.known.${namedGrantSlug(key)}.${part}`);
+
+// A known grant shows its plain name; any other keeps the key the bot lists.
+const nameOf = (key: string): string =>
+  namedGrantSlug(key) === undefined
+    ? key
+    : knownText(key, 'name');
 
 const options = computed<Option[]>(() =>
   (matrix.data.value ?? [])
     .filter((row) => row.isGrantableViaPermit)
-    .map((row) => ({ value: row.actionKey, label: row.actionKey })));
+    .map((row) => ({ value: row.actionKey, label: nameOf(row.actionKey) })),
+);
+
+// The picked capability, when it is one that carries a consequence text.
+const picking = computed(() => {
+  const key = capability.value;
+
+  return key !== undefined && namedGrantSlug(key) !== undefined
+    ? key
+    : undefined;
+});
+
+const confirming = ref(false);
+
+const consequences = computed<string[]>(() =>
+  picking.value === undefined
+    ? []
+    : [knownText(picking.value, 'can'), knownText(picking.value, 'cannot')],
+);
+
+const confirmTitle = computed<string>(() =>
+  picking.value === undefined || picked.value === null
+    ? ''
+    : t('dashboard.settings.permissions.grants.confirmTitle', {
+        name: picked.value.label,
+        capability: nameOf(picking.value),
+      }),
+);
 
 async function run(action: Promise<void>): Promise<void> {
   error.value = undefined;
@@ -66,11 +105,20 @@ async function run(action: Promise<void>): Promise<void> {
   }
 }
 
-async function add(): Promise<void> {
+async function give(): Promise<void> {
   if (picked.value === null || capability.value === undefined) return;
 
   await run(grant.mutateAsync({ userId: picked.value.id, permission: capability.value }));
   picked.value = null;
+  confirming.value = false;
+}
+
+// A grant with a known consequence is confirmed first; the rest are given straight away.
+async function add(): Promise<void> {
+  if (picking.value === undefined)
+    return give();
+
+  confirming.value = true;
 }
 </script>
 
@@ -84,7 +132,7 @@ async function add(): Promise<void> {
     @retry="grants.refetch()"
   >
     <p v-if="rows.length === 0" class="pb-3 text-sm text-muted-foreground">
-      {{ $t('dashboard.settings.permissions.grants.empty') }}
+      {{ $t("dashboard.settings.permissions.grants.empty") }}
     </p>
     <RowGroup>
       <SummaryRow
@@ -92,7 +140,7 @@ async function add(): Promise<void> {
         :key="row.id"
         :data-grant="`${row.subjectId}:${row.resourceId}`"
         :title="row.subjectName ?? row.subjectId"
-        :detail="row.resourceId ?? undefined"
+        :detail="row.resourceId == null ? undefined : nameOf(row.resourceId)"
       >
         <template #end>
           <Button
@@ -100,8 +148,14 @@ async function add(): Promise<void> {
             variant="ghost"
             size="icon"
             data-grant-revoke
-            :aria-label="$t('dashboard.settings.permissions.grants.revoke', { name: row.subjectName ?? row.subjectId })"
-            @click="run(revoke.mutateAsync({ userId: row.subjectId, permission: row.resourceId ?? '' }))"
+            :aria-label="
+              $t('dashboard.settings.permissions.grants.revoke', {
+                name: row.subjectName ?? row.subjectId,
+              })
+            "
+            @click="
+              run(revoke.mutateAsync({ userId: row.subjectId, permission: row.resourceId ?? '' }))
+            "
           >
             <Trash class="size-5" />
           </Button>
@@ -109,7 +163,11 @@ async function add(): Promise<void> {
       </SummaryRow>
     </RowGroup>
     <div v-if="canManage" class="flex flex-wrap items-center gap-2 pt-3">
-      <PersonPicker :picked="picked" :label="$t('dashboard.settings.permissions.grants.person')" @pick="picked = $event" />
+      <PersonPicker
+        :picked="picked"
+        :label="$t('dashboard.settings.permissions.grants.person')"
+        @pick="picked = $event"
+      />
       <OptionSelect
         v-model="capability"
         data-new-capability
@@ -124,9 +182,21 @@ async function add(): Promise<void> {
         @click="add"
       >
         <Add class="size-5" />
-        {{ $t('dashboard.settings.permissions.grants.add') }}
+        {{ $t("dashboard.settings.permissions.grants.add") }}
       </Button>
     </div>
+    <p v-if="picking && canManage" data-grant-hint class="pt-3 text-sm text-muted-foreground">
+      {{ knownText(picking, "detail") }}
+    </p>
     <p v-if="error" role="alert" class="pt-3 text-sm text-destructive">{{ error }}</p>
   </PanelCard>
+  <ConfirmDialog
+    v-model:open="confirming"
+    :title="confirmTitle"
+    :description="picking === undefined ? undefined : knownText(picking, 'detail')"
+    :consequences="consequences"
+    :action="$t('dashboard.settings.permissions.grants.confirm')"
+    :pending="grant.isPending.value"
+    @confirm="give"
+  />
 </template>

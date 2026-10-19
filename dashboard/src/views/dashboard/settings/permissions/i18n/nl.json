@@ -48,7 +48,23 @@
           "revoke": "Neem de bevoegdheid af van {name}",
           "person": "Persoon die een bevoegdheid krijgt",
           "capability": "Bevoegdheid",
-          "add": "Bevoegdheid geven"
+          "add": "Bevoegdheid geven",
+          "confirmTitle": "{capability} geven aan {name}?",
+          "confirm": "Geef het",
+          "known": {
+            "obsControl": {
+              "name": "OBS-bediening",
+              "detail": "Kritiek. Eén persoon bedient je OBS voor je.",
+              "can": "Die persoon kan scènes wisselen en bronnen in je OBS aan- en uitzetten.",
+              "cannot": "Die persoon kan je uitzending niet starten of stoppen en ziet je OBS-wachtwoord niet."
+            },
+            "botManager": {
+              "name": "Botbeheerder",
+              "detail": "Kritiek. Eén persoon bouwt de bot voor je, zonder macht over de chat of je kanaal.",
+              "can": "Die persoon kan commando's, timers, pipelines, gebeurtenisreacties, triggers, widgets, geluiden, quotes en de stem- en muziekinstelling maken en bewerken.",
+              "cannot": "Die persoon kan de chat niet modereren, geen kanaalinstellingen wijzigen, OBS niet bedienen en geen rollen beheren."
+            }
+          }
         }
       }
     }
