@@ -63,6 +63,7 @@ public sealed class GameBuiltinsTests
             WinChancePercent: 50m,
             PayoutMultiplier: 1.9m,
             CooldownSeconds: 0,
+            CooldownFloorSeconds: 0,
             MaxPlaysPerStream: null,
             Permission: "Everyone",
             Config: null
