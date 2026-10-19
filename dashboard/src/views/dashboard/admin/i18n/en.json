@@ -832,7 +832,6 @@
           "description": "Re-wraps every stored data key from the previous encryption key to the new one. A second run changes nothing.",
           "open": "Rotate encryption key",
           "failed": "The rotation failed. Nothing was changed.",
-          "missing": "Enter both keys.",
           "outcome": "{rewrapped} re-wrapped, {current} already current, {failed} failed.",
           "failures": "Data keys that could not be re-wrapped",
           "dialog": {

@@ -58,6 +58,8 @@ const outcome = ref<KeyRotationSummary | null>(null);
 const panelState = usePanelState(status, (data) =>
   data.system.services.length === 0);
 
+const keysMissing = computed<boolean>(() => previousKey.value === '' || currentKey.value === '');
+
 const system = computed(() => status.data.value?.system);
 const stats = computed(() => status.data.value?.stats ?? null);
 
@@ -138,12 +140,6 @@ function close(): void {
 }
 
 async function submit(): Promise<void> {
-  if (previousKey.value === '' || currentKey.value === '') {
-    failure.value = t('dashboard.admin.system.rotation.missing');
-
-    return;
-  }
-
   try {
     outcome.value = await rotating.mutateAsync({
       previousKey: previousKey.value,
@@ -163,6 +159,7 @@ async function submit(): Promise<void> {
     <div class="flex flex-none flex-col gap-4">
       <PanelCard
         tier="lead"
+        pad
         :title="$t('dashboard.admin.system.health.title')"
         :description="$t('dashboard.admin.system.health.description')"
         :state="panelState"
@@ -199,6 +196,7 @@ async function submit(): Promise<void> {
       <PanelCard
         v-if="system"
         tier="default"
+        pad
         :title="$t('dashboard.admin.system.process.title')"
         :description="$t('dashboard.admin.system.process.description')"
       >
@@ -215,6 +213,7 @@ async function submit(): Promise<void> {
       <PanelCard
         v-if="system"
         tier="default"
+        pad
         :title="$t('dashboard.admin.system.totals.title')"
         :description="$t('dashboard.admin.system.totals.description')"
       >
@@ -234,11 +233,7 @@ async function submit(): Promise<void> {
             :value="Number(stats.totalUsers)"
           />
         </StatStrip>
-        <p
-          v-else
-          data-totals-locked
-          class="flex items-center gap-2 p-2 text-sm text-muted-foreground"
-        >
+        <p v-else data-totals-locked class="flex items-center gap-2 text-sm text-muted-foreground">
           <Locked class="size-5 shrink-0" aria-hidden="true" />
           {{ $t("dashboard.admin.system.totals.locked") }}
         </p>
@@ -246,6 +241,7 @@ async function submit(): Promise<void> {
 
       <PanelCard
         tier="quiet"
+        pad
         :title="$t('dashboard.admin.system.rotation.title')"
         :description="$t('dashboard.admin.system.rotation.description')"
       >
@@ -282,6 +278,7 @@ async function submit(): Promise<void> {
       :description="$t('dashboard.admin.system.rotation.dialog.description')"
       :action="$t('dashboard.admin.system.rotation.dialog.action')"
       :pending="rotating.isPending.value"
+      :disabled="keysMissing"
       :error="failure ?? undefined"
       @update:open="close"
       @submit="submit"

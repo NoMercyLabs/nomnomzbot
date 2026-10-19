@@ -832,7 +832,6 @@
           "description": "Verpakt elke opgeslagen datasleutel opnieuw van de vorige versleutelingssleutel naar de nieuwe. Een tweede keer verandert niets.",
           "open": "Versleutelingssleutel roteren",
           "failed": "De rotatie is mislukt. Er is niets gewijzigd.",
-          "missing": "Vul beide sleutels in.",
           "outcome": "{rewrapped} opnieuw verpakt, {current} al actueel, {failed} mislukt.",
           "failures": "Datasleutels die niet opnieuw verpakt konden worden",
           "dialog": {

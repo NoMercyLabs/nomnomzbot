@@ -297,6 +297,33 @@ describe('AdminSystemView', () => {
     expect(posts()).toHaveLength(0);
   });
 
+  it('keeps Rotate key disabled until both keys are typed', async () => {
+    await open();
+    await openRotation();
+
+    const action = (): HTMLButtonElement =>
+      document.body.querySelector<HTMLButtonElement>('[data-form-action]')!;
+
+    expect(action().disabled).toBe(true);
+
+    await type('[data-previous-key]', 'old');
+    expect(action().disabled).toBe(true);
+
+    await type('[data-current-key]', 'new');
+    expect(action().disabled).toBe(false);
+  });
+
+  it('gives every panel the same 16 px body inset as its title', async () => {
+    await open();
+
+    const bodies = [...document.body.querySelectorAll('[data-slot="panel-card"]')].map(
+      (panel) => panel.children[1]!.className,
+    );
+
+    expect(bodies.length).toBeGreaterThanOrEqual(3);
+    expect(bodies.every((body) => body.includes('p-4') && !body.includes('p-2'))).toBe(true);
+  });
+
   it('rotates with both keys, shows the counted outcome including failures and clears the keys', async () => {
     await open();
     await openRotation();
