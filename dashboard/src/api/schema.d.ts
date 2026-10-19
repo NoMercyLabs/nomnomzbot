@@ -90939,6 +90939,7 @@ export interface components {
             /** @description When true the timer fires once and then disables itself, instead of looping on the interval. */
             fireOnce?: boolean;
             speakWithTts?: boolean;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Add a note about a viewer. */
         CreateUserNoteRequest: {
@@ -92313,8 +92314,6 @@ export interface components {
             payoutMultiplier?: null | number | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
-            /** Format: int32 */
-            cooldownFloorSeconds: number | string;
             /** Format: int32 */
             maxPlaysPerStream?: null | number | string;
             permission: string;
@@ -93859,6 +93858,14 @@ export interface components {
             requesterId?: null | string;
             requesterColor?: null | string;
             trackUri?: null | string;
+            engine?: null | string;
+            itemId?: null | string;
+            title?: null | string;
+            artists?: null | string[];
+            albumArtUrl?: null | string;
+            /** @default false */
+            muted: boolean;
+            state?: null | string;
         };
         /** @description OAuth callback data received from the Twitch redirect. */
         OAuthCallback: {
@@ -103272,6 +103279,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             speakWithTts?: boolean;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Lightweight timer info for list views. */
         TimerListItem: {
@@ -104317,6 +104325,7 @@ export interface components {
             /** @description When set, toggles one-shot mode (fire once then disable) vs looping. */
             fireOnce?: null | boolean;
             speakWithTts?: null | boolean;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         UpdateTitleRequest: {
             title: string;

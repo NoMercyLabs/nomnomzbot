@@ -112272,6 +112272,17 @@
           },
           "speakWithTts": {
             "type": "boolean"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What a firing runs: a command (by id), a pipeline or an action. Wins over Guid? CreateTimerDto.PipelineId\r\nwhen both are sent. The command must exist in the channel.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
         },
         "description": "Request to create a new timer."
@@ -116026,7 +116037,6 @@
           "isEnabled",
           "requires18Plus",
           "cooldownSeconds",
-          "cooldownFloorSeconds",
           "permission"
         ],
         "type": "object",
@@ -116094,14 +116104,6 @@
             "format": "double"
           },
           "cooldownSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "cooldownFloorSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -120290,6 +120292,49 @@
             ]
           },
           "trackUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "engine": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "itemId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "artists": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "albumArtUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "muted": {
+            "type": "boolean",
+            "default": false
+          },
+          "state": {
             "type": [
               "null",
               "string"
@@ -147723,6 +147768,17 @@
           },
           "speakWithTts": {
             "type": "boolean"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What a firing runs when bound directly: a command, an action or a pipeline. Null for a plain message timer.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
         },
         "description": "Full timer detail for viewing/editing."
@@ -151302,6 +151358,17 @@
             "type": [
               "null",
               "boolean"
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The new target; absent leaves the binding unchanged. A pipeline target with no id clears the binding.\r\nWins over Guid? UpdateTimerDto.PipelineId when both are sent. A command target must exist in the channel.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
             ]
           }
         },
