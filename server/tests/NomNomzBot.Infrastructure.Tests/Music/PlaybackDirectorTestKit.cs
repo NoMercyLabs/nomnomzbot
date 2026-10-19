@@ -100,6 +100,19 @@ public static class PlaybackDirectorTestKit
         public Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default) =>
             Record("Reattach", pageIsPlaying.ToString());
 
+        /// <summary>What <see cref="ProbeAsync"/> answers: what the player plays before any report. Null means nothing.</summary>
+        public EngineReport? ProbeReport { get; set; }
+
+        /// <summary>How often the director probed this engine. Kept out of <see cref="Calls"/>: a probe is a read, not a command.</summary>
+        public int ProbeCount { get; private set; }
+
+        public Task<EngineReport?> ProbeAsync(CancellationToken ct = default)
+        {
+            ProbeCount++;
+
+            return Task.FromResult(ProbeReport);
+        }
+
         /// <summary>Makes the engine emit a report or track end, as its poll or player would.</summary>
         public Task EmitAsync(EngineSignal signal) =>
             Reports is null ? Task.CompletedTask : Reports.Invoke(signal);

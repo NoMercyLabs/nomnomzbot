@@ -45,4 +45,13 @@ public interface IPlaybackEngine
     /// </summary>
     Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default) =>
         Task.CompletedTask;
+
+    /// <summary>
+    /// One read of what the engine's player plays right now, for the director that has no report from this
+    /// engine yet. The answer comes back to the caller and is not raised as a signal, because the caller
+    /// holds the director's turn. Null means nothing plays or the engine cannot tell. An engine that has no
+    /// player to read keeps this default.
+    /// </summary>
+    Task<EngineReport?> ProbeAsync(CancellationToken ct = default) =>
+        Task.FromResult<EngineReport?>(null);
 }
