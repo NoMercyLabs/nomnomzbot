@@ -217,6 +217,37 @@ describe('AdminSystemView', () => {
     expect(document.body.querySelector('[data-error]')).toBeNull();
   });
 
+  it('says the platform totals need the analytics permission when the stats are missing', async () => {
+    statsStatus = 403;
+
+    await open();
+
+    expect(document.body.querySelector('[data-totals]')).toBeNull();
+    expect(field('[data-totals-locked]').textContent).toContain('platform analytics permission');
+  });
+
+  it('shows the platform totals panel and no lock note when the stats are present', async () => {
+    await open();
+
+    expect(field('[data-totals]').textContent).toContain('Known users');
+    expect(document.body.querySelector('[data-totals-locked]')).toBeNull();
+  });
+
+  it('follows a hub push that carries no stats: the totals give way to the lock note', async () => {
+    await open();
+
+    const handler = adminHandlers.find((entry) => entry.event === 'ReceiveSystemStatus')!;
+
+    handler.handle({ queries: queryClient, channelId: null }, { system, stats: null } as never);
+
+    await settle();
+
+    expect(document.body.querySelector('[data-totals]')).toBeNull();
+    expect(document.body.querySelector('[data-totals-locked]')).not.toBeNull();
+    expect(document.body.querySelectorAll('[data-service-row]')).toHaveLength(3);
+    expect(text()).toContain('512 MB');
+  });
+
   it('follows the hub: a pushed status replaces the page without a reload', async () => {
     await open();
 

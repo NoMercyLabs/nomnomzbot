@@ -820,6 +820,11 @@
           "channelsContext": "van {total} geregistreerd",
           "users": "Bekende gebruikers"
         },
+        "totals": {
+          "title": "Totalen van het platform",
+          "description": "Aantallen voor de hele installatie. Een nieuw aantal komt vanzelf binnen.",
+          "locked": "De totalen van het platform vragen de platform analytics permission. Je account heeft die niet."
+        },
         "rotation": {
           "title": "Versleutelingssleutel",
           "description": "Verpakt elke opgeslagen datasleutel opnieuw van de vorige versleutelingssleutel naar de nieuwe. Een tweede keer verandert niets.",

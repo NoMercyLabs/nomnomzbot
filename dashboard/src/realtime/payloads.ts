@@ -69,10 +69,11 @@ export type ChannelEventPayload = {
   timestamp: string;
 };
 
-// Hubs/Broadcasters/AdminHubStatusPublisher.cs: the anonymous { System, Stats } snapshot (IAdminClient.ReceiveSystemStatus)
+// Hubs/Broadcasters/AdminHubStatusPublisher.cs: the anonymous { System, Stats } snapshot (IAdminClient.ReceiveSystemStatus).
+// Stats is null for an admin without platform:analytics:read (AdminHub.NoAnalyticsGroup).
 export type AdminSystemStatusPayload = {
   system: components['schemas']['AdminSystem'];
-  stats: components['schemas']['AdminStats'];
+  stats: components['schemas']['AdminStats'] | null;
 };
 
 // Hubs/Clients/IAdminClient.cs: ReceiveChannelRegistryUpdate (AdminBroadcastHandlers.cs). Three anonymous shapes share one event:

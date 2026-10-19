@@ -17,6 +17,8 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import Locked from '~icons/nnz/locked';
+
 import {
   useAdminSystemStatus,
   useRotateEncryptionKey,
@@ -57,7 +59,7 @@ const panelState = usePanelState(status, (data) =>
   data.system.services.length === 0);
 
 const system = computed(() => status.data.value?.system);
-const stats = computed(() => status.data.value?.stats);
+const stats = computed(() => status.data.value?.stats ?? null);
 
 const uptime = computed<string>(() => {
   const seconds = Number(stats.value?.botUptimeSeconds ?? 0);
@@ -207,23 +209,39 @@ async function submit(): Promise<void> {
           />
           <StatTile :label="$t('dashboard.admin.system.process.memory')" :value="memory" />
           <StatTile :label="$t('dashboard.admin.system.process.cpu')" :value="processor" />
-          <template v-if="stats">
-            <StatTile :label="$t('dashboard.admin.system.process.uptime')" :value="uptime" />
-            <StatTile
-              :label="$t('dashboard.admin.system.process.events')"
-              :value="Number(stats.eventsProcessedToday)"
-            />
-            <StatTile
-              :label="$t('dashboard.admin.system.process.channels')"
-              :value="Number(stats.activeChannels)"
-              :context="channelsContext"
-            />
-            <StatTile
-              :label="$t('dashboard.admin.system.process.users')"
-              :value="Number(stats.totalUsers)"
-            />
-          </template>
         </StatStrip>
+      </PanelCard>
+
+      <PanelCard
+        v-if="system"
+        tier="default"
+        :title="$t('dashboard.admin.system.totals.title')"
+        :description="$t('dashboard.admin.system.totals.description')"
+      >
+        <StatStrip v-if="stats" data-totals>
+          <StatTile :label="$t('dashboard.admin.system.process.uptime')" :value="uptime" />
+          <StatTile
+            :label="$t('dashboard.admin.system.process.events')"
+            :value="Number(stats.eventsProcessedToday)"
+          />
+          <StatTile
+            :label="$t('dashboard.admin.system.process.channels')"
+            :value="Number(stats.activeChannels)"
+            :context="channelsContext"
+          />
+          <StatTile
+            :label="$t('dashboard.admin.system.process.users')"
+            :value="Number(stats.totalUsers)"
+          />
+        </StatStrip>
+        <p
+          v-else
+          data-totals-locked
+          class="flex items-center gap-2 p-2 text-sm text-muted-foreground"
+        >
+          <Locked class="size-5 shrink-0" aria-hidden="true" />
+          {{ $t("dashboard.admin.system.totals.locked") }}
+        </p>
       </PanelCard>
 
       <PanelCard

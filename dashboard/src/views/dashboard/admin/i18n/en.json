@@ -820,6 +820,11 @@
           "channelsContext": "of {total} registered",
           "users": "Known users"
         },
+        "totals": {
+          "title": "Platform totals",
+          "description": "Counts for the whole deployment. A new count arrives by itself.",
+          "locked": "Platform totals need the platform analytics permission. Your account does not hold it."
+        },
         "rotation": {
           "title": "Encryption key",
           "description": "Re-wraps every stored data key from the previous encryption key to the new one. A second run changes nothing.",

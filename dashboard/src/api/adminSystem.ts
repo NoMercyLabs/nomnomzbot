@@ -21,10 +21,7 @@ export type KeyRotationSummary = components['schemas']['DekRotationSummary'];
 
 // The health needs the access key and the counters need the analytics key. A person who holds only the
 // access key still sees the health; the counters are null for them instead of failing the whole page.
-export type AdminSystemSnapshot = {
-  system: AdminSystemStatusPayload['system'];
-  stats: AdminSystemStatusPayload['stats'] | null;
-};
+export type AdminSystemSnapshot = AdminSystemStatusPayload;
 
 // The two root keys of one rotation: the key the stored data keys are sealed under now, and the new one.
 export type KeyRotation = {
