@@ -1315,7 +1315,9 @@ interface NnzActionParams {
     wait?: boolean;
   };
   'schedule_pipeline': {
-    pipeline: string;
+    pipeline?: string;
+    command?: string;
+    action_type?: string;
     delay_seconds: number;
     dedupe_key?: string;
   };
