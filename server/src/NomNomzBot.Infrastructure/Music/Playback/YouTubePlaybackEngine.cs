@@ -136,6 +136,12 @@ public sealed class YouTubePlaybackEngine(
             return;
         }
 
+        if (report.State == YouTubePlayerState.Ending)
+        {
+            await _relay.RaiseAsync(new TrackEnding(EngineKind.YouTube, uri));
+            return;
+        }
+
         int durationMs = store.PushedTrack(broadcasterId, report.VideoId)?.DurationMs ?? 0;
 
         await _relay.RaiseAsync(

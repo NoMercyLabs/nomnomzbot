@@ -83,7 +83,7 @@ public sealed class MusicServiceSkipThroughDirectorTests
         );
 
     [Fact]
-    public async Task Skipping_the_playing_head_starts_the_next_head_once_without_pausing_Spotify_and_never_calls_the_provider()
+    public async Task Skipping_the_playing_head_moves_Spotify_on_to_the_lined_up_next_head_without_pausing_and_never_calls_the_provider()
     {
         (
             MusicService sut,
@@ -96,11 +96,14 @@ public sealed class MusicServiceSkipThroughDirectorTests
         Result result = await sut.SkipAsync(SpotifyChannel.ToString(), Skipper);
 
         result.IsSuccess.Should().BeTrue();
-        spotify.Calls.Select(c => c.Name).Should().Equal("Start", "Start");
+        spotify.Calls.Select(c => c.Name).Should().Equal("Start", "QueueNext", "Skip");
         PlaybackState state = rig.Registry.StateOf(SpotifyChannel);
         state.Kind.Should().Be(PlaybackStateKind.Starting);
         state.Item!.Uri.Should().Be("spotify:track:s2");
-        spotify.Calls[1].Argument.Should().Be(state.Item.Id, "the second start is the next head");
+        spotify
+            .Calls[1]
+            .Argument.Should()
+            .Be(state.Item.Id, "the lined-up request is the next head");
         CalledProviderSkip(handler).Should().BeFalse("the director skips, not the provider");
         bus.Published.OfType<SongSkippedEvent>()
             .Should()

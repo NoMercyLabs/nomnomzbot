@@ -85,7 +85,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task Row1_ReportOfQueuedNonHeadItem_RemovesOnlyThatRow()
+    public async Task Row1_ReportOfQueuedNonHeadItem_RemovesOnlyThatRowAndLinesUpTheFirstSpotifyItem()
     {
         Rig rig = new();
         List<PlaybackItem> items = [];
@@ -101,12 +101,13 @@ public sealed partial class PlaybackDirectorTests
         rig.Director.State.Engine.Should().Be(EngineKind.Spotify);
         rig.Director.State.Item!.Id.Should().Be("i16");
         rig.Director.LastPlayed!.Id.Should().Be("i16");
-        rig.Spotify.Calls.Should().BeEmpty();
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "i1"));
         rig.YouTube.Calls.Should().BeEmpty();
-        PlaybackTransitionedEvent only = rig.Journal.Should().ContainSingle().Subject;
-        only.Reason.Should().Be("played_out_of_order");
-        only.QueueItemId.Should().Be("i16");
-        only.BroadcasterId.Should().Be(Channel);
+        List<PlaybackTransitionedEvent> journal = rig.Journal;
+        journal.Select(e => e.Reason).Should().Equal("played_out_of_order", "lined_up");
+        journal[0].QueueItemId.Should().Be("i16");
+        journal[0].BroadcasterId.Should().Be(Channel);
+        journal[1].QueueItemId.Should().Be("i1");
     }
 
     [Fact]
@@ -146,7 +147,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task Starting_ThenEngineReportsTheItem_PlaysItAndRemovesOnlyThatRow()
+    public async Task Starting_ThenEngineReportsTheItem_PlaysItRemovesOnlyThatRowAndLinesUpTheNextSpotifyItem()
     {
         Rig rig = new();
         PlaybackItem a = Item("a", owner: "alice");
@@ -159,8 +160,9 @@ public sealed partial class PlaybackDirectorTests
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, a));
         rig.QueueIds.Should().Equal("b");
         rig.Director.LastPlayed!.Id.Should().Be("a");
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
-        rig.Journal.Select(e => e.Reason).Should().Equal("start_head", "started");
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Start", "a"), new EngineCall("QueueNext", "b"));
+        rig.Journal.Select(e => e.Reason).Should().Equal("start_head", "started", "lined_up");
     }
 
     [Fact]
@@ -210,8 +212,11 @@ public sealed partial class PlaybackDirectorTests
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
         rig.QueueIds.Should().Equal("b");
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
-        rig.Journal.Last().Reason.Should().Be("owner_music");
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Start", "a"), new EngineCall("QueueNext", "b"));
+        rig.Journal.Select(e => e.Reason)
+            .Should()
+            .Equal("start_head", "started", "lined_up", "owner_music");
     }
 
     [Fact]
@@ -239,7 +244,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task PlayingOwnerMusic_RequestBeforeTheQueueAheadWindow_WaitsThenQueuesItFifteenSecondsBeforeTheEnd()
+    public async Task PlayingOwnerMusic_ARequest_IsLinedUpAtOnceAndTheOwnerSongPlaysToItsEnd()
     {
         Rig rig = new();
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 100_000);
@@ -248,41 +253,54 @@ public sealed partial class PlaybackDirectorTests
         await rig.Request(head);
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
-        rig.Spotify.Calls.Should().BeEmpty();
-        rig.Journal.Last().Reason.Should().Be("waiting_near_end");
-
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 184_999);
-        rig.Spotify.Calls.Should().BeEmpty();
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
+        rig.Journal.Select(e => e.Reason)
+            .Should()
+            .Equal("owner_music", "waiting_for_track_end", "lined_up");
 
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 185_000);
+        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 199_000);
 
-        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, head));
-        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
-        rig.Journal.Last().Reason.Should().Be("hand_over");
+        rig.Spotify.Calls.Should()
+            .Equal([new EngineCall("QueueNext", "a")], "nothing cuts the song");
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
         rig.QueueIds.Should().Equal("a");
+
+        await rig.Plays(rig.Spotify, head);
+
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, head));
+        rig.QueueIds.Should().BeEmpty();
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
     }
 
     [Fact]
     public async Task Row12_YouTubeItemEndsWithEmptyQueue_ResumesSpotifyOwnerMusicExactlyOnce()
     {
         Rig rig = new();
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 195_000);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 195_000);
         PlaybackItem yt = Item("y1", EngineKind.YouTube);
         await rig.Request(yt);
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"));
+        rig.Spotify.Calls.Should().BeEmpty("the owner's song plays to its end");
         rig.YouTube.Calls.Should().BeEmpty();
-        await rig.Spotify.EmitAsync(
-            new EngineReport(EngineKind.Spotify, "spotify:track:mine", false, 195_500, 200_000)
-        );
-        await rig.Plays(rig.YouTube, yt);
 
+        await SpotifyMovesOn(rig, OwnTrack, OwnNextTrack);
+        await YouTubeTakesOver(rig, OwnNextTrack, yt);
+        await rig.YouTube.EmitAsync(new TrackEnding(EngineKind.YouTube, yt.Uri));
         await rig.Ends(rig.YouTube, yt);
 
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"), new EngineCall("Resume"));
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Stop"), new EngineCall("Seek", "0"), new EngineCall("Resume"));
         rig.YouTube.Calls.Should().Equal(new EngineCall("Start", "y1"));
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
         rig.QueueIds.Should().BeEmpty();
-        rig.Journal.Last().Reason.Should().Be("owner_music_resumed");
+        Trail(rig)
+            .Should()
+            .ContainInOrder(
+                "youtube_takeover y1",
+                "started y1",
+                "spotify_resumed",
+                "youtube_finished y1"
+            );
 
         await rig.Ends(rig.YouTube, yt);
         rig.Spotify.Calls.Count(c => c.Name == "Resume").Should().Be(1);
@@ -325,7 +343,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task Row23_EngineSwitchAtTrackEnd_StartsTheNextEngineAtOnceWithoutStopOrDelay()
+    public async Task Row23_EngineSwitchAtTrackEnd_PausesSpotifysNextSongForTheVideoAndResumesThatSongAfter()
     {
         Rig rig = new();
         PlaybackItem a = Item("A", EngineKind.Spotify, "user1");
@@ -338,34 +356,54 @@ public sealed partial class PlaybackDirectorTests
         await rig.Director.HandleAsync(new RequestAdded());
         await rig.Plays(rig.Spotify, a);
 
-        await rig.Ends(rig.Spotify, a);
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Start", "A"), new EngineCall("QueueNext", "C"));
+
+        await SpotifyMovesOn(rig, a.Uri, c.Uri);
+        await YouTubeTakesOver(rig, c.Uri, b);
 
         rig.YouTube.Calls.Should().Equal(new EngineCall("Start", "B"));
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "A"));
-        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.YouTube, b));
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.YouTube, b));
+        rig.QueueIds.Should().Equal("C");
 
-        await rig.Plays(rig.YouTube, b);
-        await rig.Ends(rig.YouTube, b);
+        await EndsWithSpotifyBack(rig, b, c);
 
         rig.Spotify.Calls.Should()
-            .Equal(new EngineCall("Start", "A"), new EngineCall("Start", "C"));
+            .Equal(
+                new EngineCall("Start", "A"),
+                new EngineCall("QueueNext", "C"),
+                new EngineCall("Stop"),
+                new EngineCall("Seek", "0"),
+                new EngineCall("Resume")
+            );
         rig.YouTube.Calls.Should().Equal(new EngineCall("Start", "B"));
-        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, c));
-        rig.Journal.Select(e => e.Reason)
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, c));
+        rig.QueueIds.Should().BeEmpty();
+        Trail(rig)
             .Should()
-            .Equal("start_head", "started", "next_item", "started", "next_item");
+            .ContainInOrder(
+                "start_head A",
+                "started A",
+                "lined_up C",
+                "youtube_takeover B",
+                "started B",
+                "spotify_resumed",
+                "played_externally C",
+                "youtube_finished B"
+            );
     }
 
     [Fact]
     public async Task Row24_StopNotConfirmed_StartsAfterTwoSecondsAndJournalsStopUnconfirmed()
     {
         Rig rig = new();
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 195_000);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 195_000);
         PlaybackItem yt = Item("y1", EngineKind.YouTube);
-
         await rig.Request(yt);
 
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"));
+        await SpotifyMovesOn(rig, OwnTrack, OwnNextTrack);
+
+        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"), new EngineCall("Seek", "0"));
         rig.YouTube.Calls.Should().BeEmpty();
         rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.YouTube, yt));
 
@@ -377,7 +415,6 @@ public sealed partial class PlaybackDirectorTests
         await rig.Director.CheckDeadlinesAsync();
 
         rig.YouTube.Calls.Should().Equal(new EngineCall("Start", "y1"));
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"));
         rig.Journal.Select(e => e.Reason).Should().Contain("stop_unconfirmed");
         rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.YouTube, yt));
 
@@ -385,7 +422,8 @@ public sealed partial class PlaybackDirectorTests
         await rig.Director.CheckDeadlinesAsync();
         rig.Director.State.Should()
             .Be(PlaybackState.Playing(EngineKind.Spotify, null), "the paused owner music plays on");
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"), new EngineCall("Resume"));
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Stop"), new EngineCall("Seek", "0"), new EngineCall("Resume"));
         rig.QueueIds.Should().Equal("y1");
     }
 
@@ -393,13 +431,12 @@ public sealed partial class PlaybackDirectorTests
     public async Task EngineSwitch_OldEngineConfirmsPaused_StartsAtOnceWithoutStopUnconfirmed()
     {
         Rig rig = new();
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 195_000);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 195_000);
         PlaybackItem yt = Item("y1", EngineKind.YouTube);
         await rig.Request(yt);
+        await SpotifyMovesOn(rig, OwnTrack, OwnNextTrack);
 
-        await rig.Spotify.EmitAsync(
-            new EngineReport(EngineKind.Spotify, "spotify:track:mine", false, 195_100, 200_000)
-        );
+        await rig.Paused(rig.Spotify, OwnNextTrack, 0);
 
         rig.YouTube.Calls.Should().Equal(new EngineCall("Start", "y1"));
         rig.Journal.Select(e => e.Reason).Should().NotContain("stop_unconfirmed");
@@ -410,11 +447,12 @@ public sealed partial class PlaybackDirectorTests
     public async Task EngineSwitchStopWait_ReportsFromTheStoppingEngineThatStillPlay_AreIgnored()
     {
         Rig rig = new();
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 195_000);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 195_000);
         await rig.Request(Item("y1", EngineKind.YouTube));
+        await SpotifyMovesOn(rig, OwnTrack, OwnNextTrack);
         int journaled = rig.Journal.Count;
 
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 196_000);
+        await rig.OwnerPlays(rig.Spotify, OwnNextTrack, 2_000);
 
         rig.YouTube.Calls.Should().BeEmpty();
         rig.Journal.Should().HaveCount(journaled);

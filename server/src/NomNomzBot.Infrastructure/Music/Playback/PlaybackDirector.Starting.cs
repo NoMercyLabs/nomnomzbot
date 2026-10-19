@@ -24,14 +24,12 @@ public sealed partial class PlaybackDirector
         string inputName,
         string reason,
         EngineKind? stopEngine,
-        CancellationToken ct,
-        int? queueAheadMs = null
+        CancellationToken ct
     )
     {
         _stopWait = null;
         _startDeadline = null;
         _pausedForHandOver = null;
-        _linedUpBehindCurrentTrack = false;
         PlaybackState starting = PlaybackState.Starting(item.Engine, item);
         if (stopEngine is { } old)
         {
@@ -59,19 +57,11 @@ public sealed partial class PlaybackDirector
         }
 
         await MoveAsync(starting, inputName, reason);
-        await SendStartAsync(item, inputName, ct, queueAheadMs);
+        await SendStartAsync(item, inputName, ct);
     }
 
-    /// <summary>
-    /// Sends the start. With <paramref name="queueAheadMs"/> the owner's track still plays that long: the item
-    /// is lined up behind it (once per item) and the start deadline runs from that track's end.
-    /// </summary>
-    private async Task SendStartAsync(
-        PlaybackItem item,
-        string inputName,
-        CancellationToken ct,
-        int? queueAheadMs = null
-    )
+    /// <summary>Sends the start; the engine then has <see cref="StartDeadline"/> to report the item playing.</summary>
+    private async Task SendStartAsync(PlaybackItem item, string inputName, CancellationToken ct)
     {
         if (!_engines.TryGetValue(item.Engine, out IPlaybackEngine? engine))
         {
@@ -79,11 +69,9 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        EngineStartResult result = await SendToEngineOnceAsync(engine, item, queueAheadMs, ct);
-        _linedUpBehindCurrentTrack = result.Accepted && queueAheadMs is not null;
+        EngineStartResult result = await SendToEngineOnceAsync(engine, item, ct);
         if (result.Accepted)
-            _startDeadline =
-                _time.GetUtcNow() + TimeSpan.FromMilliseconds(queueAheadMs ?? 0) + StartDeadline;
+            _startDeadline = _time.GetUtcNow() + StartDeadline;
         else
             await FailStartAsync(
                 item,
@@ -134,9 +122,6 @@ public sealed partial class PlaybackDirector
             case EngineReport { IsPlaying: true } r
                 when r.Engine != item.Engine && FindRow(r) is null:
                 await SilenceForeignAsync(r, ct);
-                break;
-            case OwnerSkip when _linedUpBehindCurrentTrack:
-                await SkipToHeadAsync(item, name, ct);
                 break;
             case TrackEnded t when t.Engine == item.Engine && t.Uri == item.Uri:
                 await FailStartAsync(item, name, "player error", "start_failed", ct);

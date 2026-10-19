@@ -29,12 +29,6 @@ public sealed partial class PlaybackDirector
     private EngineKind? _pausedForHandOver;
 
     /// <summary>
-    /// True while the starting item waits in the engine's own queue behind the track that plays now (a queue-ahead,
-    /// not a start): a skip then moves the engine on to it.
-    /// </summary>
-    private bool _linedUpBehindCurrentTrack;
-
-    /// <summary>
     /// Asks the engine to start the item. A refusal and a throw are the same thing to the director:
     /// a failed start. A cancel from the caller's token is not a failure and still propagates.
     /// </summary>
@@ -57,13 +51,12 @@ public sealed partial class PlaybackDirector
     }
 
     /// <summary>
-    /// Starts the item, or lines it up behind the owner's track when <paramref name="queueAheadMs"/> is set. An
-    /// item the engine already holds in its own queue is not sent again: it plays there on its own.
+    /// Starts the item. An item the engine already holds in its own queue is not sent again: it plays there on
+    /// its own.
     /// </summary>
     private async Task<EngineStartResult> SendToEngineOnceAsync(
         IPlaybackEngine engine,
         PlaybackItem item,
-        int? queueAheadMs,
         CancellationToken ct
     )
     {
@@ -73,7 +66,7 @@ public sealed partial class PlaybackDirector
         EngineStartResult result = await TryStartAsync(
             engine,
             item,
-            e => queueAheadMs is null ? e.StartAsync(item, ct) : e.QueueNextAsync(item, ct),
+            e => e.StartAsync(item, ct),
             ct
         );
         if (result.Accepted && engine.LinesUpInItsOwnQueue)

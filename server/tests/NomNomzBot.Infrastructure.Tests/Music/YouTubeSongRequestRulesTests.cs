@@ -227,6 +227,9 @@ public sealed class YouTubeSongRequestRulesTests
 
     private int YouTubeStartCount() => YouTubeEngine().Calls.Count(c => c.Name == "Start");
 
+    private FakeEngine SpotifyEngine() =>
+        DirectorRig.Of(_store).Engines.EngineOf(ChannelId, EngineKind.Spotify);
+
     [Fact]
     public async Task A_song_that_is_not_near_its_end_is_never_paused_by_the_waiting_request()
     {
@@ -248,7 +251,7 @@ public sealed class YouTubeSongRequestRulesTests
     }
 
     [Fact]
-    public async Task The_request_waits_for_the_song_and_starts_when_that_song_ends()
+    public async Task The_request_waits_for_the_song_and_starts_once_Spotify_is_paused_at_its_end()
     {
         _spotify
             .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
@@ -256,10 +259,11 @@ public sealed class YouTubeSongRequestRulesTests
         MusicService sut = NewService();
         await SpotifyReportsPlayingAsync(90_000);
         await sut.RequestTrackAsync(ChannelId.ToString(), YouTubeUri, "fillz");
-        await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
+        SpotifyEngine().Calls.Should().BeEmpty("the song plays on");
         YouTubeStartCount().Should().Be(0, "the request waits while the song still plays");
 
-        // The song ends; the director starts the waiting head on its engine, exactly once.
+        // The song ends: the director pauses Spotify's next song, puts it back to its start, and waits
+        // until Spotify confirms the pause.
         await DirectorRig
             .Of(_store)
             .Registry.SendAsync(
@@ -267,10 +271,20 @@ public sealed class YouTubeSongRequestRulesTests
                 new TrackEnded(EngineKind.Spotify, "spotify:track:playlist")
             );
 
-        await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
+        SpotifyEngine().Calls.Select(c => c.Name).Should().Equal("Stop", "Seek");
+        YouTubeStartCount().Should().Be(0, "YouTube starts only once Spotify is quiet");
+
+        // Spotify confirms the pause: the director starts the waiting head on YouTube, exactly once.
+        await DirectorRig
+            .Of(_store)
+            .Registry.SendAsync(
+                ChannelId,
+                new EngineReport(EngineKind.Spotify, "spotify:track:next", false, 0, 200_000)
+            );
+
         YouTubeStartCount()
             .Should()
-            .Be(1, "the director starts the request once, when the song ends");
+            .Be(1, "the director starts the request once, when Spotify is paused");
         PlaybackState started = DirectorRig.Of(_store).Registry.StateOf(ChannelId);
         started.Kind.Should().Be(PlaybackStateKind.Starting);
         started.Engine.Should().Be(EngineKind.YouTube);
@@ -282,7 +296,7 @@ public sealed class YouTubeSongRequestRulesTests
     {
         using MusicConfigDbFixture fixture = new();
         (await fixture.Service.GetConfigAsync(ChannelId.ToString()))
-            .Value!.AllowYouTube.Should()
+            .Value.AllowYouTube.Should()
             .BeFalse("YouTube is opt-in");
         MusicService sut = NewService(configService: fixture.Service);
 

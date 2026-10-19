@@ -19,7 +19,7 @@ public sealed partial class PlaybackDirector
     {
         if (input is RequestAdded && _queue.Head is not null && await FindOwnerMusicAsync(ct))
         {
-            // The probe found owner music; a hand-over near its end already started the head.
+            // The probe found owner music: the director follows it and the request waits for its end.
             if (State is { Kind: PlaybackStateKind.Playing, Item: null })
                 await Dispatch(input, ct);
 
@@ -91,6 +91,14 @@ public sealed partial class PlaybackDirector
             case TrackEnded ended when IsCurrentTrack(ended):
                 await OnTrackEndedAsync(ended, ct);
                 break;
+            case TrackEnded ended when _youTubeEnding is { } finished && ended.Uri == finished.Uri:
+                _youTubeEnding = null;
+                await MoveAsync(State, nameof(TrackEnded), "youtube_finished", finished.Id);
+                break;
+            case TrackEnding ending
+                when ending.Engine == State.Engine && ending.Uri == State.Item?.Uri:
+                await OnTrackEndingAsync(ending, ct);
+                break;
             case OwnerPause
             or OwnerSkip
             or OwnerPrevious
@@ -105,8 +113,7 @@ public sealed partial class PlaybackDirector
                 await ReattachOutputAsync(engine, attached, ct);
                 break;
             case RequestAdded when State.Item is null:
-                if (!await HandOverIfNearEndAsync(nameof(RequestAdded), ct))
-                    await MoveAsync(State, input, "waiting_near_end");
+                await MoveAsync(State, input, "waiting_for_track_end");
                 break;
             default:
                 await IgnoreAsync(input);
@@ -220,6 +227,12 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        if (SpotifyMovedOnUnderYouTubeHead(report))
+        {
+            await TakeOverFromSpotifyAsync(nameof(EngineReport), ct);
+            return;
+        }
+
         // A queued row that plays on its own leaves the queue first, even when another engine holds
         // the owner's music: the row was seen playing, so it is no longer waiting.
         if (FindRow(report) is { } row)
@@ -235,11 +248,9 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        // The request already plays; the next Spotify request is lined up after every input (LineUpNextSpotifyAsync).
         if (State.Kind == PlaybackStateKind.Playing && State.Item?.Uri == report.Uri)
-        {
-            await QueueNextBehindItemAsync(report, ct);
             return;
-        }
 
         bool ownerAlready = State is { Kind: PlaybackStateKind.Playing, Item: null };
         _ownerReport = report;
@@ -248,54 +259,27 @@ public sealed partial class PlaybackDirector
             _memory = null;
             await MoveAsync(PlaybackState.Playing(report.Engine, null), report, "owner_music");
         }
-
-        await HandOverIfNearEndAsync(nameof(EngineReport), ct);
-    }
-
-    /// <summary>
-    /// Owner music is near its end and a request waits. On the same engine the head is lined up in the
-    /// engine's own queue before the owner's next track would play, so nothing is cut. On another engine
-    /// the head takes over in the owner's last seconds.
-    /// </summary>
-    private async Task<bool> HandOverIfNearEndAsync(string inputName, CancellationToken ct)
-    {
-        if (_queue.Head is not { } head || _ownerReport is not { DurationMs: > 0 } owner)
-            return false;
-
-        int remainingMs = Math.Max(0, owner.DurationMs - owner.ProgressMs);
-        bool otherEngine = head.Engine != owner.Engine;
-        if (remainingMs > (otherEngine ? NearEndMs : QueueAheadMs))
-            return false;
-
-        if (otherEngine)
-        {
-            _memory = new(owner.Engine, owner.IsPlaying);
-            await BeginStartAsync(head, inputName, "hand_over", owner.Engine, ct);
-            return true;
-        }
-
-        await BeginStartAsync(head, inputName, "hand_over", null, ct, remainingMs);
-        return true;
-    }
-
-    /// <summary>
-    /// A request plays near its end and the next waits on the same engine: the next is lined up in the
-    /// engine's own queue, so it follows with no skip.
-    /// </summary>
-    private async Task QueueNextBehindItemAsync(EngineReport report, CancellationToken ct)
-    {
-        if (_queue.Head is not { } next || next.Engine != report.Engine || report.DurationMs <= 0)
-            return;
-
-        int remainingMs = Math.Max(0, report.DurationMs - report.ProgressMs);
-        if (remainingMs > QueueAheadMs)
-            return;
-
-        await BeginStartAsync(next, nameof(EngineReport), "queue_next", null, ct, remainingMs);
     }
 
     private async Task OnTrackEndedAsync(TrackEnded ended, CancellationToken ct)
     {
+        if (ended.Engine == EngineKind.Spotify && _queue.Head is { Engine: EngineKind.YouTube })
+        {
+            await TakeOverFromSpotifyAsync(nameof(TrackEnded), ct);
+            return;
+        }
+
+        // A page that never sent ENDING (an old cached page): Spotify gets the music back at ENDED.
+        if (
+            ended.Engine == EngineKind.YouTube
+            && _spotifyHeldForYouTube
+            && _queue.Head is not { Engine: EngineKind.YouTube }
+        )
+        {
+            await ReturnToSpotifyAsync(nameof(TrackEnded), ct);
+            return;
+        }
+
         if (_queue.Head is { } next)
         {
             await BeginStartAsync(next, nameof(TrackEnded), "next_item", null, ct);

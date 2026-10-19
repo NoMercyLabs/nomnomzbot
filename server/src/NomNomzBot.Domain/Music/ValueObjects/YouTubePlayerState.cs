@@ -17,4 +17,7 @@ public enum YouTubePlayerState
     Paused,
     Ended,
     Error,
+
+    /// <summary>The video plays and has 3 seconds left. Sent once; stored as <see cref="Playing"/>.</summary>
+    Ending,
 }

@@ -145,6 +145,7 @@ public sealed class MusicPlayerYouTubeGuardTests
     [InlineData("PLAYING")]
     [InlineData("PAUSED")]
     [InlineData("ENDED")]
+    [InlineData("ENDING")]
     public void Each_player_state_is_reported_back_to_the_bot(string state)
     {
         string source = Source();
@@ -226,5 +227,70 @@ public sealed class MusicPlayerYouTubeGuardTests
     public void The_report_carries_the_position_in_milliseconds()
     {
         Source().Should().Contain("getCurrentTime() * 1000");
+    }
+
+    [Fact]
+    public void A_playing_video_reports_ENDING_once_when_three_seconds_are_left()
+    {
+        // The owner's rule: "when youtube is end - 3s we resume spotify again". The bot cannot see the video's
+        // length from the page, so the page arms one timer per video on PLAYING for (duration - position - 3 s).
+        string source = Source();
+
+        source.Should().Contain("const YT_ENDING_LEAD_SECONDS: number = 3");
+        source.Should().Contain("player.getDuration()");
+        source
+            .Should()
+            .Contain(
+                "Math.max(0, (durationSeconds - positionSeconds - YT_ENDING_LEAD_SECONDS) * 1000)"
+            );
+        source.Should().Contain("NomNomz.reportYouTubePlayerState(videoId, 'ENDING', Math.round(");
+        FunctionBody(source, "reportYouTubeState")
+            .Should()
+            .Contain("armYouTubeEnding(player, player.getCurrentTime())");
+        // A video with no known end (a live stream reports 0) and one already reported are not armed.
+        FunctionBody(source, "armYouTubeEnding")
+            .Should()
+            .Contain("if (!(durationSeconds > 0) || ytEndingReportedFor === videoId) return");
+    }
+
+    [Theory]
+    [InlineData("reportYouTubeState")] // PAUSED, ENDED, buffering after a seek: PLAYING arms it anew.
+    [InlineData("reportYouTubeError")]
+    [InlineData("onYouTubePlay")] // a new video is handed over
+    [InlineData("onYouTubeStop")]
+    public void The_ENDING_timer_is_cleared_wherever_the_video_stops_or_changes(string function)
+    {
+        FunctionBody(Source(), function).Should().Contain("clearYouTubeEnding()");
+    }
+
+    [Fact]
+    public void A_new_video_may_report_ENDING_again_and_a_seek_on_a_playing_video_re_arms_the_timer()
+    {
+        string source = Source();
+
+        FunctionBody(source, "onYouTubePlay").Should().Contain("ytEndingReportedFor = null");
+        FunctionBody(source, "onYouTubeSeek")
+            .Should()
+            .Contain(
+                "if (YT_STATE_NAMES[ytPlayer.getPlayerState()] === 'PLAYING') armYouTubeEnding(ytPlayer, seconds)"
+            );
+        // A page torn down with a timer armed must not report for a video it no longer plays.
+        source
+            .ReplaceLineEndings("\n")
+            .Should()
+            .Contain(
+                "window.clearInterval(ytHeartbeat)\n  clearYouTubeEnding()\n  disconnectSpotify()"
+            );
+    }
+
+    // The text of a top-level function of the page, from its signature to the closing brace in column 0.
+    private static string FunctionBody(string source, string name)
+    {
+        string normalized = source.ReplaceLineEndings("\n");
+        int start = normalized.IndexOf($"function {name}(", StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0, $"the page must declare {name}");
+
+        int end = normalized.IndexOf("\n}\n", start, StringComparison.Ordinal);
+        return normalized[start..(end < 0 ? normalized.Length : end)];
     }
 }

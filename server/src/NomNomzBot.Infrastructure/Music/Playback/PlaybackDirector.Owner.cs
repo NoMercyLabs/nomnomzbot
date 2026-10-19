@@ -135,7 +135,6 @@ public sealed partial class PlaybackDirector
 
         MarkSent(head.Engine);
         _stopWait = null;
-        _linedUpBehindCurrentTrack = false;
         await MoveAsync(PlaybackState.Starting(head.Engine, head), inputName, "owner_skip");
         _startDeadline = _time.GetUtcNow() + StartDeadline;
     }
@@ -237,7 +236,11 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        if (SentRecently(report.Engine) || !_engines.ContainsKey(report.Engine))
+        if (
+            SentRecently(report.Engine)
+            || !_engines.ContainsKey(report.Engine)
+            || report.Uri == _youTubeEnding?.Uri
+        )
             return;
 
         if (!await CommandAsync(report.Engine, nameof(EngineReport), e => e.PauseAsync(ct)))

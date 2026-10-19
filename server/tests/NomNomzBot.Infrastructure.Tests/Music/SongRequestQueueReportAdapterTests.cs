@@ -86,35 +86,48 @@ public sealed class SongRequestQueueReportAdapterTests
 
         await rig.Report("spotify", "spotify:track:16");
 
+        // Spotify plays, so the first request in fair order is lined up in its own queue.
         rig.Titles.Should().Equal(Enumerable.Range(1, 15).Select(n => $"T{n}"));
-        rig.Reasons.Should().Equal("played_out_of_order");
+        rig.Reasons.Should().Equal("played_out_of_order", "lined_up");
     }
 
     [Fact]
-    public async Task Row3_YoutubeHeadWaitsOnSpotifyOwnerMusic_ASpotifyRequestStaysSecond_NothingLeavesEarly()
+    public async Task Row3_YoutubeHeadWaitsOnSpotifyOwnerMusic_TheSpotifyRequestIsLinedUpAndLeavesOnlyWhenItPlays()
     {
         Rig rig = new();
-        rig.Request("https://www.youtube.com/watch?v=head", "YT head", "viewer-y");
+        string video = "https://www.youtube.com/watch?v=head";
+        rig.Request(video, "YT head", "viewer-y");
         string owner = "spotify:track:owner";
+        string later = "spotify:track:later";
 
         await rig.Report("spotify", owner, progressMs: 1_000);
-        rig.Request("spotify:track:later", "Spotify request", "viewer-s");
+        rig.Request(later, "Spotify request", "viewer-s");
         await rig.Report("spotify", owner, progressMs: 60_000);
 
+        // The Spotify request is second, yet it goes into Spotify's own queue now (owner, 2026-10-19).
         rig.Titles.Should().Equal("YT head", "Spotify request");
-        rig.Reasons.Should().Equal("owner_music");
+        rig.Reasons.Should().Equal("owner_music", "lined_up");
 
-        // The owner's track is in its last seconds: the head takes over, and still nothing has left.
+        // The owner's track is in its last seconds: nothing is cut, and nothing has left.
         await rig.Report("spotify", owner, progressMs: 196_000);
         rig.Titles.Should().Equal("YT head", "Spotify request");
-        rig.Reasons.Should().Equal("owner_music", "hand_over");
+        rig.Reasons.Should().Equal("owner_music", "lined_up");
 
-        // Spotify goes quiet, then the YouTube head plays: only the head leaves.
-        await rig.Report("spotify", owner, playing: false, progressMs: 199_000);
-        await rig.Report("youtube", "https://www.youtube.com/watch?v=head");
+        // Spotify reaches the lined-up request: the video takes over and Spotify is paused on it.
+        await rig.Report("spotify", later, progressMs: 500);
+        await rig.Report("spotify", later, playing: false, progressMs: 900);
+        await rig.Report("youtube", video);
 
         rig.Titles.Should().Equal("Spotify request");
-        rig.Reasons.Should().Equal("owner_music", "hand_over", "stop_confirmed", "started");
+        rig.Reasons.Should()
+            .Equal("owner_music", "lined_up", "youtube_takeover", "stop_confirmed", "started");
+
+        // The video ends: Spotify resumes the paused request, and only now does it leave.
+        await rig.Report("youtube", video, playing: false, ended: true);
+        await rig.Report("spotify", later, progressMs: 1_500);
+
+        rig.Titles.Should().BeEmpty();
+        rig.Reasons.Should().Contain("spotify_resumed");
     }
 
     [Fact]
