@@ -20,7 +20,8 @@ namespace NomNomzBot.Infrastructure.Trust;
 
 /// <summary>
 /// Reads the channel's <see cref="TrustPolicy"/>, falling back to
-/// <see cref="TrustScoreCalculator.DefaultPolicy"/> when the channel has never tuned anything.
+/// <see cref="TrustScoreCalculator.DefaultPolicy"/> (built from <see cref="TrustPolicyDefaults"/>) when
+/// the channel has never tuned anything.
 /// </summary>
 public sealed class TrustPolicyService : ITrustPolicyService
 {
@@ -47,6 +48,12 @@ public sealed class TrustPolicyService : ITrustPolicyService
         return stored ?? TrustScoreCalculator.DefaultPolicy;
     }
 
+    public TrustPolicyDto GetDefaults() => DefaultsDto();
+
+    /// <summary>The shipped defaults as the dashboard sees them; never pinned.</summary>
+    public static TrustPolicyDto DefaultsDto() =>
+        ToDto(TrustScoreCalculator.DefaultPolicy, isPinned: false);
+
     public async Task<Result<TrustPolicyDto>> GetForEditingAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken = default
@@ -60,9 +67,7 @@ public sealed class TrustPolicyService : ITrustPolicyService
                 cancellationToken
             );
 
-        return Result.Success(
-            ToDto(stored ?? TrustScoreCalculator.DefaultPolicy, isPinned: stored is not null)
-        );
+        return Result.Success(stored is null ? DefaultsDto() : ToDto(stored, isPinned: true));
     }
 
     public async Task<Result<TrustPolicyDto>> UpdateAsync(
@@ -71,9 +76,13 @@ public sealed class TrustPolicyService : ITrustPolicyService
         CancellationToken cancellationToken = default
     )
     {
-        Result validation = Validate(request);
+        Result validation = TrustPolicyValidator.Validate(request);
         if (validation.IsFailure)
-            return Result.Failure<TrustPolicyDto>(validation.ErrorMessage!, validation.ErrorCode!);
+            return Result.Failure<TrustPolicyDto>(
+                validation.ErrorMessage!,
+                validation.ErrorCode!,
+                errorData: validation.ErrorData
+            );
 
         TrustPolicy? policy = await _db
             .TrustPolicies.IgnoreQueryFilters()
@@ -116,103 +125,6 @@ public sealed class TrustPolicyService : ITrustPolicyService
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(policy, isPinned: true));
-    }
-
-    /// <summary>
-    /// Server-side ranges. The editor validates too, but a policy that cannot produce a sane score must
-    /// never reach the scorer regardless of what posted it.
-    /// </summary>
-    private static Result Validate(UpdateTrustPolicyRequest r)
-    {
-        double weightSum =
-            r.RequestCountWeight
-            + r.AccountAgeWeight
-            + r.ContentAgeWeight
-            + r.ContentPopularityWeight;
-        if (Math.Abs(weightSum - 1.0) > 0.0001)
-            return Result.Failure(
-                $"The four score weights must add up to 1.0 (they currently add up to {weightSum:0.####}).",
-                "VALIDATION_FAILED"
-            );
-
-        if (
-            r.RequestCountWeight < 0
-            || r.AccountAgeWeight < 0
-            || r.ContentAgeWeight < 0
-            || r.ContentPopularityWeight < 0
-        )
-            return Result.Failure("A score weight cannot be negative.", "VALIDATION_FAILED");
-
-        if (
-            r.RequestCountDecay <= 0
-            || r.AccountAgeDecay <= 0
-            || r.ContentAgeDecay <= 0
-            || r.ContentPopularityDecay <= 0
-        )
-            return Result.Failure(
-                "Every growth speed must be greater than zero — a zero rate freezes that part of the score at 0.",
-                "VALIDATION_FAILED"
-            );
-
-        if (r.NotFollowingFactor is < 0 or > 1)
-            return Result.Failure(
-                "The not-following penalty must be between 0 and 1 (1 disables it).",
-                "VALIDATION_FAILED"
-            );
-
-        if (r.YouTubeQualityPenaltyFactor is < 0 or > 1)
-            return Result.Failure(
-                "The YouTube quality penalty must be between 0 and 1 (1 disables it).",
-                "VALIDATION_FAILED"
-            );
-
-        if (
-            r.AffiliateBoost is < 0 or > 100
-            || r.PartnerBoost is < 0 or > 100
-            || r.VerifiedYouTubeBoost is < 0 or > 100
-        )
-            return Result.Failure(
-                "A platform-standing boost must be between 0 and 100 points (0 disables it).",
-                "VALIDATION_FAILED"
-            );
-
-        if (r.SkipPenalty < 0 || r.TimeoutPenalty < 0 || r.BanPenalty < 0)
-            return Result.Failure(
-                "A violation penalty cannot be negative — that would REWARD the violation.",
-                "VALIDATION_FAILED"
-            );
-
-        if (!(r.UntrustedMax < r.LowMax && r.LowMax < r.StandardMax))
-            return Result.Failure(
-                "The trust tier ceilings must increase: Untrusted below Low, Low below Standard.",
-                "VALIDATION_FAILED"
-            );
-
-        if (r.UntrustedMax < 0 || r.StandardMax > 100)
-            return Result.Failure(
-                "Trust tier ceilings must sit within the 0–100 score range.",
-                "VALIDATION_FAILED"
-            );
-
-        if (r.HeatHalfLifeHours <= 0)
-            return Result.Failure(
-                "The heat cool-down must be greater than zero hours, or heat would never decay.",
-                "VALIDATION_FAILED"
-            );
-
-        if (
-            r.HeatDeltaBan < 0
-            || r.HeatDeltaTimeout < 0
-            || r.HeatDeltaReportValidated < 0
-            || r.HeatDeltaAutoModDenied < 0
-            || r.HeatDeltaFilterHit < 0
-        )
-            return Result.Failure(
-                "A heat amount cannot be negative — heat never accrues downward.",
-                "VALIDATION_FAILED"
-            );
-
-        return Result.Success();
     }
 
     private static TrustPolicyDto ToDto(TrustPolicy p, bool isPinned) =>

@@ -54,6 +54,22 @@ public class TrustPolicyController : BaseController
     }
 
     /// <summary>
+    /// The shipped trust defaults (never pinned), so the editor can show "default" next to every
+    /// value and offer a reset without carrying its own copy of the numbers.
+    /// </summary>
+    [HttpGet("{channelId}/trust/policy/defaults")]
+    [Authorize]
+    [RequireAction("trust:policy:read")]
+    [ProducesResponseType<StatusResponseDto<TrustPolicyDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetTrustPolicyDefaults(string channelId)
+    {
+        if (!Guid.TryParse(channelId, out Guid _))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(Result.Success(_trustPolicy.GetDefaults()));
+    }
+
+    /// <summary>
     /// Saves the channel's trust tuning, creating the row on first edit. Ranges are enforced
     /// server-side — the four weights must sum to 1.0, tier ceilings must ascend, and no penalty, decay
     /// or heat amount may be negative — so a policy that could not produce a sane score is rejected

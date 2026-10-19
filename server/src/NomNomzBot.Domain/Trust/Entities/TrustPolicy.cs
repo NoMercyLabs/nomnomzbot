@@ -40,95 +40,99 @@ public class TrustPolicy : SoftDeletableEntity, ITenantScoped
     // ─── Score weights — validated server-side to sum to 1.0 ──────────────────
 
     /// <summary>How much the user's successful-request history counts.</summary>
-    public double RequestCountWeight { get; set; } = 0.25;
+    public double RequestCountWeight { get; set; } = TrustPolicyDefaults.RequestCountWeight;
 
     /// <summary>How much the age of the user's platform account counts.</summary>
-    public double AccountAgeWeight { get; set; } = 0.25;
+    public double AccountAgeWeight { get; set; } = TrustPolicyDefaults.AccountAgeWeight;
 
     /// <summary>How much the age of the requested content counts (song requests).</summary>
-    public double ContentAgeWeight { get; set; } = 0.30;
+    public double ContentAgeWeight { get; set; } = TrustPolicyDefaults.ContentAgeWeight;
 
     /// <summary>How much the popularity of the requested content counts (song requests).</summary>
-    public double ContentPopularityWeight { get; set; } = 0.20;
+    public double ContentPopularityWeight { get; set; } =
+        TrustPolicyDefaults.ContentPopularityWeight;
 
     // ─── Decay rates — higher saturates toward 100 sooner ─────────────────────
 
     /// <summary>Default 0.599 — about 5 successful requests reach ~95% of this metric.</summary>
-    public double RequestCountDecay { get; set; } = 0.599;
+    public double RequestCountDecay { get; set; } = TrustPolicyDefaults.RequestCountDecay;
 
     /// <summary>Default 0.499 — about 6 months of account age reaches ~95%.</summary>
-    public double AccountAgeDecay { get; set; } = 0.499;
+    public double AccountAgeDecay { get; set; } = TrustPolicyDefaults.AccountAgeDecay;
 
     /// <summary>Default 0.999 — about 3 months of content age reaches ~95%.</summary>
-    public double ContentAgeDecay { get; set; } = 0.999;
+    public double ContentAgeDecay { get; set; } = TrustPolicyDefaults.ContentAgeDecay;
 
     /// <summary>Default 0.0003 — about 10 000 views reaches ~95%.</summary>
-    public double ContentPopularityDecay { get; set; } = 0.0003;
+    public double ContentPopularityDecay { get; set; } = TrustPolicyDefaults.ContentPopularityDecay;
 
     // ─── Multipliers and boosts ───────────────────────────────────────────────
 
     /// <summary>Score multiplier when the user does not follow, or followed under 24h ago. 1.0 disables it.</summary>
-    public double NotFollowingFactor { get; set; } = 0.75;
+    public double NotFollowingFactor { get; set; } = TrustPolicyDefaults.NotFollowingFactor;
 
     /// <summary>Whether mods, VIPs, subscribers and established requesters get the halfway-to-100 boost.</summary>
-    public bool ReputationBoostEnabled { get; set; } = true;
+    public bool ReputationBoostEnabled { get; set; } = TrustPolicyDefaults.ReputationBoostEnabled;
 
     /// <summary>Points added for a Twitch affiliate. 0 disables it.</summary>
-    public double AffiliateBoost { get; set; } = 5.0;
+    public double AffiliateBoost { get; set; } = TrustPolicyDefaults.AffiliateBoost;
 
     /// <summary>Points added for a Twitch partner (replaces the affiliate boost, not stacked). 0 disables it.</summary>
-    public double PartnerBoost { get; set; } = 10.0;
+    public double PartnerBoost { get; set; } = TrustPolicyDefaults.PartnerBoost;
 
     /// <summary>Points added for a verified YouTube channel. 0 disables it.</summary>
-    public double VerifiedYouTubeBoost { get; set; } = 10.0;
+    public double VerifiedYouTubeBoost { get; set; } = TrustPolicyDefaults.VerifiedYouTubeBoost;
 
     /// <summary>
     /// Multiplier applied per failed YouTube channel-quality check (thin catalogue, few subscribers,
     /// brand-new channel). Applies to song-request content only. 1.0 disables the penalties.
     /// </summary>
-    public double YouTubeQualityPenaltyFactor { get; set; } = 0.75;
+    public double YouTubeQualityPenaltyFactor { get; set; } =
+        TrustPolicyDefaults.YouTubeQualityPenaltyFactor;
 
     // ─── Violation penalties — flat points removed after boosts ───────────────
 
     /// <summary>Points removed each time a moderator skips this user's request.</summary>
-    public double SkipPenalty { get; set; } = 5.0;
+    public double SkipPenalty { get; set; } = TrustPolicyDefaults.SkipPenalty;
 
     /// <summary>Points removed per timeout on this user.</summary>
-    public double TimeoutPenalty { get; set; } = 10.0;
+    public double TimeoutPenalty { get; set; } = TrustPolicyDefaults.TimeoutPenalty;
 
     /// <summary>Points removed per ban on this user — the heaviest penalty.</summary>
-    public double BanPenalty { get; set; } = 30.0;
+    public double BanPenalty { get; set; } = TrustPolicyDefaults.BanPenalty;
 
     // ─── Tier ceilings — users see tier NAMES, never these numbers ────────────
 
     /// <summary>Scores at or below this are Untrusted.</summary>
-    public double UntrustedMax { get; set; } = 25.0;
+    public double UntrustedMax { get; set; } = TrustPolicyDefaults.UntrustedMax;
 
     /// <summary>Scores above <see cref="UntrustedMax"/> up to this are Low trust.</summary>
-    public double LowMax { get; set; } = 50.0;
+    public double LowMax { get; set; } = TrustPolicyDefaults.LowMax;
 
     /// <summary>Scores above <see cref="LowMax"/> up to this are Standard; anything higher is Trusted.</summary>
-    public double StandardMax { get; set; } = 75.0;
+    public double StandardMax { get; set; } = TrustPolicyDefaults.StandardMax;
 
     // ─── Heat — recent bad behaviour, decaying ────────────────────────────────
 
     /// <summary>Hours after which half of a user's accumulated heat has decayed away.</summary>
-    public double HeatHalfLifeHours { get; set; } = 24.0;
+    public double HeatHalfLifeHours { get; set; } = TrustPolicyDefaults.HeatHalfLifeHours;
 
     /// <summary>Heat added when this user is banned.</summary>
-    public decimal HeatDeltaBan { get; set; } = 40m;
+    public decimal HeatDeltaBan { get; set; } = TrustPolicyDefaults.HeatDeltaBan;
 
     /// <summary>Heat added when this user is timed out.</summary>
-    public decimal HeatDeltaTimeout { get; set; } = 15m;
+    public decimal HeatDeltaTimeout { get; set; } = TrustPolicyDefaults.HeatDeltaTimeout;
 
     /// <summary>Heat added when a viewer report against this user is upheld.</summary>
-    public decimal HeatDeltaReportValidated { get; set; } = 10m;
+    public decimal HeatDeltaReportValidated { get; set; } =
+        TrustPolicyDefaults.HeatDeltaReportValidated;
 
     /// <summary>Heat added when one of this user's AutoMod-held messages is denied.</summary>
-    public decimal HeatDeltaAutoModDenied { get; set; } = 5m;
+    public decimal HeatDeltaAutoModDenied { get; set; } =
+        TrustPolicyDefaults.HeatDeltaAutoModDenied;
 
     /// <summary>Heat added when this user trips a chat filter.</summary>
-    public decimal HeatDeltaFilterHit { get; set; } = 5m;
+    public decimal HeatDeltaFilterHit { get; set; } = TrustPolicyDefaults.HeatDeltaFilterHit;
 
     public int ConfigSchemaVersion { get; set; } = 1;
 }

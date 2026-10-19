@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NomNomzBot.Domain.Trust;
 using NomNomzBot.Domain.Trust.Entities;
 
 namespace NomNomzBot.Infrastructure.Trust.Persistence;
@@ -27,9 +28,13 @@ public class TrustPolicyConfiguration : IEntityTypeConfiguration<TrustPolicy>
         builder.HasIndex(e => e.BroadcasterId).IsUnique();
 
         // Defaults match the TrustPolicy initializers so channels with a stored policy get the shipped boosts.
-        builder.Property(e => e.AffiliateBoost).HasDefaultValue(5.0);
-        builder.Property(e => e.PartnerBoost).HasDefaultValue(10.0);
-        builder.Property(e => e.VerifiedYouTubeBoost).HasDefaultValue(10.0);
+        builder
+            .Property(e => e.AffiliateBoost)
+            .HasDefaultValue(TrustPolicyDefaults.AffiliateBoost);
+        builder.Property(e => e.PartnerBoost).HasDefaultValue(TrustPolicyDefaults.PartnerBoost);
+        builder
+            .Property(e => e.VerifiedYouTubeBoost)
+            .HasDefaultValue(TrustPolicyDefaults.VerifiedYouTubeBoost);
 
         builder.Property(e => e.HeatDeltaBan).HasPrecision(8, 4);
         builder.Property(e => e.HeatDeltaTimeout).HasPrecision(8, 4);

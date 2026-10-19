@@ -30,6 +30,12 @@ public interface ITrustPolicyService
     Task<TrustPolicy> GetAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The shipped defaults, never pinned. The dashboard shows these next to a channel's own values
+    /// so no default is ever hard-coded a second time on the client.
+    /// </summary>
+    TrustPolicyDto GetDefaults();
+
+    /// <summary>
     /// The dashboard read: the same values plus whether this channel has pinned them or is still
     /// tracking the shipped defaults.
     /// </summary>
