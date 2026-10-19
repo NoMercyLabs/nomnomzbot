@@ -172,6 +172,17 @@ describe('Readability options', () => {
     expect(text).not.toContain('viewer');
   });
 
+  // Re-shoot 2026-10-19: the sample was inset from the row groups under it, and at 1674 px each label sat
+  // 1300 px from its control.
+  it('lines the sample up with the row groups and caps the card width', async () => {
+    await open();
+    const sample: HTMLElement = document.body.querySelector('[data-slot="readability-sample"]')!;
+    const card: HTMLElement = document.body.querySelector('[data-view="readability"]')!;
+
+    expect(sample.classList.contains('mx-3')).toBe(false);
+    expect(card.classList.contains('max-w-4xl')).toBe(true);
+  });
+
   it('a text size scales every text token', async () => {
     const scope = effectScope();
     const reading = scope.run(() => useReadability())!;

@@ -39,20 +39,16 @@ interface Choice<T extends string> {
   label: string;
 }
 
-const presets = computed<Choice<ReadabilityPreset>[]>(
-  () => [
-    { value: 'default', label: t('dashboard.settings.readability.presets.default') },
-    { value: 'dyslexia', label: t('dashboard.settings.readability.presets.dyslexia') },
-    { value: 'contrast', label: t('dashboard.settings.readability.presets.contrast') },
-  ],
-);
-const fonts = computed<Choice<Readability['font']>[]>(
-  () => [
-    { value: 'system', label: t('dashboard.settings.readability.font.system') },
-    { value: 'hyperlegible', label: t('dashboard.settings.readability.font.hyperlegible') },
-    { value: 'lexend', label: t('dashboard.settings.readability.font.lexend') },
-  ],
-);
+const presets = computed<Choice<ReadabilityPreset>[]>(() => [
+  { value: 'default', label: t('dashboard.settings.readability.presets.default') },
+  { value: 'dyslexia', label: t('dashboard.settings.readability.presets.dyslexia') },
+  { value: 'contrast', label: t('dashboard.settings.readability.presets.contrast') },
+]);
+const fonts = computed<Choice<Readability['font']>[]>(() => [
+  { value: 'system', label: t('dashboard.settings.readability.font.system') },
+  { value: 'hyperlegible', label: t('dashboard.settings.readability.font.hyperlegible') },
+  { value: 'lexend', label: t('dashboard.settings.readability.font.lexend') },
+]);
 const lineSpacings: ComputedRef<Choice<Readability['lh']>[]> = computed<
   Choice<Readability['lh']>[]
 >(() => [
@@ -103,12 +99,21 @@ const help = computed(() => {
 
   return {
     font: withDefault(t(`${base}.font.description`), labelOf(fonts.value, defaults.font)),
-    size: withDefault(t(`${base}.size.description`), t(`${base}.size.value`, { size: defaults.size })),
+    size: withDefault(
+      t(`${base}.size.description`),
+      t(`${base}.size.value`, { size: defaults.size }),
+    ),
     lineSpacing: withDefault(undefined, labelOf(lineSpacings.value, defaults.lh)),
-    spacing: withDefault(t(`${base}.spacing.description`), labelOf(spacings.value, defaults.spacing)),
+    spacing: withDefault(
+      t(`${base}.spacing.description`),
+      labelOf(spacings.value, defaults.spacing),
+    ),
     contrast: withDefault(t(`${base}.contrast.description`), contrast),
     motion: withDefault(t(`${base}.motion.description`), labelOf(motions.value, defaults.motion)),
-    density: withDefault(t(`${base}.density.description`), labelOf(densities.value, defaults.density)),
+    density: withDefault(
+      t(`${base}.density.description`),
+      labelOf(densities.value, defaults.density),
+    ),
   };
 });
 
@@ -124,23 +129,23 @@ function setSize(next: number[] | undefined): void {
 <template>
   <PanelCard
     data-view="readability"
-    class="flex-none"
+    class="max-w-4xl flex-none"
     pad
     :title="$t('dashboard.settings.readability.title')"
     :description="$t('dashboard.settings.readability.description')"
   >
     <div class="grid gap-6">
       <section class="grid gap-2" aria-labelledby="rd-presets">
-        <div class="px-3">
+        <div class="px-4">
           <h3 id="rd-presets" class="text-sm font-semibold">
-            {{ $t('dashboard.settings.readability.presets.title') }}
+            {{ $t("dashboard.settings.readability.presets.title") }}
           </h3>
           <p class="text-sm text-muted-foreground">
-            {{ $t('dashboard.settings.readability.presets.description') }}
+            {{ $t("dashboard.settings.readability.presets.description") }}
           </p>
         </div>
         <div
-          class="flex flex-wrap gap-2 px-3"
+          class="flex flex-wrap gap-2 px-4"
           role="group"
           :aria-label="$t('dashboard.settings.readability.presets.title')"
         >
@@ -159,26 +164,26 @@ function setSize(next: number[] | undefined): void {
       </section>
 
       <section class="grid gap-2" aria-labelledby="rd-text">
-        <div class="px-3">
+        <div class="px-4">
           <h3 id="rd-text" class="text-sm font-semibold">
-            {{ $t('dashboard.settings.readability.text.title') }}
+            {{ $t("dashboard.settings.readability.text.title") }}
           </h3>
           <p class="text-sm text-muted-foreground">
-            {{ $t('dashboard.settings.readability.text.description') }}
+            {{ $t("dashboard.settings.readability.text.description") }}
           </p>
         </div>
         <div
           data-slot="readability-sample"
-          class="mx-3 rounded-[12px] border border-border bg-background p-4"
+          class="rounded-[12px] border border-border bg-background p-4"
           aria-live="polite"
         >
           <!-- Dashboard text, not a chat line: the chat feed has its own Display options. -->
           <p data-sample-heading class="font-semibold">
-            {{ $t('dashboard.settings.readability.sample.heading') }}
+            {{ $t("dashboard.settings.readability.sample.heading") }}
           </p>
-          <p>{{ $t('dashboard.settings.readability.sample.body') }}</p>
+          <p>{{ $t("dashboard.settings.readability.sample.body") }}</p>
           <p class="text-muted-foreground">
-            {{ $t('dashboard.settings.readability.sample.pangram') }}
+            {{ $t("dashboard.settings.readability.sample.pangram") }}
           </p>
         </div>
         <RowGroup>
@@ -206,7 +211,7 @@ function setSize(next: number[] | undefined): void {
               @update:model-value="setSize"
             />
             <span class="min-w-11 text-right text-sm tabular-nums">{{
-              $t('dashboard.settings.readability.size.value', { size: settings.size })
+              $t("dashboard.settings.readability.size.value", { size: settings.size })
             }}</span>
           </ReadabilityRow>
           <ReadabilityRow
@@ -233,9 +238,9 @@ function setSize(next: number[] | undefined): void {
       </section>
 
       <section class="grid gap-2" aria-labelledby="rd-motion">
-        <div class="px-3">
+        <div class="px-4">
           <h3 id="rd-motion" class="text-sm font-semibold">
-            {{ $t('dashboard.settings.readability.contrastMotion.title') }}
+            {{ $t("dashboard.settings.readability.contrastMotion.title") }}
           </h3>
         </div>
         <RowGroup>
@@ -258,9 +263,9 @@ function setSize(next: number[] | undefined): void {
       </section>
 
       <section class="grid gap-2" aria-labelledby="rd-density">
-        <div class="px-3">
+        <div class="px-4">
           <h3 id="rd-density" class="text-sm font-semibold">
-            {{ $t('dashboard.settings.readability.density.title') }}
+            {{ $t("dashboard.settings.readability.density.title") }}
           </h3>
         </div>
         <RowGroup>
@@ -279,7 +284,7 @@ function setSize(next: number[] | undefined): void {
     </div>
     <template #footer>
       <span class="text-sm text-muted-foreground">{{
-        $t('dashboard.settings.readability.footer')
+        $t("dashboard.settings.readability.footer")
       }}</span>
     </template>
   </PanelCard>
