@@ -37,4 +37,12 @@ public interface IPlaybackEngine
 
     /// <summary>Engine volume, 0 to 100 (the music level).</summary>
     Task SetVolumeAsync(int level, CancellationToken ct = default);
+
+    /// <summary>
+    /// The music widget page came online while this engine holds the track. An engine whose player lives on
+    /// the page brings the track back to the new page; <paramref name="pageIsPlaying"/> is true when the page
+    /// already plays it. Other engines have nothing to do.
+    /// </summary>
+    Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default) =>
+        Task.CompletedTask;
 }

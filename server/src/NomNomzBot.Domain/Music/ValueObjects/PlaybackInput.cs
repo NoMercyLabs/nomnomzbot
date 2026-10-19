@@ -48,8 +48,11 @@ public sealed record OwnerVolume(int Level) : PlaybackInput;
 
 public sealed record OwnerMute(bool On) : PlaybackInput;
 
-/// <summary>The music widget came online.</summary>
-public sealed record OutputAttached : PlaybackInput;
+/// <summary>
+/// The music widget came online. <paramref name="PageIsPlaying"/> is true when the page reported its video
+/// playing before it said ready, so the engine must not reload that video.
+/// </summary>
+public sealed record OutputAttached(bool PageIsPlaying = false) : PlaybackInput;
 
 /// <summary>The music widget went away.</summary>
 public sealed record OutputDetached : PlaybackInput;

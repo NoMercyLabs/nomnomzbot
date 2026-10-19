@@ -97,6 +97,9 @@ public static class PlaybackDirectorTestKit
         public Task SetVolumeAsync(int level, CancellationToken ct = default) =>
             Record("SetVolume", level.ToString());
 
+        public Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default) =>
+            Record("Reattach", pageIsPlaying.ToString());
+
         /// <summary>Makes the engine emit a report or track end, as its poll or player would.</summary>
         public Task EmitAsync(EngineSignal signal) =>
             Reports is null ? Task.CompletedTask : Reports.Invoke(signal);
