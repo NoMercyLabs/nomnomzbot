@@ -1955,6 +1955,18 @@ public static class DependencyInjection
         services.AddSingleton<IViewerEventSubSessions>(sp =>
             sp.GetRequiredService<WebSocketEventSubTransport>()
         );
+        // A moderator reads the channels they moderate on their own token; the frames join the bot pipeline.
+        services.AddSingleton<ModeratorChatCoordinator>(sp =>
+            new(
+                sp.GetRequiredService<IViewerEventSubSessions>(),
+                sp.GetRequiredService<TwitchEventSubHostedService>(),
+                sp.GetRequiredService<IServiceScopeFactory>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ModeratorChatCoordinator>>()
+            )
+        );
+        services.AddSingleton<Application.Chat.Services.IModeratorChatReaders>(sp =>
+            sp.GetRequiredService<ModeratorChatCoordinator>()
+        );
         services.AddSingleton<Application.Chat.Services.IExternalChatRelay, ExternalChatRelay>();
         // The hub-backed pusher lives in NomNomzBot.Api and replaces this fallback (registered after AddInfrastructure).
         services.TryAddSingleton<

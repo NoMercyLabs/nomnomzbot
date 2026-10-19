@@ -43,4 +43,10 @@ public static class EventSubOwnerKeys
     /// frames go to the viewer's own sink, never to the bot pipeline.
     /// </summary>
     public static string Viewer(Guid userId) => $"viewer:{userId}";
+
+    /// <summary>
+    /// The session that reads the chat of the channels a moderator moderates, on the moderator's own token.
+    /// Its frames are forwarded to the bot pipeline, which stays silent for channels that did not onboard.
+    /// </summary>
+    public static string Moderator(Guid userId) => $"moderator:{userId}";
 }

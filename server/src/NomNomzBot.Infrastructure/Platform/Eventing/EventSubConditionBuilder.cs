@@ -186,7 +186,7 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
     ];
 
     /// <summary>Chat-read topics whose condition carries the reading <c>user_id</c> alongside the broadcaster.</summary>
-    private static readonly HashSet<string> ChatReadEvents =
+    internal static readonly HashSet<string> ChatReadEvents =
     [
         "channel.chat.message",
         "channel.chat.notification",
