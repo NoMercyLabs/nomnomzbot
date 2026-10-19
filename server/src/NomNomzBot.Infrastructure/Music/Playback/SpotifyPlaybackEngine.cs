@@ -168,6 +168,29 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
             );
     }
 
+    /// <summary>
+    /// One read of what Spotify plays now. It is the baseline of the next poll, and it raises no signal: the
+    /// director that asked holds its turn.
+    /// </summary>
+    public async Task<EngineReport?> ProbeAsync(CancellationToken ct = default)
+    {
+        await using EngineLease lease = open();
+
+        TrackInfo? current = await lease.Provider.GetCurrentTrackAsync(broadcasterId, ct);
+        _lastPoll = current;
+
+        return current is null
+            ? null
+            : new EngineReport(
+                EngineKind.Spotify,
+                current.TrackUri,
+                current.IsPlaying,
+                current.ProgressMs,
+                current.DurationMs,
+                current.DeviceId
+            );
+    }
+
     private async Task CommandAsync(Func<IMusicProvider, Task> command, CancellationToken ct)
     {
         await using EngineLease lease = open();

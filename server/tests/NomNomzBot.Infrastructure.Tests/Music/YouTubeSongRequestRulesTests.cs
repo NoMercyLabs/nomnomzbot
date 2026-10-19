@@ -196,8 +196,8 @@ public sealed class YouTubeSongRequestRulesTests
             .TrackUri.Should()
             .Be(YouTubeUri, "the request waits its turn in the fair queue");
         // Spec music-playback-determinism section 4: Playing(spotify, null) + RequestAdded keeps the
-        // request waiting. GAP for S-PD-6: a request that arrives before the first Spotify report (the
-        // window between two polls) is not held back; the director is Idle then and starts the head.
+        // request waiting. A request before the first Spotify report is covered by the engine probe
+        // (PlaybackDirectorFirstReportTests).
         YouTubeStartCount().Should().Be(0, "the request waits for the playing song");
         DirectorRig
             .Of(_store)

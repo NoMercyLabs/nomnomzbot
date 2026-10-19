@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Music.Playback;
@@ -16,6 +17,15 @@ public sealed partial class PlaybackDirector
 {
     private async Task OnIdleAsync(PlaybackInput input, CancellationToken ct)
     {
+        if (input is RequestAdded && _queue.Head is not null && await FindOwnerMusicAsync(ct))
+        {
+            // The probe found owner music; a hand-over near its end already started the head.
+            if (State is { Kind: PlaybackStateKind.Playing, Item: null })
+                await Dispatch(input, ct);
+
+            return;
+        }
+
         switch (input)
         {
             case RequestAdded or OutputAttached when _queue.Head is { } head:
@@ -27,6 +37,47 @@ public sealed partial class PlaybackDirector
             default:
                 await IgnoreAsync(input);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// A request arrived in Idle. Each engine that never reported is read once, so the owner's own music
+    /// (started before the first poll) is found before the head starts over it. True when the director
+    /// has left Idle because of what the probes found.
+    /// </summary>
+    private async Task<bool> FindOwnerMusicAsync(CancellationToken ct)
+    {
+        foreach (IPlaybackEngine engine in _engines.Values)
+        {
+            if (_reports.ContainsKey(engine.Kind) || !_probed.Add(engine.Kind))
+                continue;
+
+            EngineReport? found = await ProbeAsync(engine, ct);
+            if (found is null)
+                continue;
+
+            _reports[engine.Kind] = found;
+            if (found.IsPlaying)
+                await OnReportAsync(found, ct);
+        }
+
+        return State.Kind != PlaybackStateKind.Idle;
+    }
+
+    /// <summary>A probe that throws is a probe with no answer. A cancel from the caller still propagates.</summary>
+    private static async Task<EngineReport?> ProbeAsync(
+        IPlaybackEngine engine,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await engine.ProbeAsync(ct);
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return null;
         }
     }
 
