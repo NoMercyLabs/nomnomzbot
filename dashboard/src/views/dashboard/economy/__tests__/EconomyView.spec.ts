@@ -134,6 +134,9 @@ function read(path: string, options?: { params?: { query?: { Search?: string } }
   if (path.endsWith('/economy/catalog'))
     return ok(catalog);
 
+  if (path.endsWith('/commands'))
+    return ok([{ id: 'c1', name: 'hello' }]);
+
   if (path.endsWith('/leaderboards/configs'))
     return ok(boards);
 
@@ -671,6 +674,54 @@ describe('Economy page', () => {
     });
 
     expect(names('catalog')).toContain('Song bump');
+  });
+
+  it('shows the command a store item runs when it opens for editing', async () => {
+    catalog = [
+      {
+        id: 'i1',
+        name: 'Hat',
+        cost: 5,
+        isEnabled: true,
+        sinkType: 'command',
+        target: { kind: 0, id: 'c1' },
+      },
+    ];
+
+    await open('catalog');
+    await click(document.body.querySelector<HTMLElement>('[data-catalog-edit]')!);
+
+    expect(document.body.querySelector('[data-target-picker]')!.textContent).toContain('!hello');
+  });
+
+  it('sends a command target when a command is chosen for a store item', async () => {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    await open('catalog');
+    await click(buttonByText('New item'));
+    await type(field('Item name'), 'Hello bump');
+    await type(field('Effect kind'), 'command');
+
+    const trigger = document.body.querySelector('[data-target-picker] [data-slot="select-trigger"]')!;
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+
+    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
+      .find((candidate) => candidate.textContent?.includes('!hello'));
+
+    item!.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }));
+
+    await settle();
+    await click(buttonByText('Save item'));
+
+    expect(writes('POST')[0]!.body).toMatchObject({ target: { kind: 0, id: 'c1' } });
   });
 
   it('saves a leaderboard with its top places', async () => {

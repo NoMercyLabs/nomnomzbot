@@ -18,9 +18,9 @@ import {
   useUpdateCatalogItem,
   type CatalogItem,
 } from '@/api/economy';
-import { usePipelines } from '@/api/pipelines';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -31,10 +31,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { errorText, fieldErrorLines } from '@/lib/errors';
 import { rungNames } from '@/api/permissions';
-
-const noPipeline = 'none';
+import {
+  boundTarget,
+  sameTarget,
+  targetToWire,
+  type PickedTarget,
+} from '@/lib/bindingTarget';
+import { errorText, fieldErrorLines } from '@/lib/errors';
 
 const props = defineProps<{ item: CatalogItem | null }>();
 const open = defineModel<boolean>('open', { required: true });
@@ -43,7 +47,6 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const create = useCreateCatalogItem(channelId);
 const update = useUpdateCatalogItem(channelId);
-const pipelines = usePipelines(channelId);
 
 const name = ref('');
 const description = ref('');
@@ -51,7 +54,8 @@ const sinkType = ref('');
 const cost = ref(0);
 const iconUrl = ref('');
 const permission = ref('Everyone');
-const pipelineId = ref(noPipeline);
+const target = ref<PickedTarget | null>(null);
+const startTarget = ref<PickedTarget | null>(null);
 const cooldown = ref(0);
 const cooldownPerUser = ref(false);
 const stockLimit = ref<number | ''>('');
@@ -87,7 +91,8 @@ watch(
     cost.value = Number(row?.cost ?? 0);
     iconUrl.value = row?.iconUrl ?? '';
     permission.value = row?.permission ?? 'Everyone';
-    pipelineId.value = row?.pipelineId ?? noPipeline;
+    startTarget.value = boundTarget(row?.target, row?.pipelineId);
+    target.value = startTarget.value;
     cooldown.value = Number(row?.cooldownSeconds ?? 0);
     cooldownPerUser.value = row?.cooldownPerUser ?? false;
     stockLimit.value = optionalNumber(row?.stockLimit);
@@ -107,6 +112,16 @@ function problem(): string | undefined {
     : undefined;
 }
 
+// The binding is sent only when it changed, so an older item bound by a pipeline id keeps it untouched.
+type TargetChange = { target?: ReturnType<typeof targetToWire> };
+
+function targetChange() {
+  if (sameTarget(target.value, startTarget.value))
+    return {} as const satisfies TargetChange;
+
+  return { target: targetToWire(target.value) } as const satisfies TargetChange;
+}
+
 async function send(): Promise<void> {
   const shared = {
     name: name.value.trim(),
@@ -114,14 +129,12 @@ async function send(): Promise<void> {
     cost: cost.value,
     iconUrl: blankToNull(iconUrl.value),
     permission: permission.value,
-    pipelineId: pipelineId.value === noPipeline
-      ? null
-      : pipelineId.value,
     cooldownSeconds: cooldown.value,
     cooldownPerUser: cooldownPerUser.value,
     stockLimit: numberOrNull(stockLimit.value),
     maxPerViewerPerStream: numberOrNull(perStream.value),
     sortOrder: sortOrder.value,
+    ...targetChange(),
   };
 
   if (props.item !== null) {
@@ -233,22 +246,12 @@ async function submit(): Promise<void> {
       </Field>
       <Field>
         <FieldLabel>{{ $t('dashboard.economy.catalog.dialog.pipeline') }}</FieldLabel>
-        <Select v-model="pipelineId">
-          <SelectTrigger
-            :aria-label="$t('dashboard.economy.catalog.dialog.pipeline')"
-            class="w-full"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem :value="noPipeline">
-              {{ $t('dashboard.economy.catalog.dialog.pipelineNone') }}
-            </SelectItem>
-            <SelectItem v-for="flow in pipelines.data.value ?? []" :key="flow.id" :value="flow.id">
-              {{ flow.name }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <TargetPicker
+          v-model:target="target"
+          clearable
+          :kinds="['command', 'pipeline']"
+          :label="$t('dashboard.economy.catalog.dialog.pipeline')"
+        />
       </Field>
       <Field>
         <FieldLabel for="catalog-cooldown">{{
