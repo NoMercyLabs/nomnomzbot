@@ -158,99 +158,105 @@ async function submit(): Promise<void> {
 <template>
   <PageHeader :title="$t('dashboard.admin.system.title')" :crumb="$t('dashboard.admin.crumb')" />
   <PageBody>
-    <PanelCard
-      tier="lead"
-      :title="$t('dashboard.admin.system.health.title')"
-      :description="$t('dashboard.admin.system.health.description')"
-      :state="panelState"
-      :empty-text="$t('dashboard.admin.system.health.empty')"
-      :error-text="$t('dashboard.admin.system.health.error')"
-      @retry="status.refetch()"
-    >
-      <div v-if="system" class="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-        {{ $t("dashboard.admin.system.health.overall") }}
-        <Badge data-overall :variant="statusVariant(system.overall)">{{
-          statusLabel(system.overall)
-        }}</Badge>
-      </div>
-      <ul class="divide-y divide-border">
-        <li
-          v-for="service in system?.services ?? []"
-          :key="service.name"
-          data-service-row
-          class="flex items-center gap-3 py-3"
-        >
-          <span data-service-name class="min-w-0 flex-1 text-sm font-medium">{{
-            service.name
-          }}</span>
-          <span v-if="latency(service)" class="text-xs text-muted-foreground tabular-nums">{{
-            latency(service)
-          }}</span>
-          <Badge :variant="statusVariant(service.status)">{{ statusLabel(service.status) }}</Badge>
-        </li>
-      </ul>
-    </PanelCard>
-
-    <PanelCard
-      v-if="system"
-      tier="default"
-      :title="$t('dashboard.admin.system.process.title')"
-      :description="$t('dashboard.admin.system.process.description')"
-    >
-      <StatStrip>
-        <StatTile
-          :label="$t('dashboard.admin.system.process.version')"
-          :value="system.botVersion"
-        />
-        <StatTile :label="$t('dashboard.admin.system.process.memory')" :value="memory" />
-        <StatTile :label="$t('dashboard.admin.system.process.cpu')" :value="processor" />
-        <template v-if="stats">
-          <StatTile :label="$t('dashboard.admin.system.process.uptime')" :value="uptime" />
-          <StatTile
-            :label="$t('dashboard.admin.system.process.events')"
-            :value="Number(stats.eventsProcessedToday)"
-          />
-          <StatTile
-            :label="$t('dashboard.admin.system.process.channels')"
-            :value="Number(stats.activeChannels)"
-            :context="channelsContext"
-          />
-          <StatTile
-            :label="$t('dashboard.admin.system.process.users')"
-            :value="Number(stats.totalUsers)"
-          />
-        </template>
-      </StatStrip>
-    </PanelCard>
-
-    <PanelCard
-      tier="quiet"
-      :title="$t('dashboard.admin.system.rotation.title')"
-      :description="$t('dashboard.admin.system.rotation.description')"
-    >
-      <div class="flex flex-wrap items-center gap-3">
-        <Button v-if="can('iam:manage')" variant="destructive" data-rotate @click="openConfirm">{{
-          $t("dashboard.admin.system.rotation.open")
-        }}</Button>
-        <span v-if="outcome !== null" data-rotation-outcome class="text-sm">{{ outcomeText }}</span>
-      </div>
-      <div v-if="outcome !== null && outcome.failures.length > 0" class="mt-4">
-        <span class="text-sm font-medium">{{
-          $t("dashboard.admin.system.rotation.failures")
-        }}</span>
-        <ul class="mt-2 divide-y divide-border">
+    <div class="flex flex-none flex-col gap-4">
+      <PanelCard
+        tier="lead"
+        :title="$t('dashboard.admin.system.health.title')"
+        :description="$t('dashboard.admin.system.health.description')"
+        :state="panelState"
+        :empty-text="$t('dashboard.admin.system.health.empty')"
+        :error-text="$t('dashboard.admin.system.health.error')"
+        @retry="status.refetch()"
+      >
+        <div v-if="system" class="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+          {{ $t("dashboard.admin.system.health.overall") }}
+          <Badge data-overall :variant="statusVariant(system.overall)">{{
+            statusLabel(system.overall)
+          }}</Badge>
+        </div>
+        <ul class="divide-y divide-border">
           <li
-            v-for="row in outcome.failures"
-            :key="String(row.cryptoKeyId)"
-            data-rotation-failure
-            class="flex flex-wrap items-center gap-3 py-2 text-sm"
+            v-for="service in system?.services ?? []"
+            :key="service.name"
+            data-service-row
+            class="flex items-center gap-3 py-3"
           >
-            <code class="text-xs text-muted-foreground">{{ row.cryptoKeyId }}</code>
-            <span>{{ row.reason }}</span>
+            <span data-service-name class="min-w-0 flex-1 text-sm font-medium">{{
+              service.name
+            }}</span>
+            <span v-if="latency(service)" class="text-xs text-muted-foreground tabular-nums">{{
+              latency(service)
+            }}</span>
+            <Badge :variant="statusVariant(service.status)">{{
+              statusLabel(service.status)
+            }}</Badge>
           </li>
         </ul>
-      </div>
-    </PanelCard>
+      </PanelCard>
+
+      <PanelCard
+        v-if="system"
+        tier="default"
+        :title="$t('dashboard.admin.system.process.title')"
+        :description="$t('dashboard.admin.system.process.description')"
+      >
+        <StatStrip>
+          <StatTile
+            :label="$t('dashboard.admin.system.process.version')"
+            :value="system.botVersion"
+          />
+          <StatTile :label="$t('dashboard.admin.system.process.memory')" :value="memory" />
+          <StatTile :label="$t('dashboard.admin.system.process.cpu')" :value="processor" />
+          <template v-if="stats">
+            <StatTile :label="$t('dashboard.admin.system.process.uptime')" :value="uptime" />
+            <StatTile
+              :label="$t('dashboard.admin.system.process.events')"
+              :value="Number(stats.eventsProcessedToday)"
+            />
+            <StatTile
+              :label="$t('dashboard.admin.system.process.channels')"
+              :value="Number(stats.activeChannels)"
+              :context="channelsContext"
+            />
+            <StatTile
+              :label="$t('dashboard.admin.system.process.users')"
+              :value="Number(stats.totalUsers)"
+            />
+          </template>
+        </StatStrip>
+      </PanelCard>
+
+      <PanelCard
+        tier="quiet"
+        :title="$t('dashboard.admin.system.rotation.title')"
+        :description="$t('dashboard.admin.system.rotation.description')"
+      >
+        <div class="flex flex-wrap items-center gap-3">
+          <Button v-if="can('iam:manage')" variant="destructive" data-rotate @click="openConfirm">{{
+            $t("dashboard.admin.system.rotation.open")
+          }}</Button>
+          <span v-if="outcome !== null" data-rotation-outcome class="text-sm">{{
+            outcomeText
+          }}</span>
+        </div>
+        <div v-if="outcome !== null && outcome.failures.length > 0" class="mt-4">
+          <span class="text-sm font-medium">{{
+            $t("dashboard.admin.system.rotation.failures")
+          }}</span>
+          <ul class="mt-2 divide-y divide-border">
+            <li
+              v-for="row in outcome.failures"
+              :key="String(row.cryptoKeyId)"
+              data-rotation-failure
+              class="flex flex-wrap items-center gap-3 py-2 text-sm"
+            >
+              <code class="text-xs text-muted-foreground">{{ row.cryptoKeyId }}</code>
+              <span>{{ row.reason }}</span>
+            </li>
+          </ul>
+        </div>
+      </PanelCard>
+    </div>
 
     <FormDialog
       :open="confirming"
