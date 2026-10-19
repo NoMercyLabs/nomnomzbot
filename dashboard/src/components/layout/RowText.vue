@@ -20,18 +20,12 @@ defineProps<{
 
 <template>
   <span class="block min-w-0">
-    <span class="flex items-baseline justify-between gap-3">
-      <span :id="titleId" data-row-title class="text-sm font-medium wrap-break-word">{{
-        title
-      }}</span>
-      <span
-        v-if="hint"
-        data-row-hint
-        class="flex-none text-xs whitespace-nowrap text-muted-foreground"
-      >{{ hint }}</span>
-    </span>
+    <span :id="titleId" data-row-title class="block text-sm font-medium wrap-break-word">{{
+      title
+    }}</span>
     <span v-if="description" data-row-description class="block text-sm text-muted-foreground">{{
       description
     }}</span>
+    <span v-if="hint" data-row-hint class="block text-xs text-muted-foreground">{{ hint }}</span>
   </span>
 </template>

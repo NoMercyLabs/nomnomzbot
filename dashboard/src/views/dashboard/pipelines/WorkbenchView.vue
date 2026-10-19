@@ -40,6 +40,7 @@ import SidePanel from '@/components/layout/SidePanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useScreenFrom } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
 import { errorText } from '@/lib/errors';
 import { usePanelState } from '@/composables/usePanelState';
@@ -210,6 +211,12 @@ function remove(): void {
 }
 
 const paletteOpen = ref(false);
+
+// The palette (256px) and the details (480px) leave the steps about 215px on a laptop. While a step is open
+// the palette waits in its drawer, until the window holds three columns.
+const threeColumns = useScreenFrom('threePanels');
+const paletteBeside = computed<boolean>(() =>
+  !inspecting.value || threeColumns.value);
 const palette = useTemplateRef<InstanceType<typeof StepPalette>>('palette');
 
 // The lane the person chose to add to, with its words; none adds at the end of the top level.
@@ -495,7 +502,7 @@ const leaveOpen = computed<boolean>({
       v-if="canWrite"
       v-model:open="paletteOpen"
       side="left"
-      pinned
+      :pinned="paletteBeside"
       :label="$t('dashboard.pipelines.workbench.palette.label')"
     >
       <StepPalette

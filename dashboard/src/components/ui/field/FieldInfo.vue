@@ -28,11 +28,11 @@ const open = ref(false);
         type="button"
         variant="ghost"
         size="icon"
-        class="text-muted-foreground hover:text-foreground relative size-4! shrink-0 p-0! after:absolute after:-inset-2.5 after:content-['']"
+        class="text-muted-foreground hover:text-foreground size-9! shrink-0 p-0!"
         :aria-label="$t('common.fieldInfo')"
         @click.prevent="open = !open"
       >
-        <InfoCircle class="size-4" aria-hidden="true" />
+        <InfoCircle class="size-5" aria-hidden="true" />
         <span class="sr-only"><slot /></span>
       </Button>
     </TooltipTrigger>

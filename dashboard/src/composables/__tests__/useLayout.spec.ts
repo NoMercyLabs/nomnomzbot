@@ -31,6 +31,7 @@ describe('the width table', () => {
       sidebar: 840,
       besideRail: 1080,
       wide: 1280,
+      threePanels: 1600,
       twoPanels: 1800,
     });
   });

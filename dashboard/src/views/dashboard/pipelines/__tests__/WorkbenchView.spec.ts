@@ -22,6 +22,7 @@ import type {
   PipelineStep,
   PipelineTestRun,
 } from '@/api/pipelines';
+import { setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 import schemaEn from '@/i18n/schema/en.json';
 
@@ -522,6 +523,37 @@ describe('the workbench canvas', () => {
     );
 
     expect(card('hi').querySelector('[data-step-missing]')).toBeNull();
+  });
+});
+
+describe('the palette beside an open step', () => {
+  const saved = window.matchMedia;
+
+  afterEach(() => {
+    window.matchMedia = saved;
+  });
+
+  it('gives the steps the room when a laptop shows the details: the palette waits in its drawer', async () => {
+    setWidth(1400);
+    await open('/app/pipelines/p1?step=hi');
+
+    expect(document.body.querySelector('[data-step-inspector]')).not.toBeNull();
+    expect(document.body.querySelector('[data-step-palette]')).toBeNull();
+  });
+
+  it('keeps the palette beside the steps while no step is open', async () => {
+    setWidth(1400);
+    await open();
+
+    expect(document.body.querySelector('[data-step-palette]')).not.toBeNull();
+  });
+
+  it('keeps the palette beside the details on a window wide enough for three columns', async () => {
+    setWidth(1700);
+    await open('/app/pipelines/p1?step=hi');
+
+    expect(document.body.querySelector('[data-step-inspector]')).not.toBeNull();
+    expect(document.body.querySelector('[data-step-palette]')).not.toBeNull();
   });
 });
 

@@ -25,6 +25,8 @@ export const widths = {
   besideRail: 1080,
   // A side panel sits beside the content from here.
   wide: 1280,
+  // A page keeps a pinned panel, its content and a 480px details panel side by side from here.
+  threePanels: 1600,
   // Chat keeps two side panels open together from this window width.
   twoPanels: 1800,
 } as const satisfies Record<string, number>;
