@@ -26,18 +26,16 @@ using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
 /// <summary>
-/// <see cref="MusicService.HandOverNextAsync"/> runs with no person present — off the reconciler's
-/// playback-changed reaction or the poller's recovery tick — so unlike an admission made inside a live
-/// HTTP request (which already carries a sanction from <c>OutboundSanctionFilter</c>) it has no ambient
-/// <see cref="OutboundSanction"/> of its own to inherit. Live 2026-09-10: every advance past the first
-/// admitted request was silently refused by <c>OutboundSanctionHandler</c> — a background write with
-/// nothing recorded who authorised it — so the song-request queue accepted requests but never dispatched
-/// past the very first one. These tests pin that <see cref="MusicService.HandOverNextAsync"/> establishes
-/// its own basis before touching the provider, using a real <see cref="OutboundSanctionAccessor"/> and a
-/// provider double that reads <see cref="IOutboundSanctionAccessor.Current"/> at the moment it is called
-/// — a regression here means the queue is dispatching WITH NOTHING actually claiming to have authorised
-/// it, which is exactly the silent-write failure mode this whole mechanism exists to catch
-/// (OutboundSanctionHandler's own remarks).
+/// A song request is admitted with no person present when a chat command (`!sr`) reaches the service, so
+/// unlike an admission made inside a live HTTP request (which already carries a sanction from
+/// <c>OutboundSanctionFilter</c>) it has no ambient <see cref="OutboundSanction"/> of its own to inherit.
+/// Live 2026-09-10: every start past the first admitted request was silently refused by
+/// <c>OutboundSanctionHandler</c> — a background write with nothing recorded who authorised it. These tests
+/// pin that the admission establishes its own basis before the director's engine start, read through a real
+/// <see cref="OutboundSanctionAccessor"/> at the moment the engine is called — a regression here means the
+/// queue starts songs WITH NOTHING actually claiming to have authorised it, which is exactly the
+/// silent-write failure mode this whole mechanism exists to catch (OutboundSanctionHandler's own remarks).
+/// It also pins that removing the request the director started frees the in-flight slot.
 /// </summary>
 public sealed class HandOverNextAsyncSanctionTests
 {
@@ -55,116 +53,39 @@ public sealed class HandOverNextAsyncSanctionTests
             }
         );
 
-    private static SongRequestEntry PendingEntry(string trackUri, string requestedBy) =>
-        new(trackUri, "Track", "Artist", null, 200_000, requestedBy, 0, null, "");
-
-    [Fact]
-    public async Task HandOverNextAsync_establishes_a_channel_configuration_sanction_before_pushing()
-    {
-        MusicTestDbContext db = MusicTestDbContext.New();
-        SeedConnectedSpotify(db);
-        db.SaveChanges();
-
-        OutboundSanctionAccessor sanctions = new();
-        OutboundSanction? observedDuringPush = null;
-        IMusicProvider provider = Substitute.For<IMusicProvider>();
-        provider.Provider.Returns("spotify");
-        provider
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                observedDuringPush = sanctions.Current;
-                return Task.FromResult(true);
-            });
-
-        SongRequestQueueStore queueStore = new();
-        queueStore
-            .GetOrCreate(ChannelId.ToString())
-            .Enqueue("viewer1", PendingEntry("uri:1", "viewer1"));
-
-        MusicService sut = new(
-            [provider],
-            db,
-            new RecordingEventBus(),
-            new BlockedTrackService(db),
-            queueStore,
-            new NoOpSongRequestQueuePersistence(),
-            NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore(),
-            PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache(),
-            sanctions,
-            Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>(),
-            DirectorRig.Of(queueStore).Registry,
-            DirectorRig.Of(queueStore).Registry
-        );
-
-        // No sanction in force here, matching exactly how the reconciler and the poller's recovery tick
-        // call this — no live HTTP request, no person present.
-        sanctions.Current.Should().BeNull();
-
-        await sut.HandOverNextAsync(ChannelId.ToString());
-
-        observedDuringPush
-            .Should()
-            .NotBeNull("the push must carry a sanction the write can be traced to");
-        observedDuringPush!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
-        observedDuringPush.Detail.Should().Be("music:song_request_dispatch");
-
-        // The sanction is scoped to the push alone — it must not leak into whatever runs after.
-        sanctions.Current.Should().BeNull();
-        queueStore
-            .GetInFlight(ChannelId.ToString())
-            .Should()
-            .NotBeNull("a successful push puts exactly one entry in flight");
-    }
-
     /// <summary>
-    /// The gap this pins was live 2026-09-10 even after the HandOverNextAsync fix above shipped:
-    /// admission's own immediate start (the first request in an otherwise-empty queue, reached from a
-    /// chat-triggered `!sr` with no live HTTP request of its own) has exactly the same "no person
-    /// present" shape and was refused by the same guard, independent of HandOverNextAsync entirely.
+    /// A provider that resolves no metadata, so admission degrades to a placeholder entry carrying the
+    /// requested uri (its caller already trusts the uri as real) and never pushes to a provider queue.
     /// </summary>
-    [Fact]
-    public async Task AddToQueueAsync_admission_start_establishes_a_channel_configuration_sanction()
+    private static IMusicProvider NewProvider()
     {
-        MusicTestDbContext db = MusicTestDbContext.New();
-        SeedConnectedSpotify(db);
-        db.SaveChanges();
-
-        OutboundSanctionAccessor sanctions = new();
-        OutboundSanction? observedDuringPush = null;
         IMusicProvider provider = Substitute.For<IMusicProvider>();
         provider.Provider.Returns("spotify");
-        // AddToQueueAsync degrades a metadata-resolve miss to a synthetic placeholder entry rather than
-        // refusing admission (its caller already trusts trackUri as real) — these two calls must still
-        // answer something non-null for that degrade path to run instead of throwing.
         provider
             .ResolveTrackAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(((TrackInfo?)null, MusicProviderFailureReason.None));
         provider
             .SearchAsync(ChannelId, Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns((Array.Empty<TrackInfo>(), MusicProviderFailureReason.None));
+        return provider;
+    }
 
-        DirectorRig.NewStore(out SongRequestQueueStore directorStore);
-        // The director's engine start is the write that must be traceable: the fake engine reads the ambient
-        // sanction at the moment the director asks it to start the track.
-        DirectorRig rig = DirectorRig.Of(directorStore);
-        FakeEngine spotify = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
-        spotify.DuringStart = _ =>
-        {
-            observedDuringPush = sanctions.Current;
-            return Task.CompletedTask;
-        };
+    private static MusicService NewService(
+        IMusicProvider provider,
+        SongRequestQueueStore store,
+        IOutboundSanctionAccessor sanctions
+    )
+    {
+        MusicTestDbContext db = MusicTestDbContext.New();
+        SeedConnectedSpotify(db);
+        db.SaveChanges();
 
-        MusicService sut = new(
+        return new(
             [provider],
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            directorStore,
+            store,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -174,9 +95,32 @@ public sealed class HandOverNextAsyncSanctionTests
             sanctions,
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>(),
-            DirectorRig.Of(directorStore).Registry,
-            DirectorRig.Of(directorStore).Registry
+            DirectorRig.Of(store).Registry,
+            DirectorRig.Of(store).Registry
         );
+    }
+
+    /// <summary>
+    /// Admission's own immediate start (the first request in an otherwise-empty queue, reached from a
+    /// chat-triggered `!sr` with no live HTTP request of its own) has the "no person present" shape and
+    /// was refused by the sanction guard (live 2026-09-10).
+    /// </summary>
+    [Fact]
+    public async Task AddToQueueAsync_admission_start_establishes_a_channel_configuration_sanction()
+    {
+        OutboundSanctionAccessor sanctions = new();
+        OutboundSanction? observedDuringStart = null;
+        IMusicProvider provider = NewProvider();
+        DirectorRig.NewStore(out SongRequestQueueStore store);
+        // The director's engine start is the write that must be traceable: the fake engine reads the ambient
+        // sanction at the moment the director asks it to start the track.
+        FakeEngine spotify = DirectorRig.Of(store).Engines.EngineOf(ChannelId, EngineKind.Spotify);
+        spotify.DuringStart = _ =>
+        {
+            observedDuringStart = sanctions.Current;
+            return Task.CompletedTask;
+        };
+        MusicService sut = NewService(provider, store, sanctions);
 
         sanctions.Current.Should().BeNull();
 
@@ -188,83 +132,61 @@ public sealed class HandOverNextAsyncSanctionTests
 
         admitted.IsSuccess.Should().BeTrue();
         spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(1);
-        observedDuringPush
+        observedDuringStart
             .Should()
             .NotBeNull("the engine start must carry a sanction the write can be traced to");
-        observedDuringPush!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
-        observedDuringPush.Detail.Should().Be("music:song_request_dispatch");
+        observedDuringStart!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        observedDuringStart.Detail.Should().Be("music:song_request_dispatch");
+        // The sanction is scoped to the start alone — it must not leak into whatever runs after.
         sanctions.Current.Should().BeNull();
+        store.GetInFlight(ChannelId.ToString())!.TrackUri.Should().Be("spotify:track:sanction1");
         await provider
             .DidNotReceive()
             .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task RemoveFromQueueAsync_on_the_in_flight_entry_clears_in_flight_so_the_next_request_can_dispatch()
+    public async Task RemoveFromQueueAsync_on_the_in_flight_entry_clears_in_flight_and_arms_the_skip_marker()
     {
-        MusicTestDbContext db = MusicTestDbContext.New();
-        SeedConnectedSpotify(db);
-        db.SaveChanges();
+        IMusicProvider provider = NewProvider();
+        DirectorRig.NewStore(out SongRequestQueueStore store);
+        MusicService sut = NewService(provider, store, new OutboundSanctionAccessor());
 
-        int pushCount = 0;
-        IMusicProvider provider = Substitute.For<IMusicProvider>();
-        provider.Provider.Returns("spotify");
-        provider
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                pushCount++;
-                return Task.FromResult(true);
-            });
+        (await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:remove1", "viewer1"))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:remove2", "viewer2"))
+            .IsSuccess.Should()
+            .BeTrue();
+        store
+            .GetInFlight(ChannelId.ToString())!
+            .TrackUri.Should()
+            .Be("spotify:track:remove1", "only the head is ever started; the second waits");
 
-        SongRequestQueueStore queueStore = new();
-        MusicService sut = new(
-            [provider],
-            db,
-            new RecordingEventBus(),
-            new BlockedTrackService(db),
-            queueStore,
-            new NoOpSongRequestQueuePersistence(),
-            NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore(),
-            PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache(),
-            new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>(),
-            DirectorRig.Of(queueStore).Registry,
-            DirectorRig.Of(queueStore).Registry
-        );
-
-        queueStore
-            .GetOrCreate(ChannelId.ToString())
-            .Enqueue("viewer1", PendingEntry("uri:1", "viewer1"));
-        queueStore
-            .GetOrCreate(ChannelId.ToString())
-            .Enqueue("viewer2", PendingEntry("uri:2", "viewer2"));
-
-        await sut.HandOverNextAsync(ChannelId.ToString());
-        pushCount.Should().Be(1, "only the head of the queue is ever pushed to the provider");
-        queueStore.GetInFlight(ChannelId.ToString()).Should().NotBeNull();
-
-        // A moderator removes the stuck head (position 0) — the one the provider already has.
+        // A moderator removes the stuck head (position 0) — the one the director already started.
         (await sut.RemoveFromQueueAsync(ChannelId.ToString(), 0))
             .Should()
             .BeTrue();
 
-        queueStore
+        store
             .GetInFlight(ChannelId.ToString())
             .Should()
-            .BeNull("nothing is actually at the provider once its queue entry is gone");
-
-        await sut.HandOverNextAsync(ChannelId.ToString());
-
-        pushCount
+            .BeNull("nothing is in flight once its queue entry is gone");
+        store
+            .GetOrCreate(ChannelId.ToString())
+            .GetSnapshot()
+            .Select(e => e.Item.TrackUri)
             .Should()
-            .Be(
-                2,
-                "the second request must now reach the provider, not stay wedged behind a removed entry"
+            .Equal(["spotify:track:remove2"], "the second request still waits in the queue");
+        store
+            .TryConsumeRetraction(ChannelId.ToString(), "spotify:track:remove1")
+            .Should()
+            .BeTrue(
+                "the engine may still hold the removed track, so its start is marked to be skipped"
             );
+        store
+            .TryConsumeRetraction(ChannelId.ToString(), "spotify:track:remove2")
+            .Should()
+            .BeFalse("a request that was never started is not marked");
     }
 }

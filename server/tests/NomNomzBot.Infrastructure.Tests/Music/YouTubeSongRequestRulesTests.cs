@@ -231,10 +231,12 @@ public sealed class YouTubeSongRequestRulesTests
         _spotify
             .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns(Playing("spotify:track:playlist", isPlaying: true, progressMs: 120_000));
+        await SpotifyReportsPlayingAsync(120_000);
         _store.GetOrCreate(ChannelId.ToString()).Enqueue("fillz", Entry(YouTubeUri));
 
-        await NewService().HandOverNextAsync(ChannelId.ToString());
+        await DirectorRig.Of(_store).Registry.SendAsync(ChannelId, new RequestAdded());
 
+        YouTubeStartCount().Should().Be(0, "the director keeps the request waiting for the song");
         await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
         await _youTube
             .DidNotReceive()

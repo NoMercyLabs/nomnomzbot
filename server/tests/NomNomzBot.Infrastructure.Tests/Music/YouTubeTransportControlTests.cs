@@ -345,16 +345,13 @@ public sealed class YouTubeTransportControlTests
         rig.Notifier.PlayedVideoIds.Should().Equal(First);
 
         rig.Presence.GetAudioWidgetId(Broadcaster).Returns(OwnerWidget);
-        // The head kept its place in the fair queue while no player was open, so the dispatcher's own
-        // slot is empty; the service's hand-over is what pushes it once audio attaches.
         // Queue ownership (S-PD-3): the ended report is only forwarded; the director (S-PD-4) drops
-        // the head, so the adapter leaves both rows and the in-flight request alone.
+        // the head, so the adapter leaves both rows alone. The legacy hand-over that re-pushed the head
+        // when audio attached is gone (S-PD-4c2b B2); the director is the only way a head starts.
         QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
-        rig.Queues.GetInFlight(Broadcaster.ToString())!.TrackUri.Should().Be(Watch(First));
-        await rig.Music.HandOverNextAsync(Broadcaster.ToString());
 
         rig.Notifier.PlayedVideoIds.Should()
-            .Equal([First], "the head is still the request at the player");
+            .Equal([First], "the adapter pushed nothing more to the player");
     }
 
     /// <summary>music-sr.md AUTH STANCE: YouTube search and the overlay queue ride the app-level Data API
@@ -488,8 +485,8 @@ public sealed class YouTubeTransportControlTests
         QueuedUris(rig).Should().BeEmpty();
     }
 
-    /// <summary>With the Audio widget closed and a request waiting, a skip has nothing to skip: the hand-over
-    /// puts the waiting request back and nothing plays. Chat must hear the player isn't open — not "Skipped to
+    /// <summary>With the Audio widget closed and a request waiting, a skip has nothing to skip: the director
+    /// keeps the waiting request and nothing plays. Chat must hear the player isn't open — not "Skipped to
     /// the next track." — and the waiting requests stay queued untouched.</summary>
     [Fact]
     public async Task Skip_with_a_request_waiting_but_no_open_player_fails_as_no_player_and_keeps_the_queue()

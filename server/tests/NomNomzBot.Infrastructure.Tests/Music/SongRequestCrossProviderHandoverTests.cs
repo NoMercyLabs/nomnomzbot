@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform.Security;
@@ -24,8 +25,9 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 
 /// <summary>
 /// music-sr.md §3.5.2: with Spotify and YouTube both on, the queue is interleaved and each item plays on
-/// its own engine, one at a time. The outgoing engine is stopped and seen stopped before the incoming one
-/// starts, and an engine still playing a request of ours is never cut off.
+/// its own engine, one at a time. Which engine starts which item, and the stop-before-start order between
+/// engines, belong to the playback director (PlaybackDirector tests); what stays here is admission's own
+/// rule: a request never jumps an earlier request that still waits for its turn.
 /// </summary>
 public sealed class SongRequestCrossProviderHandoverTests
 {
@@ -43,23 +45,13 @@ public sealed class SongRequestCrossProviderHandoverTests
 
     private static IMusicProvider Provider(string key, string ownedUri)
     {
-        IMusicProvider provider =
-            key == "spotify"
-                ? Substitute.For<IMusicProvider, IMusicProviderStartTrack>()
-                : Substitute.For<IMusicProvider>();
+        IMusicProvider provider = Substitute.For<IMusicProvider>();
         provider.Provider.Returns(key);
-        if (provider is IMusicProviderStartTrack starter)
-            starter
-                .StartTrackAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
-                .Returns(true);
         provider.Capabilities.Returns(Transport);
         provider.OwnsTrackUri(Arg.Any<string>()).Returns(call => (string)call[0] == ownedUri);
         provider
             .WorksWithoutConnectionAsync(Arg.Any<CancellationToken>())
             .Returns(key == "youtube");
-        provider
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(true);
         return provider;
     }
 
@@ -113,70 +105,12 @@ public sealed class SongRequestCrossProviderHandoverTests
         );
     }
 
-    private void Enqueue(string uri) =>
-        _store.GetOrCreate(ChannelId.ToString()).Enqueue("viewer", Entry(uri));
-
-    [Fact]
-    public async Task A_youtube_request_is_handed_to_youtube_not_to_the_active_spotify()
-    {
-        Enqueue(YouTubeUri);
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await _youTube
-            .Received(1)
-            .AddToQueueAsync(ChannelId, YouTubeUri, Arg.Any<CancellationToken>());
-        await _spotify
-            .DidNotReceive()
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
-        _store.GetInFlight(ChannelId.ToString())!.TrackUri.Should().Be(YouTubeUri);
-    }
-
-    [Fact]
-    public async Task Spotify_playing_its_own_music_is_paused_and_seen_stopped_before_youtube_plays()
-    {
-        Enqueue(YouTubeUri);
-        _spotify
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(
-                Playing("spotify:track:playlist", true),
-                Playing("spotify:track:playlist", false)
-            );
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        Received.InOrder(() =>
-        {
-            _spotify.GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>());
-            _spotify.PauseAsync(ChannelId, Arg.Any<CancellationToken>());
-            _spotify.GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>());
-            _youTube.AddToQueueAsync(ChannelId, YouTubeUri, Arg.Any<CancellationToken>());
-        });
-    }
-
-    [Fact]
-    public async Task Youtube_waits_when_spotify_does_not_stop()
-    {
-        Enqueue(YouTubeUri);
-        _spotify
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(Playing("spotify:track:playlist", true));
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await _youTube
-            .DidNotReceive()
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
-        _store.GetInFlight(ChannelId.ToString()).Should().BeNull();
-        _store.GetOrCreate(ChannelId.ToString()).Peek()!.TrackUri.Should().Be(YouTubeUri);
-    }
-
     [Fact]
     public async Task A_new_spotify_request_never_jumps_a_youtube_request_that_waits_its_turn()
     {
         // Live 2026-10-18: the YouTube head waited for Spotify's song to end; the next Spotify request
-        // went straight into Spotify's queue, played first, and the reconciler then dropped the head.
-        Enqueue(YouTubeUri);
+        // was started at once, played first, and the reconciler then dropped the head.
+        _store.GetOrCreate(ChannelId.ToString()).Enqueue("viewer", Entry(YouTubeUri));
         _spotify
             .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns(Playing("spotify:track:playlist", true, progressMs: 50_000));
@@ -188,150 +122,20 @@ public sealed class SongRequestCrossProviderHandoverTests
             .AddToQueueAsync(ChannelId.ToString(), SpotifyUri, "second-viewer");
 
         admitted.IsSuccess.Should().BeTrue();
-        await _spotify
-            .DidNotReceive()
-            .AddToQueueAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>());
+        DirectorRig rig = DirectorRig.Of(_store);
+        rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Where(c => c.Name == "Start")
+            .Should()
+            .BeEmpty("the waiting YouTube head is first; the Spotify request starts nothing");
+        rig.Engines.EngineOf(ChannelId, EngineKind.YouTube)
+            .Calls.Where(c => c.Name == "Start")
+            .Should()
+            .BeEmpty();
         _store.GetInFlight(ChannelId.ToString()).Should().BeNull();
         List<string> pending =
         [
             .. _store.GetOrCreate(ChannelId.ToString()).GetSnapshot().Select(e => e.Item.TrackUri),
         ];
         pending.Should().Equal(YouTubeUri, SpotifyUri);
-    }
-
-    [Fact]
-    public async Task A_youtube_request_still_playing_is_never_cut_off_by_the_next_spotify_item()
-    {
-        Enqueue(SpotifyUri);
-        _youTube
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(Playing(YouTubeUri, true));
-        _store.SetPlayingRequest(ChannelId.ToString(), Entry(YouTubeUri));
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await _youTube.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
-        await _spotify
-            .DidNotReceive()
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task After_a_failed_youtube_item_the_next_spotify_item_is_the_track_that_starts()
-    {
-        const string stray = "spotify:track:pizza-calzone";
-        Enqueue(SpotifyUri);
-        _store.SetLastEngine(ChannelId.ToString(), "youtube");
-        _spotify
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(Playing("spotify:track:playlist", false));
-        _spotify
-            .GetQueueAsync(ChannelId, Arg.Any<CancellationToken>())
-            .Returns(new List<TrackInfo> { Playing(stray, false) });
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await ((IMusicProviderStartTrack)_spotify)
-            .Received(1)
-            .StartTrackAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>());
-        await _spotify.DidNotReceive().SkipAsync(ChannelId, Arg.Any<CancellationToken>());
-        await _spotify
-            .DidNotReceive()
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
-        _store.GetLastEngine(ChannelId.ToString()).Should().Be("spotify");
-        _store.GetInFlight(ChannelId.ToString())!.TrackUri.Should().Be(SpotifyUri);
-    }
-
-    [Fact]
-    public async Task An_engine_switch_falls_back_to_push_and_skip_when_play_now_is_refused()
-    {
-        Enqueue(SpotifyUri);
-        _store.SetLastEngine(ChannelId.ToString(), "youtube");
-        _spotify
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(Playing("spotify:track:playlist", false));
-        ((IMusicProviderStartTrack)_spotify)
-            .StartTrackAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        Received.InOrder(() =>
-        {
-            _spotify.AddToQueueAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>());
-            _spotify.SkipAsync(ChannelId, Arg.Any<CancellationToken>());
-        });
-        _store.GetLastEngine(ChannelId.ToString()).Should().Be("spotify");
-    }
-
-    [Fact]
-    public async Task Back_to_back_spotify_items_are_drip_fed_without_a_skip()
-    {
-        Enqueue(SpotifyUri);
-        _store.SetLastEngine(ChannelId.ToString(), "spotify");
-        _spotify
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(Playing("spotify:track:other", false));
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await _spotify
-            .Received(1)
-            .AddToQueueAsync(ChannelId, SpotifyUri, Arg.Any<CancellationToken>());
-        await _spotify.DidNotReceive().SkipAsync(ChannelId, Arg.Any<CancellationToken>());
-    }
-
-    private void EmptyQueueAfter(string lastEngine, bool spotifyPlaying)
-    {
-        _store.GetOrCreate(ChannelId.ToString());
-        _store.SetLastEngine(ChannelId.ToString(), lastEngine);
-        _spotify
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(Playing("spotify:track:playlist", spotifyPlaying));
-    }
-
-    [Fact]
-    public async Task A_dry_queue_after_a_youtube_request_resumes_spotify_once()
-    {
-        EmptyQueueAfter("youtube", spotifyPlaying: false);
-        MusicService service = NewService();
-
-        await service.HandOverNextAsync(ChannelId.ToString());
-        await service.HandOverNextAsync(ChannelId.ToString());
-
-        await _spotify.Received(1).PlayAsync(ChannelId, Arg.Any<CancellationToken>());
-        _store.GetLastEngine(ChannelId.ToString()).Should().Be("spotify");
-    }
-
-    [Fact]
-    public async Task A_dry_queue_after_a_spotify_request_changes_nothing()
-    {
-        EmptyQueueAfter("spotify", spotifyPlaying: false);
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await _spotify.DidNotReceive().PlayAsync(ChannelId, Arg.Any<CancellationToken>());
-        await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task A_dry_queue_does_not_resume_spotify_that_is_already_playing()
-    {
-        EmptyQueueAfter("youtube", spotifyPlaying: true);
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await _spotify.DidNotReceive().PlayAsync(ChannelId, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task A_dry_queue_waits_while_a_youtube_request_is_still_playing()
-    {
-        EmptyQueueAfter("youtube", spotifyPlaying: false);
-        _store.SetPlayingRequest(ChannelId.ToString(), Entry(YouTubeUri));
-
-        await NewService().HandOverNextAsync(ChannelId.ToString());
-
-        await _spotify.DidNotReceive().PlayAsync(ChannelId, Arg.Any<CancellationToken>());
     }
 }

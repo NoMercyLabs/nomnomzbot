@@ -31,14 +31,14 @@ public sealed class SongRequestQueueInFlightDurabilityTests
         .ToString();
 
     [Fact]
-    public async Task The_in_flight_request_is_not_re_handed_over_after_a_simulated_restart()
+    public async Task The_in_flight_request_survives_a_simulated_restart_without_being_replaced()
     {
         using SongRequestQueuePersistenceTestDbContext fixture =
             SongRequestQueuePersistenceTestDbContext.Create();
 
-        // Before restart: two requests queued, the head one already handed to the provider — exactly
-        // what MusicService.HandOverNextAsync does: SetInFlight, then a write-through sync that now
-        // carries the in-flight entry too.
+        // Before restart: two requests queued, the head one already started on its engine — exactly
+        // what the request path does after the director starts it: SetInFlight, then a write-through
+        // sync that carries the in-flight entry too.
         SongRequestQueueStore liveStore = new();
         SongRequestQueuePersistence livePersistence = new(fixture.Db);
         FairQueue<SongRequestEntry> live = liveStore.GetOrCreate(ChannelA);
@@ -92,16 +92,13 @@ public sealed class SongRequestQueueInFlightDurabilityTests
         FairQueue<SongRequestEntry> restoredQueue = restoredStore.GetOrCreate(ChannelA);
         ReferenceEquals(restoredQueue.Peek(), restoredInFlight).Should().BeTrue();
 
-        // The behavioural proof: a hand-over attempt after restart must be a no-op — GetInFlight is
-        // still non-null, which is exactly the guard MusicService.HandOverNextAsync checks before ever
-        // touching the provider again. Simulating that guard directly proves track-1 will not be pushed
-        // to the provider a second time.
+        // The behavioural proof: the in-flight marker is non-null after the restart, which is the guard
+        // the request path checks (MusicService, `GetInFlight(...) is not null`) before it asks the
+        // director to start a second request. So track-1 is not started a second time by a new request.
         restoredStore
             .GetInFlight(ChannelA)
             .Should()
-            .NotBeNull(
-                "a non-null in-flight marker after restart must block a second hand-over of the same track"
-            );
+            .NotBeNull("a non-null in-flight marker after restart must block a second start");
 
         // The rest of the queue is untouched and still resumes at track-2 once track-1 completes.
         restoredQueue

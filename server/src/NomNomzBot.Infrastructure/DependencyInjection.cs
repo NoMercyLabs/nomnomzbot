@@ -449,12 +449,6 @@ public static class DependencyInjection
             Application.Music.Services.ISongRequestIntakeService,
             SongRequestIntakeService
         >();
-        // The handover seam the reconciler uses to push the next request. Resolved FROM the registered
-        // IMusicService so both views share one scoped instance — provider resolution, capability gating
-        // and the queue store must be the same objects the request path used.
-        services.AddScoped<ISongRequestHandover>(sp =>
-            (MusicService)sp.GetRequiredService<Application.Music.Services.IMusicService>()
-        );
         // A manual or raid shoutout inside Twitch's global cooldown waits here (in memory, per stream
         // session) and the worker releases it once the cooldown has passed.
         services.AddSingleton<IShoutoutQueue, Stream.ShoutoutQueue>();

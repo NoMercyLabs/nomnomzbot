@@ -29,8 +29,7 @@ namespace NomNomzBot.Infrastructure.Tests.BackgroundServices;
 
 /// <summary>
 /// The poll tick is a recovery tick for a director that sits Idle while a request waits: it sends the director
-/// RequestAdded, and the director starts the head on its engine. The poller never takes the head to an engine
-/// through <see cref="ISongRequestHandover"/>.
+/// RequestAdded, and the director starts the head on its engine. The director is the only way a head reaches an engine.
 /// </summary>
 public sealed class MusicStatePollingServiceDirectorRecoveryTests
 {
@@ -55,9 +54,6 @@ public sealed class MusicStatePollingServiceDirectorRecoveryTests
         PlaybackState state = harness.Rig.Registry.StateOf(RecoveryChannel);
         state.Kind.Should().Be(PlaybackStateKind.Starting);
         state.Item!.Uri.Should().Be("spotify:track:r1");
-        harness
-            .Handover.Calls.Should()
-            .BeEmpty("the legacy hand-over path is not how a poll tick starts a song");
     }
 
     [Fact]
@@ -71,22 +67,6 @@ public sealed class MusicStatePollingServiceDirectorRecoveryTests
 
         harness.Spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(1);
         harness.Rig.Registry.StateOf(RecoveryChannel).Kind.Should().Be(PlaybackStateKind.Starting);
-        harness.Handover.Calls.Should().BeEmpty();
-    }
-
-    /// <summary>A handover double that records every call, so a test can prove the poller made none.</summary>
-    private sealed class RecordingHandover : ISongRequestHandover
-    {
-        public List<string> Calls { get; } = [];
-
-        public Task HandOverNextAsync(
-            string broadcasterId,
-            CancellationToken cancellationToken = default
-        )
-        {
-            Calls.Add(broadcasterId);
-            return Task.CompletedTask;
-        }
     }
 
     private sealed class Harness
@@ -95,7 +75,6 @@ public sealed class MusicStatePollingServiceDirectorRecoveryTests
             MusicStatePollingService sut,
             DirectorRig rig,
             FakeEngine spotify,
-            RecordingHandover handover,
             FakeTimeProvider clock,
             IMusicService music
         )
@@ -104,7 +83,6 @@ public sealed class MusicStatePollingServiceDirectorRecoveryTests
             Sut = sut;
             Rig = rig;
             Spotify = spotify;
-            Handover = handover;
             Clock = clock;
         }
 
@@ -115,8 +93,6 @@ public sealed class MusicStatePollingServiceDirectorRecoveryTests
         public DirectorRig Rig { get; }
 
         public FakeEngine Spotify { get; }
-
-        public RecordingHandover Handover { get; }
 
         public FakeTimeProvider Clock { get; }
 
@@ -169,12 +145,10 @@ public sealed class MusicStatePollingServiceDirectorRecoveryTests
             IMusicProvider provider = Substitute.For<IMusicProvider>();
             provider.Provider.Returns("spotify");
             IMusicService music = Substitute.For<IMusicService>();
-            RecordingHandover handover = new();
             FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             ServiceCollection services = new();
             services.AddSingleton<IApplicationDbContext>(db);
             services.AddSingleton(music);
-            services.AddSingleton<ISongRequestHandover>(handover);
             services.AddSingleton<ISongRequestQueueStore>(store);
             services.AddSingleton<IPlaybackInputSink>(rig.Registry);
             services.AddSingleton(provider);
@@ -188,7 +162,7 @@ public sealed class MusicStatePollingServiceDirectorRecoveryTests
                 NullLogger<MusicStatePollingService>.Instance
             );
 
-            return new(sut, rig, spotify, handover, clock, music);
+            return new(sut, rig, spotify, clock, music);
         }
     }
 }

@@ -29,8 +29,7 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// with no HTTP request behind it — a pipeline action (music-automation-controls.md), a chat builtin, or
 /// (concretely, <see cref="PlayOnceResumeHandler"/>) a reaction to a poller-published
 /// <c>PlaybackStateChangedEvent</c> — needs its own <see cref="OutboundSanction"/> for the same reason
-/// <see cref="MusicService.HandOverNextAsync"/> and <see cref="MusicService.EnqueueResolvedAsync"/> already
-/// do: <see cref="OutboundSanctionHandler"/> silently refuses any outbound provider write with no ambient
+/// <see cref="MusicService.EnqueueResolvedAsync"/> already does: <see cref="OutboundSanctionHandler"/> silently refuses any outbound provider write with no ambient
 /// sanction, and none of these entry points inherit one of their own. These tests pin, per method, that the
 /// provider write is observed happening under <see cref="OutboundSanctionBasis.ChannelConfiguration"/> with
 /// the method's own <c>Detail</c> string — not merely that the call succeeds.

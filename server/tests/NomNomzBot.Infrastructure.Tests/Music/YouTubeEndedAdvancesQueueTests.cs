@@ -490,7 +490,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
     }
 
     [Fact]
-    public async Task A_request_handed_to_the_player_before_a_bot_restart_is_handed_to_it_again_once()
+    public async Task A_request_handed_to_the_player_before_a_bot_restart_is_started_again_once()
     {
         // A fresh rig is the restarted bot: the player's memory is empty, the queue comes back from the
         // database with its head marked as already handed over.
@@ -523,9 +523,13 @@ public sealed class YouTubeEndedAdvancesQueueTests
             inFlightIndex: 0
         );
 
-        await rig.Music.HandOverNextAsync(Broadcaster.ToString());
-        await rig.Music.HandOverNextAsync(Broadcaster.ToString());
+        // The restarted bot's output comes back (twice, as a reconnecting widget does): the director
+        // starts the restored head through the engine, and only once.
+        await rig.Registry.SendAsync(Broadcaster, new OutputAttached());
+        await rig.Registry.SendAsync(Broadcaster, new OutputAttached());
 
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([First], "the director starts the restored head exactly once");
         rig.Notifier.PlayedVideoIds.Should()
             .Equal([First], "the restored request plays, and only once");
         rig.Queues.GetInFlight(Broadcaster.ToString()).Should().BeSameAs(first);

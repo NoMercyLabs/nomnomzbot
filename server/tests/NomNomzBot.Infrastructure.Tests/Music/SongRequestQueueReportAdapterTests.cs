@@ -77,14 +77,6 @@ public sealed class SongRequestQueueReportAdapterTests
             );
     }
 
-    private sealed class NoHandover : ISongRequestHandover
-    {
-        public Task HandOverNextAsync(
-            string broadcasterId,
-            CancellationToken cancellationToken = default
-        ) => Task.CompletedTask;
-    }
-
     [Fact]
     public async Task Row1_SixteenRequests_SpotifyReportsTheSixteenth_OnlyThatRowLeavesAndItIsJournaled()
     {

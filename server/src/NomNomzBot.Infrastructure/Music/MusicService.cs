@@ -36,7 +36,7 @@ namespace NomNomzBot.Infrastructure.Music;
 /// (music-sr.md §3.5): a member whose required capability is absent fails closed without
 /// touching the provider.
 /// </summary>
-public sealed class MusicService : IMusicService, ISongRequestHandover
+public sealed class MusicService : IMusicService
 {
     /// <summary>Upper bound on the queue-changed snapshot — overlays render a top-of-queue list, never the full backlog.</summary>
     private const int QueueSnapshotSize = 10;
@@ -268,7 +268,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Unsupported("playing a specific track");
 
         // Called from a pipeline action (go-live, raid-start) with no person present — the same
-        // already-opted-in, no-live-request basis as HandOverNextAsync's own push.
+        // already-opted-in, no-live-request basis as the other pipeline entry points.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
         );
@@ -345,7 +345,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         // PlayOnceResumeHandler calls this off a PlaybackStateChangedEvent the poller published on its
         // own schedule — no person present, no HTTP request behind it — so it carries no ambient
-        // sanction of its own to inherit; same shape as HandOverNextAsync's already-fixed gap.
+        // sanction of its own to inherit.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:playback_control")
         );
@@ -423,7 +423,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         NowPlaying? skippedTrack = await GetNowPlayingAsync(broadcasterId, cancellationToken);
 
         // Reachable off a pipeline action (!songskip / !songwrong / !bansong automation) with no HTTP
-        // request of its own — same no-person-present shape as HandOverNextAsync's already-fixed gap.
+        // request of its own — so it opens its own sanction.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:playback_control")
         );
@@ -475,7 +475,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Unsupported("previous-track");
 
         // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
-        // shape as HandOverNextAsync's already-fixed gap.
+        // shape as the other pipeline entry points.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:playback_control")
         );
@@ -1909,12 +1909,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         if (removed)
         {
-            // Removing the entry the provider already has (queue's own head) must free the "exactly one
-            // at the provider" slot too — otherwise a moderator clearing a stuck request leaves in-flight
-            // pointed at an entry that no longer exists anywhere, and HandOverNextAsync's own guard
-            // (never hand over a second one while something is in flight) blocks the whole queue forever,
-            // with nothing left to ever clear it (SongRequestQueueReconciler only clears it by matching
-            // this exact track against a real playback change, which never arrives for one removed here).
+            // Removing the in-flight entry must free the in-flight slot too — otherwise a moderator
+            // clearing a stuck request leaves in-flight pointed at an entry that no longer exists
+            // anywhere (SongRequestQueueReconciler only clears it by matching this exact track against
+            // a real playback change, which never arrives for one removed here).
             bool wasInFlight =
                 removedEntry is not null
                 && ReferenceEquals(_queueStore.GetInFlight(broadcasterId), removedEntry);
@@ -2135,7 +2133,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         // PlayOnceResumeHandler calls this off a PlaybackStateChangedEvent the poller published on its
         // own schedule — no person present, no HTTP request behind it — so it carries no ambient
-        // sanction of its own to inherit; same shape as HandOverNextAsync's already-fixed gap.
+        // sanction of its own to inherit.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:seek_control")
         );
@@ -2169,7 +2167,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Unsupported("shuffle");
 
         // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
-        // shape as HandOverNextAsync's already-fixed gap.
+        // shape as the other pipeline entry points.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:shuffle_control")
         );
@@ -2208,7 +2206,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Unsupported("repeat mode");
 
         // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
-        // shape as HandOverNextAsync's already-fixed gap.
+        // shape as the other pipeline entry points.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:repeat_control")
         );
@@ -2242,7 +2240,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Unsupported("device transfer");
 
         // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
-        // shape as HandOverNextAsync's already-fixed gap.
+        // shape as the other pipeline entry points.
         using IDisposable sanction = _sanctions.Begin(
             OutboundSanction.ChannelConfiguration("music:device_transfer_control")
         );
@@ -2550,219 +2548,6 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 .ToList();
     }
 
-    /// <inheritdoc cref="ISongRequestHandover.HandOverNextAsync"/>
-    public async Task HandOverNextAsync(
-        string broadcasterId,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return;
-
-        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
-        if (queue is null)
-            return;
-
-        // The reconciler and the poller's recovery tick both land here, often in the same second. Without
-        // the channel's hand-over lock the second one reads "nothing in flight" while the first is still
-        // awaiting the provider, and pushes the same head again — the request then plays twice.
-        using IDisposable handoverLock = await _queueStore.AcquireHandoverLockAsync(
-            broadcasterId,
-            cancellationToken
-        );
-
-        // Never two of ours at the provider — that is the invariant the whole fair queue rests on. Callers
-        // that fire on a cadence (the playback poller's recovery tick) can therefore call this freely. The
-        // one way past it is proof the in-flight request is gone from the provider for good.
-        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
-        if (inFlight is not null && _queueStore.IsRestoredInFlight(broadcasterId))
-        {
-            await RecoverRestoredInFlightAsync(
-                tenantId,
-                broadcasterId,
-                inFlight,
-                cancellationToken
-            );
-            return;
-        }
-        if (
-            inFlight is not null
-            && !await ReleaseIfLostAtProviderAsync(
-                tenantId,
-                broadcasterId,
-                queue,
-                inFlight,
-                cancellationToken
-            )
-        )
-            return;
-
-        SongRequestEntry? next = queue.Peek();
-        if (next is null)
-        {
-            await ResumeSpotifyAfterYouTubeAsync(tenantId, broadcasterId, cancellationToken);
-            return;
-        }
-
-        IMusicProvider? provider = await GetProviderForTrackAsync(
-            tenantId,
-            next.TrackUri,
-            cancellationToken
-        );
-        if (provider is null)
-            return;
-
-        // The head keeps its place until the overlay player attaches; Spotify is left playing meanwhile.
-        if (!await HasPlayerIfGatedAsync(provider, tenantId, cancellationToken))
-            return;
-
-        if (!await SilenceOtherEnginesAsync(tenantId, broadcasterId, provider, cancellationToken))
-            return;
-
-        bool switchesEngine = IsEngineSwitch(broadcasterId, provider);
-        bool startedDirectly =
-            switchesEngine
-            && await TryStartDirectlyAsync(
-                provider,
-                tenantId,
-                broadcasterId,
-                next,
-                cancellationToken
-            );
-        if (
-            !startedDirectly
-            && !await TryPushAsync(provider, tenantId, broadcasterId, next, cancellationToken)
-        )
-            return;
-
-        _queueStore.SetLastEngine(broadcasterId, provider.Provider);
-        if (switchesEngine && !startedDirectly)
-            await StartIfIdleAsync(tenantId, broadcasterId, provider, cancellationToken);
-
-        _queueStore.SetInFlight(broadcasterId, next);
-        // Persist the in-flight flag immediately — without this a restart right after hand-over forgets
-        // that `next` was already pushed to the provider and re-hands it over a second time
-        // (S-SR-INFLIGHT-DURABLE).
-        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
-    }
-
-    /// <summary>
-    /// music-sr.md §3.5.2 rule 1: before an item starts on its engine, every other engine is stopped and
-    /// seen stopped. An engine still playing a request of ours is never cut off: the item waits for that
-    /// song to end, and the end hands it over. False means "not now"; the item keeps its place.
-    /// </summary>
-    private async Task<bool> SilenceOtherEnginesAsync(
-        Guid tenantId,
-        string broadcasterId,
-        IMusicProvider incoming,
-        CancellationToken cancellationToken
-    )
-    {
-        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
-        IReadOnlyList<IMusicProvider> others =
-        [
-            .. (await GetAllowedProvidersAsync(tenantId, config, cancellationToken)).Where(p =>
-                p.Provider != incoming.Provider
-                && HasCapability(p, MusicProviderCapabilities.PlaybackControl)
-            ),
-        ];
-        SongRequestEntry? playingRequest = _queueStore.GetPlayingRequest(broadcasterId);
-
-        foreach (IMusicProvider other in others)
-        {
-            TrackInfo? current = await ReadPlayingAsync(other, tenantId, cancellationToken);
-            if (current is not { IsPlaying: true })
-                continue;
-            if (IsSameTrack(current.TrackUri, playingRequest?.TrackUri))
-                return false;
-            // A song is playing: a request never cuts it off. The request waits until that song is about
-            // to end, then pauses the engine so the request, not the next track of the playlist, follows.
-            if (
-                current.DurationMs <= 0
-                || current.DurationMs - current.ProgressMs > NearEndWindowMs
-            )
-                return false;
-
-            using IDisposable sanction = _sanctions.Begin(
-                OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
-            );
-            await PauseQuietlyAsync(other, tenantId, cancellationToken);
-            if (await ReadPlayingAsync(other, tenantId, cancellationToken) is { IsPlaying: true })
-            {
-                _logger.LogDebug(
-                    "{Provider} is still playing for {BroadcasterId}; the next request waits.",
-                    other.Provider,
-                    broadcasterId
-                );
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// Spotify was paused for a YouTube request. When the queue runs dry and that request is over, Spotify
-    /// plays on by itself. An already playing Spotify is left alone, and the engine is recorded so the
-    /// resume happens once.
-    /// </summary>
-    private async Task ResumeSpotifyAfterYouTubeAsync(
-        Guid tenantId,
-        string broadcasterId,
-        CancellationToken cancellationToken
-    )
-    {
-        if (_queueStore.GetLastEngine(broadcasterId) != "youtube")
-            return;
-        if (_queueStore.GetPlayingRequest(broadcasterId) is not null)
-            return;
-
-        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
-        IMusicProvider? spotify = (
-            await GetAllowedProvidersAsync(tenantId, config, cancellationToken)
-        ).FirstOrDefault(p =>
-            p.Provider == "spotify" && HasCapability(p, MusicProviderCapabilities.PlaybackControl)
-        );
-        if (spotify is null)
-            return;
-
-        if (await ReadPlayingAsync(spotify, tenantId, cancellationToken) is not { IsPlaying: true })
-        {
-            using IDisposable sanction = _sanctions.Begin(
-                OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
-            );
-            try
-            {
-                await spotify.PlayAsync(tenantId, cancellationToken);
-            }
-            catch (Exception ex) when (IsPlayerUnavailable(ex))
-            {
-                _logger.LogDebug(
-                    ex,
-                    "Could not resume Spotify for {BroadcasterId}.",
-                    broadcasterId
-                );
-                return;
-            }
-        }
-        _queueStore.SetLastEngine(broadcasterId, spotify.Provider);
-    }
-
-    /// <summary>
-    /// How close to its end a playing song must be for a waiting request to take over. The playback poller
-    /// ticks at least every 5 s while a song plays (MusicStatePollingService.PlayingSafetyPollInterval),
-    /// so a window of 6 s always holds a tick and the request never misses a whole song.
-    /// </summary>
-    private const int NearEndWindowMs = 6_000;
-
-    /// <summary>False when the provider needs an attached player (the YouTube overlay) and none is there.</summary>
-    private static async Task<bool> HasPlayerIfGatedAsync(
-        IMusicProvider provider,
-        Guid tenantId,
-        CancellationToken cancellationToken
-    ) =>
-        provider is not IMusicProviderPlayerGate gate
-        || await gate.HasPlayerAsync(tenantId, cancellationToken);
-
     /// <summary>
     /// A link the channel's sources do not allow (YouTube off) is refused outright, never rerouted to the
     /// active provider. Null when the link is fine or owned by no registered provider.
@@ -2788,285 +2573,6 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             )
             : null;
     }
-
-    private bool IsEngineSwitch(string broadcasterId, IMusicProvider incoming) =>
-        _queueStore.GetLastEngine(broadcasterId) is { } last && last != incoming.Provider;
-
-    /// <summary>
-    /// After an item on another engine, a queued Spotify item would wait behind the paused track. Skipping
-    /// to it starts it. An engine that is already playing plays the item next on its own.
-    /// </summary>
-    private async Task StartIfIdleAsync(
-        Guid tenantId,
-        string broadcasterId,
-        IMusicProvider provider,
-        CancellationToken cancellationToken
-    )
-    {
-        if (!HasCapability(provider, MusicProviderCapabilities.Skip))
-            return;
-        if (await ReadPlayingAsync(provider, tenantId, cancellationToken) is { IsPlaying: true })
-            return;
-
-        using IDisposable sanction = _sanctions.Begin(
-            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
-        );
-        try
-        {
-            await provider.SkipAsync(tenantId, cancellationToken);
-        }
-        catch (Exception ex) when (IsPlayerUnavailable(ex))
-        {
-            _logger.LogDebug(
-                ex,
-                "Could not start {Provider} for {BroadcasterId}.",
-                provider.Provider,
-                broadcasterId
-            );
-        }
-    }
-
-    /// <summary>
-    /// After an item on another engine the incoming engine sits idle, so the item is started by its own
-    /// URI. A queue push followed by a skip plays the head of the provider's queue, which is a stray
-    /// track when the provider still holds earlier pushes. False means "not started this way" (the
-    /// provider has no play-now, is already playing, or refused); the caller then pushes as before.
-    /// </summary>
-    private async Task<bool> TryStartDirectlyAsync(
-        IMusicProvider provider,
-        Guid tenantId,
-        string broadcasterId,
-        SongRequestEntry entry,
-        CancellationToken cancellationToken
-    )
-    {
-        if (provider is not IMusicProviderStartTrack starter)
-            return false;
-        if (await ReadPlayingAsync(provider, tenantId, cancellationToken) is { IsPlaying: true })
-            return false;
-
-        using IDisposable sanction = _sanctions.Begin(
-            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
-        );
-        try
-        {
-            return await starter.StartTrackAsync(tenantId, entry.TrackUri, cancellationToken);
-        }
-        catch (Exception ex) when (IsPlayerUnavailable(ex))
-        {
-            _logger.LogDebug(
-                ex,
-                "Could not start '{Track}' directly on {Provider} for {BroadcasterId}.",
-                entry.TrackName,
-                provider.Provider,
-                broadcasterId
-            );
-            return false;
-        }
-    }
-
-    private static async Task<TrackInfo?> ReadPlayingAsync(
-        IMusicProvider provider,
-        Guid tenantId,
-        CancellationToken cancellationToken
-    )
-    {
-        try
-        {
-            return await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
-        }
-        catch (Exception ex) when (IsPlayerUnavailable(ex))
-        {
-            return null;
-        }
-    }
-
-    private static async Task PauseQuietlyAsync(
-        IMusicProvider provider,
-        Guid tenantId,
-        CancellationToken cancellationToken
-    )
-    {
-        try
-        {
-            await provider.PauseAsync(tenantId, cancellationToken);
-        }
-        catch (Exception ex) when (IsPlayerUnavailable(ex)) { }
-    }
-
-    private static bool IsPlayerUnavailable(Exception ex) =>
-        ex
-            is PremiumRequiredException
-                or NoActiveDeviceException
-                or MusicAuthenticationFailedException
-                or MusicForbiddenException;
-
-    /// <summary>
-    /// Hands one request to the provider. False when the provider cannot take it right now (no device or
-    /// player, dead token, non-Premium); the request then keeps its place and a later tick tries again.
-    /// </summary>
-    private async Task<bool> TryPushAsync(
-        IMusicProvider provider,
-        Guid tenantId,
-        string broadcasterId,
-        SongRequestEntry entry,
-        CancellationToken cancellationToken
-    )
-    {
-        // This runs with no person present — off the reconciler's playback-changed reaction or the
-        // poller's recovery tick, never inside an HTTP request — so it carries no ambient sanction of
-        // its own. The broadcaster already opted in by enabling song requests; handing the next accepted
-        // request to their own provider is that configuration acting, the same basis
-        // SpotifyMusicProvider's own token-refresh sweep already claims. Without this,
-        // OutboundSanctionHandler refuses the queue POST every time — the request never leaves the head
-        // of the queue, and the SR queue stops dispatching entirely to whatever the provider is already
-        // playing on its own.
-        using IDisposable sanction = _sanctions.Begin(
-            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
-        );
-
-        try
-        {
-            return await provider.AddToQueueAsync(tenantId, entry.TrackUri, cancellationToken);
-        }
-        catch (Exception ex)
-            when (ex
-                    is PremiumRequiredException
-                        or NoActiveDeviceException
-                        or MusicAuthenticationFailedException
-                        or MusicForbiddenException
-            )
-        {
-            // Nothing playable right now (no device, dead token, non-Premium). The request keeps its place
-            // at the head of the queue: the next playback tick tries again, and no viewer loses a request
-            // because the streamer's player happened to be closed for a moment.
-            _logger.LogDebug(
-                ex,
-                "Could not hand '{Track}' to the provider for {BroadcasterId} — it stays queued.",
-                entry.TrackName,
-                broadcasterId
-            );
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// The request in flight when the bot stopped. A provider whose queue lives on its own side (Spotify)
-    /// still holds it, so it is only confirmed; one whose queue lived in the bot's memory (the YouTube
-    /// overlay player) lost it with the restart, so it is handed over again rather than taken for lost.
-    /// Unknown answers keep the marker, and the next tick asks again.
-    /// </summary>
-    private async Task RecoverRestoredInFlightAsync(
-        Guid tenantId,
-        string broadcasterId,
-        SongRequestEntry inFlight,
-        CancellationToken cancellationToken
-    )
-    {
-        IMusicProvider? provider = await GetProviderForTrackAsync(
-            tenantId,
-            inFlight.TrackUri,
-            cancellationToken
-        );
-        if (provider is null)
-            return;
-
-        IReadOnlyList<TrackInfo>? providerQueue = await provider.GetQueueAsync(
-            tenantId,
-            cancellationToken
-        );
-        if (providerQueue is null)
-            return;
-
-        bool stillHeld =
-            providerQueue.Any(t => IsSameTrack(t.TrackUri, inFlight.TrackUri))
-            || IsSameTrack(
-                (await provider.GetCurrentTrackAsync(tenantId, cancellationToken))?.TrackUri,
-                inFlight.TrackUri
-            );
-        if (
-            stillHeld
-            || await TryPushAsync(provider, tenantId, broadcasterId, inFlight, cancellationToken)
-        )
-            _queueStore.ConfirmRestoredInFlight(broadcasterId);
-    }
-
-    /// <summary>
-    /// The in-flight request only ever leaves by being seen to play (SongRequestQueueReconciler). One the
-    /// streamer deletes from the Spotify app's queue never plays, so without this the whole queue waited on
-    /// it forever with nothing on screen saying why — live 2026-09-24. Dropped only on proof: the provider
-    /// answered, the request is not in its list, it is not the track playing now, and either the list is
-    /// short enough to be complete or it listed the request at an earlier check. Any doubt keeps the request, because a false drop costs a viewer their song.
-    /// </summary>
-    private async Task<bool> ReleaseIfLostAtProviderAsync(
-        Guid tenantId,
-        string broadcasterId,
-        FairQueue<SongRequestEntry> queue,
-        SongRequestEntry inFlight,
-        CancellationToken cancellationToken
-    )
-    {
-        if (!_queueStore.IsInFlightCheckDue(broadcasterId))
-            return false;
-
-        IMusicProvider? provider = await GetProviderForTrackAsync(
-            tenantId,
-            inFlight.TrackUri,
-            cancellationToken
-        );
-        if (provider is null)
-            return false;
-
-        IReadOnlyList<TrackInfo>? providerQueue = await provider.GetQueueAsync(
-            tenantId,
-            cancellationToken
-        );
-        if (providerQueue is null)
-            return false;
-        if (providerQueue.Any(t => IsSameTrack(t.TrackUri, inFlight.TrackUri)))
-        {
-            _queueStore.MarkInFlightSeen(broadcasterId);
-            return false;
-        }
-        if (
-            providerQueue.Count >= ProviderQueueLookAhead
-            && !_queueStore.WasInFlightSeen(broadcasterId)
-        )
-            return false;
-
-        TrackInfo? current = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
-        if (IsSameTrack(current?.TrackUri, inFlight.TrackUri))
-            return false;
-
-        queue.RemoveFirst(e => ReferenceEquals(e, inFlight));
-        _queueStore.SetInFlight(broadcasterId, null);
-        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
-        await RefundIfPaidAsync(tenantId, inFlight, cancellationToken);
-        await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
-
-        _logger.LogWarning(
-            "Song request '{Track}' for {BroadcasterId} is no longer at the provider and was never seen playing — dropped so the queue can move on.",
-            inFlight.TrackName,
-            broadcasterId
-        );
-        await _eventBus.PublishAsync(
-            new SongRequestLostAtProviderEvent
-            {
-                BroadcasterId = tenantId,
-                TrackUri = inFlight.TrackUri,
-                TrackName = inFlight.TrackName,
-                RequestedBy = inFlight.RequestedBy,
-            },
-            cancellationToken
-        );
-        return true;
-    }
-
-    // Spotify's GET /me/player/queue returns a bounded look-ahead, not the whole queue, and a long playlist
-    // keeps it full. A full list may have cut a request that was never listed off the end, so its absence
-    // proves nothing. A request listed once can only move up: Spotify lists and plays the tracks queued by
-    // hand before the playlist, and adds new ones behind them. So its absence after a sighting is proof.
-    private const int ProviderQueueLookAhead = 20;
 
     private static bool IsSameTrack(string? a, string? b) =>
         string.Equals(a, b, StringComparison.OrdinalIgnoreCase);

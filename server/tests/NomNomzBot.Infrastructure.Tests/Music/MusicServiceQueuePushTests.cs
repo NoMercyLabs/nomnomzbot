@@ -90,7 +90,7 @@ public sealed class MusicServiceQueuePushTests
             .Queue.Should()
             .BeEmpty("a request that never started is not left behind pretending to be live");
 
-        // Nothing was left marked as in-flight either, so the next request is still handed over.
+        // Nothing was left marked as in-flight either, so the next request is still started.
         spotify.StartResult = EngineStartResult.Ok;
         Result recovered = await RequestAsync(sut, handler, "b2", "viewer1");
 
@@ -104,13 +104,13 @@ public sealed class MusicServiceQueuePushTests
     }
 
     /// <summary>
-    /// A request the engine refused must not strand the queue or leave a phantom: it is rolled back, so the
-    /// recovery tick finds nothing to hand over, and once a request is started the tick never starts a second.
-    /// (The recovery tick that re-pushed a stuck head is removed in slice 4c2b; today HandOverNextAsync still
-    /// runs, and what stays true is that it adds no second start.)
+    /// A request the engine refused must not strand the queue or leave a phantom: it is rolled back, so
+    /// nothing is left for the director to start, and once a request is started a further request never
+    /// starts a second one while it plays. (The recovery tick that re-pushed a stuck head is gone: the
+    /// director is the only thing that starts a request.)
     /// </summary>
     [Fact]
-    public async Task A_refused_request_leaves_nothing_for_the_recovery_tick_and_a_started_one_is_not_started_twice()
+    public async Task A_refused_request_leaves_nothing_behind_and_a_started_one_is_not_started_twice()
     {
         (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = Build();
         FakeEngine spotify = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
@@ -124,28 +124,33 @@ public sealed class MusicServiceQueuePushTests
             .Be("NO_ACTIVE_DEVICE");
         spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(2);
 
-        // The device comes back. The recovery tick has nothing queued, so it starts nothing.
+        // The device comes back. Both attempts rolled their request back out, so nothing is queued.
         spotify.StartResult = EngineStartResult.Ok;
-        await sut.HandOverNextAsync(ChannelId.ToString());
-
-        spotify
-            .Calls.Where(c => c.Name == "Start")
-            .Should()
-            .HaveCount(2, "nothing is queued, both attempts rolled their request back out");
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Should()
+            .BeEmpty("both refused requests were rolled back out");
         QueuePushCount(handler).Should().Be(0);
 
-        // With a request actually accepted, the same tick adds no second start.
+        // A request accepted now is the one the director starts.
         (await RequestAsync(sut, handler, "c3", "viewer1"))
             .IsSuccess.Should()
             .BeTrue();
         spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(3);
 
-        await sut.HandOverNextAsync(ChannelId.ToString());
+        // A further request queues behind it; it never starts a second one while the first plays.
+        (await RequestAsync(sut, handler, "c4", "viewer2"))
+            .IsSuccess.Should()
+            .BeTrue();
 
         spotify
             .Calls.Where(c => c.Name == "Start")
             .Should()
-            .HaveCount(3, "one is already in flight, a recovery tick must never start a second");
+            .HaveCount(3, "one is already started, a later request must never start a second");
+        rig.Registry.StateOf(ChannelId).Item!.Uri.Should().Be("spotify:track:c3");
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Select(i => i.TrackName)
+            .Should()
+            .Equal("Song c3", "Song c4");
         QueuePushCount(handler).Should().Be(0);
     }
 

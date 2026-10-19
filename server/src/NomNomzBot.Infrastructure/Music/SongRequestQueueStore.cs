@@ -35,19 +35,6 @@ namespace NomNomzBot.Infrastructure.Music;
 /// once at startup, before any live traffic, to replay a fresh persisted queue back into an empty one.
 /// </para>
 /// </summary>
-/// <summary>
-/// Hands the next pending song request to the music provider. Split out from <c>IMusicService</c> because
-/// only <see cref="SongRequestQueueReconciler"/> needs it: the reconciler knows WHEN the provider is free
-/// (it watches live playback), while <c>MusicService</c> knows HOW to reach the provider for a tenant.
-/// </summary>
-public interface ISongRequestHandover
-{
-    /// <summary>Pops the fair queue's head, pushes it to the provider, and records it as in-flight.
-    /// Does nothing when the queue is empty or the provider is unreachable — a request that could not be
-    /// handed over stays at the head of the queue for the next attempt rather than being dropped.</summary>
-    Task HandOverNextAsync(string broadcasterId, CancellationToken cancellationToken = default);
-}
-
 public interface ISongRequestQueueStore
 {
     /// <summary>Returns the channel's queue, creating an empty one atomically if none exists yet.</summary>
@@ -85,23 +72,6 @@ public interface ISongRequestQueueStore
 
     /// <summary>Records (or clears, with null) the request that is playing right now.</summary>
     void SetPlayingRequest(string broadcasterId, SongRequestEntry? entry);
-
-    /// <summary>
-    /// Whether the in-flight request is due a check that it is still at the provider: first one
-    /// <see cref="SongRequestQueueStore.InFlightCheckInterval"/> after it was handed over, then once per
-    /// interval after that. The grace keeps a request that was only just pushed from being judged before
-    /// the provider shows it; the spacing keeps the check from costing a provider call on every 1s poll tick.
-    /// </summary>
-    bool IsInFlightCheckDue(string broadcasterId);
-
-    /// <summary>Records that the provider's queue listed the in-flight request since it was handed over.</summary>
-    void MarkInFlightSeen(string broadcasterId);
-
-    /// <summary>
-    /// Whether the provider's queue has listed the in-flight request since it was handed over. A new hand-over
-    /// and a restart both start unseen, so a sighting never vouches for another request.
-    /// </summary>
-    bool WasInFlightSeen(string broadcasterId);
 
     /// <summary>
     /// Marks a track the provider already holds in its own queue as retracted. Spotify has no call to delete
@@ -158,34 +128,17 @@ public interface ISongRequestQueueStore
         IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries,
         int? inFlightIndex = null
     );
-
-    /// <summary>
-    /// True while the in-flight request is the one <see cref="Restore"/> brought back and no hand-over has
-    /// confirmed it reached the provider since the restart.
-    /// </summary>
-    bool IsRestoredInFlight(string broadcasterId);
-
-    /// <summary>The restored in-flight request is known to be at the provider again.</summary>
-    void ConfirmRestoredInFlight(string broadcasterId);
 }
 
 /// <inheritdoc cref="ISongRequestQueueStore"/>
 public sealed class SongRequestQueueStore : ISongRequestQueueStore
 {
-    internal static readonly TimeSpan InFlightCheckInterval = TimeSpan.FromSeconds(30);
-
     /// <summary>How long an armed retraction waits for its track to start before it is forgotten.</summary>
     internal static readonly TimeSpan RetractionLifetime = TimeSpan.FromHours(2);
 
     private readonly ConcurrentDictionary<string, FairQueue<SongRequestEntry>> _queues = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlight = new();
-    private readonly ConcurrentDictionary<
-        string,
-        (SongRequestEntry Entry, DateTimeOffset NextCheckAt)
-    > _inFlightChecks = new();
-    private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlightSeen = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _playingRequests = new();
-    private readonly ConcurrentDictionary<string, SongRequestEntry> _restoredInFlight = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _handoverLocks = new();
     private readonly ConcurrentDictionary<string, string> _lastEngines = new();
     private readonly ConcurrentDictionary<
@@ -256,47 +209,10 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     public void SetInFlight(string broadcasterId, SongRequestEntry? entry)
     {
         if (entry is null)
-        {
             _inFlight.TryRemove(broadcasterId, out _);
-            _inFlightChecks.TryRemove(broadcasterId, out _);
-            _inFlightSeen.TryRemove(broadcasterId, out _);
-        }
         else
-        {
             _inFlight[broadcasterId] = entry;
-            ScheduleNextCheck(broadcasterId, entry);
-        }
     }
-
-    public bool IsInFlightCheckDue(string broadcasterId)
-    {
-        SongRequestEntry? inFlight = GetInFlight(broadcasterId);
-        if (inFlight is null)
-            return false;
-
-        bool scheduled =
-            _inFlightChecks.TryGetValue(
-                broadcasterId,
-                out (SongRequestEntry Entry, DateTimeOffset NextCheckAt) schedule
-            ) && ReferenceEquals(schedule.Entry, inFlight);
-
-        if (scheduled && _timeProvider.GetUtcNow() < schedule.NextCheckAt)
-            return false;
-
-        ScheduleNextCheck(broadcasterId, inFlight);
-        return scheduled;
-    }
-
-    public void MarkInFlightSeen(string broadcasterId)
-    {
-        SongRequestEntry? inFlight = GetInFlight(broadcasterId);
-        if (inFlight is not null)
-            _inFlightSeen[broadcasterId] = inFlight;
-    }
-
-    public bool WasInFlightSeen(string broadcasterId) =>
-        _inFlightSeen.TryGetValue(broadcasterId, out SongRequestEntry? seen)
-        && ReferenceEquals(seen, GetInFlight(broadcasterId));
 
     public void ArmRetraction(string broadcasterId, string trackUri) =>
         _retractions[(broadcasterId, trackUri.ToLowerInvariant())] =
@@ -314,9 +230,6 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
 
         return _timeProvider.GetUtcNow() < expiresAt;
     }
-
-    private void ScheduleNextCheck(string broadcasterId, SongRequestEntry entry) =>
-        _inFlightChecks[broadcasterId] = (entry, _timeProvider.GetUtcNow() + InFlightCheckInterval);
 
     public async Task<IDisposable> AcquireHandoverLockAsync(
         string broadcasterId,
@@ -364,18 +277,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
                 ? orderedEntries[index].Entry
                 : null;
         SetInFlight(broadcasterId, inFlight);
-        if (inFlight is null)
-            _restoredInFlight.TryRemove(broadcasterId, out _);
-        else
-            _restoredInFlight[broadcasterId] = inFlight;
     }
-
-    public bool IsRestoredInFlight(string broadcasterId) =>
-        _restoredInFlight.TryGetValue(broadcasterId, out SongRequestEntry? restored)
-        && ReferenceEquals(restored, GetInFlight(broadcasterId));
-
-    public void ConfirmRestoredInFlight(string broadcasterId) =>
-        _restoredInFlight.TryRemove(broadcasterId, out _);
 }
 
 /// <summary>An item in the per-channel song request queue. <see cref="Cost"/>/<see cref="RequesterUserId"/>
