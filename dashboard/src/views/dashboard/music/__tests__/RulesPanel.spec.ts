@@ -277,18 +277,30 @@ describe('RulesPanel', () => {
     expect(puts()[0]!.body).toEqual({ requestsOpen: false });
   });
 
-  it('saves the music on/off switch as its own field', async () => {
+  // Stoney 2026-10-19: "i also don't need the same button twice lol". The panel has one switch about requests;
+  // the master music on/off lives on the music page.
+  it('renders exactly one switch about requests and no music on/off switch', async () => {
     await open();
 
-    const toggle = document.body.querySelector<HTMLButtonElement>('[data-setting="music-enabled"]');
+    const labels = [...document.body.querySelectorAll<HTMLElement>('[role="switch"]')]
+      .map((node) => node.getAttribute('aria-label') ?? '')
+      .filter((label) => /request|music is on/i.test(label));
 
-    expect(toggle?.getAttribute('aria-checked')).toBe('true');
-    toggle?.click();
+    expect(labels).toEqual(['Requests are open']);
+    expect(document.body.querySelector('[data-setting="music-enabled"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Music is on');
+  });
+
+  it('never sends isEnabled when the rules are saved', async () => {
+    await open();
+
+    perPerson().value = '4';
+    perPerson().dispatchEvent(new Event('input'));
     await settle();
     buttonIn('Save').click();
     await settle();
 
-    expect(puts()[0]!.body).toEqual({ isEnabled: false });
+    expect(puts()[0]!.body).not.toHaveProperty('isEnabled');
   });
 
   it('saves the songs per person the streamer types', async () => {

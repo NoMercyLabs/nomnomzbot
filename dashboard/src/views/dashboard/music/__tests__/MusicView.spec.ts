@@ -681,6 +681,42 @@ describe('MusicView', () => {
     );
   });
 
+  // Stoney 2026-10-19: "i also don't need the same button twice lol". Music on/off leaves the request rules
+  // and sits in the page's own menu, worded as playback so it never reads as the requests switch.
+  it('turns all playback off from the page menu with one PUT of isEnabled', async () => {
+    heldActionKeys = ['music:queue:moderate', 'music:config:read', 'music:config:write'];
+    answers['/music/config'] = () => ok({ isEnabled: true });
+    await open();
+
+    expect(document.body.textContent).not.toContain('Music is on');
+
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    document.body.querySelector<HTMLButtonElement>('[data-music-menu]')!.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+      }),
+    );
+
+    await settle();
+
+    const item = document.body.querySelector<HTMLElement>('[data-music-playback]');
+
+    expect(item?.textContent).toContain('Playback is on');
+    expect(item?.textContent).toContain('Turn this off to stop all playback');
+    expect(item?.textContent).not.toContain('request');
+    item!.click();
+    await settle();
+
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0]!.method).toBe('PUT');
+    expect(writes()[0]!.path.endsWith('/music/config')).toBe(true);
+    expect(writes()[0]!.body).toEqual({ isEnabled: false });
+  });
+
   // Owner 2026-10-19, "sigh...": the sheet's own X sat on top of the "Requests are open" switch and read as a glyph in its thumb.
   it('carries the rules close button in the panel header, never over the header switch', async () => {
     await open();

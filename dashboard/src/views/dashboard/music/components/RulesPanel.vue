@@ -202,19 +202,6 @@ const missing = computed<KeyValueItem[]>(() =>
     </template>
     <div v-if="draft" class="grid gap-5">
       <fieldset class="contents" :disabled="!can('music:config:write')">
-        <label class="flex items-center gap-3 text-sm">
-          <span class="min-w-0 flex-1">
-            <span class="block">{{ $t("dashboard.music.rules.enabled") }}</span>
-            <span class="block text-muted-foreground">{{
-              $t("dashboard.music.rules.enabledHelp")
-            }}</span>
-          </span>
-          <GatedSwitch
-            v-model="draft.isEnabled"
-            action="music:config:write"
-            data-setting="music-enabled"
-          />
-        </label>
         <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
           <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
           <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
