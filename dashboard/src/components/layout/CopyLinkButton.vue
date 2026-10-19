@@ -30,9 +30,9 @@ async function copy(): Promise<void> {
 </script>
 
 <template>
-  <Button data-copy-link variant="outline" size="sm" @click="copy">
-    <CheckCircle v-if="copied" class="size-4" aria-hidden="true" />
-    <Link v-else class="size-4" aria-hidden="true" />
+  <Button data-copy-link variant="outline" @click="copy">
+    <CheckCircle v-if="copied" class="size-5" aria-hidden="true" />
+    <Link v-else class="size-5" aria-hidden="true" />
     {{ copied ? $t('common.copied') : label }}
   </Button>
 </template>

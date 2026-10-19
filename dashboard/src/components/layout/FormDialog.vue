@@ -17,6 +17,7 @@
 // While pending the primary is disabled and Esc, Cancel and a click outside do not close it.
 // The dialog renders in a portal, so it reads the lock from the scope that opened it: locked, the
 // fields are disabled (own ReadOnlyScope) and the primary cannot submit.
+import Cross from '~icons/nnz/cross';
 import { nextTick, ref } from 'vue';
 
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
@@ -24,6 +25,7 @@ import { useReadOnly } from '@/components/layout/readOnly';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -126,7 +128,21 @@ function focusFirstField(event: Event): void {
               {{ description }}
             </DialogDescription>
           </div>
-          <slot name="header-action" />
+          <div class="flex flex-none items-center gap-2">
+            <slot name="header-action" />
+            <DialogClose as-child>
+              <Button
+                data-form-close
+                :disabled="pending"
+                type="button"
+                variant="ghost"
+                size="icon"
+                :aria-label="$t('common.close')"
+              >
+                <Cross class="size-5" aria-hidden="true" />
+              </Button>
+            </DialogClose>
+          </div>
         </div>
         <div ref="body" class="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
           <ReadOnlyScope :read-only="false" class="flex flex-col gap-4">

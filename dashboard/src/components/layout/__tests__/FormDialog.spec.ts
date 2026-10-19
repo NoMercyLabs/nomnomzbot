@@ -201,4 +201,31 @@ describe('the form dialog', () => {
 
     expect(document.body.querySelector('[data-form-error]')).toBeNull();
   });
+
+  it('has a 36px close X named Close that asks the owner to close', async () => {
+    const wrapper = await dialog();
+    const close = document.body.querySelector('[data-form-close]') as HTMLButtonElement;
+
+    expect(close).not.toBeNull();
+    expect(close.getAttribute('aria-label')).toBe('Close');
+    expect(close.classList.contains('size-9')).toBe(true);
+    expect(close.querySelector('svg')?.classList.contains('size-5')).toBe(true);
+
+    close.click();
+    await flushPromises();
+
+    expect(wrapper.findComponent(FormDialog).emitted('update:open')).toEqual([[false]]);
+  });
+
+  it('keeps the dialog open when the close X is pressed while pending', async () => {
+    const wrapper = await dialog({ pending: true });
+
+    const close = document.body.querySelector('[data-form-close]') as HTMLButtonElement;
+
+    close.click();
+    await flushPromises();
+
+    expect(close.disabled).toBe(true);
+    expect(wrapper.findComponent(FormDialog).emitted('update:open')).toBeUndefined();
+  });
 });

@@ -48,4 +48,17 @@ describe('CopyLinkButton', () => {
 
     expect(mounted.text()).toBe('Copy dock link');
   });
+
+  it('is a 36px button with a 20px icon, like the icon actions beside it', () => {
+    mounted = mount(CopyLinkButton, {
+      props: { url: 'https://bot.example/x', label: 'Copy link' },
+      global: { plugins: [i18n] },
+    });
+
+    const button = mounted.get('[data-copy-link]');
+
+    expect(button.classes()).toContain('h-9');
+    expect(button.classes()).not.toContain('h-8');
+    expect(button.get('svg').classes()).toContain('size-5');
+  });
 });

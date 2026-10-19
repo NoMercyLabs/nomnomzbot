@@ -95,7 +95,7 @@ const lastReceived = useFormattedTime(() => props.endpoint.lastReceivedAt, 'date
           action="webhooks:inbound:write"
           :model-value="endpoint.isEnabled"
           :disabled="busy"
-          :aria-labelledby="`inbound-${endpoint.id}`"
+          :aria-label="$t('dashboard.settings.webhooks.inbound.toggle', { name: endpoint.name })"
           @update:model-value="$emit('toggle')"
         />
       </div>

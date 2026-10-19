@@ -310,6 +310,18 @@ describe('Webhooks page', () => {
     expect(q('[data-copy-link]').classList.contains('border-border')).toBe(true);
   });
 
+  it('names every row switch after its webhook', async () => {
+    await open();
+
+    expect(
+      q('[data-outbound="Home server"] [role="switch"]').getAttribute('aria-label'),
+    ).toBe('Turn Home server on or off');
+
+    expect(q('[data-inbound="Ko-fi"] [role="switch"]').getAttribute('aria-label')).toBe(
+      'Turn Ko-fi on or off',
+    );
+  });
+
   it('keeps the icon buttons and the switch in one group, apart from the turn-back-on button', async () => {
     await open();
 

@@ -155,7 +155,7 @@ const lastDelivery = computed(() =>
           action="webhooks:outbound:write"
           :model-value="endpoint.isEnabled"
           :disabled="busy"
-          :aria-labelledby="`outbound-${endpoint.id}`"
+          :aria-label="$t('dashboard.settings.webhooks.outbound.toggle', { name: endpoint.name })"
           @update:model-value="$emit('toggle')"
         />
       </div>
