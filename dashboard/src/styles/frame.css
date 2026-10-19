@@ -235,6 +235,15 @@ a:not([data-slot]):hover {
     margin-inline: 1rem;
     width: auto;
   }
+  /* A finger needs 36px: tabs and segments never shrink below it on a phone, and the track grows with them
+     (owner 2026-10-19 audit: tab strip 30px). */
+  [data-slot='tabs-list'] {
+    height: auto;
+  }
+  [data-slot='tabs-trigger'],
+  [data-slot='page-bar'] [data-segment] {
+    min-height: 36px;
+  }
 }
 
 /* Status is a dot beside plain text, never a tinted pill (owner 2026-10-13: too many colors). */

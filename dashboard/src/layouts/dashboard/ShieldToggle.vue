@@ -27,7 +27,6 @@ const setShield = useSetShieldMode(channelId);
   <Toggle
     v-if="shield.data.value !== undefined"
     variant="outline"
-    size="sm"
     data-slot="shield-toggle"
     :model-value="shield.data.value"
     :disabled="setShield.isPending.value"

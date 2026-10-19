@@ -321,7 +321,6 @@ const unsaved = computed<string>(() =>
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             :class="slot.isOverridden && editable && !slot.isLocked ? '' : 'invisible'"
             :aria-label="$t('dashboard.commands.builtin.backTo', { field: slotLabel(slot) })"
             @click="backToDefaultReply(slot)"
@@ -348,7 +347,6 @@ const unsaved = computed<string>(() =>
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             :class="builtin.minPermissionLevelOverride != null && editable ? '' : 'invisible'"
             :aria-label="
               $t('dashboard.commands.builtin.backTo', {
@@ -380,7 +378,6 @@ const unsaved = computed<string>(() =>
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             :class="builtin.cooldownSecondsOverride != null && editable ? '' : 'invisible'"
             :aria-label="
               $t('dashboard.commands.builtin.backTo', {
@@ -412,7 +409,6 @@ const unsaved = computed<string>(() =>
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             :class="builtin.userCooldownSecondsOverride != null && editable ? '' : 'invisible'"
             :aria-label="
               $t('dashboard.commands.builtin.backTo', {
@@ -442,7 +438,6 @@ const unsaved = computed<string>(() =>
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             :class="builtin.speakWithTts && editable ? '' : 'invisible'"
             :aria-label="
               $t('dashboard.commands.builtin.backTo', {

@@ -301,6 +301,12 @@ describe('BuiltinEditor', () => {
     expect(input('Chat cooldown (seconds)').value).toBe('30');
     expect(replyBox().value).toBe('Own words');
 
+    // A text button is at least the 36px default size, never the 32px sm one.
+    expect(button('Back to default: Chat cooldown (seconds)')!.getAttribute('data-size')).not.toBe(
+      'sm',
+    );
+    expect(button('Back to default: Online reply')!.getAttribute('data-size')).not.toBe('sm');
+
     await click(button('Back to default: Chat cooldown (seconds)'));
     const settings = writes().find((call) => call.path.endsWith('/settings'))!;
 
