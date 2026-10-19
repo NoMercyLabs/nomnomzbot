@@ -406,20 +406,20 @@ SP implements IMusicProvider, IMusicRemoteProvider, IMusicProviderManageApi, IMu
 
 ### 11.3 (b) Hand-over callers (as of now)
 
-Two methods share the name. `ISongRequestHandover.HandOverNextAsync(string)` (declared `Music/SongRequestQueueStore.cs:48`, implemented `Music/MusicService.cs:2594`) takes the fair-queue head to the engine. `IYouTubePlayerDispatcher.HandOverNextAsync(Guid)` (declared `Music/YouTubePlayerDispatcher.cs:71`, implemented `:189`) hands the YouTube one-slot buffer to the player.
+Two methods shared the name. `ISongRequestHandover.HandOverNextAsync(string)` (DELETED in S-PD-4c2b B2; every caller now sends a director input) (declared `Music/SongRequestQueueStore.cs:48`, implemented `Music/MusicService.cs:2594`) takes the fair-queue head to the engine. `IYouTubePlayerDispatcher.HandOverNextAsync(Guid)` (declared `Music/YouTubePlayerDispatcher.cs:71`, implemented `:189`) hands the YouTube one-slot buffer to the player.
 
 | # | Caller | Method called | Trigger |
 |---|---|---|---|
 | 1 | `NomNomzBot.Api/Hubs/OverlayHub.cs:488` | dispatcher | audio widget ready, when `ReplayCurrentAsync` replayed nothing |
-| 1b | `NomNomzBot.Api/Hubs/OverlayHub.cs:489` | `ISongRequestHandover` | same ready event, always |
-| 2 | `NomNomzBot.Infrastructure/BackgroundServices/MusicStatePollingService.cs:277` | `ISongRequestHandover` | every poll tick (recovery tick) |
-| 3 | `NomNomzBot.Infrastructure/Music/SongRequestQueueReconciler.cs:168` | `ISongRequestHandover` | playback change, when nothing is in flight |
+| 1b | `NomNomzBot.Api/Hubs/OverlayHub.cs:489` | ~~`ISongRequestHandover`~~ | same ready event, always. GONE in S-PD-4c2b B2: sends the director `OutputAttached` |
+| 2 | `NomNomzBot.Infrastructure/BackgroundServices/MusicStatePollingService.cs:277` | ~~`ISongRequestHandover`~~ | every poll tick (recovery tick). GONE in S-PD-4c2b B2: sends the director `RequestAdded` |
+| 3 | `NomNomzBot.Infrastructure/Music/SongRequestQueueReconciler.cs:168` | ~~`ISongRequestHandover`~~ | playback change, when nothing is in flight. GONE in S-PD-4c2b B2: the reconciler no longer starts songs; the director does |
 | 4 | `NomNomzBot.Infrastructure/Music/YouTubePlayerReportService.cs:80` | dispatcher | player reported ended or error |
 | 5 | `NomNomzBot.Infrastructure/Music/PlayOnceResumeHandler.cs:108` | dispatcher | play-once track ended |
 | 6 | `NomNomzBot.Infrastructure/Music/YouTubeMusicProvider.cs:160` | dispatcher | `SkipAsync` |
-| - | `NomNomzBot.Infrastructure/Music/MusicService.cs:1192` calls `HandOverAdmittedIfIdleAsync` (defined `:1221`) | private; the only call site | a new request is admitted, inside the hand-over lock |
+| - | `NomNomzBot.Infrastructure/Music/MusicService.cs:1192` calls `HandOverAdmittedIfIdleAsync` (defined `:1221`) | ~~private; the only call site~~ | a new request is admitted. GONE in S-PD-4c2b B2: `MusicService` sends the director `RequestAdded` (`MusicService.cs:1247`) |
 
-Count: 6 caller files, 7 call lines (OverlayHub has two). Section 1 matches.
+Count (before B2): 6 caller files, 7 call lines (OverlayHub has two). Section 1 matches. After B2 only the dispatcher callers (rows 1, 4, 5, 6) remain; the `ISongRequestHandover` callers (rows 1b, 2, 3 and the `MusicService` line) are deleted and send director inputs.
 
 ### 11.4 (c) Where the music volume lives today
 
