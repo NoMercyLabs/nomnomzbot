@@ -19,6 +19,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import ChevronDown from '~icons/nnz/chevron-down';
 import Cross from '~icons/nnz/cross';
 
 import { useAdminImpersonate } from '@/api/admin';
@@ -34,13 +35,24 @@ import {
   type IamPrincipal,
 } from '@/api/adminAccess';
 import { acceptAccessToken } from '@/api/auth';
+import DateTime from '@/components/layout/DateTime.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import UserName from '@/components/layout/UserName.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
@@ -56,6 +68,7 @@ const step = ref<Step | null>(null);
 const target = ref<IamPrincipal | null>(null);
 const assignment = ref<IamAssignment | null>(null);
 const roleId = ref('');
+const expires = ref('');
 const reason = ref('');
 const failure = ref<string | null>(null);
 const grantId = ref('');
@@ -89,9 +102,11 @@ const pending = computed(
   () => assign.isPending.value || revoke.isPending.value || deactivate.isPending.value,
 );
 
-const sessionPending = computed(
-  () => endAccess.isPending.value || impersonate.isPending.value,
-);
+const sessionPending = computed(() => endAccess.isPending.value || impersonate.isPending.value);
+
+const canEnd = computed<boolean>(() => can('tenant:access'));
+const canImpersonate = computed<boolean>(() => can('user:impersonate'));
+const showSession = computed<boolean>(() => canEnd.value || canImpersonate.value);
 
 const name = computed<string>(() => target.value?.name ?? '');
 const roleName = computed<string>(() => assignment.value?.roleName ?? '');
@@ -100,7 +115,10 @@ const dialogTitle = computed<string>(() => {
   if (step.value === null)
     return '';
 
-  return t(`dashboard.admin.access.${step.value}.title`, { name: name.value, role: roleName.value });
+  return t(`dashboard.admin.access.${step.value}.title`, {
+    name: name.value,
+    role: roleName.value,
+  });
 });
 
 const dialogAction = computed<string>(() =>
@@ -112,7 +130,10 @@ const dialogAction = computed<string>(() =>
 // The consequence is shown before the operator confirms, counted from the real active roles.
 const consequence = computed<string | undefined>(() => {
   if (step.value === 'revoke')
-    return t('dashboard.admin.access.revoke.consequence', { name: name.value, role: roleName.value });
+    return t('dashboard.admin.access.revoke.consequence', {
+      name: name.value,
+      role: roleName.value,
+    });
 
   if (step.value !== 'deactivate')
     return undefined;
@@ -128,6 +149,7 @@ function open(next: Step, principal: IamPrincipal, held: IamAssignment | null = 
   target.value = principal;
   assignment.value = held;
   roleId.value = '';
+  expires.value = '';
   reason.value = '';
   failure.value = null;
   step.value = next;
@@ -145,6 +167,13 @@ function reasonOrNull(): string | null {
     : trimmed;
 }
 
+// The datetime-local field holds the operator's local time; the API takes an instant.
+function expiresOrNull(): string | null {
+  return expires.value === ''
+    ? null
+    : new Date(expires.value).toISOString();
+}
+
 function run(current: Step): Promise<void> {
   const note = reasonOrNull();
 
@@ -152,6 +181,7 @@ function run(current: Step): Promise<void> {
     return assign.mutateAsync({
       principalId: target.value!.id,
       roleId: roleId.value,
+      expiresAt: expiresOrNull(),
       reason: note,
     });
 
@@ -188,6 +218,8 @@ async function finishEnd(): Promise<void> {
 }
 
 async function startImpersonation(): Promise<void> {
+  if (justification.value.trim() === '') return;
+
   sessionFailure.value = null;
 
   try {
@@ -209,10 +241,12 @@ async function startImpersonation(): Promise<void> {
 <template>
   <PageHeader :title="$t('dashboard.admin.access.title')" :crumb="$t('dashboard.admin.crumb')" />
   <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <label class="flex items-center gap-2 text-sm">
-      <input v-model="hideInactive" type="checkbox" data-hide-inactive class="size-4" />
-      {{ $t("dashboard.admin.access.hideInactive") }}
-    </label>
+    <LabeledSwitch
+      v-model="hideInactive"
+      data-hide-inactive
+      :label="$t('dashboard.admin.access.hideInactive')"
+      :help="$t('dashboard.admin.access.hideInactiveHelp')"
+    />
 
     <PanelCard
       tier="lead"
@@ -224,15 +258,32 @@ async function startImpersonation(): Promise<void> {
       @retry="principals.refetch()"
     >
       <ul class="divide-y divide-border">
-        <li v-for="row in visible" :key="row.id" data-principal-row class="flex flex-wrap items-center gap-3 py-3">
+        <li
+          v-for="row in visible"
+          :key="row.id"
+          data-principal-row
+          class="flex flex-wrap items-center gap-3 py-3"
+        >
           <div class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium">{{ row.name }}</span>
+            <UserName
+              :user-id="row.userId"
+              :name="row.name"
+              class="block truncate text-sm font-medium"
+            />
             <span class="block text-xs text-muted-foreground">
               {{
                 row.principalType === 0
                   ? $t("dashboard.admin.access.principals.employee")
                   : $t("dashboard.admin.access.principals.serviceAccount")
               }}
+            </span>
+            <span
+              v-if="row.expiresAt"
+              data-principal-expires
+              class="block text-xs text-muted-foreground"
+            >
+              {{ $t("dashboard.admin.access.principals.expires") }}
+              <DateTime :value="row.expiresAt" />
             </span>
           </div>
           <div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -247,9 +298,18 @@ async function startImpersonation(): Promise<void> {
               v-for="held in row.activeAssignments"
               :key="held.id"
               data-assignment
-              class="inline-flex items-center gap-1 rounded-md border border-border py-0.5 pr-0.5 pl-2 text-xs"
+              class="inline-flex h-9 items-center gap-1 rounded-md border border-border pr-0.5 pl-2 text-xs"
             >
               {{ held.roleName }}
+              <span v-if="held.scopeChannelId" data-assignment-scope class="text-muted-foreground">
+                {{
+                  $t("dashboard.admin.access.principals.scope", { channel: held.scopeChannelId })
+                }}
+              </span>
+              <span v-if="held.expiresAt" data-assignment-expires class="text-muted-foreground">
+                {{ $t("dashboard.admin.access.principals.expires") }}
+                <DateTime :value="held.expiresAt" />
+              </span>
               <Button
                 v-if="can('iam:manage')"
                 variant="ghost"
@@ -267,9 +327,12 @@ async function startImpersonation(): Promise<void> {
               <Button variant="outline" data-assign @click="open('assign', row)">{{
                 $t("dashboard.admin.access.actions.assign")
               }}</Button>
-              <Button variant="outline" data-deactivate @click="open('deactivate', row)">{{
-                $t("dashboard.admin.access.actions.deactivate")
-              }}</Button>
+              <Button
+                variant="ghost"
+                class="text-destructive hover:text-destructive"
+                data-deactivate
+                @click="open('deactivate', row)"
+              >{{ $t("dashboard.admin.access.actions.deactivate") }}</Button>
             </template>
             <Button
               v-else
@@ -281,6 +344,14 @@ async function startImpersonation(): Promise<void> {
           </div>
         </li>
       </ul>
+      <p
+        v-if="reactivate.isError.value"
+        data-reactivate-failure
+        class="mt-3 text-sm text-destructive"
+        role="alert"
+      >
+        {{ $t("dashboard.admin.access.failed") }}
+      </p>
     </PanelCard>
 
     <PanelCard
@@ -292,28 +363,59 @@ async function startImpersonation(): Promise<void> {
       @retry="roles.refetch()"
     >
       <ul class="divide-y divide-border">
-        <li
+        <Collapsible
           v-for="role in roles.data.value ?? []"
           :key="role.id"
+          as="li"
           data-role-row
-          class="flex items-center gap-3 py-2"
+          class="py-2"
         >
-          <div class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium">{{ role.name }}</span>
-            <span class="block truncate text-xs text-muted-foreground">{{ role.description }}</span>
+          <div class="flex items-center gap-3">
+            <CollapsibleTrigger
+              data-role-toggle
+              class="group flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <ChevronDown
+                class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+                aria-hidden="true"
+              />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">{{ role.name }}</span>
+                <span class="block truncate text-xs text-muted-foreground">{{
+                  role.description
+                }}</span>
+              </span>
+            </CollapsibleTrigger>
+            <Badge v-if="role.isSystem" variant="outline">{{
+              $t("dashboard.admin.access.roles.system")
+            }}</Badge>
+            <span class="text-xs text-muted-foreground">
+              {{
+                $t(
+                  "dashboard.admin.access.roles.permissions",
+                  { count: role.permissionKeys.length },
+                  role.permissionKeys.length,
+                )
+              }}
+            </span>
           </div>
-          <Badge v-if="role.isSystem" variant="outline">{{
-            $t("dashboard.admin.access.roles.system")
-          }}</Badge>
-          <span class="text-xs text-muted-foreground">
-            {{ $t("dashboard.admin.access.roles.permissions", { count: role.permissionKeys.length }, role.permissionKeys.length) }}
-          </span>
-        </li>
+          <CollapsibleContent>
+            <ul class="flex flex-wrap gap-1.5 pt-2 pl-6">
+              <li
+                v-for="key in role.permissionKeys"
+                :key="key"
+                class="rounded-md border border-border px-2 py-0.5 font-mono text-xs"
+              >
+                {{ key }}
+              </li>
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
       </ul>
     </PanelCard>
 
     <PanelCard
-      v-if="can('user:impersonate')"
+      v-if="showSession"
       tier="quiet"
       :title="$t('dashboard.admin.access.session.title')"
       :description="$t('dashboard.admin.access.session.description')"
@@ -323,16 +425,23 @@ async function startImpersonation(): Promise<void> {
           <Label for="access-grant">{{ $t("dashboard.admin.access.session.grant") }}</Label>
           <Input id="access-grant" v-model="grantId" data-field-grant />
         </div>
-        <div class="grid gap-1.5">
-          <Label for="access-user">{{ $t("dashboard.admin.access.session.user") }}</Label>
-          <Input id="access-user" v-model="userId" data-field-user />
-        </div>
-        <div class="grid gap-1.5">
-          <Label for="access-justification">{{
-            $t("dashboard.admin.access.session.justification")
-          }}</Label>
-          <Input id="access-justification" v-model="justification" data-field-justification />
-        </div>
+        <template v-if="canImpersonate">
+          <div class="grid gap-1.5">
+            <Label for="access-user">{{ $t("dashboard.admin.access.session.user") }}</Label>
+            <Input id="access-user" v-model="userId" data-field-user />
+          </div>
+          <div class="grid gap-1.5">
+            <Label for="access-justification">{{
+              $t("dashboard.admin.access.session.justification")
+            }}</Label>
+            <Input
+              id="access-justification"
+              v-model="justification"
+              data-field-justification
+              required
+            />
+          </div>
+        </template>
       </div>
       <p v-if="sessionFailure" class="mt-3 text-sm text-destructive" role="alert">
         {{ sessionFailure }}
@@ -340,13 +449,20 @@ async function startImpersonation(): Promise<void> {
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <Button
+            v-if="canEnd"
             variant="outline"
             :disabled="sessionPending || grantId.trim() === ''"
             @click="finishEnd"
           >{{ $t("dashboard.admin.access.session.end") }}</Button>
           <Button
+            v-if="canImpersonate"
             variant="outline"
-            :disabled="sessionPending || grantId.trim() === '' || userId.trim() === ''"
+            :disabled="
+              sessionPending ||
+                grantId.trim() === '' ||
+                userId.trim() === '' ||
+                justification.trim() === ''
+            "
             @click="startImpersonation"
           >{{ $t("dashboard.admin.access.session.impersonate") }}</Button>
         </div>
@@ -366,17 +482,23 @@ async function startImpersonation(): Promise<void> {
       <div class="grid gap-3">
         <div v-if="step === 'assign'" class="grid gap-1.5">
           <Label for="access-role">{{ $t("dashboard.admin.access.assign.role") }}</Label>
-          <select
-            id="access-role"
-            v-model="roleId"
-            data-field-role
-            class="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          >
-            <option value="">{{ $t("dashboard.admin.access.assign.pickRole") }}</option>
-            <option v-for="role in roles.data.value ?? []" :key="role.id" :value="role.id">
-              {{ role.name }}
-            </option>
-          </select>
+          <Select v-model="roleId">
+            <SelectTrigger id="access-role" data-field-role class="w-full">
+              <SelectValue :placeholder="$t('dashboard.admin.access.assign.pickRole')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="role in roles.data.value ?? []" :key="role.id" :value="role.id">
+                {{ role.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div v-if="step === 'assign'" class="grid gap-1.5">
+          <Label for="access-expires">{{ $t("dashboard.admin.access.assign.expires") }}</Label>
+          <Input id="access-expires" v-model="expires" type="datetime-local" data-field-expires />
+          <p class="text-xs text-muted-foreground">
+            {{ $t("dashboard.admin.access.assign.expiresHelp") }}
+          </p>
         </div>
         <div class="grid gap-1.5">
           <Label for="access-reason">{{ $t("dashboard.admin.access.reason") }}</Label>

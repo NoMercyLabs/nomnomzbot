@@ -27,6 +27,7 @@ export type IamAssignment = components['schemas']['IamRoleAssignment'];
 export type AssignRoleInput = {
   principalId: string;
   roleId: string;
+  expiresAt: string | null;
   reason: string | null;
 };
 
@@ -79,12 +80,18 @@ export function useAssignIamRole() {
   const queries = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ principalId, roleId, reason }: AssignRoleInput): Promise<void> => {
+    mutationFn: async ({
+      principalId,
+      roleId,
+      expiresAt,
+      reason,
+    }: AssignRoleInput): Promise<void> => {
       const { error, response } = await client.POST('/api/v{version}/platform/iam/assignments', {
         params: { path: { version } },
         body: {
           principalId,
           roleId,
+          expiresAt,
           reason,
         },
       });
