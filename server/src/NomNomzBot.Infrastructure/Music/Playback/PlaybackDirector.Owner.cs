@@ -43,21 +43,37 @@ public sealed partial class PlaybackDirector
                 break;
             case OwnerVolume volume:
                 _volume = Math.Clamp(volume.Level, 0, 100);
-                if (_muted || await CommandAsync(engine, name, e => e.SetVolumeAsync(_volume, ct)))
+                if (_muted || await SendLevelAsync(engine, name, ct))
                     await MoveAsync(State, input, "volume");
                 break;
             case OwnerMute mute:
                 _muted = mute.On;
-                if (
-                    await CommandAsync(
-                        engine,
-                        name,
-                        e => e.SetVolumeAsync(_muted ? 0 : _volume, ct)
-                    )
-                )
+                if (await SendLevelAsync(engine, name, ct))
                     await MoveAsync(State, input, _muted ? "mute" : "unmute");
                 break;
+            case DuckStart duck:
+                _duckPercent = Math.Clamp(duck.Percent, 0, 100);
+                if (_muted || await SendLevelAsync(engine, name, ct))
+                    await MoveAsync(State, input, "duck_start");
+                break;
+            case DuckEnd:
+                _duckPercent = null;
+                if (_muted || await SendLevelAsync(engine, name, ct))
+                    await MoveAsync(State, input, "duck_end");
+                break;
         }
+    }
+
+    /// <summary>The level the engine plays at: 0 when muted, the ducked share while bot audio plays, else the owner level.</summary>
+    private int EffectiveVolume() =>
+        _muted ? 0
+        : _duckPercent is { } percent ? _volume * percent / 100
+        : _volume;
+
+    private Task<bool> SendLevelAsync(EngineKind engine, string inputName, CancellationToken ct)
+    {
+        int level = EffectiveVolume();
+        return CommandAsync(engine, inputName, e => e.SetVolumeAsync(level, ct));
     }
 
     private async Task OnSkipAsync(EngineKind engine, PlaybackInput input, CancellationToken ct)

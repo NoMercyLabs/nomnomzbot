@@ -52,6 +52,9 @@ public sealed partial class PlaybackDirector : IDisposable
     private int _volume = 100;
     private bool _muted;
 
+    /// <summary>The share of the owner level while bot audio plays; null when no duck is active.</summary>
+    private int? _duckPercent;
+
     private EngineReport? _ownerReport;
     private string? _confirmedDeviceId;
     private OwnerMusicMemory? _memory;

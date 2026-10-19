@@ -91,7 +91,14 @@ public sealed partial class PlaybackDirector
             case TrackEnded ended when IsCurrentTrack(ended):
                 await OnTrackEndedAsync(ended, ct);
                 break;
-            case OwnerPause or OwnerSkip or OwnerPrevious or OwnerSeek or OwnerVolume or OwnerMute:
+            case OwnerPause
+            or OwnerSkip
+            or OwnerPrevious
+            or OwnerSeek
+            or OwnerVolume
+            or OwnerMute
+            or DuckStart
+            or DuckEnd:
                 await OnOwnerIntentAsync(input, ct);
                 break;
             case OutputAttached attached when State.Engine is { } engine:

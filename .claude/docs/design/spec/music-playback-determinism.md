@@ -137,6 +137,7 @@ keeps its place in the queue.
 | `TrackEnded(engine, uri)` | YouTube ENDED; Spotify: uri changed or progress reset after near-end. |
 | `OwnerPause / OwnerResume / OwnerSkip / OwnerPrevious` | Any control surface (2.1), or detected in an engine (see 4). |
 | `OwnerSeek(ms) / OwnerVolume(level) / OwnerMute(on)` | Any control surface. |
+| `DuckStart(percent) / DuckEnd` | Bot audio (TTS, sounds) starts and ends. While ducked the music level is the owner level times percent. |
 | `OutputAttached / OutputDetached` | Music widget presence. |
 | `StartTimeout` | `Starting` deadline passed. |
 
@@ -157,10 +158,13 @@ keeps its place in the queue.
 | Playing(e, *) | OwnerPrevious, progress > 3 s | Playing(e, *) | seek e to 0 |
 | Playing(e, *) | OwnerPrevious, progress <= 3 s | Starting(last.engine, last) | put last played item at head; stop e; start it |
 | Playing(e, *) | OwnerSeek / OwnerVolume / OwnerMute | Playing(e, *) | apply to e (mute: see 3) |
+| Playing(e, *) | DuckStart / DuckEnd | Playing(e, *) | set e to the effective level: muted ? 0 : ducked ? volume * percent / 100 : volume |
+| PausedByOwner(e, *) | OwnerSeek / OwnerVolume / OwnerMute / DuckStart / DuckEnd | PausedByOwner(e, *) | apply to e, same effective level |
 | Playing(e, *) | OwnerPause | PausedByOwner(e, *) | pause e |
 | PausedByOwner(e, *) | OwnerResume | Playing(e, *) | resume e ONLY |
 | PausedByOwner(e, *) | RequestAdded, EngineReport paused, poll tick | PausedByOwner | none |
 | PausedByOwner(e, *) | OwnerSkip | Starting(next) or Idle | start head |
+| PausedByOwner(e, *) | OwnerSeek / OwnerVolume / OwnerMute | PausedByOwner(e, *) | apply to e. Arc's decision, pending Stoney: OwnerSeek, OwnerVolume, OwnerMute are accepted in PausedByOwner |
 | any | EngineReport of an engine that is not the owner engine, playing | same | pause that engine; log `foreign_engine_silenced` |
 | Blocked | OutputAttached / token restored | Idle | re-evaluate |
 | Blocked | RequestAdded | Idle, then Starting(head) | re-evaluate the kept head and start it as Idle + RequestAdded does; journal reason `request_added` |
@@ -178,6 +182,8 @@ Decided (Stoney, 2026-10-19, picked 'Blocked error'): when the bot cannot start 
 Arc's decision, pending Stoney: a play-once video that ends with no resume pending lets the director start the waiting request.
 
 Arc's decision, pending Stoney: Blocked + RequestAdded retries the head (Blocked -> Idle, re-evaluate head).
+
+Arc's decision, pending Stoney: PREMIUM_REQUIRED already wired. A Spotify start that answers PremiumRequired ends the director Blocked with the premium reason (thrown at SpotifyMusicProvider.cs:2056-2059, mapped at EngineBlockMap.cs:28, proven by commit 217872749).
 
 ## 3. Rule: two system widgets, two audio levels
 
