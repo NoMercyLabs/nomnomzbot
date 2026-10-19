@@ -15,7 +15,7 @@ import Trash from '~icons/nnz/trash';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useEngagementConfig, useSaveEngagementConfig } from '@/api/engagement';
+import { engagementDefaults, useEngagementConfig, useSaveEngagementConfig } from '@/api/engagement';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -72,16 +72,39 @@ const changed = computed(() => {
   if (row === undefined)
     return false;
 
-  return firstTime.value !== row.firstTimeChatterEnabled ||
+  return (
+    firstTime.value !== row.firstTimeChatterEnabled ||
     returning.value !== row.returningChatterEnabled ||
     streak.value !== row.watchStreakEnabled ||
     cooldown.value !== row.greetCooldownSeconds ||
-    milestones.value.join(',') !== row.streakMilestones.join(',');
+    milestones.value.join(',') !== row.streakMilestones.join(',')
+  );
 });
 
 const canSave = computed(
   () => changed.value && cooldownValid.value && milestonesValid.value && !save.isPending.value,
 );
+
+const atDefaults = computed(
+  () =>
+    firstTime.value === engagementDefaults.firstTimeChatterEnabled &&
+    returning.value === engagementDefaults.returningChatterEnabled &&
+    streak.value === engagementDefaults.watchStreakEnabled &&
+    cooldown.value === engagementDefaults.greetCooldownSeconds &&
+    milestones.value.length === engagementDefaults.streakMilestones.length,
+);
+
+// Puts the defaults in the form. Nothing is sent until the person saves.
+function resetToDefaults(): void {
+  firstTime.value = engagementDefaults.firstTimeChatterEnabled;
+  returning.value = engagementDefaults.returningChatterEnabled;
+  streak.value = engagementDefaults.watchStreakEnabled;
+  cooldown.value = engagementDefaults.greetCooldownSeconds;
+  milestones.value = [...engagementDefaults.streakMilestones];
+}
+
+const momentHelp = (key: string): string =>
+  `${t(`dashboard.settings.engagement.${key}.description`)} ${t('dashboard.settings.engagement.defaultOff')}`;
 
 function setCooldown(value: string | number): void {
   cooldown.value = value === ''
@@ -144,19 +167,19 @@ async function submit(): Promise<void> {
             v-model="firstTime"
             :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.firstTime.title')"
-            :description="$t('dashboard.settings.engagement.firstTime.description')"
+            :description="momentHelp('firstTime')"
           />
           <SettingRow
             v-model="returning"
             :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.returning.title')"
-            :description="$t('dashboard.settings.engagement.returning.description')"
+            :description="momentHelp('returning')"
           />
           <SettingRow
             v-model="streak"
             :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.streak.title')"
-            :description="$t('dashboard.settings.engagement.streak.description')"
+            :description="momentHelp('streak')"
           />
         </RowGroup>
       </section>
@@ -215,7 +238,9 @@ async function submit(): Promise<void> {
               :disabled="!can('engagement:write')"
               :model-value="milestone"
               :aria-invalid="!isCountValid(milestone)"
-              :aria-label="$t('dashboard.settings.engagement.milestones.item', { number: index + 1 })"
+              :aria-label="
+                $t('dashboard.settings.engagement.milestones.item', { number: index + 1 })
+              "
               @update:model-value="setMilestone(index, $event)"
             />
             <span class="text-sm text-muted-foreground">{{
@@ -227,16 +252,15 @@ async function submit(): Promise<void> {
               variant="ghost"
               size="icon"
               data-remove-milestone
-              :aria-label="$t('dashboard.settings.engagement.milestones.remove', { number: index + 1 })"
+              :aria-label="
+                $t('dashboard.settings.engagement.milestones.remove', { number: index + 1 })
+              "
               @click="removeMilestone(index)"
             >
               <Trash class="size-5" />
             </Button>
           </ReadabilityRow>
-          <p
-            v-if="milestones.length === 0"
-            class="px-3 py-2 text-sm text-muted-foreground"
-          >
+          <p v-if="milestones.length === 0" class="px-3 py-2 text-sm text-muted-foreground">
             {{ $t('dashboard.settings.engagement.milestones.empty') }}
           </p>
         </RowGroup>
@@ -257,9 +281,20 @@ async function submit(): Promise<void> {
       <p v-if="error" role="alert" class="px-3 text-sm text-destructive">{{ error }}</p>
     </form>
     <template v-if="can('engagement:write')" #footer>
-      <span v-if="changed && !(cooldownValid && milestonesValid)" class="mr-auto text-sm text-destructive">{{
-        $t('dashboard.settings.engagement.invalid')
-      }}</span>
+      <span
+        v-if="changed && !(cooldownValid && milestonesValid)"
+        class="mr-auto text-sm text-destructive"
+      >{{ $t('dashboard.settings.engagement.invalid') }}</span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        data-reset-defaults
+        :disabled="atDefaults"
+        @click="resetToDefaults"
+      >
+        {{ $t('dashboard.settings.engagement.reset') }}
+      </Button>
       <Button type="submit" form="engagement-form" size="sm" :disabled="!canSave">
         {{ $t('dashboard.settings.engagement.save') }}
       </Button>

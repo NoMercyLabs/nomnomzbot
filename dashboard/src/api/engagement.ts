@@ -32,7 +32,20 @@ export type EngagementConfig = {
   greetCooldownSeconds: number;
 };
 
-export type EngagementChange = Omit<components['schemas']['UpdateEngagementConfigRequest'], 'streakMilestones' | 'greetCooldownSeconds'> & {
+// What the bot uses for a channel that never saved a config (EngagementService.Defaults: every moment off,
+// no milestones so a streak counts on every stream, a 5 second pace).
+export const engagementDefaults: EngagementConfig = {
+  firstTimeChatterEnabled: false,
+  returningChatterEnabled: false,
+  watchStreakEnabled: false,
+  streakMilestones: [],
+  greetCooldownSeconds: 5,
+};
+
+export type EngagementChange = Omit<
+  components['schemas']['UpdateEngagementConfigRequest'],
+  'streakMilestones' | 'greetCooldownSeconds'
+> & {
   streakMilestones: number[];
   greetCooldownSeconds: number;
 };

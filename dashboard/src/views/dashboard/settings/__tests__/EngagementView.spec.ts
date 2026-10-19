@@ -95,10 +95,10 @@ async function open(): Promise<void> {
 }
 
 const q = <T extends Element>(selector: string): T => document.body.querySelector<T>(selector) as T;
-const saveButton = (): HTMLButtonElement =>
-  q<HTMLButtonElement>('button[form="engagement-form"]');
-const milestoneInputs = (): HTMLInputElement[] =>
-  [...document.body.querySelectorAll<HTMLInputElement>('[data-milestone]')];
+const saveButton = (): HTMLButtonElement => q<HTMLButtonElement>('button[form="engagement-form"]');
+const milestoneInputs = (): HTMLInputElement[] => [
+  ...document.body.querySelectorAll<HTMLInputElement>('[data-milestone]'),
+];
 
 const switchFor = (title: string): HTMLElement => {
   const path = `//label[.//span[normalize-space(text())="${title}"]]//button[@role="switch"]`;
@@ -197,5 +197,45 @@ describe('Greetings and streaks', () => {
     await click(saveButton());
 
     expect(q('[role="alert"]').textContent).toContain('GreetCooldownSeconds cannot be negative.');
+  });
+
+  it('names the default of every setting next to it', async () => {
+    await open();
+
+    const text = document.body.textContent ?? '';
+
+    expect(text.match(/Default: off\./g)).toHaveLength(3);
+    expect(text).toContain('Default: 5 seconds.');
+    expect(text).toContain('Default: none, which celebrates every stream.');
+  });
+
+  it('puts the defaults in the form on reset and saves them only on Save', async () => {
+    await open();
+    await click(q('[data-reset-defaults]'));
+
+    expect(saved).toEqual([]);
+    expect(switchFor('First message ever').getAttribute('aria-checked')).toBe('false');
+    expect(q<HTMLInputElement>('[data-cooldown]').value).toBe('5');
+    expect(milestoneInputs()).toHaveLength(0);
+    expect(q<HTMLButtonElement>('[data-reset-defaults]').disabled).toBe(true);
+
+    await click(saveButton());
+
+    expect(saved).toEqual([
+      {
+        firstTimeChatterEnabled: false,
+        returningChatterEnabled: false,
+        watchStreakEnabled: false,
+        streakMilestones: [],
+        greetCooldownSeconds: 5,
+      },
+    ]);
+  });
+
+  it('offers no reset to a person without the write key', async () => {
+    held = ['engagement:read'];
+    await open();
+
+    expect(document.body.querySelector('[data-reset-defaults]')).toBeNull();
   });
 });
