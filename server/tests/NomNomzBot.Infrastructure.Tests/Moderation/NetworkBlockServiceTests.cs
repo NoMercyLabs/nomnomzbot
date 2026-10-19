@@ -84,6 +84,7 @@ public sealed class NetworkBlockServiceTests : IDisposable
                     ExternalChannelId = $"ext-{name}",
                     Name = name,
                     NameNormalized = name,
+                    AcceptsNetworkBlocks = true,
                 }
             );
         }
@@ -291,6 +292,69 @@ public sealed class NetworkBlockServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AChannelThatDidNotOptIn_IsNeitherPreviewedNorBanned_ByApply()
+    {
+        Guid notOptedIn = Guid.Parse("0199e000-0000-7000-8000-0000000000e1");
+        using (AppDbContext seed = NewDbContext())
+        {
+            SeedOperator(seed, OperatorId, IamPermissionKeys.NetworkBlockManage);
+            seed.Channels.Add(
+                new Channel
+                {
+                    Id = notOptedIn,
+                    OwnerUserId = Guid.NewGuid(),
+                    Provider = AuthEnums.Platform.Twitch,
+                    ExternalChannelId = "ext-not-opted-in",
+                    Name = "not-opted-in",
+                    NameNormalized = "not-opted-in",
+                }
+            );
+            seed.ChannelCommunityStandings.Add(
+                new ChannelCommunityStanding
+                {
+                    BroadcasterId = notOptedIn,
+                    UserId = TargetUserId,
+                    Standing = CommunityStanding.Everyone,
+                }
+            );
+            seed.SaveChanges();
+            seed.Channels.Single(c => c.Id == notOptedIn)
+                .AcceptsNetworkBlocks.Should()
+                .BeFalse("a channel owner has to turn network blocks on");
+        }
+
+        using AppDbContext db = NewDbContext();
+        (NetworkBlockService sut, ITwitchModerationApi twitch) = NewService(db);
+
+        Result<NetworkBlockPreviewDto> preview = await sut.PreviewAsync(
+            OperatorId,
+            TargetTwitchId,
+            Why
+        );
+        preview.Value.TenantCount.Should().Be(3);
+        preview
+            .Value.Tenants.Select(t => t.BroadcasterId)
+            .Should()
+            .BeEquivalentTo([TenantA, TenantB, TenantC]);
+
+        Result<NetworkBlockDto> applied = await sut.ApplyAsync(
+            OperatorId,
+            new ApplyNetworkBlockRequest(TargetTwitchId, "cross-channel raid", Why, 3)
+        );
+
+        applied.IsSuccess.Should().BeTrue(applied.ErrorMessage);
+        applied.Value.ChannelCount.Should().Be(3);
+        await twitch
+            .DidNotReceive()
+            .BanUserAsync(
+                notOptedIn,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Apply_WhileABlockIsStillEnforced_IsRefused_AndBansNobodyTwice()
     {
         using AppDbContext seed = NewDbContext();
@@ -362,6 +426,7 @@ public sealed class NetworkBlockServiceTests : IDisposable
                 ExternalChannelId = "ext-untouched",
                 Name = "untouched",
                 NameNormalized = "untouched",
+                AcceptsNetworkBlocks = true,
             }
         );
         seed.SaveChanges();

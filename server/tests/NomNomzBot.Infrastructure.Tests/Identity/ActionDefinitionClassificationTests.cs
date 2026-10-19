@@ -199,6 +199,7 @@ public sealed class ActionDefinitionClassificationTests
         "moderation:moderator:write",
         "moderation:vip",
         "moderation:massban:optout",
+        "moderation:networkblock:optin",
         // Destructive-irreversible / journal integrity
         "eventstore:journal:read",
         "eventstore:projection:rebuild",

@@ -195,6 +195,13 @@ public class Channel : SoftDeletableEntity
     /// </summary>
     public bool AcceptsModeratorMassBans { get; set; }
 
+    /// <summary>
+    /// When on, an admin network block (S-ADMIN-8b) bans its blocked actor in this channel too: at apply, at the
+    /// actor's first chat here and at onboarding. Off by default and for a missing row: the owner opts in
+    /// (opt-in only, refusal wins), so a network-wide control never reaches a channel that did not ask for it.
+    /// </summary>
+    public bool AcceptsNetworkBlocks { get; set; }
+
     [ForeignKey(nameof(OwnerUserId))]
     public virtual User User { get; set; } = null!;
 

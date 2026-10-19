@@ -114,7 +114,13 @@ public sealed class NetworkBlockEnforcementTests : IDisposable
     private AppDbContext NewDbContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
 
-    private static void AddChannel(AppDbContext db, Guid id, string name, DateTime createdAt) =>
+    private static void AddChannel(
+        AppDbContext db,
+        Guid id,
+        string name,
+        DateTime createdAt,
+        bool acceptsNetworkBlocks = true
+    ) =>
         db.Channels.Add(
             new Channel
             {
@@ -125,6 +131,7 @@ public sealed class NetworkBlockEnforcementTests : IDisposable
                 Name = name,
                 NameNormalized = name,
                 CreatedAt = createdAt,
+                AcceptsNetworkBlocks = acceptsNetworkBlocks,
             }
         );
 
@@ -273,6 +280,55 @@ public sealed class NetworkBlockEnforcementTests : IDisposable
             .Received(1)
             .BanUserAsync(OldQuietTenant, TargetTwitchId, "raid", Arg.Any<CancellationToken>());
         (await LegChannelsAsync(block.Id)).Should().BeEquivalentTo([TenantA, OldQuietTenant]);
+    }
+
+    [Fact]
+    public async Task BlockedActorChatting_InAChannelThatDidNotOptIn_IsNotBanned_AtChatIngest()
+    {
+        Guid notOptedIn = Guid.Parse("0199e000-0000-7000-8000-0000000001f3");
+        using (AppDbContext db = NewDbContext())
+        {
+            AddChannel(db, notOptedIn, "channel-closed", Now.UtcDateTime.AddDays(-5), false);
+            db.SaveChanges();
+        }
+        NetworkBlockDto block = await ApplyBlockAsync();
+
+        await NewChatHandler().HandleAsync(ChatLine(notOptedIn, TargetTwitchId));
+
+        await _twitch
+            .DidNotReceive()
+            .BanUserAsync(
+                notOptedIn,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await LegChannelsAsync(block.Id)).Should().BeEquivalentTo([TenantA]);
+    }
+
+    [Fact]
+    public async Task ChannelOnboardedAfterTheBlock_ThatDidNotOptIn_IsNotBanned_AtOnboarding()
+    {
+        NetworkBlockDto block = await ApplyBlockAsync();
+        using (AppDbContext db = NewDbContext())
+        {
+            AddChannel(db, LateTenant, "channel-late", Now.UtcDateTime.AddHours(2), false);
+            db.SaveChanges();
+        }
+
+        using AppDbContext check = NewDbContext();
+        Result<int> enforced = await NewEnforcer(check).EnforceForOnboardedChannelAsync(LateTenant);
+
+        enforced.Value.Should().Be(0);
+        await _twitch
+            .DidNotReceive()
+            .BanUserAsync(
+                LateTenant,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await LegChannelsAsync(block.Id)).Should().BeEquivalentTo([TenantA]);
     }
 
     [Fact]

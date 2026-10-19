@@ -70,6 +70,7 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
 
         builder.Property(e => e.AutoShoutoutEnabled).HasDefaultValue(false);
         builder.Property(e => e.AcceptsModeratorMassBans).HasDefaultValue(false);
+        builder.Property(e => e.AcceptsNetworkBlocks).HasDefaultValue(false);
 
         builder.Property(e => e.UsernamePronunciation).HasMaxLength(100);
 

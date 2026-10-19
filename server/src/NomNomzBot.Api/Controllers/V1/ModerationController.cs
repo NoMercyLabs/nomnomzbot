@@ -2043,6 +2043,50 @@ public class ModerationController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Whether an admin network block also bans its blocked actor in this channel. Off by default: the channel
+    /// owner opts in.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("network-block-opt-in")]
+    [ProducesResponseType<StatusResponseDto<NetworkBlockOptInDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNetworkBlockOptIn(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        bool? accepts = await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => (bool?)c.AcceptsNetworkBlocks)
+            .FirstOrDefaultAsync(ct);
+        if (accepts is null)
+            return NotFoundResponse("Channel not found.");
+        return Ok(new StatusResponseDto<NetworkBlockOptInDto> { Data = new(accepts.Value) });
+    }
+
+    /// <summary>The channel owner turns admin network blocks for this channel on or off.</summary>
+    [RequireAction("moderation:networkblock:optin")]
+    [HttpPut("network-block-opt-in")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetNetworkBlockOptIn(
+        string channelId,
+        [FromBody] NetworkBlockOptInDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
+        if (channel is null)
+            return NotFoundResponse("Channel not found.");
+
+        channel.AcceptsNetworkBlocks = request.Accepts;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /// <summary>Sets (or clears, with a null/empty template) the channel's custom shoutout announcement template.</summary>
     [RequireAction("moderation:shoutout")]
     [HttpPut("shoutout-template")]

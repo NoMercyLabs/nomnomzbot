@@ -275,6 +275,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:moderator:write", Broadcaster, DangerTier.Critical, grant: false);
         // Whether moderators' mass bans across their channels also reach this channel: the owner's call alone.
         M("moderation:massban:optout", Broadcaster);
+        // Whether an admin network block reaches this channel: the owner's call alone, off until they say so.
+        M("moderation:networkblock:optin", Broadcaster);
         M("moderation:unbanrequest:read", Mod);
         M("moderation:unbanrequest:resolve", LeadModerator);
         M("moderation:blocklist:write", LeadModerator);

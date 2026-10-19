@@ -36,6 +36,13 @@ public sealed class NetworkBlockEnforcementService(
         CancellationToken ct = default
     )
     {
+        bool optedIn = await db
+            .Channels.IgnoreQueryFilters()
+            .OptedIn()
+            .AnyAsync(c => c.Id == broadcasterId, ct);
+        if (!optedIn)
+            return Result.Success(0);
+
         NetworkBlock? block = await EnforcedBlocks()
             .FirstOrDefaultAsync(b => b.TargetTwitchUserId == twitchUserId, ct);
         if (block is null)
@@ -49,13 +56,16 @@ public sealed class NetworkBlockEnforcementService(
         CancellationToken ct = default
     )
     {
-        DateTime? channelCreatedAt = await db
+        var channel = await db
             .Channels.IgnoreQueryFilters()
             .Where(c => c.Id == broadcasterId)
-            .Select(c => (DateTime?)c.CreatedAt)
+            .Select(c => new { c.CreatedAt, c.AcceptsNetworkBlocks })
             .FirstOrDefaultAsync(ct);
-        if (channelCreatedAt is null)
+        if (channel is null)
             return Result.Failure<int>("Unknown channel.", "NOT_FOUND");
+        if (!channel.AcceptsNetworkBlocks)
+            return Result.Success(0);
+        DateTime? channelCreatedAt = channel.CreatedAt;
 
         List<NetworkBlock> blocks = await EnforcedBlocks()
             .Where(b => b.AppliedAt <= channelCreatedAt.Value)

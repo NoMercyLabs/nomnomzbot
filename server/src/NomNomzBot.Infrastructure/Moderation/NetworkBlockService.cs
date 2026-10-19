@@ -313,14 +313,14 @@ public sealed class NetworkBlockService(
 
         Dictionary<Guid, string> channelNames = await db
             .Channels.IgnoreQueryFilters()
+            .OptedIn()
             .Where(c => broadcasterIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
 
-        List<NetworkBlockAffectedTenantDto> tenants = broadcasterIds
-            .Select(id => new NetworkBlockAffectedTenantDto(
-                id,
-                channelNames.GetValueOrDefault(id, "unknown channel")
-            ))
+        // Opt-in only: a channel that did not turn network blocks on (or has no row) is never listed, so the
+        // preview count and the apply fan-out both leave it alone.
+        List<NetworkBlockAffectedTenantDto> tenants = channelNames
+            .Select(entry => new NetworkBlockAffectedTenantDto(entry.Key, entry.Value))
             .OrderBy(t => t.ChannelName)
             .ToList();
 

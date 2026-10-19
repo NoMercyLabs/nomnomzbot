@@ -63,3 +63,6 @@ public sealed record NetworkBlockDto(
     int RestoredChannelCount,
     IReadOnlyList<string> LiftFailedChannelIds
 );
+
+/// <summary>Whether an admin network block reaches this channel (off until the channel owner says so).</summary>
+public sealed record NetworkBlockOptInDto(bool Accepts);
