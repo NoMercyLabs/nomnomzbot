@@ -305,6 +305,7 @@ describe('BuiltinEditor', () => {
     expect(button('Back to default: Chat cooldown (seconds)')!.getAttribute('data-size')).not.toBe(
       'sm',
     );
+
     expect(button('Back to default: Online reply')!.getAttribute('data-size')).not.toBe('sm');
 
     await click(button('Back to default: Chat cooldown (seconds)'));

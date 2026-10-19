@@ -38,7 +38,8 @@ async function fetchMyChannels(): Promise<ChannelSummary[]> {
     params: version,
   });
 
-  if (!response.ok) throw problemError('my channels', response.status, error);
+  if (!response.ok)
+    throw problemError('my channels', response.status, error);
 
   // eslint-disable-next-line no-restricted-syntax -- the document types the rows as Channel, so the cast must go through the wire's true type
   return (data?.data ?? []) as unknown as ChannelSummary[];
@@ -49,7 +50,8 @@ async function fetchModeratedChannels(): Promise<ModeratedChannel[]> {
     params: version,
   });
 
-  if (!response.ok) throw problemError('moderated channels', response.status, error);
+  if (!response.ok)
+    throw problemError('moderated channels', response.status, error);
 
   return data?.data ?? [];
 }

@@ -496,7 +496,7 @@ public sealed record CatalogItemDto(Guid Id, string Name, string? Description, s
 
 public sealed record CatalogPurchaseDto(long Id, Guid CatalogItemId, Guid BuyerUserId, Guid BuyerAccountId, long CostPaid, string ItemNameSnapshot, string Status, long? LedgerEntryId, string? InputArgs, DateTime CreatedAt);
 
-public sealed record GameConfigDto(Guid Id, string GameType, string Category, bool IsEnabled, bool Requires18Plus, long? MinBet, long? MaxBet, decimal? HouseEdgePercent, decimal? WinChancePercent, decimal? PayoutMultiplier, int CooldownSeconds, int? MaxPlaysPerStream, string Permission, IReadOnlyDictionary<string, object?>? Config);
+public sealed record GameConfigDto(Guid Id, string GameType, string Category, bool IsEnabled, bool Requires18Plus, long? MinBet, long? MaxBet, decimal? HouseEdgePercent, decimal? WinChancePercent, decimal? PayoutMultiplier, int CooldownSeconds, int CooldownFloorSeconds, int? MaxPlaysPerStream, string Permission, IReadOnlyDictionary<string, object?>? Config);
 
 public sealed record GamePlayDto(long Id, Guid GameConfigId, Guid PlayerUserId, long BetAmount, string Outcome, long PayoutAmount, long NetResult, DateTime CreatedAt);
 

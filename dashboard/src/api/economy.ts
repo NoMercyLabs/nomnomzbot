@@ -540,11 +540,13 @@ export function useAdjustAccount(
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/adjust',
         {
-          params: { path: {
-            version,
-            channelId: id,
-            viewerUserId,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              viewerUserId,
+            },
+          },
           body: { amount, reason } as components['schemas']['AdminAdjustCommand'],
         },
       );
@@ -565,11 +567,13 @@ export function useFreezeAccount(
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/freeze',
         {
-          params: { path: {
-            version,
-            channelId: id,
-            viewerUserId,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              viewerUserId,
+            },
+          },
           body: { frozen },
         },
       );

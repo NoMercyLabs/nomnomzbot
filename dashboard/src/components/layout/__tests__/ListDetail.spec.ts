@@ -25,7 +25,7 @@ function detailClasses(detailIdle: boolean | undefined): string {
 
 describe('the list and detail layout', () => {
   it('stretches the last detail panel to the full column height by default', () => {
-    const classes: string = detailClasses(undefined);
+    const classes = detailClasses(undefined);
 
     expect(classes).toContain('md:*:last:flex-1');
     expect(classes).not.toContain('md:*:last:flex-none');

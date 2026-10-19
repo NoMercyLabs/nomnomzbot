@@ -59634,7 +59634,7 @@ export interface paths {
         /**
          * The channel's OBS connection. `view=full` (default) is the configuration (defaults when none is
          *     stored yet) and needs `obs:config:read`; `view=status` is only the connection state and
-         *     needs `obs:control`, so a moderator's panels can tell whether OBS is on.
+         *     needs `obs:scene:read`, so a moderator's panels can tell whether OBS is on.
          */
         get: {
             parameters: {

@@ -37,8 +37,8 @@ const locales: [string, PageWords][] = [
 describe('settings tab card titles', () => {
   it.each(locales)('%s: no card title restates its page title', (_locale, words) => {
     for (const [view, navKey] of Object.entries(navKeys)) {
-      const pageTitle: string = words.frame.frame.nav.settingsPages[navKey]!.toLowerCase();
-      const cardTitle: string = words.page.dashboard.settings[view]!.title.toLowerCase();
+      const pageTitle = words.frame.frame.nav.settingsPages[navKey]!.toLowerCase();
+      const cardTitle = words.page.dashboard.settings[view]!.title.toLowerCase();
 
       expect(pageTitle, view).not.toContain(cardTitle);
       expect(cardTitle, view).not.toContain(pageTitle);

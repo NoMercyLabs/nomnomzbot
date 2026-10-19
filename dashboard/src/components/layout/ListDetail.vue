@@ -18,7 +18,11 @@ import SidePanel from '@/components/layout/SidePanel.vue';
 // detailIdle: nothing is open yet, so the detail column holds only a hint. It keeps its own height instead of
 // stretching to the column's full height.
 withDefaults(
-  defineProps<{ showDetail?: boolean; asideLabel?: string; detailIdle?: boolean }>(),
+  defineProps<{
+    showDetail?: boolean;
+    asideLabel?: string;
+    detailIdle?: boolean;
+  }>(),
   {
     showDetail: false,
     asideLabel: '',
