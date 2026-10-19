@@ -22,14 +22,21 @@ import {
   useInboundWebhooks,
   useOutboundWebhooks,
   useReenableOutboundWebhook,
+  useRotateInboundWebhookLink,
+  useRotateOutboundWebhookSecret,
+  useSaveInboundWebhook,
   useSaveOutboundWebhook,
   useSetInboundWebhookEnabled,
+  useTestOutboundWebhook,
   useWebhookEventCatalog,
   type InboundWebhook,
+  type InboundWebhookDraft,
   type OutboundWebhook,
   type OutboundWebhookDraft,
   type WebhookBlastRadius,
+  type WebhookTestResult,
 } from '@/api/webhooks';
+import { usePipelines } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -42,7 +49,9 @@ import { usePanelState } from '@/composables/usePanelState';
 import { merge } from '@/lib/array';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
+import InboundWebhookDialog from './components/InboundWebhookDialog.vue';
 import InboundWebhookRow from './components/InboundWebhookRow.vue';
+import OutboundDeliveriesPanel from './components/OutboundDeliveriesPanel.vue';
 import OutboundWebhookDialog from './components/OutboundWebhookDialog.vue';
 import OutboundWebhookRow from './components/OutboundWebhookRow.vue';
 import SigningSecretDialog from './components/SigningSecretDialog.vue';
@@ -58,6 +67,11 @@ const removeOutbound = useDeleteOutboundWebhook(channelId);
 const removeInbound = useDeleteInboundWebhook(channelId);
 const reenable = useReenableOutboundWebhook(channelId);
 const setInbound = useSetInboundWebhookEnabled(channelId);
+const saveInbound = useSaveInboundWebhook(channelId);
+const rotateInbound = useRotateInboundWebhookLink(channelId);
+const rotateOutbound = useRotateOutboundWebhookSecret(channelId);
+const testOutbound = useTestOutboundWebhook(channelId);
+const pipelines = usePipelines(channelId);
 
 const outboundState = usePanelState(outbound, (rows) =>
   rows.length === 0);
@@ -79,6 +93,80 @@ const confirmOpen = ref(false);
 const deletingOutbound = ref<OutboundWebhook | null>(null);
 const deletingInbound = ref<InboundWebhook | null>(null);
 const consequences = ref<string[]>([]);
+
+const inboundEditorOpen = ref(false);
+const editingInbound = ref<InboundWebhook | null>(null);
+const inboundSaveError = ref<string | undefined>(undefined);
+
+const rotateOpen = ref(false);
+const rotatingInbound = ref<InboundWebhook | null>(null);
+const rotatingOutbound = ref<OutboundWebhook | null>(null);
+
+const testResult = ref<{ name: string; outcome: WebhookTestResult } | null>(null);
+
+const deliveriesOpen = ref(false);
+const deliveriesFor = ref<OutboundWebhook | null>(null);
+
+function openInboundEditor(endpoint: InboundWebhook | null): void {
+  editingInbound.value = endpoint;
+  inboundSaveError.value = undefined;
+  inboundEditorOpen.value = true;
+}
+
+async function submitInbound(draft: InboundWebhookDraft): Promise<void> {
+  inboundSaveError.value = undefined;
+
+  try {
+    await saveInbound.mutateAsync({ id: editingInbound.value?.id ?? null, draft });
+    inboundEditorOpen.value = false;
+  } catch (failure) {
+    inboundSaveError.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
+  }
+}
+
+function askRotateInbound(endpoint: InboundWebhook): void {
+  rotatingOutbound.value = null;
+  rotatingInbound.value = endpoint;
+  rotateOpen.value = true;
+}
+
+function askRotateOutbound(endpoint: OutboundWebhook): void {
+  rotatingInbound.value = null;
+  rotatingOutbound.value = endpoint;
+  rotateOpen.value = true;
+}
+
+async function confirmRotate(): Promise<void> {
+  const inboundTarget = rotatingInbound.value;
+  const outboundTarget = rotatingOutbound.value;
+
+  await run(async () => {
+    if (inboundTarget !== null) {
+      await rotateInbound.mutateAsync(inboundTarget.id);
+    }
+
+    if (outboundTarget !== null) {
+      revealedSecret.value = await rotateOutbound.mutateAsync(outboundTarget.id);
+    }
+  });
+
+  rotateOpen.value = false;
+}
+
+async function sendTest(endpoint: OutboundWebhook): Promise<void> {
+  testResult.value = null;
+
+  await run(async () => {
+    const outcome = await testOutbound.mutateAsync(endpoint.id);
+
+    testResult.value = { name: endpoint.name, outcome };
+  });
+}
+
+function openDeliveries(endpoint: OutboundWebhook): void {
+  deliveriesFor.value = endpoint;
+  deliveriesOpen.value = true;
+}
 
 function openEditor(endpoint: OutboundWebhook | null): void {
   editing.value = endpoint;
@@ -235,6 +323,9 @@ async function confirmDelete(): Promise<void> {
           @toggle="flipOutbound(endpoint)"
           @reenable="run(() => reenable.mutateAsync(endpoint.id))"
           @edit="openEditor(endpoint)"
+          @test="sendTest(endpoint)"
+          @rotate="askRotateOutbound(endpoint)"
+          @deliveries="openDeliveries(endpoint)"
           @remove="askDeleteOutbound(endpoint)"
         />
       </RowGroup>
@@ -248,6 +339,12 @@ async function confirmDelete(): Promise<void> {
       :error-text="$t('dashboard.settings.webhooks.inbound.loadFailed')"
       @retry="inbound.refetch()"
     >
+      <template v-if="can('webhooks:inbound:write')" #actions>
+        <Button variant="outline" data-new-inbound @click="openInboundEditor(null)">
+          <Add class="size-5" />
+          {{ $t("dashboard.settings.webhooks.inbound.new") }}
+        </Button>
+      </template>
       <RowGroup>
         <InboundWebhookRow
           v-for="endpoint in inboundRows"
@@ -255,10 +352,33 @@ async function confirmDelete(): Promise<void> {
           :endpoint="endpoint"
           :busy="busy"
           @toggle="flipInbound(endpoint)"
+          @edit="openInboundEditor(endpoint)"
+          @rotate="askRotateInbound(endpoint)"
           @remove="askDeleteInbound(endpoint)"
         />
       </RowGroup>
     </PanelCard>
+    <p
+      v-if="testResult"
+      data-test-result
+      role="status"
+      class="pt-3 text-sm"
+      :class="testResult.outcome.delivered ? 'text-muted-foreground' : 'text-destructive'"
+    >
+      {{
+        $t(
+          testResult.outcome.delivered
+            ? "dashboard.settings.webhooks.outbound.testDelivered"
+            : "dashboard.settings.webhooks.outbound.testFailed",
+          {
+            name: testResult.name,
+            code: testResult.outcome.responseCode ?? "-",
+            ms: testResult.outcome.durationMs ?? "-",
+            error: testResult.outcome.error ?? "",
+          },
+        )
+      }}
+    </p>
     <p v-if="pageError" role="alert" class="pt-3 text-sm text-destructive">{{ pageError }}</p>
   </PageBody>
 
@@ -271,7 +391,39 @@ async function confirmDelete(): Promise<void> {
     :error="saveError"
     @submit="submit"
   />
+  <InboundWebhookDialog
+    v-if="can('webhooks:inbound:write')"
+    v-model:open="inboundEditorOpen"
+    :endpoint="editingInbound"
+    :pipelines="pipelines.data.value ?? []"
+    :pending="saveInbound.isPending.value"
+    :error="inboundSaveError"
+    @submit="submitInbound"
+  />
+  <OutboundDeliveriesPanel
+    v-if="can('webhooks:outbound:read')"
+    v-model:open="deliveriesOpen"
+    :endpoint="deliveriesFor"
+  />
   <SigningSecretDialog :secret="revealedSecret" @done="revealedSecret = null" />
+  <ConfirmDialog
+    v-model:open="rotateOpen"
+    :title="
+      rotatingInbound
+        ? $t('dashboard.settings.webhooks.inbound.rotateTitle', { name: rotatingInbound.name })
+        : $t('dashboard.settings.webhooks.outbound.rotateTitle', {
+          name: rotatingOutbound?.name ?? '',
+        })
+    "
+    :description="
+      rotatingInbound
+        ? $t('dashboard.settings.webhooks.inbound.rotateDescription')
+        : $t('dashboard.settings.webhooks.outbound.rotateDescription')
+    "
+    :action="$t('dashboard.settings.webhooks.rotateAction')"
+    :pending="busy"
+    @confirm="confirmRotate"
+  />
   <ConfirmDialog
     v-model:open="confirmOpen"
     :title="

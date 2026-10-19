@@ -58,13 +58,31 @@ const outboundRow = {
 const inboundRow = {
   id: 'i1',
   name: 'Ko-fi',
-  adapter: 'generic',
+  adapter: 'Generic',
   ingestUrl: 'https://bot.test/webhooks/in/tok',
   verificationSecretSet: true,
   isEnabled: true,
   receiveCount: 4,
   lastReceivedAt: '2026-10-18T08:00:00Z',
-  genericConfig: null,
+  targetPipelineId: 'p1',
+  targetEventType: null,
+  genericConfig: {
+    signatureHeaderName: 'X-Sig',
+    eventKindJsonPath: '$.kind',
+    providerEventIdJsonPath: '$.id',
+  },
+};
+
+const deliveryRow = {
+  id: 77,
+  endpointId: 'o1',
+  eventType: 'follow',
+  attempt: 2,
+  status: 'Failed',
+  responseCode: 500,
+  durationMs: 120,
+  error: 'Server said no',
+  createdAt: '2026-10-18T09:00:00Z',
 };
 
 vi.mock('@/api/client', () => {
@@ -87,8 +105,31 @@ vi.mock('@/api/client', () => {
             response: { status: 200, ok: true },
           };
 
+        if (method === 'POST' && path.endsWith('/test'))
+          return {
+            data: { status: 'success', data: {
+              delivered: false,
+              responseCode: 502,
+              durationMs: 340,
+              error: 'Bad gateway',
+            } },
+            response: { status: 200, ok: true },
+          };
+
+        if (method === 'POST' && path.endsWith('/rotate-secret'))
+          return {
+            data: { status: 'success', data: { endpoint: outboundRow, signingSecret: 'whsec_rotated' } },
+            response: { status: 200, ok: true },
+          };
+
         if (method !== 'GET')
           return { response: { status: 200, ok: true } };
+
+        if (path.endsWith('/deliveries'))
+          return ok([deliveryRow]);
+
+        if (path.endsWith('/pipelines'))
+          return ok([{ id: 'p1', name: 'Thank donors' }]);
 
         if (path.endsWith('/blast-radius')) {
           return ok({
@@ -325,6 +366,121 @@ describe('Webhooks page', () => {
   });
 });
 
+describe('Webhooks inbound editor', () => {
+  it('creates a generic inbound webhook with its signature settings and secret', async () => {
+    await open();
+    await click(q('[data-new-inbound]'));
+    await typeInto('[data-field="inbound-name"]', 'Shop');
+    await typeInto('[data-field="inbound-secret"]', 'shh');
+    await typeInto('[data-field="signature-header"]', 'X-Sig');
+    await typeInto('[data-field="event-kind-path"]', '$.kind');
+    await typeInto('[data-field="event-id-path"]', '$.id');
+    await click(q('[data-form-action]'));
+
+    expect(callTo('POST', '/webhooks/inbound')?.body).toEqual({
+      name: 'Shop',
+      adapter: 'Generic',
+      verificationSecret: 'shh',
+      targetPipelineId: null,
+      targetEventType: null,
+      genericConfig: {
+        signatureHeaderName: 'X-Sig',
+        signaturePrefix: null,
+        signingStringTemplate: null,
+        timestampHeaderName: null,
+        sharedSecretBodyField: null,
+        eventKindJsonPath: '$.kind',
+        providerEventIdJsonPath: '$.id',
+      },
+      isEnabled: true,
+    });
+  });
+
+  it('keeps the stored secret, target and enabled flag when an edit changes only the name', async () => {
+    await open();
+    await click(q('[data-inbound-edit]'));
+    await typeInto('[data-field="inbound-name"]', 'Shop 2');
+    await click(q('[data-form-action]'));
+
+    const body = callTo('PUT', '/inbound/{endpointId}')?.body;
+
+    expect(body).toMatchObject({
+      name: 'Shop 2',
+      targetPipelineId: 'p1',
+      isEnabled: true,
+      genericConfig: { signatureHeaderName: 'X-Sig', eventKindJsonPath: '$.kind' },
+    });
+
+    expect(body).not.toHaveProperty('verificationSecret');
+  });
+
+  it('rotates the link only after a confirm that says the old link stops', async () => {
+    await open();
+    await click(q('[data-inbound-rotate]'));
+
+    expect(callTo('POST', '/inbound/{endpointId}/rotate-token')).toBeUndefined();
+    expect(document.body.textContent).toContain('old link stops');
+
+    await click(q('[data-confirm-action]'));
+
+    expect(callTo('POST', '/inbound/{endpointId}/rotate-token')?.params).toMatchObject({
+      path: { channelId: 'c1', endpointId: 'i1' },
+    });
+  });
+});
+
+describe('Webhooks outbound actions', () => {
+  it('sends a test delivery and shows the outcome with its code and time', async () => {
+    await open();
+    await click(q('[data-outbound-test]'));
+
+    expect(callTo('POST', '/outbound/{endpointId}/test')?.params).toMatchObject({
+      path: { channelId: 'c1', endpointId: 'o1' },
+    });
+
+    const result = q('[data-test-result]').textContent ?? '';
+
+    expect(result).toContain('502');
+    expect(result).toContain('340');
+    expect(result).toContain('Bad gateway');
+  });
+
+  it('rotates the signing secret after a confirm and shows the new one once', async () => {
+    await open();
+    await click(q('[data-outbound-rotate]'));
+
+    expect(callTo('POST', '/rotate-secret')).toBeUndefined();
+
+    await click(q('[data-confirm-action]'));
+
+    expect(callTo('POST', '/rotate-secret')?.params).toMatchObject({
+      path: { channelId: 'c1', endpointId: 'o1' },
+    });
+
+    expect(q('[data-signing-secret]').textContent).toContain('whsec_rotated');
+  });
+
+  it('lists the deliveries of an endpoint and retries a failed one', async () => {
+    await open();
+    await click(q('[data-outbound-deliveries]'));
+
+    const row = q('[data-delivery="77"]');
+
+    expect(row.textContent).toContain('500');
+    expect(row.textContent).toContain('Server said no');
+
+    await click(q('[data-delivery-retry]'));
+
+    expect(callTo('POST', '/deliveries/{deliveryId}/retry')?.params).toMatchObject({
+      path: {
+        channelId: 'c1',
+        endpointId: 'o1',
+        deliveryId: 77,
+      },
+    });
+  });
+});
+
 describe('Webhooks permissions', () => {
   it('shows the state but none of the write controls to a person who holds no webhook key', async () => {
     held.keys = new Set();
@@ -336,6 +492,11 @@ describe('Webhooks permissions', () => {
     const writeControls = [
       '[data-new-outbound]',
       '[data-outbound-reenable]',
+      '[data-outbound-test]',
+      '[data-outbound-rotate]',
+      '[data-new-inbound]',
+      '[data-inbound-edit]',
+      '[data-inbound-rotate]',
       '[data-inbound-delete]',
       'button[role="switch"]',
     ];
@@ -345,6 +506,17 @@ describe('Webhooks permissions', () => {
     );
 
     expect(shown).toEqual([]);
+  });
+});
+
+describe('Webhooks deliveries permission', () => {
+  it('lets a reader open the deliveries but gives them no retry', async () => {
+    held.keys = new Set(['webhooks:outbound:read']);
+    await open();
+    await click(q('[data-outbound-deliveries]'));
+
+    expect(q('[data-delivery="77"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-delivery-retry]')).toBeNull();
   });
 });
 

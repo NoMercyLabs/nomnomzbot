@@ -10,7 +10,10 @@
 <script setup lang="ts">
 // One outbound webhook: its name, the address it posts to, how many events it follows, when it last delivered,
 // and the on/off switch. An endpoint the bot switched off after repeated failures says why and offers to turn back on.
+import History from '~icons/nnz/clock-backward';
 import Edit from '~icons/nnz/edit';
+import Key from '~icons/nnz/key-modern';
+import Send from '~icons/nnz/paper-plane-send';
 import Trash from '~icons/nnz/trash';
 import { computed } from 'vue';
 
@@ -28,6 +31,9 @@ defineEmits<{
   toggle: [];
   reenable: [];
   edit: [];
+  test: [];
+  rotate: [];
+  deliveries: [];
   remove: [];
 }>();
 
@@ -39,7 +45,8 @@ const switchedOff = computed(() => Boolean(props.endpoint.disabledAt));
 const lastDelivery = computed(() =>
   props.endpoint.lastDeliveryAt
     ? time.dateTime(props.endpoint.lastDeliveryAt)
-    : undefined);
+    : undefined,
+);
 </script>
 
 <template>
@@ -49,32 +56,74 @@ const lastDelivery = computed(() =>
   >
     <div class="min-w-0 flex-1">
       <span class="flex flex-wrap items-center gap-2">
-        <span :id="`outbound-${endpoint.id}`" class="text-sm font-medium wrap-break-word">{{ endpoint.name }}</span>
+        <span :id="`outbound-${endpoint.id}`" class="text-sm font-medium wrap-break-word">{{
+          endpoint.name
+        }}</span>
         <Badge variant="outline">
-          {{ $t('dashboard.settings.webhooks.outbound.events', { count: endpoint.subscribedEventTypes.length }) }}
+          {{
+            $t("dashboard.settings.webhooks.outbound.events", {
+              count: endpoint.subscribedEventTypes.length,
+            })
+          }}
         </Badge>
       </span>
-      <span class="block font-mono text-sm text-muted-foreground wrap-break-word">{{ address }}</span>
+      <span class="block font-mono text-sm text-muted-foreground wrap-break-word">{{
+        address
+      }}</span>
       <span data-last-delivery class="block text-sm text-muted-foreground">
         {{
           lastDelivery
-            ? $t('dashboard.settings.webhooks.outbound.lastDelivery', { when: lastDelivery })
-            : $t('dashboard.settings.webhooks.outbound.neverDelivered')
+            ? $t("dashboard.settings.webhooks.outbound.lastDelivery", { when: lastDelivery })
+            : $t("dashboard.settings.webhooks.outbound.neverDelivered")
         }}
       </span>
       <span v-if="switchedOff" data-switched-off class="block text-sm text-destructive">
-        {{ $t('dashboard.settings.webhooks.outbound.switchedOff', { reason: endpoint.disabledReason ?? '' }) }}
+        {{
+          $t("dashboard.settings.webhooks.outbound.switchedOff", {
+            reason: endpoint.disabledReason ?? "",
+          })
+        }}
       </span>
     </div>
-    <Button v-if="switchedOff && can('webhooks:outbound:write')"
-            variant="outline"
-            data-outbound-reenable
-            :disabled="busy"
-            @click="$emit('reenable')"
+    <Button
+      v-if="switchedOff && can('webhooks:outbound:write')"
+      variant="outline"
+      data-outbound-reenable
+      :disabled="busy"
+      @click="$emit('reenable')"
     >
-      {{ $t('dashboard.settings.webhooks.outbound.reenable') }}
+      {{ $t("dashboard.settings.webhooks.outbound.reenable") }}
+    </Button>
+    <Button
+      v-if="can('webhooks:outbound:read')"
+      variant="ghost"
+      size="icon"
+      data-outbound-deliveries
+      :aria-label="$t('dashboard.settings.webhooks.outbound.deliveries', { name: endpoint.name })"
+      @click="$emit('deliveries')"
+    >
+      <History class="size-5" />
     </Button>
     <div v-if="can('webhooks:outbound:write')" class="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        data-outbound-test
+        :disabled="busy"
+        :aria-label="$t('dashboard.settings.webhooks.outbound.test', { name: endpoint.name })"
+        @click="$emit('test')"
+      >
+        <Send class="size-5" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        data-outbound-rotate
+        :aria-label="$t('dashboard.settings.webhooks.outbound.rotate', { name: endpoint.name })"
+        @click="$emit('rotate')"
+      >
+        <Key class="size-5" />
+      </Button>
       <Button
         variant="ghost"
         size="icon"

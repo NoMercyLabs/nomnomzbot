@@ -50,6 +50,7 @@ export const permissionAllowlist = [
       'quotes/QuotesView.vue': 1,
       'settings/event-journal/components/JournalListPanel.vue': 3,
       'settings/api-devices/components/SecretDialog.vue': 2,
+      'settings/webhooks/components/SigningSecretDialog.vue': 2,
       'settings/custom-event-feeds/components/EventFeedRow.vue': 1,
       'settings/webhooks/components/InboundWebhookRow.vue': 1,
       'settings/billing/components/InvoicesPanel.vue': 3,

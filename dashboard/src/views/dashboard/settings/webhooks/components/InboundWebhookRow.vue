@@ -10,6 +10,8 @@
 <script setup lang="ts">
 // One inbound webhook: its name, the provider kind, the link the provider posts to (copy), how many calls arrived
 // and when the last one did, and the on/off switch.
+import Edit from '~icons/nnz/edit';
+import Rotate from '~icons/nnz/rotate';
 import Trash from '~icons/nnz/trash';
 
 import type { InboundWebhook } from '@/api/webhooks';
@@ -25,6 +27,8 @@ const props = defineProps<{ endpoint: InboundWebhook; busy: boolean }>();
 
 defineEmits<{
   toggle: [];
+  edit: [];
+  rotate: [];
   remove: [];
 }>();
 
@@ -38,21 +42,46 @@ const lastReceived = useFormattedTime(() => props.endpoint.lastReceivedAt, 'date
   >
     <div class="min-w-0 flex-1">
       <span class="flex flex-wrap items-center gap-2">
-        <span :id="`inbound-${endpoint.id}`" class="text-sm font-medium wrap-break-word">{{ endpoint.name }}</span>
+        <span :id="`inbound-${endpoint.id}`" class="text-sm font-medium wrap-break-word">{{
+          endpoint.name
+        }}</span>
         <Badge variant="outline">{{ endpoint.adapter }}</Badge>
       </span>
       <span data-last-received class="block text-sm text-muted-foreground">
         {{
           lastReceived
-            ? $t('dashboard.settings.webhooks.inbound.lastReceived', {
+            ? $t("dashboard.settings.webhooks.inbound.lastReceived", {
               count: Number(endpoint.receiveCount),
               when: lastReceived,
             })
-            : $t('dashboard.settings.webhooks.inbound.neverReceived')
+            : $t("dashboard.settings.webhooks.inbound.neverReceived")
         }}
       </span>
     </div>
-    <CopyLinkButton :url="endpoint.ingestUrl" :label="$t('dashboard.settings.webhooks.inbound.copyLink')" />
+    <CopyLinkButton
+      :url="endpoint.ingestUrl"
+      :label="$t('dashboard.settings.webhooks.inbound.copyLink')"
+    />
+    <Button
+      v-if="can('webhooks:inbound:write')"
+      variant="ghost"
+      size="icon"
+      data-inbound-edit
+      :aria-label="$t('dashboard.settings.webhooks.inbound.edit', { name: endpoint.name })"
+      @click="$emit('edit')"
+    >
+      <Edit class="size-5" />
+    </Button>
+    <Button
+      v-if="can('webhooks:inbound:write')"
+      variant="ghost"
+      size="icon"
+      data-inbound-rotate
+      :aria-label="$t('dashboard.settings.webhooks.inbound.rotate', { name: endpoint.name })"
+      @click="$emit('rotate')"
+    >
+      <Rotate class="size-5" />
+    </Button>
     <Button
       v-if="can('webhooks:inbound:write')"
       variant="ghost"

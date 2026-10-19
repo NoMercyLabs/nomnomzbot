@@ -10,13 +10,14 @@
 
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
-import { toValue, type MaybeRefOrGetter } from 'vue';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import type { KeyParts } from '@/lib/array';
+import { merge, type KeyParts } from '@/lib/array';
 
 import { channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
@@ -30,6 +31,8 @@ export type InboundWebhook = components['schemas']['InboundWebhookEndpoint'];
 // cspell:disable-next-line -- the generated schema name carries the British spelling
 export type WebhookEventEntry = components['schemas']['OutboundWebhookEventCatalogueEntry'];
 export type WebhookBlastRadius = components['schemas']['BlastRadius'];
+export type InboundWebhookDraft = components['schemas']['CreateInboundWebhookRequest'];
+export type OutboundDelivery = components['schemas']['OutboundWebhookDelivery'];
 
 const version = '1';
 const pageSize = 100;
@@ -132,26 +135,32 @@ export function useSaveOutboundWebhook(
     mutationFn: async ({ id, draft }: SaveOutboundWebhook): Promise<string | null> => {
       const channel = toValue(channelId) as string;
 
-      const answer = id === null
-        ? await client.POST('/api/v{version}/channels/{channelId}/webhooks/outbound', {
-            params: { path: { version, channelId: channel } },
-            body: draft,
-          })
-        : await client.PUT('/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}', {
-            params: { path: {
-              version,
-              channelId: channel,
-              endpointId: id,
-            } },
-            body: {
-              name: draft.name,
-              subscribedEventTypes: draft.subscribedEventTypes,
-              bodyTemplate: draft.bodyTemplate,
-              bodyIsJson: draft.bodyIsJson,
-              customHeaders: draft.customHeaders,
-              isEnabled: draft.isEnabled,
-            },
-          });
+      const answer =
+        id === null
+          ? await client.POST('/api/v{version}/channels/{channelId}/webhooks/outbound', {
+              params: { path: { version, channelId: channel } },
+              body: draft,
+            })
+          : await client.PUT(
+              '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}',
+              {
+                params: {
+                  path: {
+                    version,
+                    channelId: channel,
+                    endpointId: id,
+                  },
+                },
+                body: {
+                  name: draft.name,
+                  subscribedEventTypes: draft.subscribedEventTypes,
+                  bodyTemplate: draft.bodyTemplate,
+                  bodyIsJson: draft.bodyIsJson,
+                  customHeaders: draft.customHeaders,
+                  isEnabled: draft.isEnabled,
+                },
+              },
+            );
 
       if (answer.error !== undefined)
         throw refusal('save outbound webhook', answer.error, answer.response.status);
@@ -175,11 +184,15 @@ export function useDeleteOutboundWebhook(
     mutationFn: async (endpointId: string): Promise<void> => {
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          endpointId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -201,11 +214,15 @@ export function useReenableOutboundWebhook(
     mutationFn: async (endpointId: string): Promise<void> => {
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/reenable',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          endpointId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -229,11 +246,13 @@ export function useSetInboundWebhookEnabled(
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/webhooks/inbound/{endpointId}',
         {
-          params: { path: {
-            version,
-            channelId: toValue(channelId) as string,
-            endpointId: id,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId: id,
+            },
+          },
           body: { isEnabled },
         },
       );
@@ -254,11 +273,15 @@ export async function fetchInboundWebhookBlastRadius(
 ): Promise<WebhookBlastRadius> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/webhooks/inbound/{endpointId}/blast-radius',
-    { params: { path: {
-      version,
-      channelId,
-      endpointId,
-    } } },
+    {
+      params: {
+        path: {
+          version,
+          channelId,
+          endpointId,
+        },
+      },
+    },
   );
 
   if (error !== undefined || !data?.data)
@@ -274,17 +297,241 @@ export async function fetchOutboundWebhookBlastRadius(
 ): Promise<WebhookBlastRadius> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/blast-radius',
-    { params: { path: {
-      version,
-      channelId,
-      endpointId,
-    } } },
+    {
+      params: {
+        path: {
+          version,
+          channelId,
+          endpointId,
+        },
+      },
+    },
   );
 
   if (error !== undefined || !data?.data)
     throw failed('outbound webhook blast radius', response.status, error);
 
   return data.data;
+}
+
+export type SaveInboundWebhook = { id: string | null; draft: InboundWebhookDraft };
+
+// No id creates the endpoint; an id sends the editable fields. The adapter is fixed once made, and a secret
+// left empty on an edit is not sent, so the stored one stays.
+export function useSaveInboundWebhook(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, SaveInboundWebhook, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, SaveInboundWebhook, undefined>({
+    mutationFn: async ({ id, draft }: SaveInboundWebhook): Promise<void> => {
+      const channel = toValue(channelId) as string;
+
+      const answer =
+        id === null
+          ? await client.POST('/api/v{version}/channels/{channelId}/webhooks/inbound', {
+              params: { path: { version, channelId: channel } },
+              body: draft,
+            })
+          : await client.PUT('/api/v{version}/channels/{channelId}/webhooks/inbound/{endpointId}', {
+              params: {
+                path: {
+                  version,
+                  channelId: channel,
+                  endpointId: id,
+                },
+              },
+              body: {
+                name: draft.name,
+                ...(draft.verificationSecret === ''
+                  ? {}
+                  : { verificationSecret: draft.verificationSecret }),
+                targetPipelineId: draft.targetPipelineId,
+                targetEventType: draft.targetEventType,
+                genericConfig: draft.genericConfig,
+                isEnabled: draft.isEnabled,
+              },
+            });
+
+      if (answer.error !== undefined)
+        throw refusal('save inbound webhook', answer.error, answer.response.status);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: inboundWebhooksKey(toValue(channelId)) });
+    },
+  });
+}
+
+// The old link stops working at once; the list refetches and shows the new one.
+export function useRotateInboundWebhookLink(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, string, undefined>({
+    mutationFn: async (endpointId: string): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/webhooks/inbound/{endpointId}/rotate-token',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId,
+            },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('rotate inbound webhook link', error, response.status);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: inboundWebhooksKey(toValue(channelId)) });
+    },
+  });
+}
+
+// The new signing secret comes back once, like the one from a create.
+export function useRotateOutboundWebhookSecret(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<string | null, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<string | null, Error, string, undefined>({
+    mutationFn: async (endpointId: string): Promise<string | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/rotate-secret',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId,
+            },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('rotate outbound webhook secret', error, response.status);
+
+      return signingSecretOf(data);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: outboundWebhooksKey(toValue(channelId)) });
+    },
+  });
+}
+
+export type WebhookTestResult = {
+  delivered: boolean;
+  responseCode: number | null;
+  durationMs: number | null;
+  error: string | null;
+};
+
+// A test sends one sample event to the address and reports what came back; it is not stored as a delivery to retry.
+export function useTestOutboundWebhook(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<WebhookTestResult, Error, string, undefined> {
+  return useMutation<WebhookTestResult, Error, string, undefined>({
+    mutationFn: async (endpointId: string): Promise<WebhookTestResult> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/test',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId,
+            },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('test outbound webhook', error, response.status);
+
+      const outcome = data?.data as Partial<WebhookTestResult> | null | undefined;
+
+      return {
+        delivered: outcome?.delivered ?? false,
+        responseCode: outcome?.responseCode ?? null,
+        durationMs: outcome?.durationMs ?? null,
+        error: outcome?.error ?? null,
+      };
+    },
+  });
+}
+
+export const outboundDeliveriesKey = (
+  channelId: string | null,
+  endpointId: string | null,
+): KeyParts => merge(outboundWebhooksKey(channelId), [endpointId, 'deliveries']);
+
+// The delivery log of one endpoint, newest first. The key sits under the outbound list key, so a webhooks
+// change from the bot refetches it too.
+export function useOutboundDeliveries(
+  channelId: MaybeRefOrGetter<string | null>,
+  endpointId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<OutboundDelivery[], Error> {
+  return useQuery({
+    queryKey: computed(() => outboundDeliveriesKey(toValue(channelId), toValue(endpointId))),
+    queryFn: async (): Promise<OutboundDelivery[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/deliveries',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId: toValue(endpointId) as string,
+            },
+            query: { PageSize: pageSize },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('outbound webhook deliveries', response.status, error);
+
+      return data?.data ?? [];
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(endpointId) !== null),
+  });
+}
+
+export type RetryDelivery = { endpointId: string; deliveryId: number };
+
+export function useRetryOutboundDelivery(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, RetryDelivery, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, RetryDelivery, undefined>({
+    mutationFn: async ({ endpointId, deliveryId }: RetryDelivery): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/webhooks/outbound/{endpointId}/deliveries/{deliveryId}/retry',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId,
+              deliveryId,
+            },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('retry outbound delivery', error, response.status);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: outboundWebhooksKey(toValue(channelId)) });
+    },
+  });
 }
 
 export function useDeleteInboundWebhook(
@@ -296,11 +543,15 @@ export function useDeleteInboundWebhook(
     mutationFn: async (endpointId: string): Promise<void> => {
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/webhooks/inbound/{endpointId}',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          endpointId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              endpointId,
+            },
+          },
+        },
       );
 
       if (error !== undefined)

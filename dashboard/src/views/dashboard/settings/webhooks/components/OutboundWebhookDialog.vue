@@ -48,11 +48,15 @@ const invalidHeaders = computed(() => parsedHeaders.value.invalid.length > 0);
 
 const headersNote = computed(() => {
   if (invalidHeaders.value)
-    return t('dashboard.settings.webhooks.outbound.headersInvalid', { line: parsedHeaders.value.invalid[0] });
+    return t('dashboard.settings.webhooks.outbound.headersInvalid', {
+      line: parsedHeaders.value.invalid[0],
+    });
 
-  return t(saved.value
-    ? 'dashboard.settings.webhooks.outbound.headersKept'
-    : 'dashboard.settings.webhooks.outbound.headersHelp');
+  return t(
+    saved.value
+      ? 'dashboard.settings.webhooks.outbound.headersKept'
+      : 'dashboard.settings.webhooks.outbound.headersHelp',
+  );
 });
 
 watch(open, (isOpen) => {
@@ -113,42 +117,58 @@ function submit(): void {
   <FormDialog
     v-model:open="open"
     data-dialog="outbound-webhook"
-    :title="saved ? $t('dashboard.settings.webhooks.outbound.editTitle') : $t('dashboard.settings.webhooks.outbound.createTitle')"
+    :title="
+      saved
+        ? $t('dashboard.settings.webhooks.outbound.editTitle')
+        : $t('dashboard.settings.webhooks.outbound.createTitle')
+    "
     :description="$t('dashboard.settings.webhooks.outbound.formDescription')"
-    :action="saved ? $t('dashboard.settings.webhooks.outbound.save') : $t('dashboard.settings.webhooks.outbound.create')"
+    :action="
+      saved
+        ? $t('dashboard.settings.webhooks.outbound.save')
+        : $t('dashboard.settings.webhooks.outbound.create')
+    "
     :pending="pending"
     :error="error"
     :disabled="invalidHeaders"
     @submit="submit"
   >
     <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.webhooks.outbound.name') }}
+      {{ $t("dashboard.settings.webhooks.outbound.name") }}
       <Input v-model="name" data-field="name" maxlength="100" />
     </label>
     <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.webhooks.outbound.host') }}
-      <Input v-model="fqdn"
-             data-field="host"
-             class="font-mono"
-             :disabled="saved"
-             placeholder="hooks.example.com"
+      {{ $t("dashboard.settings.webhooks.outbound.host") }}
+      <Input
+        v-model="fqdn"
+        data-field="host"
+        class="font-mono"
+        :disabled="saved"
+        placeholder="hooks.example.com"
       />
       <span class="text-sm font-normal text-muted-foreground">
-        {{ $t('dashboard.settings.webhooks.outbound.hostHelp') }}
+        {{ $t("dashboard.settings.webhooks.outbound.hostHelp") }}
       </span>
     </label>
     <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.webhooks.outbound.path') }}
-      <Input v-model="path"
-             data-field="path"
-             class="font-mono"
-             :disabled="saved"
-             placeholder="/nomnomzbot"
+      {{ $t("dashboard.settings.webhooks.outbound.path") }}
+      <Input
+        v-model="path"
+        data-field="path"
+        class="font-mono"
+        :disabled="saved"
+        placeholder="/nomnomzbot"
       />
     </label>
     <fieldset class="grid gap-2">
-      <legend class="text-sm font-medium">{{ $t('dashboard.settings.webhooks.outbound.eventsTitle') }}</legend>
-      <label v-for="entry in catalog" :key="entry.eventType" class="flex items-center gap-2 text-sm">
+      <legend class="text-sm font-medium">
+        {{ $t("dashboard.settings.webhooks.outbound.eventsTitle") }}
+      </legend>
+      <label
+        v-for="entry in catalog"
+        :key="entry.eventType"
+        class="flex items-center gap-2 text-sm"
+      >
         <Checkbox
           :data-event="entry.eventType"
           :model-value="events.includes(entry.eventType)"
@@ -172,7 +192,7 @@ function submit(): void {
       :help="$t('dashboard.settings.webhooks.outbound.bodyIsJsonHelp')"
     />
     <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.webhooks.outbound.headers') }}
+      {{ $t("dashboard.settings.webhooks.outbound.headers") }}
       <Textarea
         v-model="headerText"
         data-field="headers"
@@ -181,7 +201,10 @@ function submit(): void {
         placeholder="X-Token: value"
         :aria-invalid="invalidHeaders"
       />
-      <span class="text-sm font-normal" :class="invalidHeaders ? 'text-destructive' : 'text-muted-foreground'">
+      <span
+        class="text-sm font-normal"
+        :class="invalidHeaders ? 'text-destructive' : 'text-muted-foreground'"
+      >
         {{ headersNote }}
       </span>
     </label>
