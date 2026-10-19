@@ -22,9 +22,11 @@ using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
+using static NomNomzBot.Infrastructure.Tests.Music.YouTubeDirectorKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -80,8 +82,8 @@ public sealed class YouTubeTransportControlTests
         RecordingWidgetEventNotifier Notifier,
         RecordingEventBus Bus,
         IOverlayPresenceRegistry Presence,
-        IPlaybackInputSink Sink,
-        IEngineFeed Feed
+        RealYouTubeEngineFactory Engines,
+        PlaybackDirectorRegistry Registry
     );
 
     private static string VideoJson(string id, string title) =>
@@ -143,8 +145,7 @@ public sealed class YouTubeTransportControlTests
         RecordingEventBus bus = new();
         YouTubePlayerStateStore playerStore = new(clock);
         YouTubePlayerDispatcher players = new(db, presence, notifier, playerStore);
-        IPlaybackInputSink sink = Substitute.For<IPlaybackInputSink>();
-        IEngineFeed feed = Substitute.For<IEngineFeed>();
+        LateSink lateSink = new();
 
         RecordingHttpHandler handler = new();
         foreach (
@@ -168,7 +169,7 @@ public sealed class YouTubeTransportControlTests
             db: db,
             playerState: playerStore,
             players: players,
-            playback: sink
+            playback: lateSink
         );
 
         IUserIdentityService identities = Substitute.For<IUserIdentityService>();
@@ -181,6 +182,10 @@ public sealed class YouTubeTransportControlTests
             )
             .Returns(Result.Success(Guid.NewGuid()));
         SongRequestQueueStore queues = new();
+        // The music service sends its requests to THIS registry, so the real YouTube engine starts them.
+        RealYouTubeEngineFactory engines = new(provider, players, playerStore);
+        PlaybackDirectorRegistry registry = new(queues, engines, bus, TimeProvider.System);
+        lateSink.Inner = registry;
         MusicService music = new(
             [provider],
             musicDb,
@@ -196,15 +201,15 @@ public sealed class YouTubeTransportControlTests
             new OutboundSanctionAccessor(),
             identities,
             Substitute.For<IForeignLinkTitleLookup>(),
-            DirectorRig.Of(queues).Registry,
-            DirectorRig.Of(queues).Registry
+            registry,
+            registry
         );
         PlayOnceResumeTracker resumeTracker = new();
         YouTubePlayerReportService reports = new(
             playerStore,
             players,
             bus,
-            feed,
+            registry,
             resumeTracker,
             NullLogger<YouTubePlayerReportService>.Instance
         );
@@ -213,12 +218,12 @@ public sealed class YouTubeTransportControlTests
             music,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            PlaybackDirectorTestKit.Registry(queues, bus)
+            registry
         );
         PlayOnceResumeHandler resumeHandler = new(
             resumeTracker,
             music,
-            sink,
+            registry,
             NullLogger<PlayOnceResumeHandler>.Instance
         );
         return new(
@@ -233,8 +238,8 @@ public sealed class YouTubeTransportControlTests
             notifier,
             bus,
             presence,
-            sink,
-            feed
+            engines,
+            registry
         );
     }
 
@@ -440,11 +445,10 @@ public sealed class YouTubeTransportControlTests
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
 
         skipped.IsSuccess.Should().BeTrue(skipped.ErrorMessage);
-        await rig
-            .Sink.Received(1)
-            .SendAsync(Broadcaster, Arg.Any<OwnerSkip>(), Arg.Any<CancellationToken>());
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([First, Second], "the director starts the next request exactly once");
         rig.Notifier.PlayedVideoIds.Should()
-            .Equal([First], "the director starts the next request, not the provider");
+            .Equal([First, Second], "the director starts the next request, not the provider");
         rig.Notifier.Of("youtube.stop").Should().BeEmpty();
     }
 
@@ -461,10 +465,12 @@ public sealed class YouTubeTransportControlTests
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
 
         skipped.IsSuccess.Should().BeTrue(skipped.ErrorMessage);
-        await rig
-            .Sink.Received(1)
-            .SendAsync(Broadcaster, Arg.Any<OwnerSkip>(), Arg.Any<CancellationToken>());
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([First], "nothing waits, so the skip starts no video");
         rig.Notifier.PlayedVideoIds.Should().Equal(First);
+        rig.Registry.StateOf(Broadcaster)
+            .Kind.Should()
+            .Be(PlaybackStateKind.Idle, "the skip emptied the director");
 
         await ReportAsync(rig, First, "ended");
 
@@ -601,14 +607,10 @@ public sealed class YouTubeTransportControlTests
         await ReportAsync(rig, Third, "ended", 180_000);
 
         // The resume handler restarts the interrupted video; the director must not also start the waiting request.
-        await rig
-            .Feed.DidNotReceive()
-            .ReportPlayerAsync(
-                Broadcaster,
-                Arg.Is<YouTubePlayerReport>(r =>
-                    r.VideoId == Third && r.State == YouTubePlayerState.Ended
-                ),
-                Arg.Any<CancellationToken>()
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal(
+                [First],
+                "the director starts no video when the once video ends with a resume pending"
             );
         rig.Notifier.PlayedVideoIds.Should()
             .Equal(
@@ -621,9 +623,6 @@ public sealed class YouTubeTransportControlTests
             .Be(new YouTubeSeekWidgetPayload(42_000));
         rig.ResumeTracker.TryPeek(Broadcaster, out _).Should().BeFalse();
         rig.PlayerStore.PeekNext(Broadcaster)!.VideoId.Should().Be(Second);
-        await rig
-            .Sink.DidNotReceive()
-            .SendAsync(Broadcaster, Arg.Any<RequestAdded>(), Arg.Any<CancellationToken>());
 
         await ReportAsync(rig, First, "playing", 43_000);
         await ReportAsync(rig, First, "ended", 200_000);

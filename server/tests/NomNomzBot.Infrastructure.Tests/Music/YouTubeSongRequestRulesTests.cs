@@ -175,6 +175,7 @@ public sealed class YouTubeSongRequestRulesTests
             .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns(Playing("spotify:track:playlist", isPlaying: true, progressMs: 90_000));
         MusicService sut = NewService();
+        await SpotifyReportsPlayingAsync(90_000);
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
             ChannelId.ToString(),
@@ -192,12 +193,32 @@ public sealed class YouTubeSongRequestRulesTests
             .Peek()!
             .TrackUri.Should()
             .Be(YouTubeUri, "the request waits its turn in the fair queue");
-        // GAP (S-PD-4c2a2 step C2): the intake sends RequestAdded to an idle director, which starts the
-        // YouTube head at once (MusicService.HandOverAdmittedIfIdleAsync, no check of a song that plays
-        // outside the director). The old rule "wait for the song" is therefore not carried.
+        // Spec music-playback-determinism section 4: Playing(spotify, null) + RequestAdded keeps the
+        // request waiting. GAP for S-PD-6: a request that arrives before the first Spotify report (the
+        // window between two polls) is not held back; the director is Idle then and starts the head.
         YouTubeStartCount().Should().Be(0, "the request waits for the playing song");
+        DirectorRig
+            .Of(_store)
+            .Registry.StateOf(ChannelId)
+            .Should()
+            .Be(PlaybackState.Playing(EngineKind.Spotify, null));
         _store.GetInFlight(ChannelId.ToString()).Should().BeNull();
     }
+
+    /// <summary>The Spotify poller's report of the owner's own song, as the director receives it.</summary>
+    private Task SpotifyReportsPlayingAsync(int progressMs) =>
+        DirectorRig
+            .Of(_store)
+            .Registry.SendAsync(
+                ChannelId,
+                new EngineReport(
+                    EngineKind.Spotify,
+                    "spotify:track:playlist",
+                    true,
+                    progressMs,
+                    200_000
+                )
+            );
 
     private FakeEngine YouTubeEngine() =>
         DirectorRig.Of(_store).Engines.EngineOf(ChannelId, EngineKind.YouTube);
@@ -229,21 +250,20 @@ public sealed class YouTubeSongRequestRulesTests
             .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns(Playing("spotify:track:playlist", isPlaying: true, progressMs: 90_000));
         MusicService sut = NewService();
+        await SpotifyReportsPlayingAsync(90_000);
         await sut.RequestTrackAsync(ChannelId.ToString(), YouTubeUri, "fillz");
         await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
-        // GAP (S-PD-4c2a2 step C2): the director started the head at admission, not at the song's end.
         YouTubeStartCount().Should().Be(0, "the request waits while the song still plays");
 
-        // The song reaches its last seconds; the engine is then seen stopped after the pause.
-        _spotify
-            .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
-            .Returns(
-                Playing("spotify:track:playlist", isPlaying: true, progressMs: 196_000),
-                Playing("spotify:track:playlist", isPlaying: false, progressMs: 196_000)
+        // The song ends; the director starts the waiting head on its engine, exactly once.
+        await DirectorRig
+            .Of(_store)
+            .Registry.SendAsync(
+                ChannelId,
+                new TrackEnded(EngineKind.Spotify, "spotify:track:playlist")
             );
-        await sut.HandOverNextAsync(ChannelId.ToString());
 
-        await _spotify.Received(1).PauseAsync(ChannelId, Arg.Any<CancellationToken>());
+        await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
         YouTubeStartCount()
             .Should()
             .Be(1, "the director starts the request once, when the song ends");
