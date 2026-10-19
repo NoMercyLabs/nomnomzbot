@@ -691,6 +691,15 @@ describe('CommandsView editor', () => {
     expect(buttonByText('Reset to preset').dataset.variant).toBe('outline');
   });
 
+  it('wraps the editor footer so four buttons never overflow a narrow screen', async () => {
+    rows[0] = command('hug', { presetKey: 'hug' });
+    await open('/app/commands?command=hug');
+
+    const footer = buttonByText('Reset to preset').parentElement;
+
+    expect(footer?.classList.contains('flex-wrap')).toBe(true);
+  });
+
   it('resets to the preset only after the confirm, naming what changes, then reads the list again', async () => {
     rows[0] = command('hug', {
       presetKey: 'hug',

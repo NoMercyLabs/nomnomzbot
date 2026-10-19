@@ -190,7 +190,7 @@ watch(
     </div>
     <footer
       v-if="$slots.footer"
-      class="flex flex-none items-center gap-2"
+      class="flex flex-none flex-wrap items-center gap-2"
       :class="footerClass"
     >
       <slot name="footer" />
