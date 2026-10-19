@@ -138,10 +138,11 @@
     "dashboard/",
     "\\bVue\\b"
    ],
-   "text": "Vue dashboard work is edited in the main tree dashboard/, under the running Vite dev server, so the owner sees each change live by hot reload. Never dispatch a dashboard builder with isolation worktree. One writer on dashboard/ at a time; commit in place when the gates pass (typecheck, lint, vitest, check:size).",
-   "source": "Stoney 2026-10-13: \"als je nou gewoon de view app gewoon aanpast, dan zie ik live updates verschijnen terwijl jij de code aanpast. En nou moet je constant maar blijven mergen\"",
+   "text": "Vue dashboard work is edited in the main tree dashboard/, under the running Vite dev server (only ports 5080 and 5090 may run, so a worktree builder could never see its page), so the owner sees each change live by hot reload. Never dispatch a dashboard builder with isolation worktree. Up to ten dashboard lanes run at once (Stoney 2026-10-20): each owns one page area; a shared file (i18n locales, router, layouts, components, lib, api, composables, structure.spec.ts, the admin and settings i18n) is edited only under `lane-lock.sh take shared <lane>` and committed alone; the one browser and sign-in port 5799 only under `lane-lock.sh take browser <lane>`; no whole-tree command (npm run format, lint, type-check, check:size, bare vitest, git add -A, stash, reset); the gate is lane-gate.sh on the lane's own files and acceptance is accept-lane.sh <commit>; every lane walks the UI nitpick checklist and lists the items it meets in its handoff.",
+   "source": "Stoney 2026-10-13: \"als je nou gewoon de view app gewoon aanpast, dan zie ik live updates verschijnen terwijl jij de code aanpast. En nou moet je constant maar blijven mergen\"; Stoney 2026-10-20: \"i want you to use 10 agents at the same time so we can get ui changes done fast, but they need to be done correct following all my rules and applied all the nitpicks i had to give before i have to give them again\"",
    "covers": [
-    "feedback-dashboard-live-edit-main-tree.md"
+    "feedback-dashboard-live-edit-main-tree.md",
+    "feedback-ten-parallel-dashboard-lanes.md"
    ]
   },
   {
