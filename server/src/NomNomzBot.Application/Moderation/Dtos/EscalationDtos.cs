@@ -25,8 +25,54 @@ public sealed record ModerationEscalationPolicyDto(
     IReadOnlyList<EscalationLadderStep> Ladder,
     int OffenseWindowHours,
     bool CountAutoModViolations,
-    int DefaultTimeoutSeconds
+    int DefaultTimeoutSeconds,
+    EscalationPolicyDefaultsDto Defaults,
+    EscalationPolicyLimitsDto Limits
 );
+
+/// <summary>The values a channel with no saved policy resolves to, for "reset to default" and hints.</summary>
+public sealed record EscalationPolicyDefaultsDto(
+    bool IsEnabled,
+    IReadOnlyList<EscalationLadderStep> Ladder,
+    int OffenseWindowHours,
+    bool CountAutoModViolations,
+    int DefaultTimeoutSeconds
+)
+{
+    public static readonly EscalationPolicyDefaultsDto Current = new(
+        EscalationPolicyDefaults.IsEnabled,
+        [
+            .. EscalationPolicyDefaults.Ladder.Select(s => new EscalationLadderStep(
+                s.AtOffense,
+                s.Action,
+                s.TimeoutSeconds
+            )),
+        ],
+        EscalationPolicyDefaults.OffenseWindowHours,
+        EscalationPolicyDefaults.CountAutoModViolations,
+        EscalationPolicyDefaults.DefaultTimeoutSeconds
+    );
+}
+
+/// <summary>The ranges a save must keep (the same numbers the service enforces).</summary>
+public sealed record EscalationPolicyLimitsDto(
+    int MinOffenseWindowHours,
+    int MaxOffenseWindowHours,
+    int MinTimeoutSeconds,
+    int MaxTimeoutSeconds,
+    int MinLadderSteps,
+    int MaxLadderSteps
+)
+{
+    public static readonly EscalationPolicyLimitsDto Current = new(
+        1,
+        EscalationPolicyDefaults.MaxOffenseWindowHours,
+        1,
+        EscalationPolicyDefaults.MaxTimeoutSeconds,
+        1,
+        EscalationPolicyDefaults.MaxLadderSteps
+    );
+}
 
 /// <summary>Full-policy upsert — the ladder is replaced whole, never patched.</summary>
 public sealed record UpsertEscalationPolicyRequest(

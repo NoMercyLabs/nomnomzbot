@@ -26,15 +26,6 @@ namespace NomNomzBot.Infrastructure.Moderation;
 public sealed class ModerationEscalationService(IApplicationDbContext db, TimeProvider clock)
     : IModerationEscalationService
 {
-    private static readonly IReadOnlyList<EscalationLadderStep> DefaultLadder =
-    [
-        .. EscalationPolicyDefaults.Ladder.Select(s => new EscalationLadderStep(
-            s.AtOffense,
-            s.Action,
-            s.TimeoutSeconds
-        )),
-    ];
-
     public async Task<Result<EscalationDecision>> ResolveAndRecordAsync(
         Guid broadcasterId,
         Guid subjectUserId,
@@ -196,10 +187,12 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
             policy is null
                 ? new(
                     EscalationPolicyDefaults.IsEnabled,
-                    DefaultLadder,
+                    EscalationPolicyDefaultsDto.Current.Ladder,
                     EscalationPolicyDefaults.OffenseWindowHours,
                     EscalationPolicyDefaults.CountAutoModViolations,
-                    EscalationPolicyDefaults.DefaultTimeoutSeconds
+                    EscalationPolicyDefaults.DefaultTimeoutSeconds,
+                    EscalationPolicyDefaultsDto.Current,
+                    EscalationPolicyLimitsDto.Current
                 )
                 : ToDto(policy)
         );
@@ -211,52 +204,9 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
         CancellationToken ct = default
     )
     {
-        if (request.OffenseWindowHours is < 1 or > EscalationPolicyDefaults.MaxOffenseWindowHours)
-            return Result.Failure<ModerationEscalationPolicyDto>(
-                $"The offense window must be 1 to {EscalationPolicyDefaults.MaxOffenseWindowHours} hours.",
-                "VALIDATION_FAILED"
-            );
-        if (request.DefaultTimeoutSeconds is < 1 or > EscalationPolicyDefaults.MaxTimeoutSeconds)
-            return Result.Failure<ModerationEscalationPolicyDto>(
-                $"The default timeout must be 1 to {EscalationPolicyDefaults.MaxTimeoutSeconds} seconds.",
-                "VALIDATION_FAILED"
-            );
-        if (request.Ladder is null || request.Ladder.Count == 0)
-            return Result.Failure<ModerationEscalationPolicyDto>(
-                "The ladder needs at least one step.",
-                "VALIDATION_FAILED"
-            );
-        if (request.Ladder.Count > EscalationPolicyDefaults.MaxLadderSteps)
-            return Result.Failure<ModerationEscalationPolicyDto>(
-                $"The ladder holds at most {EscalationPolicyDefaults.MaxLadderSteps} steps.",
-                "VALIDATION_FAILED"
-            );
-        int previous = 0;
-        foreach (EscalationLadderStep step in request.Ladder)
-        {
-            if (step.AtOffense <= previous)
-                return Result.Failure<ModerationEscalationPolicyDto>(
-                    "Ladder steps must be strictly ascending by offense number.",
-                    "VALIDATION_FAILED"
-                );
-            if (step.Action is not ("warn" or "timeout" or "ban"))
-                return Result.Failure<ModerationEscalationPolicyDto>(
-                    $"Unknown ladder action '{step.Action}' — warn, timeout, or ban.",
-                    "VALIDATION_FAILED"
-                );
-            if (
-                step is
-                {
-                    Action: "timeout",
-                    TimeoutSeconds: not (> 0 and <= EscalationPolicyDefaults.MaxTimeoutSeconds)
-                }
-            )
-                return Result.Failure<ModerationEscalationPolicyDto>(
-                    $"A timeout step needs a duration of 1 to {EscalationPolicyDefaults.MaxTimeoutSeconds} seconds.",
-                    "VALIDATION_FAILED"
-                );
-            previous = step.AtOffense;
-        }
+        Result<ModerationEscalationPolicyDto>? refused = Validate(request);
+        if (refused is not null)
+            return refused;
 
         ModerationEscalationPolicy? policy =
             await db.ModerationEscalationPolicies.FirstOrDefaultAsync(
@@ -275,6 +225,86 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
         policy.DefaultTimeoutSeconds = request.DefaultTimeoutSeconds;
         await db.SaveChangesAsync(ct);
         return Result.Success(ToDto(policy));
+    }
+
+    private static Result<ModerationEscalationPolicyDto> Refuse(
+        string message,
+        string key,
+        string field
+    ) =>
+        Result.Failure<ModerationEscalationPolicyDto>(
+            message,
+            "VALIDATION_FAILED",
+            errorData: new EscalationPolicyViolation(key, field)
+        );
+
+    private static Result<ModerationEscalationPolicyDto>? Validate(
+        UpsertEscalationPolicyRequest request
+    )
+    {
+        EscalationPolicyLimitsDto limits = EscalationPolicyLimitsDto.Current;
+        if (
+            request.OffenseWindowHours < limits.MinOffenseWindowHours
+            || request.OffenseWindowHours > limits.MaxOffenseWindowHours
+        )
+            return Refuse(
+                $"The offense window must be {limits.MinOffenseWindowHours} to {limits.MaxOffenseWindowHours} hours.",
+                EscalationPolicyViolation.WindowOutOfRange,
+                "offenseWindowHours"
+            );
+        if (
+            request.DefaultTimeoutSeconds < limits.MinTimeoutSeconds
+            || request.DefaultTimeoutSeconds > limits.MaxTimeoutSeconds
+        )
+            return Refuse(
+                $"The default timeout must be {limits.MinTimeoutSeconds} to {limits.MaxTimeoutSeconds} seconds.",
+                EscalationPolicyViolation.TimeoutOutOfRange,
+                "defaultTimeoutSeconds"
+            );
+        if (request.Ladder is null || request.Ladder.Count < limits.MinLadderSteps)
+            return Refuse(
+                "The ladder needs at least one step.",
+                EscalationPolicyViolation.LadderEmpty,
+                "ladder"
+            );
+        if (request.Ladder.Count > limits.MaxLadderSteps)
+            return Refuse(
+                $"The ladder holds at most {limits.MaxLadderSteps} steps.",
+                EscalationPolicyViolation.LadderTooLong,
+                "ladder"
+            );
+        int previous = 0;
+        for (int i = 0; i < request.Ladder.Count; i++)
+        {
+            EscalationLadderStep step = request.Ladder[i];
+            if (step.AtOffense <= previous)
+                return Refuse(
+                    "Ladder steps must be strictly ascending by offense number.",
+                    EscalationPolicyViolation.StepsMustAscend,
+                    $"ladder[{i}].atOffense"
+                );
+            if (step.Action is not ("warn" or "timeout" or "ban"))
+                return Refuse(
+                    $"Unknown ladder action '{step.Action}' - warn, timeout, or ban.",
+                    EscalationPolicyViolation.UnknownAction,
+                    $"ladder[{i}].action"
+                );
+            if (
+                step.Action == "timeout"
+                && (
+                    step.TimeoutSeconds is null
+                    || step.TimeoutSeconds < limits.MinTimeoutSeconds
+                    || step.TimeoutSeconds > limits.MaxTimeoutSeconds
+                )
+            )
+                return Refuse(
+                    $"A timeout step needs a duration of {limits.MinTimeoutSeconds} to {limits.MaxTimeoutSeconds} seconds.",
+                    EscalationPolicyViolation.TimeoutStepOutOfRange,
+                    $"ladder[{i}].timeoutSeconds"
+                );
+            previous = step.AtOffense;
+        }
+        return null;
     }
 
     public async Task<Result> ResetUserAsync(
@@ -313,6 +343,8 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
             ParseLadder(policy.LadderJson),
             policy.OffenseWindowHours,
             policy.CountAutoModViolations,
-            policy.DefaultTimeoutSeconds
+            policy.DefaultTimeoutSeconds,
+            EscalationPolicyDefaultsDto.Current,
+            EscalationPolicyLimitsDto.Current
         );
 }
