@@ -20,6 +20,10 @@
           "title": "Voice volume",
           "description": "The loudness of the text-to-speech voice."
         },
+        "musicDuck": {
+          "title": "Music duck percent",
+          "description": "How loud the music stays while the voice speaks. 100 means no ducking."
+        },
         "errors": {
           "audio_mix_master_volume_out_of_range": "The master volume is outside the allowed range. Nothing was saved.",
           "audio_mix_tts_volume_out_of_range": "The voice volume is outside the allowed range. Nothing was saved."

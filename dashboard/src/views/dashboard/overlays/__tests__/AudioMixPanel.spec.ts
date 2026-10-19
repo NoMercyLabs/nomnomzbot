@@ -30,6 +30,8 @@ const stored = {
   ttsVolume: 60,
   defaultMasterVolume: 100,
   defaultTtsVolume: 100,
+  musicDuckPercent: 70,
+  defaultMusicDuckPercent: 100,
   minVolume: 0,
   maxVolume: 100,
 };
@@ -115,10 +117,14 @@ describe('AudioMixPanel', () => {
     const master = wrapper.find<HTMLInputElement>('input[data-audio-mix="masterVolume"]');
     const tts = wrapper.find<HTMLInputElement>('input[data-audio-mix="ttsVolume"]');
 
+    const duck = wrapper.find<HTMLInputElement>('input[data-audio-mix="musicDuckPercent"]');
+
     expect(master.element.value).toBe('80');
     expect(tts.element.value).toBe('60');
+    expect(duck.element.value).toBe('70');
 
     expect(wrapper.findAll('[data-row-hint]').map((hint) => hint.text())).toEqual([
+      'Default 100',
       'Default 100',
       'Default 100',
     ]);
@@ -131,7 +137,7 @@ describe('AudioMixPanel', () => {
       .findAll('[role="slider"]')
       .map((thumb) => thumb.attributes('aria-label'));
 
-    expect(names).toEqual(['Master volume', 'Voice volume']);
+    expect(names).toEqual(['Master volume', 'Voice volume', 'Music duck percent']);
   });
 
   it('sends both volumes in one write when one field changes', async () => {
@@ -140,7 +146,11 @@ describe('AudioMixPanel', () => {
     await type(wrapper, 'masterVolume', '40');
 
     expect(puts).toEqual([
-      { path: '/api/v{version}/audio-mix', body: { masterVolume: 40, ttsVolume: 60 } },
+      { path: '/api/v{version}/audio-mix', body: {
+        masterVolume: 40,
+        ttsVolume: 60,
+        musicDuckPercent: 70,
+      } },
     ]);
   });
 
@@ -149,7 +159,23 @@ describe('AudioMixPanel', () => {
 
     await type(wrapper, 'ttsVolume', '150');
 
-    expect(puts[0]?.body).toEqual({ masterVolume: 80, ttsVolume: 100 });
+    expect(puts[0]?.body).toEqual({
+      masterVolume: 80,
+      ttsVolume: 100,
+      musicDuckPercent: 70,
+    });
+  });
+
+  it('saves the music duck percent with both volumes and keeps it inside 0-100', async () => {
+    const wrapper = await open();
+
+    await type(wrapper, 'musicDuckPercent', '250');
+
+    expect(puts[0]?.body).toEqual({
+      masterVolume: 80,
+      ttsVolume: 60,
+      musicDuckPercent: 100,
+    });
   });
 
   it('shows the translated server refusal on the field it names and nowhere else', async () => {
@@ -165,6 +191,22 @@ describe('AudioMixPanel', () => {
 
     expect(shown.text()).toBe(wanted);
     expect(wrapper.find('[data-audio-mix-error="masterVolume"]').exists()).toBe(false);
+  });
+
+  it('hides the duck row and leaves the percent out of the write when the server sends none', async () => {
+    const kept = stored.musicDuckPercent;
+
+    Object.assign(stored, { musicDuckPercent: undefined });
+
+    const wrapper = await open();
+
+    expect(wrapper.find('input[data-audio-mix="musicDuckPercent"]').exists()).toBe(false);
+
+    await type(wrapper, 'masterVolume', '40');
+
+    Object.assign(stored, { musicDuckPercent: kept });
+
+    expect(JSON.parse(JSON.stringify(puts[0]?.body))).toEqual({ masterVolume: 40, ttsVolume: 60 });
   });
 
   it('has a Dutch text for both refusal keys', () => {
@@ -185,5 +227,9 @@ describe('AudioMixPanel', () => {
 
     expect(wrapper.find('input[data-audio-mix="masterVolume"]').attributes('disabled')).toBeDefined();
     expect(wrapper.find('input[data-audio-mix="ttsVolume"]').attributes('disabled')).toBeDefined();
+
+    expect(
+      wrapper.find('input[data-audio-mix="musicDuckPercent"]').attributes('disabled'),
+    ).toBeDefined();
   });
 });

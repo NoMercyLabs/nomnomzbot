@@ -20,6 +20,10 @@
           "title": "Stemvolume",
           "description": "Hoe luid de tekst-naar-spraakstem klinkt."
         },
+        "musicDuck": {
+          "title": "Muziek dempen in procent",
+          "description": "Hoe luid de muziek blijft terwijl de stem praat. 100 betekent niet dempen."
+        },
         "errors": {
           "audio_mix_master_volume_out_of_range": "Het hoofdvolume ligt buiten het toegestane bereik. Er is niets opgeslagen.",
           "audio_mix_tts_volume_out_of_range": "Het stemvolume ligt buiten het toegestane bereik. Er is niets opgeslagen."

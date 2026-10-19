@@ -31,7 +31,12 @@ type Field = keyof AudioMixChange;
 const fields = [
   { field: 'masterVolume', text: 'master' },
   { field: 'ttsVolume', text: 'tts' },
+  { field: 'musicDuckPercent', text: 'musicDuck' },
 ] as const satisfies readonly { field: Field; text: string }[];
+
+// Ducking is a share of the music volume, so it always runs 0 to 100 whatever limits the volumes have.
+const duckLowest = 0;
+const duckHighest = 100;
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -41,10 +46,29 @@ const save = useSaveAudioMix(channelId);
 
 const stored = computed(() => mix.data.value ?? null);
 const writable = computed(() => can('sounds:write'));
-const draft = reactive<Record<Field, number>>({ masterVolume: 0, ttsVolume: 0 });
+// A server that predates ducking sends no percent, so the row stays hidden instead of showing a made-up number.
+const ducks = computed(() => stored.value?.musicDuckPercent !== undefined);
+const rows = computed(() => fields.filter((row) => row.field !== 'musicDuckPercent' || ducks.value));
+const draft = reactive<Record<Field, number>>({
+  masterVolume: 0,
+  ttsVolume: 0,
+  musicDuckPercent: 0,
+});
 
-const lowest = computed(() => Number(stored.value?.minVolume ?? 0));
-const highest = computed(() => Number(stored.value?.maxVolume ?? 100));
+const volumeLowest = computed(() => Number(stored.value?.minVolume ?? 0));
+const volumeHighest = computed(() => Number(stored.value?.maxVolume ?? 100));
+
+function lowestOf(field: Field): number {
+  return field === 'musicDuckPercent'
+    ? duckLowest
+    : volumeLowest.value;
+}
+
+function highestOf(field: Field): number {
+  return field === 'musicDuckPercent'
+    ? duckHighest
+    : volumeHighest.value;
+}
 
 const state = computed<PanelState>(() => {
   if (mix.isError.value)
@@ -59,16 +83,19 @@ const state = computed<PanelState>(() => {
 function showStored(): void {
   draft.masterVolume = Number(stored.value?.masterVolume ?? 0);
   draft.ttsVolume = Number(stored.value?.ttsVolume ?? 0);
+  draft.musicDuckPercent = Number(stored.value?.musicDuckPercent ?? 0);
 }
 
 watch(stored, showStored, { immediate: true });
 
 function defaultOf(field: Field): number {
-  const standard = field === 'masterVolume'
-    ? stored.value?.defaultMasterVolume
-    : stored.value?.defaultTtsVolume;
+  const standards = {
+    masterVolume: stored.value?.defaultMasterVolume,
+    ttsVolume: stored.value?.defaultTtsVolume,
+    musicDuckPercent: stored.value?.defaultMusicDuckPercent,
+  } as const satisfies Record<Field, number | string | undefined>;
 
-  return Number(standard);
+  return Number(standards[field]);
 }
 
 function hintOf(field: Field): string {
@@ -77,12 +104,14 @@ function hintOf(field: Field): string {
     : '';
 }
 
-function clamp(raw: number): number {
+function clamp(field: Field, raw: number): number {
   const whole = Math.trunc(raw);
+  const floor = lowestOf(field);
+  const ceiling = highestOf(field);
 
   return Number.isFinite(whole)
-    ? Math.min(highest.value, Math.max(lowest.value, whole))
-    : lowest.value;
+    ? Math.min(ceiling, Math.max(floor, whole))
+    : floor;
 }
 
 function commit(field: Field): void {
@@ -90,13 +119,16 @@ function commit(field: Field): void {
 
   if (!current) return;
 
-  draft[field] = clamp(draft[field]);
+  draft[field] = clamp(field, draft[field]);
 
   if (draft[field] === Number(current[field])) return;
 
   const change = {
     masterVolume: Number(current.masterVolume),
     ttsVolume: Number(current.ttsVolume),
+    musicDuckPercent: ducks.value
+      ? Number(current.musicDuckPercent)
+      : undefined,
     [field]: draft[field],
   } as const satisfies AudioMixChange;
 
@@ -136,7 +168,7 @@ const failure = computed(() => {
     @retry="mix.refetch()"
   >
     <RowGroup v-if="stored">
-      <div v-for="row in fields" :key="row.field">
+      <div v-for="row in rows" :key="row.field">
         <ReadabilityRow
           :title="$t(`dashboard.overlays.audioMix.${row.text}.title`)"
           :description="$t(`dashboard.overlays.audioMix.${row.text}.description`)"
@@ -145,8 +177,8 @@ const failure = computed(() => {
           <Slider
             class="w-40"
             :model-value="[draft[row.field]]"
-            :min="lowest"
-            :max="highest"
+            :min="lowestOf(row.field)"
+            :max="highestOf(row.field)"
             :step="1"
             :disabled="!writable"
             :thumb-label="$t(`dashboard.overlays.audioMix.${row.text}.title`)"
@@ -157,8 +189,8 @@ const failure = computed(() => {
           <Input
             :model-value="draft[row.field]"
             type="number"
-            :min="lowest"
-            :max="highest"
+            :min="lowestOf(row.field)"
+            :max="highestOf(row.field)"
             class="w-20"
             :data-audio-mix="row.field"
             :disabled="!writable"
