@@ -18,6 +18,7 @@ import { useTtsConfig } from '@/api/tts';
 import {
   byokProviders,
   useNamePronunciation,
+  useTtsDefaults,
   useRemoveByokKey,
   useSetByokKey,
   useSetNamePronunciation,
@@ -34,6 +35,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const config = useTtsConfig(channelId);
+const defaults = useTtsDefaults(channelId);
 const saveKey = useSetByokKey(channelId);
 const removeKey = useRemoveByokKey(channelId);
 const pronunciation = useNamePronunciation(channelId);
@@ -69,6 +71,15 @@ const stored = computed(
       elevenlabs: config.data.value?.hasElevenLabsByokKey ?? false,
     }) as const satisfies Record<ByokProvider, boolean>,
 );
+
+// Like the rule rows, the region names the bot default under its box; the bot has none until an operator sets one.
+const regionDefault = computed<string>(() => {
+  const standard = defaults.data.value?.azureRegion;
+
+  return standard
+    ? t('dashboard.tts.defaultHint.value', { value: standard })
+    : t('dashboard.tts.defaultHint.none');
+});
 
 function commitRegion(): void {
   const next = region.value.trim();
@@ -147,7 +158,7 @@ function submitSpelling(): void {
             "
           />
         </label>
-        <label v-if="provider === 'azure'" class="flex w-32 flex-col gap-1 text-sm font-medium">
+        <label v-if="provider === 'azure'" class="flex w-44 flex-col gap-1 text-sm font-medium">
           {{ $t("dashboard.tts.keys.region") }}
           <Input
             v-model="region"
@@ -158,6 +169,9 @@ function submitSpelling(): void {
             @blur="commitRegion"
             @keydown.enter="commitRegion"
           />
+          <span v-if="defaults.data.value" class="text-sm font-normal text-muted-foreground" data-region-default>
+            {{ regionDefault }}
+          </span>
         </label>
         <!-- Both providers put the buttons in one group: on a phone it sits on its own line, from sm it stays inline. -->
         <div class="flex w-full justify-end gap-2 sm:w-auto" data-key-actions>

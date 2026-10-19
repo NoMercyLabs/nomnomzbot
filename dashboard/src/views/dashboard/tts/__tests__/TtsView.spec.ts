@@ -285,6 +285,20 @@ describe('TtsView overview', () => {
     expect(panel('Pronunciation')).toBeDefined();
     expect(document.body.querySelector('[data-view="tts-rules"]')).toBeNull();
   });
+
+  // T6c defect 3: the content jumped in width between tabs (Pronunciation 8 of 12, Keys 6 of 12, Rules 12 of 12).
+  it.each(['pronunciation', 'keys', 'rules', 'voices', 'overview'])(
+    'fills the same 12 columns on the %s tab',
+    async (view) => {
+      await open(`?view=${view}`);
+
+      const spans = [...document.body.querySelectorAll<HTMLElement>('[data-slot="board-cell"]')]
+        .map((cell) => cell.style.getPropertyValue('--cell-span'));
+      const total: number = spans.reduce((sum, span) => sum + Number(span.replace('span ', '')), 0);
+
+      expect(total % 12).toBe(0);
+    },
+  );
 });
 
 // A-tts defects 8, 9 and 10 (2026-10-19).

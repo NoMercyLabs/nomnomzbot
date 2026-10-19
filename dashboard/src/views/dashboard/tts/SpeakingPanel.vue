@@ -84,9 +84,23 @@ const modes = computed(() =>
   (offered.value?.modes ?? []).map((id) => ({ value: id, label: modeName(id) })),
 );
 
-const providers = computed(() =>
-  (offered.value?.providers ?? []).map((id) => ({ value: id, label: providerName(id) })),
-);
+// The free bot voice runs on the keyless provider; my own key runs on the providers that need a key. A provider
+// the other source cannot use is not offered, except the one already stored, so the row never hides what is set.
+const KEYLESS_PROVIDERS = ['edge'] as const satisfies readonly string[];
+
+const providers = computed(() => {
+  const source = stored.value?.mode;
+  const current = stored.value?.defaultProvider;
+
+  return (offered.value?.providers ?? [])
+    .filter((id) => {
+      if (id === current || (source !== 'self_host' && source !== 'byok'))
+        return true;
+
+      return KEYLESS_PROVIDERS.includes(id) === (source === 'self_host');
+    })
+    .map((id) => ({ value: id, label: providerName(id) }));
+});
 
 function standingName(id: string): string {
   return t(`dashboard.tts.speaking.standing.${id}`);

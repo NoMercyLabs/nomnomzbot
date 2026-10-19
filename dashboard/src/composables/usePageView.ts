@@ -46,7 +46,13 @@ export function usePageView<View extends string>(
     set: (view): void => {
       if (view === undefined) return;
 
-      void router.push({ query: { ...route.query, [key]: view } });
+      // A board panel id (?panel=) belongs to the tab it was opened on, so another tab drops it.
+      const { panel: _stale, ...kept } = route.query;
+      const query = key === 'panel'
+        ? route.query
+        : kept;
+
+      void router.push({ query: { ...query, [key]: view } });
     },
   });
 }

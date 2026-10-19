@@ -256,13 +256,13 @@ const pronunciationPanels = computed(
     :panels="pronunciationPanels"
     :rows="1"
   >
-    <BoardCell panel="lexicon" :span="8">
+    <BoardCell panel="lexicon" :span="12">
       <LexiconPanel />
     </BoardCell>
   </BoardGrid>
 
   <BoardGrid v-else-if="view === 'keys' && can('tts:config:write')" :panels="keysPanels" :rows="1">
-    <BoardCell panel="keys" :span="6">
+    <BoardCell panel="keys" :span="12">
       <KeysPanel />
     </BoardCell>
   </BoardGrid>

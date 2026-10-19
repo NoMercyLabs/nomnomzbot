@@ -110,7 +110,8 @@
       "defaultHint": {
         "on": "Default: on",
         "off": "Default: off",
-        "value": "Default: {value}"
+        "value": "Default: {value}",
+        "none": "Default: none"
       },
       "speaking": {
         "title": "Speaking",

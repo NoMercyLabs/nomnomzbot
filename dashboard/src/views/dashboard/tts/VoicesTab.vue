@@ -91,13 +91,16 @@ function familyCount(value: string): number {
     : loaded.value.filter((voice) => voiceFamily(voice.locale) === value).length;
 }
 
-// While pages are missing, a language with no loaded voice shows no count: "0+" would read as none at all.
+// While pages are missing, a language with no loaded voice shows an ellipsis: "0+" would read as none at all, and an
+// empty slot beside "48+" looks broken. The ellipsis says more is still loading.
+const MORE_LOADING = '…';
+
 function chipCount(loadedCount: number): string {
   if (!hasMore.value)
     return String(loadedCount);
 
   return loadedCount === 0
-    ? ''
+    ? MORE_LOADING
     : `${loadedCount}+`;
 }
 

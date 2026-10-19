@@ -110,7 +110,8 @@
       "defaultHint": {
         "on": "Standaard: aan",
         "off": "Standaard: uit",
-        "value": "Standaard: {value}"
+        "value": "Standaard: {value}",
+        "none": "Standaard: geen"
       },
       "speaking": {
         "title": "Voorlezen",

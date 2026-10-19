@@ -137,6 +137,10 @@ let pinia: Pinia;
 beforeEach(() => {
   sent.length = 0;
   configRefused = false;
+  config.mode = 'all';
+  config.defaultProvider = 'edge';
+  options.providers = ['edge', 'azure'];
+  defaults.azureRegion = 'westeurope';
 
   lexicon = [
     {
@@ -205,7 +209,9 @@ describe('TTS rules panels', () => {
     expect(failure?.textContent).toContain('Try again');
 
     configRefused = false;
-    (failure?.querySelector('button') as HTMLButtonElement).click();
+    const retry = failure?.querySelector('button') as HTMLButtonElement;
+
+    retry.click();
     await flushPromises();
     await new Promise((done) => setTimeout(done, 0));
     await flushPromises();
@@ -359,7 +365,6 @@ describe('TTS rules panels', () => {
     ].map((entry) => entry.textContent?.trim());
 
     expect(segments).toContain('Microsoft Edge');
-    expect(segments).toContain('Azure');
     expect(segments).not.toContain('ElevenLabs');
 
     const box = byLabel('Maximum characters');
@@ -373,6 +378,50 @@ describe('TTS rules panels', () => {
     await flushPromises();
 
     expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ maxCharacters: 400 });
+  });
+
+  // T6c defect 7: "Voice provider" offered Azure and ElevenLabs while the voice source was the free bot voice.
+  const providerSegments = (): (string | undefined)[] =>
+    [...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button')].map(
+      (entry) => entry.textContent?.trim(),
+    );
+
+  it('offers only the free provider while the voice source is the free bot voice', async () => {
+    config.mode = 'self_host';
+    options.providers = ['edge', 'azure', 'elevenlabs'];
+    await open();
+
+    expect(providerSegments()).toContain('Microsoft Edge');
+    expect(providerSegments()).not.toContain('Azure');
+    expect(providerSegments()).not.toContain('ElevenLabs');
+  });
+
+  it('offers only the keyed providers while the voice source is my own key', async () => {
+    config.mode = 'byok';
+    config.defaultProvider = 'azure';
+    options.providers = ['edge', 'azure', 'elevenlabs'];
+    await open();
+
+    expect(providerSegments()).not.toContain('Microsoft Edge');
+    expect(providerSegments()).toContain('Azure');
+    expect(providerSegments()).toContain('ElevenLabs');
+  });
+
+  it('names the default under the Azure region box like the rule rows do', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-region-default]')?.textContent?.trim()).toBe(
+      'Default: westeurope',
+    );
+  });
+
+  it('says the Azure region has no default when the bot has none', async () => {
+    defaults.azureRegion = null as unknown as string;
+    await open();
+
+    expect(document.body.querySelector('[data-region-default]')?.textContent?.trim()).toBe(
+      'Default: none',
+    );
   });
 
   it('resets the rules to the bot defaults through the reset call', async () => {
