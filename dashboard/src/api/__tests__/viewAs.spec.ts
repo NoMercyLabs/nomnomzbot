@@ -8,11 +8,18 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { client } from '../client';
 import { queryClient } from '../queryClient';
-import { useViewAs, viewAs, viewAsHeader } from '../viewAs';
+import { useViewAs, viewAs, viewAsHeader, type ViewAsControl } from '../viewAs';
+
+const rechecked = vi.hoisted(() => vi.fn<(router: Router) => Promise<void>>());
+
+vi.mock('@/router/recheckPage', () => ({ recheckOpenPage: rechecked }));
 
 // The call goes through the real middleware chain; fetch is the only fake.
 function answer(): ReturnType<typeof vi.fn<typeof fetch>> {
@@ -56,5 +63,46 @@ describe('view as', () => {
 
     expect(viewAs.value).toBe('');
     expect(dropped).toHaveBeenCalledTimes(2);
+  });
+
+  it('checks the open page again, after the new role has reached every answer', async () => {
+    const order: string[] = [];
+
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async () => {
+      order.push('answers dropped');
+    });
+
+    rechecked.mockImplementation(async () => {
+      order.push(`page checked as ${viewAs.value || 'owner'}`);
+    });
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: defineComponent({ render: () => h('div') }) }],
+    });
+    let control: ViewAsControl | undefined;
+
+    mount(
+      defineComponent({
+        setup() {
+          control = useViewAs();
+
+          return () => h('div');
+        },
+      }),
+      { global: { plugins: [router] } },
+    );
+
+    await control?.start('viewer');
+    await control?.exit();
+
+    expect(order).toEqual([
+      'answers dropped',
+      'page checked as viewer',
+      'answers dropped',
+      'page checked as owner',
+    ]);
+
+    expect(rechecked).toHaveBeenCalledWith(router);
   });
 });

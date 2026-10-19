@@ -14,14 +14,11 @@ import { channelAccessOptions } from '@/api/access';
 import { moderatedChannelsQuery, myChannelsQuery } from '@/api/channels';
 import { ensureQuery } from '@/api/queryClient';
 import { channelChoices, chosenChannelId, pickCurrent } from '@/composables/useCurrentChannel';
-import { dashboardNav } from '@/layouts/dashboard/navigation';
-import { merge } from '@/lib/array';
+import { landingOrder } from '@/layouts/dashboard/navigation';
 
 import { channelParam } from './channelRoutes';
 
 const variantMark = 'u:';
-const homePage = 'dashboard-home';
-const viewerChatPage = 'dashboard-viewer-chat';
 const viewerChannelParam = 'channel';
 const viewerPage = 'viewer-me';
 
@@ -56,16 +53,6 @@ async function targetChannelId(to: RouteLocationNormalized): Promise<string | nu
   return choices.find((row) => row.login.toLowerCase() === asked)?.channelId ?? null;
 }
 
-// Home first, then the viewer chat, then the rest of the sidebar in its own order.
-function fallbackPages(): readonly { route: string; action?: string }[] {
-  const entries = dashboardNav.flatMap((group) => group.entries);
-  const first = [homePage, viewerChatPage];
-  const preferred = first.flatMap((route) => entries.filter((entry) => entry.route === route));
-  const rest = entries.filter((entry) => !first.includes(entry.route));
-
-  return merge(preferred, rest);
-}
-
 function opensFor(router: Router, held: ReadonlySet<string>, location: RouteLocationRaw): boolean {
   const target = router.resolve(location);
   const needed = target.meta.action;
@@ -90,7 +77,7 @@ function firstOpenPage(
     } as const satisfies RouteLocationRaw | true;
   }
 
-  for (const entry of fallbackPages()) {
+  for (const entry of landingOrder()) {
     const name = typeof named === 'string'
       ? `${variantMark}${entry.route}`
       : entry.route;

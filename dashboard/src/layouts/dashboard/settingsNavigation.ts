@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 import AlertTriangle from '~icons/nnz/alert-triangle';
-import ArrowLeft from '~icons/nnz/arrow-left';
 import BookOpen from '~icons/nnz/book-open';
 import CellTower from '~icons/nnz/cell-tower';
 import ChatBot from '~icons/nnz/chat-bot';
@@ -32,14 +31,14 @@ import StairsUp from '~icons/nnz/stairs-up';
 import Speedometer from '~icons/nnz/speedometer';
 import ToggleOn from '~icons/nnz/toggle-on';
 
-import { navEntry, type NavGroup } from './navigation';
+import { backEntry, navEntry, type NavGroup } from './navigation';
 
 // The settings sidebar (mockup 4-settings.html nav rows). Readability is the built settings page.
 // The words sit under frame.nav.settingsPages, because frame.nav.settings is the dashboard entry.
 export const settingsNav: readonly NavGroup[] = [
   {
     key: 'back',
-    entries: [navEntry('dashboard-home', 'back.dashboard', ArrowLeft)],
+    entries: [backEntry('back.dashboard')],
   },
   {
     key: 'settings.you',

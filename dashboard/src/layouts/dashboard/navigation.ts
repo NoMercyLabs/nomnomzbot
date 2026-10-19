@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { Component } from 'vue';
+import ArrowLeft from '~icons/nnz/arrow-left';
 import BarChart from '~icons/nnz/bar-chart';
 import ChartLine from '~icons/nnz/chart-positive';
 import ChatBubble from '~icons/nnz/chat-bubble';
@@ -38,6 +39,8 @@ import Users from '~icons/nnz/users';
 import WaveForm from '~icons/nnz/wave-form';
 import Lightning from '~icons/nnz/lightning';
 
+import { merge } from '@/lib/array';
+
 // Which sidebar a page belongs to. A route says it in meta.navMode; a route without it sits in the dashboard.
 export type NavMode = 'dashboard' | 'admin' | 'viewer' | 'settings';
 
@@ -55,6 +58,8 @@ export type NavEntry = {
   action?: string;
   // The action key that hides the entry when the person holds it (the viewer chat gives way to the operator chat).
   unless?: string;
+  // The way back out of a sidebar: it never hides, and leads to the first page the person may open.
+  back?: boolean;
 };
 
 export type NavGroup = {
@@ -293,4 +298,23 @@ export function navEntry(route: string, label: string, icon: Component, exact = 
     icon,
     exact,
   } as const satisfies NavEntry;
+}
+
+// The way back out of the settings, admin and viewer sidebars. It names the dashboard home, but it never hides:
+// a previewed viewer cannot open the home page, so the link leads to the first page that role can open.
+export function backEntry(label: 'back.admin' | 'back.dashboard') {
+  return {
+    ...navEntry('dashboard-home', label, ArrowLeft),
+    back: true,
+  } as const satisfies NavEntry;
+}
+
+// The order a person lands in: home, then the viewer chat, then the rest of the dashboard sidebar as it stands.
+export function landingOrder(): readonly NavEntry[] {
+  const entries = dashboardNav.flatMap((group) => group.entries);
+  const first = ['dashboard-home', 'dashboard-viewer-chat'];
+  const preferred = first.flatMap((route) => entries.filter((entry) => entry.route === route));
+  const rest = entries.filter((entry) => !first.includes(entry.route));
+
+  return merge(preferred, rest);
 }

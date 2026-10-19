@@ -842,6 +842,7 @@
     "profile": {
       "menu": "Accountmenu",
       "moderator": "Moderator",
+      "viewer": "Kijker",
       "broadcaster": "Streamer",
       "readability": "Leesbaarheid",
       "fullscreen": "Volledig scherm",

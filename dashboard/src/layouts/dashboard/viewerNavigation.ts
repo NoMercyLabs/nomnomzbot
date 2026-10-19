@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import ArrowLeft from '~icons/nnz/arrow-left';
 import ChatMessages from '~icons/nnz/chat-messages';
 import Dices from '~icons/nnz/dices';
 import Gem from '~icons/nnz/gem';
@@ -17,13 +16,13 @@ import NoteEighthPair from '~icons/nnz/note-eighth-pair';
 import Trophy from '~icons/nnz/trophy';
 import User from '~icons/nnz/user';
 
-import { navEntry, type NavGroup } from './navigation';
+import { backEntry, navEntry, type NavGroup } from './navigation';
 
 // The viewer sidebar (mockup base/shell.js NAV.viewer): one group with no title.
 export const viewerNav: readonly NavGroup[] = [
   {
     key: 'back',
-    entries: [navEntry('dashboard-home', 'back.dashboard', ArrowLeft)],
+    entries: [backEntry('back.dashboard')],
   },
   {
     key: 'viewer',

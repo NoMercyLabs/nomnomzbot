@@ -72,11 +72,15 @@ const initials = computed<string>(() =>
     .slice(0, 2)
     .toUpperCase(),
 );
-const role = computed<string>(() =>
-  current.value?.kind === 'moderated'
+// While a role is previewed the footer names that role; otherwise the person's own role in this channel.
+const role = computed<string>(() => {
+  if (previewing.value)
+    return t(`frame.profile.${preview.role.value}`);
+
+  return current.value?.kind === 'moderated'
     ? t('frame.profile.moderator')
-    : t('frame.profile.broadcaster'),
-);
+    : t('frame.profile.broadcaster');
+});
 
 // Only the owner of the channel can preview a smaller role; a moderator already sees theirs.
 const isOwner = computed<boolean>(() => !previewing.value && current.value?.kind === 'own');

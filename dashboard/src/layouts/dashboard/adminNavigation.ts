@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import ArrowLeft from '~icons/nnz/arrow-left';
 import BarChart from '~icons/nnz/bar-chart';
 import Building from '~icons/nnz/building';
 import CalendarTimed from '~icons/nnz/calendar-timed';
@@ -33,13 +32,13 @@ import Speedometer from '~icons/nnz/speedometer';
 import Tv from '~icons/nnz/tv';
 import Users from '~icons/nnz/users';
 
-import { navEntry, type NavGroup } from './navigation';
+import { backEntry, navEntry, type NavGroup } from './navigation';
 
 // The platform admin sidebar (mockup base/shell.js NAV.admin). The way back sits first.
 export const adminNav: readonly NavGroup[] = [
   {
     key: 'back',
-    entries: [navEntry('dashboard-home', 'back.admin', ArrowLeft)],
+    entries: [backEntry('back.admin')],
   },
   {
     key: 'admin.activity',

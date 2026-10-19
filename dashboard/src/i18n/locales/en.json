@@ -842,6 +842,7 @@
     "profile": {
       "menu": "Account menu",
       "moderator": "Moderator",
+      "viewer": "Viewer",
       "broadcaster": "Broadcaster",
       "readability": "Readability",
       "fullscreen": "Fullscreen",

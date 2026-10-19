@@ -19,7 +19,7 @@ import { isChannelPage, pageLocation, pageName, routeChannel } from '@/router/ch
 import { adminPageKey } from '@/views/dashboard/admin/adminKeys';
 
 import { navByMode } from './navModes';
-import type { NavEntry, NavMode } from './navigation';
+import { landingOrder, type NavEntry, type NavMode } from './navigation';
 
 export type VisibleGroup = {
   key: string;
@@ -61,6 +61,9 @@ export function useNavigation() {
 
   // A page the person may not read has no entry. Until the bot has answered, nothing is hidden.
   function readable(entry: NavEntry): boolean {
+    if (entry.back === true)
+      return true;
+
     if (!holdsAdminKey(entry))
       return false;
 
@@ -86,12 +89,23 @@ export function useNavigation() {
     return page === entry.route || (entry.exact !== true && page.startsWith(`${entry.route}-`));
   }
 
+  // The page the way back leads to: the first one of the landing order this person may open.
+  function landingRoute(home: string): string {
+    const open = landingOrder().find((page) => router.hasRoute(page.route) && readable(page));
+
+    return open?.route ?? home;
+  }
+
   // The channel in the address while the person is on a channel route, else the one being managed.
   function linkTo(entry: NavEntry) {
-    if (!isChannelPage(router.resolve({ name: entry.route }).meta))
-      return { name: entry.route } as const satisfies RouteLocationRaw;
+    const target = entry.back === true
+      ? landingRoute(entry.route)
+      : entry.route;
 
-    return pageLocation(entry.route, routeChannel(route) ?? current.value?.login ?? null);
+    if (!isChannelPage(router.resolve({ name: target }).meta))
+      return { name: target } as const satisfies RouteLocationRaw;
+
+    return pageLocation(target, routeChannel(route) ?? current.value?.login ?? null);
   }
 
   // The open page says which sidebar it belongs to; a page that says nothing sits in the dashboard.

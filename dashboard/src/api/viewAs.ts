@@ -9,7 +9,10 @@
 // -----------------------------------------------------------------------------
 
 import { useLocalStorage } from '@vueuse/core';
-import type { Ref } from 'vue';
+import { hasInjectionContext, type Ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+import { recheckOpenPage } from '@/router/recheckPage';
 
 import { queryClient } from './queryClient';
 
@@ -27,10 +30,19 @@ export type ViewAsControl = {
 };
 
 // Every answer on screen depends on the role, so a change drops them all and the open pages ask again.
+// Then the open page is checked again for the new role: a page it may not open gives way to one it may.
 export function useViewAs() {
+  const router = hasInjectionContext()
+    ? useRouter()
+    : undefined;
+
   async function change(role: ViewAsRole | ''): Promise<void> {
     viewAs.value = role;
     await queryClient.invalidateQueries();
+
+    if (router !== undefined) {
+      await recheckOpenPage(router);
+    }
   }
 
   return {
