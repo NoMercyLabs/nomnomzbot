@@ -34,17 +34,6 @@ const lastSeen = computed<string>(() =>
     ? t('dashboard.people.list.lastSeen', { ago: ago.value })
     : t('dashboard.people.list.neverSeen'),
 );
-// A gifted subscription names the gifter when Twitch reports one.
-const giftedBy = computed<string>(() =>
-  props.person.gifter
-    ? t('dashboard.people.list.giftedBy', { gifter: props.person.gifter })
-    : t('dashboard.people.list.gifted'),
-);
-const detail = computed<string>(() =>
-  props.person.gifted
-    ? `${giftedBy.value} · ${lastSeen.value}`
-    : lastSeen.value,
-);
 const initials = computed<string>(() => props.person.displayName.slice(0, 2).toUpperCase());
 </script>
 
@@ -56,7 +45,7 @@ const initials = computed<string>(() => props.person.displayName.slice(0, 2).toU
       :selected="selected"
       :aria-pressed="selected"
       :title="person.displayName"
-      :detail="detail"
+      :detail="lastSeen"
       @click="$emit('pick')"
     >
       <template #leading>
@@ -74,7 +63,7 @@ const initials = computed<string>(() => props.person.displayName.slice(0, 2).toU
           v-if="person.gifted"
           role="img"
           class="size-4 text-muted-foreground"
-          :aria-label="giftedBy"
+          :aria-label="$t('dashboard.people.list.gifted')"
         />
         <StatusBadge
           v-if="person.isBanned"

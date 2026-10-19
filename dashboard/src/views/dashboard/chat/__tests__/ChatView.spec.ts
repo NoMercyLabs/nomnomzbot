@@ -876,6 +876,14 @@ describe('ChatView', () => {
     expect(bar.querySelector('[data-chat-popout]')).not.toBeNull();
   });
 
+  it('names the chat modes, raids and cleanup panel Chat settings, not mod tools', async () => {
+    await open();
+    const toggle = document.body.querySelector('[data-mod-tools-toggle]')!;
+
+    expect(toggle.getAttribute('aria-label')).toBe('Chat settings');
+    expect(toggle.textContent).toContain('Chat settings');
+  });
+
   // Stoney 2026-10-13: "searching messages should also be possible and go all the way back from the
   // first message to return chat messages containing a fuzzy search result".
   describe('search', () => {

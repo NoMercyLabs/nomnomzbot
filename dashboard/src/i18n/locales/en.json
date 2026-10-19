@@ -475,6 +475,7 @@
       "vip": "VIP",
       "subscriber": "Twitch subscriber",
       "subscriberBadge": "Subscriber",
+      "artist": "Artist",
       "viewer": "Viewer"
     },
     "following": {
@@ -495,6 +496,7 @@
       "bestStreak": "Best watch streak",
       "roles": "Roles",
       "subscription": "Twitch subscription",
+      "giftedBy": "Gifted by",
       "firstSeen": "First seen",
       "lastSeen": "Last seen",
       "nickname": "Nickname",

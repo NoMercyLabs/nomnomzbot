@@ -21,6 +21,23 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-20 — live event subscriptions, and a page-by-page cleanup tour
+
+Owner words are in `dashboard-owner-words.md` (2026-10-19 and 2026-10-20 entries). One dashboard page at a time; server slices run beside them.
+
+- **S-SUB-WIDGET** — a widget page sends `Subscribe(widgetId, events)` from its registered handlers (`on`, `onAny` = `*`); the server stores the widget's catalogue default joined with that set, and every routing site uses one `Widget.Wants`. Done when the hub, routing and Jint SDK tests pass and the live Bot Audio rows hold only `tts_speak`.
+- **S-SUB-DASHBOARD-HUB** — `DashboardHub.JoinChannelClasses` is renamed `Subscribe(channelId, classes)` (only the Vue dashboard calls it; KMP uses `JoinChannel`, which stays).
+- **S-SUB-DASHBOARD** — an open page joins only the event classes something on it shows (`useLiveClasses`, the work-in-progress patch at the scratchpad `dashboard-classes-wip/`). After S-SUB-DASHBOARD-HUB is deployed.
+- **S-PAGE-QUOTES-ROW** — the quote number, text and actions share one row line (visual balance).
+- **S-CHAT-HTML-PLAIN** — the chat Display panel gets "Show HTML as plain text" (per device); the channel switch stays in Settings › Features.
+- **S-GAMES-SOON** — Games becomes a coming-soon page, and the seeded games and their chat words stop running (turned off, not deleted).
+- **S-PAGE-EVENT-REPLY** — an event response shows the lines that will really be posted in one editable list (the platform default lines are the starting text, with Reset), and no control that cannot work ("Send a test" is removed until it works).
+- **S-PAGE-OVERLAYS** — the audio levels move out of the overlay list column; settings rows show label and help only (no key or type names); a reward is picked, not typed as an id; a JSON group is not shown raw.
+- **S-PAGE-SCRIPTS** — the script detail shows what a person needs (trigger, settings, test with its own events), not raw powers and the full code; the empty session column does not take a third of the page.
+- **S-PAGE-OBS** — the OBS page is reorganized so the settings are not hidden in a collapsed section at the bottom and the live controls fit a streamer who is live.
+- **S-PAGE-MUSIC-SETTINGS** — the music settings panel is regrouped into clear sections.
+- **S-CHAT-BADGES** — the Chat identity panel shows the badges a person can choose, if Twitch's API offers a way (a check of the Helix docs is running); otherwise it says so truthfully.
+
 ## OWNER REQUEST 2026-10-19 (night): Spotify keeps its own queue while YouTube takes over at the song boundary; YouTube keeps playing from the streamer's own music
 
 Stoney, verbatim: "so let me be clear one more time about the logic. spotify plays it's own auto queue and does its own magic, the fair queue system will ALWAYS dispatch ONE song into the manual spotify queue if there is one requested, so spotify has its auto queue AND 1 song dispatched automatically. and then handle the youtube transition on top of that by pausing spotify playback right as the next song plays, then make youtube play, when youtube is end - 3s we resume spotify again it is really important to keep spotify doing what it does best while we correctly handle youtube's takeover and its ending of playback"

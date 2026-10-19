@@ -475,6 +475,7 @@
       "vip": "VIP",
       "subscriber": "Twitch-abonnee",
       "subscriberBadge": "Abonnee",
+      "artist": "Artiest",
       "viewer": "Kijker"
     },
     "following": {
@@ -495,6 +496,7 @@
       "bestStreak": "Langste kijkreeks",
       "roles": "Rollen",
       "subscription": "Twitch-abonnement",
+      "giftedBy": "Cadeau van",
       "firstSeen": "Eerst gezien",
       "lastSeen": "Laatst gezien",
       "nickname": "Bijnaam",

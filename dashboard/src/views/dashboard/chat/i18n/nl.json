@@ -256,9 +256,9 @@
         }
       },
       "modTools": {
-        "title": "Moderatietools",
+        "title": "Chatinstellingen",
         "for": "voor {name}",
-        "close": "Moderatietools sluiten",
+        "close": "Chatinstellingen sluiten",
         "failed": "De moderatieactie is mislukt. Probeer het opnieuw.",
         "modes": "Chatmodi",
         "loading": "Chatmodi laden...",

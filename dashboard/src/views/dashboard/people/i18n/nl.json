@@ -43,7 +43,6 @@
         "notInChannel": "Niet in dit kanaal",
         "banned": "Verbannen",
         "gifted": "Cadeau-abonnement",
-        "giftedBy": "Cadeau van {gifter}",
         "roles": {
           "moderator": "Moderator",
           "vip": "VIP"

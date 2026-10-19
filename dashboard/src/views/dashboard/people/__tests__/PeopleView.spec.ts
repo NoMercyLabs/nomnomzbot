@@ -11,7 +11,7 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
@@ -559,6 +559,22 @@ describe('PeopleView', () => {
     expect(text()).not.toContain('1000');
   });
 
+  it('names the gifter of a gifted subscription in the profile', async () => {
+    const listed = everyone[0]!;
+
+    everyone[0] = person('alice', { gifted: true, gifter: 'Kana' });
+
+    onTestFinished(() => {
+      everyone[0] = listed;
+    });
+
+    await open('/app/people?u=alice');
+
+    const detail = document.body.querySelector('[data-person-detail]') as HTMLElement;
+
+    expect(detail.textContent).toMatch(/Gifted by\s*Kana/);
+  });
+
   it('titles the empty detail pane as a profile, not a second People list', async () => {
     await open();
 
@@ -828,7 +844,7 @@ describe('PeopleView', () => {
     );
   });
 
-  it('opens the Subscribers tab on the people Twitch lists and names the gifter of a gifted sub', async () => {
+  it('opens the Subscribers tab on the people Twitch lists and marks a gifted sub without naming the gifter in the row', async () => {
     listAnswer = (role) =>
       role === 'subscriber'
         ? page(
@@ -840,8 +856,9 @@ describe('PeopleView', () => {
     await open('/app/people?view=subscriber');
 
     expect(rows().map((row) => row.getAttribute('data-gifted'))).toEqual(['true', 'false']);
-    expect(rows()[0]!.textContent).toContain('Gifted by Kana');
-    expect(rows()[1]!.textContent).not.toContain('Gifted');
+    expect(rows()[0]!.textContent).not.toContain('Kana');
+    expect(rows()[0]!.querySelector('[aria-label="Gifted Twitch subscription"]')).not.toBeNull();
+    expect(rows()[1]!.querySelector('[aria-label="Gifted Twitch subscription"]')).toBeNull();
     expect(tab('Twitch subscribers').hasAttribute('disabled')).toBe(false);
     expect(tab('Twitch subscribers').textContent).toContain('2');
   });
@@ -865,21 +882,6 @@ describe('PeopleView', () => {
     expect(
       rows().map((row) => row.querySelector('[data-slot="summary-row-title"]')?.textContent),
     ).toEqual(['FRESH', 'MID', 'OLD', 'NEVER']);
-  });
-
-  it('keeps the detail of a gifted subscriber on one line so every row has the same height', async () => {
-    listAnswer = (role) =>
-      role === 'subscriber'
-        ? page([person('sam', { gifted: true, gifter: 'AVeryLongGifterNameIndeed' })], 1)
-        : page([], 0);
-
-    await open('/app/people?view=subscriber');
-
-    const detail = rows()[0]!.querySelector(
-      '[data-slot="summary-row-text"] > span:nth-child(2) > span:last-child',
-    )!;
-
-    expect(detail.classList.contains('truncate')).toBe(true);
   });
 
   it('opens the Regulars tab on the regular list of the bot', async () => {

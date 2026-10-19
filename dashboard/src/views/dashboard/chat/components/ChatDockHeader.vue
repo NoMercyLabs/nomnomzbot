@@ -14,8 +14,8 @@
 import { inject, type Component } from 'vue';
 import Cross from '~icons/nnz/cross';
 import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
-import Moderator from '~icons/nnz/moderator';
 import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
+import Settings from '~icons/nnz/settings';
 import SettingsFader from '~icons/nnz/settings-fader';
 import UserCircle from '~icons/nnz/user-circle';
 
@@ -91,7 +91,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
           :aria-label="$t('dashboard.chat.modTools.title')"
           @click="modToolsOpen = !modToolsOpen"
         >
-          <Moderator class="size-5" aria-hidden="true" />
+          <Settings class="size-5" aria-hidden="true" />
         </Button>
         <Button
           v-if="!viewer"
@@ -129,7 +129,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuCheckboxItem v-if="!viewer" v-model="modToolsOpen" data-more-mod-tools>
-            <Moderator aria-hidden="true" />
+            <Settings aria-hidden="true" />
             {{ $t('dashboard.chat.modTools.title') }}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem v-if="!viewer" v-model="identityOpen" data-more-identity>

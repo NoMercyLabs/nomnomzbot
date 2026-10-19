@@ -43,7 +43,6 @@
         "notInChannel": "Not in this channel",
         "banned": "Banned",
         "gifted": "Gifted Twitch subscription",
-        "giftedBy": "Gifted by {gifter}",
         "roles": {
           "moderator": "Moderator",
           "vip": "VIP"

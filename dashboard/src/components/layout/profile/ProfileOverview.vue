@@ -27,6 +27,8 @@ const props = defineProps<{
   pending?: boolean;
   // owner: this person is the channel's own account.
   owner?: boolean;
+  // gifter: who gave this person their current Twitch subscription, when it was a gift.
+  gifter?: string | null;
 }>();
 
 const { t, locale } = useI18n();
@@ -86,6 +88,10 @@ const relationship = computed<KeyValueItem[]>(() => {
       value: tier === null
         ? null
         : t('profile.tier', { tier }),
+    },
+    {
+      label: t('profile.facts.giftedBy'),
+      value: props.gifter,
     },
     {
       label: t('profile.facts.bestStreak'),

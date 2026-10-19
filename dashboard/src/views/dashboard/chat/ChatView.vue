@@ -18,7 +18,7 @@ import { useRoute, useRouter } from 'vue-router';
 import ArrowUpRight from '~icons/nnz/arrow-up-right';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
-import Moderator from '~icons/nnz/moderator';
+import Settings from '~icons/nnz/settings';
 import UserCircle from '~icons/nnz/user-circle';
 
 import { useChannelAccess } from '@/api/access';
@@ -370,7 +370,7 @@ async function confirmBan(): Promise<void> {
           :aria-label="$t('dashboard.chat.modTools.title')"
           @click="modToolsOpen = !modToolsOpen"
         >
-          <Moderator class="size-4" aria-hidden="true" />
+          <Settings class="size-4" aria-hidden="true" />
           <span class="phone:sr-only">{{ $t('dashboard.chat.modTools.title') }}</span>
         </Button>
         <Button

@@ -256,9 +256,9 @@
         }
       },
       "modTools": {
-        "title": "Mod tools",
+        "title": "Chat settings",
         "for": "for {name}",
-        "close": "Close mod tools",
+        "close": "Close chat settings",
         "failed": "The moderation action failed. Try again.",
         "modes": "Chat modes",
         "loading": "Loading chat modes...",

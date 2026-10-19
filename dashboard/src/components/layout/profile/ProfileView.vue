@@ -320,6 +320,7 @@ async function banNow(): Promise<void> {
               :profile="viewerProfile"
               :pending="viewer.isPending.value"
               :owner="isOwner"
+              :gifter="person?.gifted ? person.gifter : null"
             />
           </TabsContent>
 
