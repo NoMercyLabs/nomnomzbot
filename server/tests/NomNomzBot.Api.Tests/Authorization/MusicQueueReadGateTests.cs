@@ -18,6 +18,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Content.Identity;
 using NSubstitute;
 
@@ -68,6 +70,10 @@ public sealed class MusicQueueReadGateTests : IAsyncLifetime
             .GetConfigAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<MusicConfigDto>("none", "NOT_FOUND"));
 
+        IPlaybackStateReader playback = Substitute.For<IPlaybackStateReader>();
+        playback.StateOf(Arg.Any<Guid>()).Returns(PlaybackState.Idle);
+        playback.LevelOf(Arg.Any<Guid>()).Returns(PlaybackLevel.Default);
+
         _host = await ActAsTestHost.StartAsync(
             Guid.Empty,
             services =>
@@ -78,6 +84,7 @@ public sealed class MusicQueueReadGateTests : IAsyncLifetime
                 services.AddSingleton(Substitute.For<ISongRequestPageTokenService>());
                 services.AddSingleton(Substitute.For<IBlockedTrackService>());
                 services.AddSingleton(Substitute.For<ISongRequestIntakeService>());
+                services.AddSingleton(playback);
             }
         );
         await _host.SeedAsync(async db =>
