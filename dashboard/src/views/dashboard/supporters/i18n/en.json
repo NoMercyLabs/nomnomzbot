@@ -28,6 +28,7 @@
         "title": "Cheers",
         "empty": "No cheers in the recent activity.",
         "error": "The cheers could not be loaded.",
+        "cheerMark": "Cheer",
         "bits": "{count} bit | {count} bits"
       },
       "top": {

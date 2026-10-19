@@ -55,6 +55,7 @@ vi.mock('@/api/client', () => ({
         data: [
           event('1', 'channel.subscribe', 'plain', { tier: '1000' }),
           event('2', 'channel.subscribe', 'gifted', { tier: '1000', isGift: true }),
+          event('3', 'channel.cheer', 'cheerer', { bits: 200 }),
         ],
       },
       response: { status: 200, ok: true },
@@ -86,7 +87,8 @@ describe('the sub list rows', () => {
 
     await flushPromises();
 
-    const rows = mounted.findAll('[data-slot="summary-row-body"]');
+    const subsPanel = mounted.findAll('[data-slot="panel-card"]')[0];
+    const rows = subsPanel?.findAll('[data-slot="summary-row-body"]') ?? [];
     const leading = rows.map((row) => row.element.firstElementChild);
 
     expect(rows.length).toBeGreaterThanOrEqual(2);
@@ -96,6 +98,24 @@ describe('the sub list rows', () => {
       expect(first?.classList.contains('size-5')).toBe(true);
     }
 
-    expect(mounted.findAll('[role="img"]')).toHaveLength(2);
+    expect(subsPanel?.findAll('[role="img"]')).toHaveLength(2);
+  });
+});
+
+describe('the cheers list rows', () => {
+  it('carry the cheer kind icon with an accessible label', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    mounted = mount(SupportersView, {
+      attachTo: document.body,
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] },
+    });
+
+    await flushPromises();
+
+    const marks = mounted.findAll('[role="img"][aria-label="Cheer"]');
+
+    expect(marks).toHaveLength(1);
+    expect(marks[0]?.classes()).toContain('size-5');
   });
 });

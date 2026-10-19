@@ -30,6 +30,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { useShowMore } from '@/composables/useShowMore';
 import { useTime } from '@/composables/useTime';
 
+import Diamond from '~icons/nnz/diamond';
 import GiftCard from '~icons/nnz/gift-card';
 import Repeat from '~icons/nnz/repeat';
 import Star from '~icons/nnz/star';
@@ -123,7 +124,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
 <template>
   <PageHeader :title="t('dashboard.supporters.title')" />
   <PageBody>
-    <StatStrip v-if="can('dashboard:read')">
+    <StatStrip v-if="can('dashboard:read')" class="max-sm:grid-cols-1">
       <StatTile
         :label="t('dashboard.supporters.stats.subscribers')"
         :value="subscriberCount"
@@ -225,6 +226,13 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
             :detail="t('dashboard.supporters.cheers.bits', { count: row.bits }, row.bits)"
             :meta="when(row.timestamp)"
           >
+            <template #leading>
+              <Diamond
+                class="size-5 shrink-0 text-muted-foreground"
+                role="img"
+                :aria-label="t('dashboard.supporters.cheers.cheerMark')"
+              />
+            </template>
             <template #title>
               <UserName
                 v-if="isNamed(row.person)"
