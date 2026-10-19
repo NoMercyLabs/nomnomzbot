@@ -20,7 +20,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
-using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -90,7 +89,8 @@ public class RewardService : IRewardService
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<RewardDetail>();
 
-        Result targetOk = await EnsureTargetValidAsync(
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
             broadcaster,
             request.Target,
             cancellationToken
@@ -196,66 +196,12 @@ public class RewardService : IRewardService
             };
         }
 
-        if (request.Target is not null)
-            ApplyTarget(reward, request.Target);
+        BindingTargetBinder.ApplyTo(reward, request.Target, reward.PipelineId);
 
         _db.Rewards.Add(reward);
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(ToDetail(reward));
-    }
-
-    // A pipeline target without an id means "no binding"; any other target is written as sent (validated by
-    // EnsureTargetValidAsync before this runs).
-    private static void ApplyTarget(Reward reward, BindingTarget target)
-    {
-        bool clears =
-            target.Kind == BindingTargetKind.Pipeline
-            && (string.IsNullOrEmpty(target.Id) || Guid.Parse(target.Id) == Guid.Empty);
-        reward.SetBindingTarget(clears ? null : target);
-    }
-
-    /// <summary>
-    /// A command target must name a command of this channel (a built-in cannot be stored on a reward), a
-    /// pipeline target a pipeline of this channel, and an action target needs its action type.
-    /// </summary>
-    private async Task<Result> EnsureTargetValidAsync(
-        Guid broadcaster,
-        BindingTarget? target,
-        CancellationToken ct
-    )
-    {
-        if (target is null)
-            return Result.Success();
-
-        switch (target.Kind)
-        {
-            case BindingTargetKind.Command:
-                if (
-                    !Guid.TryParse(target.Id, out Guid commandId)
-                    || !await _db.Commands.AnyAsync(
-                        c => c.Id == commandId && c.BroadcasterId == broadcaster,
-                        ct
-                    )
-                )
-                    return Result.Failure(
-                        "That command does not exist in this channel.",
-                        "VALIDATION_FAILED"
-                    );
-                return Result.Success();
-            case BindingTargetKind.Action:
-                return string.IsNullOrWhiteSpace(target.ActionType)
-                    ? Result.Failure("An action target needs an action type.", "VALIDATION_FAILED")
-                    : Result.Success();
-            default:
-                return Guid.TryParse(target.Id, out Guid pipelineId)
-                        ? await _db.EnsurePipelineInChannelAsync(broadcaster, pipelineId, ct)
-                    : string.IsNullOrEmpty(target.Id) ? Result.Success()
-                    : Result.Failure(
-                        "That pipeline does not exist in this channel.",
-                        "VALIDATION_FAILED"
-                    );
-        }
     }
 
     public async Task<Result<RewardDetail>> UpdateAsync(
@@ -318,7 +264,8 @@ public class RewardService : IRewardService
                 return pipelineOk.ToTyped<RewardDetail>();
         }
 
-        Result targetOk = await EnsureTargetValidAsync(
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
             broadcaster,
             request.Target,
             cancellationToken
@@ -387,8 +334,7 @@ public class RewardService : IRewardService
             reward.PipelineId =
                 request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
         // An explicit target wins over the legacy pipeline field.
-        if (request.Target is not null)
-            ApplyTarget(reward, request.Target);
+        BindingTargetBinder.ApplyTo(reward, request.Target, reward.PipelineId);
 
         await _db.SaveChangesAsync(cancellationToken);
 
