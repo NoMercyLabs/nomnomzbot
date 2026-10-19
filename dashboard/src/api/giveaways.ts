@@ -18,6 +18,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
 import type { KeyParts } from '@/lib/array';
+import { targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
@@ -63,7 +64,7 @@ export type GiveawayDraft = {
   prizeMode: string;
   prizeCurrencyAmount: number | null;
   prizeFromPot: boolean;
-  prizePipelineId: string | null;
+  prizeTarget: PickedTarget | null;
   prizeCodePoolId: string | null;
   requires18Plus: boolean;
   scheduledCloseAt: string | null;
@@ -257,6 +258,14 @@ export function useCodePools(
 
 type UpsertGiveaway = components['schemas']['UpsertGiveawayRequest'];
 
+// The older pipeline id column still follows the target when the target is a pipeline.
+function prizePipelineId(draft: GiveawayDraft): string | null {
+  if (draft.prizeMode !== 'pipeline' || draft.prizeTarget?.kind !== 'pipeline')
+    return null;
+
+  return draft.prizeTarget.id;
+}
+
 // An edit keeps every setting the dialog does not show; a new giveaway starts from the server defaults.
 export function upsertBody({ existing, draft }: SaveGiveaway) {
   const base: UpsertGiveaway = existing
@@ -291,8 +300,9 @@ export function upsertBody({ existing, draft }: SaveGiveaway) {
       ? draft.prizeCurrencyAmount
       : null,
     prizeFromPot: draft.prizeMode === 'currency' && draft.prizeFromPot,
-    prizePipelineId: draft.prizeMode === 'pipeline'
-      ? draft.prizePipelineId
+    prizePipelineId: prizePipelineId(draft),
+    target: draft.prizeMode === 'pipeline' && draft.prizeTarget !== null
+      ? targetToWire(draft.prizeTarget)
       : null,
     prizeCodePoolId: draft.prizeMode === 'code_pool'
       ? draft.prizeCodePoolId

@@ -36,7 +36,7 @@ const giveaway = (id: string, title: string, status: string, entryCount: number)
   createdAt: '2026-10-15T18:00:00Z',
 });
 
-let giveaways: ReturnType<typeof giveaway>[] = [];
+let giveaways: (ReturnType<typeof giveaway> & { target?: { kind: number; id: string } })[] = [];
 let winners: {
   id: string;
   viewerDisplayName: string;
@@ -67,6 +67,7 @@ vi.mock('@/api/client', () => ({
         '/api/v{version}/giveaways/{id}/entries': entries,
         '/api/v{version}/giveaways/code-pools': pools,
         '/api/v{version}/channels/{channelId}/pipelines': [],
+        '/api/v{version}/channels/{channelId}/commands': [{ id: 'c1', name: 'hello' }],
         '/api/v{version}/giveaways/{id}/blast-radius': {
           categories: [
             {
@@ -467,6 +468,53 @@ describe('GiveawaysView', () => {
       prizeMode: 'announce',
       keyword: '!enter',
     });
+  });
+
+  it('shows the command a prize runs when a giveaway opens for editing', async () => {
+    giveaways = [
+      {
+        ...giveaway('g3', 'Command prize', 'draft', 0),
+        prizeMode: 'pipeline',
+        target: { kind: 0, id: 'c1' },
+      },
+    ];
+
+    await open();
+    document.querySelector<HTMLElement>('[data-giveaway-edit]')?.click();
+    await settle();
+
+    expect(document.querySelector('[data-target-picker]')!.textContent).toContain('!hello');
+  });
+
+  it('sends a command target when a command is chosen as the prize', async () => {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    giveaways = [{ ...giveaway('g4', 'Pick prize', 'draft', 0), prizeMode: 'pipeline' }];
+    await open();
+    document.querySelector<HTMLElement>('[data-giveaway-edit]')?.click();
+    await settle();
+
+    const trigger = document.querySelector('[data-target-picker] [data-slot="select-trigger"]')!;
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+
+    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
+      .find((candidate) => candidate.textContent?.includes('!hello'));
+
+    item!.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }));
+
+    await settle();
+    submitDialog();
+    await settle();
+
+    expect(bodies[0]).toMatchObject({ prizeMode: 'pipeline', target: { kind: 0, id: 'c1' } });
   });
 
   it('shows what a delete would remove, then deletes and drops the row', async () => {

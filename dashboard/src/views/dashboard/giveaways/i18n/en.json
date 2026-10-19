@@ -76,14 +76,13 @@
           "modes": {
             "announce": "An announcement in chat",
             "currency": "Currency",
-            "pipeline": "A pipeline runs",
+            "pipeline": "A command or pipeline runs",
             "code_pool": "A code from a pool"
           },
           "amount": "Currency per winner",
           "fromPot": "Pay from the pot",
           "fromPotHelp": "Takes the prize from the entry fees instead of creating it.",
-          "pipeline": "Pipeline",
-          "pipelinePlaceholder": "Choose a pipeline",
+          "pipeline": "Command or pipeline",
           "pool": "Code pool",
           "poolPlaceholder": "Choose a code pool"
         },
@@ -96,7 +95,7 @@
           "ticketsInvalid": "Type a whole number of 1 or more for each ticket count.",
           "claimInvalid": "Type a whole number of 1 or more for the claim window, or leave it empty.",
           "currencyInvalid": "Type a whole number of 1 or more for the currency prize.",
-          "pipelineRequired": "Choose the pipeline that runs for a winner.",
+          "pipelineRequired": "Choose the command or pipeline that runs for a winner.",
           "poolRequired": "Choose the code pool the winners draw from.",
           "closeInvalid": "Type a valid close time, or leave it empty."
         }

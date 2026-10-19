@@ -10,6 +10,7 @@
 
 // The giveaway dialog edits text and switches; this file turns them into the draft the API saves, and back.
 import { readEligibility, readWeighting, type Giveaway, type GiveawayDraft } from '@/api/giveaways';
+import { boundTarget, type PickedTarget } from '@/lib/bindingTarget';
 
 export const entryModes = ['keyword', 'active_viewers'] as const;
 export const prizeModes = ['announce', 'currency', 'pipeline', 'code_pool'] as const;
@@ -34,7 +35,7 @@ export type GiveawayForm = {
   prizeMode: string;
   prizeCurrencyAmount: string;
   prizeFromPot: boolean;
-  prizePipelineId: string;
+  prizeTarget: PickedTarget | null;
   prizeCodePoolId: string;
   requires18Plus: boolean;
   scheduledCloseAt: string;
@@ -83,7 +84,7 @@ export function formFromGiveaway(giveaway: Giveaway | null) {
     prizeMode: giveaway?.prizeMode ?? 'announce',
     prizeCurrencyAmount: text(giveaway?.prizeCurrencyAmount),
     prizeFromPot: giveaway?.prizeFromPot ?? false,
-    prizePipelineId: text(giveaway?.prizePipelineId),
+    prizeTarget: boundTarget(giveaway?.target, giveaway?.prizePipelineId),
     prizeCodePoolId: text(giveaway?.prizeCodePoolId),
     requires18Plus: giveaway?.requires18Plus ?? false,
     scheduledCloseAt: localInput(giveaway?.scheduledCloseAt),
@@ -124,9 +125,7 @@ export function draftFromForm(form: GiveawayForm) {
     prizeMode: form.prizeMode,
     prizeCurrencyAmount: optional(form.prizeCurrencyAmount),
     prizeFromPot: form.prizeFromPot,
-    prizePipelineId: form.prizePipelineId === ''
-      ? null
-      : form.prizePipelineId,
+    prizeTarget: form.prizeTarget,
     prizeCodePoolId: form.prizeCodePoolId === ''
       ? null
       : form.prizeCodePoolId,
@@ -171,7 +170,7 @@ export function formProblem(form: GiveawayForm): string | undefined {
       form.prizeMode === 'currency' && !wholeFrom(Number(form.prizeCurrencyAmount), 1),
       'currencyInvalid',
     ],
-    [form.prizeMode === 'pipeline' && form.prizePipelineId === '', 'pipelineRequired'],
+    [form.prizeMode === 'pipeline' && form.prizeTarget === null, 'pipelineRequired'],
     [form.prizeMode === 'code_pool' && form.prizeCodePoolId === '', 'poolRequired'],
     [
       form.scheduledCloseAt !== '' && Number.isNaN(new Date(form.scheduledCloseAt).getTime()),

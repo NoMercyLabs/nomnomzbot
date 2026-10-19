@@ -16,9 +16,9 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCodePools, useSaveGiveaway, type Giveaway } from '@/api/giveaways';
-import { usePipelines } from '@/api/pipelines';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { Field, FieldInfo, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -60,7 +60,6 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const save = useSaveGiveaway(channelId);
-const pipelines = usePipelines(channelId);
 const pools = useCodePools(channelId);
 
 const form = ref<GiveawayForm>(formFromGiveaway(props.giveaway));
@@ -336,22 +335,12 @@ async function submit(): Promise<void> {
         <FieldLabel for="giveaway-prize-pipeline">{{
           $t("dashboard.giveaways.dialog.prize.pipeline")
         }}</FieldLabel>
-        <Select v-model="form.prizePipelineId">
-          <SelectTrigger id="giveaway-prize-pipeline" data-giveaway-prize-pipeline class="w-full">
-            <SelectValue
-              :placeholder="$t('dashboard.giveaways.dialog.prize.pipelinePlaceholder')"
-            />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem
-              v-for="pipeline in pipelines.data.value ?? []"
-              :key="pipeline.id"
-              :value="pipeline.id"
-            >
-              {{ pipeline.name }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <TargetPicker
+          v-model:target="form.prizeTarget"
+          data-giveaway-prize-pipeline
+          :kinds="['command', 'pipeline']"
+          :label="$t('dashboard.giveaways.dialog.prize.pipeline')"
+        />
       </Field>
       <Field v-else-if="form.prizeMode === 'code_pool'">
         <FieldLabel for="giveaway-prize-pool">{{

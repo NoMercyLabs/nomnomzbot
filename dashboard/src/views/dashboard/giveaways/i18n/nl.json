@@ -76,14 +76,13 @@
           "modes": {
             "announce": "Een aankondiging in de chat",
             "currency": "Valuta",
-            "pipeline": "Een pipeline draait",
+            "pipeline": "Een commando of pipeline draait",
             "code_pool": "Een code uit een pool"
           },
           "amount": "Valuta per winnaar",
           "fromPot": "Betalen uit de pot",
           "fromPotHelp": "Neemt de prijs uit de deelnamekosten in plaats van hem aan te maken.",
-          "pipeline": "Pipeline",
-          "pipelinePlaceholder": "Kies een pipeline",
+          "pipeline": "Commando of pipeline",
           "pool": "Codepool",
           "poolPlaceholder": "Kies een codepool"
         },
@@ -96,7 +95,7 @@
           "ticketsInvalid": "Typ een heel getal van 1 of meer voor elk aantal tickets.",
           "claimInvalid": "Typ een heel getal van 1 of meer voor de claimtijd, of laat leeg.",
           "currencyInvalid": "Typ een heel getal van 1 of meer voor de valutaprijs.",
-          "pipelineRequired": "Kies de pipeline die voor een winnaar draait.",
+          "pipelineRequired": "Kies het commando of de pipeline die voor een winnaar draait.",
           "poolRequired": "Kies de codepool waaruit winnaars trekken.",
           "closeInvalid": "Typ een geldige sluitingstijd, of laat leeg."
         }
