@@ -29,6 +29,7 @@ type Sent = {
 };
 
 const sent: Sent[] = [];
+let configRefused = false;
 let lexicon: {
   id: string;
   phrase: string;
@@ -98,6 +99,14 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string): Promise<unknown> => {
+      if (path.endsWith('/tts/config') && configRefused) {
+        return {
+          data: undefined,
+          error: undefined,
+          response: { status: 429, ok: false },
+        };
+      }
+
       if (path.endsWith('/tts/config'))
         return reply(config);
 
@@ -127,6 +136,7 @@ let pinia: Pinia;
 
 beforeEach(() => {
   sent.length = 0;
+  configRefused = false;
 
   lexicon = [
     {
@@ -184,6 +194,26 @@ const switchOf = (title: string): HTMLElement =>
     ?.querySelector('[role="switch"]') as HTMLElement;
 
 describe('TTS rules panels', () => {
+  it('shows an error with a retry, not a blank panel, when the config read is refused with 429', async () => {
+    configRefused = true;
+    await open();
+
+    const panel = document.body.querySelector('[data-view="tts-rules"]') as HTMLElement;
+    const failure = panel.querySelector('[data-slot="panel-error"]');
+
+    expect(failure).not.toBeNull();
+    expect(failure?.textContent).toContain('Try again');
+
+    configRefused = false;
+    (failure?.querySelector('button') as HTMLButtonElement).click();
+    await flushPromises();
+    await new Promise((done) => setTimeout(done, 0));
+    await flushPromises();
+
+    expect(panel.querySelector('[data-slot="panel-error"]')).toBeNull();
+    expect(switchOf('Read usernames')).toBeTruthy();
+  });
+
   it('sends the toggled rule to the config and shows the new value at once', async () => {
     await open();
     expect(switchOf('Read usernames').getAttribute('aria-checked')).toBe('false');

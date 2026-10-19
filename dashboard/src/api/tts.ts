@@ -86,10 +86,11 @@ async function readTtsConfig(id: string): Promise<TtsConfig | null> {
     },
   );
 
-  if (error !== undefined)
+  // A refusal without a body (a 429 from the rate limiter) carries no error object: the missing data is the refusal.
+  if (error !== undefined || data === undefined)
     throw failed('tts config', response.status, error);
 
-  return data?.data ?? null;
+  return data.data ?? null;
 }
 
 export const ttsConfigOptions = (id: string) => channelOptions(ttsConfigKey, readTtsConfig, id);
@@ -201,11 +202,15 @@ export const personVoiceKey = (channelId: string | null, userId: string | null):
 async function readPersonVoice(channelId: string, userId: string): Promise<PersonVoice | null> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/tts/users/{userId}/voice',
-    { params: { path: {
-      version,
-      channelId,
-      userId,
-    } } },
+    {
+      params: {
+        path: {
+          version,
+          channelId,
+          userId,
+        },
+      },
+    },
   );
 
   // The bot answers 404 for a person without their own voice.
@@ -217,8 +222,7 @@ async function readPersonVoice(channelId: string, userId: string): Promise<Perso
 
   const voiceId = data.data.voiceId;
   const matches = await readVoicePage(channelId, voiceId, firstVoicePage);
-  const voice = matches.voices.find((entry) =>
-    entry.id === voiceId) ?? null;
+  const voice = matches.voices.find((entry) => entry.id === voiceId) ?? null;
 
   return { voiceId, voice };
 }
@@ -247,14 +251,15 @@ async function writePersonVoice(
     channelId,
     userId,
   };
-  const { error, response } = voice === null
-    ? await client.DELETE('/api/v{version}/channels/{channelId}/tts/users/{userId}/voice', {
-        params: { path },
-      })
-    : await client.PUT('/api/v{version}/channels/{channelId}/tts/users/{userId}/voice', {
-        params: { path },
-        body: { voiceId: voice.id },
-      });
+  const { error, response } =
+    voice === null
+      ? await client.DELETE('/api/v{version}/channels/{channelId}/tts/users/{userId}/voice', {
+          params: { path },
+        })
+      : await client.PUT('/api/v{version}/channels/{channelId}/tts/users/{userId}/voice', {
+          params: { path },
+          body: { voiceId: voice.id },
+        });
 
   if (error !== undefined)
     throw refusal('person voice', error, response.status);
@@ -264,9 +269,12 @@ export function useSetPersonVoice(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<PersonVoice | null, Error, PersonVoiceChange, number> {
   return useOptimisticSave<PersonVoice | null, PersonVoiceChange>({
-    describe: ({ userId, voice }) => ({ key: voice
-      ? 'setPersonVoice'
-      : 'clearPersonVoice', params: { userId } }),
+    describe: ({ userId, voice }) => ({
+      key: voice
+        ? 'setPersonVoice'
+        : 'clearPersonVoice',
+      params: { userId },
+    }),
     queryKey: ({ userId }: PersonVoiceChange) => personVoiceKey(toValue(channelId), userId),
     mutationFn: async (change: PersonVoiceChange): Promise<PersonVoice | null> => {
       await writePersonVoice(toValue(channelId) as string, change);
@@ -275,19 +283,14 @@ export function useSetPersonVoice(
         ? { voiceId: change.voice.id, voice: change.voice }
         : null;
     },
-    apply: (
-      _current: PersonVoice | null | undefined,
-      { voice }: PersonVoiceChange,
-    ) =>
+    apply: (_current: PersonVoice | null | undefined, { voice }: PersonVoiceChange) =>
       voice
-        ? { voiceId: voice.id, voice } as const satisfies PersonVoice
+        ? ({ voiceId: voice.id, voice } as const satisfies PersonVoice)
         : null,
   });
 }
 
-export function useTtsSample(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useTtsSample(channelId: MaybeRefOrGetter<string | null>) {
   return useMutation<TtsSampleResult, Error, TtsSampleRequest>({
     mutationFn: async ({ voiceId, text }: TtsSampleRequest): Promise<TtsSampleResult> => {
       const { data, error, response } = await client.POST(
