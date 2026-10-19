@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
+
 namespace NomNomzBot.Application.Giveaways.Dtos;
 
 /// <summary>The giveaway read model (giveaways.md §3.1) — config + lifecycle + live entry stats.</summary>
@@ -27,6 +29,9 @@ public sealed record GiveawayDto(
     long? PrizeCurrencyAmount,
     bool PrizeFromPot,
     Guid? PrizePipelineId,
+    // What a winner's prize runs, chosen directly: a saved pipeline, a command or an action (no wrapper
+    // pipeline). Null when nothing is bound.
+    BindingTarget? Target,
     Guid? PrizeCodePoolId,
     bool Requires18Plus,
     string Status,
@@ -60,7 +65,11 @@ public sealed record UpsertGiveawayRequest(
     bool Requires18Plus = false,
     // An optional auto-close target — must be strictly in the future, or Validate() refuses it with
     // VALIDATION_FAILED. Null = manual close only (the giveaway stays open until CloseAsync is called).
-    DateTime? ScheduledCloseAt = null
+    DateTime? ScheduledCloseAt = null,
+    // What the prize runs: a command (by id), a pipeline or an action. Wins over PrizePipelineId when sent;
+    // a command or action target satisfies the pipeline prize mode with no pipeline. Null leaves the
+    // PrizePipelineId binding as it is.
+    BindingTarget? Target = null
 );
 
 /// <summary>List filter — null status = all live (non-archived) giveaways.</summary>

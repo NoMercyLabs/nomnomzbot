@@ -1123,6 +1123,7 @@ public static class DependencyInjection
         // The ONE event-response execution path every trigger source dispatches through (alert handlers,
         // supporter triggers, stream online/offline, reward redemptions). Not an I<X>Service — explicit.
         services.AddScoped<IEventResponseExecutor, EventResponseExecutor>();
+        services.AddScoped<IBindingUsageSource, EventResponseBindingUsageSource>();
         // The presentation half of every alert handler, keyed by event type, for the dashboard's activity
         // replay (IActivityReplayService, registered by convention). A replay rebuilds each event from the journal
         // and finds a gift bomb's named recipients; both are concrete, single-use collaborators — explicit.
@@ -1151,6 +1152,7 @@ public static class DependencyInjection
         // IBindingUsageSource (one per binding surface, registered beside that surface).
         services.AddScoped<ICommandBindingGuard, CommandBindingGuard>();
         services.AddScoped<IBindingUsageSource, Rewards.RewardBindingUsageSource>();
+        services.AddScoped<IBindingUsageSource, Giveaways.GiveawayBindingUsageSource>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,

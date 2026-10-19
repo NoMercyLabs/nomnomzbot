@@ -182,6 +182,7 @@ public sealed class GiveawayActionsResourceIdTests
             false,
             null,
             null,
+            null,
             false,
             "open",
             DateTime.UtcNow,

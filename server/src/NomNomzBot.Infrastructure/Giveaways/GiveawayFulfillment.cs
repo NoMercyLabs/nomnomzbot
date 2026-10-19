@@ -13,11 +13,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Giveaways.Entities;
 
@@ -151,7 +154,8 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         CancellationToken ct
     )
     {
-        if (giveaway.PrizePipelineId is not { } pipelineId)
+        BindingTarget? target = giveaway.GetBindingTarget();
+        if (target is null)
             return;
 
         string displayName =
@@ -160,6 +164,15 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
                 .Select(u => u.DisplayName ?? u.Username ?? "winner")
                 .FirstOrDefaultAsync(ct)
             ?? "winner";
+
+        if (target.Kind is BindingTargetKind.Command or BindingTargetKind.Action)
+        {
+            await RunDirectTargetAsync(giveaway, winner, target, displayName, ct);
+            return;
+        }
+
+        if (giveaway.PrizePipelineId is not { } pipelineId)
+            return;
 
         try
         {
@@ -183,6 +196,51 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
                 ex,
                 "Giveaway prize pipeline {PipelineId} failed for winner {WinnerId}",
                 pipelineId,
+                winner.Id
+            );
+        }
+    }
+
+    // A prize bound straight to a command or an action runs through the one invoker, with the winner as
+    // the invoker: no wrapper pipeline. A fault must not unwind the draw, same as the pipeline path.
+    private async Task RunDirectTargetAsync(
+        Giveaway giveaway,
+        GiveawayWinner winner,
+        BindingTarget target,
+        string displayName,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            ICommandInvoker invoker = _services.GetRequiredService<ICommandInvoker>();
+            Result<InvocationOutcome> run = await invoker.InvokeAsync(
+                giveaway.BroadcasterId,
+                target,
+                new(
+                    winner.ProviderUserId ?? winner.ViewerTwitchUserId,
+                    displayName,
+                    string.Empty,
+                    "giveaway"
+                ),
+                ct
+            );
+            if (run.IsFailure || !run.Value!.Succeeded)
+                _logger.LogWarning(
+                    "Giveaway {GiveawayId} prize could not run its {Kind} target for winner {WinnerId}: {Error}",
+                    giveaway.Id,
+                    target.Kind,
+                    winner.Id,
+                    run.IsFailure ? run.ErrorMessage : run.Value!.Error
+                );
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "Giveaway {GiveawayId} prize {Kind} target failed for winner {WinnerId}",
+                giveaway.Id,
+                target.Kind,
                 winner.Id
             );
         }

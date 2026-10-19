@@ -19,6 +19,8 @@ using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Giveaways.Dtos;
 using NomNomzBot.Application.Giveaways.Services;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Giveaways.Entities;
 using NomNomzBot.Domain.Giveaways.Events;
@@ -95,6 +97,15 @@ public sealed class GiveawayService : IGiveawayService
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<GiveawayDto>();
 
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<GiveawayDto>();
+
         Giveaway giveaway = new() { BroadcasterId = broadcasterId };
         Apply(giveaway, request);
         await _db.Giveaways.AddAsync(giveaway, ct);
@@ -130,6 +141,15 @@ public sealed class GiveawayService : IGiveawayService
         );
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<GiveawayDto>();
+
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<GiveawayDto>();
 
         Apply(giveaway, request);
         await _db.SaveChangesAsync(ct);
@@ -975,7 +995,10 @@ public sealed class GiveawayService : IGiveawayService
                 "Currency mode needs a prize amount or the pot flag.",
                 "VALIDATION_FAILED"
             );
-        if (request is { PrizeMode: GiveawayPrizeMode.Pipeline, PrizePipelineId: null })
+        if (
+            request is { PrizeMode: GiveawayPrizeMode.Pipeline, PrizePipelineId: null }
+            && request.Target is not { Kind: BindingTargetKind.Command or BindingTargetKind.Action }
+        )
             return Result.Failure("Pipeline mode needs a pipeline.", "VALIDATION_FAILED");
         if (request is { PrizeMode: GiveawayPrizeMode.CodePool, PrizeCodePoolId: null })
             return Result.Failure("Code-pool mode needs a code pool.", "VALIDATION_FAILED");
@@ -1035,6 +1058,7 @@ public sealed class GiveawayService : IGiveawayService
         giveaway.PrizeCurrencyAmount = request.PrizeCurrencyAmount;
         giveaway.PrizeFromPot = request.PrizeFromPot;
         giveaway.PrizePipelineId = request.PrizePipelineId;
+        BindingTargetBinder.ApplyTo(giveaway, request.Target, giveaway.PrizePipelineId);
         giveaway.PrizeCodePoolId = request.PrizeCodePoolId;
         giveaway.Requires18Plus = request.Requires18Plus;
         giveaway.ScheduledCloseAt = request.ScheduledCloseAt;
@@ -1134,6 +1158,7 @@ public sealed class GiveawayService : IGiveawayService
             g.PrizeCurrencyAmount,
             g.PrizeFromPot,
             g.PrizePipelineId,
+            g.GetBindingTarget(),
             g.PrizeCodePoolId,
             g.Requires18Plus,
             g.Status,
