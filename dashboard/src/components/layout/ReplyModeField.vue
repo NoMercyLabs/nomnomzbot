@@ -14,29 +14,20 @@
 // of simple reply (text, random) passes them as simpleOptions; they sit in the same one switch as the pipeline.
 // The picker chooses a pipeline or creates a new empty one in place.
 import { useElementSize } from '@vueuse/core';
-import Plus from '~icons/nnz/add';
 import { computed, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useCreatePipeline, usePipelines, type Pipeline } from '@/api/pipelines';
 import type { ReplyMode } from '@/components/layout/replyMode';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
-import { Button } from '@/components/ui/button';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import type { PickedTarget, TargetKind } from '@/lib/bindingTarget';
 
 type Option = { value: string; label: string };
 
 const mode = defineModel<ReplyMode>('mode', { required: true });
 const pipelineId = defineModel<string>('pipelineId', { default: '' });
+const target = defineModel<PickedTarget | null>('target', { default: null });
 const simpleKind = defineModel<string>('simpleKind', { default: '' });
 
 // A locked editor shows the setting but lets no one change it.
@@ -45,21 +36,19 @@ const props = withDefaults(
     disabled?: boolean;
     simpleOptions?: readonly Option[];
     newPipelineName?: string;
+    kinds?: readonly TargetKind[];
   }>(),
   {
     disabled: false,
     simpleOptions: () => [],
     newPipelineName: '',
+    kinds: () => ['pipeline'],
   },
 );
 
-const CREATE = '__create';
 const FULL = 'full';
 
 const { t } = useI18n();
-const { channelId } = useCurrentChannel();
-const pipelines = usePipelines(channelId);
-const create = useCreatePipeline(channelId);
 
 // Every mode keeps the tallest height any mode has had (text, random reply, pipeline), so a switch never
 // moves what sits below (owner 2026-10-17: "its a huge layout shift").
@@ -105,25 +94,29 @@ const choice = computed<string>({
   },
 });
 
-const picked = computed<string>({
-  get: () => pipelineId.value,
-  set: (value: string): void => {
-    if (value === CREATE) {
-      void createPipeline();
+// A surface that binds commands too passes `target`; the others keep binding a pipeline id.
+const bindsTarget = computed<boolean>(() => props.kinds.includes('command'));
+const picker = computed<PickedTarget | null>({
+  get: () => {
+    if (bindsTarget.value)
+      return target.value;
+
+    return pipelineId.value === ''
+      ? null
+      : { kind: 'pipeline' as const, id: pipelineId.value };
+  },
+  set: (value: PickedTarget | null): void => {
+    if (bindsTarget.value) {
+      target.value = value;
 
       return;
     }
 
-    pipelineId.value = value;
+    pipelineId.value = value?.kind === 'pipeline'
+      ? value.id
+      : '';
   },
 });
-
-async function createPipeline(): Promise<void> {
-  const name: string = props.newPipelineName || t('common.replyMode.newName');
-  const made: Pipeline = await create.mutateAsync({ name });
-
-  pipelineId.value = made.id;
-}
 </script>
 
 <template>
@@ -154,50 +147,15 @@ async function createPipeline(): Promise<void> {
     >
       <div class="flex items-center gap-1.5">
         <FieldLabel>{{ $t('common.replyMode.pipeline') }}</FieldLabel>
-        <FieldInfo v-if="pipelineId === ''">{{ $t('common.replyMode.none') }}</FieldInfo>
+        <FieldInfo v-if="picker === null">{{ $t('common.replyMode.none') }}</FieldInfo>
       </div>
-      <!-- One row, and the button always holds its place: picking a pipeline never moves the layout. -->
-      <div class="flex items-center gap-2">
-        <Select v-model="picked" :disabled="disabled || create.isPending.value">
-          <SelectTrigger :aria-label="$t('common.replyMode.pipeline')" class="min-w-0 flex-1">
-            <SelectValue :placeholder="$t('common.replyMode.pipelinePlaceholder')" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem data-pipeline-create :value="CREATE">
-              <Plus aria-hidden="true" />
-              {{ $t('common.replyMode.create') }}
-            </SelectItem>
-            <SelectSeparator />
-            <SelectItem
-              v-for="pipeline in pipelines.data.value ?? []"
-              :key="pipeline.id"
-              :value="pipeline.id"
-            >
-              {{ pipeline.name }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          v-if="pipelineId !== ''"
-          as-child
-          type="button"
-          variant="outline"
-          class="flex-none"
-        >
-          <RouterLink :to="`/app/pipelines/${pipelineId}`">
-            {{ $t('common.replyMode.open') }}
-          </RouterLink>
-        </Button>
-        <Button
-          v-else
-          type="button"
-          variant="outline"
-          class="flex-none"
-          disabled
-        >
-          {{ $t('common.replyMode.open') }}
-        </Button>
-      </div>
+      <TargetPicker
+        v-model:target="picker"
+        :kinds="kinds"
+        :create-name="newPipelineName"
+        :disabled="disabled"
+        :label="$t('common.replyMode.pipeline')"
+      />
     </Field>
   </div>
 </template>

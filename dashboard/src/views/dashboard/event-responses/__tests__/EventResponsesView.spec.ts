@@ -81,6 +81,9 @@ function read(path: string, options?: Options): Answer {
   if (path.endsWith('/event-responses'))
     return ok(rows);
 
+  if (path.endsWith('/commands'))
+    return ok([{ id: 'c1', name: 'hello' }]);
+
   return ok([]);
 }
 
@@ -312,7 +315,51 @@ describe('Event responses page', () => {
 
     expect(writes('PUT')[0]!.body).toEqual({
       responseType: 'pipeline',
-      pipelineId: 'p1',
+      target: { kind: 1, id: 'p1' },
+    });
+  });
+
+  it('shows a command the response is bound to when it opens in the editor', async () => {
+    rows = [response('channel.follow', {
+      responseType: 'pipeline',
+      target: { kind: 0, id: 'c1' },
+    })];
+
+    await open();
+    await click(rowOf('channel.follow'));
+
+    expect(editor()!.querySelector('[data-target-picker]')!.textContent).toContain('!hello');
+  });
+
+  it('sends a command target when a command is chosen instead of a pipeline', async () => {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    await open();
+    await click(rowOf('channel.follow'));
+    await click(buttonByText('Pipeline'));
+
+    const trigger = editor()!.querySelector('[data-slot="select-trigger"]')!;
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+
+    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
+      .find((candidate) => candidate.textContent?.includes('!hello'));
+
+    item!.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }));
+
+    await settle();
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({
+      responseType: 'pipeline',
+      target: { kind: 0, id: 'c1' },
     });
   });
 

@@ -10,6 +10,7 @@
 
 import type { ChatTrigger, ChatTriggerChange } from '@/api/chatTriggers';
 import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
+import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 export const matchTypes = ['contains', 'exact', 'starts_with', 'regex'] as const;
 
@@ -20,7 +21,7 @@ export interface ChatTriggerDraft {
   caseSensitive: boolean;
   mode: ReplyMode;
   response: string;
-  pipelineId: string;
+  target: PickedTarget | null;
   cooldownSeconds: number;
   minPermissionLevel: string;
 }
@@ -30,11 +31,11 @@ export function draftOf(trigger: ChatTrigger) {
     pattern: trigger.pattern,
     matchType: trigger.matchType,
     caseSensitive: trigger.caseSensitive,
-    mode: trigger.pipelineId
-      ? 'full'
-      : 'simple',
+    mode: boundTarget(trigger.target, trigger.pipelineId) === null
+      ? 'simple'
+      : 'full',
     response: trigger.response ?? '',
-    pipelineId: trigger.pipelineId ?? '',
+    target: boundTarget(trigger.target, trigger.pipelineId),
     cooldownSeconds: Number(trigger.cooldownSeconds),
     minPermissionLevel: trigger.minPermissionLevel,
   } as const satisfies ChatTriggerDraft;
@@ -62,12 +63,17 @@ export function changeOf(draft: ChatTriggerDraft, trigger: ChatTrigger): ChatTri
     change.response = draft.response;
   }
 
-  if (draft.mode === 'simple' && saved.pipelineId !== '') {
+  if (draft.mode === 'simple' && saved.target !== null) {
     change.pipelineId = noPipelineId;
+
+    // A command or action binding has no pipeline id to clear, so the target is cleared itself.
+    if (saved.target.kind !== 'pipeline') {
+      change.target = targetToWire(null);
+    }
   }
 
-  if (draft.mode === 'full' && draft.pipelineId !== '' && draft.pipelineId !== saved.pipelineId) {
-    change.pipelineId = draft.pipelineId;
+  if (draft.mode === 'full' && draft.target !== null && !sameTarget(draft.target, saved.target)) {
+    change.target = targetToWire(draft.target);
   }
 
   if (draft.cooldownSeconds !== saved.cooldownSeconds) {

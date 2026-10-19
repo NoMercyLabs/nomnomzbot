@@ -37,10 +37,36 @@ describe('chat trigger reply mode', () => {
     const draft = {
       ...draftOf(saved),
       mode: 'full' as const,
-      pipelineId: 'p1',
+      target: { kind: 'pipeline' as const, id: 'p1' },
     };
 
-    expect(changeOf(draft, saved)).toEqual({ pipelineId: 'p1' });
+    expect(changeOf(draft, saved)).toEqual({ target: { kind: 1, id: 'p1' } });
+  });
+
+  it('sends a command target when a command is picked in Full mode', () => {
+    const draft = {
+      ...draftOf(saved),
+      mode: 'full' as const,
+      target: { kind: 'command' as const, id: 'c1' },
+    };
+
+    expect(changeOf(draft, saved)).toEqual({ target: { kind: 0, id: 'c1' } });
+  });
+
+  it('opens a trigger bound to a command in Full mode with that command', () => {
+    const bound = { ...saved, target: { kind: 0, id: 'c1' } } as ChatTrigger;
+
+    expect(draftOf(bound)).toMatchObject({
+      mode: 'full',
+      target: { kind: 'command', id: 'c1' },
+    });
+  });
+
+  it('clears a command binding when the trigger switches back to Simple', () => {
+    const bound = { ...saved, target: { kind: 0, id: 'c1' } } as ChatTrigger;
+    const draft = { ...draftOf(bound), mode: 'simple' as const };
+
+    expect(changeOf(draft, bound)).toMatchObject({ target: { kind: 1, id: '' } });
   });
 
   it('sends nothing for Full pipeline until a pipeline is picked', () => {

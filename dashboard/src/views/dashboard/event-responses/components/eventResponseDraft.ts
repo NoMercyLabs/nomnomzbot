@@ -21,12 +21,13 @@ import UsersSwap from '~icons/nnz/users-swap';
 
 import type { EventResponseChange, EventResponseDetail } from '@/api/eventResponses';
 import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
+import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 // What the editor form holds. The switch for "enabled" is not here: it saves at once.
 export interface EventDraft {
   mode: ReplyMode;
   message: string;
-  pipelineId: string;
+  target: PickedTarget | null;
   speakWithTts: boolean;
 }
 
@@ -36,7 +37,7 @@ export function draftOf(saved: EventResponseDetail) {
       ? 'full'
       : 'simple',
     message: saved.message ?? '',
-    pipelineId: saved.pipelineId ?? '',
+    target: boundTarget(saved.target, saved.pipelineId),
     speakWithTts: saved.speakWithTts,
   } as const satisfies EventDraft;
 }
@@ -45,7 +46,7 @@ export function sameDraft(left: EventDraft, right: EventDraft): boolean {
   return (
     left.mode === right.mode &&
     left.message === right.message &&
-    left.pipelineId === right.pipelineId &&
+    sameTarget(left.target, right.target) &&
     left.speakWithTts === right.speakWithTts
   );
 }
@@ -63,13 +64,20 @@ export function changeOf(draft: EventDraft, saved: EventResponseDetail): EventRe
   if (draft.mode === 'simple' && base.mode === 'full') {
     change.responseType = 'chat_message';
     change.pipelineId = noPipelineId;
+
+    // A command or action binding has no pipeline id to clear, so the target is cleared itself.
+    if (base.target !== null && base.target.kind !== 'pipeline') {
+      change.target = targetToWire(null);
+    }
   }
 
-  const full = draft.mode === 'full' && draft.pipelineId !== '';
+  const bound = draft.mode === 'full'
+    ? draft.target
+    : null;
 
-  if (full && (base.mode === 'simple' || draft.pipelineId !== base.pipelineId)) {
+  if (bound !== null && (base.mode === 'simple' || !sameTarget(bound, base.target))) {
     change.responseType = 'pipeline';
-    change.pipelineId = draft.pipelineId;
+    change.target = targetToWire(bound);
   }
 
   if (draft.speakWithTts !== base.speakWithTts) {

@@ -132,7 +132,8 @@ function remove(): void {
 
       <ReplyModeField
         v-model:mode="draft.mode"
-        v-model:pipeline-id="draft.pipelineId"
+        v-model:target="draft.target"
+        :kinds="['command', 'pipeline']"
         :new-pipeline-name="row.pattern"
       >
         <TemplateField
