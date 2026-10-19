@@ -178,20 +178,20 @@ public class MusicConfigService : IMusicConfigService
 
     private sealed class MusicConfigData
     {
-        public bool IsEnabled { get; set; } = true;
-        public bool RequestsOpen { get; set; } = true;
-        public string PreferredProvider { get; set; } = "auto";
-        public int MaxQueueSize { get; set; } = 50;
-        public int MaxRequestsPerUser { get; set; } = 5;
-        public int MaxSongSeconds { get; set; } = 360;
-        public bool AllowExplicit { get; set; } = true;
+        public bool IsEnabled { get; set; } = MusicConfigDefaults.IsEnabled;
+        public bool RequestsOpen { get; set; } = MusicConfigDefaults.RequestsOpen;
+        public string PreferredProvider { get; set; } = MusicConfigDefaults.PreferredProvider;
+        public int MaxQueueSize { get; set; } = MusicConfigDefaults.MaxQueueSize;
+        public int MaxRequestsPerUser { get; set; } = MusicConfigDefaults.MaxRequestsPerUser;
+        public int MaxSongSeconds { get; set; } = MusicConfigDefaults.MaxSongSeconds;
+        public bool AllowExplicit { get; set; } = MusicConfigDefaults.AllowExplicit;
         public int? PerStreamLimit { get; set; }
-        public bool AllowYouTube { get; set; } = false;
-        public bool AllowSpotify { get; set; } = true;
-        public string MinTrustLevel { get; set; } = "everyone";
+        public bool AllowYouTube { get; set; } = MusicConfigDefaults.AllowYouTube;
+        public bool AllowSpotify { get; set; } = MusicConfigDefaults.AllowSpotify;
+        public string MinTrustLevel { get; set; } = MusicConfigDefaults.MinTrustLevel;
         public string? BangerPlaylistId { get; set; }
         public string? BangerPlaylistProvider { get; set; }
-        public bool BangerAutoCreate { get; set; }
+        public bool BangerAutoCreate { get; set; } = MusicConfigDefaults.BangerAutoCreate;
         public Dictionary<string, int> MaxRequestsPerRole { get; set; } = new();
     }
 }

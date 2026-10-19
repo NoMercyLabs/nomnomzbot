@@ -23,11 +23,11 @@ public sealed record MusicConfigDto(
     string MinTrustLevel,
     string? BangerPlaylistId = null,
     string? BangerPlaylistProvider = null,
-    bool BangerAutoCreate = false,
+    bool BangerAutoCreate = MusicConfigDefaults.BangerAutoCreate,
     IReadOnlyDictionary<string, int>? MaxRequestsPerRole = null,
-    bool RequestsOpen = true,
-    int MaxSongSeconds = 360,
-    bool AllowExplicit = true,
+    bool RequestsOpen = MusicConfigDefaults.RequestsOpen,
+    int MaxSongSeconds = MusicConfigDefaults.MaxSongSeconds,
+    bool AllowExplicit = MusicConfigDefaults.AllowExplicit,
     int? PerStreamLimit = null
 );
 
