@@ -81,7 +81,6 @@ public sealed class MusicServiceQueuePromoteBanTests
 
         SongRequestQueueReconciler reconciler = new(
             store,
-            sut,
             new NoOpSongRequestQueuePersistence(),
             bus,
             PlaybackDirectorTestKit.Registry(store, bus)

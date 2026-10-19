@@ -30,7 +30,6 @@ public sealed class SongRequestQueueReportAdapterTests
             Queue = Store.GetOrCreate(ChannelId.ToString());
             Reconciler = new(
                 Store,
-                new NoHandover(),
                 new NoOpSongRequestQueuePersistence(),
                 Bus,
                 PlaybackDirectorTestKit.Registry(Store, Bus)

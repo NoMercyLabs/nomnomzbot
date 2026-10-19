@@ -26,7 +26,7 @@ public sealed class SongRequestQueueReconcilerOnlyReportsTests
     private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-000000007a01");
 
     [Fact]
-    public async Task A_playback_change_with_nothing_in_flight_calls_no_handover_and_starts_nothing()
+    public async Task A_playback_change_with_nothing_in_flight_starts_nothing_and_leaves_the_queue_alone()
     {
         SongRequestQueueStore store = new();
         store
@@ -48,10 +48,8 @@ public sealed class SongRequestQueueReconcilerOnlyReportsTests
         DirectorRig rig = DirectorRig.Of(store);
         FakeEngine spotify = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
         RecordingEventBus bus = new();
-        FailingHandover handover = new();
         SongRequestQueueReconciler sut = new(
             store,
-            handover,
             new NoOpSongRequestQueuePersistence(),
             bus,
             rig.Registry
@@ -70,10 +68,10 @@ public sealed class SongRequestQueueReconcilerOnlyReportsTests
             }
         );
 
-        handover
-            .Calls.Should()
+        spotify
+            .Calls.Where(c => c.Name == "Start")
+            .Should()
             .BeEmpty("the reconciler reports; it never hands a song to an engine");
-        spotify.Calls.Where(c => c.Name == "Start").Should().BeEmpty();
         rig.Registry.StateOf(ChannelId).Should().Be(PlaybackState.Idle);
         store
             .GetOrCreate(ChannelId.ToString())
@@ -82,20 +80,5 @@ public sealed class SongRequestQueueReconcilerOnlyReportsTests
             .Should()
             .Equal("spotify:track:w1");
         store.GetInFlight(ChannelId.ToString()).Should().BeNull();
-    }
-
-    /// <summary>A handover double that records every call; the test fails when any call arrives.</summary>
-    private sealed class FailingHandover : ISongRequestHandover
-    {
-        public List<string> Calls { get; } = [];
-
-        public Task HandOverNextAsync(
-            string broadcasterId,
-            CancellationToken cancellationToken = default
-        )
-        {
-            Calls.Add(broadcasterId);
-            return Task.CompletedTask;
-        }
     }
 }

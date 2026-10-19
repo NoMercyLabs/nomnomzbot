@@ -19,6 +19,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Music;
 
@@ -209,8 +210,8 @@ public sealed class MusicStatePollingService : BackgroundService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         IMusicService musicService = scope.ServiceProvider.GetRequiredService<IMusicService>();
-        ISongRequestHandover handover =
-            scope.ServiceProvider.GetRequiredService<ISongRequestHandover>();
+        IPlaybackInputSink playback =
+            scope.ServiceProvider.GetRequiredService<IPlaybackInputSink>();
         List<IMusicProvider> providers = [.. scope.ServiceProvider.GetServices<IMusicProvider>()];
         List<string> providerKeys = [.. providers.Select(p => p.Provider)];
 
@@ -276,8 +277,9 @@ public sealed class MusicStatePollingService : BackgroundService
                 // with nothing in flight, and a paused or unchanging player publishes no further change
                 // to wake the reconciler. Asking here every tick means the queue resumes by itself the
                 // moment playback is possible again, instead of waiting for a viewer to request another
-                // song. No-ops when something is already in flight or the queue is empty.
-                await handover.HandOverNextAsync(channelId.ToString(), cancellationToken);
+                // song. The tick tells the playback director a request is waiting; the director ignores
+                // it while a track is starting or playing and starts the head when it is idle.
+                await playback.SendAsync(channelId, new RequestAdded(), cancellationToken);
             }
             // Same reasoning as the tick catch above, and it matters twice over here: a provider
             // HttpClient timeout surfaces as TaskCanceledException, so the old type filter let ONE

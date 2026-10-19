@@ -215,7 +215,6 @@ public sealed class YouTubeTransportControlTests
         );
         SongRequestQueueReconciler reconciler = new(
             queues,
-            music,
             new NoOpSongRequestQueuePersistence(),
             bus,
             registry

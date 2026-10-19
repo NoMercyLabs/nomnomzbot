@@ -20,7 +20,7 @@ namespace NomNomzBot.Infrastructure.Music;
 /// <summary>
 /// Turns the live playback state (<see cref="PlaybackStateChangedEvent"/>, published on the poller's
 /// cadence and after every mutation) into engine reports for the playback director, and keeps the
-/// in-flight marker, the hand-over and the sr_queue surfaces in step with what the director did. It
+/// in-flight marker and the sr_queue surfaces in step with what the director did. It
 /// never removes a queue row itself: a row leaves only when the director sees it play, or on an
 /// explicit remove.
 /// </summary>
@@ -30,14 +30,12 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
     private const int QueueSnapshotSize = 10;
 
     private readonly ISongRequestQueueStore _queueStore;
-    private readonly ISongRequestHandover _handover;
     private readonly ISongRequestQueuePersistence _queuePersistence;
     private readonly IEventBus _eventBus;
     private readonly IPlaybackReportSink _sink;
 
     public SongRequestQueueReconciler(
         ISongRequestQueueStore queueStore,
-        ISongRequestHandover handover,
         ISongRequestQueuePersistence queuePersistence,
         IEventBus eventBus,
         IPlaybackReportSink sink
@@ -45,7 +43,6 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
     {
         _sink = sink;
         _queueStore = queueStore;
-        _handover = handover;
         _queuePersistence = queuePersistence;
         _eventBus = eventBus;
     }
@@ -124,12 +121,6 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
             && !queue.GetSnapshot().Any(e => ReferenceEquals(e.Item, inFlight));
         if (inFlightIsGone)
             _queueStore.SetInFlight(broadcasterId, null);
-
-        // Exactly ONE request is ever at the provider. That is what keeps the fair queue authoritative:
-        // everything behind the current track is still ours, so a viewer's first request can still be
-        // re-ranked ahead of someone's third. Hand the next one over only once the provider is free.
-        if (_queueStore.GetInFlight(broadcasterId) is null)
-            await _handover.HandOverNextAsync(broadcasterId, cancellationToken);
 
         if (!queueMayHaveChanged)
             return;

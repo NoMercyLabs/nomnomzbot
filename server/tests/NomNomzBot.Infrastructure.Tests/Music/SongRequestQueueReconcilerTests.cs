@@ -54,7 +54,6 @@ public sealed class SongRequestQueueReconcilerTests
         RecordingEventBus bus = new();
         SongRequestQueueReconciler sut = new(
             store,
-            new RecordingHandover(),
             new NoOpSongRequestQueuePersistence(),
             bus,
             PlaybackDirectorTestKit.Registry(store, bus)
@@ -208,7 +207,6 @@ public sealed class SongRequestQueueReconcilerTests
         RecordingPersistence persistence = new();
         SongRequestQueueReconciler withPersistence = new(
             store,
-            new RecordingHandover(),
             persistence,
             bus,
             PlaybackDirectorTestKit.Registry(store, bus)
@@ -242,7 +240,6 @@ public sealed class SongRequestQueueReconcilerTests
         RecordingPersistence persistence = new();
         SongRequestQueueReconciler sut = new(
             store,
-            handover,
             persistence,
             bus,
             PlaybackDirectorTestKit.Registry(store, bus)
@@ -343,7 +340,6 @@ public sealed class SongRequestQueueReconcilerTests
         await registry.SendAsync(ChannelId, new RequestAdded());
         SongRequestQueueReconciler sut = new(
             store,
-            new RecordingHandover(),
             new NoOpSongRequestQueuePersistence(),
             bus,
             registry
@@ -374,7 +370,6 @@ public sealed class SongRequestQueueReconcilerTests
         await registry.SendAsync(ChannelId, new RequestAdded());
         SongRequestQueueReconciler sut = new(
             store,
-            new RecordingHandover(),
             new NoOpSongRequestQueuePersistence(),
             bus,
             registry
@@ -495,7 +490,6 @@ public sealed class SongRequestQueueReconcilerTests
         return (
             new(
                 store,
-                handover,
                 new NoOpSongRequestQueuePersistence(),
                 bus,
                 PlaybackDirectorTestKit.Registry(store, bus)
