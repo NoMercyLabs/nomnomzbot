@@ -29,6 +29,11 @@ import { useNarrowScreen } from '@/composables/useLayout';
 
 const openLayers = '[data-dismissable-layer]:not([data-state="closed"])';
 
+// Past the phone width only dialogs and side panels take a step: a hover menu or a select list on a desktop
+// closes by Escape or a click, and Back there means "leave". Stoney 2026-10-19: Escape and Back close every
+// dialog and side panel.
+const dialogLayers = `${openLayers}:is([role="dialog"], [role="alertdialog"])`;
+
 // Panels that are not reka layers (a suggestion list, a reply bar, a full-screen editor), newest last.
 const panels: (() => void)[] = [];
 
@@ -42,24 +47,31 @@ export function useBackLayer(open: Readonly<Ref<boolean>>, close: () => void): v
     }
   }
 
-  watch(open, (isOpen: boolean) => {
-    leave();
+  watch(
+    open,
+    (isOpen: boolean) => {
+      leave();
 
-    if (isOpen) {
-      panels.push(close);
-    }
-  }, { immediate: true });
+      if (isOpen) {
+        panels.push(close);
+      }
+    },
+    { immediate: true },
+  );
 
   tryOnScopeDispose(leave);
 }
 
-function rekaLayerCount(): number {
-  return [...document.querySelectorAll(openLayers)].filter((layer) =>
-    layer.querySelector('[role="tooltip"]') === null).length;
+function rekaLayerCount(everyLayer: boolean): number {
+  return [...document.querySelectorAll(everyLayer
+    ? openLayers
+    : dialogLayers)].filter(
+    (layer) => layer.querySelector('[role="tooltip"]') === null,
+  ).length;
 }
 
-function layerCount(): number {
-  return rekaLayerCount() + panels.length;
+function layerCount(everyLayer: boolean): number {
+  return rekaLayerCount(everyLayer) + panels.length;
 }
 
 // How many layer steps the current history entry stands on.
@@ -98,8 +110,8 @@ function afterLift(run: () => void): AbortController {
 }
 
 // A reka layer opens over the page, so it is above any panel and closes first.
-function closeTopLayer(): void {
-  if (rekaLayerCount() > 0) {
+function closeTopLayer(everyLayer: boolean): void {
+  if (rekaLayerCount(everyLayer) > 0) {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     return;
@@ -123,7 +135,7 @@ export function useBackCloses(): void {
 
     const leaving = to.path !== from.path && !to.redirectedFrom;
 
-    if (popping || !phone.value || steps() === 0 || !leaving) return;
+    if (popping || steps() === 0 || !leaving) return;
 
     // Leaving the page: the new page takes the place of the layer step, so back returns to the page itself.
     return {
@@ -156,9 +168,9 @@ export function useBackCloses(): void {
   });
 
   const reconcile = useDebounceFn(async (): Promise<void> => {
-    if (!phone.value || navigating) return;
+    if (navigating) return;
 
-    const open = layerCount();
+    const open = layerCount(phone.value);
     const current = steps();
 
     onDeadStep = current > open;
@@ -197,10 +209,10 @@ export function useBackCloses(): void {
     lastPosition = position();
     onDeadStep = false;
 
-    if (!phone.value || !wentBack) return;
+    if (!wentBack) return;
 
-    if (layerCount() > 0) {
-      closeTopLayer();
+    if (layerCount(phone.value) > 0) {
+      closeTopLayer(phone.value);
 
       return;
     }

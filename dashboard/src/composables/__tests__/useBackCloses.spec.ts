@@ -51,21 +51,27 @@ function layerCount(): number {
 async function mountPage(): Promise<{ open: ReturnType<typeof ref<boolean>> }> {
   const open = ref(false);
 
-  page = mount(defineComponent({
-    setup() {
-      useBackCloses();
+  page = mount(
+    defineComponent({
+      setup() {
+        useBackCloses();
 
-      return () =>
-        h(Dialog, {
-          open: open.value,
-          'onUpdate:open': (value: boolean) => {
-            open.value = value;
-          },
-        }, () =>
-          h(DialogContent, null, () =>
-            h(DialogTitle, null, () => 'Menu')));
-    },
-  }), { attachTo: document.body, global: { plugins: [router] } });
+        return () =>
+          h(
+            Dialog,
+            {
+              open: open.value,
+              'onUpdate:open': (value: boolean) => {
+                open.value = value;
+              },
+            },
+            () => h(DialogContent, null, () =>
+              h(DialogTitle, null, () => 'Menu')),
+          );
+      },
+    }),
+    { attachTo: document.body, global: { plugins: [router] } },
+  );
 
   await router.isReady();
 
@@ -208,20 +214,23 @@ describe('a menu on a phone', () => {
 
     const panel = ref(false);
 
-    page = mount(defineComponent({
-      setup() {
-        useBackCloses();
+    page = mount(
+      defineComponent({
+        setup() {
+          useBackCloses();
 
-        useBackLayer(panel, () => {
-          panel.value = false;
-        });
+          useBackLayer(panel, () => {
+            panel.value = false;
+          });
 
-        return () =>
-          panel.value
-            ? h('div', { 'data-panel': '' })
-            : null;
-      },
-    }), { attachTo: document.body, global: { plugins: [router] } });
+          return () =>
+            panel.value
+              ? h('div', { 'data-panel': '' })
+              : null;
+        },
+      }),
+      { attachTo: document.body, global: { plugins: [router] } },
+    );
 
     await router.isReady();
 
@@ -235,16 +244,57 @@ describe('a menu on a phone', () => {
   });
 });
 
-describe('a menu on a wide screen', () => {
-  it('leaves the browser history alone', async () => {
+describe('a dialog on a wide screen', () => {
+  // Stoney 2026-10-19: Escape and browser Back close every dialog and side panel. The Admin Trust overturn
+  // dialog left the page on Back at 1440 px because only a phone width added the history step.
+  it('closes on browser back and leaves the page where it was', async () => {
     setWidth(1440);
 
     const { open } = await mountPage();
-    const before = window.history.length;
+    const position = window.history.state?.position;
 
     open.value = true;
     await settle();
     expect(layerCount()).toBe(1);
-    expect(window.history.length).toBe(before);
+    expect(window.history.state?.position).toBe(position + 1);
+    expect(window.history.state?.backLayers).toBe(1);
+
+    await goBack();
+    expect(open.value).toBe(false);
+    expect(router.currentRoute.value.fullPath).toBe('/chat');
+  });
+
+  it('closes a panel that signs up, on browser back', async () => {
+    setWidth(1440);
+
+    const panel = ref(false);
+
+    page = mount(
+      defineComponent({
+        setup() {
+          useBackCloses();
+
+          useBackLayer(panel, () => {
+            panel.value = false;
+          });
+
+          return () =>
+            panel.value
+              ? h('div', { 'data-panel': '' })
+              : null;
+        },
+      }),
+      { attachTo: document.body, global: { plugins: [router] } },
+    );
+
+    await router.isReady();
+
+    panel.value = true;
+    await settle();
+    expect(window.history.state?.backLayers).toBe(1);
+
+    await goBack();
+    expect(panel.value).toBe(false);
+    expect(router.currentRoute.value.fullPath).toBe('/chat');
   });
 });
