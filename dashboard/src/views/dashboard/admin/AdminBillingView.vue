@@ -11,6 +11,7 @@
 // The billing desk: tiers, invite codes, one channel's invoices and grants, and the priced usage units.
 // Every list reloads when another operator changes billing (the ReceiveBillingChanged push).
 // Hosting tenants for third parties is the restricted saas mode, so the page says so.
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 
 import BillingChannelPanel from './components/BillingChannelPanel.vue';
@@ -21,7 +22,7 @@ import BillingTiersPanel from './components/BillingTiersPanel.vue';
 
 <template>
   <PageHeader :title="$t('dashboard.admin.billing.title')" :crumb="$t('dashboard.admin.crumb')" />
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4">
+  <PageBody data-page-body>
     <p data-saas-restricted class="text-sm text-muted-foreground">
       {{ $t("dashboard.admin.billing.restricted") }}
     </p>
@@ -29,5 +30,5 @@ import BillingTiersPanel from './components/BillingTiersPanel.vue';
     <BillingInvitesPanel />
     <BillingChannelPanel />
     <BillingPricedUnitsPanel />
-  </div>
+  </PageBody>
 </template>

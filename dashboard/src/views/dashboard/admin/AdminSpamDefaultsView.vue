@@ -24,6 +24,7 @@ import {
   type SpamSettings,
 } from '@/api/adminSpamDefaults';
 import { ApiError } from '@/api/errors';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -289,10 +290,7 @@ function submit(): void {
       </Button>
     </template>
   </PageHeader>
-  <div
-    data-page-body
-    class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4"
-  >
+  <PageBody data-page-body>
     <p class="text-sm text-muted-foreground">{{ $t("dashboard.admin.spamDefaults.explain") }}</p>
     <p data-restricted class="text-sm text-muted-foreground">
       {{ $t("dashboard.admin.spamDefaults.restricted") }}
@@ -390,5 +388,5 @@ function submit(): void {
         </ul>
       </PanelCard>
     </template>
-  </div>
+  </PageBody>
 </template>

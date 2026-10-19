@@ -38,6 +38,7 @@ import { acceptAccessToken, useCurrentUser } from '@/api/auth';
 import DateTime from '@/components/layout/DateTime.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import UserName from '@/components/layout/UserName.vue';
@@ -276,10 +277,7 @@ async function startImpersonation(): Promise<void> {
 
 <template>
   <PageHeader :title="$t('dashboard.admin.access.title')" :crumb="$t('dashboard.admin.crumb')" />
-  <div
-    data-page-body
-    class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4"
-  >
+  <PageBody data-page-body>
     <LabeledSwitch
       v-model="hideInactive"
       data-hide-inactive
@@ -568,5 +566,5 @@ async function startImpersonation(): Promise<void> {
         </div>
       </div>
     </FormDialog>
-  </div>
+  </PageBody>
 </template>

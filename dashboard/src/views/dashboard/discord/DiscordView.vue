@@ -22,6 +22,7 @@ import {
   type DiscordConnection,
   type DiscordRule,
 } from '@/api/discord';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
@@ -157,7 +158,7 @@ function ruleSummary(rule: DiscordRule | null): string {
   <div class="flex min-h-0 flex-1 flex-col">
     <PageHeader :title="t('dashboard.discord.title')" />
 
-    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
+    <PageBody>
       <PanelCard
         v-if="can('discord:connection:read')"
         :title="t('dashboard.discord.connection.title')"
@@ -248,7 +249,7 @@ function ruleSummary(rule: DiscordRule | null): string {
           </li>
         </ul>
       </PanelCard>
-    </div>
+    </PageBody>
 
     <Sheet v-model:open="roleOpen">
       <SheetContent

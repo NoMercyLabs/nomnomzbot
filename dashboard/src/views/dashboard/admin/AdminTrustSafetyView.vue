@@ -34,6 +34,7 @@ import TrustBlockRow from './components/TrustBlockRow.vue';
 import TrustReviewRow from './components/TrustReviewRow.vue';
 import TrustSignalRow from './components/TrustSignalRow.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
@@ -216,10 +217,7 @@ function run(current: Step): Promise<void> {
     :title="$t('dashboard.admin.trustSafety.title')"
     :crumb="$t('dashboard.admin.crumb')"
   />
-  <div
-    data-page-body
-    class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4"
-  >
+  <PageBody data-page-body>
     <div data-page-inset class="grid gap-1.5">
       <Label for="ts-justification">{{
         $t("dashboard.admin.trustSafety.justification.label")
@@ -383,5 +381,5 @@ function run(current: Step): Promise<void> {
       @update:open="close"
       @submit="submit"
     />
-  </div>
+  </PageBody>
 </template>

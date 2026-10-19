@@ -28,6 +28,7 @@ import {
   type SetFeatureFlagRequest,
 } from '@/api/adminFeatureFlags';
 import { ApiError } from '@/api/errors';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
@@ -237,7 +238,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
       </Button>
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4">
+  <PageBody data-page-body>
     <p class="text-sm text-muted-foreground">{{ $t('dashboard.admin.featureFlags.explain') }}</p>
     <p data-restricted class="text-sm text-muted-foreground">{{ $t('dashboard.admin.featureFlags.restricted') }}</p>
     <PanelCard
@@ -440,5 +441,5 @@ const whenOf = (entry: FeatureFlagOverride): string =>
         </li>
       </ul>
     </PanelCard>
-  </div>
+  </PageBody>
 </template>

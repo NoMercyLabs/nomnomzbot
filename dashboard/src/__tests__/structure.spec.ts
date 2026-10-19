@@ -258,6 +258,18 @@ describe('folder layout', () => {
     expect(unmarked).toEqual([]);
   });
 
+  // A card in a scrolling column keeps its height: PanelCard is min-h-0 and overflow-hidden, so a page body that
+  // is not PageBody (no shrink-0 on its children) squeezes every panel down to its title row.
+  it('builds no scrolling page column by hand where PageBody owns it', () => {
+    const byHand = /<div\b[^>]*\bclass="[^"]*flex-col[^"]*overflow-y-auto p-6[^"]*"/;
+    const offenders: string[] = allPaths(join(src, 'views'))
+      .filter((path) => path.endsWith('.vue'))
+      .filter((path) => byHand.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(src, path));
+
+    expect(offenders).toEqual([]);
+  });
+
   // A search field or a back button outside a panel would touch the screen edge once the body drops its margin;
   // it keeps one panel padding instead.
   it('keeps a loose control of a page body one panel padding from the phone edge', () => {

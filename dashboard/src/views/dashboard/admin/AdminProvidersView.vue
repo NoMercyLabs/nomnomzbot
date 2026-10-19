@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useAdminProviders } from '@/api/adminProviders';
 import { ApiError } from '@/api/errors';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
@@ -35,7 +36,7 @@ const errorText = computed<string>(() =>
 
 <template>
   <PageHeader :title="$t('dashboard.admin.providers.title')" :crumb="$t('dashboard.admin.providers.crumb')" />
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4">
+  <PageBody data-page-body>
     <p class="text-sm text-muted-foreground">{{ $t('dashboard.admin.providers.explain') }}</p>
     <p data-restricted class="text-sm text-muted-foreground">{{ $t('dashboard.admin.providers.restricted') }}</p>
     <PanelCard
@@ -54,5 +55,5 @@ const errorText = computed<string>(() =>
         />
       </ul>
     </PanelCard>
-  </div>
+  </PageBody>
 </template>
