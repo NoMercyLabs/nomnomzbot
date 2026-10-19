@@ -75,7 +75,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
     <div
       v-if="$slots.bar"
       data-slot="page-bar"
-      class="flex h-12 items-center gap-3 border-b border-border px-6"
+      class="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-6 py-1.5"
     >
       <slot name="bar" />
     </div>

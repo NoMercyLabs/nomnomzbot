@@ -95,3 +95,20 @@ describe('PageHeader back link', () => {
     expect(open({}).find('[data-slot="back-link"]').exists()).toBe(false);
   });
 });
+
+describe('PageHeader control bar', () => {
+  const wrapper = mount(PageHeader, {
+    props: { title: 'Commands' },
+    slots: { bar: '<button>Sort</button><button>Tabs</button>' },
+  });
+  const classes = wrapper.get('[data-slot="page-bar"]').classes();
+
+  it('wraps its controls onto a second row on a phone, so a tab is never cut at the edge', () => {
+    expect(classes).toContain('flex-wrap');
+  });
+
+  it('grows with the wrapped row instead of holding a fixed height that clips it', () => {
+    expect(classes).toContain('min-h-12');
+    expect(classes).not.toContain('h-12');
+  });
+});

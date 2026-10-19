@@ -750,6 +750,27 @@ describe('CommandsView editor', () => {
     expect(writes('POST')[0]!.name).toBe('hug');
   });
 
+  it('gives focus back to the Reset to preset button when Escape closes its confirm, and writes nothing', async () => {
+    rows[0] = command('hug', { presetKey: 'hug' });
+    await open('/app/commands?command=hug');
+
+    const reset = buttonByText('Reset to preset');
+
+    reset.focus();
+    reset.click();
+    await settle();
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"]')!;
+
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(document.activeElement).toBe(reset);
+    expect(document.activeElement?.hasAttribute('data-command-row')).toBe(false);
+    expect(writes('POST')).toHaveLength(0);
+  });
+
   it('offers a way back to the list that closes the open command', async () => {
     await open('/app/commands?command=hello');
     const back = document.body.querySelector<HTMLButtonElement>('[data-detail-back]');
