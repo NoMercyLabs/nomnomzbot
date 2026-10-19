@@ -22,19 +22,23 @@ public sealed partial class PlaybackDirector
     /// <summary>Failed starts per queue item id. An entry ends when the item plays or is dropped.</summary>
     private readonly Dictionary<string, int> _failedStarts = [];
 
+    /// <summary>Items already lined up in the engine's own queue; a retry never lines one up twice.</summary>
+    private readonly HashSet<string> _queuedAhead = [];
+
     /// <summary>
     /// Asks the engine to start the item. A refusal and a throw are the same thing to the director:
     /// a failed start. A cancel from the caller's token is not a failure and still propagates.
     /// </summary>
-    private async Task<EngineStartResult> TryStartAsync(
+    private static async Task<EngineStartResult> TryStartAsync(
         IPlaybackEngine engine,
         PlaybackItem item,
+        Func<IPlaybackEngine, Task<EngineStartResult>> start,
         CancellationToken ct
     )
     {
         try
         {
-            return await engine.StartAsync(item, ct);
+            return await start(engine);
         }
         catch (Exception ex)
             when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
@@ -43,9 +47,37 @@ public sealed partial class PlaybackDirector
         }
     }
 
+    private async Task<EngineStartResult> QueueAheadOnceAsync(
+        IPlaybackEngine engine,
+        PlaybackItem item,
+        CancellationToken ct
+    )
+    {
+        if (_queuedAhead.Contains(item.Id))
+            return EngineStartResult.Ok;
+
+        EngineStartResult result = await TryStartAsync(
+            engine,
+            item,
+            e => e.QueueNextAsync(item, ct),
+            ct
+        );
+        if (result.Accepted)
+            _queuedAhead.Add(item.Id);
+
+        return result;
+    }
+
     /// <summary>
-    /// The first failed start of an item blocks the director and keeps the item. The second drops the
-    /// item with a notice and starts the next one. Only the director removes the item here.
+    /// While the owner's own music plays on, a failed start never cuts into it: the director follows that
+    /// music and tries the item again at the end of the owner's track, this many times in all.
+    /// </summary>
+    private const int MaxFailedStartsOverOwnerMusic = 3;
+
+    /// <summary>
+    /// A failed start while the owner's music plays on follows that music and keeps the item. Otherwise the
+    /// first failed start blocks the director and keeps the item. The last allowed failure drops the item
+    /// with a notice. Only the director removes the item here.
     /// </summary>
     private async Task FailStartAsync(
         PlaybackItem item,
@@ -56,7 +88,15 @@ public sealed partial class PlaybackDirector
     )
     {
         int failures = _failedStarts.GetValueOrDefault(item.Id) + 1;
-        if (failures < MaxFailedStarts)
+        EngineReport? ownerMusic = OwnerMusicPlayingOver(item);
+        if (ownerMusic is not null && failures < MaxFailedStartsOverOwnerMusic)
+        {
+            _failedStarts[item.Id] = failures;
+            await FollowOwnerMusicAsync(ownerMusic, inputName, journalReason, item.Id);
+            return;
+        }
+
+        if (ownerMusic is null && failures < MaxFailedStarts)
         {
             _failedStarts[item.Id] = failures;
             await MoveAsync(
@@ -69,6 +109,7 @@ public sealed partial class PlaybackDirector
         }
 
         _failedStarts.Remove(item.Id);
+        _queuedAhead.Remove(item.Id);
         await _bus.PublishAsync(
             new SongPlaybackFailedEvent
             {
@@ -80,9 +121,37 @@ public sealed partial class PlaybackDirector
             ct
         );
         _queue.Remove(item.Id);
+        if (ownerMusic is not null)
+        {
+            await FollowOwnerMusicAsync(ownerMusic, inputName, "start_dropped", item.Id);
+            return;
+        }
+
         await MoveAsync(PlaybackState.Idle, inputName, "start_dropped", item.Id);
 
         if (_queue.Head is { } next)
             await BeginStartAsync(next, inputName, "next_item", null, ct);
+    }
+
+    /// <summary>The engine's latest report when it plays the owner's own track, not the item or a queued row.</summary>
+    private EngineReport? OwnerMusicPlayingOver(PlaybackItem item) =>
+        _reports.TryGetValue(item.Engine, out EngineReport? report)
+        && report.IsPlaying
+        && report.Uri != item.Uri
+        && FindRow(report) is null
+            ? report
+            : null;
+
+    /// <summary>Owner music plays on: the director holds it, so the next hand-over waits for its end.</summary>
+    private Task FollowOwnerMusicAsync(
+        EngineReport ownerMusic,
+        string inputName,
+        string reason,
+        string itemId
+    )
+    {
+        _ownerReport = ownerMusic;
+        _memory = null;
+        return MoveAsync(PlaybackState.Playing(ownerMusic.Engine, null), inputName, reason, itemId);
     }
 }

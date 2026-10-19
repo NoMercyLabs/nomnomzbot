@@ -24,7 +24,8 @@ public sealed partial class PlaybackDirector
         string inputName,
         string reason,
         EngineKind? stopEngine,
-        CancellationToken ct
+        CancellationToken ct,
+        int? queueAheadMs = null
     )
     {
         _stopWait = null;
@@ -46,10 +47,19 @@ public sealed partial class PlaybackDirector
         }
 
         await MoveAsync(starting, inputName, reason);
-        await SendStartAsync(item, inputName, ct);
+        await SendStartAsync(item, inputName, ct, queueAheadMs);
     }
 
-    private async Task SendStartAsync(PlaybackItem item, string inputName, CancellationToken ct)
+    /// <summary>
+    /// Sends the start. With <paramref name="queueAheadMs"/> the owner's track still plays that long: the item
+    /// is lined up behind it (once per item) and the start deadline runs from that track's end.
+    /// </summary>
+    private async Task SendStartAsync(
+        PlaybackItem item,
+        string inputName,
+        CancellationToken ct,
+        int? queueAheadMs = null
+    )
     {
         if (!_engines.TryGetValue(item.Engine, out IPlaybackEngine? engine))
         {
@@ -57,9 +67,12 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        EngineStartResult result = await TryStartAsync(engine, item, ct);
+        EngineStartResult result = queueAheadMs is null
+            ? await TryStartAsync(engine, item, e => e.StartAsync(item, ct), ct)
+            : await QueueAheadOnceAsync(engine, item, ct);
         if (result.Accepted)
-            _startDeadline = _time.GetUtcNow() + StartDeadline;
+            _startDeadline =
+                _time.GetUtcNow() + TimeSpan.FromMilliseconds(queueAheadMs ?? 0) + StartDeadline;
         else
             await FailStartAsync(
                 item,
@@ -131,6 +144,7 @@ public sealed partial class PlaybackDirector
     {
         _queue.Remove(row.Id);
         _failedStarts.Remove(row.Id);
+        _queuedAhead.Remove(row.Id);
         _history.Push(row);
         _ownerReport = null;
         _confirmedDeviceId = report.DeviceId;

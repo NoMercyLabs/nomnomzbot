@@ -39,14 +39,14 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task Idle_RequestBeforeAnyReport_WhenTheProbeFindsOwnerMusicNearItsEnd_HandsOverToTheHead()
+    public async Task Idle_RequestBeforeAnyReport_WhenTheProbeFindsOwnerMusicNearItsEnd_QueuesTheHeadBehindIt()
     {
         Rig rig = new();
         rig.Spotify.ProbeReport = OwnerSong(196_000);
 
         await rig.Request(Item("a"));
 
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
     }
 
     [Fact]

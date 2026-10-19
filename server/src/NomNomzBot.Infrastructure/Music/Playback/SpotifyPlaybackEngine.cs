@@ -64,6 +64,22 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
             );
     }
 
+    /// <summary>Spotify's own queue plays the item right after the owner's current track.</summary>
+    public async Task<EngineStartResult> QueueNextAsync(
+        PlaybackItem item,
+        CancellationToken ct = default
+    )
+    {
+        await using EngineLease lease = open();
+
+        return await GuardFor(lease)
+            .StartAsync(
+                () => lease.Provider.AddToQueueAsync(broadcasterId, item.Uri, ct),
+                "Spotify could not queue the track.",
+                ct
+            );
+    }
+
     public Task PauseAsync(CancellationToken ct = default) =>
         CommandAsync(provider => provider.PauseAsync(broadcasterId, ct), ct);
 

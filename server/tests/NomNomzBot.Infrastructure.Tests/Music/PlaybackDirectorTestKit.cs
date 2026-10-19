@@ -78,6 +78,18 @@ public static class PlaybackDirectorTestKit
             return DuringStart is null ? Task.FromResult(StartResult) : StartAfterAsync(item);
         }
 
+        public Task<EngineStartResult> QueueNextAsync(
+            PlaybackItem item,
+            CancellationToken ct = default
+        )
+        {
+            _calls.Add(new("QueueNext", item.Id));
+            if (StartThrows is not null)
+                throw StartThrows();
+
+            return DuringStart is null ? Task.FromResult(StartResult) : StartAfterAsync(item);
+        }
+
         private async Task<EngineStartResult> StartAfterAsync(PlaybackItem item)
         {
             await DuringStart!(item);

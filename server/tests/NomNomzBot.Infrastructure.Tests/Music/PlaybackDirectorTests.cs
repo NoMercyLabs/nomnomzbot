@@ -239,7 +239,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task PlayingOwnerMusic_RequestBeforeTheNearEndWindow_WaitsThenHandsOverAtSixSeconds()
+    public async Task PlayingOwnerMusic_RequestBeforeTheQueueAheadWindow_WaitsThenQueuesItFifteenSecondsBeforeTheEnd()
     {
         Rig rig = new();
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 100_000);
@@ -251,13 +251,13 @@ public sealed partial class PlaybackDirectorTests
         rig.Spotify.Calls.Should().BeEmpty();
         rig.Journal.Last().Reason.Should().Be("waiting_near_end");
 
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 193_999);
+        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 184_999);
         rig.Spotify.Calls.Should().BeEmpty();
 
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 194_000);
+        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 185_000);
 
         rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, head));
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
         rig.Journal.Last().Reason.Should().Be("hand_over");
         rig.QueueIds.Should().Equal("a");
     }

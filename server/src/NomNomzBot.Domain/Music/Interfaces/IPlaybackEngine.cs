@@ -26,6 +26,13 @@ public interface IPlaybackEngine
 
     Task<EngineStartResult> StartAsync(PlaybackItem item, CancellationToken ct = default);
 
+    /// <summary>
+    /// Lines the item up to play when the owner's current track on this engine ends, without interrupting
+    /// it. An engine with no queue of its own starts the item instead.
+    /// </summary>
+    Task<EngineStartResult> QueueNextAsync(PlaybackItem item, CancellationToken ct = default) =>
+        StartAsync(item, ct);
+
     Task PauseAsync(CancellationToken ct = default);
 
     Task ResumeAsync(CancellationToken ct = default);

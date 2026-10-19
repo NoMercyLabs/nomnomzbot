@@ -215,21 +215,29 @@ public sealed partial class PlaybackDirector
         await HandOverIfNearEndAsync(nameof(EngineReport), ct);
     }
 
-    /// <summary>Owner music is in its last seconds and a request waits: the head takes over.</summary>
+    /// <summary>
+    /// Owner music is near its end and a request waits. On the same engine the head is lined up in the
+    /// engine's own queue before the owner's next track would play, so nothing is cut. On another engine
+    /// the head takes over in the owner's last seconds.
+    /// </summary>
     private async Task<bool> HandOverIfNearEndAsync(string inputName, CancellationToken ct)
     {
-        if (
-            _queue.Head is not { } head
-            || _ownerReport is not { DurationMs: > 0 } owner
-            || owner.DurationMs - owner.ProgressMs > NearEndMs
-        )
+        if (_queue.Head is not { } head || _ownerReport is not { DurationMs: > 0 } owner)
             return false;
 
+        int remainingMs = Math.Max(0, owner.DurationMs - owner.ProgressMs);
         bool otherEngine = head.Engine != owner.Engine;
-        if (otherEngine)
-            _memory = new(owner.Engine, owner.IsPlaying);
+        if (remainingMs > (otherEngine ? NearEndMs : QueueAheadMs))
+            return false;
 
-        await BeginStartAsync(head, inputName, "hand_over", otherEngine ? owner.Engine : null, ct);
+        if (otherEngine)
+        {
+            _memory = new(owner.Engine, owner.IsPlaying);
+            await BeginStartAsync(head, inputName, "hand_over", owner.Engine, ct);
+            return true;
+        }
+
+        await BeginStartAsync(head, inputName, "hand_over", null, ct, remainingMs);
         return true;
     }
 
