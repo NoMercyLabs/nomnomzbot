@@ -154,14 +154,14 @@ const badgeTone = (): string | null =>
   document.body.querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone') ?? null;
 
 describe('TtsView overview', () => {
-  it('shows the three tabs and starts on Overview', async () => {
+  it('shows the five tabs and starts on Overview', async () => {
     await open();
 
     const tabs: string[] = [...document.body.querySelectorAll('[role="tab"]')].map(
       (tab) => tab.textContent?.trim() ?? '',
     );
 
-    expect(tabs).toEqual(['Overview', 'Voices', 'Rules']);
+    expect(tabs).toEqual(['Overview', 'Voices', 'Rules', 'Pronunciation', 'Keys']);
     expect(panel('Spoken history')).toBeDefined();
   });
 
@@ -233,10 +233,23 @@ describe('TtsView overview', () => {
     expect(badgeTone()).toBeNull();
   });
 
-  it('opens Rules with the rules, the pronunciation lexicon and the keys panels', async () => {
+  it('opens Rules with the speaking and rules panels and neither lexicon nor keys', async () => {
     await open('?view=rules');
     expect(panel('Rules').getAttribute('data-state')).toBe('ready');
-    expect(panel('Pronunciation')).toBeDefined();
+    expect(document.body.querySelector('[data-view="tts-speaking"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-view="tts-lexicon"]')).toBeNull();
+    expect(document.body.querySelector('[data-view="tts-keys"]')).toBeNull();
+  });
+
+  it('opens Keys on its own tab with the keys panel alone', async () => {
+    await open('?view=keys');
     expect(panel('Keys and name')).toBeDefined();
+    expect(document.body.querySelector('[data-view="tts-rules"]')).toBeNull();
+  });
+
+  it('opens Pronunciation on its own tab with the lexicon panel alone', async () => {
+    await open('?view=pronunciation');
+    expect(panel('Pronunciation')).toBeDefined();
+    expect(document.body.querySelector('[data-view="tts-rules"]')).toBeNull();
   });
 });

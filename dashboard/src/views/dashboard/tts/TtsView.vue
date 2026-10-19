@@ -48,6 +48,8 @@ const tabKeys = {
   overview: 'tts:config:read',
   voices: 'tts:voice:read',
   rules: 'tts:config:read',
+  pronunciation: 'tts:config:read',
+  keys: 'tts:config:write',
 } as const satisfies Record<string, string>;
 const VIEWS = keysOf(tabKeys);
 
@@ -56,6 +58,8 @@ const allTabs = computed<PageTab<TtsTab>[]>(() => [
   { value: 'overview', label: t('dashboard.tts.tabs.overview') },
   { value: 'voices', label: t('dashboard.tts.tabs.voices') },
   { value: 'rules', label: t('dashboard.tts.tabs.rules') },
+  { value: 'pronunciation', label: t('dashboard.tts.tabs.pronunciation') },
+  { value: 'keys', label: t('dashboard.tts.tabs.keys') },
 ]);
 
 function canRead(tab: PageTab<TtsTab>): boolean {
@@ -123,19 +127,23 @@ const overviewPanels = computed(
       { id: 'settings', label: t('dashboard.tts.settings.title') },
     ] as const satisfies readonly BoardPanel[],
 );
-const rulesPanels = computed<BoardPanel[]>(() => {
-  const shown: BoardPanel[] = [
-    { id: 'speaking', label: t('dashboard.tts.speaking.title') },
-    { id: 'rules', label: t('dashboard.tts.rules.title') },
-    { id: 'lexicon', label: t('dashboard.tts.lexicon.title') },
-  ];
-
-  if (can('tts:config:write')) {
-    shown.push({ id: 'keys', label: t('dashboard.tts.keys.title') });
-  }
-
-  return shown;
-});
+const rulesPanels = computed(
+  () =>
+    [
+      { id: 'speaking', label: t('dashboard.tts.speaking.title') },
+      { id: 'rules', label: t('dashboard.tts.rules.title') },
+    ] as const satisfies readonly BoardPanel[],
+);
+const keysPanels = computed(
+  () =>
+    [{ id: 'keys', label: t('dashboard.tts.keys.title') }] as const satisfies readonly BoardPanel[],
+);
+const pronunciationPanels = computed(
+  () =>
+    [
+      { id: 'lexicon', label: t('dashboard.tts.lexicon.title') },
+    ] as const satisfies readonly BoardPanel[],
+);
 </script>
 
 <template>
@@ -217,17 +225,29 @@ const rulesPanels = computed<BoardPanel[]>(() => {
 
   <VoicesTab v-else-if="view === 'voices' && can('tts:voice:read')" />
 
-  <BoardGrid v-else-if="view === 'rules' && can('tts:config:read')" :panels="rulesPanels" :rows="2">
-    <BoardCell panel="speaking" :span="4" :rows="2">
+  <!-- Two columns at every laptop width: the speaking settings on the left, the rules on the right. The
+       pronunciation lexicon and the keys have their own tabs, so no panel scrolls inside the page. -->
+  <BoardGrid v-else-if="view === 'rules' && can('tts:config:read')" :panels="rulesPanels" :rows="1">
+    <BoardCell panel="speaking" :span="6">
       <SpeakingPanel />
     </BoardCell>
-    <BoardCell panel="rules" :span="4">
+    <BoardCell panel="rules" :span="6">
       <RulesPanel />
     </BoardCell>
-    <BoardCell panel="lexicon" :span="4" :rows="2">
+  </BoardGrid>
+
+  <BoardGrid
+    v-else-if="view === 'pronunciation' && can('tts:config:read')"
+    :panels="pronunciationPanels"
+    :rows="1"
+  >
+    <BoardCell panel="lexicon" :span="8">
       <LexiconPanel />
     </BoardCell>
-    <BoardCell v-if="can('tts:config:write')" panel="keys" :span="4">
+  </BoardGrid>
+
+  <BoardGrid v-else-if="view === 'keys' && can('tts:config:write')" :panels="keysPanels" :rows="1">
+    <BoardCell panel="keys" :span="6">
       <KeysPanel />
     </BoardCell>
   </BoardGrid>

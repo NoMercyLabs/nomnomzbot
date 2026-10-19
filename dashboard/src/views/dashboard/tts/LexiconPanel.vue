@@ -141,7 +141,7 @@ function remove(entry: TtsLexiconEntry): void {
       <div class="flex flex-col gap-1 text-sm font-medium">
         {{ $t("dashboard.tts.lexicon.matchKind") }}
         <Select v-model="draft.matchKind">
-          <SelectTrigger class="w-40" :aria-label="$t('dashboard.tts.lexicon.matchKind')">
+          <SelectTrigger class="w-52" :aria-label="$t('dashboard.tts.lexicon.matchKind')">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper" align="end">

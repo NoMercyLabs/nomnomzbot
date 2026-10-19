@@ -7,7 +7,9 @@
       "tabs": {
         "overview": "Overzicht",
         "voices": "Stemmen",
-        "rules": "Regels"
+        "rules": "Regels",
+        "pronunciation": "Uitspraak",
+        "keys": "Sleutels"
       },
       "history": {
         "title": "Uitgesproken berichten",

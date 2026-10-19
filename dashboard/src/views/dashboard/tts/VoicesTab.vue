@@ -284,7 +284,7 @@ const panels = computed(
           </p>
           <VirtualList
             v-else
-            class="min-h-0 flex-1"
+            class="min-h-72 flex-1"
             :items="items"
             :item-key="(item: VoiceListItem) => item.key"
             :estimate-size="ROW_HEIGHT"

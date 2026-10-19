@@ -7,7 +7,9 @@
       "tabs": {
         "overview": "Overview",
         "voices": "Voices",
-        "rules": "Rules"
+        "rules": "Rules",
+        "pronunciation": "Pronunciation",
+        "keys": "Keys"
       },
       "history": {
         "title": "Spoken history",
