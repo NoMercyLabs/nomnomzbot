@@ -176,7 +176,7 @@ function remove(entry: TtsLexiconEntry): void {
       <li
         v-for="entry in entries"
         :key="entry.id"
-        class="flex flex-wrap items-center gap-2 px-3 py-2"
+        class="flex flex-wrap items-center gap-2 px-2 py-2"
         data-lexicon-row
       >
         <!-- Under sm the fields take their own line, one under the other, and the buttons sit below them. -->

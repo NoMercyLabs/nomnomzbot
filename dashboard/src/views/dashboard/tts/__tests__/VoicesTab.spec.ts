@@ -12,7 +12,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { laptopWidth, setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
@@ -30,6 +30,11 @@ type Call = {
   path: string;
   init: { params?: { query?: Record<string, unknown> }; body?: unknown };
 };
+
+// jsdom does not scroll: the fade reports a cut right edge so the test can see the strip carry it.
+vi.mock('@/composables/useScrollFade', () => ({
+  useScrollFade: () => computed(() => 'mask-r-from-90%'),
+}));
 
 const calls: Call[] = [];
 let answers: Record<string, () => Answer> = {};
@@ -501,15 +506,15 @@ describe('VoicesTab', () => {
     expect(chipText('nl')).toBe('Dutch 3');
   });
 
-  // A-tts defect 4: "Dutch 0+" next to "All 200+" reads as a count of zero. T6c defect 5: a bare "Dutch" next to "48+" is
-  // inconsistent, so a language with no loaded voice shows an ellipsis in the count slot: more is still loading.
-  it('shows an ellipsis on a language chip that has no loaded voice while pages are missing', async () => {
+  // A-tts defect 3: the ellipsis read as a cut label ("Dutch ..."). A language with no loaded voice shows its bare name;
+  // "0+" would read as none at all.
+  it('shows the bare language name on a chip that has no loaded voice while pages are missing', async () => {
     answers['GET /tts/voices'] = () => ok([catalog[0], catalog[3]], { hasMore: true, nextPage: 2 });
 
     await open();
 
     expect(chipText('all')).toBe('All 2+');
-    expect(chipText('nl')).toBe('Dutch …');
+    expect(chipText('nl')).toBe('Dutch');
   });
 
   it('remembers the chosen language after the page is left and opened again', async () => {
@@ -581,6 +586,42 @@ describe('VoicesTab', () => {
 
     expect(card?.getAttribute('data-state')).toBe('error');
     expect(rows()).toHaveLength(0);
+  });
+
+  // A-tts defect 4: the locale already sits in the group heading, so a row detail that repeats it wrapped to 3 lines.
+  it('keeps the row detail to gender and styles, cut to one line, without the locale of the heading', async () => {
+    answers['GET /tts/voices'] = () =>
+      ok([{ ...voice('en-US-AriaNeural', 'en-US'), styles: ['chat', 'cheerful', 'sad'] }], {
+        hasMore: false,
+        nextPage: null,
+      });
+
+    await open();
+
+    const detail = rowOf('en-US-AriaNeural').querySelector(
+      '[data-slot="summary-row-text"] > span:nth-child(2) > span',
+    );
+
+    expect(detail?.textContent).toBe('Female · chat, cheerful');
+    expect(detail?.className).toContain('truncate');
+  });
+
+  it('bounds the voice list on a phone so it is not a small scroller in the scrolling page', async () => {
+    await open();
+
+    const list = document.body.querySelector('[data-virtual-scroll]')?.parentElement;
+
+    expect(list?.className).toContain('max-md:h-[60dvh]');
+    expect(list?.className).toContain('max-md:flex-none');
+  });
+
+  // A-tts defect 3: at 390 the chip row cut a chip mid-label ("Ge") with no hint that it scrolls.
+  it('fades the language chip row where it is cut', async () => {
+    await open();
+
+    const group = chip('all').parentElement;
+
+    expect(group?.className).toContain('mask-r-from-90%');
   });
 
   it('keeps one scroller: the panel body does not scroll around the voice list', async () => {

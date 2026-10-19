@@ -62,7 +62,7 @@ provide(boardKey, (panel: string) =>
       <Tabs
         ref="strip"
         v-model="open"
-        class="min-w-0 flex-none overflow-x-auto overflow-y-hidden px-6 scrollbar-none"
+        class="min-w-0 flex-none overflow-x-auto overflow-y-hidden px-6 scrollbar-none max-md:px-4"
         :class="fade"
       >
         <TabsList>
@@ -71,7 +71,7 @@ provide(boardKey, (panel: string) =>
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <div class="flex min-h-0 flex-1 flex-col px-6">
+      <div class="flex min-h-0 flex-1 flex-col px-6 max-md:px-0">
         <slot />
       </div>
     </section>

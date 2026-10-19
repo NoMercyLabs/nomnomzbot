@@ -382,8 +382,8 @@ describe('TTS rules panels', () => {
 
   // T6c defect 7: "Voice provider" offered Azure and ElevenLabs while the voice source was the free bot voice.
   const providerSegments = (): (string | undefined)[] =>
-    [...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button')].map(
-      (entry) => entry.textContent?.trim(),
+    [...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button')].map((entry) =>
+      entry.textContent?.trim(),
     );
 
   it('offers only the free provider while the voice source is the free bot voice', async () => {
@@ -415,13 +415,13 @@ describe('TTS rules panels', () => {
     );
   });
 
-  it('says the Azure region has no default when the bot has none', async () => {
+  // A-tts defect 5: the caption said "Default: none" while the bot falls back to westeurope. No default from the endpoint
+  // means no caption, never a false one.
+  it('shows no default caption under the Azure region box when the bot returns none', async () => {
     defaults.azureRegion = null as unknown as string;
     await open();
 
-    expect(document.body.querySelector('[data-region-default]')?.textContent?.trim()).toBe(
-      'Default: none',
-    );
+    expect(document.body.querySelector('[data-region-default]')).toBeNull();
   });
 
   it('resets the rules to the bot defaults through the reset call', async () => {
@@ -458,6 +458,17 @@ describe('TTS rules panels', () => {
       replacement: 'laughing out loud',
       matchKind: 'word',
     });
+  });
+
+  // A-tts defect 6: the add-rule form sat 4 px left of the rule rows under it (px-2 against px-3).
+  it('starts the add-rule form on the same left edge as the rule rows', async () => {
+    await open();
+
+    const form = document.body.querySelector('[data-view="tts-lexicon"] form') as HTMLElement;
+    const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
+
+    expect(row.classList.contains('px-2')).toBe(true);
+    expect(form.classList.contains('px-2')).toBe(true);
   });
 
   it('gives a lexicon rule text its own line under sm so no word wraps alone', async () => {
@@ -602,12 +613,34 @@ describe('TTS rules panels', () => {
       const actions = form.querySelector('[data-key-actions]') as HTMLElement;
       const label = form.querySelector('[data-key-label]') as HTMLElement;
 
-      expect(actions.className).toContain('w-full');
-      expect(actions.className).toContain('sm:w-auto');
       expect(actions.textContent).toContain('Save key');
       expect(label.className).not.toContain('justify-between');
       expect(label.querySelector('[data-slot="status-badge"]')).not.toBeNull();
     }
+  });
+
+  // A-tts defect 5: at 390 the Azure "Save key" sat under the region field instead of next to its key.
+  it('puts each key and its own Save in one row, with the Azure region below that row', async () => {
+    await open();
+
+    for (const provider of ['azure', 'elevenlabs']) {
+      const form = document.body.querySelector(`[data-key-form="${provider}"]`) as HTMLElement;
+      const row = form.querySelector('[data-key-row]') as HTMLElement;
+
+      expect(row.contains(form.querySelector('input[type="password"]'))).toBe(true);
+      expect(row.contains(form.querySelector('[data-key-actions]'))).toBe(true);
+      expect(row.className).not.toContain('flex-wrap');
+    }
+
+    const azure = document.body.querySelector('[data-key-form="azure"]') as HTMLElement;
+    const region = azure.querySelector('[data-key-region]') as HTMLElement;
+
+    expect(azure.querySelector('[data-key-row]')?.contains(region)).toBe(false);
+    expect(region.querySelector('input')).not.toBeNull();
+
+    expect(
+      document.body.querySelector('[data-key-form="elevenlabs"] [data-key-region]'),
+    ).toBeNull();
   });
 
   it('saves the channel name spelling', async () => {

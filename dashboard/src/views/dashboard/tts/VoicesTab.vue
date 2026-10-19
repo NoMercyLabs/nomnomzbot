@@ -11,7 +11,7 @@
 import { refDebounced, useLocalStorage } from '@vueuse/core';
 import Check from '~icons/nnz/check';
 import WaveForm from '~icons/nnz/wave-form';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -32,6 +32,7 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useScrollFade } from '@/composables/useScrollFade';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useProviderName } from '@/composables/useProviderName';
@@ -46,6 +47,8 @@ const SEPARATOR = ' · ';
 const SHOWN_STYLES = 2;
 
 const { t, te, locale } = useI18n();
+const chipRow = useTemplateRef('chipRow');
+const chipFade = useScrollFade(() => chipRow.value);
 const providerName = useProviderName();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
@@ -91,16 +94,14 @@ function familyCount(value: string): number {
     : loaded.value.filter((voice) => voiceFamily(voice.locale) === value).length;
 }
 
-// While pages are missing, a language with no loaded voice shows an ellipsis: "0+" would read as none at all, and an
-// empty slot beside "48+" looks broken. The ellipsis says more is still loading.
-const MORE_LOADING = '…';
-
+// While pages are missing, a language with no loaded voice shows its bare name: "0+" would read as none at all, and
+// an ellipsis reads as a cut label.
 function chipCount(loadedCount: number): string {
   if (!hasMore.value)
     return String(loadedCount);
 
   return loadedCount === 0
-    ? MORE_LOADING
+    ? ''
     : `${loadedCount}+`;
 }
 
@@ -186,12 +187,9 @@ function genderLabel(gender: string): string {
     : gender;
 }
 
+// The locale is not repeated: the group heading above the row already names it.
 function detail(voice: TtsVoice): string {
-  return [
-    localeLabel(voice.locale, locale.value),
-    genderLabel(voice.gender),
-    voice.styles.slice(0, SHOWN_STYLES).join(', '),
-  ]
+  return [genderLabel(voice.gender), voice.styles.slice(0, SHOWN_STYLES).join(', ')]
     .filter((part) => part !== '')
     .join(SEPARATOR);
 }
@@ -247,9 +245,11 @@ const panels = computed(
           />
 
           <div
+            ref="chipRow"
             role="group"
             :aria-label="$t('dashboard.tts.voices.language')"
             class="flex flex-none gap-1.5 overflow-x-auto scrollbar-none sm:flex-wrap sm:overflow-visible"
+            :class="chipFade"
           >
             <Button
               v-for="chip in chips"
@@ -290,7 +290,7 @@ const panels = computed(
           </p>
           <VirtualList
             v-else
-            class="min-h-80 flex-1"
+            class="min-h-80 flex-1 max-md:h-[60dvh] max-md:flex-none"
             :items="items"
             :item-key="(item: VoiceListItem) => item.key"
             :estimate-size="ROW_HEIGHT"
@@ -314,6 +314,7 @@ const panels = computed(
                 :selected="item.voice.id === chosen"
                 :title="item.voice.displayName"
                 :detail="detail(item.voice)"
+                truncate
                 @click="choose(item.voice)"
               >
                 <template #leading>

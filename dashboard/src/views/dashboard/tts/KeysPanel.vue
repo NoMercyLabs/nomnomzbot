@@ -72,13 +72,14 @@ const stored = computed(
     }) as const satisfies Record<ByokProvider, boolean>,
 );
 
-// Like the rule rows, the region names the bot default under its box; the bot has none until an operator sets one.
-const regionDefault = computed<string>(() => {
+// Like the rule rows, the region names the bot default under its box. When the bot returns none, no caption shows:
+// "Default: none" would be false, since the bot falls back to its own region.
+const regionDefault = computed<string | null>(() => {
   const standard = defaults.data.value?.azureRegion;
 
   return standard
     ? t('dashboard.tts.defaultHint.value', { value: standard })
-    : t('dashboard.tts.defaultHint.none');
+    : null;
 });
 
 function commitRegion(): void {
@@ -131,34 +132,57 @@ function submitSpelling(): void {
       <form
         v-for="provider in byokProviders"
         :key="provider"
-        class="flex flex-wrap items-end gap-2"
+        class="flex flex-col gap-3"
         :data-key-form="provider"
         @submit.prevent="submitKey(provider)"
       >
-        <label class="flex min-w-40 flex-1 flex-col gap-1 text-sm font-medium">
-          <span class="flex flex-wrap items-center gap-x-3 gap-y-1" data-key-label>
-            {{ $t(`dashboard.tts.keys.provider.${provider}`) }}
-            <StatusBadge
-              :tone="stored[provider] ? 'ok' : 'off'"
-              :label="
-                $t(
-                  stored[provider]
-                    ? 'dashboard.tts.keys.status.stored'
-                    : 'dashboard.tts.keys.status.missing',
-                )
+        <!-- The key and its own buttons share one row at every width; the Azure region sits under that row. -->
+        <div class="flex items-end gap-2" data-key-row>
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm font-medium">
+            <span class="flex flex-wrap items-center gap-x-3 gap-y-1" data-key-label>
+              {{ $t(`dashboard.tts.keys.provider.${provider}`) }}
+              <StatusBadge
+                :tone="stored[provider] ? 'ok' : 'off'"
+                :label="
+                  $t(
+                    stored[provider]
+                      ? 'dashboard.tts.keys.status.stored'
+                      : 'dashboard.tts.keys.status.missing',
+                  )
+                "
+              />
+            </span>
+            <Input
+              v-model="keys[provider]"
+              type="password"
+              autocomplete="off"
+              :placeholder="
+                $t(stored[provider] ? 'dashboard.tts.keys.stored' : 'dashboard.tts.keys.none')
               "
             />
-          </span>
-          <Input
-            v-model="keys[provider]"
-            type="password"
-            autocomplete="off"
-            :placeholder="
-              $t(stored[provider] ? 'dashboard.tts.keys.stored' : 'dashboard.tts.keys.none')
-            "
-          />
-        </label>
-        <label v-if="provider === 'azure'" class="flex w-44 flex-col gap-1 text-sm font-medium">
+          </label>
+          <div class="flex flex-none gap-2" data-key-actions>
+            <Button
+              v-if="stored[provider]"
+              type="button"
+              variant="ghost"
+              @click="dropKey(provider)"
+            >
+              {{ $t("dashboard.tts.keys.remove") }}
+            </Button>
+            <Button
+              type="submit"
+              :disabled="keys[provider].trim() === '' || saveKey.isPending.value"
+            >
+              {{ $t("dashboard.tts.keys.save") }}
+            </Button>
+          </div>
+        </div>
+        <label
+          v-if="provider === 'azure'"
+          class="flex w-full flex-col gap-1 text-sm font-medium sm:w-44"
+          data-key-region
+        >
           {{ $t("dashboard.tts.keys.region") }}
           <Input
             v-model="region"
@@ -169,19 +193,14 @@ function submitSpelling(): void {
             @blur="commitRegion"
             @keydown.enter="commitRegion"
           />
-          <span v-if="defaults.data.value" class="text-sm font-normal text-muted-foreground" data-region-default>
+          <span
+            v-if="regionDefault"
+            class="text-sm font-normal text-muted-foreground"
+            data-region-default
+          >
             {{ regionDefault }}
           </span>
         </label>
-        <!-- Both providers put the buttons in one group: on a phone it sits on its own line, from sm it stays inline. -->
-        <div class="flex w-full justify-end gap-2 sm:w-auto" data-key-actions>
-          <Button v-if="stored[provider]" type="button" variant="ghost" @click="dropKey(provider)">
-            {{ $t("dashboard.tts.keys.remove") }}
-          </Button>
-          <Button type="submit" :disabled="keys[provider].trim() === '' || saveKey.isPending.value">
-            {{ $t("dashboard.tts.keys.save") }}
-          </Button>
-        </div>
       </form>
       <form
         class="flex flex-wrap items-end gap-2 border-t border-border pt-4"

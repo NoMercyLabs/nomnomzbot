@@ -34,10 +34,15 @@ const Board = defineComponent({
     h(BoardGrid, { panels }, () =>
       panels.map((panel) =>
         h(BoardCell, { panel: panel.id }, () =>
-          h('p', { 'data-body': panel.id }, panel.label)))),
+          h('p', { 'data-body': panel.id }, panel.label)),
+      ),
+    ),
 });
 
-async function boardAt(width: number, path = '/'): Promise<{ router: Router; wrapper: VueWrapper }> {
+async function boardAt(
+  width: number,
+  path = '/',
+): Promise<{ router: Router; wrapper: VueWrapper }> {
   setWidth(width);
 
   const router = createRouter({
@@ -55,10 +60,14 @@ async function boardAt(width: number, path = '/'): Promise<{ router: Router; wra
 function visibleBodies(wrapper: VueWrapper): string[] {
   return wrapper
     .findAll('[data-body]')
-    .filter((body) =>
-      body.element.closest('[data-slot="board-cell"]')?.getAttribute('style')?.includes('display: none') !== true)
-    .map((body) =>
-      body.attributes('data-body') ?? '');
+    .filter(
+      (body) =>
+        body.element
+          .closest('[data-slot="board-cell"]')
+          ?.getAttribute('style')
+          ?.includes('display: none') !== true,
+    )
+    .map((body) => body.attributes('data-body') ?? '');
 }
 
 // Stoney 2026-10-13: "A scroll within a scroll is bad for mobile and expanding all full is not an option, we need
@@ -67,8 +76,11 @@ describe('the board on a phone', () => {
   it('shows one panel at a time behind a tab per panel, the first one at the start', async () => {
     const { wrapper } = await boardAt(phoneWidth);
 
-    expect(wrapper.findAll('[role="tab"]').map((tab) =>
-      tab.text())).toEqual(['Review queue', 'Connections', 'Happening now']);
+    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([
+      'Review queue',
+      'Connections',
+      'Happening now',
+    ]);
 
     expect(visibleBodies(wrapper)).toEqual(['queue']);
   });
@@ -148,6 +160,17 @@ describe('the tab strip of a tabbed board', () => {
 
     expect(strip.classes()).toContain('px-6');
     expect(body.classes()).toContain('px-6');
+  });
+
+  // A-tts defect 2: on a phone the panel sat at x=24 with square corners while the other tabs sat at x=16. The frame
+  // runs panels edge to edge there, so the wrapper drops its inset and the strip keeps the 1rem phone inset.
+  it('drops the panel inset on a phone and keeps the 1rem strip inset', async () => {
+    const { wrapper } = await boardAt(phoneWidth);
+    const strip = wrapper.get('[data-slot="board-grid"] > [data-slot="tabs"]');
+    const body = wrapper.get('[data-slot="board-grid"] > div:not([data-slot])');
+
+    expect(strip.classes()).toContain('max-md:px-4');
+    expect(body.classes()).toContain('max-md:px-0');
   });
 
   // The trigger underline sits 5 px below the strip; inside a sideways scroller it made the strip scroll 4 px vertically.
