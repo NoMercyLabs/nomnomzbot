@@ -91939,6 +91939,7 @@ export interface components {
             followsPlatformDefault: boolean;
             speakWithTts: boolean;
             toneLines: string[];
+            target: null | components["schemas"]["BindingTarget"];
         };
         /**
          * @description One event type's platform default, as the admin editor shows it: whether following channels respond and
@@ -92313,6 +92314,8 @@ export interface components {
             /** Format: int32 */
             cooldownSeconds: number | string;
             /** Format: int32 */
+            cooldownFloorSeconds: number | string;
+            /** Format: int32 */
             maxPlaysPerStream?: null | number | string;
             permission: string;
             config?: null | {
@@ -92407,6 +92410,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             prizePipelineId?: null | string;
+            target: null | components["schemas"]["BindingTarget"];
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
@@ -104071,6 +104075,7 @@ export interface components {
             };
             /** @description A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged. */
             speakWithTts?: null | boolean;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         UpdateGameRequest: {
             gameName: string;
@@ -104597,6 +104602,7 @@ export interface components {
             requires18Plus: boolean;
             /** Format: date-time */
             scheduledCloseAt?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Create or update a leaderboard config (economy.md §4). Guid? UpsertLeaderboardConfigRequest.Id null = create. */
         UpsertLeaderboardConfigRequest: {
