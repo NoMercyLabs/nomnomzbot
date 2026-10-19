@@ -139,25 +139,25 @@ function confirmDelete(): void {
             data-profile-note-edit
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             :disabled="!canWrite || Number(note.id) < 0"
             :aria-label="$t('profile.notes.edit')"
             :title="$t('profile.notes.edit')"
             @click="editNote(note)"
           >
-            <Edit aria-hidden="true" />
+            <Edit class="size-5" aria-hidden="true" />
           </Button>
           <Button
             data-profile-note-delete
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             :disabled="!canWrite || Number(note.id) < 0"
             :aria-label="$t('profile.notes.delete')"
             :title="$t('profile.notes.delete')"
             @click="askDelete(note)"
           >
-            <Trash2 aria-hidden="true" />
+            <Trash2 class="size-5" aria-hidden="true" />
           </Button>
         </span>
       </li>

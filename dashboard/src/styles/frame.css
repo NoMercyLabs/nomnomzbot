@@ -44,6 +44,10 @@
   background: var(--muted);
   text-decoration-color: var(--foreground);
 }
+/* The phone bottom bar is a tab bar: icon, label, filled active tab. Underlined labels would read as links. */
+[data-slot='bottom-bar'] .group\/button[data-variant='ghost'] {
+  text-decoration: none;
+}
 /* An icon alone has no text to underline and no resting edge: it reacts only to hover and press, and a keyboard
    focus draws the focus outline (owner 2026-10-14: "no border for cursor or touch events other than reactive ones
    that are not persistent"). */

@@ -64,8 +64,8 @@ const attention = computed(() =>
 <template>
   <Popover v-model:open="open">
     <PopoverTrigger as-child>
-      <Button variant="outline" :size="count ? 'sm' : 'icon-sm'" data-error-inbox :aria-label="t('frame.inbox.title')">
-        <Inbox aria-hidden="true" />
+      <Button variant="outline" :size="count ? 'sm' : 'icon'" data-error-inbox :aria-label="t('frame.inbox.title')">
+        <Inbox class="size-5" aria-hidden="true" />
         <Badge v-if="count" variant="secondary">{{ count }}</Badge>
       </Button>
     </PopoverTrigger>

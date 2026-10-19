@@ -146,11 +146,11 @@ watch(
           v-if="drawerClose.shown.value"
           data-drawer-close
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           :aria-label="$t('common.close')"
           @click="drawerClose.close"
         >
-          <Cross />
+          <Cross class="size-5" aria-hidden="true" />
         </Button>
       </div>
       <p v-if="description" class="basis-full text-sm text-muted-foreground">{{ description }}</p>

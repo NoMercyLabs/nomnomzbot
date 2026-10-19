@@ -220,6 +220,16 @@ describe('folder layout', () => {
     );
   });
 
+  // A tab bar names a place by its icon, its label and the filled active tab. The ghost-button underline reads as
+  // a link, so on the phone bottom bar every label would look like a link: the frame takes it off.
+  it('draws no link underline under the labels of the phone bottom bar', () => {
+    const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8');
+
+    expect(frame).toMatch(
+      /\[data-slot='bottom-bar'\]\s+\.group\\\/button\[data-variant='ghost'\]\s*\{[^}]*text-decoration:\s*none/,
+    );
+  });
+
   // Stoney 2026-10-14: "remove all double side margins for a better mobile app feel". On a phone a page body
   // drops its side margin and its panels run edge to edge; the panel pages must carry the marker.
   it('runs the panels of a page body edge to edge on a phone', () => {
@@ -764,5 +774,58 @@ describe('back links', () => {
     });
 
     expect(offenders).toEqual([]);
+  });
+});
+
+// Stoney 2026-10-13: "these are way too small to be readable even by me". An icon-only button is shadcn
+// size="icon" (36px) with a size-5 icon; "icon-sm" (32px) and "icon-xs" (24px) never ship in the shell or the
+// shared layout components. The page files below still carry the small form; their owners sweep them off.
+const smallIconButton = /['"]icon-(sm|xs)['"]/;
+const smallIconButtonAllowlist = [
+  'views/dashboard/chat/components/ChatComposer.vue',
+  'views/dashboard/chat/components/ChatLine.vue',
+  'views/dashboard/chat/components/EmotePicker.vue',
+  'views/dashboard/commands/components/RandomReplyList.vue',
+  'views/dashboard/discord/DiscordView.vue',
+  'views/dashboard/home/components/HappeningPanel.vue',
+  'views/dashboard/music/MusicView.vue',
+  'views/dashboard/overlays/components/OverlaySettingField.vue',
+  'views/dashboard/pipelines/WorkbenchView.vue',
+  'views/dashboard/pipelines/components/StepPalette.vue',
+  'views/site/login/components/BotChooser.vue',
+] as const satisfies readonly string[];
+
+function ownsSmallIconButton(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return smallIconButton.test(text);
+}
+
+function uiSourceFiles(): string[] {
+  return allPaths(src)
+    .filter((path) => path.endsWith('.vue'))
+    .map((path) => relative(src, path).replace(/\\/g, '/'))
+    .filter((path) => !path.startsWith('components/ui/'));
+}
+
+describe('icon-only buttons', () => {
+  it('spots the 32px and 24px icon sizes', () => {
+    expect(smallIconButton.test('size="icon-sm"')).toBe(true);
+    expect(smallIconButton.test(':size="count ? \'sm\' : \'icon-xs\'"')).toBe(true);
+    expect(smallIconButton.test('size="icon"')).toBe(false);
+  });
+
+  it('uses no icon-sm or icon-xs outside the files on the sweep list', () => {
+    const offenders = uiSourceFiles()
+      .filter((path) => ownsSmallIconButton(path))
+      .filter((path) => !smallIconButtonAllowlist.includes(path));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps no clean file on the sweep list', () => {
+    const stale = smallIconButtonAllowlist.filter((path) => !ownsSmallIconButton(path));
+
+    expect(stale).toEqual([]);
   });
 });

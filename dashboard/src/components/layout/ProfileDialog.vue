@@ -96,11 +96,11 @@ function giveFocusBack(event: Event): void {
         <DialogClose as-child>
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             :class="!fullPage && 'ml-auto'"
             :aria-label="$t('common.close')"
           >
-            <Cross />
+            <Cross class="size-5" aria-hidden="true" />
           </Button>
         </DialogClose>
       </div>
