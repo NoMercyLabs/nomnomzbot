@@ -30,19 +30,16 @@ type Answer = {
 const puts: Record<string, unknown>[] = [];
 let refused: boolean = false;
 
-const descriptor = (
-  key: string,
-  group: string,
-  over: Record<string, unknown> = {},
-) => ({
-  key,
-  group,
-  labelKey: `spam_setting_${key}_label`,
-  explanationKey: `spam_setting_${key}_explanation`,
-  costKey: `spam_setting_${key}_cost`,
-  isToggle: false,
-  ...over,
-}) as const satisfies Record<string, unknown>;
+const descriptor = (key: string, group: string, over: Record<string, unknown> = {}) =>
+  ({
+    key,
+    group,
+    labelKey: `spam_setting_${key}_label`,
+    explanationKey: `spam_setting_${key}_explanation`,
+    costKey: `spam_setting_${key}_cost`,
+    isToggle: false,
+    ...over,
+  }) as const satisfies Record<string, unknown>;
 
 const policy = {
   settings: {
@@ -52,6 +49,9 @@ const policy = {
     qualifyNoStandingShare: 0.8,
     dequalifyNoStandingShare: 0.5,
     lockdownMinutes: 30,
+    windowSeconds: 300,
+    maxWindowSeconds: 900,
+    lockdownMaxMinutes: 120,
     trustThresholds: {
       establishedDays: 30,
       establishedMessages: 100,
@@ -67,6 +67,9 @@ const policy = {
     descriptor('AccountAgeGateDays', 'newcomers', { minimum: 0, maximum: 365 }),
     descriptor('QualifyNoStandingShare', 'campaign', { minimum: 0.5, maximum: 1 }),
     descriptor('DequalifyNoStandingShare', 'campaign', { minimum: 0.3, maximum: 0.95 }),
+    descriptor('WindowSeconds', 'campaign', { minimum: 30, maximum: 3600 }),
+    descriptor('MaxWindowSeconds', 'campaign', { minimum: 60, maximum: 7200 }),
+    descriptor('LockdownMaxMinutes', 'lockdown', { minimum: 1, maximum: 1440 }),
     descriptor('LockdownMinutes', 'lockdown', {
       minimum: 1,
       maximum: 240,
@@ -238,6 +241,33 @@ describe('AdminSpamDefaultsView', () => {
 
     expect(saveButton().disabled).toBe(true);
     expect(row('dequalifyNoStandingShare').textContent).toContain('must stay below');
+  });
+
+  it('refuses a group hard cap shorter than the group window, with the bot copy', async () => {
+    await open();
+    await type('maxWindowSeconds', '200');
+
+    expect(saveButton().disabled).toBe(true);
+
+    expect(row('maxWindowSeconds').textContent).toContain(
+      'at least as long as how long a group is watched',
+    );
+
+    expect(puts).toHaveLength(0);
+
+    await type('maxWindowSeconds', '300');
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it('refuses a lockdown ceiling shorter than the lockdown, with the bot copy', async () => {
+    await open();
+    await type('lockdownMaxMinutes', '10');
+
+    expect(saveButton().disabled).toBe(true);
+
+    expect(row('lockdownMaxMinutes').textContent).toContain(
+      'at least as long as how long it stays tightened',
+    );
   });
 
   it('says so when the platform admin may not read the defaults', async () => {

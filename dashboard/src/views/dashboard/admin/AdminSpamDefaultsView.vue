@@ -29,6 +29,7 @@ import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { lookup } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
@@ -60,12 +61,15 @@ const camel = (key: string): string => key.charAt(0).toLowerCase() + key.slice(1
 
 function numbersOf(source: Record<string, number | string | boolean | undefined>): Draft {
   return Object.fromEntries(
-    Object.entries(source).map(([key, value]) => [
-      key,
-      typeof value === 'boolean'
-        ? value
-        : Number(value),
-    ] as const satisfies readonly [string, Value]),
+    Object.entries(source).map(
+      ([key, value]) =>
+        [key, typeof value === 'boolean'
+          ? value
+          : Number(value)] as const satisfies readonly [
+            string,
+            Value,
+          ],
+    ),
   );
 }
 
@@ -96,11 +100,15 @@ function load(data: SpamPolicy): void {
   saved.value = snapshot();
 }
 
-watch(() => policy.data.value, (data) => {
-  if (data) {
-    load(data);
-  }
-}, { immediate: true });
+watch(
+  () => policy.data.value,
+  (data) => {
+    if (data) {
+      load(data);
+    }
+  },
+  { immediate: true },
+);
 
 // cspell:ignore catalogue (the bot's wire name for the list)
 const catalog = computed<SpamSetting[]>(() => policy.data.value?.catalogue ?? []);
@@ -164,19 +172,42 @@ const exonerationAboveCampaign = computed<boolean>(() => {
   return typeof qualify === 'number' && typeof dequalify === 'number' && dequalify >= qualify;
 });
 
-const thresholdBlank = computed<boolean>(() =>
-  Object.values(thresholds.value).some((value) => value === '' || Number(value) < 0));
+// A cap below the value it caps would silently win, so the bot refuses it; the page names it before Save.
+const CAPS = {
+  MaxWindowSeconds: { floor: 'windowSeconds', copyKey: 'maxWindowBelowWindow' },
+  LockdownMaxMinutes: { floor: 'lockdownMinutes', copyKey: 'lockdownMaxBelowLockdown' },
+} as const satisfies Record<string, { floor: string; copyKey: string }>;
 
-const hasInvalid = computed<boolean>(() =>
-  catalog.value.some((setting) => outOfRange(setting)) ||
-  exonerationAboveCampaign.value ||
-  thresholdBlank.value);
+function capBelowFloor(setting: SpamSetting): boolean {
+  const cap = lookup(CAPS, setting.key);
+
+  if (!cap)
+    return false;
+
+  const value = draft.value[camel(setting.key)];
+  const floor = draft.value[cap.floor];
+
+  return typeof value === 'number' && typeof floor === 'number' && value < floor;
+}
+
+const thresholdBlank = computed<boolean>(() =>
+  Object.values(thresholds.value).some((value) => value === '' || Number(value) < 0),
+);
+
+const hasInvalid = computed<boolean>(
+  () =>
+    catalog.value.some((setting) => outOfRange(setting) || capBelowFloor(setting)) ||
+    exonerationAboveCampaign.value ||
+    thresholdBlank.value,
+);
 
 const invariants = computed<string[]>(() =>
   (policy.data.value?.invariants ?? []).map((invariant): string =>
     hasCopy(`invariants.${invariant.decision.toLowerCase()}`)
       ? copy(`invariants.${invariant.decision.toLowerCase()}`)
-      : invariant.guaranteeKey));
+      : invariant.guaranteeKey,
+  ),
+);
 
 const panelState = usePanelState(policy);
 const listError = computed<string>(() =>
@@ -192,6 +223,11 @@ const hasCopy = (key: string): boolean => te(`dashboard.admin.spamDefaults.${key
 function invalidTextOf(setting: SpamSetting): string | undefined {
   if (setting.key === 'DequalifyNoStandingShare' && exonerationAboveCampaign.value)
     return copy('dequalifyBelowQualify');
+
+  const cap = lookup(CAPS, setting.key);
+
+  if (cap && capBelowFloor(setting))
+    return copy(cap.copyKey);
 
   if (!outOfRange(setting))
     return undefined;
@@ -228,10 +264,13 @@ function submit(): void {
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.admin.spamDefaults.title')" :crumb="$t('dashboard.admin.spamDefaults.crumb')">
+  <PageHeader
+    :title="$t('dashboard.admin.spamDefaults.title')"
+    :crumb="$t('dashboard.admin.spamDefaults.crumb')"
+  >
     <template #status>
       <span v-if="dirty" class="text-sm text-muted-foreground" role="status">
-        {{ $t('dashboard.admin.spamDefaults.unsaved') }}
+        {{ $t("dashboard.admin.spamDefaults.unsaved") }}
       </span>
     </template>
     <template #actions>
@@ -242,13 +281,22 @@ function submit(): void {
         @click="submit"
       >
         <Check aria-hidden="true" />
-        {{ save.isPending.value ? $t('dashboard.admin.spamDefaults.saving') : $t('dashboard.admin.spamDefaults.save') }}
+        {{
+          save.isPending.value
+            ? $t("dashboard.admin.spamDefaults.saving")
+            : $t("dashboard.admin.spamDefaults.save")
+        }}
       </Button>
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4">
-    <p class="text-sm text-muted-foreground">{{ $t('dashboard.admin.spamDefaults.explain') }}</p>
-    <p data-restricted class="text-sm text-muted-foreground">{{ $t('dashboard.admin.spamDefaults.restricted') }}</p>
+  <div
+    data-page-body
+    class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4"
+  >
+    <p class="text-sm text-muted-foreground">{{ $t("dashboard.admin.spamDefaults.explain") }}</p>
+    <p data-restricted class="text-sm text-muted-foreground">
+      {{ $t("dashboard.admin.spamDefaults.restricted") }}
+    </p>
     <PanelCard
       v-if="panelState !== 'ready'"
       tier="lead"
@@ -326,7 +374,11 @@ function submit(): void {
           </template>
         </div>
       </PanelCard>
-      <PanelCard tier="quiet" :title="$t('dashboard.admin.spamDefaults.invariantsTitle')" data-invariants>
+      <PanelCard
+        tier="quiet"
+        :title="$t('dashboard.admin.spamDefaults.invariantsTitle')"
+        data-invariants
+      >
         <ul class="divide-y divide-border">
           <li
             v-for="text in invariants"
