@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
 import { i18n } from '@/i18n';
 
 import { rungNames } from '@/api/permissions';
@@ -912,26 +913,8 @@ describe('CommandsView editor', () => {
     Element.prototype.releasePointerCapture = (): void => undefined;
     Element.prototype.scrollIntoView = (): void => undefined;
 
-    editor()!
-      .querySelector<HTMLElement>('[data-reply-pipeline] [role="combobox"]')!
-      .dispatchEvent(
-        new PointerEvent('pointerdown', {
-          bubbles: true,
-          button: 0,
-          pointerType: 'mouse',
-        }),
-      );
-
-    await settle();
-
-    document.body.querySelector<HTMLElement>('[data-pipeline-create]')!.dispatchEvent(
-      new PointerEvent('pointerup', {
-        bubbles: true,
-        button: 0,
-        pointerType: 'mouse',
-      }),
-    );
-
+    await openTargetPicker(editor()!);
+    await chooseTarget('Create a new pipeline');
     await settle();
 
     expect(writes('POST')).toHaveLength(1);

@@ -38,7 +38,7 @@ vi.mock('@/api/pipelines', () => ({
       actions: [
         {
           type: 'play_sound',
-          category: { key: 'media' },
+          category: { key: 'pipeline.category.media' },
           description: { key: 'x' },
           fields: [
             {
@@ -54,7 +54,7 @@ vi.mock('@/api/pipelines', () => ({
         },
         {
           type: 'song_skip',
-          category: { key: 'media' },
+          category: { key: 'pipeline.category.media' },
           description: { key: 'y' },
           fields: [],
         },
@@ -90,20 +90,18 @@ function mountPicker(props: Record<string, unknown> = {}): VueWrapper {
 }
 
 async function openList(wrapper: VueWrapper): Promise<void> {
-  await wrapper.find('[data-slot="select-trigger"]').trigger('keydown', { key: 'Enter' });
+  await wrapper.find('[role="combobox"]').trigger('click');
   await flushPromises();
 }
 
-async function choose(text: string): Promise<void> {
-  const item = Array.from(
-    document.querySelectorAll<HTMLElement>('[data-slot="select-item"]'),
+function itemWith(text: string): HTMLElement | undefined {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'),
   ).find((candidate) => candidate.textContent?.includes(text));
+}
 
-  item!.dispatchEvent(new PointerEvent('pointerup', {
-    bubbles: true,
-    button: 0,
-    pointerType: 'mouse',
-  }));
+async function choose(text: string): Promise<void> {
+  itemWith(text)!.click();
 
   await flushPromises();
 }
@@ -121,10 +119,72 @@ describe('the target picker', () => {
     await openList(wrapper);
 
     const groups = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-slot="select-label"]'),
+      document.querySelectorAll<HTMLElement>('[data-slot="command-group-heading"]'),
     ).map((label) => label.textContent!.trim());
 
     expect(groups).toEqual(['Commands', 'Pipelines']);
+  });
+
+  it('files an action under its translated category, never the raw key', async () => {
+    const wrapper = mountPicker({ kinds: ['action'] });
+
+    await openList(wrapper);
+
+    await vi.waitFor(() => {
+      const headings = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-slot="command-group-heading"]'),
+      ).map((heading) => heading.textContent!.trim());
+
+      expect(headings).toEqual(['Media']);
+    }, { timeout: 5000 });
+
+    expect(document.body.textContent).not.toContain('pipeline.category');
+  });
+
+  it('gives every row an icon of 20px and a tap height of 36px', async () => {
+    const wrapper = mountPicker({ kinds: ['command', 'pipeline', 'action'] });
+
+    await openList(wrapper);
+
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'));
+    const bare = rows.filter((row) =>
+      row.querySelector('svg.size-5') === null || !row.className.includes('min-h-9'));
+
+    expect(rows.length).toBeGreaterThan(4);
+    expect(bare).toEqual([]);
+  });
+
+  it('searches the rows and says when nothing matches', async () => {
+    const wrapper = mountPicker({ kinds: ['command', 'pipeline'] });
+
+    await openList(wrapper);
+
+    const input = document.querySelector<HTMLInputElement>('[data-slot="command-input"]')!;
+
+    input.value = 'welc';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await flushPromises();
+
+    const shown = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'))
+      .map((row) => row.textContent!.trim());
+
+    expect(shown).toEqual(['Welcome flow']);
+
+    input.value = 'zzzz';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('Nothing matches that search.');
+  });
+
+  it('keeps the list inside a narrow viewport', async () => {
+    const wrapper = mountPicker();
+
+    await openList(wrapper);
+
+    const content = document.querySelector<HTMLElement>('[data-slot="popover-content"]')!;
+
+    expect(content.className).toContain('max-w-[calc(100vw-2rem)]');
   });
 
   it('emits a command target when a command is chosen', async () => {
@@ -151,7 +211,7 @@ describe('the target picker', () => {
     await openList(wrapper);
 
     const labels = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-slot="select-label"]'),
+      document.querySelectorAll<HTMLElement>('[data-slot="command-group-heading"]'),
     ).map((label) => label.textContent!.trim());
 
     expect(labels).toEqual(['Pipelines']);
@@ -211,6 +271,11 @@ describe('the target picker', () => {
     const wrapper: VueWrapper = mountPicker({ kinds: ['command', 'action'] });
 
     await openList(wrapper);
+
+    await vi.waitFor(() => {
+      expect(itemWith('Play sound')).toBeDefined();
+    });
+
     await choose('Play sound');
 
     expect(emitted(wrapper)).toEqual({

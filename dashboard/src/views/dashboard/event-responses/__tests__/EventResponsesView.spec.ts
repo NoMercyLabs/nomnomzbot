@@ -16,6 +16,7 @@ import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { eventResponsesKey } from '@/api/eventResponses';
+import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -340,20 +341,8 @@ describe('Event responses page', () => {
     await click(rowOf('channel.follow'));
     await click(buttonByText('Pipeline'));
 
-    const trigger = editor()!.querySelector('[data-slot="select-trigger"]')!;
-
-    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await settle();
-
-    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
-      .find((candidate) => candidate.textContent?.includes('!hello'));
-
-    item!.dispatchEvent(new PointerEvent('pointerup', {
-      bubbles: true,
-      button: 0,
-      pointerType: 'mouse',
-    }));
-
+    await openTargetPicker(editor()!);
+    await chooseTarget('!hello');
     await settle();
     await click(buttonByText('Save changes'));
 

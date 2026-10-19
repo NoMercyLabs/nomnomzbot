@@ -103,7 +103,9 @@
       "nothing": "Nothing",
       "open": "Open in the pipeline editor",
       "newName": "New pipeline",
-      "missing": "This target is not in this channel."
+      "missing": "This target is not in this channel.",
+      "search": "Search commands, pipelines and actions",
+      "noMatch": "Nothing matches that search."
     }
   },
   "template": {

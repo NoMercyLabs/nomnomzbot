@@ -103,7 +103,9 @@
       "nothing": "Niets",
       "open": "Open in de pipeline-editor",
       "newName": "Nieuwe pipeline",
-      "missing": "Dit doel staat niet in dit kanaal."
+      "missing": "Dit doel staat niet in dit kanaal.",
+      "search": "Zoek commando's, pipelines en acties",
+      "noMatch": "Niets past bij deze zoekopdracht."
     }
   },
   "template": {

@@ -18,6 +18,8 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 import { earningRulesKey } from '@/api/economy';
 import { i18n } from '@/i18n';
 
+import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
+
 import EconomyView from '../EconomyView.vue';
 import en from '../i18n/en.json';
 
@@ -704,20 +706,8 @@ describe('Economy page', () => {
     await type(field('Item name'), 'Hello bump');
     await type(field('Effect kind'), 'command');
 
-    const trigger = document.body.querySelector('[data-target-picker] [data-slot="select-trigger"]')!;
-
-    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await settle();
-
-    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
-      .find((candidate) => candidate.textContent?.includes('!hello'));
-
-    item!.dispatchEvent(new PointerEvent('pointerup', {
-      bubbles: true,
-      button: 0,
-      pointerType: 'mouse',
-    }));
-
+    await openTargetPicker();
+    await chooseTarget('!hello');
     await settle();
     await click(buttonByText('Save item'));
 

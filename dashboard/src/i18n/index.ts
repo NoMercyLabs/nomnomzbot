@@ -86,6 +86,13 @@ export function startLocale(): Promise<void> {
 // by scripts/gen-schema-words.mjs. A page that shows them loads this beside its own words.
 export const schemaWords: WordsLoader = (locale) => import(`./schema/${locale}.json`);
 
+// A shared component that needs a words file the page may not have loaded (the picker lists the bot's actions
+// by their schema labels): it loads them here, and a language switch reloads them with the pages' words.
+export async function ensureWords(loader: WordsLoader): Promise<void> {
+  openedPages.add(loader);
+  await loadWords(loader, targetLocale);
+}
+
 // A route's lazy component: the page code and the page's words for the current language, in parallel.
 export async function loadPage(
   view: () => Promise<PageModule>,

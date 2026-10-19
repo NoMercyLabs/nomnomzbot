@@ -14,6 +14,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
+import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
 import { i18n } from '@/i18n';
 import { lookup } from '@/lib/array';
 
@@ -496,20 +497,8 @@ describe('GiveawaysView', () => {
     document.querySelector<HTMLElement>('[data-giveaway-edit]')?.click();
     await settle();
 
-    const trigger = document.querySelector('[data-target-picker] [data-slot="select-trigger"]')!;
-
-    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await settle();
-
-    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
-      .find((candidate) => candidate.textContent?.includes('!hello'));
-
-    item!.dispatchEvent(new PointerEvent('pointerup', {
-      bubbles: true,
-      button: 0,
-      pointerType: 'mouse',
-    }));
-
+    await openTargetPicker();
+    await chooseTarget('!hello');
     await settle();
     submitDialog();
     await settle();

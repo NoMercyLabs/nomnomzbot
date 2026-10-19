@@ -600,14 +600,14 @@ const ownTargetSelectAllowlist = [
 function ownsTargetSelect(path: string): boolean {
   const text: string = readFileSync(join(src, path), 'utf8');
 
-  return ownTargetSelect.test(text) && /<SelectItem\b/.test(text);
+  return ownTargetSelect.test(text) && /<(Select|Command)Item\b/.test(text);
 }
 
 describe('target selects', () => {
   it('spots a Select built from the pipeline list', () => {
     const textual = 'const flows = usePipelines(id); <SelectItem v-for="flow in flows" />';
 
-    expect(ownTargetSelect.test(textual) && /<SelectItem\b/.test(textual)).toBe(true);
+    expect(ownTargetSelect.test(textual) && /<(Select|Command)Item\b/.test(textual)).toBe(true);
   });
 
   it('builds no pipeline or command Select outside TargetPicker', () => {

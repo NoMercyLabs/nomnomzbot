@@ -13,7 +13,10 @@
 // place and clear the choice.
 // A refusal from the server and a bound id that is missing from this channel show as one error line.
 import Plus from '~icons/nnz/add';
-import { computed, inject } from 'vue';
+import ChevronDown from '~icons/nnz/chevron-down';
+import Route from '~icons/nnz/route';
+import Terminal from '~icons/nnz/terminal';
+import { computed, inject, ref, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { routerKey } from 'vue-router';
 
@@ -27,20 +30,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { FieldError } from '@/components/ui/field';
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useLocalizedText } from '@/composables/useLocalizedText';
+import { ensureWords, schemaWords } from '@/i18n';
 import type { ActionParams, PickedTarget, TargetKind } from '@/lib/bindingTarget';
 import ActionParamsForm from '@/views/dashboard/pipelines/components/ActionParamsForm.vue';
 import { actionGroups } from '@/views/dashboard/pipelines/components/stepGroups';
+import { actionIcon } from '@/views/dashboard/pipelines/components/stepIcons';
 import { actionTitle } from '@/views/dashboard/pipelines/components/stepWords';
 
 const target = defineModel<PickedTarget | null>('target', { required: true });
@@ -82,12 +87,27 @@ const showCommands = computed<boolean>(() => props.kinds.includes('command'));
 const showPipelines = computed<boolean>(() => props.kinds.includes('pipeline'));
 const showActions = computed<boolean>(() => props.kinds.includes('action'));
 
+// The bot names an action's category with a schema label key; a page that never loaded those words would show
+// the raw key, so the picker brings them itself.
+// The translation lookup does not notify a computed, so the words arriving flips this flag instead.
+const wordsReady = ref(!props.kinds.includes('action'));
+
+if (!wordsReady.value) {
+  void ensureWords(schemaWords).then(() => {
+    wordsReady.value = true;
+  });
+}
+
+const open = ref(false);
+
 const groups = computed(() =>
-  actionGroups(actionList.value, {
-    t,
-    te,
-    text,
-  }));
+  wordsReady.value
+    ? actionGroups(actionList.value, {
+        t,
+        te,
+        text,
+      })
+    : []);
 
 const descriptor = computed(() =>
   actionList.value.find((action) =>
@@ -135,8 +155,11 @@ const shown = computed<string>(() => {
   if (picked === null)
     return '';
 
-  if (picked.kind === 'action')
-    return actionTitle(picked.actionType ?? '', { t, te });
+  if (picked.kind === 'action') {
+    return wordsReady.value
+      ? actionTitle(picked.actionType ?? '', { t, te })
+      : '';
+  }
 
   if (picked.kind === 'command') {
     const row = commandRows.value.find((candidate) => candidate.id === picked.id);
@@ -147,6 +170,22 @@ const shown = computed<string>(() => {
   }
 
   return pipelineRows.value.find((candidate) => candidate.id === picked.id)?.name ?? picked.id;
+});
+
+// The icon follows the kind of what is picked: a command, a pipeline, or the category of an action.
+const shownIcon = computed<Component | undefined>(() => {
+  const picked = target.value;
+
+  if (picked === null)
+    return undefined;
+
+  if (picked.kind === 'command')
+    return Terminal;
+
+  if (picked.kind === 'pipeline')
+    return Route;
+
+  return actionIcon(descriptor.value?.category.key);
 });
 
 const message = computed<string>(() => {
@@ -161,6 +200,8 @@ const message = computed<string>(() => {
 const selected = computed<string>({
   get: () => valueOf(target.value),
   set: (value: string): void => {
+    open.value = false;
+
     if (value === CREATE) {
       void createPipeline();
 
@@ -214,55 +255,106 @@ async function createPipeline(): Promise<void> {
 <template>
   <div data-target-picker class="grid gap-1.5">
     <div class="flex items-center gap-2">
-      <Select v-model="selected" :disabled="disabled || create.isPending.value">
-        <SelectTrigger
-          :aria-label="label || $t('common.targetPicker.label')"
-          :aria-invalid="message !== ''"
-          class="min-w-0 flex-1"
+      <Popover v-model:open="open">
+        <PopoverTrigger as-child>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            :aria-expanded="open"
+            :aria-label="label || $t('common.targetPicker.label')"
+            :aria-invalid="message !== ''"
+            :disabled="disabled || create.isPending.value"
+            class="group min-w-0 flex-1 justify-between font-normal"
+          >
+            <span class="flex min-w-0 items-center gap-2">
+              <component :is="shownIcon" v-if="shownIcon" class="size-5" aria-hidden="true" />
+              <span v-if="shown !== ''" class="truncate">{{ shown }}</span>
+              <span v-else class="truncate text-muted-foreground">
+                {{ $t('common.targetPicker.placeholder') }}
+              </span>
+            </span>
+            <ChevronDown
+              class="text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          class="w-(--reka-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-64 p-0"
         >
-          <SelectValue :placeholder="$t('common.targetPicker.placeholder')">
-            <span v-if="shown !== ''" class="truncate">{{ shown }}</span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem v-if="showPipelines" data-pipeline-create :value="CREATE">
-            <Plus aria-hidden="true" />
-            {{ $t('common.targetPicker.create') }}
-          </SelectItem>
-          <SelectItem v-if="clearable" :value="NOTHING">
-            {{ $t('common.targetPicker.nothing') }}
-          </SelectItem>
-          <SelectSeparator v-if="showPipelines || clearable" />
-          <SelectGroup v-if="showCommands">
-            <SelectLabel>{{ $t('common.targetPicker.commands') }}</SelectLabel>
-            <SelectItem v-for="row in commandRows" :key="row.id" :value="`command:${row.id}`">
-              {{ `!${row.name}` }}
-            </SelectItem>
-          </SelectGroup>
-          <SelectGroup v-if="showPipelines">
-            <SelectLabel>{{ $t('common.targetPicker.pipelines') }}</SelectLabel>
-            <SelectItem
-              v-for="row in pipelineRows"
-              :key="row.id"
-              :value="`pipeline:${row.id}`"
-            >
-              {{ row.name }}
-            </SelectItem>
-          </SelectGroup>
-          <SelectGroup v-if="showActions">
-            <SelectLabel>{{ $t('common.targetPicker.actions') }}</SelectLabel>
-            <template v-for="group in groups" :key="group.key">
-              <SelectItem
-                v-for="row in group.rows"
-                :key="row.type"
-                :value="`action:${row.type}`"
-              >
-                {{ `${group.heading}: ${row.title}` }}
-              </SelectItem>
-            </template>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+          <Command>
+            <CommandInput :placeholder="$t('common.targetPicker.search')" />
+            <CommandList>
+              <CommandEmpty>{{ $t('common.targetPicker.noMatch') }}</CommandEmpty>
+              <CommandGroup v-if="showPipelines || clearable">
+                <CommandItem
+                  v-if="showPipelines"
+                  data-pipeline-create
+                  :value="CREATE"
+                  class="min-h-9"
+                  @select="selected = CREATE"
+                >
+                  <Plus class="size-5" aria-hidden="true" />
+                  {{ $t('common.targetPicker.create') }}
+                </CommandItem>
+                <CommandItem
+                  v-if="clearable"
+                  :value="NOTHING"
+                  class="min-h-9"
+                  @select="selected = NOTHING"
+                >
+                  {{ $t('common.targetPicker.nothing') }}
+                </CommandItem>
+              </CommandGroup>
+              <CommandSeparator v-if="showPipelines || clearable" />
+              <CommandGroup v-if="showCommands" :heading="$t('common.targetPicker.commands')">
+                <CommandItem
+                  v-for="row in commandRows"
+                  :key="row.id"
+                  :value="`command:${row.id} !${row.name}`"
+                  class="min-h-9"
+                  @select="selected = `command:${row.id}`"
+                >
+                  <Terminal class="size-5" aria-hidden="true" />
+                  {{ `!${row.name}` }}
+                </CommandItem>
+              </CommandGroup>
+              <CommandGroup v-if="showPipelines" :heading="$t('common.targetPicker.pipelines')">
+                <CommandItem
+                  v-for="row in pipelineRows"
+                  :key="row.id"
+                  :value="`pipeline:${row.id} ${row.name}`"
+                  class="min-h-9"
+                  @select="selected = `pipeline:${row.id}`"
+                >
+                  <Route class="size-5" aria-hidden="true" />
+                  {{ row.name }}
+                </CommandItem>
+              </CommandGroup>
+              <template v-if="showActions">
+                <CommandGroup
+                  v-for="group in groups"
+                  :key="group.key"
+                  :heading="group.heading"
+                >
+                  <CommandItem
+                    v-for="row in group.rows"
+                    :key="row.type"
+                    :value="`action:${row.type} ${row.title} ${group.heading}`"
+                    class="min-h-9"
+                    @select="selected = `action:${row.type}`"
+                  >
+                    <component :is="group.icon" class="size-5" aria-hidden="true" />
+                    {{ row.title }}
+                  </CommandItem>
+                </CommandGroup>
+              </template>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
       <Button
         v-if="target?.kind === 'pipeline' && target.id !== ''"
         as-child
