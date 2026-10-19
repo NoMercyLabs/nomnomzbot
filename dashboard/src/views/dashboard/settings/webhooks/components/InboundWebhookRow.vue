@@ -58,42 +58,47 @@ const lastReceived = useFormattedTime(() => props.endpoint.lastReceivedAt, 'date
         }}
       </span>
     </div>
-    <CopyLinkButton
-      class="border-border"
-      :url="endpoint.ingestUrl"
-      :label="$t('dashboard.settings.webhooks.inbound.copyLink')"
-    />
-    <IconAction
-      v-if="can('webhooks:inbound:write')"
-      data-inbound-edit
-      :label="$t('dashboard.settings.webhooks.inbound.edit', { name: endpoint.name })"
-      @click="$emit('edit')"
-    >
-      <Edit class="size-5" />
-    </IconAction>
-    <IconAction
-      v-if="can('webhooks:inbound:write')"
-      data-inbound-rotate
-      :label="$t('dashboard.settings.webhooks.inbound.rotate', { name: endpoint.name })"
-      @click="$emit('rotate')"
-    >
-      <Rotate class="size-5" />
-    </IconAction>
-    <IconAction
-      v-if="can('webhooks:inbound:write')"
-      data-inbound-delete
-      :label="$t('dashboard.settings.webhooks.inbound.delete', { name: endpoint.name })"
-      @click="$emit('remove')"
-    >
-      <Trash class="size-5" />
-    </IconAction>
-    <GatedSwitch
-      class="ml-2"
-      action="webhooks:inbound:write"
-      :model-value="endpoint.isEnabled"
-      :disabled="busy"
-      :aria-labelledby="`inbound-${endpoint.id}`"
-      @update:model-value="$emit('toggle')"
-    />
+    <!-- Narrow screens give the actions their own line under the text, so the name never squeezes. -->
+    <div class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
+      <div data-inbound-actions class="flex items-center gap-1">
+        <CopyLinkButton
+          class="border-border"
+          :url="endpoint.ingestUrl"
+          :label="$t('dashboard.settings.webhooks.inbound.copyLink')"
+        />
+        <IconAction
+          v-if="can('webhooks:inbound:write')"
+          data-inbound-edit
+          :label="$t('dashboard.settings.webhooks.inbound.edit', { name: endpoint.name })"
+          @click="$emit('edit')"
+        >
+          <Edit class="size-5" />
+        </IconAction>
+        <IconAction
+          v-if="can('webhooks:inbound:write')"
+          data-inbound-rotate
+          :label="$t('dashboard.settings.webhooks.inbound.rotate', { name: endpoint.name })"
+          @click="$emit('rotate')"
+        >
+          <Rotate class="size-5" />
+        </IconAction>
+        <IconAction
+          v-if="can('webhooks:inbound:write')"
+          data-inbound-delete
+          :label="$t('dashboard.settings.webhooks.inbound.delete', { name: endpoint.name })"
+          @click="$emit('remove')"
+        >
+          <Trash class="size-5" />
+        </IconAction>
+        <GatedSwitch
+          class="ml-2"
+          action="webhooks:inbound:write"
+          :model-value="endpoint.isEnabled"
+          :disabled="busy"
+          :aria-labelledby="`inbound-${endpoint.id}`"
+          @update:model-value="$emit('toggle')"
+        />
+      </div>
+    </div>
   </div>
 </template>

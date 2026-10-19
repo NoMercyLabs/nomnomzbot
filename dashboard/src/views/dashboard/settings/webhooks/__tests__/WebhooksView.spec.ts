@@ -313,6 +313,28 @@ describe('Webhooks page', () => {
     }
   });
 
+  it('gives the inbound actions their own full-width line and the outbound icon spacing', async () => {
+    await open();
+
+    const group = q('[data-inbound-delete]').closest('[data-inbound-actions]');
+    const outbound = q('[data-outbound-delete]').closest('[data-outbound-actions]');
+
+    expect(group).not.toBeNull();
+    expect(group?.parentElement?.classList.contains('w-full')).toBe(true);
+    expect(group?.classList.contains('gap-1')).toBe(true);
+    expect(outbound?.classList.contains('gap-1')).toBe(true);
+
+    for (const selector of [
+      '[data-copy-link]',
+      '[data-inbound-edit]',
+      '[data-inbound-rotate]',
+      '[data-inbound-delete]',
+      '[role="switch"]',
+    ]) {
+      expect(group?.querySelector(selector)).not.toBeNull();
+    }
+  });
+
   it('names every icon button in a tooltip on keyboard focus', async () => {
     await open();
 
