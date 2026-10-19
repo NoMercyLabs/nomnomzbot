@@ -58,7 +58,6 @@ public static class FirstPartyWidgetCatalogue
         "tts_caption",
         WidgetKeyAliases.Audio,
         "alerts",
-        "raid_recap",
     ];
 
     /// <summary>Every Twitch + supporter alert type the alerts widget and ticker default to listening for.</summary>

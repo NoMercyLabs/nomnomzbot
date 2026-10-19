@@ -66,15 +66,15 @@ public sealed class ShowRaidRecapAction : ICommandAction
         ActionDefinition action
     )
     {
-        Result<WidgetDetail> widget = await _widgets.EnsureSystemWidgetAsync(
+        // The recap is the channel's own widget: when it never added one, there is nothing to show and nothing to
+        // report — the raid flow carries on.
+        Result<WidgetDetail> widget = await _widgets.FindInstalledAsync(
             ctx.BroadcasterId.ToString(),
             WidgetKey,
             ctx.CancellationToken
         );
         if (!widget.IsSuccess)
-            return ActionResult.Failure(
-                $"show_raid_recap: the '{WidgetKey}' widget could not be provisioned for this channel."
-            );
+            return ActionResult.Success("show_raid_recap:not_installed");
         if (!widget.Value.IsEnabled)
             return ActionResult.Failure($"show_raid_recap: the '{WidgetKey}' widget is disabled.");
         if (!widget.Value.IsAttached)

@@ -77,11 +77,7 @@ public sealed class ShowRaidRecapActionTests
         Dictionary<string, object?>? settings = null
     ) =>
         _widgets
-            .EnsureSystemWidgetAsync(
-                Broadcaster.ToString(),
-                "raid_recap",
-                Arg.Any<CancellationToken>()
-            )
+            .FindInstalledAsync(Broadcaster.ToString(), "raid_recap", Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success(
                     new WidgetDetail(
@@ -260,16 +256,20 @@ public sealed class ShowRaidRecapActionTests
     }
 
     [Fact]
-    public async Task A_missing_widget_surface_fails_and_sends_nothing()
+    public async Task A_channel_that_never_added_the_recap_widget_gets_a_quiet_no_op_and_nothing_is_created()
     {
         _widgets
-            .EnsureSystemWidgetAsync(Arg.Any<string>(), "raid_recap", Arg.Any<CancellationToken>())
+            .FindInstalledAsync(Arg.Any<string>(), "raid_recap", Arg.Any<CancellationToken>())
             .Returns(Errors.NotFound<WidgetDetail>("Widget", "raid_recap"));
         RecapResolves(Recap());
 
         ActionResult result = await Action().ExecuteAsync(Ctx(), Def());
 
-        result.Succeeded.Should().BeFalse();
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("show_raid_recap:not_installed");
+        await _widgets
+            .DidNotReceiveWithAnyArgs()
+            .EnsureSystemWidgetAsync(default!, default!, default);
         await _overlay
             .DidNotReceiveWithAnyArgs()
             .SendWidgetEventAsync(default, default, default!, default);

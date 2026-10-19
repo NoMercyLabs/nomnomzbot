@@ -286,6 +286,31 @@ public class WidgetService : IWidgetService
         return await InstallFromGalleryAsync(broadcasterId, item.Id.ToString(), cancellationToken);
     }
 
+    public async Task<Result<WidgetDetail>> FindInstalledAsync(
+        string broadcasterId,
+        string galleryNaturalKey,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
+
+        string[] acceptedKeys = [.. WidgetKeyAliases.KeysFor(galleryNaturalKey)];
+        Widget? installed = await _db
+            .Widgets.Where(w =>
+                w.BroadcasterId == broadcasterGuid
+                && w.GalleryItemId != null
+                && _db.WidgetGalleryItems.Any(i =>
+                    i.Id == w.GalleryItemId && acceptedKeys.Contains(i.NaturalKey!)
+                )
+            )
+            .FirstOrDefaultAsync(cancellationToken);
+        if (installed is null)
+            return Errors.NotFound<WidgetDetail>("Widget", galleryNaturalKey);
+
+        return await GetAsync(broadcasterId, installed.Id.ToString(), cancellationToken);
+    }
+
     public async Task<Result<WidgetDetail>> InstallFromGalleryAsync(
         string broadcasterId,
         string galleryItemId,

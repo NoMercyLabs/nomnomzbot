@@ -285,6 +285,17 @@ public interface IWidgetService
     );
 
     /// <summary>
+    /// Find the widget a channel has itself installed from the gallery item with <paramref name="galleryNaturalKey"/>
+    /// (e.g. <c>raid_recap</c>) without ever creating one — the lookup for widgets that are a channel's own choice,
+    /// unlike <see cref="EnsureSystemWidgetAsync"/>. Fails <c>NOT_FOUND</c> when the channel has not installed it.
+    /// </summary>
+    Task<Result<WidgetDetail>> FindInstalledAsync(
+        string broadcasterId,
+        string galleryNaturalKey,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Pull the linked gallery item's current source into this widget as a new compiled version — the explicit,
     /// streamer-initiated action behind <see cref="WidgetDetail.GalleryUpdateAvailable"/> (the platform never
     /// rebuilds an installed widget on its own), and the "Reset to system default" action behind

@@ -100,6 +100,29 @@ public sealed class WidgetsControllerRequiredOverlaysTests
     }
 
     [Fact]
+    public async Task GetRequiredOverlays_never_lists_or_provisions_the_raid_recap_a_channel_adds_itself()
+    {
+        IWidgetService widgets = Substitute.For<IWidgetService>();
+        widgets
+            .EnsureSystemWidgetAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call => Result.Success(Detail((string)call[1], "http://x/overlay/a?token=t")));
+
+        IActionResult result = await Build(widgets)
+            .GetRequiredOverlays(Channel, CancellationToken.None);
+
+        List<RequiredOverlay> data = result
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Subject.Value.Should()
+            .BeOfType<StatusResponseDto<List<RequiredOverlay>>>()
+            .Subject.Data!;
+        data.Select(d => d.Key).Should().NotContain("raid_recap");
+        await widgets
+            .DidNotReceive()
+            .EnsureSystemWidgetAsync(Channel, "raid_recap", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetRequiredOverlays_reports_the_failure_when_a_surface_cannot_be_provisioned()
     {
         IWidgetService widgets = Substitute.For<IWidgetService>();

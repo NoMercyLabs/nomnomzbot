@@ -135,6 +135,40 @@ public sealed class WidgetServiceEnsureSystemWidgetTests
     }
 
     [Fact]
+    public async Task Find_installed_never_creates_a_widget_and_returns_the_installed_one_untouched()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedTtsGalleryItemAsync(database);
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> absent = await NewService(db)
+                .FindInstalledAsync(channel.ToString(), "tts_caption");
+            absent.IsSuccess.Should().BeFalse();
+            (await db.Widgets.CountAsync(w => w.BroadcasterId == channel)).Should().Be(0);
+        }
+
+        Guid installedId;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> ensured = await NewService(db)
+                .EnsureSystemWidgetAsync(channel.ToString(), "tts_caption");
+            installedId = ensured.Value.Id;
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> found = await NewService(db)
+                .FindInstalledAsync(channel.ToString(), "tts_caption");
+            found.IsSuccess.Should().BeTrue(found.ErrorMessage);
+            found.Value.Id.Should().Be(installedId);
+            (await db.Widgets.CountAsync(w => w.BroadcasterId == channel)).Should().Be(1);
+        }
+    }
+
+    [Fact]
     public async Task Ensure_called_twice_is_idempotent_returns_the_same_widget_never_double_installs()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
