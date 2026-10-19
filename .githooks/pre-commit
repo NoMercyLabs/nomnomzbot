@@ -38,4 +38,12 @@ if [ -n "$staged" ]; then
   root=$(git rev-parse --show-toplevel)
   (cd "$root" && echo "$staged" | tr '\n' '\0' | xargs -0 python "$(dirname "$0")/../scripts/check-english-docs.py") || exit 1
 fi
+# A pipeline action or widget SDK change rewrites the widget typings; they land in the same commit (CI red twice 2026-10-19).
+if git diff --cached --name-only --diff-filter=ACMRD -- 'server/src/*PipelineActions/*.cs' 'server/src/*Widgets/*.cs' | grep -q .; then
+  root=$(git rev-parse --show-toplevel)
+  dotnet test "$root/server/tests/NomNomzBot.Api.Tests" --filter "FullyQualifiedName~DashboardWidgetSdkTypesTests" --nologo -v q >/dev/null 2>&1 || {
+    echo "pre-commit: dashboard/src/api/nnz-widget.d.ts is stale. Run the test with NNZ_WRITE_SDK_TYPES=1 and stage the file." >&2
+    exit 1
+  }
+fi
 exit 0
