@@ -18,8 +18,8 @@ namespace NomNomzBot.Application.Economy.Services;
 /// </summary>
 public interface ICurrencyConfigService
 {
-    /// <summary>The channel's currency definition, or null data when not yet configured (caller seeds defaults).</summary>
-    Task<Result<CurrencyConfigDto?>> GetConfigAsync(
+    /// <summary>The channel's currency definition; a channel with no saved row reads the defaults.</summary>
+    Task<Result<CurrencyConfigDto>> GetConfigAsync(
         Guid broadcasterId,
         CancellationToken ct = default
     );

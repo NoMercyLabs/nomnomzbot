@@ -23,12 +23,12 @@ public class EarningRule : SoftDeletableEntity, ITenantScoped
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid BroadcasterId { get; set; }
     public EarningSource Source { get; set; }
-    public bool IsEnabled { get; set; }
-    public long Rate { get; set; }
+    public bool IsEnabled { get; set; } = EarningRuleDefaults.IsEnabled;
+    public long Rate { get; set; } = EarningRuleDefaults.Rate;
     public int? UnitWindowSeconds { get; set; }
     public long? PerWindowCap { get; set; }
     public long? PerStreamCap { get; set; }
     public int? MinRoleLevel { get; set; }
-    public int ConfigSchemaVersion { get; set; }
+    public int ConfigSchemaVersion { get; set; } = EarningRuleDefaults.ConfigSchemaVersion;
     public string? BonusConfigJson { get; set; }
 }

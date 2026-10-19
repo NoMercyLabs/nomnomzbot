@@ -20,11 +20,11 @@ public class CurrencyConfig : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid BroadcasterId { get; set; }
-    public string CurrencyName { get; set; } = null!;
-    public string? CurrencyNamePlural { get; set; }
-    public string? IconUrl { get; set; }
-    public bool IsEnabled { get; set; }
-    public long StartingBalance { get; set; }
-    public long? MaxBalance { get; set; }
-    public int DecimalPlaces { get; set; }
+    public string CurrencyName { get; set; } = CurrencyConfigDefaults.CurrencyName;
+    public string? CurrencyNamePlural { get; set; } = CurrencyConfigDefaults.CurrencyNamePlural;
+    public string? IconUrl { get; set; } = CurrencyConfigDefaults.IconUrl;
+    public bool IsEnabled { get; set; } = CurrencyConfigDefaults.IsEnabled;
+    public long StartingBalance { get; set; } = CurrencyConfigDefaults.StartingBalance;
+    public long? MaxBalance { get; set; } = CurrencyConfigDefaults.MaxBalance;
+    public int DecimalPlaces { get; set; } = CurrencyConfigDefaults.DecimalPlaces;
 }

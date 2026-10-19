@@ -30,7 +30,7 @@ public sealed class CurrencyConfigService(
     IEventBus eventBus
 ) : ICurrencyConfigService
 {
-    public async Task<Result<CurrencyConfigDto?>> GetConfigAsync(
+    public async Task<Result<CurrencyConfigDto>> GetConfigAsync(
         Guid broadcasterId,
         CancellationToken ct = default
     )
@@ -39,7 +39,10 @@ public sealed class CurrencyConfigService(
             c => c.BroadcasterId == broadcasterId,
             ct
         );
-        return Result.Success(config is null ? null : ToDto(config));
+        // A channel with no saved row reads the defaults; nothing is written until the first upsert.
+        return Result.Success(
+            ToDto(config ?? new() { BroadcasterId = broadcasterId, Id = Guid.Empty })
+        );
     }
 
     public async Task<Result<CurrencyConfigDto>> UpsertConfigAsync(
@@ -56,6 +59,11 @@ public sealed class CurrencyConfigService(
         if (request.StartingBalance < 0)
             return Result.Failure<CurrencyConfigDto>(
                 "Starting balance cannot be negative.",
+                "VALIDATION_FAILED"
+            );
+        if (request.DecimalPlaces is < 0 or > CurrencyConfigDefaults.MaxDecimalPlaces)
+            return Result.Failure<CurrencyConfigDto>(
+                $"Decimal places must be between 0 and {CurrencyConfigDefaults.MaxDecimalPlaces}.",
                 "VALIDATION_FAILED"
             );
         if (request.MaxBalance is { } max && max < request.StartingBalance)
@@ -132,12 +140,7 @@ public sealed class CurrencyConfigService(
         bool isNew = rule is null;
         if (rule is null)
         {
-            rule = new()
-            {
-                BroadcasterId = broadcasterId,
-                Source = source,
-                ConfigSchemaVersion = 1,
-            };
+            rule = new() { BroadcasterId = broadcasterId, Source = source };
             db.EarningRules.Add(rule);
         }
         rule.IsEnabled = request.IsEnabled;

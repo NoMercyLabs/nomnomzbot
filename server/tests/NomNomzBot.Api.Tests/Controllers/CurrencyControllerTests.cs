@@ -79,7 +79,7 @@ public sealed class CurrencyControllerTests
         config
             .GetConfigAsync(Channel, Arg.Any<CancellationToken>())
             .Returns(
-                Result.Success<CurrencyConfigDto?>(
+                Result.Success<CurrencyConfigDto>(
                     new(
                         Guid.NewGuid(),
                         Channel,

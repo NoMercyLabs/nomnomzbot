@@ -140,7 +140,7 @@ public sealed class GameService(
         game.CooldownSeconds =
             defaults.Category == GameCategory.Gambling ? GamblingCooldownFloorSeconds : 0;
         game.MaxPlaysPerStream = null;
-        game.Permission = nameof(CommunityStanding.Everyone);
+        game.Permission = GameConfigDefaults.Permission;
         game.ConfigJson = null;
     }
 
@@ -234,7 +234,7 @@ public sealed class GameService(
         game.CooldownSeconds = request.CooldownSeconds;
         game.MaxPlaysPerStream = request.MaxPlaysPerStream;
         game.Permission = string.IsNullOrWhiteSpace(request.Permission)
-            ? nameof(CommunityStanding.Everyone)
+            ? GameConfigDefaults.Permission
             : request.Permission;
         game.ConfigJson = request.Config is null
             ? null

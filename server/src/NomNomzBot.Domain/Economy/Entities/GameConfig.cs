@@ -25,15 +25,15 @@ public class GameConfig : SoftDeletableEntity, ITenantScoped
     public Guid BroadcasterId { get; set; }
     public string GameType { get; set; } = null!;
     public GameCategory Category { get; set; }
-    public bool IsEnabled { get; set; }
-    public bool Requires18Plus { get; set; }
+    public bool IsEnabled { get; set; } = GameConfigDefaults.IsEnabled;
+    public bool Requires18Plus { get; set; } = GameConfigDefaults.Requires18Plus;
     public long? MinBet { get; set; }
     public long? MaxBet { get; set; }
     public decimal? HouseEdgePercent { get; set; }
     public decimal? WinChancePercent { get; set; }
     public decimal? PayoutMultiplier { get; set; }
-    public int CooldownSeconds { get; set; }
+    public int CooldownSeconds { get; set; } = GameConfigDefaults.CooldownSeconds;
     public int? MaxPlaysPerStream { get; set; }
     public string? ConfigJson { get; set; }
-    public string Permission { get; set; } = "Everyone";
+    public string Permission { get; set; } = GameConfigDefaults.Permission;
 }

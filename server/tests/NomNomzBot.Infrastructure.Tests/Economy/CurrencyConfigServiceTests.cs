@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
+using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -44,14 +45,15 @@ public sealed class CurrencyConfigServiceTests
     ) => new(name, null, null, true, starting, max, 0);
 
     [Fact]
-    public async Task GetConfig_is_null_data_when_unconfigured()
+    public async Task GetConfig_returns_the_defaults_when_unconfigured()
     {
         (CurrencyConfigService sut, _, _) = Build();
 
-        Result<CurrencyConfigDto?> result = await sut.GetConfigAsync(Channel);
+        Result<CurrencyConfigDto> result = await sut.GetConfigAsync(Channel);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeNull();
+        result.Value.CurrencyName.Should().Be(CurrencyConfigDefaults.CurrencyName);
+        result.Value.IsEnabled.Should().Be(CurrencyConfigDefaults.IsEnabled);
     }
 
     [Fact]
@@ -63,9 +65,9 @@ public sealed class CurrencyConfigServiceTests
         await sut.UpsertConfigAsync(Channel, Config(name: "gold", starting: 75));
 
         (await db.CurrencyConfigs.CountAsync(c => c.BroadcasterId == Channel)).Should().Be(1);
-        Result<CurrencyConfigDto?> read = await sut.GetConfigAsync(Channel);
-        read.Value!.CurrencyName.Should().Be("gold");
-        read.Value!.StartingBalance.Should().Be(75);
+        Result<CurrencyConfigDto> read = await sut.GetConfigAsync(Channel);
+        read.Value.CurrencyName.Should().Be("gold");
+        read.Value.StartingBalance.Should().Be(75);
         List<ChannelConfigChangedEvent> published =
         [
             .. bus.Published.OfType<ChannelConfigChangedEvent>(),
