@@ -26,12 +26,6 @@ public sealed partial class PlaybackDirector : IDisposable
     /// <summary>Remaining time of the owner's track at which a waiting request takes over.</summary>
     private const int NearEndMs = 6_000;
 
-    /// <summary>
-    /// Remaining time of the owner's track at which a waiting request on the same engine is lined up in that
-    /// engine's queue. Three 5-second polls fit, so one always lands before the owner's next track plays.
-    /// </summary>
-    private const int QueueAheadMs = 15_000;
-
     private static readonly TimeSpan StartDeadline = TimeSpan.FromSeconds(10);
 
     /// <summary>Progress at or under which Previous goes to the last played item instead of the start.</summary>
@@ -110,6 +104,7 @@ public sealed partial class PlaybackDirector : IDisposable
         {
             await RaiseDueDeadlinesAsync(ct);
             await ApplyAsync(input, ct);
+            await LineUpNextSpotifyAsync(input.GetType().Name, ct);
         }
         finally
         {

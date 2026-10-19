@@ -32,6 +32,9 @@ public sealed record EngineReport(
 /// <summary>The track on <see cref="EngineSignal.Engine"/> ended.</summary>
 public sealed record TrackEnded(EngineKind Engine, string Uri) : EngineSignal(Engine, Uri);
 
+/// <summary>The track on <see cref="EngineSignal.Engine"/> has 3 seconds left (the Music Player page's ENDING).</summary>
+public sealed record TrackEnding(EngineKind Engine, string Uri) : EngineSignal(Engine, Uri);
+
 /// <summary>A song request was admitted to the fair queue.</summary>
 public sealed record RequestAdded : PlaybackInput;
 

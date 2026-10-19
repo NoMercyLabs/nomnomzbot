@@ -38,8 +38,12 @@ public sealed class YouTubePlayerReportService(
     {
         if (string.IsNullOrWhiteSpace(videoId))
             return Result.Failure("A YouTube player report needs a video id.", "INVALID_VIDEO_ID");
-        if (!TryParseState(state, out YouTubePlayerState parsed))
+        if (!TryParseState(state, out YouTubePlayerState signal))
             return Result.Failure($"Unknown YouTube player state '{state}'.", "INVALID_STATE");
+
+        // ENDING (3 s left) is a one-shot signal for the engine; the video still plays, so it is stored as playing.
+        YouTubePlayerState parsed =
+            signal == YouTubePlayerState.Ending ? YouTubePlayerState.Playing : signal;
 
         IReadOnlyList<Guid> owner = await players.FindPlayersAsync(
             broadcasterId,
@@ -86,7 +90,7 @@ public sealed class YouTubePlayerReportService(
         bool withheld = ended && changed && ResumePending(broadcasterId, videoId);
         bool fed =
             !withheld
-            && await FeedAsync(broadcasterId, videoId, parsed, positionMs, cancellationToken);
+            && await FeedAsync(broadcasterId, videoId, signal, positionMs, cancellationToken);
 
         // Announced before the playback change below, whose queue reconciler drops the failed request.
         // With no director to take the report, this is the only place the failure is announced.
