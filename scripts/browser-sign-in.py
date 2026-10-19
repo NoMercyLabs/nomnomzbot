@@ -32,7 +32,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-ALLOWED_APPS = {"192.168.2.60", "dev.nomnomz.bot", "vue.nomnomz.bot"}
+# localhost is the dashboard dev server (Vite on 5090) that proxies to the box, so a worker checks its own tree.
+ALLOWED_APPS = {"192.168.2.60", "dev.nomnomz.bot", "vue.nomnomz.bot", "localhost", "127.0.0.1"}
 SSH = [
     "ssh", "-i", str(Path.home() / ".ssh" / "docker_proxmox"),
     "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "root@192.168.2.60",
