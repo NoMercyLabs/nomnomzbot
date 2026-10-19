@@ -5536,6 +5536,7 @@
     <string name="pipeline_run_pipeline_named_args_help">Benoemde argumenten die aan de aangeroepen pipeline worden doorgegeven, gekoppeld aan de daar gedeclareerde parameternamen ongeacht de volgorde waarin je ze hier opgeeft. De aangeroepen pipeline kan ze ook positioneel lezen als {args.1}, {args.2}, enz. wanneer er geen namen zijn gedeclareerd.</string>
     <string name="pipeline_run_pipeline_pipeline_help">De pipeline die wordt aangeroepen.</string>
     <string name="pipeline_run_pipeline_wait_help">Voor een losse uitvoering wordt gewacht tot deze is voltooid voordat deze pipeline doorgaat, in plaats van hem te starten en verder te gaan.</string>
+    <string name="pipeline_schedule_pipeline_action_params_help">De instellingen waarmee de geplande actie wordt uitgevoerd, als paren van naam en waarde. Alleen van belang bij een actie die wordt uitgevoerd.</string>
     <string name="pipeline_schedule_pipeline_action_type_help">De actie die eenmalig wordt uitgevoerd, na de vertraging, zonder tussenliggende pipeline.</string>
     <string name="pipeline_schedule_pipeline_command_help">Het commando dat eenmalig wordt uitgevoerd, na de vertraging, zonder tussenliggende pipeline.</string>
     <string name="pipeline_schedule_pipeline_dedupe_key_help">Slaat het plannen van een nieuwe uitvoering over als er al een met dezelfde sleutel is gepland. Dit voorkomt dubbele geplande uitvoeringen.</string>

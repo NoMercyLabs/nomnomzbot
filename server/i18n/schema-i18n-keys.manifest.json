@@ -968,6 +968,7 @@
     "pipeline.run_pipeline.named_args.help",
     "pipeline.run_pipeline.pipeline.help",
     "pipeline.run_pipeline.wait.help",
+    "pipeline.schedule_pipeline.action_params.help",
     "pipeline.schedule_pipeline.action_type.help",
     "pipeline.schedule_pipeline.command.help",
     "pipeline.schedule_pipeline.dedupe_key.help",

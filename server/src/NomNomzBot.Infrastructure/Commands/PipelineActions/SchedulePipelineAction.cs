@@ -61,6 +61,11 @@ public sealed class SchedulePipelineAction : ICommandAction
                 Description: new("pipeline.schedule_pipeline.action_type.help")
             ),
             new(
+                "action_params",
+                PipelineActionFieldKind.KeyValueMap,
+                Description: new("pipeline.schedule_pipeline.action_params.help")
+            ),
+            new(
                 "delay_seconds",
                 PipelineActionFieldKind.Number,
                 Required: true,
