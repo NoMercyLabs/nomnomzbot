@@ -136,7 +136,7 @@ function setSize(next: number[] | undefined): void {
   >
     <div class="grid gap-6">
       <section class="grid gap-2" aria-labelledby="rd-presets">
-        <div class="px-4">
+        <div>
           <h3 id="rd-presets" class="text-sm font-semibold">
             {{ $t("dashboard.settings.readability.presets.title") }}
           </h3>
@@ -145,7 +145,7 @@ function setSize(next: number[] | undefined): void {
           </p>
         </div>
         <div
-          class="flex flex-wrap gap-2 px-4"
+          class="flex flex-wrap gap-2"
           role="group"
           :aria-label="$t('dashboard.settings.readability.presets.title')"
         >
@@ -164,7 +164,7 @@ function setSize(next: number[] | undefined): void {
       </section>
 
       <section class="grid gap-2" aria-labelledby="rd-text">
-        <div class="px-4">
+        <div>
           <h3 id="rd-text" class="text-sm font-semibold">
             {{ $t("dashboard.settings.readability.text.title") }}
           </h3>
@@ -238,7 +238,7 @@ function setSize(next: number[] | undefined): void {
       </section>
 
       <section class="grid gap-2" aria-labelledby="rd-motion">
-        <div class="px-4">
+        <div>
           <h3 id="rd-motion" class="text-sm font-semibold">
             {{ $t("dashboard.settings.readability.contrastMotion.title") }}
           </h3>
@@ -263,7 +263,7 @@ function setSize(next: number[] | undefined): void {
       </section>
 
       <section class="grid gap-2" aria-labelledby="rd-density">
-        <div class="px-4">
+        <div>
           <h3 id="rd-density" class="text-sm font-semibold">
             {{ $t("dashboard.settings.readability.density.title") }}
           </h3>

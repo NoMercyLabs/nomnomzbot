@@ -183,6 +183,24 @@ describe('Readability options', () => {
     expect(card.classList.contains('max-w-4xl')).toBe(true);
   });
 
+  // Re-shoot 2026-10-19 at 1280: the section headings sat 16 px inside the option panels under them.
+  it('lines every section heading up with the panel edge, with no inset of its own', async () => {
+    await open();
+    const headings: HTMLElement[] = [
+      ...document.body.querySelectorAll<HTMLElement>('[data-view="readability"] h3'),
+    ];
+
+    expect(headings).toHaveLength(4);
+
+    for (const heading of headings) {
+      expect(heading.parentElement!.classList.contains('px-4')).toBe(false);
+    }
+
+    const presets: HTMLElement = document.body.querySelector('[role="group"].flex-wrap')!;
+
+    expect(presets.classList.contains('px-4')).toBe(false);
+  });
+
   it('a text size scales every text token', async () => {
     const scope = effectScope();
     const reading = scope.run(() => useReadability())!;
