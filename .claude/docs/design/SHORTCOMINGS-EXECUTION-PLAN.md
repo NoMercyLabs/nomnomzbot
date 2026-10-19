@@ -47,7 +47,7 @@ Owner words are in `dashboard-owner-words.md` (2026-10-19 and 2026-10-20 entries
 - **S-PAGE-OWN-BOT** — the "Your channel's own bot" card has one action, "Connect your own bot"; the browser sign-in is only the fallback inside that flow, and the status row shows the bot's real picture.
 - **S-PAGE-FEATURES** — the Features page lists every feature the server checks (N of M against the `FeatureService` catalogue, missing entries added on the server) grouped by area.
 - **S-PAGE-SPOTIFY-OWN-APP** — "Your own Spotify app" is shown only when it is needed (Spotify not connected and no shared app) or when the streamer asks for it from the Spotify row; a connected Spotify shows which app it uses in its row, not an open form. Today `IntegrationsView.vue` shows the form to everyone with `integration:write`.
-- **S-NAV-ONE-HOME** — a page has one home in the navigation. Discord and Supporter sources open the same page from the main menu and from Settings (`settings/route.ts` reuses the main route's component); the setup pages live in Settings, the main entry goes, and the old path redirects.
+- **S-NAV-ONE-HOME** — a page has one home in the navigation. Discord and Supporter sources open the same page from the main menu and from Settings (`settings/route.ts` reuses the main route's component); the setup pages live in Settings, and the main entry and its route go outright (no redirect: frontend-ia.md §13, `check-no-compat.py`).
 - **S-PAGE-SUPPORTER-SOURCES** — the Supporter sources page is reorganized.
 - **S-PAGE-API-KEY-EVENTS** — the "Events a key can listen to" card goes; each key with the listen scope gets an info button that lists the events it can stream.
 - **S-PAGE-PERMISSIONS** — the Permissions page is reorganized so it is not one long scroll.

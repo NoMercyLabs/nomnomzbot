@@ -156,3 +156,6 @@ it is really important to keep spotify doing what it does best while we correctl
 2026-10-20 (Admin › Platform defaults, https://vue.nomnomz.bot/app/admin/platform-defaults): "dear god..."
 2026-10-20 (the same page while "Viewing as a viewer": three sections read "No ... are listed", the voice section "could not load", and the sidebar footer still says Moderator): "guess im not viewing as viewer since im not redirected..."
 2026-10-20 (in "view as viewer" on Settings › Your data, the sidebar shows only Readability and Your data): "how am i getting back to the main pages"
+2026-10-20: "where are my stats, my compettitive views with other users on the channel?
+how do i search other channels as a viewer, mod or broadcaster?
+i want to be able to navigate to any channel and the ui reacting to my role and IAM permissions accordingly and actually view as the person visiting another channel, not as a bot tennant but as a normal viewer."
