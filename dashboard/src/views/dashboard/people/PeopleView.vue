@@ -44,6 +44,8 @@ import { usePageView } from '@/composables/usePageView';
 import { oneOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
+import Cross from '~icons/nnz/cross';
+
 import PersonRow from './components/PersonRow.vue';
 import SearchResultRow from './components/SearchResultRow.vue';
 
@@ -464,8 +466,19 @@ useEventListener(document, 'keydown', closeOnEscape);
           @click="back"
         />
         <div
-          class="flex flex-1 flex-col border-y bg-card md:min-h-0 md:overflow-hidden md:rounded-xl md:border"
+          class="relative flex flex-1 flex-col border-y bg-card md:min-h-0 md:overflow-hidden md:rounded-xl md:border"
         >
+          <!-- A phone has the Back link above; beside the list the profile closes with its own button. -->
+          <Button
+            data-person-close
+            variant="ghost"
+            size="icon"
+            class="absolute top-2 right-2 z-10 max-md:hidden"
+            :aria-label="$t('common.close')"
+            @click="back"
+          >
+            <Cross class="size-5" aria-hidden="true" />
+          </Button>
           <ProfileView :user-id="selectedId" :preview="preview" />
         </div>
       </div>

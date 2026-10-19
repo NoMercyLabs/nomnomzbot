@@ -584,6 +584,23 @@ describe('PeopleView', () => {
     expect(document.body.querySelector('[data-person-detail] h2')?.textContent).not.toBe('ALICE');
   });
 
+  // Stoney 2026-10-18: "all overlay pannels need a close button". The profile beside the list closes with a button.
+  it('closes the open profile with its close button and keeps the rest of the address', async () => {
+    await open('/app/people?u=alice&view=moderator');
+
+    const close = document.body.querySelector<HTMLButtonElement>(
+      '[data-person-detail] [data-person-close]',
+    );
+
+    expect(close?.getAttribute('aria-label')).toBe('Close');
+    close!.click();
+    await settle();
+
+    expect(router.currentRoute.value.query.u).toBeUndefined();
+    expect(router.currentRoute.value.query.view).toBe('moderator');
+    expect(document.body.querySelector('[data-person-detail]')).toBeNull();
+  });
+
   it('leaves the profile open when Escape is pressed while typing in the search', async () => {
     await open('/app/people?u=alice');
 
