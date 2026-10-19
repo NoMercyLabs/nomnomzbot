@@ -98,6 +98,7 @@
       "placeholder": "Kies een commando of pipeline",
       "commands": "Commando's",
       "pipelines": "Pipelines",
+      "actions": "Acties",
       "create": "Nieuwe pipeline maken",
       "nothing": "Niets",
       "open": "Open in de pipeline-editor",

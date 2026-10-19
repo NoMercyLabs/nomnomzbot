@@ -152,9 +152,19 @@ export function actionRows(
   descriptor: PipelineActionDescriptor | undefined,
   words: Words & { text: TextOf },
 ): FieldRow[] {
+  return settingRows(step.action.type, step.action, descriptor, words);
+}
+
+// The same form for an action that is not a step: a binding target runs one action with its settings.
+export function settingRows(
+  type: string,
+  settings: Record<string, JsonValue | undefined>,
+  descriptor: PipelineActionDescriptor | undefined,
+  words: Words & { text: TextOf },
+): FieldRow[] {
   return (descriptor?.fields ?? []).map((field) => {
     const control = controlOf(field);
-    const saved = step.action[field.name];
+    const saved = settings[field.name];
 
     return {
       name: field.name,
@@ -164,7 +174,7 @@ export function actionRows(
       value: control === 'switch'
         ? saved === true
         : saved,
-      help: fieldHelp(step.action.type, field, words.text),
+      help: fieldHelp(type, field, words.text),
       choices: (field.options ?? []).map((option) =>
         ({ value: option, label: humanize(option) })),
       required: field.required,

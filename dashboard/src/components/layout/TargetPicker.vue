@@ -8,8 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The one place a surface picks what it runs: a command or a pipeline (an action target is shown and kept,
-// its parameters are authored elsewhere). It can create an empty pipeline in place and clear the choice.
+// The one place a surface picks what it runs: a command, a pipeline or one action with its settings (the
+// fields come from the bot's catalog, the same form a pipeline step has). It can create an empty pipeline in
+// place and clear the choice.
 // A refusal from the server and a bound id that is missing from this channel show as one error line.
 import Plus from '~icons/nnz/add';
 import { computed, inject } from 'vue';
@@ -17,7 +18,12 @@ import { useI18n } from 'vue-i18n';
 import { routerKey } from 'vue-router';
 
 import { useCommands } from '@/api/commands';
-import { useCreatePipeline, usePipelines, type Pipeline } from '@/api/pipelines';
+import {
+  useCreatePipeline,
+  usePipelineCatalog,
+  usePipelines,
+  type Pipeline,
+} from '@/api/pipelines';
 import { Button } from '@/components/ui/button';
 import { FieldError } from '@/components/ui/field';
 import {
@@ -31,7 +37,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import type { PickedTarget, TargetKind } from '@/lib/bindingTarget';
+import { useLocalizedText } from '@/composables/useLocalizedText';
+import type { ActionParams, PickedTarget, TargetKind } from '@/lib/bindingTarget';
+import ActionParamsForm from '@/views/dashboard/pipelines/components/ActionParamsForm.vue';
+import { actionGroups } from '@/views/dashboard/pipelines/components/stepGroups';
+import { actionTitle } from '@/views/dashboard/pipelines/components/stepWords';
 
 const target = defineModel<PickedTarget | null>('target', { required: true });
 
@@ -57,16 +67,40 @@ const props = withDefaults(
 const CREATE = '__create';
 const NOTHING = '__nothing';
 
-const { t } = useI18n();
+const { t, te } = useI18n();
+const text = useLocalizedText();
 const { channelId } = useCurrentChannel();
 const commands = useCommands(channelId);
 const pipelines = usePipelines(channelId);
+const catalog = usePipelineCatalog(channelId);
 const create = useCreatePipeline(channelId);
 
 const commandRows = computed(() => commands.data.value ?? []);
 const pipelineRows = computed(() => pipelines.data.value ?? []);
+const actionList = computed(() => catalog.data.value?.actions ?? []);
 const showCommands = computed<boolean>(() => props.kinds.includes('command'));
 const showPipelines = computed<boolean>(() => props.kinds.includes('pipeline'));
+const showActions = computed<boolean>(() => props.kinds.includes('action'));
+
+const groups = computed(() =>
+  actionGroups(actionList.value, {
+    t,
+    te,
+    text,
+  }));
+
+const descriptor = computed(() =>
+  actionList.value.find((action) =>
+    action.type === target.value?.actionType));
+
+const params = computed<ActionParams>({
+  get: () => target.value?.params ?? {},
+  set: (next: ActionParams): void => {
+    if (target.value?.kind === 'action') {
+      target.value = { ...target.value, params: next };
+    }
+  },
+});
 
 function valueOf(picked: PickedTarget | null): string {
   if (picked === null)
@@ -102,7 +136,7 @@ const shown = computed<string>(() => {
     return '';
 
   if (picked.kind === 'action')
-    return picked.actionType ?? '';
+    return actionTitle(picked.actionType ?? '', { t, te });
 
   if (picked.kind === 'command') {
     const row = commandRows.value.find((candidate) => candidate.id === picked.id);
@@ -141,11 +175,23 @@ const selected = computed<string>({
 
     const split = value.indexOf(':');
     const kind = value.slice(0, split) as TargetKind;
+    const rest = value.slice(split + 1);
 
-    // An action target is display-only: the list never offers one, so a change to it is ignored.
-    if (kind === 'action') return;
+    // Choosing the action already picked keeps its settings; another action starts with none.
+    if (kind === 'action') {
+      if (target.value?.actionType !== rest) {
+        target.value = {
+          kind,
+          id: '',
+          actionType: rest,
+          params: {},
+        };
+      }
 
-    target.value = { kind, id: value.slice(split + 1) };
+      return;
+    }
+
+    target.value = { kind, id: rest };
   },
 });
 
@@ -203,6 +249,18 @@ async function createPipeline(): Promise<void> {
               {{ row.name }}
             </SelectItem>
           </SelectGroup>
+          <SelectGroup v-if="showActions">
+            <SelectLabel>{{ $t('common.targetPicker.actions') }}</SelectLabel>
+            <template v-for="group in groups" :key="group.key">
+              <SelectItem
+                v-for="row in group.rows"
+                :key="row.type"
+                :value="`action:${row.type}`"
+              >
+                {{ `${group.heading}: ${row.title}` }}
+              </SelectItem>
+            </template>
+          </SelectGroup>
         </SelectContent>
       </Select>
       <Button
@@ -217,6 +275,13 @@ async function createPipeline(): Promise<void> {
         </a>
       </Button>
     </div>
+    <ActionParamsForm
+      v-if="target?.kind === 'action' && target.actionType"
+      v-model:params="params"
+      :action-type="target.actionType"
+      :descriptor="descriptor"
+      class="mt-2"
+    />
     <FieldError v-if="message !== ''">{{ message }}</FieldError>
   </div>
 </template>

@@ -8,20 +8,27 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { JsonValue } from '@/lib/json';
+
 // A binding target is what a timer, trigger, reward or giveaway runs: a command, an action or a pipeline.
 // The API sends the kind as an integer (0 command, 1 pipeline, 2 action). The dashboard works with a name.
 export type TargetKind = 'command' | 'pipeline' | 'action';
+
+// An action target carries the settings the action runs with.
+export type ActionParams = Record<string, JsonValue | undefined>;
 
 export type PickedTarget = {
   kind: TargetKind;
   id: string;
   actionType?: string;
+  params?: ActionParams;
 };
 
 export type WireTarget = {
   kind: number | string;
   id?: string | null;
   actionType?: string | null;
+  params?: ActionParams | null;
 };
 
 const KIND_BY_NUMBER = ['command', 'pipeline', 'action'] as const satisfies readonly TargetKind[];
@@ -61,6 +68,9 @@ export function targetFromWire(wire: WireTarget | null | undefined): PickedTarge
     ...(wire.actionType
       ? { actionType: wire.actionType }
       : {}),
+    ...(wire.params
+      ? { params: wire.params }
+      : {}),
   };
 }
 
@@ -76,6 +86,9 @@ export function targetToWire(target: PickedTarget | null): WireTarget & { kind: 
     id: target.id,
     ...(target.actionType
       ? { actionType: target.actionType }
+      : {}),
+    ...(target.params
+      ? { params: target.params }
       : {}),
   };
 }
@@ -116,5 +129,8 @@ export function sameTarget(left: PickedTarget | null, right: PickedTarget | null
   if (left === null || right === null)
     return left === right;
 
-  return left.kind === right.kind && left.id === right.id && left.actionType === right.actionType;
+  return left.kind === right.kind &&
+    left.id === right.id &&
+    left.actionType === right.actionType &&
+    JSON.stringify(left.params ?? {}) === JSON.stringify(right.params ?? {});
 }

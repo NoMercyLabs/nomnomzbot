@@ -169,7 +169,7 @@ function useDefault(): Promise<void> {
       <ReplyModeField
         v-model:mode="draft.mode"
         v-model:target="draft.target"
-        :kinds="['command', 'pipeline']"
+        :kinds="['command', 'pipeline', 'action']"
         :new-pipeline-name="nameOf(row.eventType)"
       >
         <TemplateField

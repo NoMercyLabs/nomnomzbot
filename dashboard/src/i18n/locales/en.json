@@ -98,6 +98,7 @@
       "placeholder": "Choose a command or pipeline",
       "commands": "Commands",
       "pipelines": "Pipelines",
+      "actions": "Actions",
       "create": "Create a new pipeline",
       "nothing": "Nothing",
       "open": "Open in the pipeline editor",

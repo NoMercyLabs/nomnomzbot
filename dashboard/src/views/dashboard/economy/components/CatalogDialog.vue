@@ -249,7 +249,7 @@ async function submit(): Promise<void> {
         <TargetPicker
           v-model:target="target"
           clearable
-          :kinds="['command', 'pipeline']"
+          :kinds="['command', 'pipeline', 'action']"
           :label="$t('dashboard.economy.catalog.dialog.pipeline')"
         />
       </Field>

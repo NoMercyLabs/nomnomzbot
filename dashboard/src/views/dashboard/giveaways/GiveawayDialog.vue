@@ -338,7 +338,7 @@ async function submit(): Promise<void> {
         <TargetPicker
           v-model:target="form.prizeTarget"
           data-giveaway-prize-pipeline
-          :kinds="['command', 'pipeline']"
+          :kinds="['command', 'pipeline', 'action']"
           :label="$t('dashboard.giveaways.dialog.prize.pipeline')"
         />
       </Field>

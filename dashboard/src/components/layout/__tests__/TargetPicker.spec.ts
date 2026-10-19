@@ -32,6 +32,35 @@ vi.mock('@/api/commands', () => ({
 }));
 
 vi.mock('@/api/pipelines', () => ({
+  PICKER_KINDS: [],
+  usePipelineCatalog: () => ({
+    data: ref({
+      actions: [
+        {
+          type: 'play_sound',
+          category: { key: 'media' },
+          description: { key: 'x' },
+          fields: [
+            {
+              name: 'volume',
+              kind: 'number',
+              required: false,
+              repeatable: false,
+              description: null,
+              templated: false,
+              declaresVariable: false,
+            },
+          ],
+        },
+        {
+          type: 'song_skip',
+          category: { key: 'media' },
+          description: { key: 'y' },
+          fields: [],
+        },
+      ],
+    }),
+  }),
   usePipelines: () => ({
     data: ref([{ id: 'p-1', name: 'Welcome flow' }]),
   }),
@@ -170,7 +199,71 @@ describe('the target picker', () => {
     expect(alert.textContent).toContain('not in this channel');
   });
 
-  it('keeps an action target visible and locked in', () => {
+  it('offers actions only on a surface that allows them', async () => {
+    const wrapper = mountPicker();
+
+    await openList(wrapper);
+
+    expect(document.body.textContent).not.toContain('Play sound');
+  });
+
+  it('emits a new action target with empty settings when an action is chosen', async () => {
+    const wrapper: VueWrapper = mountPicker({ kinds: ['command', 'action'] });
+
+    await openList(wrapper);
+    await choose('Play sound');
+
+    expect(emitted(wrapper)).toEqual({
+      kind: 'action',
+      id: '',
+      actionType: 'play_sound',
+      params: {},
+    });
+  });
+
+  it('shows the action fields from the catalog and emits the settings typed in them', async () => {
+    const wrapper: VueWrapper = mountPicker({
+      kinds: ['command', 'action'],
+      target: {
+        kind: 'action',
+        id: '',
+        actionType: 'play_sound',
+        params: {},
+      },
+    });
+
+    const input = wrapper.find('[data-action-params] input');
+
+    expect(input.exists()).toBe(true);
+
+    await input.setValue('80');
+    await input.trigger('change');
+    await input.trigger('keydown', { key: 'Enter' });
+    await input.trigger('blur');
+
+    expect(emitted(wrapper)).toEqual({
+      kind: 'action',
+      id: '',
+      actionType: 'play_sound',
+      params: { volume: 80 },
+    });
+  });
+
+  it('shows no settings form for an action without fields', () => {
+    const wrapper: VueWrapper = mountPicker({
+      kinds: ['action'],
+      target: {
+        kind: 'action',
+        id: '',
+        actionType: 'song_skip',
+        params: {},
+      },
+    });
+
+    expect(wrapper.find('[data-action-params]').exists()).toBe(false);
+  });
+
+  it('shows a bound action target by its name without a missing warning', () => {
     const wrapper: VueWrapper = mountPicker({
       target: {
         kind: 'action',
@@ -179,7 +272,7 @@ describe('the target picker', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('play_sound');
+    expect(wrapper.text()).toContain('Play sound');
     expect(wrapper.element.querySelector('[role="alert"]')).toBeNull();
   });
 

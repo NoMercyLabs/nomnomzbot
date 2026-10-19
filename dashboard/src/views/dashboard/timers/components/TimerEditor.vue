@@ -188,7 +188,7 @@ function remove(): void {
         <TargetPicker
           v-model:target="draft.target"
           clearable
-          :kinds="['command', 'pipeline']"
+          :kinds="['command', 'pipeline', 'action']"
           :label="$t('dashboard.timers.editor.target')"
         />
       </Field>
