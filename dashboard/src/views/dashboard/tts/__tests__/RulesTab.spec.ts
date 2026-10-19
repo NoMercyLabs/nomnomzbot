@@ -244,6 +244,21 @@ describe('TTS rules panels', () => {
     ]);
   });
 
+  // The Speaking panel scrolled at 1440x699 with 7 rows; the profanity filter is "what the bot reads aloud",
+  // which is the Message rules panel, so each panel holds six rows and fits the board without a scroller.
+  it('keeps the profanity filter in the Message rules panel, not Speaking', async () => {
+    await open();
+
+    const rowsIn = (view: string): string[] =>
+      [...document.body.querySelectorAll(`[data-view="${view}"] [data-slot="setting-row"]`)].map(
+        (row) => row.textContent ?? '',
+      );
+
+    expect(rowsIn('tts-rules').join('|')).toContain('Censor profanity');
+    expect(rowsIn('tts-speaking').join('|')).not.toContain('Censor profanity');
+    expect(rowsIn('tts-speaking').join('|')).toContain('Skip bot messages');
+  });
+
   it('saves the character cap on blur and shows the default from the bot', async () => {
     await open();
 

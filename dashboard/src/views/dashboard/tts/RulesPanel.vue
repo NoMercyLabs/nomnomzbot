@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The rules of the channel voice: the follow-the-platform switch, who may speak and the bits gate.
+// The rules of the channel voice: the follow-the-platform switch, who may speak, the bot and profanity filters and the bits gate.
 // Each switch saves at once; the bits box saves when it loses focus or Enter is pressed.
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -131,6 +131,14 @@ function commitBits(): void {
         :description="$t('dashboard.tts.rules.selfService.description')"
         :hint="switchHint(defaults.data.value?.viewerVoiceSelfServiceEnabled)"
         @update:model-value="change({ viewerVoiceSelfServiceEnabled: $event })"
+      />
+      <SettingRow
+        :model-value="stored.profanityCensorEnabled"
+        :disabled="!can('tts:config:write')"
+        :title="$t('dashboard.tts.speaking.censor.title')"
+        :description="$t('dashboard.tts.speaking.censor.description')"
+        :hint="switchHint(defaults.data.value?.profanityCensorEnabled)"
+        @update:model-value="change({ profanityCensorEnabled: $event })"
       />
       <ReadabilityRow
         :title="$t('dashboard.tts.rules.minBits.title')"

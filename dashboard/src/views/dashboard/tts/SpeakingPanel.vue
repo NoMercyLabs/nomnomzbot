@@ -9,19 +9,14 @@
 -->
 <script setup lang="ts">
 // How the channel voice speaks: on or off, where the voice comes from, who may be heard, the length cap
-// and the bot and profanity filters. Each control names its default; the footer button returns the
+// (the bot and profanity filters live in the Message rules panel). Each control names its default; the footer button returns the
 // rules to those defaults. Switches and choices save at once; the character cap saves on blur or Enter.
 import { computed, ref, watch } from 'vue';
 import type { AcceptableValue } from 'reka-ui';
 import { useI18n } from 'vue-i18n';
 
 import { useTtsConfig } from '@/api/tts';
-import {
-  useSetTtsRules,
-  useTtsDefaults,
-  useTtsOptions,
-  type TtsRulesChange,
-} from '@/api/ttsRules';
+import { useSetTtsRules, useTtsDefaults, useTtsOptions, type TtsRulesChange } from '@/api/ttsRules';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -247,14 +242,6 @@ const charactersHint = computed(() =>
         :description="$t('dashboard.tts.speaking.skipBots.description')"
         :hint="switchHint(standard?.skipBotMessages)"
         @update:model-value="change({ skipBotMessages: $event })"
-      />
-      <SettingRow
-        :model-value="stored.profanityCensorEnabled"
-        :disabled="!writable"
-        :title="$t('dashboard.tts.speaking.censor.title')"
-        :description="$t('dashboard.tts.speaking.censor.description')"
-        :hint="switchHint(standard?.profanityCensorEnabled)"
-        @update:model-value="change({ profanityCensorEnabled: $event })"
       />
     </RowGroup>
 
