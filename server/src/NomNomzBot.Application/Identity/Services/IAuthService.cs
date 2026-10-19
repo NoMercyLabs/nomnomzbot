@@ -31,15 +31,19 @@ public interface IAuthService
     /// requested scope set widens to <c>base ∪ currently-granted ∪ recorded-missing</c> (identity-auth §3.4a):
     /// a returning operator's redirect re-auth is then ADDITIVE — it clears every recorded gap (even a
     /// runtime-detected scope outside the base set) and never silently drops an extra scope the connection
-    /// already holds. A fresh login (no hint) requests the standard base set. A viewer or moderator start never widens: it asks
-    /// only the scopes of <paramref name="role"/> (see <c>TwitchLoginScopes</c>).
+    /// already holds. A fresh login (no hint) requests the standard base set. A viewer or moderator start asks
+    /// the scopes of <paramref name="role"/> (see <c>TwitchLoginScopes</c>) and, when <paramref name="userHint"/>
+    /// names the signed-in person, ALSO the scopes that person's own personal Twitch connection already holds,
+    /// so signing in again never narrows what they granted before. A channel connection is never read for this:
+    /// a channel owner's grant is far larger than a viewer or moderator sign-in may ask.
     /// </summary>
     Task<Result<string>> GetTwitchOAuthUrl(
         TwitchLoginRole role,
         string? state = null,
         string? baseUrl = null,
         Guid? broadcasterHint = null,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? userHint = null
     );
 
     Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(
@@ -48,11 +52,18 @@ public interface IAuthService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Viewer callback: writes the viewer's User row and a session bound to no channel.</summary>
+    /// <summary>
+    /// Viewer callback: writes the viewer's User row and opens a session. The session is bound to no channel,
+    /// except when the sign-in started from a live session of the SAME person on a channel
+    /// (<paramref name="arrivingUserId"/> equals the Twitch account that signed in): then it keeps that
+    /// <paramref name="arrivingChannelId"/>. A session of another person never lends its channel.
+    /// </summary>
     Task<Result<AuthResultDto>> HandleTwitchViewerCallbackAsync(
         OAuthCallbackDto callback,
         AuthContextDto context,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? arrivingUserId = null,
+        Guid? arrivingChannelId = null
     );
 
     // ── Device Code Flow login (no client secret) ────────────────────────────

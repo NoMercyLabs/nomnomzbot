@@ -53,7 +53,8 @@ public sealed class OAuthForwardedOriginTests
                 "nonce",
                 Arg.Any<string>(),
                 Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<Guid?>()
             )
             .Returns(Result.Success("https://id.twitch.tv/oauth2/authorize?x=1"));
 
@@ -95,7 +96,8 @@ public sealed class OAuthForwardedOriginTests
                 "nonce",
                 TunnelOrigin,
                 Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<Guid?>()
             );
     }
 
@@ -118,7 +120,8 @@ public sealed class OAuthForwardedOriginTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<Guid?>()
             )
             .Returns(Result.Success("https://id.twitch.tv/oauth2/authorize?x=1"));
 

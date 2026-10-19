@@ -45,7 +45,9 @@ public sealed class AuthControllerRoleLoginTests
             .HandleTwitchViewerCallbackAsync(
                 Arg.Any<OAuthCallbackDto>(),
                 Arg.Any<AuthContextDto>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<Guid?>()
             );
     }
 
@@ -64,7 +66,9 @@ public sealed class AuthControllerRoleLoginTests
             .HandleTwitchViewerCallbackAsync(
                 Arg.Any<OAuthCallbackDto>(),
                 Arg.Any<AuthContextDto>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<Guid?>()
             );
     }
 
@@ -83,7 +87,8 @@ public sealed class AuthControllerRoleLoginTests
                 Arg.Do<string>(s => issued = s),
                 Arg.Any<string>(),
                 Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<Guid?>()
             )
             .Returns(Result.Success("https://id.twitch.tv/oauth2/authorize?x=1"));
         auth.HandleTwitchCallbackAsync(
@@ -95,7 +100,9 @@ public sealed class AuthControllerRoleLoginTests
         auth.HandleTwitchViewerCallbackAsync(
                 Arg.Any<OAuthCallbackDto>(),
                 Arg.Any<AuthContextDto>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<Guid?>()
             )
             .Returns(Result.Failure<AuthResultDto>("stop", "STOP"));
 

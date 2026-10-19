@@ -384,11 +384,13 @@ public class AuthController : BaseController
             : TwitchLoginRole.Broadcaster;
         // Only a broadcaster sign-in opens a channel; a viewer or moderator runs the identity-only callback.
         bool viewer = loginRole != TwitchLoginRole.Broadcaster;
+        AuthSessionDto? arriving = await PeekArrivingSessionAsync(ct);
 
         // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch, and
         // the flow + optional mobile redirect + client class are held server-side so the callback can route
         // safely (the client class can't be tampered with in the query string on the way back). The return
-        // path is normalized to a same-origin relative path (or dropped) BEFORE it enters the state.
+        // path is normalized to a same-origin relative path (or dropped) BEFORE it enters the state. A viewer
+        // or moderator flow also holds the arriving session's person and channel, so the callback can keep it.
         string state = await _oauthState.IssueAsync(
             new(
                 viewer ? "viewer" : "user",
@@ -396,7 +398,9 @@ public class AuthController : BaseController
                 Client: client,
                 ReturnTo: ReturnPathPolicy.Normalize(return_to),
                 ReturnRoute: NormalizeReturnRoute(return_route),
-                ReturnOrigin: CaptureReturnOrigin(client)
+                ReturnOrigin: CaptureReturnOrigin(client),
+                ArrivingUserId: viewer ? arriving?.UserId : null,
+                ArrivingChannelId: viewer ? arriving?.BroadcasterId : null
             ),
             ct
         );
@@ -405,8 +409,9 @@ public class AuthController : BaseController
             loginRole,
             state,
             GetPublicBaseUrl(),
-            await ResolveArrivingBroadcasterAsync(ct),
-            ct
+            arriving?.BroadcasterId,
+            ct,
+            userHint: arriving?.UserId
         );
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
@@ -414,19 +419,19 @@ public class AuthController : BaseController
     }
 
     /// <summary>
-    /// The channel of the operator arriving on this anonymous navigation, when identifiable — a top-level
+    /// The session of the person arriving on this anonymous navigation, when identifiable — a top-level
     /// browser redirect carries no Authorization header, but the served-web session's HttpOnly refresh cookie
     /// DOES ride along same-origin. Resolved via a read-only session peek (never consumes or rotates the
     /// token); any stale/invalid cookie just means "unknown" and the flow proceeds with the base scopes.
     /// </summary>
-    private async Task<Guid?> ResolveArrivingBroadcasterAsync(CancellationToken ct)
+    private async Task<AuthSessionDto?> PeekArrivingSessionAsync(CancellationToken ct)
     {
         string? refreshToken = Request.Cookies["nnz_refresh_token"];
         if (string.IsNullOrWhiteSpace(refreshToken))
             return null;
 
         Result<AuthSessionDto> session = await _sessions.PeekSessionAsync(refreshToken, ct);
-        return session.IsSuccess ? session.Value.BroadcasterId : null;
+        return session.IsSuccess ? session.Value : null;
     }
 
     /// <summary>
@@ -541,7 +546,9 @@ public class AuthController : BaseController
                 ? await _authService.HandleTwitchViewerCallbackAsync(
                     callback,
                     BuildAuthContext(),
-                    ct
+                    ct,
+                    flowState.ArrivingUserId,
+                    flowState.ArrivingChannelId
                 )
                 : await _authService.HandleTwitchCallbackAsync(callback, BuildAuthContext(), ct);
 

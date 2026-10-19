@@ -73,6 +73,13 @@ public sealed record WebLoginHandoff(string Origin, AuthResultDto Auth);
 /// <paramref name="ReturnOrigin"/> is the trusted dashboard origin a served-web flow started from when it is
 /// NOT the public base URL (a second dashboard listed in <c>Cors:Origins</c>). Null means the base URL.
 /// </para>
+/// <para>
+/// <paramref name="ArrivingUserId"/> + <paramref name="ArrivingChannelId"/> name the person and the channel of
+/// the live web session a viewer or moderator sign-in started from (read from the HttpOnly refresh cookie at
+/// the start, never from the query string). The callback keeps the channel only when the Twitch account that
+/// signed in IS that person, so signing in again lands the person on the channel they were on. Null when the
+/// start carried no live session.
+/// </para>
 /// </summary>
 public sealed record TwitchOAuthFlowState(
     string Flow,
@@ -84,5 +91,7 @@ public sealed record TwitchOAuthFlowState(
     Guid? LinkUserId = null,
     string? ReturnTo = null,
     string? ReturnRoute = null,
-    string? ReturnOrigin = null
+    string? ReturnOrigin = null,
+    Guid? ArrivingUserId = null,
+    Guid? ArrivingChannelId = null
 );
