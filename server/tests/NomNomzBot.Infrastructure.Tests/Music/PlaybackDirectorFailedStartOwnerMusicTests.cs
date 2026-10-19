@@ -45,7 +45,7 @@ public sealed partial class PlaybackDirectorTests
     public async Task PlayingRequestNearItsEnd_LinesTheNextRequestUpInTheQueueWithNoSkip()
     {
         Rig rig = new();
-        PlaybackItem a = await rig.StartPlaying(EngineKind.Spotify, "a");
+        PlaybackItem a = await rig.StartPlaying(EngineKind.Spotify);
         PlaybackItem b = Item("b", owner: "owner-b");
         await rig.Request(b);
 

@@ -102,20 +102,24 @@ public sealed class MusicServiceQueuePromoteBanTests
 
         (await QueueOrder(sut)).Should().Equal("viewer2");
         store.GetInFlight(channel).Should().BeNull("the started song freed the provider");
+        string bumpedId =
+            bumped.Code.Length > 0 ? bumped.Code : $"{bumped.TrackUri}|{bumped.RequestedBy}";
+        List<PlaybackDirectorTestKit.EngineCall> lineUpOnly = [new("QueueNext", bumpedId)];
         engines
             .EngineOf(ChannelId, EngineKind.Spotify)
             .Calls.Should()
-            .BeEmpty("the director starts the bumped song only when the playing one ends");
+            .Equal(
+                lineUpOnly,
+                "the bumped song is lined up in Spotify's own queue, never started over the playing one"
+            );
 
         await reconciler.HandleAsync(PlaybackReport(isPlaying: true, trackEnded: true));
 
-        (await QueueOrder(sut)).Should().Equal("viewer2");
-        string bumpedId =
-            bumped.Code.Length > 0 ? bumped.Code : $"{bumped.TrackUri}|{bumped.RequestedBy}";
-        engines
-            .EngineOf(ChannelId, EngineKind.Spotify)
-            .Calls.Should()
-            .ContainSingle(c => c.Name == "Start" && c.Argument == bumpedId);
+        // Spotify plays the lined-up song by itself: no start, and no second line-up.
+        (await QueueOrder(sut))
+            .Should()
+            .Equal("viewer2");
+        engines.EngineOf(ChannelId, EngineKind.Spotify).Calls.Should().Equal(lineUpOnly);
     }
 
     private static PlaybackStateChangedEvent PlaybackReport(bool isPlaying, bool trackEnded) =>

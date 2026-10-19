@@ -24,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 public sealed class PlaybackDirectorQueueSanctionTests
 {
     [Fact]
-    public async Task TrackEnd_StartsTheNextRequest_UnderTheChannelSongRequestSanction()
+    public async Task SpotifyPlaying_LinesUpTheNextRequest_UnderTheChannelSongRequestSanction()
     {
         OutboundSanctionAccessor sanctions = new();
         FakeEngine spotify = new(EngineKind.Spotify);
@@ -43,9 +43,6 @@ public sealed class PlaybackDirectorQueueSanctionTests
         queue.Enqueue(first);
         queue.Enqueue(second);
         await director.HandleAsync(new RequestAdded());
-        await spotify.EmitAsync(
-            new EngineReport(EngineKind.Spotify, first.Uri, true, 1_000, first.DurationMs)
-        );
         List<OutboundSanction?> seen = [];
         spotify.DuringStart = _ =>
         {
@@ -53,8 +50,14 @@ public sealed class PlaybackDirectorQueueSanctionTests
             return Task.CompletedTask;
         };
 
-        await spotify.EmitAsync(new TrackEnded(EngineKind.Spotify, first.Uri));
+        // The engine's own report (no user behind it) confirms A, and the director lines B up.
+        await spotify.EmitAsync(
+            new EngineReport(EngineKind.Spotify, first.Uri, true, 1_000, first.DurationMs)
+        );
 
+        spotify
+            .Calls.Should()
+            .Equal(new EngineCall("Start", "A"), new EngineCall("QueueNext", "B"));
         seen.Should().ContainSingle();
         seen[0].Should().NotBeNull("an unsanctioned start is refused by the outbound guard");
         seen[0]!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);

@@ -151,7 +151,6 @@ keeps its place in the queue.
 | Idle | EngineReport playing (owner music) | Playing(engine, null) | none |
 | Starting(e, i) | EngineReport e plays i.uri | Playing(e, i) | mark i as played (see 6) |
 | Starting(e, i) | StartTimeout | Blocked("did not start") | keep i at head; show error. When the start paused the owner's music on another engine, that music resumes and the director follows it |
-| Starting(e, i) | OwnerSkip, i lined up in e's queue behind the playing track | Starting(e, i) | e's skip plays i |
 | Playing(Spotify, *) | any input, a Spotify request waits, none lined up | same | the first Spotify item in fair order (not only the head) goes into Spotify's own queue (`QueueNext`), journal `lined_up`. One at a time. A refused add is retried on a later input |
 | Playing(Spotify, *) | EngineReport Spotify plays the lined-up row, head is not YouTube | Playing(Spotify, row) | the row leaves the queue as played; the next Spotify item is lined up |
 | Playing(Spotify, *) | EngineReport Spotify plays a new uri, head is YouTube | Starting(YouTube, head) | pause Spotify, seek it to 0, remember the pause, start the head. A lined-up row seen there stays in the queue unplayed |
@@ -289,11 +288,12 @@ device")` with a one-click "Move back" (the existing transferDevice action). It 
 - `ResumeSpotifyAfterYouTubeAsync` runs only on `TrackEnded(youtube)` with an empty queue,
   and only if Spotify was playing owner music before the YouTube item started (remembered in state).
   The same rule holds the other way: owner music on YouTube is resumed after a Spotify item on the same terms.
-- Hand-over happens only at `TrackEnded`, `OwnerSkip`, `OwnerPrevious`, or the near-end window of owner music.
-- A new request never goes to an engine unless it is the head and the state is `Idle` or a hand-over.
+- Hand-over happens only at `TrackEnded`, at Spotify's next track while a YouTube head waits, at `OwnerSkip`,
+  or at `OwnerPrevious`. A Spotify song is never cut.
+- A new request goes to an engine only as the head in `Idle` or a hand-over, or as the one Spotify line-up.
   This removes the jump in incident 3 (`HandOverAdmittedIfIdleAsync` must route through the director).
-- Exactly one queue item is ever at an engine. We never push into Spotify's own queue; we start
-  the head with `PlayNowAsync` (PUT /me/player/play {uris}).
+- At most one request waits in Spotify's own queue at a time (the line-up, owner 2026-10-19 night). It is the
+  first Spotify request in fair order, even when YouTube requests are above it.
 
 ## 6. Rule: only the owner of state changes the queue
 
@@ -317,7 +317,7 @@ Every control test (marked E) runs twice: once with the playing item on Spotify,
 |---|---|---|
 | 1 | 16 items, Spotify reports item 16 playing | 15 rows stay; only row 16 removed; `played_out_of_order` |
 | 2 | Push+skip path: start head | one `PlayNowAsync(head)`; no push, no skip call |
-| 3 | YouTube head waits on owner Spotify music; Spotify request arrives | Spotify request stays #2; YouTube head starts at near-end; nothing removed early |
+| 3 | YouTube head waits on owner Spotify music; Spotify request arrives | Spotify request stays #2 and is lined up in Spotify's queue at once; when Spotify reaches it, Spotify pauses on it and the YouTube head starts; the Spotify request leaves only when it plays after the resume; nothing removed early |
 | 4 | Two widgets have `enableAudio`; one has gallery key `music_player` | music commands only to `music_player` |
 | 5 | YouTube plays; dashboard resume | no Spotify call; YouTube resumes if paused |
 | 6 | Owner Spotify music; YouTube head waits; owner pauses in dashboard | `PausedByOwner`; YouTube not started on 10 poll ticks |

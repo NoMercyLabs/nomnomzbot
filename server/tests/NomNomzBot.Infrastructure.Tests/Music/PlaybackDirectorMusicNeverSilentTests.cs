@@ -136,10 +136,13 @@ public sealed partial class PlaybackDirectorTests
         rig.YouTube.StartResult = EngineStartResult.Refused("player closed");
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 196_000);
         await rig.Request(Item("y1", EngineKind.YouTube));
+        await rig.Spotify.EmitAsync(new TrackEnded(EngineKind.Spotify, "spotify:track:mine"));
+        await rig.OwnerPlays(rig.Spotify, "spotify:track:next", 1_000);
 
-        await rig.Paused(rig.Spotify, "spotify:track:mine", 196_500);
+        await rig.Paused(rig.Spotify, "spotify:track:next", 0);
 
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"), new EngineCall("Resume"));
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Stop"), new EngineCall("Seek", "0"), new EngineCall("Resume"));
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
         rig.QueueIds.Should().Equal("y1");
     }

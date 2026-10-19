@@ -62,9 +62,17 @@ public sealed partial class PlaybackDirector
         await MoveAsync(State, inputName, "lined_up", next.Id);
     }
 
+    /// <summary>
+    /// A Spotify start in progress is a queue add plus a skip: a request lined up before it would be the track
+    /// that skip plays, so lining up waits until that start is confirmed.
+    /// </summary>
     private bool SpotifyCanTakeALineUp() =>
-        _spotifyHeldForYouTube
-        || _reports.TryGetValue(EngineKind.Spotify, out EngineReport? report) && report.IsPlaying;
+        State is not { Kind: PlaybackStateKind.Starting, Engine: EngineKind.Spotify }
+        && (
+            _spotifyHeldForYouTube
+            || _reports.TryGetValue(EngineKind.Spotify, out EngineReport? report)
+                && report.IsPlaying
+        );
 
     /// <summary>The lined-up request while it still waits in the queue.</summary>
     private PlaybackItem? LinedUpRow() =>

@@ -135,7 +135,6 @@ public sealed partial class PlaybackDirector
 
         MarkSent(head.Engine);
         _stopWait = null;
-        _linedUpBehindCurrentTrack = false;
         await MoveAsync(PlaybackState.Starting(head.Engine, head), inputName, "owner_skip");
         _startDeadline = _time.GetUtcNow() + StartDeadline;
     }

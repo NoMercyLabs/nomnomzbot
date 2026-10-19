@@ -68,7 +68,7 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
-    public async Task The_handed_over_track_starting_frees_the_provider_and_the_director_starts_the_next_only_when_it_ends()
+    public async Task The_handed_over_track_starting_frees_the_provider_and_lines_up_the_next_request_in_Spotify_at_once()
     {
         (
             SongRequestQueueReconciler sut,
@@ -82,10 +82,11 @@ public sealed class SongRequestQueueReconcilerTests
         await sut.HandleAsync(PlaybackOf("spotify:track:a"));
 
         Titles(queue).Should().Equal("Track b", "Track c");
-        // "a" started, so the provider is free and "a" is now the playing track. The reconciler hands
-        // nothing over and the director starts nothing: the next request waits for the end of "a".
+        // "a" started, so the provider is free and "a" is now the playing track. The director starts
+        // nothing; it lines up exactly one request, "b", in Spotify's own queue.
         store.GetInFlight(ChannelId.ToString()).Should().BeNull("the provider is free again");
         StartedNothing(engines);
+        LinedUp(engines).Should().Equal("spotify:track:b|viewer-b");
         bus.Published.OfType<SongRequestQueueChangedEvent>()
             .Single()
             .Items.Select(i => i.Title)
@@ -94,14 +95,9 @@ public sealed class SongRequestQueueReconcilerTests
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a", trackEnded: true));
 
-        // The end of "a" makes the director start the head, "b", exactly once, through the engine.
-        PlaybackDirectorTestKit.FakeEngine spotify = engines.EngineOf(
-            ChannelId,
-            EngineKind.Spotify
-        );
-        spotify.Calls.Select(c => c.Name).Should().Equal("Start");
-        spotify.Calls.Single().Argument.Should().Be("spotify:track:b|viewer-b");
-        engines.EngineOf(ChannelId, EngineKind.YouTube).Calls.Should().BeEmpty();
+        // At the end of "a" Spotify plays "b" from its own queue: no start, and no second line-up.
+        StartedNothing(engines);
+        LinedUp(engines).Should().Equal("spotify:track:b|viewer-b");
     }
 
     [Fact]
@@ -162,7 +158,7 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
-    public async Task A_track_that_is_not_ours_while_one_is_handed_over_hands_over_nothing()
+    public async Task A_track_that_is_not_ours_while_one_is_handed_over_lines_up_exactly_one_request()
     {
         (
             SongRequestQueueReconciler sut,
@@ -173,11 +169,12 @@ public sealed class SongRequestQueueReconcilerTests
         ) = Build("a", "b");
         HandOver(store, queue, "a");
 
-        // The streamer's own playlist track is playing; our handed-over request has NOT started yet, so
-        // pushing another one now would put two of ours at the provider and freeze their order.
+        // The streamer's own playlist track is playing. Spotify gets exactly ONE request in its own queue,
+        // the head "a"; a second one would freeze their order at the provider.
         await sut.HandleAsync(PlaybackOf("spotify:track:streamer-playlist"));
 
         StartedNothing(engines);
+        LinedUp(engines).Should().Equal("spotify:track:a|viewer-a");
         Titles(queue).Should().Equal("Track a", "Track b");
         store.GetInFlight(ChannelId.ToString())!.TrackName.Should().Be("Track a");
     }
@@ -202,6 +199,7 @@ public sealed class SongRequestQueueReconcilerTests
         Titles(queue).Should().Equal("Track a", "Track c");
         store.GetInFlight(ChannelId.ToString())!.TrackName.Should().Be("Track a");
         StartedNothing(engines);
+        LinedUp(engines).Should().Equal("spotify:track:a|viewer-a");
     }
 
     [Fact]
@@ -335,14 +333,13 @@ public sealed class SongRequestQueueReconcilerTests
             .Equal("viewer-b", "viewer-late");
         store.GetInFlight(ChannelId.ToString()).Should().BeNull();
         StartedNothing(engines);
+        LinedUp(engines).Should().Equal("spotify:track:b|viewer-b");
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a", trackEnded: true));
 
-        // The end of the copy that played makes the director start the head, "b", exactly once.
-        engines
-            .EngineOf(ChannelId, EngineKind.Spotify)
-            .Calls.Should()
-            .ContainSingle(c => c.Name == "Start" && c.Argument == "spotify:track:b|viewer-b");
+        // The head, "b", was lined up once while the copy played; its end sends nothing more.
+        StartedNothing(engines);
+        LinedUp(engines).Should().Equal("spotify:track:b|viewer-b");
     }
 
     /// <summary>The Spotify poll hands its observation to the engine itself, so the reconciler must not report the
@@ -470,12 +467,27 @@ public sealed class SongRequestQueueReconcilerTests
             queue.GetSnapshot().Single(e => e.Item.TrackUri == $"spotify:track:{trackId}").Item
         );
 
-    /// <summary>The director started no song on either engine of the channel.</summary>
+    /// <summary>
+    /// The director started no song on either engine of the channel. Lining one request up in Spotify's own
+    /// queue is not a start: Spotify plays it by itself (owner, 2026-10-19).
+    /// </summary>
     private static void StartedNothing(PlaybackDirectorTestKit.FakeEngineFactory engines)
     {
-        engines.EngineOf(ChannelId, EngineKind.Spotify).Calls.Should().BeEmpty();
+        engines
+            .EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Should()
+            .NotContain(c => c.Name == "Start");
         engines.EngineOf(ChannelId, EngineKind.YouTube).Calls.Should().BeEmpty();
     }
+
+    /// <summary>The requests the director lined up in Spotify's own queue, in order.</summary>
+    private static IEnumerable<string?> LinedUp(
+        PlaybackDirectorTestKit.FakeEngineFactory engines
+    ) =>
+        engines
+            .EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Where(c => c.Name == "QueueNext")
+            .Select(c => c.Argument);
 
     private static (
         SongRequestQueueReconciler Sut,
