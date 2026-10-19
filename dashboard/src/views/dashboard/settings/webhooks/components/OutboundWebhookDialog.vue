@@ -44,18 +44,34 @@ const headerText = ref('');
 
 const saved = computed(() => props.endpoint !== null);
 
+// The server sends resource keys; an older one sends plain text. Use the key when there is one, else the text.
+function wordOf(key: string | undefined, plain: string | undefined): string {
+  if (key)
+    return t(key);
+
+  return plain ?? '';
+}
+
 // The catalog is long, so the events sit under their category heading, in the order the catalog lists them.
 const groups = computed(() => {
   const byCategory = new Map<string, WebhookEventEntry[]>();
 
   for (const entry of props.catalog) {
-    const entries = byCategory.get(entry.categoryKey) ?? [];
+    const category = entry.categoryKey ?? entry.category ?? '';
+    const entries = byCategory.get(category) ?? [];
 
     entries.push(entry);
-    byCategory.set(entry.categoryKey, entries);
+    byCategory.set(category, entries);
   }
 
-  return Array.from(byCategory, ([category, entries]) => ({ category, entries }));
+  return Array.from(byCategory, ([category, entries]) => ({
+    category,
+    heading: wordOf(entries[0]?.categoryKey, entries[0]?.category),
+    entries: entries.map((entry) => ({
+      eventType: entry.eventType,
+      text: wordOf(entry.labelKey, entry.label) || entry.eventType,
+    })),
+  }));
 });
 const parsedHeaders = computed(() => parseHeaderLines(headerText.value));
 const invalidHeaders = computed(() => parsedHeaders.value.invalid.length > 0);
@@ -184,7 +200,9 @@ function submit(): void {
         :data-event-group="group.category"
         class="grid gap-2"
       >
-        <span class="text-sm font-medium text-muted-foreground">{{ $t(group.category) }}</span>
+        <span v-if="group.heading" class="text-sm font-medium text-muted-foreground">{{
+          group.heading
+        }}</span>
         <div class="grid gap-x-4 gap-y-2 sm:grid-cols-2">
           <label
             v-for="entry in group.entries"
@@ -196,7 +214,7 @@ function submit(): void {
               :model-value="events.includes(entry.eventType)"
               @update:model-value="tick(entry.eventType, $event === true)"
             />
-            {{ $t(entry.labelKey) }}
+            {{ entry.text }}
           </label>
         </div>
       </div>

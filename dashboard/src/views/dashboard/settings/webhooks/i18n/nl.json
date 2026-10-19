@@ -83,7 +83,10 @@
           "timestampHeader": "Tijdstempel-header",
           "bodyField": "Geheimveld in de body",
           "kindPath": "Pad van het eventsoort",
-          "idPath": "Pad van het event-id"
+          "idPath": "Pad van het event-id",
+          "advanced": "Geavanceerd",
+          "requiredMark": "*",
+          "missing": "Nog nodig om aan te maken: {fields}."
         },
         "rotateAction": "Nieuwe maken",
         "deliveries": {

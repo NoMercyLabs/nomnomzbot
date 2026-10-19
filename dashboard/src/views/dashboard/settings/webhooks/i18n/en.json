@@ -83,7 +83,10 @@
           "timestampHeader": "Timestamp header",
           "bodyField": "Secret field in the body",
           "kindPath": "Event kind path",
-          "idPath": "Event id path"
+          "idPath": "Event id path",
+          "advanced": "Advanced",
+          "requiredMark": "*",
+          "missing": "Still needed to create: {fields}."
         },
         "rotateAction": "Make a new one",
         "deliveries": {

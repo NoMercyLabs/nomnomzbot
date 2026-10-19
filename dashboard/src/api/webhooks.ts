@@ -29,7 +29,16 @@ export type OutboundWebhook = components['schemas']['OutboundWebhookEndpoint'];
 export type OutboundWebhookDraft = components['schemas']['CreateOutboundWebhookRequest'];
 export type InboundWebhook = components['schemas']['InboundWebhookEndpoint'];
 // cspell:disable-next-line -- the generated schema name carries the British spelling
-export type WebhookEventEntry = components['schemas']['OutboundWebhookEventCatalogueEntry'];
+type CatalogEntrySchema = components['schemas']['OutboundWebhookEventCatalogueEntry'];
+
+// A server older than the resource-key change sends plain label and category text instead of the keys; the
+// dialog reads either, so both are optional here.
+export type WebhookEventEntry = Pick<CatalogEntrySchema, 'eventType'> &
+  Partial<Pick<CatalogEntrySchema, 'labelKey' | 'categoryKey'>> & {
+    label?: string;
+    category?: string;
+  };
+
 export type WebhookBlastRadius = components['schemas']['BlastRadius'];
 export type InboundWebhookDraft = components['schemas']['CreateInboundWebhookRequest'];
 export type OutboundDelivery = components['schemas']['OutboundWebhookDelivery'];

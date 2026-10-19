@@ -30,7 +30,7 @@ type Call = {
 
 const calls: Call[] = [];
 
-const held = vi.hoisted(() => ({ keys: null as Set<string> | null }));
+const held = vi.hoisted(() => ({ keys: null as Set<string> | null, oldCatalog: false }));
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
@@ -165,6 +165,21 @@ vi.mock('@/api/client', () => {
         }
 
         // cspell:disable-next-line -- the route path carries the British spelling
+        if (path.endsWith('/event-catalogue') && held.oldCatalog)
+          return ok([
+            {
+              eventType: 'follow',
+              label: 'New follower',
+              category: 'Followers',
+            },
+            {
+              eventType: 'chat.message',
+              label: 'Chat message',
+              category: 'Chat',
+            },
+          ]);
+
+        // cspell:disable-next-line -- the route path carries the British spelling
         if (path.endsWith('/event-catalogue'))
           return ok([
             {
@@ -204,6 +219,7 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   calls.length = 0;
   held.keys = null;
+  held.oldCatalog = false;
 
   vi.stubGlobal(
     'ResizeObserver',
@@ -425,6 +441,23 @@ describe('Webhooks page', () => {
     expect(eventsOf('webhook_event_category_chat')).toEqual(['chat.message']);
   });
 
+  it('reads the plain label and category text when the server sends no resource keys', async () => {
+    held.oldCatalog = true;
+
+    await open();
+    await click(q('[data-new-outbound]'));
+
+    const heading = (category: string): string =>
+      q(`[data-event-group="${category}"] > span`).textContent?.trim() ?? '';
+    const labelOf = (eventType: string): string =>
+      q(`[data-event="${eventType}"]`).closest('label')?.textContent?.trim() ?? '';
+
+    expect(heading('Followers')).toBe('Followers');
+    expect(heading('Chat')).toBe('Chat');
+    expect(labelOf('follow')).toBe('New follower');
+    expect(labelOf('chat.message')).toBe('Chat message');
+  });
+
   it('words each event group and each event through the resource keys the server sends', async () => {
     await open();
     await click(q('[data-new-outbound]'));
@@ -634,11 +667,55 @@ describe('Webhooks page', () => {
 });
 
 describe('Webhooks inbound editor', () => {
+  const fieldsShown = (): number =>
+    document.querySelectorAll(
+      '[data-dialog="inbound-webhook"] input, [data-dialog="inbound-webhook"] button[role="combobox"]',
+    ).length;
+
+  it('shows at most five fields at first and keeps the optional ones under Advanced', async () => {
+    await open();
+    await click(q('[data-new-inbound]'));
+
+    expect(fieldsShown()).toBeLessThanOrEqual(5);
+    expect(document.querySelector('[data-field="signature-header"]')).toBeNull();
+    expect(document.querySelector('[data-field="inbound-pipeline"]')).toBeNull();
+
+    await click(q('[data-advanced-trigger]'));
+
+    expect(document.querySelector('[data-field="signature-header"]')).not.toBeNull();
+    expect(document.querySelector('[data-field="inbound-pipeline"]')).not.toBeNull();
+    expect(document.querySelector('[data-field="inbound-event-type"]')).not.toBeNull();
+  });
+
+  it('marks the two paths required and names what is missing while Create is off', async () => {
+    await open();
+    await click(q('[data-new-inbound]'));
+    await typeInto('[data-field="inbound-name"]', 'Shop');
+    await typeInto('[data-field="inbound-secret"]', 'shh');
+
+    const create = q('[data-form-action]') as HTMLButtonElement;
+    const hint = q('[data-missing]').textContent ?? '';
+
+    expect(create.disabled).toBe(true);
+    expect(hint).toContain('Event kind path');
+    expect(hint).toContain('Event id path');
+    expect(hint).not.toContain('Secret');
+    expect((q('[data-field="event-kind-path"]') as HTMLInputElement).required).toBe(true);
+    expect(q('[data-field="event-id-path"]').closest('label')?.textContent).toContain('*');
+
+    await typeInto('[data-field="event-kind-path"]', '$.kind');
+    await typeInto('[data-field="event-id-path"]', '$.id');
+
+    expect((q('[data-form-action]') as HTMLButtonElement).disabled).toBe(false);
+    expect(document.querySelector('[data-missing]')).toBeNull();
+  });
+
   it('creates a generic inbound webhook with its signature settings and secret', async () => {
     await open();
     await click(q('[data-new-inbound]'));
     await typeInto('[data-field="inbound-name"]', 'Shop');
     await typeInto('[data-field="inbound-secret"]', 'shh');
+    await click(q('[data-advanced-trigger]'));
     await typeInto('[data-field="signature-header"]', 'X-Sig');
     await typeInto('[data-field="event-kind-path"]', '$.kind');
     await typeInto('[data-field="event-id-path"]', '$.id');
