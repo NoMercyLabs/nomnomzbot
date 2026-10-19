@@ -13,13 +13,16 @@ import { channelInfoKey, deletedChannelsKey } from '@/api/channelManagement';
 import { myChannelsQuery } from '@/api/channels';
 import { builtinsKey, commandsKey } from '@/api/commands';
 import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
+import { discordConnectionsKey } from '@/api/discord';
 import { engagementConfigKey } from '@/api/engagement';
+import { escalationPolicyKey } from '@/api/escalationPolicy';
 import { eventJournalKey } from '@/api/eventJournal';
 import { featuresKey } from '@/api/features';
 import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
 import { integrationsKey, spotifyCredentialsKey } from '@/api/integrations';
 import { timersKey } from '@/api/liveOps';
 import { musicConfigKey, musicQueueKey } from '@/api/music';
+import { networkBlockOptInKey } from '@/api/networkBlockOptIn';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { actionMatrixKey, membersKey } from '@/api/permissions';
 import { personalityKey } from '@/api/personalitySettings';
@@ -41,6 +44,20 @@ const eventResponsesKey: QueryKeyBuilder = (channelId) => [
   'event-responses',
 ];
 
+// The Discord pages key their queries per connection, but the event names no connection, so these
+// prefixes mark every connection's rules, notify roles and live role stale.
+const discordRulesPrefix: QueryKeyBuilder = (channelId) => ['channels', channelId, 'discord-rules'];
+const discordNotifyRolesPrefix: QueryKeyBuilder = (channelId) => [
+  'channels',
+  channelId,
+  'discord-notify-roles',
+];
+const discordLiveRolePrefix: QueryKeyBuilder = (channelId) => [
+  'channels',
+  channelId,
+  'discord-live-role',
+];
+
 // The list of the caller's channels is not per channel, so its key ignores the channel the event names.
 const myChannelsKey: QueryKeyBuilder = () => myChannelsQuery.queryKey;
 
@@ -60,6 +77,14 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'music-config': [musicConfigKey, musicQueueKey],
   'sr-config': [musicConfigKey, musicQueueKey],
   engagement: [engagementConfigKey],
+  'network-blocks': [networkBlockOptInKey],
+  escalation: [escalationPolicyKey],
+  discord: [
+    discordConnectionsKey,
+    discordRulesPrefix,
+    discordNotifyRolesPrefix,
+    discordLiveRolePrefix,
+  ],
   'channel-settings': [botStatusKey, connectionsKey, integrationsKey, personalityKey, basicsKey],
   features: [botStatusKey, featuresKey],
   webhooks: [connectionsKey, integrationsKey, outboundWebhooksKey, inboundWebhooksKey],
