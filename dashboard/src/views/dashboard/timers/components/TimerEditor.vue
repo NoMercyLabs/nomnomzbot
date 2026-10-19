@@ -27,7 +27,15 @@ import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
-import { changeOf, draftOf, sameDraft, type TimerDraft } from './timerDraft';
+import {
+  changeOf,
+  defaultMinutes,
+  draftOf,
+  problemOf,
+  sameDraft,
+  timerLimits,
+  type TimerDraft,
+} from './timerDraft';
 
 const props = defineProps<{ row: TimerRow }>();
 const emit = defineEmits<{ remove: [row: TimerRow] }>();
@@ -44,8 +52,8 @@ const baseline = ref<TimerDraft | null>(null);
 const failure = ref<string | null>(null);
 const confirmOpen = ref(false);
 
-const edited = computed<boolean>(() =>
-  draft.value !== null && baseline.value !== null && !sameDraft(draft.value, baseline.value),
+const edited = computed<boolean>(
+  () => draft.value !== null && baseline.value !== null && !sameDraft(draft.value, baseline.value),
 );
 const panelState = computed<PanelState>(() => {
   if (timer.isError.value)
@@ -80,6 +88,20 @@ const unsaved = computed<string>(() =>
     : t('dashboard.timers.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
 );
 
+const problem = computed(() =>
+  draft.value === null
+    ? null
+    : problemOf(draft.value));
+const problemText = computed<string>(() => {
+  if (problem.value === 'interval')
+    return t('dashboard.timers.editor.intervalProblem', timerLimits);
+
+  if (problem.value === 'activity')
+    return t('dashboard.timers.editor.activityProblem', timerLimits);
+
+  return '';
+});
+
 function setNumber(key: 'intervalMinutes' | 'minChatActivity', value: string | number): void {
   if (draft.value !== null) {
     draft.value[key] = Number(value);
@@ -88,6 +110,8 @@ function setNumber(key: 'intervalMinutes' | 'minChatActivity', value: string | n
 
 async function save(): Promise<void> {
   if (draft.value === null || timer.data.value === undefined || dirtyCount.value === 0) return;
+
+  if (problem.value !== null) return;
 
   failure.value = null;
 
@@ -137,9 +161,8 @@ function remove(): void {
       />
     </template>
     <div v-if="draft" class="grid gap-5">
-
       <Field>
-        <FieldLabel for="timer-name">{{ $t('dashboard.timers.editor.name') }}</FieldLabel>
+        <FieldLabel for="timer-name">{{ $t("dashboard.timers.editor.name") }}</FieldLabel>
         <Input
           id="timer-name"
           v-model="draft.name"
@@ -160,12 +183,21 @@ function remove(): void {
       <!-- When it runs: how often, and how busy chat must be. -->
       <div class="grid gap-4 md:grid-cols-2">
         <Field>
-          <FieldLabel for="timer-interval">{{ $t('dashboard.timers.editor.interval') }}</FieldLabel>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel for="timer-interval">{{
+              $t("dashboard.timers.editor.interval")
+            }}</FieldLabel>
+            <FieldInfo>{{
+              $t("dashboard.timers.editor.intervalHelp", { minutes: defaultMinutes })
+            }}</FieldInfo>
+          </div>
           <Input
             id="timer-interval"
             type="number"
-            min="1"
+            :min="timerLimits.minMinutes"
+            :max="timerLimits.maxMinutes"
             step="1"
+            :aria-invalid="problem === 'interval'"
             :aria-label="$t('dashboard.timers.editor.interval')"
             :model-value="draft.intervalMinutes"
             @update:model-value="setNumber('intervalMinutes', $event)"
@@ -174,14 +206,18 @@ function remove(): void {
 
         <Field>
           <div class="flex items-center gap-1.5">
-            <FieldLabel for="timer-activity">{{ $t('dashboard.timers.editor.activity') }}</FieldLabel>
-            <FieldInfo>{{ $t('dashboard.timers.editor.activityHelp') }}</FieldInfo>
+            <FieldLabel for="timer-activity">{{
+              $t("dashboard.timers.editor.activity")
+            }}</FieldLabel>
+            <FieldInfo>{{ $t("dashboard.timers.editor.activityHelp") }}</FieldInfo>
           </div>
           <Input
             id="timer-activity"
             type="number"
             min="0"
+            :max="timerLimits.maxActivity"
             step="1"
+            :aria-invalid="problem === 'activity'"
             :aria-label="$t('dashboard.timers.editor.activity')"
             :model-value="draft.minChatActivity"
             @update:model-value="setNumber('minChatActivity', $event)"
@@ -202,30 +238,28 @@ function remove(): void {
         />
       </div>
 
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <p v-if="problemText" role="alert" data-timer-problem class="text-sm text-destructive">
+        {{ problemText }}
+      </p>
+      <p v-else-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
       <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="confirmOpen = true"
-      >
+      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
         <Trash2 aria-hidden="true" />
-        {{ $t('dashboard.timers.editor.delete') }}
+        {{ $t("dashboard.timers.editor.delete") }}
       </Button>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button type="button" variant="outline" size="sm" @click="discard">{{
-        $t('dashboard.timers.editor.discard')
+        $t("dashboard.timers.editor.discard")
       }}</Button>
       <Button
         type="button"
         size="sm"
-        :disabled="dirtyCount === 0 || update.isPending.value"
+        :disabled="dirtyCount === 0 || problem !== null || update.isPending.value"
         @click="save"
       >
-        {{ $t('dashboard.timers.editor.save') }}
+        {{ $t("dashboard.timers.editor.save") }}
       </Button>
     </template>
     <ConfirmDialog

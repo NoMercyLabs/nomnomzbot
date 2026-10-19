@@ -45,23 +45,24 @@ let held: string[] = ['timers:read', 'timers:write', 'chattriggers:read', 'chatt
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const timer = (id: string, overrides: Row = {}) => ({
-  id,
-  name: `Timer ${id}`,
-  messages: ['Follow the channel'],
-  messageCount: 1,
-  intervalMinutes: 15,
-  minChatActivity: 3,
-  isEnabled: true,
-  fireOnce: false,
-  speakWithTts: false,
-  pipelineId: null,
-  lastFiredAt: null,
-  nextMessageIndex: 0,
-  createdAt: '2026-10-01T10:00:00Z',
-  updatedAt: '2026-10-01T10:00:00Z',
-  ...overrides,
-}) as const satisfies Row;
+const timer = (id: string, overrides: Row = {}) =>
+  ({
+    id,
+    name: `Timer ${id}`,
+    messages: ['Follow the channel'],
+    messageCount: 1,
+    intervalMinutes: 15,
+    minChatActivity: 3,
+    isEnabled: true,
+    fireOnce: false,
+    speakWithTts: false,
+    pipelineId: null,
+    lastFiredAt: null,
+    nextMessageIndex: 0,
+    createdAt: '2026-10-01T10:00:00Z',
+    updatedAt: '2026-10-01T10:00:00Z',
+    ...overrides,
+  }) as const satisfies Row;
 
 function read(path: string, options?: Options): Answer {
   const id = options?.params?.path?.id;
@@ -284,10 +285,23 @@ describe('Triggers and timers page', () => {
     expect(writes('POST')[0]!.body).toMatchObject({
       name: 'Hydrate',
       messages: ['Drink water', 'Stretch'],
-      intervalMinutes: 15,
+      intervalMinutes: 30,
     });
 
     expect(rowNames()).toContain('Hydrate');
+  });
+
+  it('refuses an interval outside 1 to 1440 before sending and says why', async () => {
+    await open();
+    await click(rowOf('Follow reminder'));
+    await type(field('Minutes between posts'), '0');
+
+    expect(editor()!.querySelector('[data-timer-problem]')?.textContent).toContain('1 to 1440');
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')).toHaveLength(0);
   });
 
   it('deletes a timer only after the confirm and drops it from the list', async () => {

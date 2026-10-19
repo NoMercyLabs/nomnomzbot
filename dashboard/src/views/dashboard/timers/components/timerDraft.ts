@@ -20,6 +20,35 @@ export interface TimerDraft {
   speakWithTts: boolean;
 }
 
+// The bot's own limits and the interval a new timer starts at.
+export const defaultMinutes = 30;
+
+export const timerLimits = {
+  minMinutes: 1,
+  maxMinutes: 1440,
+  maxActivity: 10000,
+} as const;
+
+export type TimerProblem = 'interval' | 'activity';
+
+// The first field the bot would refuse, so the form says so before it sends.
+export function problemOf(draft: TimerDraft): TimerProblem | null {
+  const minutes = draft.intervalMinutes;
+  const lines = draft.minChatActivity;
+
+  if (
+    !Number.isInteger(minutes) ||
+    minutes < timerLimits.minMinutes ||
+    minutes > timerLimits.maxMinutes
+  )
+    return 'interval';
+
+  if (!Number.isInteger(lines) || lines < 0 || lines > timerLimits.maxActivity)
+    return 'activity';
+
+  return null;
+}
+
 // The bot stores a list; the form edits it as lines. Blank lines are not messages.
 export function messagesOf(lines: string): string[] {
   return lines

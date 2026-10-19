@@ -16,14 +16,12 @@ import { useI18n } from 'vue-i18n';
 import { useCreateTimer } from '@/api/timers';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
-import { messagesOf } from './timerDraft';
-
-const defaultMinutes = 15;
+import { defaultMinutes, messagesOf, timerLimits } from './timerDraft';
 
 const open = defineModel<boolean>('open', { required: true });
 
@@ -60,6 +58,16 @@ async function submit(): Promise<void> {
     return;
   }
 
+  if (
+    !Number.isInteger(minutes.value) ||
+    minutes.value < timerLimits.minMinutes ||
+    minutes.value > timerLimits.maxMinutes
+  ) {
+    error.value = t('dashboard.timers.editor.intervalProblem', timerLimits);
+
+    return;
+  }
+
   error.value = undefined;
 
   try {
@@ -89,7 +97,7 @@ async function submit(): Promise<void> {
     @submit="submit"
   >
     <Field>
-      <FieldLabel for="new-timer-name">{{ $t('dashboard.timers.editor.name') }}</FieldLabel>
+      <FieldLabel for="new-timer-name">{{ $t("dashboard.timers.editor.name") }}</FieldLabel>
       <Input
         id="new-timer-name"
         v-model="name"
@@ -106,17 +114,19 @@ async function submit(): Promise<void> {
       :label="$t('dashboard.timers.editor.messages')"
     />
     <Field>
-      <FieldLabel for="new-timer-interval">{{
-        $t('dashboard.timers.editor.interval')
-      }}</FieldLabel>
+      <FieldLabel for="new-timer-interval">{{ $t("dashboard.timers.editor.interval") }}</FieldLabel>
       <Input
         id="new-timer-interval"
         v-model.number="minutes"
         type="number"
-        min="1"
+        :min="timerLimits.minMinutes"
+        :max="timerLimits.maxMinutes"
         step="1"
         :aria-label="$t('dashboard.timers.editor.interval')"
       />
+      <FieldInfo>{{
+        $t("dashboard.timers.editor.intervalHelp", { minutes: defaultMinutes })
+      }}</FieldInfo>
     </Field>
   </FormDialog>
 </template>
