@@ -355,7 +355,6 @@ function remove(): void {
       <Button type="button"
               variant="outline"
               size="sm"
-              class="max-md:h-9"
               @click="confirmOpen = true"
       >
         <Trash2 aria-hidden="true" />
@@ -366,7 +365,6 @@ function remove(): void {
         type="button"
         variant="outline"
         size="sm"
-        class="max-md:h-9"
         :disabled="resetToPreset.isPending.value"
         @click="resetOpen = true"
       >
@@ -377,7 +375,6 @@ function remove(): void {
       <Button type="button"
               variant="outline"
               size="sm"
-              class="max-md:h-9"
               @click="discard"
       >{{
         $t("dashboard.commands.editor.discard")
@@ -385,7 +382,6 @@ function remove(): void {
       <Button
         type="button"
         size="sm"
-        class="max-md:h-9"
         :disabled="dirtyCount === 0 || !valid || update.isPending.value"
         @click="save"
       >

@@ -744,13 +744,14 @@ describe('CommandsView editor', () => {
     rows[0] = command('hug', { presetKey: 'hug' });
     await open('/app/commands?command=hug');
 
-    const labels = ['Delete', 'Reset to preset', 'Discard', 'Save changes'];
+    const labels = ['Delete', 'Reset to preset', 'Discard', 'Save changes', 'New command'];
 
     for (const label of labels) {
-      expect(buttonByText(label).classList.contains('max-md:h-9'), label).toBe(true);
-    }
+      const classes = buttonByText(label).classList;
 
-    expect(buttonByText('New command').classList.contains('max-md:h-9')).toBe(true);
+      expect(classes.contains('h-9'), label).toBe(true);
+      expect(classes.contains('md:h-8'), label).toBe(true);
+    }
   });
 
   it('hides the sort and tabs bar on a phone while a command is open, and keeps it on the list', async () => {

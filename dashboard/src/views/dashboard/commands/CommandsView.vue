@@ -152,7 +152,6 @@ const creating = ref(false);
               type="button"
               variant="outline"
               size="sm"
-              class="max-md:h-9"
               @click="creating = true"
       >
         <Plus aria-hidden="true" />
