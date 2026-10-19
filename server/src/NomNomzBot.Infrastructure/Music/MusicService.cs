@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -190,17 +191,23 @@ public sealed class MusicService : IMusicService
             return [];
         }
 
+        MusicConfigDto? config = await GetConfigOrNullAsync(broadcasterId, cancellationToken);
+        bool categoryOnly =
+            config?.YouTubeMusicCategoryOnly ?? MusicConfigDefaults.YouTubeMusicCategoryOnly;
+
         return
         [
-            .. results.Select(t => new MusicTrack(
-                t.TrackUri,
-                t.TrackName,
-                t.Artist,
-                t.Album,
-                t.AlbumArtUrl,
-                t.DurationMs,
-                t.Provider
-            )),
+            .. results
+                .Where(t => YouTubeMusicCategory.Admits(categoryOnly, t, null))
+                .Select(t => new MusicTrack(
+                    t.TrackUri,
+                    t.TrackName,
+                    t.Artist,
+                    t.Album,
+                    t.AlbumArtUrl,
+                    t.DurationMs,
+                    t.Provider
+                )),
         ];
     }
 
@@ -551,7 +558,14 @@ public sealed class MusicService : IMusicService
         // rather than refusing an otherwise-valid admission; a resolve failure is still logged so the
         // metadata gap is diagnosable.
         (TrackInfo? resolvedTrack, MusicProviderFailureReason resolveFailure) =
-            await ResolveOrSearchAsync(provider, tenantId, trackUri, cancellationToken);
+            await ResolveOrSearchAsync(
+                provider,
+                tenantId,
+                trackUri,
+                cancellationToken,
+                musicCategoryOnly: config?.YouTubeMusicCategoryOnly
+                    ?? MusicConfigDefaults.YouTubeMusicCategoryOnly
+            );
         // A verdict about the link itself refuses the add; only an outage degrades to placeholder metadata.
         if (IsVerdictOnTheLink(resolveFailure))
         {
@@ -683,7 +697,8 @@ public sealed class MusicService : IMusicService
             tenantId,
             query,
             cancellationToken,
-            maxDurationMs
+            maxDurationMs,
+            config?.YouTubeMusicCategoryOnly ?? MusicConfigDefaults.YouTubeMusicCategoryOnly
         );
         if (failure != MusicProviderFailureReason.None)
         {
@@ -821,7 +836,8 @@ public sealed class MusicService : IMusicService
         Guid tenantId,
         string queryOrUri,
         CancellationToken cancellationToken,
-        int? maxDurationMs = null
+        int? maxDurationMs = null,
+        bool musicCategoryOnly = MusicConfigDefaults.YouTubeMusicCategoryOnly
     )
     {
         // A pasted link is read the way chat writes it (<wrapped>, trailing "." or ")", no https://), so
@@ -833,7 +849,9 @@ public sealed class MusicService : IMusicService
         if (resolveFailure != MusicProviderFailureReason.None)
             return (null, resolveFailure);
         if (resolved is not null)
-            return (resolved, MusicProviderFailureReason.None);
+            return YouTubeMusicCategory.Admits(musicCategoryOnly, resolved, input)
+                ? (resolved, MusicProviderFailureReason.None)
+                : (null, MusicProviderFailureReason.NotMusic);
 
         string searchText = input;
         if (IsWebLink(input))
@@ -856,12 +874,21 @@ public sealed class MusicService : IMusicService
                 SearchCandidateCount,
                 cancellationToken
             );
-        return searchFailure != MusicProviderFailureReason.None
-            ? (null, searchFailure)
-            : (
-                SongSearchRanker.Pick(searchText, WithinLength(hits, maxDurationMs)),
-                MusicProviderFailureReason.None
-            );
+        if (searchFailure != MusicProviderFailureReason.None)
+            return (null, searchFailure);
+
+        IReadOnlyList<TrackInfo> admitted =
+        [
+            .. hits.Where(hit => YouTubeMusicCategory.Admits(musicCategoryOnly, hit, null)),
+        ];
+        // Hits the music-category setting filtered out are refused with its rule, never "not found".
+        if (hits.Count > 0 && admitted.Count == 0)
+            return (null, MusicProviderFailureReason.NotMusic);
+
+        return (
+            SongSearchRanker.Pick(searchText, WithinLength(admitted, maxDurationMs)),
+            MusicProviderFailureReason.None
+        );
     }
 
     /// <summary>The hits that fit the length cap; all of them when none does, so the pick is still refused
@@ -957,7 +984,7 @@ public sealed class MusicService : IMusicService
                 "TRACK_LENGTH_UNKNOWN"
             ),
             MusicProviderFailureReason.NotMusic => Result.Failure<T>(
-                "That video is not a music video, and song requests play music only.",
+                "That video can't be requested. YouTube requests must be in YouTube's Music category or come from an official artist (- Topic) channel.",
                 "TRACK_NOT_MUSIC"
             ),
             MusicProviderFailureReason.QuotaExhausted => Result.Failure<T>(

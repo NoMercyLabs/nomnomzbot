@@ -465,9 +465,6 @@ public sealed class YouTubeMusicProvider
         if (!IsOnDemand(video.Snippet))
             return (null, MusicProviderFailureReason.LiveBroadcast);
 
-        if (!YouTubeMusicCategory.IsMusic(video.Snippet?.CategoryId, video.Snippet?.ChannelTitle))
-            return (null, MusicProviderFailureReason.NotMusic);
-
         if (IsPlayableNowhere(video))
             return (null, MusicProviderFailureReason.NotPlayableInRegion);
 
@@ -1418,6 +1415,10 @@ public sealed class YouTubeMusicProvider
             IsExplicit = false, // The Data API exposes no explicit-lyrics flag; age is the YouTube gate.
             IsAgeRestricted = IsAgeRestricted(video),
             IsEmbeddable = IsEmbeddable(video),
+            IsMusicCategory = YouTubeMusicCategory.IsMusic(
+                video.Snippet?.CategoryId,
+                video.Snippet?.ChannelTitle
+            ),
         };
     }
 

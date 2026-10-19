@@ -455,6 +455,48 @@ public sealed class SongRequestBuiltinTests
     }
 
     /// <summary>
+    /// Owner, 2026-10-19: "it needs to say that the music can only come from channels marked as artists or
+    /// something that makes it super clear in every mood reply". A refused non-music YouTube upload is
+    /// answered, in every mood and through the real composer, with the rule itself.
+    /// </summary>
+    [Theory]
+    [InlineData(PersonalityTone.Informative)]
+    [InlineData(PersonalityTone.Friendly)]
+    [InlineData(PersonalityTone.Sassy)]
+    [InlineData(PersonalityTone.Hype)]
+    [InlineData(PersonalityTone.Chill)]
+    public async Task A_non_music_youtube_upload_is_refused_with_the_music_category_and_artist_channel_rule_in_every_mood(
+        string tone
+    )
+    {
+        SongRequestBuiltin sut = BuildWithRealComposer(
+            requestResult: Result.Failure<MusicTrack>(
+                "That video is not a music video, and song requests play music only.",
+                "TRACK_NOT_MUSIC"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(
+            Context("https://youtu.be/VFURd_EOluU", roleLevel: 0, personality: tone)
+        );
+
+        result
+            .Value.ToLowerInvariant()
+            .Should()
+            .MatchRegex(
+                @"youtube requests (must|have to) be in youtube's music category or come from an official artist \(- topic\) channel"
+            );
+        ToneTemplateCatalog
+            .Get(
+                tone,
+                BuiltinResponseSlots.SongRequest.Key,
+                BuiltinResponseSlots.SongRequest.NotMusic
+            )
+            .Should()
+            .Contain(result.Value);
+    }
+
+    /// <summary>
     /// A successful add carries a real, clickable web link (not Spotify's internal <c>spotify:track:</c> URI
     /// scheme) so chat's own OG-preview resolution turns the confirmation into a real card — matching what
     /// the owner's original chat overlay showed for song requests.

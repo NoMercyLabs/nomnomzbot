@@ -472,15 +472,24 @@ public static partial class ToneTemplateCatalog
             variables: [],
             informative:
             [
-                "That video isn't music, so it can't be requested. Send a link to a song.",
+                "That video can't be requested. YouTube requests must be in YouTube's Music category or come from an official artist (- Topic) channel. Send a YouTube Music link, or a song name.",
             ],
             friendly:
             [
-                "Ooh, that one isn't a music video! Song requests are for songs, so send me a track link.",
+                "Ooh, I can't queue that one! YouTube requests have to be in YouTube's Music category or come from an official artist (- Topic) channel. Send me a YouTube Music link, or just a song name!",
             ],
-            sassy: ["That's not a song. Song requests, remember? Send actual music."],
-            hype: ["THAT'S NOT MUSIC! SEND A SONG LINK!"],
-            chill: ["that video isn't music, so no queue. send a song instead."]
+            sassy:
+            [
+                "Not queuing that. YouTube requests must be in YouTube's Music category or come from an official artist (- Topic) channel, and that video is neither. Send a YouTube Music link, or a song name.",
+            ],
+            hype:
+            [
+                "NOT MUSIC! YOUTUBE REQUESTS MUST BE IN YOUTUBE'S MUSIC CATEGORY OR COME FROM AN OFFICIAL ARTIST (- TOPIC) CHANNEL! SEND A YOUTUBE MUSIC LINK, OR A SONG NAME!",
+            ],
+            chill:
+            [
+                "can't queue that. youtube requests have to be in youtube's music category or come from an official artist (- topic) channel. send a youtube music link, or a song name.",
+            ]
         );
 
         Add(
