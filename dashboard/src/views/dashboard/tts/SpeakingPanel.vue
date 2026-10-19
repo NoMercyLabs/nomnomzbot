@@ -11,10 +11,9 @@
 // How the channel voice speaks: on or off, where the voice comes from, who may be heard, the length cap
 // (the bot and profanity filters live in the Message rules panel). Each control names its default; the footer button returns the
 // rules to those defaults. Switches and choices save at once; the character cap saves on blur or Enter.
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import type { ApiFieldProblem } from '@/api/errors';
 import { useTtsConfig } from '@/api/tts';
 import { useSetTtsRules, useTtsDefaults, useTtsOptions, type TtsRulesChange } from '@/api/ttsRules';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -28,7 +27,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useNumberField } from '@/composables/useNumberField';
 import type { PanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
-import { refusalProblems } from '@/lib/errors';
+import { useRefusalLines } from '@/composables/useRefusalLines';
 import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
 
 import TtsResetFooter from './TtsResetFooter.vue';
@@ -47,7 +46,7 @@ const save = useSetTtsRules(channelId);
 const stored = computed(() => config.data.value ?? null);
 const standard = computed(() => defaults.data.value ?? null);
 const writable = computed(() => can('tts:config:write'));
-const problems = ref<ApiFieldProblem[]>([]);
+const { refuse, clear, linesFor } = useRefusalLines('dashboard');
 const state = computed<PanelState>(() => {
   if (config.isError.value)
     return 'error';
@@ -136,36 +135,24 @@ function change(rules: TtsRulesChange): void {
   save.mutate(rules);
 }
 
-function refuse(error: Error): void {
-  problems.value = refusalProblems(error);
+function saveChecked(rules: TtsRulesChange): void {
+  clear();
+  save.mutate(rules, { onError: refuse });
 }
 
 const characters = useNumberField({
   stored: () => Number(stored.value?.maxCharacters),
   fewest: FEWEST_CHARACTERS,
   most: () => mostCharacters.value,
-  commit: (next) => change({ maxCharacters: next }),
+  commit: (next) => saveChecked({ maxCharacters: next }),
 });
 
 const cooldown = useNumberField({
   stored: () => Number(stored.value?.cooldownSeconds),
   fewest: 0,
   most: () => mostCooldown.value,
-  commit: (next) => {
-    problems.value = [];
-    save.mutate({ cooldownSeconds: next }, { onError: refuse });
-  },
+  commit: (next) => saveChecked({ cooldownSeconds: next }),
 });
-
-const cooldownLines = computed(() =>
-  problems.value
-    .filter((problem) => problem.field === 'cooldownSeconds')
-    .map((problem) =>
-      t(`dashboard.tts.speaking.cooldown.${problem.reason}`, {
-        limit: String(problem.limit ?? mostCooldown.value ?? ''),
-      }),
-    ),
-);
 
 const modeHint = computed(() => valueHint(standard.value && modeName(standard.value.mode)));
 const providerHint = computed(() =>
@@ -256,6 +243,9 @@ const cooldownHint = computed(() =>
           @blur="characters.save"
           @keydown.enter="characters.save"
         />
+        <FieldError v-for="line in linesFor('maxCharacters')" :key="line" data-problem="maxCharacters">
+          {{ line }}
+        </FieldError>
       </ReadabilityRow>
       <ReadabilityRow
         :title="$t('dashboard.tts.speaking.cooldown.title')"
@@ -273,7 +263,7 @@ const cooldownHint = computed(() =>
           @blur="cooldown.save"
           @keydown.enter="cooldown.save"
         />
-        <FieldError v-for="line in cooldownLines" :key="line" data-problem="cooldownSeconds">
+        <FieldError v-for="line in linesFor('cooldownSeconds')" :key="line" data-problem="cooldownSeconds">
           {{ line }}
         </FieldError>
       </ReadabilityRow>

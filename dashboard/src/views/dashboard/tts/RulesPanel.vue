@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useNumberField } from '@/composables/useNumberField';
+import { useRefusalLines } from '@/composables/useRefusalLines';
+import { FieldError } from '@/components/ui/field';
 import { useTtsConfig } from '@/api/tts';
 import { useSetTtsRules, useTtsDefaults, type TtsRulesChange } from '@/api/ttsRules';
 
@@ -33,6 +35,8 @@ const { can } = useCan();
 const config = useTtsConfig(channelId);
 const defaults = useTtsDefaults(channelId);
 const save = useSetTtsRules(channelId);
+
+const { refuse, clear, linesFor } = useRefusalLines('dashboard');
 
 const stored = computed(() => config.data.value ?? null);
 
@@ -71,7 +75,10 @@ const bits = useNumberField({
   stored: () => Number(stored.value?.minBitsToTts ?? 0),
   fewest: 0,
   most: () => undefined,
-  commit: (next) => change({ minBitsToTts: next }),
+  commit: (next) => {
+    clear();
+    save.mutate({ minBitsToTts: next }, { onError: refuse });
+  },
 });
 </script>
 
@@ -141,6 +148,9 @@ const bits = useNumberField({
           @blur="bits.save"
           @keydown.enter="bits.save"
         />
+        <FieldError v-for="line in linesFor('minBitsToTts')" :key="line" data-problem="minBitsToTts">
+          {{ line }}
+        </FieldError>
       </ReadabilityRow>
     </RowGroup>
 

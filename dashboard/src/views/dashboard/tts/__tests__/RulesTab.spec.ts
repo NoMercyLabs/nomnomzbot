@@ -83,7 +83,12 @@ let rewards: {
   cost: number;
   speaksViaTts: boolean;
 }[] = [];
-let cooldownRefused = false;
+const refusals = {
+  cooldownSeconds: 'tts.config.error.cooldownOutOfRange',
+  maxCharacters: 'tts.config.error.maxCharactersOutOfRange',
+  minBitsToTts: 'tts.config.error.minBitsOutOfRange',
+} as const;
+let refusedField: keyof typeof refusals | null = null;
 
 const reply = (data: unknown): unknown => ({
   data: { data },
@@ -98,10 +103,10 @@ function write(method: string) {
       body: init?.body,
     });
 
-    if (cooldownRefused && method === 'PUT' && path.endsWith('/tts/config')) {
+    if (refusedField !== null && method === 'PUT' && path.endsWith('/tts/config')) {
       return {
         data: undefined,
-        error: { data: { key: 'outOfRange', field: 'cooldownSeconds' } },
+        error: { data: { key: refusals[refusedField], field: refusedField } },
         response: { status: 400, ok: false },
       };
     }
@@ -162,7 +167,7 @@ let pinia: Pinia;
 beforeEach(() => {
   sent.length = 0;
   configRefused = false;
-  cooldownRefused = false;
+  refusedField = null;
 
   rewards = [
     {
@@ -396,21 +401,26 @@ describe('TTS rules panels', () => {
     expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ cooldownSeconds: 3600 });
   });
 
-  it('shows the line the bot gives for a refused cooldown next to the box', async () => {
-    cooldownRefused = true;
+  it.each([
+    ['cooldownSeconds', 'Cooldown', '12', 'The cooldown is between 0 and 3600 seconds.'],
+    ['maxCharacters', 'Maximum characters', '120', 'The character limit is between 1 and 500.'],
+    ['minBitsToTts', 'Minimum bits', '50', 'The minimum bits is between 0 and 1,000,000.'],
+  ] as const)('shows the translated line for a refused %s next to its box only', async (field, label, value, line) => {
+    refusedField = field;
     await open();
 
-    const box = byLabel('Cooldown');
+    const box = byLabel(label);
 
-    box.value = '12';
+    box.value = value;
     box.dispatchEvent(new Event('input'));
     await flushPromises();
     box.dispatchEvent(new Event('blur'));
     await flushPromises();
 
-    const line = document.body.querySelector('[data-problem="cooldownSeconds"]');
+    const lines = [...document.body.querySelectorAll('[data-problem]')];
 
-    expect(line?.textContent?.trim()).toBe('The cooldown is between 0 and 3600 seconds.');
+    expect(lines.map((entry) => entry.getAttribute('data-problem'))).toEqual([field]);
+    expect(lines[0]?.textContent?.trim()).toBe(line);
   });
 
   it('switches a reward to speak its viewer text through TTS and sends only that field', async () => {

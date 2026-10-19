@@ -154,8 +154,7 @@
         "cooldown": {
           "title": "Wachttijd",
           "description": "Seconden die een kijker wacht tussen uitgesproken berichten. 0 betekent geen.",
-          "value": "{count} seconden",
-          "outOfRange": "De wachttijd ligt tussen 0 en {limit} seconden."
+          "value": "{count} seconden"
         },
         "skipBots": {
           "title": "Botberichten overslaan",
@@ -219,6 +218,13 @@
         "spellingSave": "Uitspraak opslaan",
         "spellingSaved": "De uitspraak is opgeslagen.",
         "spellingFailed": "De uitspraak kon niet worden opgeslagen."
+      },
+      "config": {
+        "error": {
+          "cooldownOutOfRange": "De wachttijd ligt tussen 0 en 3600 seconden.",
+          "maxCharactersOutOfRange": "Het tekenlimiet ligt tussen 1 en 500.",
+          "minBitsOutOfRange": "Het minimum aantal bits ligt tussen 0 en 1.000.000."
+        }
       }
     }
   }

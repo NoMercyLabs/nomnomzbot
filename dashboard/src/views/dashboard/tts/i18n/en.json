@@ -154,8 +154,7 @@
         "cooldown": {
           "title": "Cooldown",
           "description": "Seconds between a viewer's messages. 0 means none.",
-          "value": "{count} seconds",
-          "outOfRange": "The cooldown is between 0 and {limit} seconds."
+          "value": "{count} seconds"
         },
         "skipBots": {
           "title": "Skip bot messages",
@@ -219,6 +218,13 @@
         "spellingSave": "Save spelling",
         "spellingSaved": "The spelling is saved.",
         "spellingFailed": "The spelling could not be saved."
+      },
+      "config": {
+        "error": {
+          "cooldownOutOfRange": "The cooldown is between 0 and 3600 seconds.",
+          "maxCharactersOutOfRange": "The character limit is between 1 and 500.",
+          "minBitsOutOfRange": "The minimum bits is between 0 and 1,000,000."
+        }
       }
     }
   }
