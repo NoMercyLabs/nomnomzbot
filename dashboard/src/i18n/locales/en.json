@@ -439,6 +439,9 @@
       "redemptions": "Rewards redeemed",
       "streak": "Watch streak"
     },
+    "overview": {
+      "empty": "The bot has no stored profile for this person yet."
+    },
     "sections": {
       "identity": "Identity",
       "relationship": "Relationship"

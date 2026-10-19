@@ -18,10 +18,13 @@ import type { PersonProfile } from '@/api/people';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import { tierNumber } from '@/components/layout/profile/profileRoles';
+import { Skeleton } from '@/components/ui/skeleton';
 import { shortDate } from '@/lib/time';
 
+// pending: the stored profile is still loading, so the panel shows a skeleton instead of an empty box.
 const props = defineProps<{
   profile: PersonProfile | null;
+  pending?: boolean;
 }>();
 
 const { t, locale } = useI18n();
@@ -36,11 +39,13 @@ function present(item: KeyValueItem): boolean {
 function linked(identities: readonly LinkedIdentity[]): string | null {
   const names = identities
     .filter((identity) => identity.provider.toLowerCase() !== 'twitch')
-    .map((identity) => t('profile.facts.linkedOn', {
-      provider: identity.provider,
-      name: identity.providerDisplayName ?? identity.providerUsername,
-      date: shortDate(identity.linkedAtUtc, locale.value),
-    }));
+    .map((identity) =>
+      t('profile.facts.linkedOn', {
+        provider: identity.provider,
+        name: identity.providerDisplayName ?? identity.providerUsername,
+        date: shortDate(identity.linkedAtUtc, locale.value),
+      }),
+    );
 
   return names.length > 0
     ? names.join('; ')
@@ -128,6 +133,13 @@ const colorLabel = computed<string>(() => t('profile.facts.chatColor'));
 
 <template>
   <div data-slot="profile-overview" class="grid gap-6">
+    <div v-if="pending" data-profile-overview-loading class="grid gap-2">
+      <Skeleton class="h-16 rounded-lg" />
+      <Skeleton class="h-24 rounded-lg" />
+    </div>
+    <p v-else-if="!profile" data-profile-overview-empty class="text-sm text-muted-foreground">
+      {{ $t("profile.overview.empty") }}
+    </p>
     <p v-if="about" data-profile-about class="text-sm text-pretty">{{ about }}</p>
 
     <div class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-6">
@@ -135,14 +147,16 @@ const colorLabel = computed<string>(() => t('profile.facts.chatColor'));
         v-if="relationship.length > 0"
         class="col-span-full grid grid-cols-subgrid content-start gap-y-2"
       >
-        <h3 class="col-span-full text-sm font-semibold">{{ $t('profile.sections.relationship') }}</h3>
+        <h3 class="col-span-full text-sm font-semibold">
+          {{ $t("profile.sections.relationship") }}
+        </h3>
         <KeyValueList :items="relationship" subgrid />
       </section>
       <section
         v-if="identity.length > 0"
         class="col-span-full grid grid-cols-subgrid content-start gap-y-2"
       >
-        <h3 class="col-span-full text-sm font-semibold">{{ $t('profile.sections.identity') }}</h3>
+        <h3 class="col-span-full text-sm font-semibold">{{ $t("profile.sections.identity") }}</h3>
         <KeyValueList :items="identity" subgrid>
           <template #value="{ item }">
             <span v-if="item.label === colorLabel" class="inline-flex items-center gap-2">

@@ -77,7 +77,8 @@ const inDialog = injectDialogRootContext(null) !== null;
 // Every panel stays mounted in one grid cell, so the view takes the tallest tab's size up front and never jumps.
 // A phone page and the dialog scroll as a whole, so there a short tab drops the others' height instead of trailing
 // empty space.
-const PANEL_CLASS = 'col-start-1 row-start-1 data-[state=inactive]:invisible max-md:data-[state=inactive]:hidden';
+const PANEL_CLASS =
+  'col-start-1 row-start-1 data-[state=inactive]:invisible max-md:data-[state=inactive]:hidden';
 const fit = inDialog
   ? 'min-h-0'
   : 'md:min-h-0';
@@ -114,18 +115,21 @@ const viewerProfile = computed(() => viewer.data.value ?? null);
 const roles = computed<RoleKey[]>(() =>
   person.value
     ? roleKeys(person.value, viewerProfile.value, current.value?.login)
-    : []);
+    : [],
+);
 // Twitch refuses a ban or VIP on the channel's own account, so the view does not offer them.
 const isOwner = computed<boolean>(() => roles.value.includes('broadcaster'));
 
 // Timeout, Ban and Warn show only where Twitch accepts them for this person and the signed-in one.
 const currentUser = useCurrentUser();
-const sanctionable = computed<boolean>(() =>
-  person.value !== null &&
-  canSanction(currentUser.data.value?.username, current.value?.login, {
-    username: person.value.username,
-    roles: roles.value,
-  }));
+const sanctionable = computed<boolean>(
+  () =>
+    person.value !== null &&
+    canSanction(currentUser.data.value?.username, current.value?.login, {
+      username: person.value.username,
+      roles: roles.value,
+    }),
+);
 
 // The mutations need the channel id when they are made; the view is mounted inside a signed-in channel.
 const vipChange = useVipChange(channelId.value ?? '');
@@ -141,8 +145,9 @@ const canUnban = computed(() => access.can('moderation:unban'));
 const canVip = computed(() => access.can('moderation:vip'));
 const canShoutout = computed(() => access.can('moderation:shoutout'));
 const canWarn = computed(() => access.can('moderation:warn'));
-const hasActions = computed(() =>
-  canShoutout.value || canVip.value || canWarn.value || canBan.value || canUnban.value);
+const hasActions = computed(
+  () => canShoutout.value || canVip.value || canWarn.value || canBan.value || canUnban.value,
+);
 
 // Twitch answers per person; null means Twitch could not be asked, so the view says unknown instead of guessing.
 const isVip = computed<boolean | null>(() => person.value?.isVip ?? null);
@@ -174,9 +179,10 @@ const actions = computed<KeyValueItem[]>(() => {
   if (!history)
     return [];
 
-  const last = history.lastActionType && history.lastActionAt
-    ? `${history.lastActionType} · ${dateText(history.lastActionAt)}`
-    : null;
+  const last =
+    history.lastActionType && history.lastActionAt
+      ? `${history.lastActionType} · ${dateText(history.lastActionAt)}`
+      : null;
 
   return [
     { label: t('profile.moderation.timeouts'), value: n(Number(history.timeoutCount)) },
@@ -202,7 +208,10 @@ const actions = computed<KeyValueItem[]>(() => {
 // A phone shows part of the last tab; choosing it slides the whole tab into view.
 watch(tab, async () => {
   await nextTick();
-  tabStrip.value?.querySelector('[data-state="active"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+  tabStrip.value
+    ?.querySelector('[data-state="active"]')
+    ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 });
 
 // Every person opens on Overview, also when the dialog opens again: its tab outlives the view.
@@ -281,15 +290,19 @@ async function banNow(): Promise<void> {
         role="alert"
         class="grid justify-items-start gap-3 px-6 pb-4 text-sm"
       >
-        <span class="text-destructive">{{ $t('profile.error') }}</span>
+        <span class="text-destructive">{{ $t("profile.error") }}</span>
         <Button variant="outline" size="sm" @click="member.refetch()">{{
-          $t('common.panel.retry')
+          $t("common.panel.retry")
         }}</Button>
       </div>
 
       <Tabs v-else v-model="tab" class="flex min-w-0 flex-1 flex-col gap-0" :class="inner">
         <!-- A phone swipes the tabs sideways like the Twitch app: the cut-off last tab shows there are more. -->
-        <div ref="tabStrip" class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none" :class="strip">
+        <div
+          ref="tabStrip"
+          class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none"
+          :class="strip"
+        >
           <TabsList>
             <TabsTrigger v-for="name in tabs" :key="name" :value="name">{{
               $t(`profile.tabs.${name}`)
@@ -299,7 +312,7 @@ async function banNow(): Promise<void> {
         <!-- minmax(0,1fr): one long chat link in a panel stretched every panel in the shared cell past the edge. -->
         <div class="grid flex-1 grid-cols-[minmax(0,1fr)] px-6 py-4" :class="[inner, scroll]">
           <TabsContent value="overview" force-mount :class="PANEL_CLASS">
-            <ProfileOverview :profile="viewerProfile" />
+            <ProfileOverview :profile="viewerProfile" :pending="viewer.isPending.value" />
           </TabsContent>
 
           <TabsContent value="chat" force-mount :class="PANEL_CLASS">
@@ -315,31 +328,39 @@ async function banNow(): Promise<void> {
 
           <!-- Flat sections like the Overview, no boxes in boxes (owner 2026-10-14: "the moderation section needs
                a better ui"). -->
-          <TabsContent value="moderation" force-mount :class="[PANEL_CLASS, 'grid content-start gap-8']">
+          <TabsContent
+            value="moderation"
+            force-mount
+            :class="[PANEL_CLASS, 'grid content-start gap-8']"
+          >
             <ProfileNotes :user-id="userId" />
             <ProfileHistory :internal-user-id="person.internalUserId ?? null" />
             <section v-if="actions.length > 0" data-profile-actions class="grid gap-3">
-              <h3 class="text-sm font-semibold">{{ $t('profile.moderation.counts') }}</h3>
+              <h3 class="text-sm font-semibold">{{ $t("profile.moderation.counts") }}</h3>
               <KeyValueList :items="actions" />
             </section>
             <section data-profile-bans class="grid gap-3">
-              <h3 class="text-sm font-semibold">{{ $t('profile.moderation.title') }}</h3>
+              <h3 class="text-sm font-semibold">{{ $t("profile.moderation.title") }}</h3>
               <p v-if="person.banHistory.length === 0" class="text-sm text-muted-foreground">
-                {{ $t('profile.moderation.empty') }}
+                {{ $t("profile.moderation.empty") }}
               </p>
               <ul v-else class="grid gap-3 text-sm">
                 <li v-for="record in person.banHistory" :key="record.id" class="grid gap-0.5">
-                  <span>{{ record.reason || $t('profile.moderation.noReason') }}</span>
+                  <span>{{ record.reason || $t("profile.moderation.noReason") }}</span>
                   <span class="text-xs text-muted-foreground">
                     {{
-                      $t('profile.moderation.by', {
+                      $t("profile.moderation.by", {
                         name: record.bannedBy,
                         date: dateText(record.bannedAt),
                       })
                     }}
                   </span>
-                  <span v-if="record.unbannedAt" data-profile-ban-lifted class="text-xs text-muted-foreground">{{
-                    $t('profile.moderation.lifted', { date: dateText(record.unbannedAt) })
+                  <span
+                    v-if="record.unbannedAt"
+                    data-profile-ban-lifted
+                    class="text-xs text-muted-foreground"
+                  >{{
+                    $t("profile.moderation.lifted", { date: dateText(record.unbannedAt) })
                   }}</span>
                 </li>
               </ul>
@@ -358,14 +379,17 @@ async function banNow(): Promise<void> {
 
           <TabsContent value="settings" force-mount :class="PANEL_CLASS">
             <!-- What the bot keeps about this person, one label column like the Overview (owner 2026-10-14). -->
-            <dl data-profile-settings class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 text-sm">
+            <dl
+              data-profile-settings
+              class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 text-sm"
+            >
               <template v-if="!isOwner">
-                <dt class="text-muted-foreground">{{ $t('profile.botStanding.title') }}</dt>
+                <dt class="text-muted-foreground">{{ $t("profile.botStanding.title") }}</dt>
                 <dd class="m-0 min-w-0">
                   <ProfileStanding :user-id="userId" :name="title" />
                 </dd>
               </template>
-              <dt class="text-muted-foreground">{{ $t('profile.voice.title') }}</dt>
+              <dt class="text-muted-foreground">{{ $t("profile.voice.title") }}</dt>
               <dd class="m-0 min-w-0">
                 <ProfileVoice :user-id="userId" :name="title" />
               </dd>
@@ -377,7 +401,10 @@ async function banNow(): Promise<void> {
 
     <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): the quiet ones are
            ghost buttons on the left, so Ban stays the one strong button in the row. -->
-    <div v-if="person && !member.isPending.value && !isOwner && hasActions" class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4">
+    <div
+      v-if="person && !member.isPending.value && !isOwner && hasActions"
+      class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4"
+    >
       <Button
         v-if="canShoutout"
         data-profile-shoutout
@@ -385,7 +412,7 @@ async function banNow(): Promise<void> {
         variant="ghost"
         @click="shoutOut"
       >
-        {{ $t('profile.shoutout.button') }}
+        {{ $t("profile.shoutout.button") }}
       </Button>
       <Button
         v-if="canVip"
@@ -409,7 +436,7 @@ async function banNow(): Promise<void> {
           variant="outline"
           @click="warnOpen = true"
         >
-          {{ $t('profile.warn.button') }}
+          {{ $t("profile.warn.button") }}
         </Button>
         <Button
           v-if="person.isBanned && canUnban"
@@ -418,18 +445,13 @@ async function banNow(): Promise<void> {
           :disabled="unban.isPending.value"
           @click="liftBan"
         >
-          {{ $t('profile.unban.button') }}
+          {{ $t("profile.unban.button") }}
         </Button>
         <template v-if="!person.isBanned && sanctionable && canBan">
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button
-                data-profile-timeout
-                type="button"
-                variant="outline"
-                class="group"
-              >
-                {{ $t('profile.timeout.button') }}
+              <Button data-profile-timeout type="button" variant="outline" class="group">
+                {{ $t("profile.timeout.button") }}
                 <ChevronDown
                   class="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
                   aria-hidden="true"
@@ -437,7 +459,7 @@ async function banNow(): Promise<void> {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{{ $t('profile.timeout.menu') }}</DropdownMenuLabel>
+              <DropdownMenuLabel>{{ $t("profile.timeout.menu") }}</DropdownMenuLabel>
               <DropdownMenuItem
                 v-for="seconds in TIMEOUT_LENGTHS"
                 :key="seconds"
@@ -448,13 +470,8 @@ async function banNow(): Promise<void> {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            data-profile-ban
-            type="button"
-            variant="destructive"
-            @click="confirmBan = true"
-          >
-            {{ $t('profile.ban.button') }}
+          <Button data-profile-ban type="button" variant="destructive" @click="confirmBan = true">
+            {{ $t("profile.ban.button") }}
           </Button>
         </template>
       </div>

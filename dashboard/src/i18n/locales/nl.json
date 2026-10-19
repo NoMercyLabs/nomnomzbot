@@ -439,6 +439,9 @@
       "redemptions": "Beloningen ingewisseld",
       "streak": "Kijkreeks"
     },
+    "overview": {
+      "empty": "De bot heeft nog geen opgeslagen profiel van deze persoon."
+    },
     "sections": {
       "identity": "Identiteit",
       "relationship": "Relatie"

@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfileView from '@/components/layout/profile/ProfileView.vue';
 import { i18n } from '@/i18n';
 
@@ -22,23 +23,24 @@ import en from '../i18n/en.json';
 
 const held = vi.hoisted(() => ({ keys: [] as string[], banned: false }));
 
-const member = () => ({
-  id: 't-dave',
-  internalUserId: 'u-dave',
-  username: 'dave',
-  displayName: 'Dave',
-  profileImageUrl: null,
-  messageCount: 3,
-  watchHours: 1,
-  commandsUsed: 1,
-  trustLevel: 'viewer',
-  isBanned: held.banned,
-  firstSeen: '2026-01-02T10:00:00Z',
-  lastSeen: '2026-10-12T10:00:00Z',
-  banHistory: [],
-  recentActivity: [],
-  isVip: false,
-}) as const satisfies Record<string, unknown>;
+const member = () =>
+  ({
+    id: 't-dave',
+    internalUserId: 'u-dave',
+    username: 'dave',
+    displayName: 'Dave',
+    profileImageUrl: null,
+    messageCount: 3,
+    watchHours: 1,
+    commandsUsed: 1,
+    trustLevel: 'viewer',
+    isBanned: held.banned,
+    firstSeen: '2026-01-02T10:00:00Z',
+    lastSeen: '2026-10-12T10:00:00Z',
+    banHistory: [],
+    recentActivity: [],
+    isVip: false,
+  }) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
@@ -185,5 +187,28 @@ describe('The profile on the People page in a short window', () => {
     expect(panel.classList).not.toContain('md:min-h-0');
     expect(panel.classList).not.toContain('md:overflow-y-auto');
     expect(body.contains(view.get('[data-profile-ban]').element)).toBe(false);
+  });
+});
+
+// Stage C 2026-10-19: with no stored profile yet (still loading, or none) the Overview panel was an empty box
+// under the tab strip. It now says what it waits for or why it is empty.
+describe('The Overview tab without a stored profile', () => {
+  it('says so instead of leaving an empty panel', async () => {
+    const view = await open([]);
+    const panel = view.get('[data-slot="profile-overview"]');
+
+    expect(panel.get('[data-profile-overview-empty]').text()).toBe(
+      i18n.global.t('profile.overview.empty'),
+    );
+  });
+
+  it('shows a skeleton while the profile loads', async () => {
+    const view = mount(ProfileOverview, {
+      props: { profile: null, pending: true },
+      global: { plugins: [i18n] },
+    });
+
+    expect(view.find('[data-profile-overview-loading]').exists()).toBe(true);
+    expect(view.find('[data-profile-overview-empty]').exists()).toBe(false);
   });
 });
