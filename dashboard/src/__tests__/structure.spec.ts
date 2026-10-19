@@ -818,7 +818,7 @@ describe('icon-only buttons', () => {
   it('uses no icon-sm or icon-xs outside the files on the sweep list', () => {
     const offenders = uiSourceFiles()
       .filter((path) => ownsSmallIconButton(path))
-      .filter((path) => !smallIconButtonAllowlist.includes(path));
+      .filter((path) => !smallIconButtonAllowlist.some((entry) => entry === path));
 
     expect(offenders).toEqual([]);
   });

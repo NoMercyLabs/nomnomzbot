@@ -201,8 +201,8 @@ describe('useRemoveQueueItem', () => {
 
 describe('useSetRequestsOpen', () => {
   it('flips only the cached flag, and invents no queue when nothing is cached', async () => {
-    let release: (value: unknown) => void = () => undefined;
-    const held = new Promise((done) => {
+    let release: (value: Answer) => void = () => undefined;
+    const held = new Promise<Answer>((done) => {
       release = done;
     });
 

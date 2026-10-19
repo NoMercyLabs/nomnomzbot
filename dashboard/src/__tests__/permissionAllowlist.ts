@@ -43,7 +43,7 @@ export const permissionAllowlist = [
       'scripts/ScriptsView.vue': 1,
       'channel-points/components/RedemptionsPanel.vue': 1,
       'home/HomeView.vue': 1,
-      'people/PeopleView.vue': 1,
+      'people/PeopleView.vue': 2,
       'pipelines/components/StepPicker.vue': 1,
       'scripts/components/FailedRunDialog.vue': 1,
       'settings/ReadabilityView.vue': 1,

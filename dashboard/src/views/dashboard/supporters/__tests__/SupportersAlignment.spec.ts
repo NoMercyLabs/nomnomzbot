@@ -19,7 +19,7 @@ import { i18n } from '@/i18n';
 import en from '../i18n/en.json';
 import SupportersView from '../SupportersView.vue';
 
-function event(id: string, type: string, username: string, data: object): object {
+function event(id: string, type: string, username: string, data: object) {
   return {
     id,
     type,
@@ -29,7 +29,7 @@ function event(id: string, type: string, username: string, data: object): object
     username,
     data: JSON.stringify(data),
     timestamp: '2026-10-15T12:00:00Z',
-  };
+  } as const satisfies object;
 }
 
 vi.mock('@/api/access', () => ({
