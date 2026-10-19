@@ -17,8 +17,10 @@ namespace NomNomzBot.Domain.Music.Events;
 /// seen playing — typically the streamer removed it by hand in the Spotify app, or skipped it faster than
 /// the playback poller could see it. The bot has already dropped it
 /// from the fair queue and moved on to the next request; this event exists so the change is announced
-/// instead of the queue silently skipping someone's song.
+/// instead of the queue silently skipping someone's song. Internal until a detector raises it again: the
+/// playback director starts the head directly, so nothing waits in a provider queue to be lost.
 /// </summary>
+[Event(visibility: EventVisibility.Internal)]
 public sealed class SongRequestLostAtProviderEvent : DomainEventBase
 {
     /// <summary>The id of the requested track at the music service.</summary>
