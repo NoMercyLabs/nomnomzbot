@@ -93779,6 +93779,8 @@ export interface components {
             allowExplicit: boolean;
             /** Format: int32 */
             perStreamLimit?: null | number | string;
+            /** @default true */
+            youTubeMusicCategoryOnly: boolean;
         };
         MusicDevice: {
             id: string;
@@ -104350,6 +104352,11 @@ export interface components {
              *     cap off (null leaves the current value alone); a value of 1 to 100 turns it on.
              */
             perStreamLimit?: null | number | string;
+            /**
+             * @description When true, a YouTube upload must sit in the Music category or come from a "- Topic" artist channel.
+             *     When false, any on-demand video is admitted (fan uploads). A music.youtube.com link always counts.
+             */
+            youTubeMusicCategoryOnly?: null | boolean;
             allowYouTube?: null | boolean;
             allowSpotify?: null | boolean;
             minTrustLevel?: null | string;

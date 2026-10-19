@@ -61,6 +61,7 @@ const baseConfig = () =>
     maxQueueSize: 20,
     maxRequestsPerUser: 1,
     allowYouTube: false,
+    youTubeMusicCategoryOnly: true,
     allowSpotify: true,
     minTrustLevel: 'moderators',
     bangerAutoCreate: false,
@@ -373,10 +374,29 @@ describe('RulesPanel', () => {
     });
   });
 
+  it('lets the channel admit YouTube uploads outside the Music category', async () => {
+    config = { ...baseConfig(), allowYouTube: true };
+    await open();
+
+    const musicOnly = document.body.querySelector<HTMLButtonElement>(
+      'button[data-setting="youtube-music-only"]',
+    );
+
+    expect(musicOnly?.getAttribute('aria-checked')).toBe('true');
+
+    musicOnly?.click();
+    await settle();
+    buttonIn('Save').click();
+    await settle();
+
+    expect(puts()[0]!.body).toEqual({ youTubeMusicCategoryOnly: false });
+  });
+
   it('hides the YouTube role choice while YouTube songs are off', async () => {
     await open();
 
     expect(document.body.querySelector('[data-setting="who-youtube"]')).toBeNull();
+    expect(document.body.querySelector('[data-setting="youtube-music-only"]')).toBeNull();
     expect(document.body.querySelector('[data-setting="who-spotify"]')?.textContent).toContain('Everyone');
   });
 

@@ -88,6 +88,7 @@ const config: MusicConfig = {
   maxQueueSize: 50,
   maxRequestsPerUser: 3,
   allowYouTube: false,
+  youTubeMusicCategoryOnly: true,
   allowSpotify: true,
   minTrustLevel: 'everyone',
   bangerAutoCreate: false,

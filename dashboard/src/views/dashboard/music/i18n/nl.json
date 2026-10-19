@@ -142,6 +142,7 @@
         "allowYouTube": "YouTube-nummers toestaan",
         "whoSpotify": "Wie Spotify-nummers mag aanvragen",
         "whoYouTube": "Wie YouTube-nummers mag aanvragen",
+        "youTubeMusicOnly": "Alleen video's uit de YouTube-categorie Muziek of van artiestkanalen (- Topic)",
         "sourceRole": {
           "Everyone": "Iedereen",
           "Subscriber": "Twitch-abonnees en hoger",

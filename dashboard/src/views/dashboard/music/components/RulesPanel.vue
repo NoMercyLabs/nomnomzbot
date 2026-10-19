@@ -384,6 +384,16 @@ const missing = computed<KeyValueItem[]>(() =>
               @update:model-value="setSourceRung(sourceActions.youtube, $event)"
             />
           </div>
+          <label v-if="draft.allowYouTube" class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1 text-muted-foreground">{{
+              $t("dashboard.music.rules.youTubeMusicOnly")
+            }}</span>
+            <GatedSwitch
+              v-model="draft.youTubeMusicCategoryOnly"
+              action="music:config:write"
+              data-setting="youtube-music-only"
+            />
+          </label>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
           <RadioGroup v-model="draft.preferredProvider" class="gap-2">
             <label

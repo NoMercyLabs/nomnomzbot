@@ -45,6 +45,7 @@ export type RuleDraft = {
   maxQueueSize: number;
   requestsOpen: boolean;
   allowYouTube: boolean;
+  youTubeMusicCategoryOnly: boolean;
   allowSpotify: boolean;
   preferredProvider: string;
   allowExplicit: boolean;
@@ -64,6 +65,7 @@ export function draftOf(config: MusicConfig) {
     maxQueueSize: Number(config.maxQueueSize),
     requestsOpen: config.requestsOpen,
     allowYouTube: config.allowYouTube,
+    youTubeMusicCategoryOnly: config.youTubeMusicCategoryOnly,
     allowSpotify: config.allowSpotify,
     preferredProvider: config.preferredProvider,
     allowExplicit: config.allowExplicit,
@@ -163,6 +165,10 @@ export function changeOf(config: MusicConfig, draft: RuleDraft): MusicConfigChan
 
   if (draft.allowYouTube !== saved.allowYouTube) {
     result.allowYouTube = draft.allowYouTube;
+  }
+
+  if (draft.youTubeMusicCategoryOnly !== saved.youTubeMusicCategoryOnly) {
+    result.youTubeMusicCategoryOnly = draft.youTubeMusicCategoryOnly;
   }
 
   if (draft.allowSpotify !== saved.allowSpotify) {
