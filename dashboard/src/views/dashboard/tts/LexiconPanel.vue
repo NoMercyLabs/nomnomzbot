@@ -17,9 +17,11 @@ import { toast } from 'vue-sonner';
 import Edit from '~icons/nnz/edit';
 import Trash from '~icons/nnz/trash';
 
+import { useTtsConfig } from '@/api/tts';
 import {
   useDeleteLexiconEntry,
   useSaveLexiconEntry,
+  useTtsDefaults,
   useTtsLexicon,
   type TtsLexiconEntry,
 } from '@/api/ttsRules';
@@ -38,6 +40,8 @@ import {
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
+import PlaySampleButton from './PlaySampleButton.vue';
+
 const matchKinds = ['word', 'exact'] as const;
 const emptyDraft = {
   phrase: '',
@@ -48,6 +52,8 @@ const emptyDraft = {
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
+const config = useTtsConfig(channelId);
+const defaults = useTtsDefaults(channelId);
 const lexicon = useTtsLexicon(channelId);
 const saveEntry = useSaveLexiconEntry(channelId);
 const removeEntry = useDeleteLexiconEntry(channelId);
@@ -57,6 +63,11 @@ const pendingRemoval = ref<TtsLexiconEntry | null>(null);
 const draft = reactive({ ...emptyDraft });
 
 const entries = computed(() => lexicon.data.value ?? []);
+
+// The channel voice, or the platform default it follows: the voice the bot really speaks a rule in.
+const heardVoice = computed<string | null>(
+  () => config.data.value?.defaultVoiceId || defaults.data.value?.defaultVoiceId || null,
+);
 const canSave = computed(
   () => draft.phrase.trim() !== '' && draft.replacement.trim() !== '' && !saveEntry.isPending.value,
 );
@@ -178,6 +189,7 @@ function remove(entry: TtsLexiconEntry): void {
             {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}
           </span>
         </span>
+        <PlaySampleButton v-if="heardVoice" compact :voice-id="heardVoice" :text="entry.phrase" />
         <Button
           v-if="can('tts:config:write')"
           variant="ghost"

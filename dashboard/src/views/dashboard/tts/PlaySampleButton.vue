@@ -12,6 +12,7 @@ import LoaderFade from '~icons/nnz/loader-fade';
 import Play from '~icons/nnz/play';
 import Square from '~icons/nnz/stop';
 import { computed, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useTtsSample } from '@/api/tts';
 import { Button } from '@/components/ui/button';
@@ -21,11 +22,18 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 type SampleState = 'idle' | 'loading' | 'playing';
 
 // One voice, one button: the first press asks the bot for a sample and plays it, the next press stops it.
-// compact hides the words and keeps them as the accessible name.
-const props = withDefaults(defineProps<{ voiceId: string; compact?: boolean }>(), {
-  compact: false,
-});
+// compact hides the words and keeps them as the accessible name. text makes the bot speak that line
+// (a pronunciation rule's phrase) instead of the voice's own introduction.
+const props = withDefaults(
+  defineProps<{
+    voiceId: string;
+    compact?: boolean;
+    text?: string;
+  }>(),
+  { compact: false },
+);
 
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const sample = useTtsSample(channelId);
@@ -42,6 +50,15 @@ const state = computed<SampleState>(() => {
   return 'idle';
 });
 
+const name = computed<string>(() => {
+  if (state.value === 'playing')
+    return t('dashboard.tts.voices.stopSample', { voice: props.voiceId });
+
+  return props.text === undefined
+    ? t('dashboard.tts.voices.playSample', { voice: props.voiceId })
+    : t('dashboard.tts.lexicon.hear', { phrase: props.text });
+});
+
 function stop(): void {
   audio.value?.pause();
   audio.value = null;
@@ -53,7 +70,14 @@ async function toggle(): Promise<void> {
     return stop();
 
   try {
-    const result = await sample.mutateAsync({ voiceId: props.voiceId });
+    const result = await sample.mutateAsync(
+      props.text === undefined
+        ? { voiceId: props.voiceId }
+        : {
+            voiceId: props.voiceId,
+            text: props.text,
+          },
+    );
     const player = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
 
     player.addEventListener('ended', stop);
@@ -78,14 +102,7 @@ onBeforeUnmount(stop);
     :size="compact ? 'icon' : 'sm'"
     :disabled="state === 'loading'"
     :aria-busy="state === 'loading'"
-    :aria-label="
-      $t(
-        state === 'playing' ? 'dashboard.tts.voices.stopSample' : 'dashboard.tts.voices.playSample',
-        {
-          voice: voiceId,
-        },
-      )
-    "
+    :aria-label="name"
     @click="toggle"
   >
     <LoaderFade v-if="state === 'loading'" :class="['animate-spin', { 'size-5': compact }]" />

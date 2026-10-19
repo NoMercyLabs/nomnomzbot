@@ -170,6 +170,7 @@
         "add": "Add rule",
         "save": "Save rule",
         "cancel": "Cancel",
+        "hear": "Hear the rule for {phrase}",
         "edit": "Edit the rule for {phrase}",
         "remove": "Delete the rule for {phrase}",
         "empty": "No pronunciation rules yet.",

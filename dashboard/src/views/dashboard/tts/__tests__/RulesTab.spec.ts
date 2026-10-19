@@ -40,7 +40,7 @@ const config = {
   isEnabled: true,
   mode: 'all',
   defaultProvider: 'edge',
-  defaultVoiceId: null,
+  defaultVoiceId: null as string | null,
   maxCharacters: 300,
   minPermission: 'everyone',
   skipBotMessages: true,
@@ -400,6 +400,31 @@ describe('TTS rules panels', () => {
     (document.body.querySelector('[data-confirm-action]') as HTMLElement).click();
     await flushPromises();
     expect(sent.some((call) => call.method === 'DELETE')).toBe(true);
+  });
+
+  it('plays a rule through the channel voice so the owner hears the replacement', async () => {
+    config.defaultVoiceId = 'en-US-AriaNeural';
+    await open();
+
+    byLabel('Hear the rule for gg').click();
+    await flushPromises();
+
+    const post = sent.find((call) => call.path.endsWith('/tts/test'));
+
+    expect(post?.method).toBe('POST');
+
+    expect(post?.body).toEqual({
+      text: 'gg',
+      voiceId: 'en-US-AriaNeural',
+    });
+
+    config.defaultVoiceId = null;
+  });
+
+  it('offers no hear control while no voice is known to speak with', async () => {
+    await open();
+
+    expect(byLabel('Hear the rule for gg')).toBeNull();
   });
 
   it('sends a key once, never shows a stored key and empties the box', async () => {

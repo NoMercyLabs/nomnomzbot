@@ -170,6 +170,7 @@
         "add": "Regel toevoegen",
         "save": "Regel opslaan",
         "cancel": "Annuleren",
+        "hear": "De regel voor {phrase} beluisteren",
         "edit": "De regel voor {phrase} bewerken",
         "remove": "De regel voor {phrase} verwijderen",
         "empty": "Nog geen uitspraakregels.",
