@@ -51,6 +51,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
             ["NewSubscriptionEvent"] = "channel.subscribe",
             ["ResubscriptionEvent"] = "channel.subscription.message",
             ["GiftSubscriptionEvent"] = "channel.subscription.gift",
+            ["GiftSubscriptionReceivedEvent"] = "channel.subscription.gift.received",
             ["SubscriptionEndedEvent"] = "channel.subscription.end",
             ["CheerEvent"] = "channel.cheer",
             ["RaidEvent"] = "channel.raid",
@@ -239,6 +240,20 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
                 CopyInt(source, data, ("GiftCount", "giftCount"));
                 CopyBool(source, data, ("IsAnonymous", "isAnonymous"));
                 break;
+            case "GiftSubscriptionReceivedEvent":
+                // Pairs the recipient with the gifter. An anonymous gift carries empty gifter fields,
+                // which Copy skips, so the row names no gifter.
+                Copy(
+                    source,
+                    data,
+                    ("RecipientUserId", "recipientUserId"),
+                    ("RecipientDisplayName", "recipientDisplayName"),
+                    ("GifterUserId", "gifterUserId"),
+                    ("GifterDisplayName", "gifterDisplayName"),
+                    ("Tier", "tier")
+                );
+                CopyBool(source, data, ("IsAnonymous", "isAnonymous"));
+                break;
             case "CheerEvent":
                 Copy(source, data, ("UserId", "userId"), ("UserDisplayName", "userDisplayName"));
                 CopyInt(source, data, ("Bits", "bits"));
@@ -317,6 +332,8 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         ["ResubscriptionEvent"] = ("UserId", "UserDisplayName", null),
         ["SubscriptionEndedEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
         ["GiftSubscriptionEvent"] = ("GifterUserId", "GifterDisplayName", null),
+        // The recipient is the actor (they received the sub); the gifter rides in the gifter* keys.
+        ["GiftSubscriptionReceivedEvent"] = ("RecipientUserId", "RecipientDisplayName", null),
         ["CheerEvent"] = ("UserId", "UserDisplayName", null),
         ["RaidEvent"] = ("FromUserId", "FromDisplayName", "FromLogin"),
         ["RewardRedeemedEvent"] = ("UserId", "UserDisplayName", null),

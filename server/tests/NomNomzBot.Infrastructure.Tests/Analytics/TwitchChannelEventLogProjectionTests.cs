@@ -119,6 +119,70 @@ public sealed class TwitchChannelEventLogProjectionTests
     }
 
     [Fact]
+    public async Task Folds_a_received_gift_into_a_row_that_pairs_the_recipient_with_the_gifter()
+    {
+        using ReadModelRebuildDatabase database = ReadModelRebuildDatabase.Open();
+        await using ReadModelRebuildDbContext db = database.NewContext();
+        EventJournalService journal = NewJournal(db);
+
+        IReadOnlyList<DomainEventBase> events =
+        [
+            new GiftSubscriptionReceivedEvent
+            {
+                BroadcasterId = Channel,
+                OccurredAt = new(Live, TimeSpan.Zero),
+                RecipientUserId = "200",
+                RecipientDisplayName = "Bob",
+                GifterUserId = "100",
+                GifterDisplayName = "Alice",
+                IsAnonymous = false,
+                Tier = "1000",
+            },
+            new GiftSubscriptionReceivedEvent
+            {
+                BroadcasterId = Channel,
+                OccurredAt = new(Live.AddSeconds(5), TimeSpan.Zero),
+                RecipientUserId = "300",
+                RecipientDisplayName = "Carol",
+                GifterUserId = "",
+                GifterDisplayName = "",
+                IsAnonymous = true,
+                Tier = "2000",
+            },
+        ];
+        await AppendAsync(journal, events);
+
+        TwitchChannelEventLogProjection projection = NewProjection(db);
+        ProjectionRunner runner = NewRunner(db, journal, projection);
+        Result<long> applied = await runner.RunOnceAsync(projection.Name, Channel);
+        applied.Value.Should().Be(2);
+
+        List<ChannelEvent> rows = await db
+            .ChannelEvents.AsNoTracking()
+            .OrderBy(r => r.CreatedAt)
+            .ToListAsync();
+
+        rows.Should().HaveCount(2);
+        rows.Should().OnlyContain(r => r.Type == "channel.subscription.gift.received");
+        rows.Select(r => r.Id).Should().BeEquivalentTo(events.Select(e => e.EventId.ToString()));
+
+        JObject named = JObject.Parse(rows[0].Data!);
+        named["recipientUserId"]!.Value<string>().Should().Be("200");
+        named["recipientDisplayName"]!.Value<string>().Should().Be("Bob");
+        named["gifterUserId"]!.Value<string>().Should().Be("100");
+        named["gifterDisplayName"]!.Value<string>().Should().Be("Alice");
+        named["tier"]!.Value<string>().Should().Be("1000");
+        named["isAnonymous"]!.Value<bool>().Should().BeFalse();
+        named["actorTwitchUserId"]!.Value<string>().Should().Be("200");
+
+        JObject anonymous = JObject.Parse(rows[1].Data!);
+        anonymous["recipientUserId"]!.Value<string>().Should().Be("300");
+        anonymous["isAnonymous"]!.Value<bool>().Should().BeTrue();
+        anonymous.Should().NotContainKey("gifterUserId");
+        anonymous.Should().NotContainKey("gifterDisplayName");
+    }
+
+    [Fact]
     public async Task Folds_the_events_own_provider_into_data_for_platform_broken_out_reads()
     {
         using ReadModelRebuildDatabase database = ReadModelRebuildDatabase.Open();
