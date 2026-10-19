@@ -909,7 +909,7 @@
           "revoke": "{role} intrekken"
         },
         "assign": {
-          "title": "Een rol toewijzen aan {name}",
+          "title": "Een rol toewijzen aan {name} ({id})",
           "action": "Toewijzen",
           "role": "Rol",
           "pickRole": "Kies een rol",
@@ -917,12 +917,12 @@
           "expiresHelp": "Laat leeg voor geen einddatum."
         },
         "revoke": {
-          "title": "{role} intrekken van {name}",
+          "title": "{role} intrekken van {name} ({id})",
           "action": "Rol intrekken",
           "consequence": "{name} verliest de rechten van {role} direct."
         },
         "deactivate": {
-          "title": "{name} deactiveren",
+          "title": "{name} deactiveren ({id})",
           "action": "Principal deactiveren",
           "consequence": "{name} heeft geen actieve rollen en kan niets doen tot heractivering. | {name} verliest {count} actieve rol en kan niets doen tot heractivering. | {name} verliest {count} actieve rollen en kan niets doen tot heractivering."
         },

@@ -632,6 +632,63 @@ describe('AdminAccessView', () => {
     expect(document.body.querySelector('[data-assignment]')!.className).toContain('h-9');
   });
 
+  it('puts the principal id in the dialog title so same-named principals stay apart', async () => {
+    await open();
+    (document.body.querySelector('[data-deactivate]') as HTMLElement).click();
+    await settle();
+
+    expect(document.body.querySelector('[role="dialog"] h2')?.textContent).toBe(
+      'Deactivate Ada Operator (ID p1)',
+    );
+
+    byText('[role="dialog"] button', 'Cancel')!.click();
+    await settle();
+    (document.body.querySelector('[data-revoke]') as HTMLElement).click();
+    await settle();
+
+    expect(document.body.querySelector('[role="dialog"] h2')?.textContent).toBe(
+      'Revoke Support from Ada Operator (ID p1)',
+    );
+  });
+
+  it('keeps the Built in badge and the permission count in fixed columns on every role row', async () => {
+    await open();
+
+    const rows = [...document.body.querySelectorAll('[data-role-row]')];
+
+    expect(rows).toHaveLength(2);
+
+    for (const row of rows) {
+      expect(row.querySelector('[data-role-badge]')!.className).toContain('w-24');
+      expect(row.querySelector('[data-role-count]')!.className).toContain('w-28');
+    }
+
+    expect(rows[0]!.querySelector('[data-role-badge]')!.textContent).toContain('Built in');
+    expect(rows[1]!.querySelector('[data-role-badge]')!.textContent?.trim()).toBe('');
+  });
+
+  it('gives the role chips three shares of the row so two chips sit side by side at 1280', async () => {
+    await open();
+
+    const chips = document.body.querySelector('[data-principal-row] > div:nth-child(2)')!;
+
+    expect(chips.className).toContain('flex-[3]');
+    expect(chips.className).toContain('basis-96');
+  });
+
+  it('pads the principals and roles lists to the same 16px as their headers', async () => {
+    await open();
+
+    const lists = [
+      document.body.querySelector('[data-principal-row]')!.parentElement!,
+      document.body.querySelector('[data-role-row]')!.parentElement!,
+    ];
+
+    for (const list of lists) {
+      expect(list.parentElement!.className).toContain('p-4');
+    }
+  });
+
   it('keeps the principal name block a minimum width so wide role chips wrap instead of covering it', async () => {
     await open();
 

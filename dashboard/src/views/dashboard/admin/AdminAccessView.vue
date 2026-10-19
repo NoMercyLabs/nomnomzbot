@@ -144,6 +144,9 @@ const dialogTitle = computed<string>(() => {
   return t(`dashboard.admin.access.${step.value}.title`, {
     name: name.value,
     role: roleName.value,
+    id: target.value
+      ? t('dashboard.admin.access.principals.id', { id: idTail(target.value.id) })
+      : '',
   });
 });
 
@@ -287,6 +290,7 @@ async function startImpersonation(): Promise<void> {
 
     <PanelCard
       class="shrink-0"
+      pad
       tier="lead"
       :title="$t('dashboard.admin.access.principals.title')"
       :description="$t('dashboard.admin.access.principals.description')"
@@ -300,7 +304,7 @@ async function startImpersonation(): Promise<void> {
           v-for="row in visible"
           :key="row.id"
           data-principal-row
-          class="flex flex-wrap items-center gap-3 py-3"
+          class="flex min-h-16 flex-wrap items-center gap-3 py-3"
         >
           <div class="min-w-40 flex-1 basis-48 max-md:basis-full">
             <UserName
@@ -328,7 +332,7 @@ async function startImpersonation(): Promise<void> {
             </span>
           </div>
           <div
-            class="flex min-w-0 flex-[2] basis-64 flex-wrap items-center gap-2 max-md:basis-full"
+            class="flex min-w-0 flex-[3] basis-96 flex-wrap items-center gap-2 max-md:basis-full"
           >
             <Badge v-if="!row.isActive" variant="outline">{{
               $t("dashboard.admin.access.principals.inactive")
@@ -344,10 +348,9 @@ async function startImpersonation(): Promise<void> {
               class="inline-flex min-h-9 flex-wrap items-center gap-x-1 rounded-md border border-border pr-0.5 pl-2 text-xs"
             >
               <span class="whitespace-nowrap">{{ held.roleName }}</span>
-              <span v-if="count > 1"
-                    data-assignment-count
-                    class="text-muted-foreground"
-              >{{ $t("dashboard.admin.access.principals.times", { count }) }}</span>
+              <span v-if="count > 1" data-assignment-count class="text-muted-foreground">{{
+                $t("dashboard.admin.access.principals.times", { count })
+              }}</span>
               <span v-if="held.scopeChannelId" data-assignment-scope class="text-muted-foreground">
                 <AccessScope :channel-id="held.scopeChannelId" />
               </span>
@@ -401,6 +404,7 @@ async function startImpersonation(): Promise<void> {
 
     <PanelCard
       class="shrink-0"
+      pad
       :title="$t('dashboard.admin.access.roles.title')"
       :description="$t('dashboard.admin.access.roles.description')"
       :state="roleState"
@@ -432,10 +436,12 @@ async function startImpersonation(): Promise<void> {
                 }}</span>
               </span>
             </CollapsibleTrigger>
-            <Badge v-if="role.isSystem" variant="outline">{{
-              $t("dashboard.admin.access.roles.system")
-            }}</Badge>
-            <span class="text-xs text-muted-foreground">
+            <span data-role-badge class="flex w-24 shrink-0 justify-end">
+              <Badge v-if="role.isSystem" variant="outline">{{
+                $t("dashboard.admin.access.roles.system")
+              }}</Badge>
+            </span>
+            <span data-role-count class="w-28 shrink-0 text-right text-xs text-muted-foreground">
               {{
                 $t(
                   "dashboard.admin.access.roles.permissions",
