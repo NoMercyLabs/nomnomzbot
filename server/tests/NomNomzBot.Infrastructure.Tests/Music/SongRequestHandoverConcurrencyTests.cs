@@ -15,11 +15,13 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
+using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -110,7 +112,7 @@ public sealed class SongRequestHandoverConcurrencyTests
         new(trackUri, "Track", "Artist", null, 200_000, requestedBy, 0, null, "");
 
     [Fact]
-    public async Task The_poller_recovery_tick_during_an_admission_push_does_not_push_the_same_request_again()
+    public async Task The_poller_recovery_tick_during_an_admission_start_does_not_start_the_same_request_again()
     {
         ConcurrentQueue<string> pushed = new();
         TaskCompletionSource firstPushEntered = new(
@@ -123,29 +125,44 @@ public sealed class SongRequestHandoverConcurrencyTests
         SongRequestQueueStore store = new();
         MusicService chatScope = NewScope(provider, store);
         MusicService pollerScope = NewScope(provider, store);
+        // The director's Spotify engine start is the call held open, where the provider push used to be.
+        FakeEngine spotify = DirectorRig.Of(store).Engines.EngineOf(ChannelId, EngineKind.Spotify);
+        TaskCompletionSource firstStartEntered = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        TaskCompletionSource releaseFirstStart = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        spotify.DuringStart = async _ =>
+        {
+            firstStartEntered.TrySetResult();
+            await releaseFirstStart.Task;
+        };
 
-        // A viewer's !sr lands on an idle queue, so admission pushes it straight to Spotify.
+        // A viewer's !sr lands on an idle queue, so admission has the director start it on Spotify.
         Task<Result> admission = chatScope.AddToQueueAsync(
             ChannelId.ToString(),
             "spotify:track:once",
             "viewer1"
         );
-        await firstPushEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await firstStartEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        // The poller's 1s recovery tick fires while that POST is still on the wire.
+        // The poller's 1s recovery tick fires while that start is still in flight.
         Task recoveryTick = pollerScope.HandOverNextAsync(ChannelId.ToString());
         await Task.WhenAny(recoveryTick, Task.Delay(RaceWindow));
 
-        releaseFirstPush.SetResult(true);
+        releaseFirstStart.SetResult();
         (await admission).IsSuccess.Should().BeTrue();
         await recoveryTick;
 
-        pushed
+        spotify
+            .Calls.Where(c => c.Name == "Start")
             .Should()
-            .Equal(
-                ["spotify:track:once"],
-                "one request is handed to Spotify once; a second push makes Spotify play it twice"
+            .HaveCount(
+                1,
+                "one request is started once; a second start makes Spotify play it twice"
             );
+        pushed.Should().BeEmpty("the director starts the track, nothing is pushed to the provider");
         store.GetInFlight(ChannelId.ToString())!.TrackUri.Should().Be("spotify:track:once");
         store.TryGet(ChannelId.ToString())!.GetSnapshot().Should().ContainSingle();
     }

@@ -57,17 +57,22 @@ public sealed class MusicServiceQueuePushFailureTests
 
     // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
     // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
-    // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
-    // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
     private static int QueuePushCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
             url.StartsWith("POST", StringComparison.Ordinal)
             && url.Contains("/me/player/queue", StringComparison.Ordinal)
         );
 
-    private static bool IsQueuePush(HttpRequestMessage r) =>
-        r.Method == HttpMethod.Post
-        && r.RequestUri!.AbsolutePath.EndsWith("/me/player/queue", StringComparison.Ordinal);
+    /// <summary>The call the Spotify engine makes to start a track: a PUT to the play endpoint.</summary>
+    private static bool IsStartTrack(HttpRequestMessage r) =>
+        r.Method == HttpMethod.Put
+        && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal);
+
+    private static int StartTrackCount(RecordingHttpHandler handler) =>
+        handler.RequestUrls.Count(url =>
+            url.StartsWith("PUT", StringComparison.Ordinal)
+            && url.Contains("/me/player/play", StringComparison.Ordinal)
+        );
 
     private static void RespondWithResolvedTrack(RecordingHttpHandler handler) =>
         handler.RespondWhen(
@@ -78,11 +83,11 @@ public sealed class MusicServiceQueuePushFailureTests
         );
 
     [Fact]
-    public async Task No_active_device_on_the_initial_push_fails_the_request_with_its_own_code_and_reply()
+    public async Task No_active_device_on_the_start_fails_the_request_with_its_own_code_and_reply()
     {
-        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
-        handler.RespondWhen(IsQueuePush, HttpStatusCode.NotFound, NoActiveDeviceJson);
+        handler.RespondWhen(IsStartTrack, HttpStatusCode.NotFound, NoActiveDeviceJson);
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
             ChannelId.ToString(),
@@ -98,15 +103,18 @@ public sealed class MusicServiceQueuePushFailureTests
             .And.Contain("Start playback");
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Should()
-            .BeEmpty("a push that never reached the provider must not leave a phantom queue entry");
+            .BeEmpty("a start that never reached the player must not leave a phantom queue entry");
+        QueuePushCount(handler)
+            .Should()
+            .Be(0, "the director starts the track, nothing is queued at the provider");
     }
 
     [Fact]
-    public async Task Premium_required_on_the_initial_push_fails_the_request_with_its_own_code_and_reply()
+    public async Task Premium_required_on_the_start_fails_the_request_as_MUSIC_FORBIDDEN()
     {
-        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
-        handler.RespondWhen(IsQueuePush, HttpStatusCode.Forbidden, PremiumRequiredJson);
+        handler.RespondWhen(IsStartTrack, HttpStatusCode.Forbidden, PremiumRequiredJson);
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
             ChannelId.ToString(),
@@ -115,25 +123,27 @@ public sealed class MusicServiceQueuePushFailureTests
         );
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("PREMIUM_REQUIRED");
-        result.ErrorMessage.Should().Contain("Premium");
+        // The engine folds a Premium refusal into Forbidden, so the requester gets the forbidden reply.
+        result.ErrorCode.Should().Be("MUSIC_FORBIDDEN");
+        result.ErrorMessage.Should().Contain("permission");
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Dead_connection_on_the_initial_push_fails_as_MUSIC_AUTH_FAILED()
+    public async Task Dead_connection_on_the_start_fails_as_MUSIC_AUTH_FAILED()
     {
         (
             MusicService sut,
             RecordingHttpHandler handler,
             _,
             FakeIntegrationTokenVault vault,
-            Guid connectionId
+            Guid connectionId,
+            _
         ) = Build();
         // Expired token, no refresh token on file — GetTokenAsync resolves to null for every Spotify
         // call (resolve/search included), so AddToQueueAsync (not RequestTrackAsync) is the entry point
         // here: it degrades an unresolvable track to a synthetic display entry and still attempts the
-        // real admission — including the immediate provider push, which is what must surface the auth
+        // real admission, including the director's start, which is what must surface the auth
         // failure rather than a misleading NOT_FOUND from the resolve step.
         vault.MakeUnrefreshable(connectionId);
 
@@ -144,16 +154,19 @@ public sealed class MusicServiceQueuePushFailureTests
         result.ErrorMessage.Should().Contain("reconnected");
         handler
             .RequestUrls.Should()
-            .NotContain(u => u.Contains("/me/player/queue", StringComparison.Ordinal));
+            .NotContain(
+                u => u.Contains("/me/player/", StringComparison.Ordinal),
+                "the engine never sends a command without a token"
+            );
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task An_unrecognised_provider_failure_on_the_initial_push_falls_back_to_PROVIDER_ERROR()
+    public async Task An_unrecognised_provider_failure_on_the_start_falls_back_to_PROVIDER_ERROR()
     {
-        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
-        handler.RespondWhen(IsQueuePush, HttpStatusCode.InternalServerError, "{}");
+        handler.RespondWhen(IsStartTrack, HttpStatusCode.InternalServerError, "{}");
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
             ChannelId.ToString(),
@@ -167,11 +180,11 @@ public sealed class MusicServiceQueuePushFailureTests
     }
 
     [Fact]
-    public async Task A_successful_initial_push_still_queues_and_replies_with_the_track()
+    public async Task A_successful_start_still_queues_and_replies_with_the_track()
     {
-        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
-        handler.RespondWhen(IsQueuePush, HttpStatusCode.NoContent);
+        handler.RespondWhen(IsStartTrack, HttpStatusCode.NoContent);
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
             ChannelId.ToString(),
@@ -181,31 +194,34 @@ public sealed class MusicServiceQueuePushFailureTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Name.Should().Be("Never Gonna Give You Up");
+        StartTrackCount(handler).Should().Be(1);
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().ContainSingle();
     }
 
     [Fact]
-    public async Task Skip_does_not_push_the_next_track_again_because_the_provider_already_holds_it()
+    public async Task Skip_does_not_start_the_next_track_again_because_the_director_already_started_it()
     {
-        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
-        handler.RespondWhen(IsQueuePush, HttpStatusCode.NoContent);
+        handler.RespondWhen(IsStartTrack, HttpStatusCode.NoContent);
 
-        // Admission pushes the request to the provider's own queue — that is what plays it.
+        // Admission sends the request to the director, whose Spotify engine starts it, and that is what plays it.
         await sut.RequestTrackAsync(
             ChannelId.ToString(),
             $"https://open.spotify.com/track/{TrackId}",
             "viewer1"
         );
-        int pushesAfterRequest = QueuePushCount(handler);
-        pushesAfterRequest.Should().Be(1);
+        int startsAfterRequest = StartTrackCount(handler);
+        startsAfterRequest.Should().Be(1);
+        QueuePushCount(handler).Should().Be(0);
 
         Result skip = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
         skip.IsSuccess.Should().BeTrue();
-        // A skip only advances the provider. Re-pushing the entry here would queue the same track a
+        // A skip only advances the provider. Starting the entry again here would play the same track a
         // second time, which is exactly the double-play the old dequeue-and-push skip produced.
-        QueuePushCount(handler).Should().Be(pushesAfterRequest);
+        StartTrackCount(handler).Should().Be(startsAfterRequest);
+        QueuePushCount(handler).Should().Be(0);
         // The entry stays pending until the live playback state confirms it is the track now playing.
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Should()
@@ -215,9 +231,9 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task Skip_still_succeeds_when_the_provider_push_succeeds()
     {
-        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
-        handler.RespondWhen(IsQueuePush, HttpStatusCode.NoContent);
+        handler.RespondWhen(IsStartTrack, HttpStatusCode.NoContent);
         handler.RespondWhen(
             r =>
                 r.Method == HttpMethod.Post
@@ -247,7 +263,8 @@ public sealed class MusicServiceQueuePushFailureTests
         RecordingHttpHandler Handler,
         MusicTestDbContext Db,
         FakeIntegrationTokenVault Vault,
-        Guid ConnectionId
+        Guid ConnectionId,
+        DirectorRig Rig
     ) Build()
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -287,12 +304,15 @@ public sealed class MusicServiceQueuePushFailureTests
 
         RecordingEventBus bus = new();
         BlockedTrackService blocks = new(db);
+        DirectorRig.NewStore(out SongRequestQueueStore directorStore);
+        // The real Spotify engine, over this provider: a refused start comes from the provider's own HTTP answer.
+        DirectorRig.Of(directorStore).Engines.UseRealSpotify(ChannelId, spotify);
         MusicService sut = new(
             [spotify],
             db,
             bus,
             blocks,
-            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
+            directorStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -305,6 +325,6 @@ public sealed class MusicServiceQueuePushFailureTests
             DirectorRig.Of(directorStore).Registry,
             DirectorRig.Of(directorStore).Registry
         );
-        return (sut, handler, db, vault, connectionId);
+        return (sut, handler, db, vault, connectionId, DirectorRig.Of(directorStore));
     }
 }

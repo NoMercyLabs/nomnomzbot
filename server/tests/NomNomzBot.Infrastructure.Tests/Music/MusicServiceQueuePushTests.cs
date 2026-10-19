@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -21,6 +22,7 @@ using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
+using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -44,9 +46,10 @@ public sealed class MusicServiceQueuePushTests
             """.Replace("__ID__", id);
 
     [Fact]
-    public async Task Only_the_first_request_reaches_the_provider_the_rest_wait_in_the_fair_queue()
+    public async Task Only_the_first_request_reaches_the_engine_the_rest_wait_in_the_fair_queue()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build();
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = Build();
+        FakeEngine spotify = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
 
         Result first = await RequestAsync(sut, handler, "a1", "viewer1");
         Result second = await RequestAsync(sut, handler, "a2", "viewer2");
@@ -55,10 +58,15 @@ public sealed class MusicServiceQueuePushTests
         first.IsSuccess.Should().BeTrue();
         second.IsSuccess.Should().BeTrue();
         third.IsSuccess.Should().BeTrue();
-        QueuePushCount(handler)
+        spotify
+            .Calls.Where(c => c.Name == "Start")
             .Should()
-            .Be(1, "only the track now waiting to play belongs at the provider");
-        // All three are accepted and ordered by US — and the order is the distinction that matters, not
+            .HaveCount(1, "only the track now waiting to play belongs at the engine");
+        rig.Registry.StateOf(ChannelId)
+            .Item!.Uri.Should()
+            .Be("spotify:track:a1", "the first request is the one the director started");
+        QueuePushCount(handler).Should().Be(0, "nothing is pushed to the provider's own queue");
+        // All three are accepted and ordered by US, and the order is the distinction that matters, not
         // the count: three separate viewers each get rank 1, so arrival order holds here.
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Select(i => i.TrackName)
@@ -67,41 +75,28 @@ public sealed class MusicServiceQueuePushTests
     }
 
     [Fact]
-    public async Task A_failed_push_takes_only_that_request_back_out_and_lets_the_next_one_through()
+    public async Task A_refused_start_takes_only_that_request_back_out_and_lets_the_next_one_through()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build();
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = Build();
+        FakeEngine spotify = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
 
-        // Nothing is at the provider yet, so this request is the one that gets pushed — and the push fails.
-        handler.ClearRoutes();
-        handler.RespondWhen(
-            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
-            HttpStatusCode.OK,
-            SearchJson("b1")
-        );
-        handler.RespondWhen(
-            r =>
-                r.Method == HttpMethod.Post
-                && r.RequestUri!.AbsolutePath.EndsWith(
-                    "/me/player/queue",
-                    StringComparison.Ordinal
-                ),
-            HttpStatusCode.NotFound,
-            """{"error":{"status":404,"reason":"NO_ACTIVE_DEVICE","message":"No active device"}}"""
-        );
-
-        Result failed = await sut.AddToQueueAsync(ChannelId.ToString(), "song b1", "viewer1");
+        // Nothing is playing yet, so this request is the one the director starts, and the engine refuses.
+        spotify.StartResult = EngineStartResult.BlockedBy(EngineBlockReason.NoOutput);
+        Result failed = await RequestAsync(sut, handler, "b1", "viewer1");
 
         failed.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
+        rig.Registry.StateOf(ChannelId).Kind.Should().Be(PlaybackStateKind.Blocked);
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Should()
-            .BeEmpty(
-                "a request that never reached the provider is not left behind pretending to be live"
-            );
+            .BeEmpty("a request that never started is not left behind pretending to be live");
 
         // Nothing was left marked as in-flight either, so the next request is still handed over.
+        spotify.StartResult = EngineStartResult.Ok;
         Result recovered = await RequestAsync(sut, handler, "b2", "viewer1");
 
         recovered.IsSuccess.Should().BeTrue();
+        spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(2);
+        rig.Registry.StateOf(ChannelId).Item!.Uri.Should().Be("spotify:track:b2");
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Select(i => i.TrackName)
             .Should()
@@ -109,93 +104,52 @@ public sealed class MusicServiceQueuePushTests
     }
 
     /// <summary>
-    /// A handover that could not land — the streamer's player was closed, the token had died — must not
-    /// strand the queue. The request stays at the head with nothing in flight, and the playback poller's
-    /// recovery tick calls the same handover again, so the queue resumes on its own the moment playback is
-    /// possible instead of waiting for someone to request another song.
+    /// A request the engine refused must not strand the queue or leave a phantom: it is rolled back, so the
+    /// recovery tick finds nothing to hand over, and once a request is started the tick never starts a second.
+    /// (The recovery tick that re-pushed a stuck head is removed in slice 4c2b; today HandOverNextAsync still
+    /// runs, and what stays true is that it adds no second start.)
     /// </summary>
     [Fact]
-    public async Task A_request_that_could_not_be_handed_over_is_handed_over_on_the_next_recovery_tick()
+    public async Task A_refused_request_leaves_nothing_for_the_recovery_tick_and_a_started_one_is_not_started_twice()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build();
-        handler.RespondWhen(
-            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
-            HttpStatusCode.OK,
-            SearchJson("c1")
-        );
-        handler.RespondWhen(
-            r =>
-                r.Method == HttpMethod.Post
-                && r.RequestUri!.AbsolutePath.EndsWith(
-                    "/me/player/queue",
-                    StringComparison.Ordinal
-                ),
-            HttpStatusCode.NotFound,
-            """{"error":{"status":404,"reason":"NO_ACTIVE_DEVICE","message":"No active device"}}"""
-        );
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = Build();
+        FakeEngine spotify = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
+        spotify.StartResult = EngineStartResult.BlockedBy(EngineBlockReason.NoOutput);
 
-        (await sut.AddToQueueAsync(ChannelId.ToString(), "song c1", "viewer1"))
+        (await RequestAsync(sut, handler, "c1", "viewer1"))
             .ErrorCode.Should()
             .Be("NO_ACTIVE_DEVICE");
-
-        // The viewer re-requests once the device is back; it queues but is not yet at the provider...
-        handler.ClearRoutes();
-        handler.RespondWhen(
-            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
-            HttpStatusCode.OK,
-            SearchJson("c2")
-        );
-        handler.RespondWhen(
-            r =>
-                r.Method == HttpMethod.Post
-                && r.RequestUri!.AbsolutePath.EndsWith(
-                    "/me/player/queue",
-                    StringComparison.Ordinal
-                ),
-            HttpStatusCode.NotFound,
-            """{"error":{"status":404,"reason":"NO_ACTIVE_DEVICE","message":"No active device"}}"""
-        );
-        (await sut.AddToQueueAsync(ChannelId.ToString(), "song c2", "viewer1"))
+        (await RequestAsync(sut, handler, "c2", "viewer1"))
             .ErrorCode.Should()
             .Be("NO_ACTIVE_DEVICE");
+        spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(2);
 
-        // ...the device comes back. The recovery tick hands the head over without any new request.
-        handler.ClearRoutes();
-        RespondQueuePush(handler, HttpStatusCode.NoContent);
-        int pushesBefore = QueuePushCount(handler);
-
+        // The device comes back. The recovery tick has nothing queued, so it starts nothing.
+        spotify.StartResult = EngineStartResult.Ok;
         await sut.HandOverNextAsync(ChannelId.ToString());
 
-        QueuePushCount(handler)
+        spotify
+            .Calls.Where(c => c.Name == "Start")
             .Should()
-            .Be(pushesBefore, "nothing is queued — both attempts rolled their request back out");
+            .HaveCount(2, "nothing is queued, both attempts rolled their request back out");
+        QueuePushCount(handler).Should().Be(0);
 
-        // With a request actually waiting, the same tick hands exactly that one over.
-        handler.ClearRoutes();
-        handler.RespondWhen(
-            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
-            HttpStatusCode.OK,
-            SearchJson("c3")
-        );
-        RespondQueuePush(handler, HttpStatusCode.NoContent);
-        (await sut.AddToQueueAsync(ChannelId.ToString(), "song c3", "viewer1"))
+        // With a request actually accepted, the same tick adds no second start.
+        (await RequestAsync(sut, handler, "c3", "viewer1"))
             .IsSuccess.Should()
             .BeTrue();
-        int afterAccepted = QueuePushCount(handler);
+        spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(3);
 
         await sut.HandOverNextAsync(ChannelId.ToString());
 
-        QueuePushCount(handler)
+        spotify
+            .Calls.Where(c => c.Name == "Start")
             .Should()
-            .Be(
-                afterAccepted,
-                "one is already in flight — a recovery tick must never push a second"
-            );
+            .HaveCount(3, "one is already in flight, a recovery tick must never start a second");
+        QueuePushCount(handler).Should().Be(0);
     }
 
     // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
-    // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
-    // POST only � a GET to the same path is the duplicate-check's own provider-queue probe (one per
     // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
     private static int QueuePushCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
@@ -235,7 +189,7 @@ public sealed class MusicServiceQueuePushTests
         );
     }
 
-    private static (MusicService Sut, RecordingHttpHandler Handler) Build()
+    private static (MusicService Sut, RecordingHttpHandler Handler, DirectorRig Rig) Build()
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -287,6 +241,6 @@ public sealed class MusicServiceQueuePushTests
             DirectorRig.Of(directorStore).Registry,
             DirectorRig.Of(directorStore).Registry
         );
-        return (sut, handler);
+        return (sut, handler, DirectorRig.Of(directorStore));
     }
 }

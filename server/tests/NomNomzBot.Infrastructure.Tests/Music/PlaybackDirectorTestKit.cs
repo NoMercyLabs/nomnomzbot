@@ -59,6 +59,9 @@ public static class PlaybackDirectorTestKit
         /// <summary>When set, <see cref="StartAsync"/> throws what this returns.</summary>
         public Func<Exception>? StartThrows { get; set; }
 
+        /// <summary>When set, <see cref="StartAsync"/> runs and awaits this before it answers (a test reads ambient state or holds the start open).</summary>
+        public Func<PlaybackItem, Task>? DuringStart { get; set; }
+
         /// <summary>When set, Pause, Resume, Stop, Seek and SetVolume throw the typed block, as a real engine does.</summary>
         public EngineBlockReason? BlockCommands { get; set; }
 
@@ -72,7 +75,14 @@ public static class PlaybackDirectorTestKit
             if (StartThrows is not null)
                 throw StartThrows();
 
-            return Task.FromResult(StartResult);
+            return DuringStart is null ? Task.FromResult(StartResult) : StartAfterAsync(item);
+        }
+
+        private async Task<EngineStartResult> StartAfterAsync(PlaybackItem item)
+        {
+            await DuringStart!(item);
+
+            return StartResult;
         }
 
         public Task PauseAsync(CancellationToken ct = default) => Record("Pause");

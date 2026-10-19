@@ -153,16 +153,13 @@ public sealed class SpotifyMusicProviderAuthStatusTests
     }
 
     [Fact]
-    public async Task Sr_queue_push_rejected_401_fails_as_MUSIC_AUTH_FAILED_not_a_generic_PROVIDER_ERROR()
+    public async Task Sr_start_rejected_401_fails_as_MUSIC_AUTH_FAILED_not_a_generic_PROVIDER_ERROR()
     {
         (MusicService sut, RecordingHttpHandler handler, _, _) = Build();
         handler.RespondWhen(
             r =>
-                r.Method == HttpMethod.Post
-                && r.RequestUri!.AbsolutePath.EndsWith(
-                    "/me/player/queue",
-                    StringComparison.Ordinal
-                ),
+                r.Method == HttpMethod.Put
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal),
             HttpStatusCode.Unauthorized,
             NeedsReauthJson
         );
@@ -175,16 +172,13 @@ public sealed class SpotifyMusicProviderAuthStatusTests
     }
 
     [Fact]
-    public async Task Sr_queue_push_rejected_403_non_premium_fails_as_MUSIC_FORBIDDEN_distinct_from_auth_failed()
+    public async Task Sr_start_rejected_403_non_premium_fails_as_MUSIC_FORBIDDEN_distinct_from_auth_failed()
     {
         (MusicService sut, RecordingHttpHandler handler, _, _) = Build();
         handler.RespondWhen(
             r =>
-                r.Method == HttpMethod.Post
-                && r.RequestUri!.AbsolutePath.EndsWith(
-                    "/me/player/queue",
-                    StringComparison.Ordinal
-                ),
+                r.Method == HttpMethod.Put
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
             ForbiddenJson
         );
@@ -241,12 +235,15 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             new OutboundSanctionAccessor()
         );
 
+        DirectorRig.NewStore(out SongRequestQueueStore directorStore);
+        // The real Spotify engine over this provider: the start's HTTP answer decides the typed refusal.
+        DirectorRig.Of(directorStore).Engines.UseRealSpotify(ChannelId, spotify);
         MusicService sut = new(
             [spotify],
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
+            directorStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             capabilityStore,

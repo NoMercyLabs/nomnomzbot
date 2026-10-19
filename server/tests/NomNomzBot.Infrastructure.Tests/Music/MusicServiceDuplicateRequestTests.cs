@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -38,7 +39,7 @@ public sealed class MusicServiceDuplicateRequestTests
     [Fact]
     public async Task The_same_track_requested_twice_is_refused_and_names_the_first_requester()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build();
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = Build();
         RespondQueuePush(handler, HttpStatusCode.NoContent);
         RespondNothingPlaying(handler);
 
@@ -57,23 +58,19 @@ public sealed class MusicServiceDuplicateRequestTests
         refusal.RequestedBy.Should().Be("viewer1");
         refusal.IsPlayingNow.Should().BeFalse();
         refusal.TrackName.Should().NotBeNullOrWhiteSpace();
-        // Refused before the provider PUSH is touched — one push, one queue entry, one play. (A GET to
-        // the same path is the new provider-side duplicate probe, which also runs on the first, admitted
-        // request — only the POST push count says whether the second request reached the provider.)
-        handler
-            .RequestUrls.Count(u =>
-                u.StartsWith("POST", StringComparison.Ordinal)
-                && u.Contains("/me/player/queue", StringComparison.Ordinal)
-            )
+        // Refused before the director is touched again: one engine start, one queue entry, one play.
+        rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Where(c => c.Name == "Start")
             .Should()
-            .Be(1);
+            .HaveCount(1);
+        rig.Registry.StateOf(ChannelId).Item!.Uri.Should().Be(TrackUri);
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().ContainSingle();
     }
 
     [Fact]
     public async Task Requesting_the_track_that_is_playing_right_now_is_refused()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
         RespondQueuePush(handler, HttpStatusCode.NoContent);
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
@@ -100,7 +97,7 @@ public sealed class MusicServiceDuplicateRequestTests
     {
         // Nothing in OUR fair queue and nothing "playing right now" — this is the case our own admission
         // gates cannot see: the streamer queued the track by hand from the Spotify app itself.
-        (MusicService sut, RecordingHttpHandler handler) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
         RespondNothingPlaying(handler);
         handler.RespondWhen(
             r =>
@@ -131,7 +128,7 @@ public sealed class MusicServiceDuplicateRequestTests
     [Fact]
     public async Task A_probe_that_cannot_answer_is_not_treated_as_a_match()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
         RespondQueuePush(handler, HttpStatusCode.NoContent);
         // Dead token: the provider contract turns every unanswerable probe into a null read, which must
         // not count as "this track is playing" — otherwise a broken connection refuses every request.
@@ -164,7 +161,7 @@ public sealed class MusicServiceDuplicateRequestTests
             status
         );
 
-    private static (MusicService Sut, RecordingHttpHandler Handler) Build()
+    private static (MusicService Sut, RecordingHttpHandler Handler, DirectorRig Rig) Build()
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -216,6 +213,6 @@ public sealed class MusicServiceDuplicateRequestTests
             DirectorRig.Of(directorStore).Registry,
             DirectorRig.Of(directorStore).Registry
         );
-        return (sut, handler);
+        return (sut, handler, DirectorRig.Of(directorStore));
     }
 }

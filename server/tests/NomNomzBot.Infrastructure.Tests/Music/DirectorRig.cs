@@ -54,11 +54,32 @@ internal sealed class DirectorRig
     public sealed class ScriptableEngineFactory : IPlaybackEngineFactory
     {
         private readonly Dictionary<Guid, FakeEngine[]> _pairs = [];
+        private readonly Dictionary<Guid, IPlaybackEngine> _realSpotify = [];
 
         public FakeEngine EngineOf(Guid broadcasterId, EngineKind kind) =>
             PairOf(broadcasterId).Single(engine => engine.Kind == kind);
 
-        public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId) => PairOf(broadcasterId);
+        /// <summary>
+        /// Puts the real Spotify engine, over <paramref name="provider"/>, in place of the fake one for a channel,
+        /// so a test can drive a refused start from the provider's own HTTP answer instead of scripting it.
+        /// </summary>
+        public void UseRealSpotify(Guid broadcasterId, IMusicProvider provider)
+        {
+            lock (_pairs)
+                _realSpotify[broadcasterId] = new SpotifyPlaybackEngine(
+                    broadcasterId,
+                    () => EngineLease.Of(provider)
+                );
+        }
+
+        public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId)
+        {
+            FakeEngine[] pair = PairOf(broadcasterId);
+            lock (_pairs)
+                return _realSpotify.TryGetValue(broadcasterId, out IPlaybackEngine? real)
+                    ? [real, pair.Single(engine => engine.Kind == EngineKind.YouTube)]
+                    : pair;
+        }
 
         private FakeEngine[] PairOf(Guid broadcasterId)
         {

@@ -15,11 +15,13 @@ using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
+using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -121,12 +123,12 @@ public sealed class HandOverNextAsyncSanctionTests
 
     /// <summary>
     /// The gap this pins was live 2026-09-10 even after the HandOverNextAsync fix above shipped:
-    /// admission's own immediate push (the first request in an otherwise-empty queue, reached from a
+    /// admission's own immediate start (the first request in an otherwise-empty queue, reached from a
     /// chat-triggered `!sr` with no live HTTP request of its own) has exactly the same "no person
     /// present" shape and was refused by the same guard, independent of HandOverNextAsync entirely.
     /// </summary>
     [Fact]
-    public async Task AddToQueueAsync_admission_push_establishes_a_channel_configuration_sanction()
+    public async Task AddToQueueAsync_admission_start_establishes_a_channel_configuration_sanction()
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         SeedConnectedSpotify(db);
@@ -145,20 +147,24 @@ public sealed class HandOverNextAsyncSanctionTests
         provider
             .SearchAsync(ChannelId, Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns((Array.Empty<TrackInfo>(), MusicProviderFailureReason.None));
-        provider
-            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                observedDuringPush = sanctions.Current;
-                return Task.FromResult(true);
-            });
+
+        DirectorRig.NewStore(out SongRequestQueueStore directorStore);
+        // The director's engine start is the write that must be traceable: the fake engine reads the ambient
+        // sanction at the moment the director asks it to start the track.
+        DirectorRig rig = DirectorRig.Of(directorStore);
+        FakeEngine spotify = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
+        spotify.DuringStart = _ =>
+        {
+            observedDuringPush = sanctions.Current;
+            return Task.CompletedTask;
+        };
 
         MusicService sut = new(
             [provider],
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
+            directorStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -174,15 +180,23 @@ public sealed class HandOverNextAsyncSanctionTests
 
         sanctions.Current.Should().BeNull();
 
-        Result admitted = await sut.AddToQueueAsync(ChannelId.ToString(), "uri:1", "viewer1");
+        Result admitted = await sut.AddToQueueAsync(
+            ChannelId.ToString(),
+            "spotify:track:sanction1",
+            "viewer1"
+        );
 
         admitted.IsSuccess.Should().BeTrue();
+        spotify.Calls.Where(c => c.Name == "Start").Should().HaveCount(1);
         observedDuringPush
             .Should()
-            .NotBeNull("the push must carry a sanction the write can be traced to");
+            .NotBeNull("the engine start must carry a sanction the write can be traced to");
         observedDuringPush!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
         observedDuringPush.Detail.Should().Be("music:song_request_dispatch");
         sanctions.Current.Should().BeNull();
+        await provider
+            .DidNotReceive()
+            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
