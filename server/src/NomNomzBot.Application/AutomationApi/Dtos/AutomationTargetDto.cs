@@ -12,13 +12,15 @@ using System.Text.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Application.AutomationApi.Dtos;
 
 /// <summary>
 /// The wire shape of one <see cref="BindingTarget"/> on the automation API: <c>kind</c> is
 /// <c>command | pipeline | action</c> (any casing); <c>id</c> names the command or pipeline; an action names its
-/// <c>actionType</c> and carries its <c>params</c> instead.
+/// <c>actionType</c> and carries its <c>params</c> instead. The id is an owned id in its ULID wire form, the same
+/// form every list sends; a raw Guid is still accepted on the way in.
 /// </summary>
 public sealed record AutomationTargetDto(
     string Kind,
@@ -28,14 +30,21 @@ public sealed record AutomationTargetDto(
 )
 {
     public static AutomationTargetDto From(BindingTarget target) =>
-        new(target.Kind.ToString().ToLowerInvariant(), target.Id, target.ActionType, target.Params);
+        new(
+            target.Kind.ToString().ToLowerInvariant(),
+            OwnedIdCodec.ToWire(target.Id),
+            target.ActionType,
+            target.Params
+        );
 
     /// <summary>
-    /// Reads the wire shape into a target. Fails with <c>VALIDATION_FAILED</c> for an unknown kind, a pipeline id
-    /// that is not a guid, a command or pipeline without an id, or an action without an action type.
+    /// Reads the wire shape into a target, with the id as the Guid string the bot looks up. Fails with
+    /// <c>VALIDATION_FAILED</c> for an unknown kind, a pipeline id that is not an owned id, a command or pipeline
+    /// without an id, or an action without an action type.
     /// </summary>
     public Result<BindingTarget> ToTarget()
     {
+        string? id = OwnedIdCodec.FromWire(Id);
         if (
             !Enum.TryParse(Kind, ignoreCase: true, out BindingTargetKind kind)
             || !Enum.IsDefined(kind)
@@ -46,12 +55,12 @@ public sealed record AutomationTargetDto(
         {
             case BindingTargetKind.Action when string.IsNullOrWhiteSpace(ActionType):
                 return Invalid("An action target needs an actionType.");
-            case BindingTargetKind.Pipeline when !Guid.TryParse(Id, out Guid _):
-                return Invalid("A pipeline target needs a pipeline id (a guid).");
-            case BindingTargetKind.Command when string.IsNullOrWhiteSpace(Id):
+            case BindingTargetKind.Pipeline when !Guid.TryParse(id, out Guid _):
+                return Invalid("A pipeline target needs a pipeline id.");
+            case BindingTargetKind.Command when string.IsNullOrWhiteSpace(id):
                 return Invalid("A command target needs a command id.");
             default:
-                return Result.Success(new BindingTarget(kind, Id, ActionType, Params));
+                return Result.Success(new BindingTarget(kind, id, ActionType, Params));
         }
     }
 

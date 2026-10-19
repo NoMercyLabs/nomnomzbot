@@ -151,7 +151,7 @@ try
                 .Serialization
                 .JsonIgnoreCondition
                 .WhenWritingNull;
-            o.JsonSerializerOptions.Converters.Add(new UlidGuidJsonConverter());
+            OwnedIdJson.AddConverters(o.JsonSerializerOptions);
         });
 
     // Swap the built-in {x:guid} inline route constraint for one that accepts a ULID string too, so an owned-id
@@ -182,10 +182,8 @@ try
             options.StatefulReconnectBufferSize = 100_000;
         })
         .AddJsonProtocol(options =>
-            // Hub JSON must speak the same owned-id form as REST: encode/decode every Guid as a ULID string. Today's
-            // hub DTOs carry ids as strings, so this is a no-op guard — but it keeps any future Guid-typed hub field
-            // consistent with the REST contract instead of silently diverging.
-            options.PayloadSerializerOptions.Converters.Add(new UlidGuidJsonConverter())
+            // Hub JSON must speak the same owned-id form as REST: the same converters, from the same list.
+            OwnedIdJson.AddConverters(options.PayloadSerializerOptions)
         )
         // A widget runs its actions over this one socket (widget-sdk.md §8). One at a time, a widget that
         // synthesizes several speech lines would wait for each before the next even starts.
