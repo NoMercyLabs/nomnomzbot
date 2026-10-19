@@ -36,7 +36,21 @@ Owner words are in `dashboard-owner-words.md` (2026-10-19 and 2026-10-20 entries
 - **S-PAGE-SCRIPTS** — the script detail shows what a person needs (trigger, settings, test with its own events), not raw powers and the full code; the empty session column does not take a third of the page.
 - **S-PAGE-OBS** — the OBS page is reorganized so the settings are not hidden in a collapsed section at the bottom and the live controls fit a streamer who is live.
 - **S-PAGE-MUSIC-SETTINGS** — the music settings panel is regrouped into clear sections.
-- **S-CHAT-BADGES** — the Chat identity panel shows the badges a person can choose, if Twitch's API offers a way (a check of the Helix docs is running); otherwise it says so truthfully.
+- **S-CHAT-BADGES** — Twitch's API has no endpoint that lists a user's own badges or sets the worn one (checked 2026-10-20: only Get Channel Chat Badges and Get Global Chat Badges, both catalogues). The Chat identity panel says the truth ("you choose badges on Twitch, in Chat Identity beside the chat box") with a button that opens the channel's Twitch popout chat.
+- **S-CHAT-SOURCE-BADGES** — chat messages also read `source_badges` (shared chat), which `ChatTranslators.ReadBadges` skips today.
+- **S-FOCUS-OPEN** — an overlay opened with the mouse focuses its own panel, not its first button or link (a text field still takes focus); the account menu becomes a dropdown menu with menu items, not underlined ghost buttons. A structure test fails on a wrapper without it.
+- **S-PAGE-PRONUNCIATION** — one column header row instead of the labels repeated in every row, the add row lined up with the list columns, and the Match labels in the page's language.
+- **S-TTS-SAMPLES-PREGEN** — every voice sample is generated ahead of time and served from storage, so "Play sample" starts at once.
+- **S-PAGE-MEDIA-SHARE** — every queue item has its controls (play now, skip, remove, ban the sharer), and the page is laid out around the queue.
+- **S-PAGE-DISCORD** — the Discord page shows what the bot does in Discord and lets the streamer set it up.
+- **S-PAGE-READABILITY** — each Readability option uses the control its values call for (switch, segmented control, select, slider).
+- **S-PAGE-OWN-BOT** — the "Your channel's own bot" card has one action, "Connect your own bot"; the browser sign-in is only the fallback inside that flow, and the status row shows the bot's real picture.
+- **S-PAGE-FEATURES** — the Features page lists every feature the server checks (N of M against the `FeatureService` catalogue, missing entries added on the server) grouped by area.
+- **S-PAGE-SPOTIFY-OWN-APP** — "Your own Spotify app" is shown only when it is needed (Spotify not connected and no shared app) or when the streamer asks for it from the Spotify row; a connected Spotify shows which app it uses in its row, not an open form. Today `IntegrationsView.vue` shows the form to everyone with `integration:write`.
+- **S-NAV-ONE-HOME** — a page has one home in the navigation. Discord and Supporter sources open the same page from the main menu and from Settings (`settings/route.ts` reuses the main route's component); the setup pages live in Settings, the main entry goes, and the old path redirects.
+- **S-PAGE-SUPPORTER-SOURCES** — the Supporter sources page is reorganized.
+- **S-PAGE-API-KEY-EVENTS** — the "Events a key can listen to" card goes; each key with the listen scope gets an info button that lists the events it can stream.
+- **S-PAGE-PERMISSIONS** — the Permissions page is reorganized so it is not one long scroll.
 
 ## OWNER REQUEST 2026-10-19 (night): Spotify keeps its own queue while YouTube takes over at the song boundary; YouTube keeps playing from the streamer's own music
 
