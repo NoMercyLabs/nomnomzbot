@@ -66,6 +66,7 @@ public sealed partial class PlaybackDirector : IDisposable
     /// <summary>The share of the owner level while bot audio plays; null when no duck is active.</summary>
     private int? _duckPercent;
 
+    private QueueMark? _lastJournaledTick;
     private EngineReport? _ownerReport;
     private string? _confirmedDeviceId;
     private OwnerMusicMemory? _memory;
@@ -221,7 +222,27 @@ public sealed partial class PlaybackDirector : IDisposable
     }
 
     private Task MoveAsync(PlaybackState to, PlaybackInput input, string reason) =>
-        MoveAsync(to, input.GetType().Name, reason);
+        IsRepeatedTick(to, input)
+            ? Task.CompletedTask
+            : MoveAsync(to, input.GetType().Name, reason);
+
+    /// <summary>
+    /// The poller sends RequestAdded on every tick. One that changes neither the state nor the queue since the
+    /// last journaled one is not a transition, so it is not journaled (it was most of the journal).
+    /// </summary>
+    private bool IsRepeatedTick(PlaybackState to, PlaybackInput input)
+    {
+        if (input is not RequestAdded || to != State)
+            return false;
+
+        QueueMark mark = new(_queue.Head?.Id, _queue.Snapshot.Count);
+        if (mark.HeadId is null || mark == _lastJournaledTick)
+            return true;
+
+        _lastJournaledTick = mark;
+
+        return false;
+    }
 
     /// <summary>An input the table does not list. A poll report is not journaled (it would flood).</summary>
     private Task IgnoreAsync(PlaybackInput input) =>
@@ -229,4 +250,7 @@ public sealed partial class PlaybackDirector : IDisposable
 
     /// <summary>What was playing on an engine before a queue item took over (rules 12 and 13).</summary>
     private sealed record OwnerMusicMemory(EngineKind Engine, bool WasPlaying);
+
+    /// <summary>The queue as a RequestAdded that held the state saw it: its head and its length.</summary>
+    private sealed record QueueMark(string? HeadId, int Count);
 }
