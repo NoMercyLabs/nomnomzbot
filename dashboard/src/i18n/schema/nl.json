@@ -750,6 +750,10 @@
           "description": "Het overslaan werkte niet.",
           "label": "Overslaan mislukt"
         },
+        "forbidden": {
+          "description": "De muziekverbinding heeft geen toestemming om over te slaan.",
+          "label": "Geen rechten om over te slaan"
+        },
         "noplayer": {
           "description": "Bij het overslaan stond de Audio-widget niet open in OBS.",
           "label": "Geen speler open"
@@ -765,6 +769,10 @@
         "nospotifydevice": {
           "description": "Bij het overslaan speelde er geen Spotify-apparaat.",
           "label": "Geen Spotify-apparaat"
+        },
+        "notconnected": {
+          "description": "De muziekverbinding is verbroken en moet opnieuw verbonden worden voordat overslaan werkt.",
+          "label": "Muziekverbinding verbroken"
         },
         "nothingplaying": {
           "description": "Een kijker probeerde over te slaan terwijl er geen nummer speelt.",
@@ -2147,6 +2155,15 @@
       }
     },
     "schedule_pipeline": {
+      "action_params": {
+        "help": "De instellingen waarmee de geplande actie wordt uitgevoerd, als paren van naam en waarde. Alleen van belang bij een actie die wordt uitgevoerd."
+      },
+      "action_type": {
+        "help": "De actie die eenmalig wordt uitgevoerd, na de vertraging, zonder tussenliggende pipeline."
+      },
+      "command": {
+        "help": "Het commando dat eenmalig wordt uitgevoerd, na de vertraging, zonder tussenliggende pipeline."
+      },
       "dedupe_key": {
         "help": "Slaat het plannen van een nieuwe uitvoering over als er al een met dezelfde sleutel is gepland. Dit voorkomt dubbele geplande uitvoeringen."
       },
@@ -2682,9 +2699,6 @@
       "accentColor": {
         "label": "Accentkleur"
       },
-      "enableAudio": {
-        "label": "Audio op deze pagina afspelen"
-      },
       "showIndicator": {
         "label": "Spreekindicator tonen (alleen instellen)"
       }
@@ -2845,8 +2859,8 @@
         "name": "Meldingen"
       },
       "audio": {
-        "description": "Alle geluiden en TTS-regels spelen hier af: geluidsclips, beloningsgeluiden en uitgesproken berichten komen allemaal uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft.",
-        "name": "Audio"
+        "description": "Geluidsclips, beloningsgeluiden en uitgesproken berichten (TTS) komen uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Muziek speelt af in de Muziekspeler-widget.",
+        "name": "Bot-audio"
       },
       "chat_box": {
         "description": "Live chat uit de opgemaakte berichtenstroom, met emotes, badges, naamkleuren en voornaamwoorden, plus thema’s, instellingen voor lettertype, grootte en achtergrond, tijdstempels, filters voor commando’s en bots, en optioneel vervagen per bericht.",
@@ -2895,6 +2909,10 @@
       "media_share": {
         "description": "Speelt de goedgekeurde Twitch-clips en YouTube-filmpjes die kijkers delen af op de stream. De server stuurt de opdrachten laden, afspelen, pauzeren, stoppen, spoelen en volume, en deze overlay meldt de status van de speler terug, zodat een afgelopen item de wachtrij laat doorschuiven. Verborgen zolang er niets speelt.",
         "name": "Media delen"
+      },
+      "music_player": {
+        "description": "Spotify- en YouTube-muziek speelt hier af, met een eigen volume. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Wil je de muziek op een ander niveau horen, zet de Muziekbron in OBS dan op Monitor en uitvoer.",
+        "name": "Muziekspeler"
       },
       "now_playing": {
         "description": "Een vaste weergave van het huidige nummer, in pil- of kaartweergave, met optioneel albumhoes en een geanimeerde voortgangsbalk. Het verbergt zichzelf verbergt als er niets speelt. Past zich aan de actieve aanbieder aan: bij Spotify wordt het ook een echt Spotify Connect-apparaat en speelt het audio af via deze OBS-bron (Premium en de streaming-scope vereist, pagina Integraties); bij YouTube kan het optioneel de echte video tonen in plaats van de compacte kaart.",
@@ -3027,6 +3045,23 @@
       },
       "showTitle": {
         "label": "Titel tonen"
+      }
+    },
+    "music_player": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "enableAudio": {
+        "label": "Audio op deze pagina afspelen"
+      },
+      "muted": {
+        "label": "Muziek op deze pagina dempen"
+      },
+      "showIndicator": {
+        "label": "Statusindicator tonen (alleen instellen)"
+      },
+      "volume": {
+        "label": "Volume (0-100)"
       }
     },
     "now_playing": {
