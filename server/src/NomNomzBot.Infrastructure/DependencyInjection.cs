@@ -895,7 +895,7 @@ public static class DependencyInjection
 
         // The raid seeder, the flow importer and the startup heal seeder share it to fill a pipeline's
         // compiled graph from its step rows.
-        services.AddScoped<Commands.PipelineGraphCacheHealer>();
+        services.AddScoped<PipelineGraphCacheHealer>();
 
         // Same shape for event-response defaults (S048b): EventResponseDefaultsSeedOnOnboardingHandler
         // injects the concrete seeder directly for the same immediate-seed-on-onboarding reason.

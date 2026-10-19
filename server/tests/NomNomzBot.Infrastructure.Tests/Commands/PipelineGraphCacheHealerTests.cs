@@ -99,7 +99,7 @@ public sealed class PipelineGraphCacheHealerTests
 
         string? graph = await CacheAsConsumersReadItAsync(db, pipeline.Id);
         graph.Should().NotBeNullOrEmpty();
-        graph!
+        graph
             .IndexOf("send_message", StringComparison.Ordinal)
             .Should()
             .BeLessThan(
