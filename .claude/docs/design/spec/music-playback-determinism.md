@@ -175,6 +175,10 @@ MusicStatePollingService.cs:277 goes away; `Blocked` plus `OutputAttached` repla
 
 Decided (Stoney, 2026-10-19, picked 'Blocked error'): when the bot cannot start a requested song, the requester sees a clear, visible Blocked error that says why, the same as other blocked actions.
 
+Arc's decision, pending Stoney: a play-once video that ends with no resume pending lets the director start the waiting request.
+
+Arc's decision, pending Stoney: Blocked + RequestAdded retries the head (Blocked -> Idle, re-evaluate head).
+
 ## 3. Rule: two system widgets, two audio levels
 
 Stoney, verbatim (2026-10-18): "we need a separate widget for the music, and one for the tts and other audio

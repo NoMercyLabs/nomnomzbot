@@ -35,11 +35,11 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// </summary>
 public sealed class MusicServiceDirectorIntakeTests
 {
-    private static readonly Guid SpotifyChannel = Guid.Parse(
+    internal static readonly Guid SpotifyChannel = Guid.Parse(
         "0192a000-0000-7000-8000-000000007c01"
     );
 
-    private static string SearchJson(string id) =>
+    internal static string SearchJson(string id) =>
         """
             {"tracks":{"items":[{"name":"Song __ID__","uri":"spotify:track:__ID__","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
             """.Replace("__ID__", id);
@@ -145,7 +145,7 @@ public sealed class MusicServiceDirectorIntakeTests
             && url.Contains("/me/player/queue", StringComparison.Ordinal)
         );
 
-    private static async Task<Result> RequestAsync(
+    internal static async Task<Result> RequestAsync(
         MusicService sut,
         RecordingHttpHandler handler,
         string trackId,
@@ -170,7 +170,10 @@ public sealed class MusicServiceDirectorIntakeTests
         return await sut.AddToQueueAsync(SpotifyChannel.ToString(), $"song {trackId}", requestedBy);
     }
 
-    private static (MusicService Sut, RecordingHttpHandler Handler, DirectorRig Rig) BuildSpotify()
+    internal static (MusicService Sut, RecordingHttpHandler Handler, DirectorRig Rig) BuildSpotify(
+        NowPlayingCache? nowPlaying = null,
+        RecordingEventBus? bus = null
+    )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -209,7 +212,7 @@ public sealed class MusicServiceDirectorIntakeTests
         MusicService sut = new(
             [spotify],
             db,
-            new RecordingEventBus(),
+            bus ?? new RecordingEventBus(),
             new BlockedTrackService(db),
             store,
             new NoOpSongRequestQueuePersistence(),
@@ -217,7 +220,7 @@ public sealed class MusicServiceDirectorIntakeTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache(),
+            nowPlaying ?? new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>(),
