@@ -26,6 +26,7 @@ import { ttsConfigKey, type TtsConfig } from './tts';
 
 export type TtsLexiconEntry = components['schemas']['TtsLexiconEntry'];
 export type TtsLexiconDraft = components['schemas']['UpsertTtsLexiconEntry'];
+export type TtsConfigOptions = components['schemas']['TtsConfigOptions'];
 export type NamePronunciation = components['schemas']['ChannelNamePronunciation'];
 
 // The rule toggles and the bits gate of the Rules tab. minBitsToTts 0 clears the gate.
@@ -133,6 +134,31 @@ export function useTtsDefaults(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<TtsConfig | null, Error> {
   return channelQuery(channelId, ttsDefaultsKey, readTtsDefaults);
+}
+
+export const ttsOptionsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'tts-options',
+];
+
+async function readTtsOptions(channelId: string): Promise<TtsConfigOptions | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/tts/config/options',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined)
+    throw failed('tts config', response.status, error);
+
+  return data?.data ?? null;
+}
+
+// The providers, voice sources, standings and the longest cap the bot accepts, so no list is kept here.
+export function useTtsOptions(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<TtsConfigOptions | null, Error> {
+  return channelQuery(channelId, ttsOptionsKey, readTtsOptions);
 }
 
 // Keys, the channel voice, the pronunciation rules and viewer voices stay as they are.

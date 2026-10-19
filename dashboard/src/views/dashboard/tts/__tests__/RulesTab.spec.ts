@@ -64,6 +64,13 @@ const defaults = {
   minBitsToTts: null,
 };
 
+const options = {
+  providers: ['edge', 'azure'],
+  modes: ['self_host', 'byok'],
+  minPermissions: ['everyone', 'moderators'],
+  maxCharactersLimit: 400,
+};
+
 const reply = (data: unknown): unknown => ({
   data: { data },
   response: { status: 200, ok: true },
@@ -93,6 +100,9 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string): Promise<unknown> => {
       if (path.endsWith('/tts/config'))
         return reply(config);
+
+      if (path.endsWith('/tts/config/options'))
+        return reply(options);
 
       if (path.endsWith('/tts/config/defaults'))
         return reply(defaults);
@@ -294,6 +304,30 @@ describe('TTS rules panels', () => {
     expect(sent.filter((call) => call.method === 'PUT')[1]?.body).toEqual({
       minPermission: 'moderators',
     });
+  });
+
+  it('offers only the providers, standings and cap the bot serves', async () => {
+    await open();
+
+    const segments = [
+      ...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button'),
+    ].map((entry) => entry.textContent?.trim());
+
+    expect(segments).toContain('Microsoft Edge');
+    expect(segments).toContain('Azure');
+    expect(segments).not.toContain('ElevenLabs');
+
+    const box = byLabel('Maximum characters');
+
+    expect(box.max).toBe('400');
+
+    box.value = '999';
+    box.dispatchEvent(new Event('input'));
+    await flushPromises();
+    box.dispatchEvent(new Event('blur'));
+    await flushPromises();
+
+    expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ maxCharacters: 400 });
   });
 
   it('resets the rules to the bot defaults through the reset call', async () => {

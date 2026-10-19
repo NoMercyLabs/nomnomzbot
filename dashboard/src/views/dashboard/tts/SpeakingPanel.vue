@@ -20,9 +20,9 @@ import {
   useResetTtsRules,
   useSetTtsRules,
   useTtsDefaults,
+  useTtsOptions,
   type TtsRulesChange,
 } from '@/api/ttsRules';
-import { ttsStandings } from '@/api/vocabulary';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -43,7 +43,6 @@ import type { PanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
 import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
 
-const MOST_CHARACTERS = 500;
 const FEWEST_CHARACTERS = 1;
 
 const { t } = useI18n();
@@ -52,6 +51,7 @@ const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const config = useTtsConfig(channelId);
 const defaults = useTtsDefaults(channelId);
+const options = useTtsOptions(channelId);
 const save = useSetTtsRules(channelId);
 const reset = useResetTtsRules(channelId);
 
@@ -77,13 +77,21 @@ const state = computed<PanelState>(() => {
     : 'ready';
 });
 
-const modes = computed(() => [
-  { value: 'self_host', label: t('dashboard.tts.speaking.mode.self_host') },
-  { value: 'byok', label: t('dashboard.tts.speaking.mode.byok') },
-]);
+const offered = computed(() => options.data.value ?? null);
+const mostCharacters = computed(() => {
+  const limit = offered.value?.maxCharactersLimit;
+
+  return limit === undefined
+    ? undefined
+    : Number(limit);
+});
+
+const modes = computed(() =>
+  (offered.value?.modes ?? []).map((id) => ({ value: id, label: modeName(id) })),
+);
 
 const providers = computed(() =>
-  (['edge', 'azure', 'elevenlabs'] as const).map((id) => ({ value: id, label: providerName(id) })),
+  (offered.value?.providers ?? []).map((id) => ({ value: id, label: providerName(id) })),
 );
 
 // The settings a reset touches; the reset button is idle when all of them already match.
@@ -154,7 +162,7 @@ function change(rules: TtsRulesChange): void {
 function commitCharacters(): void {
   const parsed = Math.trunc(Number(characters.value));
   const next = Number.isFinite(parsed)
-    ? Math.min(MOST_CHARACTERS, Math.max(FEWEST_CHARACTERS, parsed))
+    ? Math.min(mostCharacters.value ?? parsed, Math.max(FEWEST_CHARACTERS, parsed))
     : FEWEST_CHARACTERS;
 
   characters.value = String(next);
@@ -240,7 +248,7 @@ const charactersHint = computed(() =>
           </SelectTrigger>
           <SelectContent position="popper" align="end">
             <SelectGroup>
-              <SelectItem v-for="id in ttsStandings" :key="id" :value="id">{{
+              <SelectItem v-for="id in offered?.minPermissions" :key="id" :value="id">{{
                 standingName(id)
               }}</SelectItem>
             </SelectGroup>
@@ -255,7 +263,7 @@ const charactersHint = computed(() =>
           v-model="characters"
           type="number"
           :min="FEWEST_CHARACTERS"
-          :max="MOST_CHARACTERS"
+          :max="mostCharacters"
           class="w-24"
           :disabled="!writable"
           :aria-label="$t('dashboard.tts.speaking.maxCharacters.title')"
