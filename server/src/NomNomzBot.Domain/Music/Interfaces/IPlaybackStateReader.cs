@@ -23,4 +23,10 @@ public interface IPlaybackStateReader
     /// <see cref="PlaybackState.Idle"/>; reading never creates a director.
     /// </summary>
     PlaybackState StateOf(Guid channelId);
+
+    /// <summary>
+    /// The channel director's music volume and mute. A channel that has no director yet is
+    /// <see cref="PlaybackLevel.Default"/>.
+    /// </summary>
+    PlaybackLevel LevelOf(Guid channelId);
 }

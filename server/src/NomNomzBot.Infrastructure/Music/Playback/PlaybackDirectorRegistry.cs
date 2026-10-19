@@ -41,6 +41,11 @@ public sealed class PlaybackDirectorRegistry(
             ? channel.Value.Director.State
             : PlaybackState.Idle;
 
+    public PlaybackLevel LevelOf(Guid channelId) =>
+        _channels.TryGetValue(channelId, out Lazy<ChannelPlayback>? channel)
+            ? channel.Value.Director.Level
+            : PlaybackLevel.Default;
+
     public Task ReportAsync(
         Guid broadcasterId,
         EngineSignal signal,

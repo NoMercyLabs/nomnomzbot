@@ -19,6 +19,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -38,6 +40,7 @@ public class MusicController : BaseController
     private readonly IBlockedTrackService _blockedTracks;
     private readonly IMusicHistoryReader _history;
     private readonly ISongRequestIntakeService _intake;
+    private readonly IPlaybackStateReader _playbackState;
 
     public MusicController(
         IMusicService musicService,
@@ -45,9 +48,11 @@ public class MusicController : BaseController
         ISongRequestPageTokenService srPageTokens,
         IBlockedTrackService blockedTracks,
         IMusicHistoryReader history,
-        ISongRequestIntakeService intake
+        ISongRequestIntakeService intake,
+        IPlaybackStateReader playbackState
     )
     {
+        _playbackState = playbackState;
         _history = history;
         _intake = intake;
         _musicService = musicService;

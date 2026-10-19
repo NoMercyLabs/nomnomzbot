@@ -79,6 +79,9 @@ public sealed partial class PlaybackDirector : IDisposable
 
     public PlaybackState State { get; private set; } = PlaybackState.Idle;
 
+    /// <summary>The music volume and mute the director holds.</summary>
+    public PlaybackLevel Level => new(_volume, _muted);
+
     /// <summary>The item that most recently started playing, or null when none has.</summary>
     public PlaybackItem? LastPlayed => _history.Last;
 

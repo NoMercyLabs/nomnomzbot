@@ -78,8 +78,30 @@ public sealed record NowPlayingDto(
     bool CanResume = true,
     string? RequesterId = null,
     string? RequesterColor = null,
-    string? TrackUri = null
-);
+    string? TrackUri = null,
+    string? Engine = null,
+    string? ItemId = null,
+    string? Title = null,
+    IReadOnlyList<string>? Artists = null,
+    string? AlbumArtUrl = null,
+    bool Muted = false,
+    string? State = null
+)
+{
+    /// <summary>Adds the one now-playing shape (music-playback-determinism.md section 2.1) to this read.
+    /// The older fields stay as they are; <see cref="Volume"/> and <see cref="IsPlaying"/> are kept as read.</summary>
+    public NowPlayingDto WithShape(NowPlayingShapeDto shape) =>
+        this with
+        {
+            Engine = shape.Engine,
+            ItemId = shape.ItemId,
+            Title = shape.Title,
+            Artists = shape.Artists,
+            AlbumArtUrl = shape.AlbumArtUrl,
+            Muted = shape.Muted,
+            State = shape.State,
+        };
+}
 
 /// <summary>Full music queue including now playing and upcoming tracks.</summary>
 public sealed record MusicQueueDto(

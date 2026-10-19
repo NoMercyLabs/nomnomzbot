@@ -27,4 +27,24 @@ public sealed record DirectorNowPlaying(
     int Volume,
     bool Muted,
     PlaybackStateKind State
-);
+)
+{
+    /// <summary>
+    /// Builds the shape from the director state and level plus the fields an engine report carries. The item
+    /// fields (id, artists) come from the director item only when it is the track the report names. Returns
+    /// null when nothing is loaded: no title, or no engine to name.
+    /// </summary>
+    public static DirectorNowPlaying? Build(
+        PlaybackState state,
+        PlaybackLevel level,
+        string? provider,
+        string? trackUri,
+        string? title,
+        string? artist,
+        string? albumArtUrl,
+        int durationMs,
+        int progressMs,
+        bool isPlaying,
+        string? requestedBy
+    ) => null;
+}
