@@ -170,7 +170,8 @@ public sealed class AuthControllerWebReturnOriginTests
                     Arg.Do<string>(s => issued = s),
                     Arg.Any<string>(),
                     Arg.Any<Guid?>(),
-                    Arg.Any<CancellationToken>()
+                    Arg.Any<CancellationToken>(),
+                    Arg.Any<Guid?>()
                 )
                 .Returns(Result.Success("https://id.twitch.tv/oauth2/authorize?x=1"));
 

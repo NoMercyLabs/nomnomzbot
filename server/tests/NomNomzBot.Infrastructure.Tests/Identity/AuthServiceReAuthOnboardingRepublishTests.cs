@@ -142,7 +142,9 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
     internal static AuthService Build(
         AuthDbContext db,
         IEventBus bus,
-        IIntegrationTokenVault? vault = null
+        IIntegrationTokenVault? vault = null,
+        ISessionService? sessionsOverride = null,
+        ITwitchAuthService? twitchAuthOverride = null
     )
     {
         vault ??= NewVault();
@@ -195,10 +197,10 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
 
         return new(
             db,
-            twitchAuth,
+            twitchAuthOverride ?? twitchAuth,
             Substitute.For<ITwitchDeviceCodeService>(),
             vault,
-            sessions,
+            sessionsOverride ?? sessions,
             Substitute.For<ISessionRevocationService>(),
             bus,
             credentials,

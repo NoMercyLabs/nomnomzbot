@@ -156,17 +156,73 @@ public sealed class AuthService : IAuthService
         string? state = null,
         string? baseUrl = null,
         Guid? broadcasterHint = null,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? userHint = null
     ) =>
         await BuildAuthorizeUrlAsync(
-            role == TwitchLoginRole.Broadcaster && broadcasterHint is { } channel
-                ? await WidenedStreamerScopesAsync(channel, cancellationToken)
-                : TwitchLoginScopes.For(role),
+            await RequestedLoginScopesAsync(role, broadcasterHint, userHint, cancellationToken),
             state,
             baseUrl,
             forceVerify: false,
             cancellationToken
         );
+
+    private async Task<string[]> RequestedLoginScopesAsync(
+        TwitchLoginRole role,
+        Guid? broadcasterHint,
+        Guid? userHint,
+        CancellationToken ct
+    )
+    {
+        if (role == TwitchLoginRole.Broadcaster)
+            return broadcasterHint is { } channel
+                ? await WidenedStreamerScopesAsync(channel, ct)
+                : TwitchLoginScopes.For(role);
+
+        return userHint is { } person
+            ? await WidenedPersonalScopesAsync(role, person, ct)
+            : TwitchLoginScopes.For(role);
+    }
+
+    /// <summary>
+    /// A viewer or moderator sign-in asks the role's scopes plus every scope the person's own personal
+    /// Twitch connection holds, so signing in again never narrows that grant. Rows match by the person's
+    /// Twitch account id, so a null-channel connection of another account (the platform bot an admin
+    /// connected) never lends its scopes, and a channel connection is never read.
+    /// </summary>
+    private async Task<string[]> WidenedPersonalScopesAsync(
+        TwitchLoginRole role,
+        Guid userId,
+        CancellationToken ct
+    )
+    {
+        SortedSet<string> union = new(
+            TwitchLoginScopes.For(role),
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        string? twitchUserId = await _db
+            .Users.Where(u => u.Id == userId)
+            .Select(u => u.TwitchUserId)
+            .FirstOrDefaultAsync(ct);
+        if (twitchUserId is null)
+            return [.. union];
+
+        List<List<string>> held = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.BroadcasterId == null
+                && c.Provider == TwitchProvider
+                && c.DeletedAt == null
+                && c.ProviderAccountId == twitchUserId
+            )
+            .Select(c => c.Scopes)
+            .ToListAsync(ct);
+        foreach (string scope in held.SelectMany(scopes => scopes))
+            union.Add(scope);
+
+        return [.. union];
+    }
 
     /// <summary>
     /// The ADDITIVE streamer scope set for a known channel: <c>base ∪ currently-granted ∪ recorded-missing</c>.
@@ -287,7 +343,9 @@ public sealed class AuthService : IAuthService
     public async Task<Result<AuthResultDto>> HandleTwitchViewerCallbackAsync(
         OAuthCallbackDto callback,
         AuthContextDto context,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? arrivingUserId = null,
+        Guid? arrivingChannelId = null
     )
     {
         string redirectUri = callback.RedirectUri ?? $"{_baseUrl}/api/v1/auth/twitch/callback";
@@ -316,9 +374,10 @@ public sealed class AuthService : IAuthService
         await _db.SaveChangesAsync(cancellationToken);
         await VaultOwnTwitchTokenAsync(user, twitchUser, tokens, cancellationToken);
 
+        // A channel is kept only for the same person: a cookie of someone else never lends its channel.
         Result<SessionTokensDto> session = await _sessions.CreateSessionAsync(
             user.Id,
-            null,
+            arrivingUserId == user.Id ? arrivingChannelId : null,
             context,
             cancellationToken
         );
