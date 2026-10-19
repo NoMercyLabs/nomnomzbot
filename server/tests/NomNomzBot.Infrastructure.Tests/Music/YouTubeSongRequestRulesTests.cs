@@ -16,11 +16,13 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
+using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -190,8 +192,17 @@ public sealed class YouTubeSongRequestRulesTests
             .Peek()!
             .TrackUri.Should()
             .Be(YouTubeUri, "the request waits its turn in the fair queue");
+        // GAP (S-PD-4c2a2 step C2): the intake sends RequestAdded to an idle director, which starts the
+        // YouTube head at once (MusicService.HandOverAdmittedIfIdleAsync, no check of a song that plays
+        // outside the director). The old rule "wait for the song" is therefore not carried.
+        YouTubeStartCount().Should().Be(0, "the request waits for the playing song");
         _store.GetInFlight(ChannelId.ToString()).Should().BeNull();
     }
+
+    private FakeEngine YouTubeEngine() =>
+        DirectorRig.Of(_store).Engines.EngineOf(ChannelId, EngineKind.YouTube);
+
+    private int YouTubeStartCount() => YouTubeEngine().Calls.Count(c => c.Name == "Start");
 
     [Fact]
     public async Task A_song_that_is_not_near_its_end_is_never_paused_by_the_waiting_request()
@@ -220,6 +231,8 @@ public sealed class YouTubeSongRequestRulesTests
         MusicService sut = NewService();
         await sut.RequestTrackAsync(ChannelId.ToString(), YouTubeUri, "fillz");
         await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
+        // GAP (S-PD-4c2a2 step C2): the director started the head at admission, not at the song's end.
+        YouTubeStartCount().Should().Be(0, "the request waits while the song still plays");
 
         // The song reaches its last seconds; the engine is then seen stopped after the pause.
         _spotify
@@ -230,11 +243,10 @@ public sealed class YouTubeSongRequestRulesTests
             );
         await sut.HandOverNextAsync(ChannelId.ToString());
 
-        Received.InOrder(() =>
-        {
-            _spotify.PauseAsync(ChannelId, Arg.Any<CancellationToken>());
-            _youTube.AddToQueueAsync(ChannelId, YouTubeUri, Arg.Any<CancellationToken>());
-        });
+        await _spotify.Received(1).PauseAsync(ChannelId, Arg.Any<CancellationToken>());
+        YouTubeStartCount()
+            .Should()
+            .Be(1, "the director starts the request once, when the song ends");
         _store.GetInFlight(ChannelId.ToString())!.TrackUri.Should().Be(YouTubeUri);
     }
 
@@ -262,9 +274,8 @@ public sealed class YouTubeSongRequestRulesTests
     [Fact]
     public async Task A_youtube_request_with_no_overlay_player_is_refused_and_spotify_keeps_playing()
     {
-        ((IMusicProviderPlayerGate)_youTube)
-            .HasPlayerAsync(ChannelId, Arg.Any<CancellationToken>())
-            .Returns(false);
+        // The YouTube engine refuses the start because no overlay player is open.
+        YouTubeEngine().StartResult = EngineStartResult.BlockedBy(EngineBlockReason.NoOutput);
         _spotify
             .GetCurrentTrackAsync(ChannelId, Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns(Playing("spotify:track:playlist", isPlaying: false, progressMs: 0));
@@ -278,6 +289,12 @@ public sealed class YouTubeSongRequestRulesTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NO_OVERLAY_PLAYER");
+        YouTubeStartCount().Should().Be(1, "the engine was asked once and refused");
+        DirectorRig
+            .Of(_store)
+            .Registry.StateOf(ChannelId)
+            .Kind.Should()
+            .Be(PlaybackStateKind.Blocked);
         _store.GetOrCreate(ChannelId.ToString()).GetSnapshot().Should().BeEmpty();
         await _spotify.DidNotReceive().PauseAsync(ChannelId, Arg.Any<CancellationToken>());
         await _youTube

@@ -270,6 +270,10 @@ public sealed class YouTubeEndedAdvancesQueueTests
         );
 
         SongRequestQueueStore queues = new();
+        // The music service sends its requests to THIS registry, so the real YouTube engine starts them.
+        RealYouTubeEngineFactory engines = new(provider, players, playerStore);
+        PlaybackDirectorRegistry registry = new(queues, engines, bus, TimeProvider.System);
+        lateSink.Inner = registry;
         MusicService music = new(
             [provider],
             musicDb,
@@ -285,12 +289,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>(),
-            DirectorRig.Of(queues).Registry,
-            DirectorRig.Of(queues).Registry
+            registry,
+            registry
         );
-        RealYouTubeEngineFactory engines = new(provider, players, playerStore);
-        PlaybackDirectorRegistry registry = new(queues, engines, bus, TimeProvider.System);
-        lateSink.Inner = registry;
         YouTubePlayerReportService reports = new(
             playerStore,
             players,
@@ -394,8 +395,8 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         rig.Engines.YouTube!.StartedVideoIds.Should()
             .Equal(
-                [Second],
-                "the director starts the next request through the engine exactly once"
+                [First, Second],
+                "the director started the head, then the next request through the engine exactly once"
             );
         rig.Notifier.PlayedVideoIds.Should()
             .Equal([First, Second], "only the director pushes the next video");
@@ -446,7 +447,10 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         // Nothing is left to resume, so the ended once video hands the player to the waiting request.
         rig.Engines.YouTube!.StartedVideoIds.Should()
-            .Equal([Second], "the director starts the waiting request exactly once");
+            .Equal(
+                [First, Second],
+                "the director started the head, then the waiting request exactly once"
+            );
         rig.Notifier.PlayedVideoIds.Should().Equal([First, Third, Second]);
         QueuedUris(rig).Should().Equal([Watch(Second)], "handed over, not yet reported playing");
     }
@@ -523,7 +527,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
         late.ErrorCode.Should().Be("STALE_VIDEO");
         rig.Bus.Published.Should().HaveCount(published, "a stale report changes nothing");
         rig.Engines.YouTube!.StartedVideoIds.Should()
-            .Equal([Second], "the third request waits until the second ends");
+            .Equal([First, Second], "the third request waits until the second ends");
         rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
         (await rig.Provider.GetCurrentTrackAsync(Broadcaster))!.TrackUri.Should().Be(Watch(Second));
         (await rig.Provider.GetQueueAsync(Broadcaster))!
@@ -533,29 +537,21 @@ public sealed class YouTubeEndedAdvancesQueueTests
     }
 
     [Fact]
-    public async Task A_video_the_player_cannot_play_is_announced_and_the_adapter_leaves_the_queue_to_the_director()
+    public async Task A_video_the_player_cannot_play_blocks_the_head_and_the_adapter_leaves_the_queue_to_the_director()
     {
-        // No director yet: the report service is the only place the failure is announced.
-        Rig rig = await TwoQueuedAsync(attached: false);
+        // A request always gives the channel a director, so the director takes the failure report. The
+        // report service announces nothing itself (the second-error test covers the one notice).
+        Rig rig = await TwoQueuedAsync();
 
         await ReportAsync(rig, First, "error");
 
-        SongPlaybackFailedEvent failed = rig
-            .Bus.Published.OfType<SongPlaybackFailedEvent>()
-            .Should()
-            .ContainSingle()
-            .Subject;
-        failed.BroadcasterId.Should().Be(Broadcaster);
-        failed.TrackUri.Should().Be(Watch(First));
-        failed.TrackName.Should().Be("First Song");
-        rig.Bus.Published.IndexOf(failed)
-            .Should()
-            .BeLessThan(
-                rig.Bus.Published.FindIndex(e => e is PlaybackStateChangedEvent),
-                "the notice must read the request before the queue drops it"
-            );
         // Queue ownership (S-PD-3): the report adapter only reports. One failure blocks the head; the
         // director keeps it and waits for the output to come back.
+        rig.Bus.Published.OfType<SongPlaybackFailedEvent>().Should().BeEmpty();
+        PlaybackState state = rig.Registry.StateOf(Broadcaster);
+        state.Kind.Should().Be(PlaybackStateKind.Blocked);
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([First], "the director started the head once and nothing else");
         rig.Notifier.PlayedVideoIds.Should()
             .Equal([First], "the adapter hands nothing over by itself");
         QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
