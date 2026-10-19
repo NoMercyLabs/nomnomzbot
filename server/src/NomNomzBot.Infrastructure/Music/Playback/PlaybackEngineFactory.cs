@@ -38,6 +38,15 @@ public sealed class PlaybackEngineFactory(
             new YouTubePlaybackEngine(broadcasterId, () => Open(YouTubeKey, true), store),
         ];
 
+    /// <summary>
+    /// A user action already in force (a viewer's or the owner's skip) stays the recorded basis; only a
+    /// director-driven command with no sanction in force claims the channel's playback configuration.
+    /// </summary>
+    private IDisposable? ClaimPlaybackBasis() =>
+        sanctions.Current is not null
+            ? null
+            : sanctions.Begin(OutboundSanction.ChannelConfiguration(PlaybackBasis));
+
     private EngineLease Open(string providerKey, bool withDispatcher)
     {
         AsyncServiceScope scope = scopes.CreateAsyncScope();
@@ -50,12 +59,7 @@ public sealed class PlaybackEngineFactory(
                 ? scope.ServiceProvider.GetRequiredService<IYouTubePlayerDispatcher>()
                 : null;
 
-            return new(
-                provider,
-                dispatcher,
-                scope,
-                sanctions.Begin(OutboundSanction.ChannelConfiguration(PlaybackBasis))
-            );
+            return new(provider, dispatcher, scope, ClaimPlaybackBasis());
         }
         catch
         {
