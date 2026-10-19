@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { vi } from 'vitest';
+
 // jsdom lays nothing out, so it leaves out the browser calls that move the view. Every browser has them;
 // without these a page that scrolls a chosen item into view throws in a test.
 Element.prototype.scrollIntoView ??= (): void => {};
