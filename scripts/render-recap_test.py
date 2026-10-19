@@ -92,6 +92,41 @@ class RenderRecap(unittest.TestCase):
         self.assertEqual((1, False), (code, written))
         self.assertIn("FAIL sample data", text)
 
+    def test_installed_settings_without_labels_still_render_every_word(self):
+        dto = copy.deepcopy(GOOD)
+        dto["labels"] = {}
+        dto["stats"]["chat"]["messages"] = 1107
+        code, text, written = run(dto)
+        self.assertEqual((0, True), (code, written), text)
+
+    def test_unit_word_missing_fails(self):
+        facts = {"bigs": [{"block": "chatters", "big": "29", "unit": ""}, {"block": "raids", "big": "1", "unit": ""},
+                          {"block": "songs", "big": "106", "unit": ""}, {"block": "bits", "big": "200", "unit": ""}]}
+        found = tool.word_checks({}, facts)
+        self.assertEqual(3, len(found), found)
+        self.assertTrue(all(line.startswith("FAIL unit word") for line in found))
+
+    def test_raid_card_needs_both_unit_words(self):
+        facts = {"bigs": [{"block": "raids", "big": "1", "unit": "raid"}]}
+        self.assertEqual(1, len(tool.word_checks({}, facts)))
+        facts = {"bigs": [{"block": "raids", "big": "1", "unit": "raid · 11 viewers"}]}
+        self.assertEqual([], tool.word_checks({}, facts))
+
+    def test_dutch_grouping_fails_and_en_us_passes(self):
+        stats = {"chat": {"messages": 1107}}
+        bad = tool.word_checks(stats, {"numbers": ["1.107"]})
+        self.assertEqual(2, len(bad), bad)
+        self.assertEqual([], tool.word_checks(stats, {"numbers": ["1,107"]}))
+
+    def test_missing_thank_you_line_fails_only_when_the_payload_has_a_duration(self):
+        self.assertEqual(1, len(tool.word_checks({"duration": 32400}, {"thanks": None})))
+        self.assertEqual([], tool.word_checks({"duration": 32400}, {"thanks": "Thank you for 9 hours of coding."}))
+        self.assertEqual([], tool.word_checks({}, {"thanks": None}))
+
+    def test_empty_label_and_unfilled_placeholder_fail(self):
+        found = tool.word_checks({}, {"emptyLabels": ["chatters:label"], "thanks": "Thank you for {duration}"})
+        self.assertEqual(2, len(found), found)
+
     def test_day_hue_follows_the_amsterdam_day(self):
         # 23:30 UTC on the 14th is already the 15th in Amsterdam (CEST).
         self.assertAlmostEqual(14 * 360 / 31, tool.expected_hue("2026-10-14T23:30:00+00:00"), places=6)

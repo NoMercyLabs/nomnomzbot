@@ -125,7 +125,21 @@ try {
         if (out) clipped.push({ block: key, text: row.textContent.trim().slice(0, 40), bottom: r.bottom, limit: areaBox.bottom })
       })
     })
+    const own = (el) => Array.from(el.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim()
+    const bigs = Array.from(document.querySelectorAll('.block .big')).map((el) => ({
+      block: el.closest('[data-block]').getAttribute('data-block'),
+      big: own(el),
+      unit: (el.querySelector('small')?.textContent || '').trim(),
+    }))
+    const thanksEl = document.querySelector('.thanks')
+    const emptyLabels = Array.from(document.querySelectorAll('h1, .label')).filter((el) => !el.textContent.trim())
+      .map((el) => (el.closest('[data-block]')?.getAttribute('data-block') || el.tagName.toLowerCase()) + ':' + el.className)
+    const numbers = Array.from(document.querySelectorAll('.num, .big, .v, .note')).map((el) => el.textContent.trim())
     return {
+      bigs,
+      thanks: thanksEl ? thanksEl.textContent.trim() : null,
+      emptyLabels,
+      numbers,
       base: baseEl ? getComputedStyle(baseEl).getPropertyValue('--base').trim() : null,
       watermark: mark
         ? {
@@ -304,6 +318,36 @@ def payload_checks(requested: str, dto: dict, offline: bool) -> list[str]:
     return failures
 
 
+# A count that stands for a thing carries its unit word; the raid card carries two ("1 raid · 11 viewers").
+UNIT_BLOCKS = {"raids": r"^\S+ · \S+ \S+$", "chatters": r"^\S+$", "songs": r"^\S+$", "redemptions": r"^\S+$"}
+NOT_EN_US_GROUPING = re.compile(r"\d[.  ]\d{3}(?!\d)")
+
+
+def word_checks(stats: dict, facts: dict) -> list[str]:
+    """Words and numbers on the screen: unit words, en-US grouping, the thank-you line, no empty label."""
+    failures: list[str] = []
+    for item in facts.get("bigs", []):
+        pattern = UNIT_BLOCKS.get(item["block"])
+        if pattern and not re.match(pattern, item["unit"]):
+            failures.append(fail("unit word", f"{item['block']}: count '{item['big']}' has unit '{item['unit']}' (a count needs its unit word)"))
+    for text in facts.get("numbers", []):
+        if NOT_EN_US_GROUPING.search(text):
+            failures.append(fail("number format", f"'{text}' is not en-US grouping (1,107)"))
+    messages = (stats.get("chat") or {}).get("messages")
+    if isinstance(messages, int) and messages >= 1000 and f"{messages:,}" not in facts.get("numbers", []):
+        failures.append(fail("number format", f"chat messages {messages} should read '{messages:,}'"))
+    duration = stats.get("duration")
+    thanks = facts.get("thanks")
+    if isinstance(duration, (int, float)) and not thanks:
+        failures.append(fail("thank-you line", "the payload has a duration but the header shows no thank-you line"))
+    for text in [thanks or ""] + facts.get("numbers", []):
+        if re.search(r"\{\w+\}", text):
+            failures.append(fail("label placeholder", f"'{text}' still has an unfilled {{placeholder}}"))
+    for empty in facts.get("emptyLabels", []):
+        failures.append(fail("empty label", f"a setting label renders empty: {empty}"))
+    return failures
+
+
 def dom_checks(dto: dict, facts: dict) -> list[str]:
     failures: list[str] = []
     stats = dto.get("stats") or {}
@@ -331,6 +375,7 @@ def dom_checks(dto: dict, facts: dict) -> list[str]:
         failures.append(fail("blocks", "no card was rendered"))
     for row in facts.get("clipped", []):
         failures.append(fail("row clipped", f"{row['block']}: '{row['text']}' ends at {row['bottom']:.0f}px, card area ends at {row['limit']:.0f}px"))
+    failures += word_checks(stats, facts)
     shown = [s for s in sample_literals() if len(s) >= 5 and s in facts.get("text", "")]
     if shown:
         failures.append(fail("sample data", f"the page shows gallery preview sample text: {shown[:5]}"))

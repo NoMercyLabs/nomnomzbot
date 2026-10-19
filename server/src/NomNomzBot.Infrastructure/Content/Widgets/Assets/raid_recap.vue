@@ -5,7 +5,8 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from
 // The stream recap, shown as the ending scene. The `raid_recap.show` hub event names the stream; the widget
 // reads that stream's numbers through nnz.data.streamStats (the one stream-stats family), so it never counts
 // anything itself and its numbers cannot drift from the API. When the read fails it shows the event payload.
-// Every visible word comes from the `labels` setting (translated in the dashboard), none from this file.
+// Every visible word comes from the `labels` setting (translated in the dashboard). A key the installed settings lack
+// falls back to DEFAULT_LABELS, the English words of the catalogue (a spec test keeps the two lists equal).
 
 interface NamedCount { name: string; count: number }
 interface Ranked { total?: number | null; top?: NamedCount[] | null }
@@ -57,6 +58,37 @@ interface Card { key: string; big: string; unit: string; rows: Row[]; note?: str
 const DASH = '—';
 const TIME_ZONE = 'Europe/Amsterdam';
 
+const DEFAULT_LABELS: Record<string, string> = {
+  title: 'Stream recap',
+  'kpi.duration': 'Time live',
+  'kpi.peak': 'Peak viewers',
+  'kpi.messages': 'Chat messages',
+  'kpi.commands': 'Commands run',
+  'block.subs': 'Subscriptions',
+  'block.raids': 'Raids in',
+  'block.chatters': 'Top chatters',
+  'block.songs': 'Song requests',
+  'block.bits': 'Bits',
+  'block.followers': 'New followers',
+  'block.redemptions': 'Redemptions',
+  'block.topCommands': 'Top commands',
+  'subs.gifted': 'Gifted',
+  'subs.own': 'Subscribed',
+  'raids.unit.one': 'raid',
+  'raids.unit.other': 'raids',
+  'viewers.unit.one': 'viewer',
+  'viewers.unit.other': 'viewers',
+  'chatters.unit.one': 'chatter',
+  'chatters.unit.other': 'chatters',
+  'songs.unit.one': 'request',
+  'songs.unit.other': 'requests',
+  'redemptions.unit': 'redeemed',
+  thanks: 'Thank you for {duration} of coding, tunes and vibes.',
+  'hours.unit.one': 'hour',
+  'hours.unit.other': 'hours',
+  hypeTrain: 'Hype train reached level {level}.',
+};
+
 const cfg = reactive({
   holdSeconds: 20,
   accentColor: '',
@@ -80,7 +112,7 @@ const root = ref<HTMLElement | null>(null);
 let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
 function label(key: string): string {
-  return cfg.labels[key] || '';
+  return cfg.labels[key] || DEFAULT_LABELS[key] || '';
 }
 
 // A counted word in its singular or plural form: `<key>.one` for exactly 1, `<key>.other` otherwise.
@@ -89,7 +121,7 @@ function counted(key: string, n: number): string {
 }
 
 function stat(value: number | null | undefined): string {
-  return typeof value === 'number' && isFinite(value) ? value.toLocaleString() : DASH;
+  return typeof value === 'number' && isFinite(value) ? value.toLocaleString('en-US') : DASH;
 }
 
 function formatDuration(seconds: number | null | undefined): string {

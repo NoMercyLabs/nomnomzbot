@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import streamRecap from './fixtures/streamRecap20261018.json';
@@ -82,6 +84,22 @@ function show(data: unknown, settings: Record<string, unknown> = {}): VueWrapper
   handlers['raid_recap.show']!({ stream: { id: 's1' } });
 
   return wrapper;
+}
+
+const LABEL_PAIR = /^\s*(?:\["([^"]+)"\]|'([^']+)'|(\w+))\s*[=:]\s*["']([^"']*)["']/;
+
+// The key/value lines of a label list in a source file: from `start` (searched after `after`) up to `end`.
+function readLabels(path: string, start: string, end: string, after = ''): Record<string, string> {
+  const text = readFileSync(resolve(__dirname, path), 'utf8');
+  const search = Math.max(0, text.indexOf(after));
+  const from = text.indexOf(start, search);
+  const stop = text.indexOf(end, from);
+  const block = text.slice(from, stop);
+  const lines = block.split('\n');
+  const matches = lines.map((line) => LABEL_PAIR.exec(line));
+  const pairs = matches.filter((m): m is RegExpExecArray => m !== null);
+
+  return Object.fromEntries(pairs.map((m) => [m[1] ?? m[2] ?? m[3], m[4]]));
 }
 
 // Each placed block as [columns spanned, rows spanned], read from its inline grid style.
@@ -441,6 +459,38 @@ describe('raid_recap widget', () => {
 
       await flushPromises();
       expect(wrapper.find('header .thanks').text()).toBe('Thank you for 9 hours of coding, tunes and vibes.');
+    });
+
+    it('falls back to the catalogue words when the installed settings have no labels', async () => {
+      const wrapper = show(streamRecap, { labels: {} });
+
+      await flushPromises();
+      expect(wrapper.find('header .thanks').text()).toBe('Thank you for 9 hours of coding, tunes and vibes.');
+      expect(wrapper.text()).toContain('chatters');
+      expect(wrapper.find('[data-block="raids"] .big').text()).toBe('1raid · 11 viewers');
+      expect(wrapper.text()).toContain('requests');
+      expect(wrapper.text()).toContain('Top chatters');
+    });
+
+    it('groups numbers the en-US way whatever the browser locale is', async () => {
+      vi.spyOn(Number.prototype, 'toLocaleString').mockImplementation(function (this: number, locale?: Intl.LocalesArgument) {
+        return new Intl.NumberFormat(locale ?? 'nl-NL').format(this);
+      });
+
+      const wrapper = show(streamRecap, { labels });
+
+      await flushPromises();
+      expect(wrapper.text()).toContain('1,107');
+      expect(wrapper.text()).not.toContain('1.107');
+    });
+
+    it('keeps DEFAULT_LABELS equal to the labels of the catalogue', () => {
+      const root = '../../../server/src/NomNomzBot.Infrastructure/Content/Widgets';
+      const widget = readLabels(`${root}/Assets/raid_recap.vue`, 'const DEFAULT_LABELS', '};');
+      const catalogue = readLabels(`${root}/FirstPartyWidgetCatalogue.cs`, '["labels"] = new Dictionary<string, object>', '},', 'Key: "raid_recap"');
+
+      expect(Object.keys(catalogue).length).toBeGreaterThan(20);
+      expect(widget).toEqual(catalogue);
     });
 
     it('names one hour in the singular', async () => {
