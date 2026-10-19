@@ -57,6 +57,7 @@ public static class FirstPartyWidgetCatalogue
     [
         "tts_caption",
         WidgetKeyAliases.Audio,
+        WidgetKeyAliases.MusicPlayer,
         "alerts",
     ];
 
