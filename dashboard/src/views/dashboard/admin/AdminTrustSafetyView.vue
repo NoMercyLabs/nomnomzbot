@@ -85,6 +85,7 @@ const shownPreview = computed(() =>
   previewCurrent.value
     ? preview.data.value
     : null);
+const previewFailed = computed(() => previewCurrent.value && preview.isError.value);
 const tenantNames = computed(() => {
   const tenants = shownPreview.value?.tenants ?? [];
 
@@ -215,7 +216,10 @@ function run(current: Step): Promise<void> {
     :title="$t('dashboard.admin.trustSafety.title')"
     :crumb="$t('dashboard.admin.crumb')"
   />
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
+  <div
+    data-page-body
+    class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4"
+  >
     <div data-page-inset class="grid gap-1.5">
       <Label for="ts-justification">{{
         $t("dashboard.admin.trustSafety.justification.label")
@@ -231,7 +235,7 @@ function run(current: Step): Promise<void> {
       </p>
     </div>
 
-    <div class="grid min-w-0 items-start gap-3 lg:grid-cols-2">
+    <div data-trust-grid class="grid min-w-0 gap-3 lg:grid-cols-2">
       <PanelCard
         v-if="canReview"
         tier="lead"
@@ -314,18 +318,26 @@ function run(current: Step): Promise<void> {
           <template #footer>
             <div class="grid w-full gap-2">
               <p class="text-sm font-medium">{{ $t("dashboard.admin.trustSafety.apply.title") }}</p>
+              <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                <div class="grid gap-1.5">
+                  <Label for="ts-block-target">{{
+                    $t("dashboard.admin.trustSafety.apply.target")
+                  }}</Label>
+                  <Input id="ts-block-target" v-model="targetId" data-block-target />
+                </div>
+                <div class="grid gap-1.5">
+                  <Label for="ts-block-reason">{{
+                    $t("dashboard.admin.trustSafety.apply.reasonLabel")
+                  }}</Label>
+                  <Input
+                    id="ts-block-reason"
+                    v-model="reason"
+                    data-block-reason
+                    :placeholder="$t('dashboard.admin.trustSafety.apply.reason')"
+                  />
+                </div>
+              </div>
               <div class="flex flex-wrap gap-2">
-                <Input
-                  v-model="targetId"
-                  data-block-target
-                  class="min-w-40 flex-1"
-                  :placeholder="$t('dashboard.admin.trustSafety.apply.target')"
-                />
-                <Input
-                  v-model="reason"
-                  class="min-w-48 flex-[2]"
-                  :placeholder="$t('dashboard.admin.trustSafety.apply.reason')"
-                />
                 <Button
                   variant="outline"
                   :disabled="!justification.trim() || !targetId.trim()"
@@ -337,6 +349,14 @@ function run(current: Step): Promise<void> {
                   {{ $t("dashboard.admin.trustSafety.apply.action") }}
                 </Button>
               </div>
+              <p
+                v-if="previewFailed"
+                data-preview-error
+                role="alert"
+                class="text-xs text-destructive"
+              >
+                {{ $t("dashboard.admin.trustSafety.apply.previewFailed") }}
+              </p>
               <p v-if="shownPreview" class="text-xs text-muted-foreground">
                 {{
                   $t("dashboard.admin.trustSafety.apply.previewResult", {

@@ -152,6 +152,8 @@ export function useBlockPreview(
     queryKey: computed((): KeyParts => ['admin', 'trust-safety', 'preview', toValue(params)]),
     enabled: computed(() => toValue(params) !== null),
     staleTime: 0,
+    // An unknown account answers 404 every time, so the operator sees the failure at once instead of after the retries.
+    retry: false,
     queryFn: async (): Promise<NetworkBlockPreview | null> => {
       const target = toValue(params);
 

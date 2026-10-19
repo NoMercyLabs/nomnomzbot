@@ -35,7 +35,11 @@ type Call = {
 const calls: Call[] = [];
 
 // The signed-in admin holds every platform key, so every action button shows.
-const held = vi.hoisted(() => ({ keys: null as string[] | null, queueTotal: 1 }));
+const held = vi.hoisted(() => ({
+  keys: null as string[] | null,
+  queueTotal: 1,
+  previewFails: false,
+}));
 
 vi.mock('@/composables/usePlatformCan', () => ({
   usePlatformCan: () => ({
@@ -93,6 +97,12 @@ vi.mock('@/api/client', () => ({
           response: { status: 200, ok: true },
         };
 
+      if (path.endsWith('/network-blocks/preview') && held.previewFails)
+        return {
+          error: { status: 404, detail: 'No such account' },
+          response: { status: 404, ok: false },
+        };
+
       if (path.endsWith('/network-blocks/preview'))
         return {
           data: {
@@ -141,6 +151,7 @@ beforeEach(() => {
   calls.length = 0;
   held.keys = null;
   held.queueTotal = 1;
+  held.previewFails = false;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -415,6 +426,56 @@ describe('AdminTrustSafetyView', () => {
     );
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'trust-safety'] });
+  });
+
+  it('says so when the preview fails instead of showing nothing', async () => {
+    held.previewFails = true;
+    await open();
+    await giveReason('cross-tenant abuse');
+
+    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
+
+    target.value = '1';
+    target.dispatchEvent(new Event('input'));
+    await settle();
+    byText('button', 'Preview block')!.click();
+    await settle();
+
+    const alert = document.body.querySelector('[data-preview-error]');
+
+    expect(alert?.getAttribute('role')).toBe('alert');
+    expect(alert?.textContent).toContain('The preview did not load');
+    expect(byText('button', 'Apply block')).toBeUndefined();
+
+    target.value = '2';
+    target.dispatchEvent(new Event('input'));
+    await settle();
+
+    expect(document.body.querySelector('[data-preview-error]')).toBeNull();
+  });
+
+  it('labels both block fields so the text never depends on the placeholder', async () => {
+    await open();
+
+    const fields = [
+      document.body.querySelector<HTMLInputElement>('[data-block-target]')!,
+      document.body.querySelector<HTMLInputElement>('[data-block-reason]')!,
+    ];
+
+    expect(fields.map((field) => field.labels?.[0]?.textContent?.trim())).toEqual([
+      'Twitch user id',
+      'Reason',
+    ]);
+  });
+
+  it('scrolls the page body on a phone and stretches the left column on a desktop', async () => {
+    await open();
+
+    const body = document.body.querySelector('[data-page-body]')!;
+    const grid = body.querySelector('[data-trust-grid]')!;
+
+    expect(body.className).toContain('overflow-y-auto');
+    expect(grid.className).not.toContain('items-start');
   });
 
   it('pages the review queue past the first 50 rows', async () => {
