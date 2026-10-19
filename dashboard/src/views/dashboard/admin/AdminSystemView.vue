@@ -31,6 +31,7 @@ import StatStrip from '@/components/layout/StatStrip.vue';
 import StatTile from '@/components/layout/StatTile.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
@@ -75,6 +76,12 @@ const memory = computed<string>(() =>
 const processor = computed<string>(() =>
   t('dashboard.admin.system.process.cpuValue', {
     percent: Number(system.value?.cpuPercent ?? 0).toFixed(1),
+  }),
+);
+
+const channelsContext = computed<string>(() =>
+  t('dashboard.admin.system.process.channelsContext', {
+    total: Number(stats.value?.totalChannels ?? 0),
   }),
 );
 
@@ -185,20 +192,34 @@ async function submit(): Promise<void> {
     </PanelCard>
 
     <PanelCard
-      v-if="system && stats"
+      v-if="system"
       tier="default"
       :title="$t('dashboard.admin.system.process.title')"
       :description="$t('dashboard.admin.system.process.description')"
     >
       <StatStrip>
-        <StatTile :label="$t('dashboard.admin.system.process.version')" :value="system.botVersion" />
-        <StatTile :label="$t('dashboard.admin.system.process.uptime')" :value="uptime" />
+        <StatTile
+          :label="$t('dashboard.admin.system.process.version')"
+          :value="system.botVersion"
+        />
         <StatTile :label="$t('dashboard.admin.system.process.memory')" :value="memory" />
         <StatTile :label="$t('dashboard.admin.system.process.cpu')" :value="processor" />
-        <StatTile
-          :label="$t('dashboard.admin.system.process.events')"
-          :value="Number(stats.eventsProcessedToday)"
-        />
+        <template v-if="stats">
+          <StatTile :label="$t('dashboard.admin.system.process.uptime')" :value="uptime" />
+          <StatTile
+            :label="$t('dashboard.admin.system.process.events')"
+            :value="Number(stats.eventsProcessedToday)"
+          />
+          <StatTile
+            :label="$t('dashboard.admin.system.process.channels')"
+            :value="Number(stats.activeChannels)"
+            :context="channelsContext"
+          />
+          <StatTile
+            :label="$t('dashboard.admin.system.process.users')"
+            :value="Number(stats.totalUsers)"
+          />
+        </template>
       </StatStrip>
     </PanelCard>
 
@@ -211,12 +232,12 @@ async function submit(): Promise<void> {
         <Button v-if="can('iam:manage')" variant="destructive" data-rotate @click="openConfirm">{{
           $t("dashboard.admin.system.rotation.open")
         }}</Button>
-        <span v-if="outcome !== null" data-rotation-outcome class="text-sm">{{
-          outcomeText
-        }}</span>
+        <span v-if="outcome !== null" data-rotation-outcome class="text-sm">{{ outcomeText }}</span>
       </div>
       <div v-if="outcome !== null && outcome.failures.length > 0" class="mt-4">
-        <span class="text-sm font-medium">{{ $t("dashboard.admin.system.rotation.failures") }}</span>
+        <span class="text-sm font-medium">{{
+          $t("dashboard.admin.system.rotation.failures")
+        }}</span>
         <ul class="mt-2 divide-y divide-border">
           <li
             v-for="row in outcome.failures"
@@ -243,24 +264,22 @@ async function submit(): Promise<void> {
     >
       <label class="grid gap-1 text-xs text-muted-foreground">
         {{ $t("dashboard.admin.system.rotation.dialog.previous") }}
-        <input
+        <Input
           v-model="previousKey"
           data-previous-key
           type="password"
           autocomplete="off"
           spellcheck="false"
-          class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
         />
       </label>
       <label class="grid gap-1 text-xs text-muted-foreground">
         {{ $t("dashboard.admin.system.rotation.dialog.current") }}
-        <input
+        <Input
           v-model="currentKey"
           data-current-key
           type="password"
           autocomplete="off"
           spellcheck="false"
-          class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
         />
       </label>
     </FormDialog>

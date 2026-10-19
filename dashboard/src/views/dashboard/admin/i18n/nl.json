@@ -174,6 +174,18 @@
           "empty": "Niets te beoordelen.",
           "confirm": "Bevestigen",
           "overturn": "Terugdraaien",
+          "confidence": {
+            "Zero": "Geen zekerheid",
+            "Low": "Lage zekerheid",
+            "Medium": "Gemiddelde zekerheid",
+            "High": "Hoge zekerheid"
+          },
+          "outcome": {
+            "None": "Geen actie",
+            "Flag": "Gemarkeerd",
+            "DeleteAndQueue": "Verwijderd en in de wachtrij",
+            "DeleteAndEscalate": "Verwijderd en doorgezet"
+          },
           "confirmTitle": "Deze actie bevestigen",
           "confirmConsequence": "De actie blijft zoals ze is en de beoordeling sluit.",
           "overturnTitle": "Deze actie terugdraaien",
@@ -183,13 +195,19 @@
           "title": "Signalen over kanalen heen",
           "description": "Accounts die in twee of meer kanalen zijn gemarkeerd.",
           "empty": "Geen account is in meer dan een kanaal gemarkeerd.",
-          "summary": "{tenants} kanalen, {detections} detecties"
+          "summary": "{tenants} kanalen, {detections} detecties",
+          "toggle": "Toon de detecties"
         },
         "blocks": {
           "title": "Netwerkblokkades",
           "description": "Bans die gelden voor elk kanaal op deze installatie.",
           "empty": "Geen netwerkblokkades.",
           "summary": "{status}, {count} kanalen",
+          "status": {
+            "active": "Actief",
+            "partial": "Deels toegepast",
+            "lifted": "Opgeheven"
+          },
           "lift": "Opheffen",
           "liftTitle": "Deze blokkade opheffen",
           "liftConsequence": "Dit heft de ban op in de {count} kanalen die de blokkade raakte.",
@@ -797,7 +815,10 @@
           "memoryValue": "{mb} MB",
           "cpu": "Processor",
           "cpuValue": "{percent}%",
-          "events": "Events vandaag"
+          "events": "Events vandaag",
+          "channels": "Actieve kanalen",
+          "channelsContext": "van {total} geregistreerd",
+          "users": "Bekende gebruikers"
         },
         "rotation": {
           "title": "Versleutelingssleutel",
@@ -854,6 +875,7 @@
       "access": {
         "title": "Toegang",
         "hideInactive": "Verberg inactieve principals",
+        "hideInactiveHelp": "Standaard uit: inactieve principals staan er met een Inactief-label tussen.",
         "failed": "De wijziging is mislukt. Er is niets opgeslagen.",
         "reason": "Reden",
         "principals": {
@@ -864,7 +886,9 @@
           "employee": "Medewerker",
           "serviceAccount": "Servicekoppeling",
           "inactive": "Inactief",
-          "noRoles": "Geen actieve rollen"
+          "noRoles": "Geen actieve rollen",
+          "expires": "Verloopt",
+          "scope": "Kanaal {channel}"
         },
         "actions": {
           "assign": "Rol toewijzen",
@@ -876,7 +900,9 @@
           "title": "Een rol toewijzen aan {name}",
           "action": "Toewijzen",
           "role": "Rol",
-          "pickRole": "Kies een rol"
+          "pickRole": "Kies een rol",
+          "expires": "Verloopt",
+          "expiresHelp": "Laat leeg voor geen einddatum."
         },
         "revoke": {
           "title": "{role} intrekken van {name}",

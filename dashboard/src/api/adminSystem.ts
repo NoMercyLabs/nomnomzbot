@@ -19,6 +19,13 @@ import type { AdminSystemStatusPayload } from '@/realtime/payloads';
 export type ServiceHealth = components['schemas']['ServiceHealth'];
 export type KeyRotationSummary = components['schemas']['DekRotationSummary'];
 
+// The health needs the access key and the counters need the analytics key. A person who holds only the
+// access key still sees the health; the counters are null for them instead of failing the whole page.
+export type AdminSystemSnapshot = {
+  system: AdminSystemStatusPayload['system'];
+  stats: AdminSystemStatusPayload['stats'] | null;
+};
+
 // The two root keys of one rotation: the key the stored data keys are sealed under now, and the new one.
 export type KeyRotation = {
   previousKey: string;
@@ -26,15 +33,16 @@ export type KeyRotation = {
 };
 
 const version = '1';
+const FORBIDDEN = 403;
 
 // The bot also pushes this snapshot over the admin hub every 15 seconds; the poll covers a dropped hub.
 const SYSTEM_REFRESH_MS: number = 60_000;
 
 // One snapshot in the shape the hub pushes, so a push replaces the cached answer of this query.
-export function useAdminSystemStatus(): UseQueryReturnType<AdminSystemStatusPayload, Error> {
+export function useAdminSystemStatus(): UseQueryReturnType<AdminSystemSnapshot, Error> {
   return useQuery({
     queryKey: adminSystemStatusKey,
-    queryFn: async (): Promise<AdminSystemStatusPayload> => {
+    queryFn: async (): Promise<AdminSystemSnapshot> => {
       const [health, totals] = await Promise.all([
         client.GET('/api/v{version}/admin/system', { params: { path: { version } } }),
         client.GET('/api/v{version}/admin/stats', { params: { path: { version } } }),
@@ -43,13 +51,13 @@ export function useAdminSystemStatus(): UseQueryReturnType<AdminSystemStatusPayl
       if (health.error !== undefined)
         throw problemError('admin system', health.response.status, health.error);
 
-      if (totals.error !== undefined)
+      if (totals.error !== undefined && totals.response.status !== FORBIDDEN)
         throw problemError('admin stats', totals.response.status, totals.error);
 
-      if (health.data?.data == null || totals.data?.data == null)
+      if (health.data?.data == null)
         throw problemError('admin system', health.response.status, undefined);
 
-      return { system: health.data.data, stats: totals.data.data };
+      return { system: health.data.data, stats: totals.data?.data ?? null };
     },
     refetchInterval: SYSTEM_REFRESH_MS,
   });

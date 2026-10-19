@@ -74,6 +74,7 @@ const summary = {
 };
 
 let rotateStatus = 200;
+let statsStatus = 200;
 
 // The signed-in admin holds every platform key, so every action button shows.
 vi.mock('@/composables/usePlatformCan', () => ({
@@ -92,6 +93,9 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/admin/system'))
         return { data: { data: system }, response: { status: 200, ok: true } };
+
+      if (statsStatus !== 200)
+        return { error: { detail: 'no' }, response: { status: statsStatus, ok: false } };
 
       return { data: { data: stats }, response: { status: 200, ok: true } };
     },
@@ -116,6 +120,7 @@ let pinia: Pinia;
 beforeEach(() => {
   calls.length = 0;
   rotateStatus = 200;
+  statsStatus = 200;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -138,14 +143,7 @@ async function open(): Promise<void> {
   mounted = mount(AdminSystemView, {
     attachTo: document.body,
     global: {
-      plugins: [
-        i18n,
-        pinia,
-        [
-          VueQueryPlugin,
-          { queryClient },
-        ],
-      ],
+      plugins: [i18n, pinia, [VueQueryPlugin, { queryClient }]],
     },
   });
 
@@ -198,22 +196,40 @@ describe('AdminSystemView', () => {
     expect(text()).toContain('1d 1h 1m');
   });
 
+  it('shows the channel and user counters the API reported', async () => {
+    await open();
+
+    expect(text()).toContain('Active channels');
+    expect(text()).toContain('of 10 registered');
+    expect(text()).toContain('Known users');
+    expect(text()).toContain('99');
+  });
+
+  it('keeps the health and the process facts when the person lacks the analytics key', async () => {
+    statsStatus = 403;
+
+    await open();
+
+    expect(document.body.querySelectorAll('[data-service-row]')).toHaveLength(3);
+    expect(text()).toContain('512 MB');
+    expect(text()).not.toContain('Active channels');
+    expect(text()).not.toContain('Events today');
+    expect(document.body.querySelector('[data-error]')).toBeNull();
+  });
+
   it('follows the hub: a pushed status replaces the page without a reload', async () => {
     await open();
 
     const handler = adminHandlers.find((entry) => entry.event === 'ReceiveSystemStatus')!;
 
-    handler.handle(
-      { queries: queryClient, channelId: null },
-      {
-        system: {
-          ...system,
-          overall: 'healthy',
-          services: [{ name: 'api', status: 'healthy' }],
-        },
-        stats,
-      } as never,
-    );
+    handler.handle({ queries: queryClient, channelId: null }, {
+      system: {
+        ...system,
+        overall: 'healthy',
+        services: [{ name: 'api', status: 'healthy' }],
+      },
+      stats,
+    } as never);
 
     await settle();
 
