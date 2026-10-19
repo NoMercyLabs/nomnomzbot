@@ -37,22 +37,37 @@ public sealed class AdminHubStatusPublisher(
         {
             try
             {
-                using IServiceScope scope = scopeFactory.CreateScope();
-                IAdminService admin = scope.ServiceProvider.GetRequiredService<IAdminService>();
-
-                Result<AdminSystemDto> system = await admin.GetSystemHealthAsync(stoppingToken);
-                Result<AdminStatsDto> stats = await admin.GetStatsAsync(stoppingToken);
-                if (system.IsFailure || stats.IsFailure)
-                    continue;
-
-                await hub.Clients.All.ReceiveSystemStatus(
-                    new { System = system.Value, Stats = stats.Value }
-                );
+                await PublishOnceAsync(stoppingToken);
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "AdminHub status publish failed; continuing");
             }
         }
+    }
+
+    /// <summary>
+    /// One heartbeat. The platform stats go only to connections holding <c>platform:analytics:read</c>
+    /// (<see cref="AdminHub.AnalyticsGroup"/>); every other admin gets the health snapshot with
+    /// <c>Stats</c> null (<see cref="AdminHub.NoAnalyticsGroup"/>).
+    /// </summary>
+    internal async Task PublishOnceAsync(CancellationToken ct)
+    {
+        using IServiceScope scope = scopeFactory.CreateScope();
+        IAdminService admin = scope.ServiceProvider.GetRequiredService<IAdminService>();
+
+        Result<AdminSystemDto> system = await admin.GetSystemHealthAsync(ct);
+        Result<AdminStatsDto> stats = await admin.GetStatsAsync(ct);
+        if (system.IsFailure || stats.IsFailure)
+            return;
+
+        await hub
+            .Clients.Group(AdminHub.AnalyticsGroup)
+            .ReceiveSystemStatus(
+                new { System = system.Value, Stats = (AdminStatsDto?)stats.Value }
+            );
+        await hub
+            .Clients.Group(AdminHub.NoAnalyticsGroup)
+            .ReceiveSystemStatus(new { System = system.Value, Stats = (AdminStatsDto?)null });
     }
 }

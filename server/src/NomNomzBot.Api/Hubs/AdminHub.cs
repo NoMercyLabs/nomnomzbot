@@ -23,4 +23,25 @@ namespace NomNomzBot.Api.Hubs;
 /// first, then the audited IAM check on SaaS.
 /// </summary>
 [Authorize(Policy = IamPermissionKeys.IamManage)]
-public class AdminHub : Hub<IAdminClient> { }
+public class AdminHub(IAuthorizationService authorization) : Hub<IAdminClient>
+{
+    /// <summary>Connections holding <c>platform:analytics:read</c>: they receive the platform stats.</summary>
+    public const string AnalyticsGroup = "admin-analytics";
+
+    /// <summary>Every other <c>iam:manage</c> connection: it receives the health snapshot without stats.</summary>
+    public const string NoAnalyticsGroup = "admin-no-analytics";
+
+    public override async Task OnConnectedAsync()
+    {
+        AuthorizationResult analytics = await authorization.AuthorizeAsync(
+            Context.User!,
+            null,
+            IamPermissionKeys.PlatformAnalyticsRead
+        );
+        await Groups.AddToGroupAsync(
+            Context.ConnectionId,
+            analytics.Succeeded ? AnalyticsGroup : NoAnalyticsGroup
+        );
+        await base.OnConnectedAsync();
+    }
+}
