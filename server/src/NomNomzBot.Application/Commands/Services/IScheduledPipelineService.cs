@@ -73,6 +73,23 @@ public interface IScheduledPipelineService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// As <see cref="ScheduleTargetAsync"/> for a command named <paramref name="commandName"/> (a leading
+    /// <c>!</c> and letter case are ignored): resolves the name to a command id within the tenant first. Fails
+    /// NOT_FOUND when the channel has no such command — the name-first entry point the <c>schedule_pipeline</c>
+    /// action uses for its <c>command</c> parameter.
+    /// </summary>
+    Task<Result<ScheduledPipelineTaskDto>> ScheduleCommandByNameAsync(
+        Guid broadcasterId,
+        string commandName,
+        int delaySeconds,
+        IReadOnlyDictionary<string, string> variables,
+        string triggeredByUserId,
+        string triggeredByDisplayName,
+        string? dedupeKey = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Cancels a specific pending task (marks it cancelled). No-op success if already terminal.</summary>
     Task<Result> CancelAsync(
         Guid broadcasterId,

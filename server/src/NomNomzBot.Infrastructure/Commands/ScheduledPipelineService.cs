@@ -192,6 +192,41 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
         );
     }
 
+    public async Task<Result<ScheduledPipelineTaskDto>> ScheduleCommandByNameAsync(
+        Guid broadcasterId,
+        string commandName,
+        int delaySeconds,
+        IReadOnlyDictionary<string, string> variables,
+        string triggeredByUserId,
+        string triggeredByDisplayName,
+        string? dedupeKey = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string normalized = commandName.Trim().TrimStart('!').ToLowerInvariant();
+        Guid commandId = await _db
+            .Commands.Where(c =>
+                c.BroadcasterId == broadcasterId
+                && c.DeletedAt == null
+                && c.NameNormalized == normalized
+            )
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (commandId == Guid.Empty)
+            return Errors.NotFound<ScheduledPipelineTaskDto>("Command", normalized);
+
+        return await ScheduleTargetAsync(
+            broadcasterId,
+            new(BindingTargetKind.Command, commandId.ToString()),
+            delaySeconds,
+            variables,
+            triggeredByUserId,
+            triggeredByDisplayName,
+            dedupeKey,
+            cancellationToken
+        );
+    }
+
     private async Task<Result<ScheduledPipelineTaskDto>> PersistAsync(
         Guid broadcasterId,
         Guid pipelineId,

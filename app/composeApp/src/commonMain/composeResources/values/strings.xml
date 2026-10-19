@@ -5552,6 +5552,8 @@
     <string name="pipeline_run_pipeline_named_args_help">Named arguments passed to the called pipeline, matched to its declared parameter names regardless of the order you list them here. The called pipeline can also read them positionally as {args.1}, {args.2}, etc. when it declares no names.</string>
     <string name="pipeline_run_pipeline_pipeline_help">The pipeline to invoke.</string>
     <string name="pipeline_run_pipeline_wait_help">For a detached run, waits for it to finish before continuing this pipeline instead of firing it and moving on.</string>
+    <string name="pipeline_schedule_pipeline_action_type_help">The action to run once, after the delay, without a wrapper pipeline.</string>
+    <string name="pipeline_schedule_pipeline_command_help">The command to run once, after the delay, without a wrapper pipeline.</string>
     <string name="pipeline_schedule_pipeline_dedupe_key_help">Skips scheduling a new run if one with the same key is already scheduled. This prevents duplicate scheduled runs.</string>
     <string name="pipeline_schedule_pipeline_delay_seconds_help">How many seconds from now the pipeline runs.</string>
     <string name="pipeline_schedule_pipeline_pipeline_help">The pipeline to run once, after the delay.</string>
