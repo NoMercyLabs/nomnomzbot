@@ -332,6 +332,16 @@ describe('PollsView history', () => {
     expect(cardTexts().some((card) => card.includes('Nobody answered'))).toBe(true);
   });
 
+  it('lets a long choice name wrap beside its bar instead of cutting it off with dots', async () => {
+    await open();
+
+    const labels = Array.from(document.querySelectorAll('[data-poll-option] > span:first-child'));
+
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.filter((label) => label.className.includes('truncate'))).toHaveLength(0);
+    expect(labels.every((label) => label.className.includes('break-words'))).toBe(true);
+  });
+
   it('falls back to all kinds when the remembered kind is not one we offer', async () => {
     localStorage.setItem('nnz.polls.kind', 'bogus');
     await open();

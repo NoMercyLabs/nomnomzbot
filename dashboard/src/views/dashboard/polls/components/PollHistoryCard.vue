@@ -29,7 +29,9 @@ const { t, n } = useI18n();
 
 const winner = computed(() => winnerOf(props.item));
 const date = useFormattedTime(() => props.item.startedAt, 'date');
-const statusLabel = computed(() => t(`dashboard.polls.status.${props.item.status.toLowerCase()}`, props.item.status));
+const statusLabel = computed(() =>
+  t(`dashboard.polls.status.${props.item.status.toLowerCase()}`, props.item.status),
+);
 
 const meta = computed(() =>
   [t(`dashboard.polls.kind.${props.item.kind}`, props.item.kind), date.value].join(' · '),
@@ -61,13 +63,22 @@ function percentOf(option: PollHistoryOption): number {
       </span>
     </div>
     <p v-if="winner !== null" class="flex items-center gap-1 text-sm">
-      <Trophy class="size-4 flex-none text-muted-foreground" role="img" :aria-label="t('dashboard.polls.winner')" />
+      <Trophy
+        class="size-4 flex-none text-muted-foreground"
+        role="img"
+        :aria-label="t('dashboard.polls.winner')"
+      />
       <span data-option-title class="min-w-0 flex-1 truncate font-medium">{{ winner.title }}</span>
       <span class="tabular-nums">{{ percentLabel(winner) }}</span>
     </p>
     <ul class="flex flex-col gap-1.5">
-      <li v-for="option in item.options" :key="option.id" data-poll-option class="flex items-center gap-2 text-xs text-muted-foreground">
-        <span class="w-20 flex-none truncate">{{ option.title }}</span>
+      <li
+        v-for="option in item.options"
+        :key="option.id"
+        data-poll-option
+        class="flex items-center gap-2 text-xs text-muted-foreground"
+      >
+        <span class="basis-2/5 flex-none break-words">{{ option.title }}</span>
         <PollBar
           class="flex-1"
           size="sm"
